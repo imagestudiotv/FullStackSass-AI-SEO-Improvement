@@ -1,6 +1,6 @@
 {
-  "id": "3d7e1179-1526-49c2-a558-df1e98e3b440",
-  "prevId": "1c78d161-66c4-4058-b493-b4d0532d72cb",
+  "id": "1797cace-76ff-459d-a8a4-93fadebf8eb1",
+  "prevId": "ae766b54-30ea-417a-86d6-0ace5719f34f",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -998,6 +998,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "approved_revision": {
+          "name": "approved_revision",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "translation_of": {
           "name": "translation_of",
           "type": "uuid",
@@ -1902,6 +1908,19 @@
           "primaryKey": false,
           "notNull": false
         },
+        "article_type": {
+          "name": "article_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'informative'"
+        },
+        "comparison": {
+          "name": "comparison",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "source": {
           "name": "source",
           "type": "text",
@@ -1960,19 +1979,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
-        },
-        "article_type": {
-          "name": "article_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'informative'"
-        },
-        "comparison": {
-          "name": "comparison",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {
@@ -10580,6 +10586,291 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": true
+    },
+    "public.website_projects": {
+      "name": "website_projects",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'quote_requested'"
+        },
+        "request_key": {
+          "name": "request_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "brief": {
+          "name": "brief",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "existing_url": {
+          "name": "existing_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "requirements": {
+          "name": "requirements",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contact_name": {
+          "name": "contact_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "contact_email": {
+          "name": "contact_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "contact_phone": {
+          "name": "contact_phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "scope": {
+          "name": "scope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "credit_cost": {
+          "name": "credit_cost",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "quoted_at": {
+          "name": "quoted_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "quoted_by": {
+          "name": "quoted_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "credits_paid": {
+          "name": "credits_paid",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "paid_at": {
+          "name": "paid_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "delivery_note": {
+          "name": "delivery_note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fulfilled_at": {
+          "name": "fulfilled_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fulfilled_by": {
+          "name": "fulfilled_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decline_reason": {
+          "name": "decline_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "declined_at": {
+          "name": "declined_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "declined_by": {
+          "name": "declined_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "website_projects_request_key": {
+          "name": "website_projects_request_key",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "request_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "website_projects_org_idx": {
+          "name": "website_projects_org_idx",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "website_projects_status_idx": {
+          "name": "website_projects_status_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "website_projects_organization_id_organization_id_fk": {
+          "name": "website_projects_organization_id_organization_id_fk",
+          "tableFrom": "website_projects",
+          "tableTo": "organization",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "website_projects_user_id_user_id_fk": {
+          "name": "website_projects_user_id_user_id_fk",
+          "tableFrom": "website_projects",
+          "tableTo": "user",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "website_projects_kind_check": {
+          "name": "website_projects_kind_check",
+          "value": "\"website_projects\".\"kind\" in ('new', 'redesign')"
+        },
+        "website_projects_status_check": {
+          "name": "website_projects_status_check",
+          "value": "\"website_projects\".\"status\" in ('quote_requested', 'quoted', 'paid', 'fulfilled', 'declined')"
+        },
+        "website_projects_cost_check": {
+          "name": "website_projects_cost_check",
+          "value": "\"website_projects\".\"credit_cost\" is null or \"website_projects\".\"credit_cost\" > 0"
+        },
+        "website_projects_priced_check": {
+          "name": "website_projects_priced_check",
+          "value": "\"website_projects\".\"status\" not in ('quoted', 'paid', 'fulfilled') or (\"website_projects\".\"credit_cost\" is not null and \"website_projects\".\"scope\" is not null)"
+        },
+        "website_projects_paid_check": {
+          "name": "website_projects_paid_check",
+          "value": "\"website_projects\".\"status\" not in ('paid', 'fulfilled') or (\"website_projects\".\"credits_paid\" > 0 and \"website_projects\".\"paid_at\" is not null)"
+        }
+      },
       "isRLSEnabled": true
     },
     "public.websites": {
