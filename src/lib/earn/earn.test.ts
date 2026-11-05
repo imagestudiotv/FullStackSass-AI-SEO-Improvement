@@ -24,7 +24,9 @@ vi.mock("@/lib/notifications/create", () => ({ notify: notifyMock }));
 
 import { canEnterReferralCode, enterReferralCode, listEarnClaims, submitEarnClaim } from "@/lib/earn/actions";
 import { approveEarnClaim, declineEarnClaim, listEarnQueue } from "@/lib/earn/admin";
+import { shareTemplates } from "@/lib/earn/share-templates";
 import { EARN_WAYS } from "@/lib/earn/ways";
+import { EARN_SHARE_COPY } from "@/lib/i18n/earn-share";
 
 let test: TestDb;
 beforeAll(async () => {
@@ -68,6 +70,15 @@ describe("sending a claim", () => {
     expect(row.rewardCredits).toBe(EARN_WAYS.post.credits);
     expect(await balance(state.orgId)).toBe(0);
     expect(await listEarnClaims()).toMatchObject([{ kind: "post", status: "pending", credits: 20 }]);
+  });
+
+  it("a claim sending the kit's template unedited is still only a pending claim, with no ledger row", async () => {
+    const template = shareTemplates(EARN_SHARE_COPY.en.templates, { code: "OWN1CODE", link: "https://www.repget.com/r/OWN1CODE" }).linkedin;
+    expect(await submitEarnClaim({ kind: "post", link: "https://linkedin.com/posts/abc", message: template })).toEqual({ ok: true });
+    const [row] = await test.db.select().from(earnSubmissions).where(eq(earnSubmissions.organizationId, state.orgId));
+    expect(row).toMatchObject({ status: "pending", reviewedAt: null });
+    expect(await test.db.select().from(creditLedger).where(eq(creditLedger.organizationId, state.orgId))).toEqual([]);
+    expect(notifyMock).not.toHaveBeenCalled();
   });
 
   it("refuses a second claim of the same way while one waits", async () => {

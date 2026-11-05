@@ -9,12 +9,16 @@ import type { Locale } from "@/lib/i18n/config";
  * Templates: {link} and {code} are the reader's own (lib/earn/share-templates.ts).
  * Every template says the author may receive credits, the disclosure Earn
  * Credits asks of public posts, and none claims a result or an experience the
- * author has not had. Rewards are always {credits} placeholders, read from
+ * author has not had. They are starting points: the claim rule stays "in your own
+ * words", and the kit says so. Rewards are always {credits} placeholders, read from
  * their canonical values.
  */
 export type EarnShareCopy = {
   jump: string;
   artAlt: string;
+  /** The words over the referral artwork, which has none drawn in. */
+  artFriend: string;
+  artCredits: string;
 
   eyebrow: string;
   title: string;
@@ -59,26 +63,28 @@ export type EarnShareCopy = {
 };
 
 const en: EarnShareCopy = {
-  jump: "Use ready-to-share posts",
+  jump: "Start from a ready-made post",
   artAlt: "Four people connected to RepGet, and a reward of {credits} credits when a friend joins",
+  artFriend: "Friend joined",
+  artCredits: "Credits",
 
   eyebrow: "Your sharing toolkit",
   title: "Ready to share. Ready to earn.",
-  body: "Choose a platform, personalise the message if you like, and copy it in one click.",
+  body: "Choose a platform and start from a template. Each one is only a starting point: make it your own, then copy it.",
   flag: "+{credits} credits",
   flagNote: "For one approved social post",
 
   tabsTitle: "Choose where to share",
   tabLabels: { linkedin: "LinkedIn", facebook: "Facebook", x: "X", whatsapp: "WhatsApp", email: "Email" },
   draftLabels: { linkedin: "LinkedIn post", facebook: "Facebook post", x: "X post", whatsapp: "WhatsApp message", email: "Email message" },
-  editable: "Editable message",
+  editable: "A starting point: edit it freely",
   count: "{count} characters",
   countLimit: "{count} of {limit} characters",
   xNote: "On X a link counts as 23 characters.",
   overLimit: "{platform} allows {limit} characters. Shorten this by {over} to open it there.",
   linkMissing: "Your referral link is no longer in this text. Add it back or reset the text: {link}",
   includesLink: "Includes your referral link",
-  honest: "Keep it honest and in your own words, and keep the note that you may receive credits.",
+  honest: "This is a starting point, not a script. Keep it honest and in your own words, and keep the note that you may receive credits.",
   copyPost: "Copy post",
   copyOpen: "Copy & open {platform}",
   reset: "Reset text",
@@ -93,13 +99,13 @@ const en: EarnShareCopy = {
   sideEyebrow: "How to earn",
   sideTitle: "Share your link. Collect credits.",
   steps: [
-    ["Pick a ready-made post", "Choose LinkedIn, Facebook, X, WhatsApp or Email."],
+    ["Pick a starting point", "Choose LinkedIn, Facebook, X, WhatsApp or Email, then edit the text."],
     ["Copy and share it", "Each version already contains your personal referral link."],
-    ["Submit an eligible public post", "Send your post's address for review to claim the social-post reward."],
+    ["Submit an eligible public post", "To claim the reward, the post must be public and in your own words. Send its address and the RepGet team reviews it."],
   ],
   submitLink: "Submit a post link",
   guideTitle: "Two separate ways to earn",
-  guide: "{post} credits for one approved public post, once per account. {referral} credits if someone joins through your link and completes their first paid month. Copying or sharing adds nothing by itself: rewards follow the program's review and rules.",
+  guide: "{post} credits for one approved public post, once per account. {referral} credits if someone joins through your link and completes their first paid month. Copying, sharing or sending a claim adds nothing by itself: the team reviews each claim, and a referral waits for its first payment.",
 
   subject: "A useful growth tool: RepGet",
   templates: {
@@ -116,26 +122,28 @@ const en: EarnShareCopy = {
 };
 
 const es: EarnShareCopy = {
-  jump: "Usar publicaciones listas para compartir",
+  jump: "Empezar con una publicación ya redactada",
   artAlt: "Cuatro personas conectadas a RepGet, y una recompensa de {credits} créditos cuando se une alguien",
+  artFriend: "Amigo registrado",
+  artCredits: "Créditos",
 
   eyebrow: "Su kit para compartir",
   title: "Listo para compartir. Listo para ganar.",
-  body: "Elija una plataforma, personalice el mensaje si lo desea y cópielo con un clic.",
+  body: "Elija una plataforma y parta de una plantilla. Cada una es solo un punto de partida: hágala suya y luego cópiela.",
   flag: "+{credits} créditos",
   flagNote: "Por una publicación social aprobada",
 
   tabsTitle: "Elija dónde compartir",
   tabLabels: { linkedin: "LinkedIn", facebook: "Facebook", x: "X", whatsapp: "WhatsApp", email: "Correo" },
   draftLabels: { linkedin: "Publicación de LinkedIn", facebook: "Publicación de Facebook", x: "Publicación de X", whatsapp: "Mensaje de WhatsApp", email: "Mensaje de correo" },
-  editable: "Mensaje editable",
+  editable: "Un punto de partida: edítelo libremente",
   count: "{count} caracteres",
   countLimit: "{count} de {limit} caracteres",
   xNote: "En X un enlace cuenta como 23 caracteres.",
   overLimit: "{platform} permite {limit} caracteres. Acorte este texto en {over} para abrirlo allí.",
   linkMissing: "Su enlace de referido ya no está en este texto. Vuelva a añadirlo o restablezca el texto: {link}",
   includesLink: "Incluye su enlace de referido",
-  honest: "Sea honesto y use sus propias palabras, y mantenga la nota de que puede recibir créditos.",
+  honest: "Es un punto de partida, no un guion. Sea honesto y use sus propias palabras, y mantenga la nota de que puede recibir créditos.",
   copyPost: "Copiar publicación",
   copyOpen: "Copiar y abrir {platform}",
   reset: "Restablecer texto",
@@ -150,13 +158,13 @@ const es: EarnShareCopy = {
   sideEyebrow: "Cómo ganar",
   sideTitle: "Comparta su enlace. Reciba créditos.",
   steps: [
-    ["Elija una publicación lista", "LinkedIn, Facebook, X, WhatsApp o correo."],
+    ["Elija un punto de partida", "LinkedIn, Facebook, X, WhatsApp o correo, y luego edite el texto."],
     ["Cópiela y compártala", "Cada versión ya contiene su enlace de referido personal."],
-    ["Envíe una publicación pública válida", "Envíe la dirección de su publicación para que la revisemos y reclamar la recompensa."],
+    ["Envíe una publicación pública válida", "Para reclamar la recompensa, la publicación debe ser pública y con sus propias palabras. Envíe su dirección y el equipo de RepGet la revisará."],
   ],
   submitLink: "Enviar enlace de la publicación",
   guideTitle: "Dos formas distintas de ganar",
-  guide: "{post} créditos por una publicación pública aprobada, una vez por cuenta. {referral} créditos si alguien se une con su enlace y completa su primer mes pagado. Copiar o compartir no añade nada por sí solo: las recompensas siguen la revisión y las reglas del programa.",
+  guide: "{post} créditos por una publicación pública aprobada, una vez por cuenta. {referral} créditos si alguien se une con su enlace y completa su primer mes pagado. Copiar, compartir o enviar una solicitud no añade nada por sí solo: el equipo revisa cada solicitud, y un referido espera a su primer pago.",
 
   subject: "Una herramienta útil para crecer: RepGet",
   templates: {
@@ -173,26 +181,28 @@ const es: EarnShareCopy = {
 };
 
 const fr: EarnShareCopy = {
-  jump: "Utiliser les publications prêtes à partager",
+  jump: "Partir d’une publication déjà rédigée",
   artAlt: "Quatre personnes reliées à RepGet, et une récompense de {credits} crédits lorsqu’une personne rejoint",
+  artFriend: "Ami inscrit",
+  artCredits: "Crédits",
 
   eyebrow: "Votre kit de partage",
   title: "Prêt à partager. Prêt à gagner.",
-  body: "Choisissez une plateforme, personnalisez le message si vous le souhaitez et copiez-le en un clic.",
+  body: "Choisissez une plateforme et partez d’un modèle. Chacun n’est qu’un point de départ : appropriez-vous-le, puis copiez-le.",
   flag: "+{credits} crédits",
   flagNote: "Pour une publication sociale approuvée",
 
   tabsTitle: "Choisissez où partager",
   tabLabels: { linkedin: "LinkedIn", facebook: "Facebook", x: "X", whatsapp: "WhatsApp", email: "E-mail" },
   draftLabels: { linkedin: "Publication LinkedIn", facebook: "Publication Facebook", x: "Publication X", whatsapp: "Message WhatsApp", email: "Message e-mail" },
-  editable: "Message modifiable",
+  editable: "Un point de départ : modifiez-le librement",
   count: "{count} caractères",
   countLimit: "{count} sur {limit} caractères",
   xNote: "Sur X, un lien compte pour 23 caractères.",
   overLimit: "{platform} autorise {limit} caractères. Raccourcissez ce texte de {over} pour l’y ouvrir.",
   linkMissing: "Votre lien de parrainage n’est plus dans ce texte. Ajoutez-le à nouveau ou réinitialisez le texte : {link}",
   includesLink: "Contient votre lien de parrainage",
-  honest: "Restez honnête et utilisez vos propres mots, et gardez la mention indiquant que vous pouvez recevoir des crédits.",
+  honest: "C’est un point de départ, pas un script. Restez honnête et utilisez vos propres mots, et gardez la mention indiquant que vous pouvez recevoir des crédits.",
   copyPost: "Copier la publication",
   copyOpen: "Copier et ouvrir {platform}",
   reset: "Réinitialiser le texte",
@@ -207,13 +217,13 @@ const fr: EarnShareCopy = {
   sideEyebrow: "Comment gagner",
   sideTitle: "Partagez votre lien. Récupérez des crédits.",
   steps: [
-    ["Choisissez une publication prête", "LinkedIn, Facebook, X, WhatsApp ou e-mail."],
+    ["Choisissez un point de départ", "LinkedIn, Facebook, X, WhatsApp ou e-mail, puis modifiez le texte."],
     ["Copiez-la et partagez-la", "Chaque version contient déjà votre lien de parrainage personnel."],
-    ["Envoyez une publication publique éligible", "Envoyez l’adresse de votre publication pour examen afin de réclamer la récompense."],
+    ["Envoyez une publication publique éligible", "Pour réclamer la récompense, la publication doit être publique et avec vos propres mots. Envoyez son adresse et l’équipe RepGet l’examinera."],
   ],
   submitLink: "Envoyer le lien de la publication",
   guideTitle: "Deux façons distinctes de gagner",
-  guide: "{post} crédits pour une publication publique approuvée, une fois par compte. {referral} crédits si une personne rejoint RepGet via votre lien et termine son premier mois payé. Copier ou partager n’ajoute rien en soi : les récompenses suivent l’examen et les règles du programme.",
+  guide: "{post} crédits pour une publication publique approuvée, une fois par compte. {referral} crédits si une personne rejoint RepGet via votre lien et termine son premier mois payé. Copier, partager ou envoyer une demande n’ajoute rien en soi : l’équipe examine chaque demande, et un parrainage attend son premier paiement.",
 
   subject: "Un outil de croissance utile : RepGet",
   templates: {
@@ -230,26 +240,28 @@ const fr: EarnShareCopy = {
 };
 
 const it: EarnShareCopy = {
-  jump: "Usi i post pronti da condividere",
+  jump: "Parta da un post già scritto",
   artAlt: "Quattro persone collegate a RepGet, e un premio di {credits} crediti quando qualcuno si iscrive",
+  artFriend: "Amico iscritto",
+  artCredits: "Crediti",
 
   eyebrow: "Il Suo kit di condivisione",
   title: "Pronto da condividere. Pronto a guadagnare.",
-  body: "Scelga una piattaforma, personalizzi il messaggio se vuole e lo copi con un clic.",
+  body: "Scelga una piattaforma e parta da un modello. Ognuno è solo un punto di partenza: lo faccia Suo, poi lo copi.",
   flag: "+{credits} crediti",
   flagNote: "Per un post social approvato",
 
   tabsTitle: "Scelga dove condividere",
   tabLabels: { linkedin: "LinkedIn", facebook: "Facebook", x: "X", whatsapp: "WhatsApp", email: "Email" },
   draftLabels: { linkedin: "Post LinkedIn", facebook: "Post Facebook", x: "Post X", whatsapp: "Messaggio WhatsApp", email: "Messaggio email" },
-  editable: "Messaggio modificabile",
+  editable: "Un punto di partenza: lo modifichi liberamente",
   count: "{count} caratteri",
   countLimit: "{count} di {limit} caratteri",
   xNote: "Su X un link conta come 23 caratteri.",
   overLimit: "{platform} consente {limit} caratteri. Accorci il testo di {over} per aprirlo lì.",
   linkMissing: "Il Suo link di referral non è più in questo testo. Lo aggiunga di nuovo o ripristini il testo: {link}",
   includesLink: "Contiene il Suo link di referral",
-  honest: "Sia onesto e usi parole Sue, e mantenga la nota che può ricevere crediti.",
+  honest: "È un punto di partenza, non un copione. Sia onesto e usi parole Sue, e mantenga la nota che può ricevere crediti.",
   copyPost: "Copia post",
   copyOpen: "Copia e apri {platform}",
   reset: "Ripristina testo",
@@ -264,13 +276,13 @@ const it: EarnShareCopy = {
   sideEyebrow: "Come guadagnare",
   sideTitle: "Condivida il link. Riceva crediti.",
   steps: [
-    ["Scelga un post pronto", "LinkedIn, Facebook, X, WhatsApp o email."],
+    ["Scelga un punto di partenza", "LinkedIn, Facebook, X, WhatsApp o email, poi modifichi il testo."],
     ["Lo copi e lo condivida", "Ogni versione contiene già il Suo link di referral personale."],
-    ["Invii un post pubblico idoneo", "Invii l’indirizzo del post per la revisione e richieda il premio."],
+    ["Invii un post pubblico idoneo", "Per richiedere il premio, il post deve essere pubblico e con parole Sue. Invii l’indirizzo e il team RepGet lo esaminerà."],
   ],
   submitLink: "Invia il link del post",
   guideTitle: "Due modi distinti per guadagnare",
-  guide: "{post} crediti per un post pubblico approvato, una volta per account. {referral} crediti se qualcuno si iscrive con il Suo link e completa il primo mese pagato. Copiare o condividere non aggiunge nulla di per sé: i premi seguono la revisione e le regole del programma.",
+  guide: "{post} crediti per un post pubblico approvato, una volta per account. {referral} crediti se qualcuno si iscrive con il Suo link e completa il primo mese pagato. Copiare, condividere o inviare una richiesta non aggiunge nulla di per sé: il team esamina ogni richiesta, e un referral attende il primo pagamento.",
 
   subject: "Uno strumento utile per crescere: RepGet",
   templates: {
@@ -287,26 +299,28 @@ const it: EarnShareCopy = {
 };
 
 const de: EarnShareCopy = {
-  jump: "Fertige Beiträge zum Teilen nutzen",
+  jump: "Mit einem fertigen Beitrag beginnen",
   artAlt: "Vier Personen, verbunden mit RepGet, und eine Prämie von {credits} Credits, wenn jemand beitritt",
+  artFriend: "Freund angemeldet",
+  artCredits: "Credits",
 
   eyebrow: "Ihr Teilen-Kit",
   title: "Bereit zum Teilen. Bereit zum Verdienen.",
-  body: "Wählen Sie eine Plattform, passen Sie die Nachricht nach Wunsch an und kopieren Sie sie mit einem Klick.",
+  body: "Wählen Sie eine Plattform und beginnen Sie mit einer Vorlage. Jede ist nur ein Ausgangspunkt: Machen Sie sie zu Ihrer eigenen und kopieren Sie sie dann.",
   flag: "+{credits} Credits",
   flagNote: "Für einen genehmigten Social-Beitrag",
 
   tabsTitle: "Wählen Sie, wo Sie teilen",
   tabLabels: { linkedin: "LinkedIn", facebook: "Facebook", x: "X", whatsapp: "WhatsApp", email: "E-Mail" },
   draftLabels: { linkedin: "LinkedIn-Beitrag", facebook: "Facebook-Beitrag", x: "X-Beitrag", whatsapp: "WhatsApp-Nachricht", email: "E-Mail-Nachricht" },
-  editable: "Bearbeitbare Nachricht",
+  editable: "Ein Ausgangspunkt: frei bearbeitbar",
   count: "{count} Zeichen",
   countLimit: "{count} von {limit} Zeichen",
   xNote: "Auf X zählt ein Link als 23 Zeichen.",
   overLimit: "{platform} erlaubt {limit} Zeichen. Kürzen Sie den Text um {over}, um ihn dort zu öffnen.",
   linkMissing: "Ihr Empfehlungslink steht nicht mehr in diesem Text. Fügen Sie ihn wieder ein oder setzen Sie den Text zurück: {link}",
   includesLink: "Enthält Ihren Empfehlungslink",
-  honest: "Bleiben Sie ehrlich und bei Ihren eigenen Worten, und behalten Sie den Hinweis, dass Sie Credits erhalten können.",
+  honest: "Das ist ein Ausgangspunkt, kein Skript. Bleiben Sie ehrlich und bei Ihren eigenen Worten, und behalten Sie den Hinweis, dass Sie Credits erhalten können.",
   copyPost: "Beitrag kopieren",
   copyOpen: "Kopieren & {platform} öffnen",
   reset: "Text zurücksetzen",
@@ -321,13 +335,13 @@ const de: EarnShareCopy = {
   sideEyebrow: "So verdienen Sie",
   sideTitle: "Link teilen. Credits sammeln.",
   steps: [
-    ["Wählen Sie einen fertigen Beitrag", "LinkedIn, Facebook, X, WhatsApp oder E-Mail."],
+    ["Wählen Sie einen Ausgangspunkt", "LinkedIn, Facebook, X, WhatsApp oder E-Mail, dann bearbeiten Sie den Text."],
     ["Kopieren und teilen Sie ihn", "Jede Version enthält bereits Ihren persönlichen Empfehlungslink."],
-    ["Reichen Sie einen geeigneten öffentlichen Beitrag ein", "Senden Sie die Adresse Ihres Beitrags zur Prüfung, um die Prämie anzufordern."],
+    ["Reichen Sie einen geeigneten öffentlichen Beitrag ein", "Für die Prämie muss der Beitrag öffentlich und in Ihren eigenen Worten sein. Senden Sie seine Adresse, und das RepGet-Team prüft ihn."],
   ],
   submitLink: "Beitragslink einreichen",
   guideTitle: "Zwei getrennte Wege zu Credits",
-  guide: "{post} Credits für einen genehmigten öffentlichen Beitrag, einmal pro Konto. {referral} Credits, wenn jemand über Ihren Link beitritt und den ersten bezahlten Monat abschließt. Kopieren oder Teilen allein bringt nichts: Prämien folgen der Prüfung und den Regeln des Programms.",
+  guide: "{post} Credits für einen genehmigten öffentlichen Beitrag, einmal pro Konto. {referral} Credits, wenn jemand über Ihren Link beitritt und den ersten bezahlten Monat abschließt. Kopieren, Teilen oder das Einreichen allein bringt nichts: Das Team prüft jede Einreichung, und eine Empfehlung wartet auf die erste Zahlung.",
 
   subject: "Ein nützliches Wachstumstool: RepGet",
   templates: {

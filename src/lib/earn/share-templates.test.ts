@@ -59,6 +59,23 @@ describe.each(LOCALES)("the templates in %s", (locale) => {
   });
 });
 
+describe.each(LOCALES)("the kit's rules in %s", (locale) => {
+  /** How each language says it, as the existing claim rule does. */
+  const OWN_WORDS = { en: "your own words", es: "sus propias palabras", fr: "vos propres mots", it: "parole Sue", de: "eigenen Worten" } as const;
+  const STARTING = { en: "starting point", es: "punto de partida", fr: "point de départ", it: "punto di partenza", de: "Ausgangspunkt" } as const;
+  const copy = EARN_SHARE_COPY[locale];
+
+  it("presents the templates as editable starting points", () => {
+    for (const words of [copy.body, copy.editable, copy.honest]) expect(words).toContain(STARTING[locale]);
+  });
+
+  it("keeps the rule: in your own words, on the kit and on the claim form", () => {
+    expect(copy.honest).toContain(OWN_WORDS[locale]);
+    expect(copy.steps[2][1]).toContain(OWN_WORDS[locale]);
+    expect(EARN_COPY[locale].ways.post.details).toContain(OWN_WORDS[locale]);
+  });
+});
+
 describe("how a platform counts", () => {
   it("counts any link as 23 characters on X, however long", () => {
     expect(shareLength("x", "https://www.repget.com/r/AVERYLONGCODEINDEEDINDEEDINDEED")).toBe(23);
