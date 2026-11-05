@@ -4,8 +4,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import { BLOG_LOCALES } from "@/lib/blog/locale";
+import { format } from "@/lib/i18n/format";
 import { finalCtaCopy } from "@/lib/i18n/home/final-cta";
 import { getMessages } from "@/lib/i18n/messages";
+import { FREE_ARTICLES } from "@/lib/plans/features";
 
 /**
  * The blog's closing section is the homepage's banner (client, 2026-11-05,
@@ -49,7 +51,7 @@ describe("the end of a blog post", () => {
     expect(html).toContain(`href="${prefix}/audit"`);
     // Sign-up is one page for every language (not in TRANSLATED_PATHS), as the homepage's banner links it.
     expect(html).toMatch(/href="(?:\/[a-z]{2})?\/sign-up"/);
-    expect(html).toContain(t.form.submit.replace(/&/g, "&amp;"));
+    expect(html).toContain(format(t.form.submit, { n: FREE_ARTICLES }));
     // Not the old panel's words.
     expect(html).not.toContain(getMessages(locale).home.closingSub.replace(/'/g, "&#x27;"));
     vi.unstubAllEnvs();
