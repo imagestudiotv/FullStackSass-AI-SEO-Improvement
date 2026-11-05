@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { recordReferralClick } from "@/lib/partners/application/use-cases/record-referral-click";
 import {
   campaignParams,
+  landingParams,
   landingPath,
   PARTNER_COOKIE,
   partnerCookieOptions,
@@ -16,7 +17,8 @@ import { visitorKey } from "@/lib/visitor-key";
  * The link partners share, repget.com/?ref=<code> (or any public page with
  * ?ref=), arrives here through next.config.ts
  * (lib/partners/presentation/link-redirect.ts). utm_ tags are carried to the
- * page; nothing else is.
+ * page, and what sign-up and the audit read from their own address, so adding
+ * ?ref= does not lose it (landingParams); nothing else is.
  *
  * Separate from the legacy credit-referral links (/r/CODE): this records a
  * click for the cash partner program and sets ITS cookie, and nothing else.
@@ -32,6 +34,7 @@ export async function GET(request: NextRequest, context: RouteContext<"/go/[code
   const { code } = await context.params;
   const target = new URL(landingPath(request.nextUrl.searchParams.get("to")), request.url);
   for (const [key, value] of campaignParams(request.nextUrl.searchParams)) target.searchParams.set(key, value);
+  for (const [key, value] of landingParams(target.pathname, request.nextUrl.searchParams)) target.searchParams.set(key, value);
   const response = NextResponse.redirect(target);
   // A tracking redirect is never cached by a browser or a CDN.
   response.headers.set("Cache-Control", "no-store");

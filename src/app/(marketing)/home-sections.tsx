@@ -30,7 +30,6 @@ import type { CSSProperties } from "react";
 import { BrandMark } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
 import { GoogleMark } from "@/components/google-mark";
-import { AuditQuickForm } from "./audit-quick-form";
 import { ArticleExamples } from "./article-examples";
 import { WalkthroughPlayer } from "./walkthrough-player";
 import {
@@ -446,114 +445,6 @@ export function DemoVideo({ t, lang }: SectionProps & { lang: string }) {
             <span className="sr-only">{t.opensInNewTab}</span>
           </a>
         </p>
-      </div>
-    </section>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Free audit                                                                 */
-/* -------------------------------------------------------------------------- */
-
-/** Order matches auditItems in the dictionary. */
-const AUDIT_ICONS: LucideIcon[] = [Search, BarChart3, Link2];
-
-/**
- * The free check: three things it gives you, and the field.
- *
- * Also rendered on /audit itself, which supplies its own heading - so the
- * homepage's lead-in from the video ("Now see what RepGet finds on your
- * website") is opt-in through `intro`.
- */
-export function AuditBand({
-  t,
-  href,
-  intro = false,
-}: SectionProps & { intro?: boolean }) {
-  return (
-    <section className={`${OFFSCREEN} px-4 pb-20 ${intro ? "pt-8" : ""}`}>
-      <div className="mx-auto max-w-4xl">
-        {intro ? (
-          <SectionHeading
-            center
-            title={t.auditIntroTitle}
-            sub={t.auditIntroSub}
-            className="mb-8"
-          />
-        ) : null}
-
-        {/*
-          The glow the design puts behind this card. It is the page's primary
-          conversion point, and the surrounding sections are plain, so a tinted
-          ring is what separates it from the rest rather than making it louder.
-        */}
-        <div className="rounded-3xl bg-gradient-to-b from-primary/25 to-primary/5 p-[1.5px] shadow-[0_24px_70px_-30px_rgba(234,88,12,0.35)]">
-          <div className="rounded-3xl bg-card p-6 sm:p-8">
-            <p className="text-center text-xs font-semibold tracking-[0.14em] text-primary uppercase">
-              {t.auditBand}
-            </p>
-
-            <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-3 sm:gap-0">
-              {t.auditItems.map((item, index) => {
-                const Icon = AUDIT_ICONS[index] ?? Search;
-                return (
-                  <div
-                    key={item.title}
-                    /*
-                      Dividers only from sm, where the three sit in a row. At
-                      phone width they stack and a vertical rule would fall
-                      between nothing.
-                    */
-                    className="sm:px-5 sm:not-first:border-l"
-                  >
-                    <p className="flex items-start gap-2 font-semibold">
-                      <Icon
-                        className="mt-0.5 size-4 shrink-0 text-primary"
-                        aria-hidden="true"
-                      />
-                      <span>
-                        <span className="text-primary">{index + 1}.</span>{" "}
-                        {item.title}
-                      </span>
-                    </p>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      {item.body}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/*
-              A real field, as the design draws it — but it only carries the
-              domain to /audit rather than running anything here. That page
-              owns the validation, the SSRF guard and the caching; a second
-              entry point that did its own crawling would be a second copy of
-              all of it, and the two would drift.
-            */}
-            <div className="mt-8">
-              <AuditQuickForm
-                label={t.auditFieldLabel}
-                placeholder={t.auditPlaceholder}
-                cta={t.checkMyWebsite}
-                pendingLabel={t.auditChecking}
-                action={href("/audit")}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* The reassurances from the design, under the card. */}
-        <div className="mt-5 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm">
-          {t.auditAssurances.map((item) => (
-            <span key={item} className="flex items-center gap-1.5">
-              <span className="flex size-4 items-center justify-center rounded bg-success-soft">
-                <Check className="size-3 text-success" aria-hidden="true" />
-              </span>
-              {item}
-            </span>
-          ))}
-        </div>
       </div>
     </section>
   );

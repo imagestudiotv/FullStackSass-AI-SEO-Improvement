@@ -3,17 +3,19 @@ import { Suspense } from "react";
 
 import { runPublicAudit } from "@/lib/audit/public-audit";
 import { startingOffer } from "@/lib/billing";
+import { auditLandingCopy } from "@/lib/i18n/audit-landing";
 import { localePath, type Locale } from "@/lib/i18n/config";
-import { getMessages } from "@/lib/i18n/messages";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
 import { TOOLS_COMMON } from "@/lib/tools/i18n/common";
 import { localizeToolMessage } from "@/lib/tools/i18n/messages";
 import { domainParam } from "@/lib/tools/i18n/meta";
 import { visitorKey } from "@/lib/visitor-key";
 
-import { AuditBand } from "../home-sections";
+import { AuditLanding } from "./audit-landing";
+import landing from "./audit-landing.module.css";
 import { AuditProgress } from "./audit-progress";
 import { AuditResult } from "./audit-result";
+import { AuditStartForm } from "./audit-start-form";
 import { AUDIT_COPY } from "./copy";
 import { SitePreviewFallback } from "./site-preview";
 
@@ -30,68 +32,53 @@ export function auditMetadata(locale: Locale) {
  * found genuine problems on their site, and signing up is how they see the
  * rest and get them fixed. Nothing here is invented: if the crawl fails, the
  * page says so rather than showing a made-up score.
+ *
+ * Before a website is entered, the landing page from the client's design.
  */
 export function AuditPageContent({ locale, searchParams }: { locale: Locale; searchParams: Record<string, string | string[] | undefined> }) {
   const domain = domainParam(searchParams);
   const t = AUDIT_COPY[locale];
 
+  if (!domain) return <AuditLanding locale={locale} />;
+
   return (
     <div className="mx-auto max-w-4xl px-4 py-16 sm:py-20">
-      {/*
-        The heading shows before a check and while it runs - and gives way to
-        the results once they are ready, so a finished audit starts at the top
-        of the page instead of below the introduction (client request,
-        2026-10-01: the audit is used often, and the result is what they came
-        for). See AuditOutcome.
-      */}
-      {!domain ? <AuditHeading locale={locale} /> : null}
-
-      {/*
-        Before a check: the card from the design — the three assets named and
-        numbered, the field inside the same pill, the reassurances beneath.
-
-        It is the homepage's own AuditBand rather than a copy of it, in the
-        same language. The negative top margin pulls it under the heading
-        above, which already supplies the spacing the band assumes it needs.
-      */}
-      {!domain ? (
-        <div className="-mx-4 mt-2">
-          <AuditBand t={getMessages(locale).home} href={(path) => localePath(locale, path)} />
-        </div>
-      ) : null}
-
       {/*
         Streamed, so the progress screen is the fallback while the crawl runs.
         keyed on the domain so checking a second site remounts the fallback
         rather than leaving the previous result on screen while the new one
         runs.
+
+        The heading shows while a check runs - and gives way to the results
+        once they are ready, so a finished audit starts at the top of the page
+        instead of below the introduction (client request, 2026-10-01: the
+        audit is used often, and the result is what they came for). See
+        AuditOutcome.
       */}
-      {domain ? (
-        <Suspense
-          key={domain}
-          fallback={
-            <>
-              <AuditHeading locale={locale} />
-              <AuditProgress
-                domain={domain}
-                copy={t.progress}
-                /*
-                  The frame shows the address while the crawl runs; the picture
-                  comes back with the result, cached alongside it.
-                */
-                preview={<SitePreviewFallback domain={domain} />}
-              />
-            </>
-          }
-        >
-          <AuditOutcome domain={domain} locale={locale} />
-        </Suspense>
-      ) : null}
+      <Suspense
+        key={domain}
+        fallback={
+          <>
+            <AuditHeading locale={locale} />
+            <AuditProgress
+              domain={domain}
+              copy={t.progress}
+              /*
+                The frame shows the address while the crawl runs; the picture
+                comes back with the result, cached alongside it.
+              */
+              preview={<SitePreviewFallback domain={domain} />}
+            />
+          </>
+        }
+      >
+        <AuditOutcome domain={domain} locale={locale} />
+      </Suspense>
     </div>
   );
 }
 
-/** The page's introduction: before a check, and while one runs. */
+/** The page's introduction, while a check runs and when one fails. */
 function AuditHeading({ locale }: { locale: Locale }) {
   const t = AUDIT_COPY[locale];
   return (
@@ -117,12 +104,17 @@ async function AuditOutcome({ domain, locale }: { domain: string; locale: Locale
   const [outcome, offer] = await Promise.all([runPublicAudit(domain, visitor), startingOffer()]);
 
   if (!outcome.ok) {
+    const form = auditLandingCopy(locale).form;
     return (
       <>
         <AuditHeading locale={locale} />
         <div className="mx-auto mt-8 max-w-xl rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm" role="alert">
           <p className="font-medium">{TOOLS_COMMON[locale].couldNotCheck}</p>
           <p className="mt-1 text-muted-foreground">{localizeToolMessage(outcome.error.message, locale)}</p>
+        </div>
+        {/* The address again, to correct or retry. The page's limits apply to a retry as to anything else. */}
+        <div className={landing.retry}>
+          <AuditStartForm strings={form} action={localePath(locale, "/audit")} placeholder={form.placeholder} initialValue={domain} />
         </div>
       </>
     );
