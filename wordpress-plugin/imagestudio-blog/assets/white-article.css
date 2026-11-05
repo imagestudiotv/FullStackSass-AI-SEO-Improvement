@@ -1,0 +1,150 @@
+/*
+  A white reading surface in dark mode, for the articles named in
+  includes/white-article.php (body class isb-white-article, added only there).
+  The black title banner, the header, the footer and the pictures are not
+  touched. The colours are the light look's own, so light mode does not change.
+
+  WHY THE COLOURS ARE VARIABLES, AND NOT PLAIN VALUES.
+  Night mode (the isx-night-mode plugin) copies every colour rule on the page
+  into a sheet of its own, with the colour changed to its dark version and more
+  weight than the original. A plain "color: #111" here would come back from that
+  sheet as a light colour and win. It cannot resolve a variable that is not set
+  on <body>, so it copies "var(--isb-ink)" unchanged. For the same reason the
+  variables are set on the article's wrapper, and their names avoid the words it
+  looks for in a variable's name (text, color, link, line, border, background).
+
+  WHY THE RULES DO NOT START WITH html.isx-dark.
+  WP Rocket's "remove unused CSS" runs on these articles and keeps only rules
+  whose selectors match the page as served, and isx-dark is added by a script.
+*/
+
+body.isb-white-article .cps-single-wrap {
+  --isb-paper: #fff;
+  --isb-ink: #111;
+  --isb-body: #222;
+  --isb-soft: #555;
+  --isb-faint: #8a8a8a;
+  --isb-answer: #333;
+  --isb-rule: #d1d5db;
+  --isb-edge: #e2e2e2;
+  --isb-edge-strong: #b9b9b9;
+  --isb-tint: #f8f8f7;
+  background-color: var(--isb-paper) !important;
+  color: var(--isb-body) !important;
+}
+
+/* The article's words: whatever element they are in, inline colours included. */
+body.isb-white-article .cps-single-wrap .cps-single-content,
+body.isb-white-article .cps-single-wrap .cps-single-content *:not(svg, svg *, img) {
+  color: var(--isb-body) !important;
+  -webkit-text-fill-color: currentColor;
+}
+
+body.isb-white-article .cps-single-wrap .cps-single-content :is(h1, h2, h3, h4, h5, h6, li, caption),
+body.isb-white-article .cps-single-wrap .cps-related-title {
+  color: var(--isb-ink) !important;
+}
+
+/* Words inside words take the colour around them. */
+body.isb-white-article .cps-single-wrap .cps-single-content :is(em, i, span, u, sub, sup, mark, abbr, cite, code) {
+  color: inherit !important;
+}
+
+body.isb-white-article .cps-single-wrap .cps-single-content :is(strong, b) {
+  color: var(--isb-body) !important;
+}
+
+/* Links stay links: dark and underlined, grey on hover, as in the light look. */
+body.isb-white-article .cps-single-wrap .cps-single-content a,
+body.isb-white-article .cps-single-wrap .cps-single-content a:visited,
+body.isb-white-article .cps-single-wrap .isb-faq a {
+  color: var(--isb-ink) !important;
+  text-decoration-color: currentColor !important;
+}
+
+body.isb-white-article .cps-single-wrap .cps-single-content a:hover,
+body.isb-white-article .cps-single-wrap .isb-faq a:hover {
+  color: var(--isb-soft) !important;
+}
+
+body.isb-white-article .cps-single-wrap .cps-single-content a:focus-visible,
+body.isb-white-article .cps-single-wrap .isb-faq :is(a, summary):focus-visible {
+  outline: 2px solid var(--isb-ink) !important;
+  outline-offset: 3px;
+}
+
+body.isb-white-article .cps-single-wrap .cps-single-content :is(figcaption, .wp-element-caption, caption, small) {
+  color: var(--isb-soft) !important;
+}
+
+body.isb-white-article .cps-single-wrap .cps-single-content :is(ul, ol) li::marker {
+  color: var(--isb-body);
+}
+
+/* Tables. */
+body.isb-white-article .cps-single-wrap .cps-single-content :is(table, thead, tbody, tfoot, tr, td, th) {
+  background-color: transparent !important;
+  border-color: var(--isb-rule) !important;
+}
+
+/* Quotes, code, rules. */
+body.isb-white-article .cps-single-wrap .cps-single-content blockquote {
+  background-color: transparent !important;
+  border-color: var(--isb-ink) !important;
+}
+
+body.isb-white-article .cps-single-wrap .cps-single-content :is(pre, code) {
+  background-color: var(--isb-tint) !important;
+}
+
+body.isb-white-article .cps-single-wrap .cps-single-content hr {
+  background-color: var(--isb-rule) !important;
+  border-color: var(--isb-rule) !important;
+}
+
+/* "In this article". */
+body.isb-white-article .cps-single-wrap .cps-single-content .isb-toc {
+  background-color: var(--isb-tint) !important;
+  border-color: var(--isb-edge) !important;
+  color: var(--isb-ink) !important;
+}
+
+body.isb-white-article .cps-single-wrap .cps-single-content .isb-toc :is(.isb-toc-title, a, .isb-toc-text) {
+  color: var(--isb-ink) !important;
+}
+
+body.isb-white-article .cps-single-wrap .cps-single-content .isb-toc .isb-toc-arrow {
+  color: var(--isb-faint) !important;
+}
+
+/* The FAQ, after the article's text. */
+body.isb-white-article .cps-single-wrap .isb-faq {
+  background-color: transparent !important;
+}
+
+body.isb-white-article .cps-single-wrap .isb-faq :is(.isb-faq-title, .isb-faq-question, .isb-faq-q) {
+  color: var(--isb-ink) !important;
+}
+
+body.isb-white-article .cps-single-wrap .isb-faq :is(.isb-faq-answer, .isb-faq-answer *) {
+  color: var(--isb-answer) !important;
+}
+
+body.isb-white-article .cps-single-wrap .isb-faq .isb-faq-item {
+  background-color: var(--isb-paper) !important;
+  border-color: var(--isb-edge) !important;
+}
+
+body.isb-white-article .cps-single-wrap .isb-faq .isb-faq-item:is(:hover, [open]) {
+  border-color: var(--isb-edge-strong) !important;
+}
+
+body.isb-white-article .cps-single-wrap .isb-faq .isb-faq-icon {
+  color: var(--isb-soft) !important;
+}
+
+/* The column around the "More articles" block; its cards are pictures and keep their look. */
+body.isb-white-article .cps-single-wrap .cps-related-wrap {
+  background-color: transparent !important;
+  border-color: var(--isb-edge) !important;
+}

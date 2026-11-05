@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Image Studio Blog
  * Description: Image Studio's editorial author page, a clickable "Image Studio" byline, "Get Featured in This Article" (€99 through PayPal), an "In this article" contents box and an optional FAQ on editorial articles. Also carries the site's phone-layout fixes.
- * Version: 2.3.0
+ * Version: 2.4.0
  * Requires at least: 6.4
  * Requires PHP: 7.4
  * Author: RepGet
@@ -31,13 +31,15 @@
  *    edit screen. wpml-config.xml has the FAQ translated with the article.
  *  - Layout fixes (layout.css, layout.js): the phone menu, the homepage grid
  *    and portfolio posts.
+ *  - White article (includes/white-article.php, client request 2026-11-05):
+ *    a white reading surface in dark mode, for one named article.
  *
  * Settings: Settings -> Image Studio Blog.
  */
 
 defined('ABSPATH') || exit;
 
-define('ISB_VERSION', '2.3.0');
+define('ISB_VERSION', '2.4.0');
 define('ISB_FILE', __FILE__);
 define('ISB_DIR', __DIR__);
 
@@ -47,6 +49,7 @@ require_once ISB_DIR . '/includes/author.php';
 require_once ISB_DIR . '/includes/limits.php';
 require_once ISB_DIR . '/includes/featured.php';
 require_once ISB_DIR . '/includes/extras.php';
+require_once ISB_DIR . '/includes/white-article.php';
 
 add_action('wp_enqueue_scripts', function () {
     wp_enqueue_style('isb-layout', plugins_url('layout.css', ISB_FILE), array(), ISB_VERSION);

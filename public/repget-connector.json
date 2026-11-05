@@ -1,9 +1,9 @@
 {
-  "version": "1.9.0",
+  "version": "1.10.0",
   "package": "/repget-connector.zip",
-  "sha256": "242cff16c9a07e9a5aa8769dad96777a802512f6c9276890729d4f0d8c81da00",
+  "sha256": "f9d94e42d43557b3e78e3e64922083fcfd15cb8ccead76397c8e3691586b3900",
   "requires": "5.6",
   "requires_php": "7.4",
   "tested": "6.8",
-  "changelog": "* When RepGet uses your website's own photos for an article (Article\n  Settings, \"Use photos from my website\"), the featured image is that photo\n  from your media library. Nothing is copied: your media library does not get\n  a second copy of a photo it already has, and the photo itself is not\n  changed.\n* Articles in your site's other languages (Article Settings, \"Also publish\n  in\"): with WPML, each translation RepGet writes is published in its\n  language and linked to the original article, so the language switcher\n  offers it. It gets the original's categories in that language, and its\n  links to your posts lead to their versions in that language where you\n  have them. A version you already made yourself is never replaced."
+  "changelog": "* With Rank Math active, each article's Facebook and Twitter title, description\n  and image are filled in, on publishing and on every update. The image is\n  always the article's featured image. A field you filled in or edited yourself\n  is never overwritten.\n* A picture changed in RepGet now replaces the article's featured image, unless\n  you chose another one on your site. A picture that could not be copied the\n  first time is tried again when the article is next sent.\n* RepGet, on your WordPress screen: \"Rank Math: social fields on articles\n  published earlier\" fills them for older articles. It previews first and\n  changes nothing until you press Apply. With WP-CLI:\n  wp repget social-backfill (add --apply to write)."
 }

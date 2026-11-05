@@ -2,7 +2,7 @@
 /**
  * Plugin Name: RepGet Connector
  * Description: Publishes articles written by RepGet straight to this site. Press Connect to RepGet to connect.
- * Version: 1.9.0
+ * Version: 1.10.0
  * Requires at least: 5.6
  * Requires PHP: 7.4
  * License: GPLv2 or later
@@ -42,7 +42,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('REPGET_VERSION', '1.9.0');
+define('REPGET_VERSION', '1.10.0');
 define('REPGET_OPTION_KEY', 'repget_integration_key');
 define('REPGET_OPTION_STATUS', 'repget_status');
 define('REPGET_OPTION_ENDPOINT', 'repget_endpoint');
@@ -111,6 +111,12 @@ define('REPGET_IMAGE_NAME_MAX', 60);
 define('REPGET_OPTION_IMAGE_FAILURES', 'repget_image_failures');
 /** On a post: the md5 of its content when nothing more could be copied from it. */
 define('REPGET_META_IMAGES_CHECKED', '_repget_images_checked');
+/** On a post: the header picture RepGet last set. See repget_sync_header(). */
+define('REPGET_META_HEADER', '_repget_header_image');
+/** On a post: what this plugin last wrote to its Rank Math social fields. See "Rank Math" below. */
+define('REPGET_META_SOCIAL', '_repget_social_written');
+/** Posts one run of the social fields backfill looks at, at most. */
+define('REPGET_SOCIAL_BACKFILL_MAX', 50);
 
 /**
  * Default API host. Overridable for self-hosted or staging installs.
@@ -557,6 +563,16 @@ function repget_settings_page() {
         }
     }
 
+    // Rank Math's social fields on articles published earlier: a preview unless Apply was pressed.
+    $social_report = null;
+    if (isset($_POST['repget_social_backfill']) && check_admin_referer('repget_social_backfill')) {
+        $social_report = repget_social_backfill(
+            REPGET_SOCIAL_BACKFILL_MAX,
+            isset($_POST['repget_social_offset']) ? absint($_POST['repget_social_offset']) : 0,
+            isset($_POST['repget_social_apply'])
+        );
+    }
+
     $key = repget_key();
     $status = get_option(REPGET_OPTION_STATUS);
     $stored = repget_stored_connection();
@@ -583,8 +599,8 @@ function repget_settings_page() {
         .repget-actions form { margin: 0; }
         .repget-ok { color: #00a32a; }
         .repget-bad { color: #d63638; }
-        #repget-advanced { margin-top: 2em; }
-        #repget-advanced summary { cursor: pointer; font-weight: 600; }
+        #repget-advanced, #repget-social { margin-top: 2em; }
+        #repget-advanced summary, #repget-social summary { cursor: pointer; font-weight: 600; }
     </style>
     <div class="wrap">
         <h1>RepGet</h1>
@@ -684,6 +700,39 @@ function repget_settings_page() {
                 </button>
             </p>
         </form>
+
+        <?php if (repget_rank_math_active()) : ?>
+            <details id="repget-social"<?php echo $social_report !== null ? ' open' : ''; ?>>
+                <summary><?php esc_html_e('Rank Math: social fields on articles published earlier', 'repget'); ?></summary>
+                <p><?php esc_html_e('New and updated articles get these fields by themselves. This fills the Facebook and Twitter title, description and image of earlier RepGet articles. A field somebody already filled in or edited is kept. Preview changes nothing.', 'repget'); ?></p>
+                <?php if ($social_report !== null) : ?>
+                    <?php repget_social_report_table($social_report); ?>
+                <?php endif; ?>
+                <div class="repget-actions">
+                    <?php
+                    $social_offset = $social_report !== null ? $social_report['offset'] : 0;
+                    $social_buttons = array(
+                        array($social_offset, 'repget_social_preview', __('Preview (changes nothing)', 'repget'), 'button'),
+                    );
+                    if ($social_report !== null && !$social_report['applied'] && $social_report['to_write'] > 0) {
+                        $social_buttons[] = array($social_offset, 'repget_social_apply', __('Apply to the articles listed', 'repget'), 'button button-primary');
+                    }
+                    if ($social_report !== null && $social_report['next'] > 0) {
+                        $social_buttons[] = array($social_report['next'], 'repget_social_preview', __('Preview the next ones', 'repget'), 'button');
+                    }
+                    foreach ($social_buttons as $social_button) : ?>
+                        <form method="post">
+                            <?php wp_nonce_field('repget_social_backfill'); ?>
+                            <input type="hidden" name="repget_social_backfill" value="1" />
+                            <input type="hidden" name="repget_social_offset" value="<?php echo (int) $social_button[0]; ?>" />
+                            <button type="submit" name="<?php echo esc_attr($social_button[1]); ?>" class="<?php echo esc_attr($social_button[3]); ?>">
+                                <?php echo esc_html($social_button[2]); ?>
+                            </button>
+                        </form>
+                    <?php endforeach; ?>
+                </div>
+            </details>
+        <?php endif; ?>
 
         <details id="repget-advanced"<?php echo $advanced_open ? ' open' : ''; ?>>
             <summary><?php esc_html_e('Advanced: use an Integration Key', 'repget'); ?></summary>
@@ -1894,20 +1943,24 @@ function repget_sync($token = null) {
 
         /*
           The header image, when one was generated. A failure here is not fatal:
-          the article is still published, just without its image. Only on
-          creation - re-downloading on every update would add a duplicate
-          attachment to the media library each time.
+          the article is still published, just without its image. An update
+          sets it only when RepGet's picture changed (1.10.0), and never over
+          one chosen on this site: see repget_sync_header.
         */
-        if ($existing === 0 && !empty($article['image']['url'])) {
-            repget_attach_image(
-                $post_id,
-                $article['image']['url'],
-                isset($article['image']['alt']) ? $article['image']['alt'] : '',
-                $slug,
-                $article['title'],
-                isset($article['image']['attachmentId']) ? $article['image']['attachmentId'] : 0
-            );
+        if (!empty($article['image']['url'])) {
+            repget_sync_header($post_id, $article['image'], $slug, $article['title'], $existing === 0);
         }
+
+        /*
+          Rank Math's Facebook and Twitter fields (1.10.0), from the article as
+          saved and the attachment that IS its featured image now. Last, so a
+          retried hand-over or a changed picture ends up the same everywhere.
+        */
+        repget_social_apply($post_id, repget_social_fields(
+            $fields['post_title'],
+            $fields['post_excerpt'],
+            (int) get_post_thumbnail_id($post_id)
+        ));
 
         /*
           Recorded before the report goes out, so a failure to reach RepGet - or
@@ -2269,10 +2322,334 @@ function repget_attach_image($post_id, $url, $alt, $slug = '', $title = '', $att
             REPGET_IMAGE_TIMEOUT
         );
         if (is_wp_error($attachment_id)) {
-            return;
+            return 0;
         }
     }
     set_post_thumbnail($post_id, $attachment_id);
+    return (int) $attachment_id;
+}
+
+/**
+ * Keeps a post's featured image in step with RepGet's picture, without taking
+ * it from the site owner.
+ *
+ * Before 1.10.0 the picture was set on creation only: a picture changed in
+ * RepGet never reached the post, and one that failed to download never came.
+ * What was set is now remembered on the post (REPGET_META_HEADER), which is what
+ * tells "RepGet's picture changed" from "somebody chose another one here":
+ *
+ *  - a new post gets the picture;
+ *  - the same picture again (a retried hand-over) changes nothing;
+ *  - a different picture replaces the one RepGet set, if that one is still the
+ *    featured image. If it is not, it was replaced or removed on this site, and
+ *    stays that way;
+ *  - a picture that could not be copied is tried again at the next hand-over,
+ *    and a failed replacement keeps the old picture in place meanwhile;
+ *  - a post from before 1.10.0 has no record of who chose its image, so its
+ *    image is left alone; the record starts from what it holds now.
+ *
+ * repget_attach_image reuses a copy already in the media library, so none of
+ * this adds a duplicate attachment.
+ */
+function repget_sync_header($post_id, $image, $slug, $title, $is_new) {
+    $url = (string) $image['url'];
+    $alt = isset($image['alt']) ? $image['alt'] : '';
+    $hint = isset($image['attachmentId']) ? $image['attachmentId'] : 0;
+    $current = (int) get_post_thumbnail_id($post_id);
+    $record = get_post_meta($post_id, REPGET_META_HEADER, true);
+    $known = is_array($record) && isset($record['url']);
+
+    if (!$known && !$is_new) {
+        $same = $current > 0 && ($current === repget_own_attachment($url, $hint) || $current === repget_find_image($url));
+        repget_remember_header($post_id, $url, $same ? $current : 0, false);
+        return;
+    }
+
+    $ours = $known ? (int) $record['attachment'] : 0;
+    if ($known) {
+        if ($ours > 0 && $current !== $ours) {
+            return; // Replaced or removed on this site.
+        }
+        if ($ours === 0 && ($current > 0 || empty($record['wanted']))) {
+            return; // Chosen on this site, or a post from before the record.
+        }
+        if ($ours > 0 && repget_same_address($record['url'], $url)) {
+            return; // The same picture: a retried hand-over, or an edit of the text.
+        }
+    }
+
+    $attachment = repget_attach_image($post_id, $url, $alt, $slug, $title, $hint);
+    if ($attachment > 0) {
+        repget_remember_header($post_id, $url, $attachment, false);
+    } elseif ($ours > 0) {
+        repget_remember_header($post_id, $record['url'], $ours, false);
+    } else {
+        repget_remember_header($post_id, $url, 0, true);
+    }
+}
+
+function repget_remember_header($post_id, $url, $attachment, $wanted) {
+    update_post_meta($post_id, REPGET_META_HEADER, wp_slash(array(
+        'url'        => (string) $url,
+        'attachment' => (int) $attachment,
+        'wanted'     => (bool) $wanted,
+    )));
+}
+
+/* -------------------------------------------------------------------------- */
+/* Rank Math (1.10.0)                                                         */
+/* -------------------------------------------------------------------------- */
+
+/*
+  Rank Math's "Social" tab keeps its Facebook and Twitter fields in these post
+  meta keys (checked against Rank Math 1.0.281's own code: includes/admin/
+  metabox/class-screen.php names them for its editor, includes/opengraph/
+  class-opengraph.php and class-image.php read them for the page's tags):
+
+    rank_math_facebook_title, rank_math_facebook_description,
+    rank_math_facebook_image (the address, shown in its editor),
+    rank_math_facebook_image_id (the attachment, used for the page's tags),
+    the same four for twitter, and rank_math_twitter_use_facebook: unless it
+    is "off" the Twitter tags are read from the Facebook fields and the editor
+    hides the Twitter ones. Rank Math's own importers set it to "off" when they
+    write Twitter fields (class-plugin-importer.php), and so does this.
+
+  These are the only keys written, on RepGet's own articles only, and only with
+  Rank Math active. Nothing arrives from RepGet except the article itself: no
+  key names travel over the wire.
+
+  A SITE OWNER'S EDIT IS KEPT. What was written is remembered per field
+  (REPGET_META_SOCIAL). A field is rewritten only while it still holds exactly
+  that, and filled only while it is empty. So a field edited or emptied in Rank
+  Math, or filled in before this plugin first wrote it, is left alone for good.
+  A process that dies after writing a field but before remembering it loses
+  nothing: the next run finds the wanted value there and takes it as written,
+  or, if the article has changed since, keeps the field as somebody's edit.
+*/
+
+function repget_rank_math_active() {
+    return defined('RANK_MATH_VERSION');
+}
+
+/**
+ * What an article's social fields should hold: field name => (meta key => value).
+ * A field with several keys is one choice: the image's address and attachment.
+ * The image is the attachment given, or nothing: never an address that is not
+ * this site's own media, and never a picture other than the featured image.
+ */
+function repget_social_fields($title, $description, $attachment_id) {
+    $url = $attachment_id > 0 ? wp_get_attachment_url($attachment_id) : '';
+    $has_image = is_string($url) && $url !== '';
+    $fields = array();
+    foreach (array('facebook', 'twitter') as $network) {
+        $fields["{$network}_title"] = array("rank_math_{$network}_title" => (string) $title);
+        $fields["{$network}_description"] = array("rank_math_{$network}_description" => (string) $description);
+        $fields["{$network}_image"] = array(
+            "rank_math_{$network}_image"    => $has_image ? $url : '',
+            "rank_math_{$network}_image_id" => $has_image ? (string) (int) $attachment_id : '',
+        );
+    }
+    $fields['twitter_use_facebook'] = array('rank_math_twitter_use_facebook' => 'off');
+    return $fields;
+}
+
+/** What was last written to a post's social fields: field name => (meta key => value). */
+function repget_social_written($post_id) {
+    $written = get_post_meta($post_id, REPGET_META_SOCIAL, true);
+    return is_array($written) ? $written : array();
+}
+
+/**
+ * What applying $fields would do to each one, without writing anything:
+ *   'write' - empty, or still what was last written: set it;
+ *   'clear' - nothing to put there any more, and it still holds what was written;
+ *   'same'  - holds this already;
+ *   'kept'  - edited here (or filled in before this plugin wrote it): left alone.
+ */
+function repget_social_plan($post_id, $fields) {
+    $written = repget_social_written($post_id);
+    // Rank Math's editor may store "&" as "&amp;": that is not an edit.
+    $plain = function ($values) {
+        return array_map(function ($value) {
+            return html_entity_decode((string) $value, ENT_QUOTES, 'UTF-8');
+        }, $values);
+    };
+    $plan = array();
+    foreach ($fields as $name => $wanted) {
+        $current = array();
+        foreach ($wanted as $key => $value) {
+            $current[$key] = (string) get_post_meta($post_id, $key, true);
+        }
+        $is_empty = implode('', $current) === '';
+        $is_ours = isset($written[$name]) && $plain($current) === $plain((array) $written[$name]);
+        if ($plain($current) === $plain($wanted)) {
+            $plan[$name] = 'same';
+        } elseif (isset($written[$name]) ? !$is_ours : !$is_empty) {
+            $plan[$name] = 'kept';
+        } else {
+            $plan[$name] = implode('', $wanted) === '' ? 'clear' : 'write';
+        }
+    }
+    return $plan;
+}
+
+/** Applies $fields to a post; returns the plan it followed. Nothing without Rank Math. */
+function repget_social_apply($post_id, $fields) {
+    if (!repget_rank_math_active()) {
+        return array();
+    }
+    $plan = repget_social_plan($post_id, $fields);
+    $before = repget_social_written($post_id);
+    $written = $before;
+    foreach ($plan as $name => $action) {
+        if ($action === 'kept') {
+            continue;
+        }
+        if ($action === 'write' || $action === 'clear') {
+            foreach ($fields[$name] as $key => $value) {
+                if ($value === '') {
+                    delete_post_meta($post_id, $key);
+                } else {
+                    update_post_meta($post_id, $key, wp_slash($value));
+                }
+            }
+        }
+        if (implode('', $fields[$name]) === '') {
+            unset($written[$name]);
+        } else {
+            $written[$name] = $fields[$name];
+        }
+    }
+    if ($written !== $before) {
+        update_post_meta($post_id, REPGET_META_SOCIAL, wp_slash($written));
+    }
+    return $plan;
+}
+
+/**
+ * The featured image changed, whoever changed it: the social images follow it,
+ * unless they were edited by hand. RepGet's own articles only.
+ */
+function repget_social_follow_thumbnail($meta_id, $post_id, $meta_key) {
+    if ($meta_key !== '_thumbnail_id' || !repget_rank_math_active()) {
+        return;
+    }
+    if ((string) get_post_meta($post_id, REPGET_META_ARTICLE, true) === '') {
+        return;
+    }
+    $images = array_intersect_key(
+        repget_social_fields('', '', (int) get_post_thumbnail_id($post_id)),
+        array('facebook_image' => 1, 'twitter_image' => 1)
+    );
+    repget_social_apply($post_id, $images);
+}
+add_action('added_post_meta', 'repget_social_follow_thumbnail', 10, 3);
+add_action('updated_post_meta', 'repget_social_follow_thumbnail', 10, 3);
+add_action('deleted_post_meta', 'repget_social_follow_thumbnail', 10, 3);
+
+/**
+ * An article's title and description for the backfill: Rank Math's own SEO
+ * title and description where they are plain words ("%title% | %sitename%" is a
+ * template, not a title), else the post's title and excerpt, which is what
+ * RepGet sent as its meta description.
+ */
+function repget_social_source($post) {
+    $choose = function ($key, $fallback) use ($post) {
+        $own = trim((string) get_post_meta($post->ID, $key, true));
+        return $own !== '' && strpos($own, '%') === false ? $own : (string) $fallback;
+    };
+    return array(
+        $choose('rank_math_title', $post->post_title),
+        $choose('rank_math_description', $post->post_excerpt),
+    );
+}
+
+/**
+ * Fills the social fields of articles RepGet published before 1.10.0.
+ *
+ * Bounded: at most REPGET_SOCIAL_BACKFILL_MAX posts a run, from $offset; the
+ * answer's "next" is where the following run starts (0 at the end). A DRY RUN
+ * UNLESS $apply is true: it writes nothing, not even its record. Only posts
+ * carrying RepGet's article tag are looked at, in every language, trash excepted.
+ * Fields somebody filled in are reported as kept, and kept.
+ */
+function repget_social_backfill($limit = 25, $offset = 0, $apply = false) {
+    $limit = max(1, min((int) $limit, REPGET_SOCIAL_BACKFILL_MAX));
+    $offset = max(0, (int) $offset);
+    $report = array('active' => repget_rank_math_active(), 'applied' => (bool) $apply, 'offset' => $offset, 'next' => 0, 'to_write' => 0, 'posts' => array());
+    if (!$report['active']) {
+        return $report;
+    }
+    $ids = get_posts(array(
+        'post_type'        => 'any',
+        'post_status'      => 'any',
+        'posts_per_page'   => $limit + 1,
+        'offset'           => $offset,
+        'fields'           => 'ids',
+        'orderby'          => 'ID',
+        'order'            => 'ASC',
+        'no_found_rows'    => true,
+        // A translation plugin must not hide the other languages' articles.
+        'suppress_filters' => true,
+        'meta_key'         => REPGET_META_ARTICLE,
+    ));
+    if (count($ids) > $limit) {
+        $ids = array_slice($ids, 0, $limit);
+        $report['next'] = $offset + $limit;
+    }
+    foreach ($ids as $post_id) {
+        $post = get_post($post_id);
+        if (!$post) {
+            continue;
+        }
+        list($title, $description) = repget_social_source($post);
+        $fields = repget_social_fields($title, $description, (int) get_post_thumbnail_id($post->ID));
+        $plan = $apply ? repget_social_apply($post->ID, $fields) : repget_social_plan($post->ID, $fields);
+        $changes = count(array_intersect($plan, array('write', 'clear')));
+        $report['to_write'] += $changes;
+        $report['posts'][] = array(
+            'id'      => (int) $post->ID,
+            'title'   => (string) $post->post_title,
+            'changes' => $changes,
+            'kept'    => array_keys($plan, 'kept', true),
+        );
+    }
+    return $report;
+}
+
+/** The backfill's answer, on the settings page. */
+function repget_social_report_table($report) {
+    if (empty($report['posts'])) {
+        echo '<p>' . esc_html__('No articles to look at here.', 'repget') . '</p>';
+        return;
+    }
+    echo '<p><strong>' . esc_html($report['applied'] ? __('Done. Fields written:', 'repget') : __('Preview: nothing has changed. Fields that would be written:', 'repget')) . ' ' . (int) $report['to_write'] . '</strong></p>';
+    echo '<table class="widefat striped"><thead><tr><th>' . esc_html__('Article', 'repget') . '</th><th>' . esc_html($report['applied'] ? __('Written', 'repget') : __('Would be written', 'repget')) . '</th><th>' . esc_html__('Kept, edited by hand', 'repget') . '</th></tr></thead><tbody>';
+    foreach ($report['posts'] as $row) {
+        echo '<tr><td>' . esc_html($row['title']) . ' (#' . (int) $row['id'] . ')</td><td>' . (int) $row['changes'] . '</td><td>' . esc_html(implode(', ', $row['kept'])) . '</td></tr>';
+    }
+    echo '</tbody></table>';
+}
+
+/*
+  The same from the command line: a dry run unless --apply is given.
+    wp repget social-backfill [--limit=25] [--offset=0] [--apply]
+*/
+if (defined('WP_CLI') && WP_CLI) {
+    WP_CLI::add_command('repget social-backfill', function ($args, $options) {
+        $report = repget_social_backfill(
+            isset($options['limit']) ? (int) $options['limit'] : 25,
+            isset($options['offset']) ? (int) $options['offset'] : 0,
+            !empty($options['apply'])
+        );
+        if (!$report['active']) {
+            WP_CLI::error('Rank Math is not active.');
+        }
+        foreach ($report['posts'] as $row) {
+            WP_CLI::log(sprintf('#%d %s: %d to write, kept: %s', $row['id'], $row['title'], $row['changes'], implode(', ', $row['kept'])));
+        }
+        WP_CLI::success(sprintf('%s: %d fields. Next offset: %d.', $report['applied'] ? 'Written' : 'Dry run, nothing written', $report['to_write'], $report['next']));
+    });
 }
 
 /**
