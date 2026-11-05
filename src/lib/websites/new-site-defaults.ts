@@ -22,6 +22,17 @@ export const NEW_SITE_DEFAULTS = {
   poweredByLink: true,
 } as const;
 
+/**
+ * The set for a website created now. Under the two-step flow (lib/publishing/
+ * controls.ts) a new website starts on the customer's own Publish press, as the
+ * client's flow describes: automatic publishing is something they choose on the
+ * Publishing page, not something a default chose for them. Existing websites
+ * are never changed.
+ */
+export function newSiteDefaults(twoStep: boolean) {
+  return twoStep ? { ...NEW_SITE_DEFAULTS, autoPublish: false } : NEW_SITE_DEFAULTS;
+}
+
 /** The Partner Network row every new website gets, in the same transaction. */
 export const NEW_SITE_NETWORK = {
   acceptingLinks: true,

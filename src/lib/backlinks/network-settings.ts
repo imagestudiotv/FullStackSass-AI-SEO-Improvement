@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 
 import { siteScope } from "@/lib/articles/link-guard";
 import { verifyUrl } from "@/lib/articles/link-verify";
+import { twoStepArticles } from "@/lib/articles/review";
 import { DEFAULT_MONTHLY_CAP } from "@/lib/backlinks/network-defaults";
 import { db } from "@/lib/db";
 import { articles, backlinkRequests, backlinkTargets, domainMetrics, networkSites, placements } from "@/lib/db/schema";
@@ -178,7 +179,12 @@ export async function setParticipation(
       .onConflictDoUpdate({ target: networkSites.websiteId, set: { acceptingLinks: enabled, updatedAt: new Date() } });
     if (enabled) return { released: 0, keptInReview: 0 };
 
-    const released = await tx
+    /*
+      Leaving the network ends the Partner Network's review. It does not end
+      the two-step flow's, which holds every website's drafts: leaving must not
+      be a way past it.
+    */
+    const released = (await twoStepArticles(tx)) ? [] : await tx
       .update(articles)
       .set({
         reviewStatus: null,

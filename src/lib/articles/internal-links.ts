@@ -9,7 +9,7 @@ import {
   type LinkVerdict,
 } from "@/lib/articles/link-guard";
 import { findVerifiedTargets, pageTitle } from "@/lib/articles/link-inventory";
-import { reviewHash } from "@/lib/articles/review";
+import { reviewHash, twoStepArticles } from "@/lib/articles/review";
 import { ArticleInFlightError, lockForEdit } from "@/lib/publishing/dispatch";
 import { cachedPages, verifyUrls, type VerifyOptions } from "@/lib/articles/link-verify";
 import { db } from "@/lib/db";
@@ -210,6 +210,7 @@ export async function prepareStoredArticle(
         imageAlt: articles.imageAlt,
         reviewStatus: articles.reviewStatus,
         reviewApprovedHash: articles.reviewApprovedHash,
+        researchApprovedHash: articles.researchApprovedHash,
       })
       .from(articles)
       .where(and(eq(articles.id, articleId), eq(articles.websiteId, websiteId)))
@@ -250,6 +251,16 @@ export async function prepareStoredArticle(
               reviewVersion: sql`${articles.reviewVersion} + 1`,
             }
           : {};
+    /*
+      The two-step flow: nobody can approve the sources again after a repair,
+      so an approval of them that stood for this text stands for the repaired
+      text too, on the same terms as the team's own above. Without it, the
+      Publish press that found a dead link would be held for good.
+    */
+    const research =
+      !substituted && article.researchApprovedHash === reviewHash(article) && (await twoStepArticles())
+        ? { researchApprovedHash: reviewHash({ ...article, bodyHtml: result.html }) }
+        : {};
 
     /*
       Under the article's row lock like every edit; while a revision of it is
@@ -265,7 +276,7 @@ export async function prepareStoredArticle(
       }
       const updated = await tx
         .update(articles)
-        .set({ bodyHtml: result.html, updatedAt: new Date(), ...review })
+        .set({ bodyHtml: result.html, updatedAt: new Date(), ...review, ...research })
         .where(and(eq(articles.id, articleId), eq(articles.bodyHtml, original)))
         .returning({ id: articles.id });
       if (updated.length === 0) return false;

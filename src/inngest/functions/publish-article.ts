@@ -10,12 +10,13 @@ import {
 import { prepareStoredArticle, summarize } from "@/lib/articles/internal-links";
 import { prepareForDelivery } from "@/lib/articles/delivery";
 import { siteScope } from "@/lib/articles/link-guard";
-import { checkReleasable, releaseCheckFor, reviewHash } from "@/lib/articles/review";
+import { checkReleasable, releaseCheckFor, reviewHash, twoStepArticles } from "@/lib/articles/review";
 import {
   claimDispatch,
   HOLD_MESSAGES,
   latestUncertain,
   recordSentPictures,
+  revisionWithDeliveredPicture,
   sentPictures,
   settleDispatch,
   type DispatchTrigger,
@@ -716,7 +717,12 @@ export const publishArticleJob = inngest.createFunction(
           { step: "send-to-cms", articleId, websiteId, trigger, reason: claim.reason },
           `Not sent: ${HOLD_MESSAGES[claim.reason]}`,
         );
-        if (claim.reason === "revision_changed") {
+        /*
+          Under the two-step flow, a press covers the revision it was made on:
+          a new revision is pressed for again (the customer was told it is
+          ready), never carried out by an older press.
+        */
+        if (claim.reason === "revision_changed" && !(trigger === "manual" && (await twoStepArticles()))) {
           /*
             Changed while this job prepared it. Nothing stale is sent; a
             fresh job prepares the new revision from the start (links
@@ -885,9 +891,13 @@ export const publishArticleJob = inngest.createFunction(
       }
 
       const live = result.status === "publish";
+      const keptApproval = featuredMedia
+        ? await revisionWithDeliveredPicture(articleId, sendOutcome.dispatchId ?? null, featuredMedia.url)
+        : {};
       await db
         .update(articles)
         .set({
+          ...keptApproval,
           // A WordPress draft is not live, so the article is not "published".
           status: live ? "published" : "draft",
           publishedUrl: result.remoteUrl,

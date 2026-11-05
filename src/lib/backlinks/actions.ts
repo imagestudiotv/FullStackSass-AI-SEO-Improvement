@@ -3,6 +3,7 @@
 import { and, desc, eq, ne, sql as raw } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
+import { heldFromCustomerSql } from "@/lib/articles/review";
 import { db } from "@/lib/db";
 import {
   articles,
@@ -313,7 +314,8 @@ export async function listGiven(websiteId: string): Promise<GivenRow[]> {
     .innerJoin(backlinkRequests, eq(placements.requestId, backlinkRequests.id))
     .leftJoin(articles, eq(articles.id, placements.articleId))
     .leftJoin(websites, eq(websites.id, backlinkRequests.websiteId))
-    .where(eq(placements.hostWebsiteId, site.id))
+    // The team's links in an article they still have (the two-step flow) are part of it: not listed yet.
+    .where(and(eq(placements.hostWebsiteId, site.id), raw`not ${heldFromCustomerSql}`))
     .orderBy(desc(placements.createdAt));
 }
 

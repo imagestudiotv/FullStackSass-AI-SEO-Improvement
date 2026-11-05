@@ -1,11 +1,10 @@
 import { createHash } from "node:crypto";
 
-import { and, eq, inArray, sql, type SQL } from "drizzle-orm";
+import { and, eq, isNull, sql, type SQL } from "drizzle-orm";
 
-import { linksTo } from "@/lib/articles/link-guard";
 import { onFreeArticles } from "@/lib/billing/free-articles";
 import { db } from "@/lib/db";
-import { articles, backlinkRequests, calendarItems, networkSites, placements, platformControls } from "@/lib/db/schema";
+import { articles, calendarItems, networkSites, platformControls } from "@/lib/db/schema";
 import type { Executor } from "@/lib/db/types";
 
 /**
@@ -182,8 +181,9 @@ export async function inManagedNetwork(websiteId: string, executor: Executor = d
 /**
  * True while the client's two-step article flow is on
  * (platform_controls.two_step_articles, see lib/publishing/controls.ts):
- * every new draft comes to the RepGet team first, their one approval makes
- * it ready - sources included - and the customer only publishes.
+ * every new draft comes to the RepGet team first, the customer reads none of
+ * it until their one approval makes it ready - sources included - and the
+ * customer only publishes.
  *
  * Read here rather than through lib/publishing/controls.ts, which imports
  * this module.
@@ -196,6 +196,48 @@ export async function twoStepArticles(executor: Executor = db): Promise<boolean>
     .limit(1);
   return row?.enabled ?? false;
 }
+
+/** True while the two-step flow is off; for queries that decide in SQL. */
+export const twoStepOffSql: SQL = sql`not exists (
+  select 1 from platform_controls pc where pc.key = 'two_step_articles' and pc.enabled
+)`;
+
+/**
+ * THE CUSTOMER'S SIDE OF THE GATE, under the two-step flow: this revision is
+ * the team's until they approve it. Its text, title, excerpt, picture, sources
+ * and links reach the customer by no read - detail page, list, dashboard,
+ * chat, backlink lists, image library - and they can change nothing in it.
+ *
+ * An article live on the website is not held: the post is public and the
+ * team's review page does not edit it, so what a pending one shows is the
+ * customer's own later change, which they keep seeing while the team checks it.
+ *
+ * The caller has read the switch (twoStepArticles): with the flow off nothing
+ * is ever held from the customer.
+ */
+export function heldFromCustomer(row: ReviewFields & { status: string; reviewStatus: string | null; reviewApprovedHash: string | null }): boolean {
+  if (row.status === "published") return false;
+  if (row.reviewStatus === "pending") return true;
+  return row.reviewStatus === "approved" && row.reviewApprovedHash !== reviewHash(row);
+}
+
+/**
+ * The same rule in SQL, switch included. The hash is only taken for approved
+ * rows, and never with the flow off.
+ */
+export const heldFromCustomerSql: SQL<boolean> = sql<boolean>`(case
+  when ${twoStepOffSql} then false
+  when ${articles.status} = 'published' then false
+  when ${articles.reviewStatus} = 'pending' then true
+  when ${articles.reviewStatus} = 'approved' then ${articles.reviewApprovedHash} is distinct from ${reviewHashSql}
+  else false
+end)`;
+
+/** What the customer reads as the title when no plan entry names a held article. */
+export const PREPARING_TITLE = "Article in preparation";
+
+/** The refusal for anything a customer tries on an article the team has. */
+export const PREPARING_MESSAGE = "This article is being prepared by the RepGet team. You will be told when it is ready to publish.";
 
 /**
  * The review state a freshly written draft is saved with, decided INSIDE the
@@ -267,19 +309,20 @@ export async function syncApproval(articleId: string, executor: Executor = db): 
  * With the two-step flow off: syncApproval, as before - the article goes
  * back to the team's queue.
  *
- * With it on, the team's approval FOLLOWS the customer's edit: the client's
- * rule is "the team works on it, the customer gets a ready version to
- * publish", with no approve-change-approve-again loop. It is the customer's
- * own article, so their change needs nobody's permission. The one exception
- * is a placed Partner Network link: its credits are reserved against that
- * link on this page, so an edit that removes one goes back to the team, who
- * restore it or withdraw the placement - otherwise the customer would
- * publish an article without the link another customer is paying for.
+ * With it on, every change to a revision the team approved goes back to the
+ * TEAM. Their approval covers one exact revision, so it does not follow an
+ * edit and no unreviewed text is released; and the customer is asked for
+ * nothing: the team checks it and it comes back ready, with one new
+ * notification. Placed Partner Network links stay safe the same way, since
+ * approval refuses an article whose placed link is missing. A save that
+ * changed nothing keeps the approval. A draft from before the flow, still
+ * held for a source check the customer can no longer give, goes to the team
+ * on the same terms.
  *
  * Runs inside the edit's transaction, under the article's row lock
  * (editArticle in lib/publishing/dispatch.ts).
  */
-export async function followCustomerEdit(articleId: string, executor: Executor = db): Promise<void> {
+export async function afterCustomerEdit(articleId: string, executor: Executor = db): Promise<void> {
   if (!(await twoStepArticles(executor))) return syncApproval(articleId, executor);
 
   const [row] = await executor
@@ -298,26 +341,23 @@ export async function followCustomerEdit(articleId: string, executor: Executor =
     .from(articles)
     .where(eq(articles.id, articleId))
     .limit(1);
-  if (row?.reviewStatus !== "approved") return;
+  if (!row) return;
   const hash = reviewHash(row);
-  if (row.reviewApprovedHash === hash) return;
-
-  const committed = await executor
-    .select({ targetUrl: backlinkRequests.targetUrl })
-    .from(placements)
-    .innerJoin(backlinkRequests, eq(backlinkRequests.id, placements.requestId))
-    .where(and(eq(placements.articleId, articleId), inArray(placements.status, ["pending", "drafted"])));
-  if (committed.some((placement) => !linksTo(row.bodyHtml ?? "", placement.targetUrl))) {
+  if (row.reviewStatus === "approved" && row.reviewApprovedHash !== hash) {
     await invalidateApproval(articleId, executor);
-    return;
+  } else if (row.reviewStatus === null && row.researchReviewRequired && row.researchApprovedHash !== hash) {
+    await sendToTeam(articleId, executor);
   }
+}
 
+/**
+ * Hands an article outside the team's review to them, under the two-step
+ * flow: a held source check is theirs now. Only a row still outside the
+ * review moves, so a second call does nothing.
+ */
+export async function sendToTeam(articleId: string, executor: Executor = db): Promise<void> {
   await executor
     .update(articles)
-    .set({
-      reviewApprovedHash: hash,
-      // The team's approval covered the sources (approveArticle); it covers this revision too.
-      ...(row.researchReviewRequired && row.researchApprovedHash === row.reviewApprovedHash ? { researchApprovedHash: hash } : {}),
-    })
-    .where(and(eq(articles.id, articleId), eq(articles.reviewStatus, "approved")));
+    .set({ reviewStatus: "pending", reviewVersion: sql`${articles.reviewVersion} + 1` })
+    .where(and(eq(articles.id, articleId), isNull(articles.reviewStatus)));
 }

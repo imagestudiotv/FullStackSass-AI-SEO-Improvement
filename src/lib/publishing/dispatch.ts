@@ -54,6 +54,8 @@ import { automaticStatus, FIRST_ARTICLE_STATUS, isFirstArticle } from "@/lib/pub
  *   - the article still exists and has content;
  *   - the review gate: approved, and exactly the approved revision;
  *   - the exact revision the caller prepared (expectedRevision);
+ *   - under the two-step flow, that only a person's press sends an article
+ *     the team did not approve, whatever else makes it due;
  *   - the schedule rules for WHY it is being sent (trigger): an automatic
  *     release needs auto-publish still on and its planned day come; the
  *     first-article exception only while it is still the first article; a
@@ -381,6 +383,17 @@ export async function claimDispatch(input: {
       return { ok: false, reason: "revision_changed" } as const;
     }
 
+    /*
+      The two-step flow's last word on the automatic paths: only a press sends
+      an article outside the team's approval - a draft from before the flow on
+      manual publishing. A release, a retry or a plugin check finding any such
+      article holds it, even if the switch's sorting missed it.
+    */
+    const pressed = input.trigger === "manual" || (input.trigger === "plugin" && row.publishRequested !== null);
+    if (!pressed && row.reviewStatus !== "approved" && (await isControlEnabled("two_step_articles", tx))) {
+      return { ok: false, reason: "pending_review" } as const;
+    }
+
     const schedule = scheduleAllows(input.trigger, row, now);
     if (schedule) return { ok: false, reason: schedule } as const;
 
@@ -522,6 +535,39 @@ export async function settleDispatch(
     .where(and(eq(publicationDispatches.id, dispatchId), eq(publicationDispatches.status, "in_flight")))
     .returning({ id: publicationDispatches.id });
   return rows.length > 0;
+}
+
+/**
+ * After a direct send the article keeps the CMS's copy of its header picture
+ * (the publish job's record-result), which changes its hash though nobody
+ * changed the article. Under the two-step flow that must not read as a new
+ * revision: the approval would lapse, a CMS draft could not then be published,
+ * and the same version could be pressed out again. So what stood for the sent
+ * revision - the team's approval, the sources', the dispatch's own record -
+ * moves to the new hash. What already did not match stays as it is. Returns
+ * the article's fields to write with the new address; a repeat changes nothing.
+ */
+export async function revisionWithDeliveredPicture(
+  articleId: string,
+  dispatchId: string | null,
+  imageUrl: string,
+): Promise<{ reviewApprovedHash?: string; researchApprovedHash?: string }> {
+  if (!(await isControlEnabled("two_step_articles"))) return {};
+  const [row] = await db.select().from(articles).where(eq(articles.id, articleId)).limit(1);
+  if (!row) return {};
+  const before = reviewHash(row);
+  const after = reviewHash({ ...row, imageUrl });
+  if (before === after) return {};
+  if (dispatchId) {
+    await db
+      .update(publicationDispatches)
+      .set({ revisionHash: after })
+      .where(and(eq(publicationDispatches.id, dispatchId), eq(publicationDispatches.revisionHash, before)));
+  }
+  return {
+    ...(row.reviewApprovedHash === before ? { reviewApprovedHash: after } : {}),
+    ...(row.researchApprovedHash === before ? { researchApprovedHash: after } : {}),
+  };
 }
 
 /**

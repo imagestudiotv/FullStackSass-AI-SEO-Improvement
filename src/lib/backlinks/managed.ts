@@ -722,7 +722,8 @@ export async function approveArticle(input: {
       them separately (lib/publishing/controls.ts, two_step_articles). The
       review page shows the sources and their warnings for that reason.
     */
-    const coversResearch = article.researchReviewRequired && (await twoStepArticles(tx));
+    const twoStep = await twoStepArticles(tx);
+    const coversResearch = article.researchReviewRequired && twoStep;
     const [updated] = await tx
       .update(articles)
       .set({
@@ -734,6 +735,8 @@ export async function approveArticle(input: {
         ...(coversResearch
           ? { researchApprovedHash: reviewHash(article), researchApprovedBy: input.actorEmail, researchApprovedAt: new Date() }
           : {}),
+        // A press made for an earlier revision does not carry this one out: the customer presses again.
+        ...(twoStep ? { publishRequested: null } : {}),
       })
       .where(and(eq(articles.id, article.id), eq(articles.reviewVersion, input.expectedVersion)))
       .returning({ reviewVersion: articles.reviewVersion });

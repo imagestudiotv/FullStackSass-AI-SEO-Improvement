@@ -67,6 +67,7 @@ function detail(row: typeof articles.$inferSelect): ArticleDetail {
     imageAttempts: row.imageAttempts,
     publishedUrl: row.publishedUrl,
     publishRequested: row.publishRequested,
+    preparing: null,
   };
 }
 

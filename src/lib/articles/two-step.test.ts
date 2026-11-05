@@ -9,15 +9,16 @@ import { seedWebsite } from "@/test/fixtures";
  * The client's two-step article flow (2026-11-02) behind the
  * two_step_articles switch: 1. every new draft goes to the RepGet team, whose
  * ONE approval makes it ready - sources included; 2. the customer publishes,
- * and their own edits keep the approval unless a placed network link is
- * removed. With the switch off, everything behaves as before.
+ * and a later change to the revision goes back to the team. With the switch
+ * off, everything behaves as before. The whole delivery, path by path, is in
+ * two-step-delivery.test.ts.
  */
 
 const state = vi.hoisted(() => ({ db: null as unknown }));
 vi.mock("@/lib/db", () => ({ db: new Proxy({}, { get: (_t, p) => Reflect.get(state.db as object, p) }) }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
-import { checkReleasable, followCustomerEdit, reviewHash, reviewStatusForNewDraft } from "./review";
+import { checkReleasable, afterCustomerEdit, reviewHash, reviewStatusForNewDraft } from "./review";
 import { approveArticle } from "@/lib/backlinks/managed";
 import { switchControl } from "@/lib/publishing/controls";
 
@@ -55,7 +56,7 @@ async function approve(articleId: string) {
 async function edit(articleId: string, bodyHtml: string) {
   await test.db.transaction(async (tx) => {
     await tx.update(articles).set({ bodyHtml }).where(eq(articles.id, articleId));
-    await followCustomerEdit(articleId, tx);
+    await afterCustomerEdit(articleId, tx);
   });
   const [row] = await test.db.select().from(articles).where(eq(articles.id, articleId));
   return row;
@@ -104,16 +105,19 @@ describe("the team's one approval", () => {
 });
 
 describe("step 2: the customer's own edits", () => {
-  it("on: keep the team's approval", async () => {
+  it("on: go back to the team, who approve one exact revision; nothing is asked of the customer", async () => {
     await twoStep(true);
     const { article } = await draft({ reviewStatus: "pending" });
     await approve(article.id);
     const after = await edit(article.id, "<p>Saved article, with the customer's own sentence.</p>");
-    expect(after.reviewStatus).toBe("approved");
+    expect(after.reviewStatus).toBe("pending");
+    expect(after.reviewApprovedHash).toBeNull();
+    expect((await checkReleasable(article.id)).ok).toBe(false);
+    await approve(article.id);
     expect(await checkReleasable(article.id)).toEqual({ ok: true });
   });
 
-  it("on: removing a placed network link sends it back to the team", async () => {
+  it("on: an edit that keeps or removes a placed network link goes back alike; approval then checks the link", async () => {
     await twoStep(true);
     const partner = await seedWebsite(test);
     const target = `https://${partner.orgId}.example/services`;
@@ -123,11 +127,12 @@ describe("step 2: the customer's own edits", () => {
     await approve(article.id);
 
     const kept = await edit(article.id, `<p>Reworded, still with <a href="${target}">a partner</a>.</p>`);
-    expect(kept.reviewStatus).toBe("approved");
+    expect(kept.reviewStatus).toBe("pending");
+    await approve(article.id);
     const removed = await edit(article.id, "<p>Reworded without the link.</p>");
     expect(removed.reviewStatus).toBe("pending");
-    // Held: its sources' approval was for the earlier text too, so either reason holds it.
     expect((await checkReleasable(article.id)).ok).toBe(false);
+    await expect(approve(article.id)).rejects.toThrow(/placed link is missing/);
   });
 
   it("off: any edit goes back to the team, as before", async () => {
