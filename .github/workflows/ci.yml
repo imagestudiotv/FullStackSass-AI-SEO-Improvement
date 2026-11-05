@@ -208,3 +208,6 @@ jobs:
       # PayPal's payment notice for a request made that way.
       - name: Image Studio plugin request limits (real WordPress + MySQL)
         run: php wordpress-plugin/tests/imagestudio-featured.php "$RUNNER_TEMP/wordpress" wordpress-plugin/imagestudio-blog/imagestudio-blog.php
+
+      - name: Image Studio plugin white article (real WordPress + MySQL)
+        run: php wordpress-plugin/tests/real-wordpress-white-article.php "$RUNNER_TEMP/wordpress" wordpress-plugin/imagestudio-blog/imagestudio-blog.php
