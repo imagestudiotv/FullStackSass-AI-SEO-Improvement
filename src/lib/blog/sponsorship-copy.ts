@@ -45,6 +45,8 @@ export type SponsorshipPanelCopy = {
   contactRest: string;
   /** The browser could not reach the server. */
   network: string;
+  /** The panel's close button, for screen readers. */
+  close: string;
 };
 
 export type SponsorshipErrors = {
@@ -114,6 +116,7 @@ export const SPONSORSHIP_COPY: Record<Locale, SponsorshipCopy> = {
       contactLink: "Contact us",
       contactRest: "and we will arrange your placement.",
       network: "We could not reach the server. Check your connection and try again.",
+      close: "Close",
     },
     errors: {
       notConfigured: "Online payment is not available right now. Please contact us about a placement.",
@@ -175,6 +178,7 @@ export const SPONSORSHIP_COPY: Record<Locale, SponsorshipCopy> = {
       contactLink: "Contáctenos",
       contactRest: "y organizaremos su mención.",
       network: "No hemos podido conectar con el servidor. Compruebe su conexión e inténtelo de nuevo.",
+      close: "Cerrar",
     },
     errors: {
       notConfigured: "El pago en línea no está disponible en este momento. Contáctenos para organizar una mención.",
@@ -237,6 +241,7 @@ export const SPONSORSHIP_COPY: Record<Locale, SponsorshipCopy> = {
       contactLink: "Contactez-nous",
       contactRest: "et nous organiserons votre mention.",
       network: "Impossible de joindre le serveur. Vérifiez votre connexion et réessayez.",
+      close: "Fermer",
     },
     errors: {
       notConfigured: "Le paiement en ligne n’est pas disponible pour le moment. Contactez-nous pour une mention.",
@@ -299,6 +304,7 @@ export const SPONSORSHIP_COPY: Record<Locale, SponsorshipCopy> = {
       contactLink: "Ci contatti",
       contactRest: "e organizzeremo la sua menzione.",
       network: "Non è stato possibile raggiungere il server. Controlli la connessione e riprovi.",
+      close: "Chiudi",
     },
     errors: {
       notConfigured: "Il pagamento online non è disponibile al momento. Ci contatti per una menzione.",
@@ -362,6 +368,7 @@ export const SPONSORSHIP_COPY: Record<Locale, SponsorshipCopy> = {
       contactLink: "Kontaktieren Sie uns",
       contactRest: "und wir organisieren Ihre Erwähnung.",
       network: "Der Server war nicht erreichbar. Bitte prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+      close: "Schließen",
     },
     errors: {
       notConfigured: "Die Online-Zahlung ist derzeit nicht verfügbar. Kontaktieren Sie uns für eine Erwähnung.",
