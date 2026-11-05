@@ -6,8 +6,12 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 
 import {
   articles,
+  articleVersions,
   backlinkRequests,
   calendarItems,
+  gscPageMetrics,
+  searchImportCoverage,
+  spendReservations,
   integrationKeys,
   integrations,
   networkSites,
@@ -121,18 +125,23 @@ vi.mock("@/lib/plugin/keys", async (importOriginal) => ({
 }));
 
 import { GET as pluginArticles } from "@/app/api/plugin/articles/route";
+import { updateAnyArticle } from "@/lib/admin/actions";
+import { creditsFor } from "@/lib/backlinks/managed";
+import { ARTICLE_DELIVERY, articleTitleText, PREPARING_TITLE } from "@/lib/i18n/article-delivery";
+import { queueArticleForCalendarItem } from "@/inngest/functions/generate-article";
+import { checkLimit } from "@/lib/usage";
 import { publishArticleJob } from "@/inngest/functions/publish-article";
 import { publishDueDrafts } from "@/inngest/functions/scheduled-articles";
 import { ResearchPanel } from "@/components/articles/research-panel";
 import { findTrafficChanges } from "@/lib/articles/decay";
-import { getArticle, listArticles, regenerateArticle, updateArticle } from "@/lib/articles/actions";
+import { deleteArticle, getArticle, listArticles, regenerateArticle, updateArticle } from "@/lib/articles/actions";
 import { listReusableImages, removeArticleImage, updateArticleImageAlt } from "@/lib/articles/image-actions";
 import { prepareStoredArticle } from "@/lib/articles/internal-links";
 import { notifyReady, releaseAfterApproval } from "@/lib/articles/release";
 import { approveArticleResearch } from "@/lib/articles/research-actions";
 import { checkReleasable, PREPARING_MESSAGE, reviewHash } from "@/lib/articles/review";
 import { listGiven } from "@/lib/backlinks/actions";
-import { approveArticle, editReviewedArticle, reopenArticle } from "@/lib/backlinks/managed";
+import { approveArticle, editReviewedArticle, removeManagedPlacement, reopenArticle } from "@/lib/backlinks/managed";
 import { setParticipation } from "@/lib/backlinks/network-settings";
 import { READ_TOOLS } from "@/lib/chat/tools";
 import { getNextActions } from "@/lib/dashboard/next-actions";
@@ -305,6 +314,23 @@ const form = (revision: string) => {
   return data;
 };
 
+/** 28 days of healthy clicks, then 28 days at a tenth, ending yesterday: every page here is declining. */
+async function seedDecline(websiteId: string, pages: string[]) {
+  const day = (back: number) => new Date(Date.now() - back * 86_400_000).toISOString().slice(0, 10);
+  const rows = pages.flatMap((pageUrl) =>
+    Array.from({ length: 56 }, (_, i) => ({
+      websiteId,
+      pageUrl,
+      date: day(i + 1),
+      clicks: i < 28 ? 1 : 10,
+      impressions: 100,
+      position: 5,
+    })),
+  );
+  await test.db.insert(gscPageMetrics).values(rows);
+  await test.db.insert(searchImportCoverage).values({ websiteId, startDate: day(56), endDate: day(1) });
+}
+
 /* ------------------------------------------------------------------------ */
 
 describe("before the team's approval: nothing reaches the customer", () => {
@@ -340,6 +366,40 @@ describe("before the team's approval: nothing reaches the customer", () => {
     expect(tasks?.work.find((task) => task.id === "drafts")?.count).toBe(0);
   });
 
+  it("a held article whose rewrite failed: the failed task names only its planned title", async () => {
+    const s = await scene({ fields: { status: "failed" } });
+    const task = (await getNextActions(s.websiteId, s.orgId, false)).find((action) => action.kind === "failed");
+    expect(task?.detail).toBe(PLANNED);
+    await twoStep(false);
+    expect((await getNextActions(s.websiteId, s.orgId, false)).find((action) => action.kind === "failed")?.detail).toBe(STAFF_TITLE);
+  });
+
+  it("a held article's failed publish: the same, in the publish-failed task", async () => {
+    const s = await scene();
+    await test.db.insert(publishLogs).values({ articleId: s.post.id, status: "failed", error: "x" });
+    const task = (await getNextActions(s.websiteId, s.orgId, false)).find((action) => action.kind === "publishFailed");
+    expect(task?.detail).toBe(PLANNED);
+  });
+
+  it("with no plan entry the reads return the marker, which every language says, and the chat gets words", async () => {
+    const s = await scene({ fields: { status: "failed" } });
+    await test.db.update(articles).set({ calendarItemId: null }).where(eq(articles.id, s.post.id));
+    expect((await getArticle(s.websiteId, s.post.id))?.title).toBe(PREPARING_TITLE);
+    expect((await listArticles(s.websiteId))[0].title).toBe(PREPARING_TITLE);
+    const task = (await getNextActions(s.websiteId, s.orgId, false)).find((action) => action.kind === "failed");
+    expect(task?.detail).toBe(PREPARING_TITLE);
+
+    const words = (["en", "es", "fr", "it", "de"] as const).map((locale) => articleTitleText(PREPARING_TITLE, locale));
+    expect(words).toEqual(["Article in preparation", "Artículo en preparación", "Article en préparation", "Articolo in preparazione", "Artikel in Vorbereitung"]);
+    expect(articleTitleText("A real title", "de")).toBe("A real title");
+    expect(ARTICLE_DELIVERY.de.preparingTitle).toBe(words[4]);
+
+    const ctx = { websiteId: s.websiteId, ownerOrgId: s.orgId, userId: "u", access: "owner", domain: "d.test", brandName: null, locale: "de", level: "paid" };
+    const said = JSON.stringify(await READ_TOOLS.find((tool) => tool.name === "get_articles")!.run(ctx as never, {} as never));
+    expect(said).toContain("Artikel in Vorbereitung");
+    expect(said).not.toContain("preparing");
+  });
+
   it("the AI chat's tools", async () => {
     const s = await scene({ plannedInDays: 0 });
     const ctx = { websiteId: s.websiteId, ownerOrgId: s.orgId, userId: "u", access: "owner", domain: "d.test", brandName: null, locale: "en", level: "paid" };
@@ -362,9 +422,27 @@ describe("before the team's approval: nothing reaches the customer", () => {
     expect(page.total).toBe(0);
   });
 
-  it("the traffic report's read runs with a held article and names no title for it", async () => {
-    const s = await scene({ fields: { publishedUrl: "https://site.test/live" } });
-    expect(leakIn(await findTrafficChanges(s.websiteId))).toEqual([]);
+  it("the traffic report, with search data on the page: a held rewrite of a live page is listed by address, with no title or link", async () => {
+    const url = `https://site.test/held-${randomUUID().slice(0, 6)}`;
+    const control = `https://site.test/live-${randomUUID().slice(0, 6)}`;
+    const s = await scene({ fields: { publishedUrl: url } });
+    const [live] = await test.db
+      .insert(articles)
+      .values({ websiteId: s.websiteId, title: "A live article", status: "published", publishedUrl: control, bodyHtml: "<p>Live</p>" })
+      .returning();
+    await seedDecline(s.websiteId, [url, control]);
+
+    const report = await findTrafficChanges(s.websiteId);
+    expect(report.dataStatus).toBe("ready");
+    const page = (address: string) => report.losingClicks.find((change) => change.pageUrl === address);
+    // Both pages decline, so both are in the report: the filter is what differs.
+    expect(page(url)).toMatchObject({ clicksBefore: 280, clicksAfter: 28, articleId: null, articleTitle: null });
+    expect(page(control)).toMatchObject({ articleId: live.id, articleTitle: "A live article" });
+    expect(leakIn(report)).toEqual([]);
+
+    await twoStep(false);
+    const off = await findTrafficChanges(s.websiteId);
+    expect(off.losingClicks.find((change) => change.pageUrl === url)).toMatchObject({ articleId: s.post.id, articleTitle: STAFF_TITLE });
   });
 
   it("the sources panel renders nothing", async () => {
@@ -788,6 +866,69 @@ describe("a later change, and stale work", () => {
     const s = await scene({ fields: { status: "published", publishedUrl: "https://site.test/?p=9", reviewStatus: null } });
     expect(await publishArticle(s.websiteId, s.post.id)).toEqual({ ok: false, error: PREPARING_MESSAGE });
     expect((await row(s.post.id)).reviewStatus).toBe("pending");
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+
+describe("KNOWN GAP, pinned so a fix has to change this test (docs/two-step-articles.md)", () => {
+  it("a staff edit in the general admin editor on a live article is what the customer reads, and no earlier revision is stored to serve instead", async () => {
+    vi.stubEnv("ADMIN_EMAILS", ADMIN);
+    const s = await scene({ fields: { status: "published", publishedUrl: "https://site.test/?p=7", reviewStatus: "approved", researchReviewRequired: false, bodyHtml: "<p>As published</p>" } });
+    const published = await row(s.post.id);
+    await test.db.update(articles).set({ reviewApprovedHash: reviewHash(published) }).where(eq(articles.id, s.post.id));
+    const customerSession = state.session;
+
+    state.session = { user: { id: "u_admin", email: ADMIN, emailVerified: true }, session: { id: "s_admin", activeOrganizationId: s.orgId } };
+    expect((await updateAnyArticle(s.post.id, { title: "Staff retitled it", bodyHtml: "<p>Staff working text</p>" })).ok).toBe(true);
+    state.session = customerSession;
+    vi.unstubAllEnvs();
+
+    expect((await row(s.post.id)).reviewStatus).toBe("pending");
+    const article = await getArticle(s.websiteId, s.post.id);
+    expect(article).toMatchObject({ title: "Staff retitled it", preparing: null });
+    expect(article?.bodyHtml).toContain("Staff working text");
+    // The general editor keeps no version, so the published body is stored nowhere.
+    expect(await test.db.select().from(articleVersions).where(eq(articleVersions.articleId, s.post.id))).toEqual([]);
+    // The post itself is untouched, and nothing can send the edit before an approval.
+    expect(await publishArticle(s.websiteId, s.post.id)).toEqual({ ok: false, error: PREPARING_MESSAGE });
+  });
+});
+
+describe("what deleting a held article does today (left as it is, for Daniel to decide)", () => {
+  it("the plan's article slot is not returned, and a partner's reserved credits stay reserved with no placement page to release them", async () => {
+    const s = await scene();
+    const [item] = await test.db.insert(calendarItems).values({ websiteId: s.websiteId, title: "Another topic" }).returning();
+    const queued = await queueArticleForCalendarItem(s.websiteId, item.id);
+    if (!queued.ok) throw new Error(queued.error);
+    await test.db.update(articles).set({ status: "draft", bodyHtml: "<p>Written</p>", reviewStatus: "pending" }).where(eq(articles.id, queued.articleId));
+    const before = await checkLimit(s.websiteId, "articles");
+    const slot = await test.db.select().from(spendReservations).where(eq(spendReservations.subjectId, queued.articleId));
+    expect(slot).toHaveLength(1);
+
+    const partner = await seedWebsite(test);
+    const [request] = await test.db.insert(backlinkRequests).values({ websiteId: partner.websiteId, targetUrl: `https://${LINK}/page`, status: "matched", creditsReserved: 40 }).returning();
+    const [placement] = await test.db.insert(placements).values({ requestId: request.id, hostWebsiteId: s.websiteId, articleId: queued.articleId, anchor: "a", status: "drafted", managed: true, credits: 40 }).returning();
+    const reserved = async () => (await creditsFor(test.db, partner.orgId)).reserved;
+    expect(await reserved()).toBe(40);
+
+    expect(await deleteArticle(s.websiteId, queued.articleId)).toEqual({ ok: true, data: null });
+
+    expect(await test.db.select().from(articles).where(eq(articles.id, queued.articleId))).toEqual([]);
+    expect((await checkLimit(s.websiteId, "articles")).used).toBe(before.used);
+    expect((await test.db.select().from(spendReservations).where(eq(spendReservations.subjectId, queued.articleId)))[0].state).toBe(slot[0].state);
+
+    const [after] = await test.db.select().from(placements).where(eq(placements.id, placement.id));
+    expect(after).toMatchObject({ articleId: null, status: "drafted" });
+    const [stillMatched] = await test.db.select().from(backlinkRequests).where(eq(backlinkRequests.id, request.id));
+    expect(stillMatched).toMatchObject({ status: "matched", creditsReserved: 40 });
+    expect(await reserved()).toBe(40);
+    await expect(removeManagedPlacement({ placementId: placement.id, expectedVersion: 0, actorEmail: ADMIN })).rejects.toThrow("Placement not found");
+
+    // Writing the topic again takes a new slot.
+    const again = await queueArticleForCalendarItem(s.websiteId, item.id);
+    expect(again.ok).toBe(true);
+    expect((await checkLimit(s.websiteId, "articles")).used).toBe(before.used + 1);
   });
 });
 

@@ -74,6 +74,26 @@ A press covers the revision it was made on. A new approval clears a press record
 
 Also only reading live posts: social suggestions, video ideas, indexing, link inventory, translations. Article versions have no customer read. The topics planner reads titles to avoid repeats and shows them to no one.
 
+### Known gap: a live article changed in the general admin editor
+
+An edit in **Admin → Articles** to a post already on the website saves over the stored article at once (`updateAnyArticle`). It goes back to pending, so nothing can send it, and the post on the website stays as it was. But the customer's article page reads that same row, so they see the staff text before anyone approved it. `two-step-delivery.test.ts` pins this. A pending article on the website is deliberately not hidden, because the customer's own change is what it usually holds.
+
+Serving "the last approved or published revision" instead is not possible from what is stored today:
+
+- `articles` holds one current revision.
+- `article_versions` holds bodies only, and the general editor writes none, so the published body may be stored nowhere.
+- `publication_dispatches.request_snapshot` holds title and slug, not body, excerpt or picture.
+- `publish_logs` holds addresses and statuses. `article_versions` cannot be matched to `revision_hash` either, since that hash also needs the excerpt and picture.
+
+To do it properly:
+
+1. Capture the full delivered revision (title, slug, excerpt, body, picture, alt) at each send. This fits in `request_snapshot` with no migration, written in `claimDispatch` and read from the latest timely `sent` dispatch, at the cost of one article body per send. A dedicated column would be migration 0086.
+2. Serve it to the customer while a live article is pending: `getArticle`, `listArticles`, the dashboard card, next actions, the backlink lists and report, the traffic report, the 7-day wins and best articles all name the title.
+3. Decide what a customer edits and sees in that state. Their own pending change would disappear from their view, and Save must be refused or it overwrites the team's work from a stale base.
+4. Decide what to show for every post delivered before the capture exists, which has no stored revision at all. Those would have to be hidden or stay as they are.
+
+A smaller alternative is to refuse text edits on live articles in the general editor while the flow is on. It closes the gap in one check, but leaves staff no way to change a live article's stored text. Neither is built.
+
 ## With the switch off
 
 Behaviour is exactly as before. Only Partner Network websites wait for the team, and only with managed review on. Customers read every draft, approve flagged sources themselves, and press Publish or Send as draft. Any edit after approval goes back to review. A first article goes out by itself.
