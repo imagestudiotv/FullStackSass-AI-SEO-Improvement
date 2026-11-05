@@ -46,7 +46,7 @@ describe.skipIf(!available)("the two-step flow on real Postgres", () => {
   }, 120_000);
   afterAll(async () => {
     await dispose?.();
-  });
+  }, 180_000);
   afterEach(async () => {
     await dbs[0].delete(platformControls).where(eq(platformControls.key, "two_step_articles"));
   });
