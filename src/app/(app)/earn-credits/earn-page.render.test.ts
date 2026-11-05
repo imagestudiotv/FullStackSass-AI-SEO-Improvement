@@ -43,7 +43,7 @@ vi.mock("@/lib/credits/overview-request", () => ({ creditOverviewForRequest: asy
 
 import EarnCreditsPage from "./page";
 
-async function render(daily: Partial<typeof paid> & Record<string, unknown>) {
+async function render(daily: Record<string, unknown>) {
   state.overview = { balance: 41, reserved: 0, available: 41, daily: { ...paid, ...daily }, settings: {} };
   return renderToStaticMarkup(await EarnCreditsPage());
 }
