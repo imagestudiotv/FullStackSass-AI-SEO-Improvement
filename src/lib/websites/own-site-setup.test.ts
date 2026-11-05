@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
 
 import { and, eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it, vi } from "vitest";
@@ -6,7 +7,7 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 import { member, organization, user } from "@/lib/db/auth-tables";
-import { jobOutbox, networkSites, websites } from "@/lib/db/schema";
+import { jobOutbox, networkSites, subscriptions, websites } from "@/lib/db/schema";
 import { settingsForMode } from "@/lib/publishing/policy";
 import { createTestDb, type TestDb } from "@/test/db";
 
@@ -39,15 +40,52 @@ async function workspace(options: { name?: string; owner?: boolean } = {}) {
 /** Another domain per test, so tests in one database never see each other's site. */
 const address = () => `https://www.own-${randomUUID().slice(0, 8)}.example`;
 const rowsFor = (domain: string) => test.db.select().from(websites).where(eq(websites.domain, domain));
+/** Every table the setup can write to, in whole. */
+const everything = async () => ({
+  websites: (await test.db.select({ id: websites.id }).from(websites)).length,
+  network: (await test.db.select({ id: networkSites.id }).from(networkSites)).length,
+  jobs: (await test.db.select({ id: jobOutbox.id }).from(jobOutbox)).length,
+  subscriptions: (await test.db.select({ id: subscriptions.id }).from(subscriptions)).length,
+});
 
 describe("the setup", () => {
   it("writes nothing on a dry run", async () => {
     const id = await workspace();
     const url = address();
+    const before = await everything();
     const plan = await planOwnSite(test.db, { workspace: id, address: url });
     expect(plan).toMatchObject({ action: "create", websiteId: null, workspace: { id } });
     if (plan.action === "refuse") throw new Error(plan.reason);
     expect(await rowsFor(plan.domain)).toEqual([]);
+    // Zero rows anywhere, and the same for a site that exists and would change.
+    expect(await everything()).toEqual(before);
+    const domain = url.replace("https://www.", "");
+    const [site] = await test.db.insert(websites).values({ organizationId: id, url: `https://${domain}`, domain, status: "ready", generationMode: "automatic" }).returning();
+    const withSite = await everything();
+    expect(await planOwnSite(test.db, { workspace: id, address: url })).toMatchObject({ action: "update" });
+    expect(await everything()).toEqual(withSite);
+    expect((await rowsFor(domain))[0]).toMatchObject({ id: site.id, generationMode: "automatic" });
+  });
+
+  it("the script writes only when told: --apply is the only way to the writing path", () => {
+    const script = readFileSync("scripts/setup-repget-site.ts", "utf8");
+    expect(script).toContain('const apply = process.argv.includes("--apply");');
+    expect(script).toContain("apply ? await applyOwnSite(db, { workspace }) : await planOwnSite(db, { workspace })");
+    expect(script).not.toMatch(/\.insert\(|\.update\(|\.delete\(|sql`/);
+  });
+
+  it("can grant nothing: it writes only the website, its network row and its analysis job", async () => {
+    const source = readFileSync("src/lib/websites/own-site-setup.ts", "utf8");
+    const written = [...source.matchAll(/\.(?:insert|update|delete)\((\w+)\)/g)].map((match) => match[1]);
+    expect(new Set(written)).toEqual(new Set(["websites", "networkSites", "jobOutbox"]));
+
+    const id = await workspace();
+    const before = await everything();
+    const plan = await applyOwnSite(test.db, { workspace: id, address: address() });
+    if (plan.action === "refuse") throw new Error(plan.reason);
+    expect(plan.plan).toBeNull();
+    expect(await everything()).toEqual({ websites: before.websites + 1, network: before.network + 1, jobs: before.jobs + 1, subscriptions: before.subscriptions });
+    expect(await test.db.select().from(subscriptions).where(eq(subscriptions.organizationId, id))).toEqual([]);
   });
 
   it("uses normal validation, stores what addWebsite stores, and keeps the site from writing, publishing or swapping links", async () => {
@@ -86,9 +124,14 @@ describe("the setup", () => {
     const url = address();
     const first = await applyOwnSite(test.db, { workspace: id, address: url });
     if (first.action === "refuse") throw new Error(first.reason);
+    const after = await everything();
     const again = await applyOwnSite(test.db, { workspace: id, address: url.replace("www.", "") });
     expect(again).toMatchObject({ action: "nothing", websiteId: first.websiteId, changes: [] });
+    const third = await applyOwnSite(test.db, { workspace: id, address: url });
+    expect(third).toMatchObject({ action: "nothing", websiteId: first.websiteId, changes: [] });
     expect(await rowsFor(first.domain)).toHaveLength(1);
+    // No second website, network row or analysis job.
+    expect(await everything()).toEqual(after);
     expect(await planOwnSite(test.db, { workspace: id, address: url })).toMatchObject({ action: "nothing" });
   });
 
