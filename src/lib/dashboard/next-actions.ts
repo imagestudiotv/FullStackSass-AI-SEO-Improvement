@@ -5,9 +5,9 @@ import { db } from "@/lib/db";
 import { nextActionPreferences, websites } from "@/lib/db/schema";
 import { findTrafficChanges } from "@/lib/articles/decay";
 import { PUBLISHING_KINDS } from "@/lib/publishing/kinds";
-import { customerTitleSql, reviewHashSql, releasableSql, twoStepOffSql } from "@/lib/articles/review";
+import { customerTitleSql, heldFromCustomerSql, reviewHashSql, releasableSql, twoStepOffSql } from "@/lib/articles/review";
 
-export type NextActionKind = "publishing" | "publishFailed" | "failed" | "draft" | "ready" | "audit" | "google" | "traffic" | "searchData" | "snippet" | "research";
+export type NextActionKind = "publishing" | "publishFailed" | "failed" | "draft" | "readyToPublish" | "audit" | "google" | "traffic" | "searchData" | "snippet" | "research";
 export type NextAction = {
   id: string; kind: NextActionKind; href: string; detail?: string;
   priority: "high" | "medium" | "opportunity";
@@ -50,7 +50,7 @@ export async function getNextActions(
       order by articles.updated_at desc, articles.id limit 1)`,
     twoStep: sql<boolean>`not ${twoStepOffSql}`,
     draft: sql<ArticleTask>`(select json_build_object('id', articles.id, 'title', ${customerTitleSql}) from articles
-      where articles.website_id = ${websiteId} and articles.status = 'draft' and ${releasableSql}
+      where articles.website_id = ${websiteId} and articles.status = 'draft' and ${releasableSql} and not ${heldFromCustomerSql}
       and not websites.auto_publish order by articles.updated_at desc, articles.id limit 1)`,
     audit: sql<string | null>`(select a.id::text from audits a where a.website_id = ${websiteId}
       and a.id = (select latest.id from audits latest where latest.website_id = ${websiteId} order by latest.created_at desc, latest.id desc limit 1)
@@ -95,7 +95,7 @@ export async function getNextActions(
         { clicks: candidate.clicks, impressions: candidate.impressions, end: traffic.windowEnd! });
     } else if (row.google && canManage) add("searchData", websiteId, "medium", `${base}/google`);
   } else if (row.google && canManage) add("searchData", websiteId, "medium", `${base}/google`);
-  if (row.draft) add(row.twoStep ? "ready" : "draft", row.draft.id, "medium", `${base}/articles/${row.draft.id}`, row.draft.title);
+  if (row.draft) add(row.twoStep ? "readyToPublish" : "draft", row.draft.id, "medium", `${base}/articles/${row.draft.id}`, row.draft.title);
   if (canManage && !row.google) add("google", websiteId, "medium", `${base}/google`);
   const order = { high: 0, medium: 1, opportunity: 2 };
   actions.sort((a, b) => order[a.priority] - order[b.priority]);

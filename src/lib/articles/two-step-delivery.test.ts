@@ -147,6 +147,7 @@ import { actionErrorText } from "@/app/(app)/websites/[websiteId]/articles/[arti
 import { translateLiveArticle } from "@/lib/articles/translations";
 import { alertIfNewlyUnfollowed } from "@/lib/backlinks/nofollow";
 import { getMessages } from "@/lib/i18n/messages";
+import { CONTENT_COPY } from "@/lib/i18n/content-improvements";
 import { NEXT_ACTIONS_COPY } from "@/lib/i18n/next-actions";
 import { coveredTopics } from "@/lib/sites/covered";
 import { creditsFor } from "@/lib/backlinks/managed";
@@ -384,7 +385,7 @@ describe("before the team's approval: nothing reaches the customer", () => {
 
     const actions = await getNextActions(s.websiteId, s.orgId, false);
     expect(actions.map((action) => action.kind)).not.toContain("research");
-    expect(actions.map((action) => action.kind)).not.toContain("ready");
+    expect(actions.map((action) => action.kind)).not.toContain("readyToPublish");
     expect(leakIn(actions)).toEqual([]);
 
     const tasks = await getTasks(s.websiteId, s.orgId, false);
@@ -576,7 +577,7 @@ describe("after the team's approval: the exact revision, one notification, one P
     expect(stored.researchApprovedHash).toBe(reviewHash(stored));
     expect(await checkReleasable(s.post.id)).toEqual({ ok: true });
     expect((await listArticles(s.websiteId))[0].status).toBe("ready");
-    expect((await getNextActions(s.websiteId, s.orgId, false)).map((action) => action.kind)).toContain("ready");
+    expect((await getNextActions(s.websiteId, s.orgId, false)).map((action) => action.kind)).toContain("readyToPublish");
 
     expect(bell.sent).toHaveLength(1);
     expect(bell.sent[0]).toMatchObject({ type: "article.ready", title: "Your article is ready to publish", href: `/websites/${s.websiteId}/articles/${s.post.id}` });
@@ -808,6 +809,15 @@ describe("a later change, and stale work", () => {
     await updateArticle(s.websiteId, s.post.id, { bodyHtml: "<p>No link now.</p>" });
     expect((await row(s.post.id)).reviewStatus).toBe("pending");
     await expect(approve(s.post.id)).rejects.toThrow(/placed link is missing/);
+  });
+
+  it("no 'publish this' task while the team has a newer copy", async () => {
+    const s = await scene();
+    await approve(s.post.id);
+    expect((await getNextActions(s.websiteId, s.orgId, false)).map((action) => action.kind)).toContain("readyToPublish");
+    const approved = await row(s.post.id);
+    await reopenArticle({ articleId: s.post.id, expectedVersion: approved.reviewVersion, actorEmail: ADMIN });
+    expect((await getNextActions(s.websiteId, s.orgId, false)).map((action) => action.kind)).not.toContain("readyToPublish");
   });
 
   it("the team reopening an approved article: the customer keeps the approved version, and the team's edit stays private", async () => {
@@ -1093,8 +1103,13 @@ describe("every string added for the flow, in every language", () => {
   it("the status word and the next action", () => {
     const words = locales.map((locale) => getMessages(locale).app.status.preparing);
     expect(new Set(words).size).toBe(5);
-    expect(new Set(locales.map((locale) => NEXT_ACTIONS_COPY[locale].ready)).size).toBe(5);
-    expect(new Set(locales.map((locale) => NEXT_ACTIONS_COPY[locale].readyHelp)).size).toBe(5);
+    expect(new Set(locales.map((locale) => NEXT_ACTIONS_COPY[locale].readyToPublish)).size).toBe(5);
+    expect(new Set(locales.map((locale) => NEXT_ACTIONS_COPY[locale].readyToPublishHelp)).size).toBe(5);
+    // The page merges these with CONTENT_COPY: a shared key would show the wrong words (it did, under "ready").
+    for (const locale of locales) {
+      const merged = { ...NEXT_ACTIONS_COPY[locale], ...CONTENT_COPY[locale] };
+      expect(merged.readyToPublish).toBe(NEXT_ACTIONS_COPY[locale].readyToPublish);
+    }
   });
 
   it("the server's refusals, as the page says them", () => {
@@ -1550,7 +1565,7 @@ describe("with the switch off, nothing changes", () => {
     const s = await scene({ fields: { reviewStatus: null } });
     const kinds = (await getNextActions(s.websiteId, s.orgId, false)).map((action) => action.kind);
     expect(kinds).toContain("research");
-    expect(kinds).not.toContain("ready");
+    expect(kinds).not.toContain("readyToPublish");
   });
 
   it("no ready notification is sent by this flow, and a press twice is the job's to refuse", async () => {
