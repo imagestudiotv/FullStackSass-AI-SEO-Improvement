@@ -3,6 +3,7 @@ import "server-only";
 import { and, desc, eq } from "drizzle-orm";
 
 import type { ArticleDetail } from "@/lib/articles/actions";
+import { linksTo } from "@/lib/articles/link-guard";
 import { releaseCheckFor, reviewHash } from "@/lib/articles/review";
 import { db } from "@/lib/db";
 import { articles, calendarItems, publicationDispatches, publishLogs } from "@/lib/db/schema";
@@ -55,6 +56,15 @@ export function formatWhen(value: Date, locale: Locale): string {
 
 export function formatDay(value: Date, locale: Locale): string {
   return formatDate(value, locale, { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+}
+
+/**
+ * The partner links to highlight. Under the two-step flow the page may show the
+ * last approved revision while the team has placed a newer link in their working
+ * copy: only links in the text on this page reach the browser.
+ */
+export function partnerLinksInText(urls: string[], bodyHtml: string | null): string[] {
+  return urls.filter((url) => linksTo(bodyHtml ?? "", url));
 }
 
 /** The connection the publish job uses: connected, newest verified first (lib/publishing/credentials.ts). */

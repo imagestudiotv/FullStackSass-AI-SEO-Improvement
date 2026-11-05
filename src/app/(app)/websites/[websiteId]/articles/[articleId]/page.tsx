@@ -21,7 +21,7 @@ import { ArticleEditor } from "./article-editor";
 import { ArticlePreparing } from "./article-preparing";
 import { ArticleIndexingStatus } from "@/components/articles/indexing-status";
 import { ResearchPanel } from "@/components/articles/research-panel";
-import { formatWhen, HISTORY_LIMIT, loadPublishing, pickDestination } from "./article-data";
+import { formatWhen, HISTORY_LIMIT, loadPublishing, partnerLinksInText, pickDestination } from "./article-data";
 import { generationFailureKind } from "./failure-copy";
 import { previewSiteOrigin } from "./site-origin";
 
@@ -163,7 +163,7 @@ export default async function ArticlePage({
       locale={locale}
       websiteDomain={gate.site.domain}
       siteOrigin={siteOrigin}
-      partnerLinks={partnerLinks}
+      partnerLinks={article.withTeam ? partnerLinksInText(partnerLinks, article.bodyHtml) : partnerLinks}
       facts={facts}
       history={history}
       historyLimit={HISTORY_LIMIT}

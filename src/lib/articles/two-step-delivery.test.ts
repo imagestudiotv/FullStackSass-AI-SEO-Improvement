@@ -6,7 +6,6 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 
 import {
   articles,
-  articleVersions,
   backlinkRequests,
   calendarItems,
   gscPageMetrics,
@@ -143,6 +142,7 @@ vi.mock("@/lib/plugin/keys", async (importOriginal) => ({
 
 import { GET as pluginArticles } from "@/app/api/plugin/articles/route";
 import { updateAnyArticle } from "@/lib/admin/actions";
+import { partnerLinksInText } from "@/app/(app)/websites/[websiteId]/articles/[articleId]/article-data";
 import { actionErrorText } from "@/app/(app)/websites/[websiteId]/articles/[articleId]/failure-copy";
 import { translateLiveArticle } from "@/lib/articles/translations";
 import { alertIfNewlyUnfollowed } from "@/lib/backlinks/nofollow";
@@ -1202,6 +1202,12 @@ describe("staff edits stay private, and every path checks the exact revision it 
     vi.unstubAllEnvs();
     expect((await row(s.post.id)).reviewStatus).toBe("pending");
     expect((await getArticle(s.websiteId, s.post.id))?.bodyHtml).toBe("<p>As published</p>");
+  });
+
+  it("a partner link the team placed only in the working copy is not named to the page showing the approved revision", () => {
+    const placedInWorkingCopy = "https://partner.example/new";
+    const inApproved = "https://partner.example/old";
+    expect(partnerLinksInText([placedInWorkingCopy, inApproved], `<p><a href="${inApproved}">kept</a></p>`)).toEqual([inApproved]);
   });
 
   it("a stored revision whose hash no longer matches is not a revision: nothing shown as approved, nothing sent", async () => {
