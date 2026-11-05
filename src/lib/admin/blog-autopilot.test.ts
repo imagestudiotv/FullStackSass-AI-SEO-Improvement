@@ -35,7 +35,7 @@ import {
   suggestBlogAutopilotTopics,
   writeBlogAutopilotNow,
 } from "@/lib/admin/blog-autopilot";
-import { parseTopicLines } from "@/app/admin/blog/autopilot/autopilot-topics";
+import { parseEntityLines, parseTopicLines } from "@/app/admin/blog/autopilot/autopilot-topics";
 import { DEFAULT_AUTOPILOT, readAutopilotSettings, romeHourLabel } from "@/lib/blog/autopilot/settings";
 
 let test: TestDb;
@@ -176,6 +176,102 @@ describe("the topic list", () => {
   });
 });
 
+describe("a comparison topic (client, 2026-11-05)", () => {
+  const comparison = (...names: string[]) => ({ entities: names.map((name) => ({ name, url: "" })), brief: "For a small shop.", criteria: ["Price"] });
+  const compare = (topic: string, ...names: string[]) => ({ topic, articleType: "comparison", comparison: comparison(...names) });
+
+  it("is stored with its type, what it compares and its brief; an ordinary topic stays informative, in the same queue and order", async () => {
+    expect(await addBlogAutopilotTopics({ topics: [{ topic: "An ordinary topic" }, compare("Acme or Beta for a small shop", "Acme", "Beta"), { topic: "Another ordinary topic" }] })).toEqual({ ok: true, data: { added: 3, skipped: [] } });
+    expect(await queue()).toEqual(["An ordinary topic", "Acme or Beta for a small shop", "Another ordinary topic"]);
+    const page = await getBlogAutopilotAdmin();
+    expect(page.queued.map((topic) => topic.articleType)).toEqual(["informative", "comparison", "informative"]);
+    expect(page.queued[0].comparison).toBeNull();
+    expect(page.queued[1].comparison).toEqual({ entities: [{ name: "Acme", url: null }, { name: "Beta", url: null }], brief: "For a small shop.", criteria: ["Price"] });
+  });
+
+  it("is written in its turn, by the same queue", async () => {
+    await addBlogAutopilotTopics({ topics: [{ topic: "First in the list" }, compare("Acme or Beta for a small shop", "Acme", "Beta")] });
+    const id = await topicId("Acme or Beta for a small shop");
+    await moveBlogAutopilotTopic(id, "up");
+    expect(await queue()).toEqual(["Acme or Beta for a small shop", "First in the list"]);
+  });
+
+  it("is refused without two things to compare, or with a bad address", async () => {
+    expect(await addBlogAutopilotTopics({ topics: [compare("Only one thing to compare", "Acme")] })).toEqual({ ok: false, error: "Name at least 2 things to compare" });
+    const bad = { topic: "A bad address here", articleType: "comparison", comparison: { entities: [{ name: "Acme", url: "ftp://x.example" }, { name: "Beta", url: "" }] } };
+    expect(await addBlogAutopilotTopics({ topics: [bad] })).toEqual({ ok: false, error: 'The address for "Acme" is not a web address' });
+  });
+
+  it("cannot be added twice however it is worded: A vs B and B vs A are one article", async () => {
+    await addBlogAutopilotTopics({ topics: [compare("Acme or Beta for a small shop", "Acme", "Beta")] });
+    expect(await addBlogAutopilotTopics({ topics: [compare("Beta versus Acme, a guide", "BETA", "acme")] })).toEqual({ ok: true, data: { added: 0, skipped: ["Beta versus Acme, a guide"] } });
+    expect(await addBlogAutopilotTopics({ topics: [compare("Acme, Beta and Gamma", "Acme", "Beta", "Gamma")] })).toMatchObject({ ok: true, data: { added: 1 } });
+    // Within one list too.
+    expect(await addBlogAutopilotTopics({ topics: [compare("Delta or Echo", "Delta", "Echo"), compare("Echo or Delta", "Echo", "Delta")] })).toEqual({ ok: true, data: { added: 1, skipped: ["Echo or Delta"] } });
+  });
+
+  it("is refused when already written, and can be written again only after failing", async () => {
+    await addBlogAutopilotTopics({ topics: [compare("Acme or Beta for a small shop", "Acme", "Beta")] });
+    const id = await topicId("Acme or Beta for a small shop");
+    await test.db.update(blogAutopilotTopics).set({ status: "written" }).where(eq(blogAutopilotTopics.id, id));
+    expect(await addBlogAutopilotTopics({ topics: [compare("Beta versus Acme", "Beta", "Acme")] })).toMatchObject({ data: { added: 0 } });
+    await test.db.update(blogAutopilotTopics).set({ status: "failed" }).where(eq(blogAutopilotTopics.id, id));
+    expect(await addBlogAutopilotTopics({ topics: [compare("Beta versus Acme", "Beta", "Acme")] })).toMatchObject({ data: { added: 1 } });
+  });
+
+  it("can be edited into another comparison and back to an ordinary topic, but not into one already waiting", async () => {
+    await addBlogAutopilotTopics({ topics: [compare("Acme or Beta for a small shop", "Acme", "Beta"), compare("Gamma or Delta for a small shop", "Gamma", "Delta")] });
+    const id = await topicId("Gamma or Delta for a small shop");
+    expect(await saveBlogAutopilotTopic({ id, ...compare("Gamma or Delta for a small shop", "Beta", "Acme") })).toEqual({ ok: false, error: "Another topic already compares those" });
+    expect(await saveBlogAutopilotTopic({ id, ...compare("Gamma or Delta for a small shop", "Gamma", "Delta", "Echo") })).toEqual({ ok: true, data: null });
+    // Saving it unchanged is not a clash with itself.
+    expect(await saveBlogAutopilotTopic({ id, ...compare("Gamma or Delta for a small shop", "Gamma", "Delta", "Echo") })).toEqual({ ok: true, data: null });
+    expect(await saveBlogAutopilotTopic({ id, topic: "Gamma or Delta for a small shop" })).toEqual({ ok: true, data: null });
+    const [row] = await test.db.select().from(blogAutopilotTopics).where(eq(blogAutopilotTopics.id, id));
+    expect(row).toMatchObject({ articleType: "informative", comparison: null });
+  });
+
+  it("shows a run's sources and the links removed to administrators, without its pages' text", async () => {
+    await addBlogAutopilotTopics({ topics: [compare("Acme or Beta for a small shop", "Acme", "Beta")] });
+    const id = await topicId("Acme or Beta for a small shop");
+    await test.db.insert(blogAutopilotRuns).values({
+      runDate: "2026-11-05",
+      trigger: "manual",
+      topicId: id,
+      status: "done",
+      detail: {
+        costs: { "research-comparison": 0.02, "plan-article": 0.3 },
+        research: { checkedAt: "2026-11-05T10:00:00.000Z", entities: [{ name: "Acme", status: "researched", notes: [] }], sources: [{ id: "S1", entity: "Acme", url: "https://r.example/a", title: "A page", retrievedAt: "2026-11-05" }] },
+        comparison: { facts: [{ entity: "Acme", claim: "A claim", sourceId: "S1", quote: "Its words" }], unverified: ["Beta: price"] },
+        links: { internal: 1, fragments: 0, removed: [{ href: "https://ext.example", text: "words", reason: "a link to another website" }] },
+      },
+    });
+    const run = (await getBlogAutopilotAdmin()).runs.find((item) => item.topic === "Acme or Beta for a small shop")!;
+    expect(run.costs.research).toBeCloseTo(0.02);
+    expect(run.costUsd).toBeCloseTo(0.32);
+    expect(run.removedLinks).toEqual([{ href: "https://ext.example", text: "words", reason: "a link to another website" }]);
+    expect(run.provenance).toMatchObject({ sources: [{ url: "https://r.example/a" }], facts: [{ quote: "Its words" }], unverified: ["Beta: price"] });
+    await test.db.delete(blogAutopilotRuns);
+  });
+
+  it("an older run has no provenance", async () => {
+    await test.db.insert(blogAutopilotRuns).values({ runDate: "2026-10-05", trigger: "manual", status: "done", detail: { links: { internal: 1, external: 1, removed: [] } } });
+    const [run] = (await getBlogAutopilotAdmin()).runs;
+    expect(run.provenance).toBeNull();
+    expect(run.removedLinks).toEqual([]);
+    await test.db.delete(blogAutopilotRuns);
+  });
+});
+
+describe("the things to compare, as typed", () => {
+  it("reads one per line, with an optional address after a bar", () => {
+    expect(parseEntityLines(" Acme SEO | https://acme.example/pricing \n\nBeta Rank\r\n")).toEqual([
+      { name: "Acme SEO", url: "https://acme.example/pricing" },
+      { name: "Beta Rank", url: "" },
+    ]);
+  });
+});
+
 describe("a pasted list", () => {
   it("reads one topic per line, with an optional search phrase after a bar", () => {
     expect(parseTopicLines("Local SEO for restaurants | local seo restaurants\n\n  Service pages  \r\nA | b | c")).toEqual([
@@ -200,7 +296,7 @@ describe("write one now", () => {
     expect(page.writing.map((topic) => topic.topic)).toEqual(["First"]);
     expect(page.queued.map((topic) => topic.topic)).toEqual(["Second"]);
     expect(page.runs).toEqual([expect.objectContaining({ trigger: "manual", status: "running", topic: "First", costUsd: null, words: null, translations: null, warnings: [] })]);
-    expect(page.runs[0].costs).toEqual({ writing: 0, pictures: 0, translations: 0 });
+    expect(page.runs[0].costs).toEqual({ research: 0, writing: 0, pictures: 0, translations: 0 });
     expect(inngestMock.send).toHaveBeenCalledWith(expect.objectContaining({ name: "blog/autopilot.run" }));
     const [log] = await test.db.select().from(adminAuditLog).where(eq(adminAuditLog.action, "blog.autopilot_run_started"));
     expect(log).toMatchObject({ actorEmail: ADMIN, summary: `Started writing "First" with the blog autopilot` });

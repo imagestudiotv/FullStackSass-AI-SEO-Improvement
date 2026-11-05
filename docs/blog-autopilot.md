@@ -52,6 +52,25 @@ Every model call and every picture is its own Inngest step:
 - Inngest concurrency is 1.
 - Each topic is taken ("writing") in the same transaction that records its run and its outbox job (`startAutopilotRun`), so the page shows it at once. A job the outbox can never deliver fails its run and hands the topic back.
 
+## Comparison articles (client, 2026-11-05)
+
+A topic can be a **comparison**: choose it under **Kind of article**, then list the 2 to 5 things to compare (one per line, `name | address of its own page`), what to compare them on, and a brief. It goes through the same queue, order, schedule, retries, costs, pictures and linked translations as any article. Informative articles are written exactly as before.
+
+| Step | Where | What |
+|---|---|---|
+| Research | `comparison.ts`, step `research-comparison` | Before any model is paid: the address given, then the search customer articles use. A page that does not name the thing is not used. With sources for fewer than two things the run **fails, saying which**, nothing is written and nothing is invented. **Try again** is there once better addresses are given. Without the search set up, only the addresses given are read. |
+| Plan | same, `write.ts` | The plan also returns criteria, a fact sheet and what could not be confirmed. Each fact carries a quotation, and one that is not really in the source it names is thrown out by code. Fewer than two things left with a fact: the plan is refused. |
+| Body | `write.ts` | Written from the fact sheet only, never from the pages or from memory, with criteria, an at-a-glance table, differences, trade-offs and who should choose which. No test results, ratings or experience. What is unknown says "Not confirmed in the sources we checked". |
+| Checks | `comparisonChecks`, step `check-evidence` | Code looks for the structure, for prices and percentages not in the facts and for claims of having tested anything. One model call compares the draft with the facts. All of it goes on the run as things to check: it never publishes or refuses. If the evidence check cannot run, the run says so. |
+
+**Administrators see the provenance** under each run: **Sources and removed links** lists the research, the sources with their addresses, the fact sheet, what could not be confirmed, and every link taken out of the article. None of it is in the article, and its public "Sources" stay empty.
+
+**Costs** show research separately from writing, pictures and translations.
+
+**Duplicates:** the same comparison cannot wait or be written twice, however it is worded or ordered ("A vs B" and "B vs A" are one). Each language's translation is unique, as for any article.
+
+Migration `0087_blog_autopilot_comparison` adds the article type (`informative` for every existing topic) and the comparison. **Apply it before deploying the code that uses it.**
+
 ## The schedule
 
 `blog-autopilot-schedule` runs every hour at five past (`5 * * * *`):

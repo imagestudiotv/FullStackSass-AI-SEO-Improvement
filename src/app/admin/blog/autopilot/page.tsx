@@ -2,7 +2,7 @@ import { Bot } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { getBlogAutopilotAdmin } from "@/lib/admin/blog-autopilot";
+import { getBlogAutopilotAdmin, type AdminAutopilotRun } from "@/lib/admin/blog-autopilot";
 import { AUTOPILOT_LANGUAGES, AUTOPILOT_MAX_PER_DAY, romeHourLabel, utcHourLabel } from "@/lib/blog/autopilot/settings";
 import { LANGUAGE_NAMES_EN } from "@/lib/blog/locale";
 import { formatDate } from "@/lib/i18n/format";
@@ -21,8 +21,88 @@ const RUN_STATUS: Record<string, { tone: StatusTone; label: string }> = {
   failed: { tone: "danger", label: "Failed" },
 };
 
+/**
+ * Where a run's facts came from, for the administrator checking them: the
+ * sources of a comparison, its fact sheet, what could not be confirmed, and any
+ * link taken out of the generated article. None of it is in the article.
+ */
+function RunProvenanceNotes({ run }: { run: AdminAutopilotRun }) {
+  const { provenance, removedLinks } = run;
+  if (!provenance && removedLinks.length === 0) return null;
+  const link = "break-all underline underline-offset-2";
+  return (
+    <details className="mt-1 text-xs text-muted-foreground">
+      <summary className="cursor-pointer select-none">Sources and removed links (only administrators see this)</summary>
+      <div className="mt-1 space-y-2 pl-1">
+        {provenance && provenance.entities.length > 0 ? (
+          <div>
+            <p className="font-medium text-foreground">Researched{provenance.checkedAt ? ` ${formatDate(new Date(provenance.checkedAt), "en", { day: "numeric", month: "short", year: "numeric" })}` : ""}</p>
+            <ul className="list-disc space-y-0.5 pl-5">
+              {provenance.entities.map((entity) => (
+                <li key={entity.name}>
+                  {entity.name}: {entity.status === "researched" ? "sources found" : "no sources found"}
+                  {entity.notes.length > 0 ? `. ${entity.notes.join(" ")}` : ""}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        {provenance && provenance.sources.length > 0 ? (
+          <div>
+            <p className="font-medium text-foreground">Sources</p>
+            <ul className="list-disc space-y-0.5 pl-5">
+              {provenance.sources.map((source) => (
+                <li key={source.id}>
+                  {source.id} ({source.entity}):{" "}
+                  <a href={source.url} target="_blank" rel="noopener noreferrer nofollow" className={link}>
+                    {source.title || source.url}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        {provenance && provenance.facts.length > 0 ? (
+          <div>
+            <p className="font-medium text-foreground">Facts the article was written from</p>
+            <ul className="list-disc space-y-0.5 pl-5">
+              {provenance.facts.map((fact, index) => (
+                <li key={`${index}:${fact.sourceId}`}>
+                  {fact.entity}: {fact.claim} ({fact.sourceId}: &ldquo;{fact.quote}&rdquo;)
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        {provenance && provenance.unverified.length > 0 ? (
+          <div>
+            <p className="font-medium text-foreground">Could not be confirmed</p>
+            <ul className="list-disc space-y-0.5 pl-5">
+              {provenance.unverified.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        {removedLinks.length > 0 ? (
+          <div>
+            <p className="font-medium text-foreground">Links removed from the article, its words kept</p>
+            <ul className="list-disc space-y-0.5 pl-5">
+              {removedLinks.map((removed, index) => (
+                <li key={`${index}:${removed.href}`}>
+                  &ldquo;{removed.text}&rdquo;: <span className="break-all">{removed.href}</span> ({removed.reason})
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+      </div>
+    </details>
+  );
+}
+
 /** "(writing $1.10, pictures $0.75, translations $1.20)": only the parts that cost something. */
-function costParts(costs: { writing: number; pictures: number; translations: number }): string {
+function costParts(costs: AdminAutopilotRun["costs"]): string {
   const parts = Object.entries(costs)
     .filter(([, usd]) => usd > 0)
     .map(([part, usd]) => `${part} $${usd.toFixed(2)}`);
@@ -106,6 +186,7 @@ export default async function BlogAutopilotPage() {
                           </ul>
                         </details>
                       ) : null}
+                      <RunProvenanceNotes run={run} />
                       {run.error ? <span className="mt-0.5 block text-xs text-danger">{run.error}</span> : null}
                     </span>
                     <span className="order-2 ml-auto sm:order-3">

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useId, useState, useTransition } from "react";
 import { toast } from "sonner";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,6 +20,8 @@ import {
   writeBlogAutopilotNow,
   type AdminAutopilotTopic,
 } from "@/lib/admin/blog-autopilot";
+
+import { comparisonLabel, type ComparisonBrief } from "@/lib/blog/autopilot/comparison-brief";
 
 import { ConfirmDialog } from "../confirm-dialog";
 import { AdminStatus } from "../../_ui/status";
@@ -36,6 +39,24 @@ export function parseTopicLines(text: string): { topic: string; keyword: string 
       return { topic: topic.trim(), keyword: rest.join("|").trim() };
     });
 }
+
+/** One thing to compare per line: "name" or "name | its address". */
+export function parseEntityLines(text: string): { name: string; url: string }[] {
+  return text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [name, ...rest] = line.split("|");
+      return { name: name.trim(), url: rest.join("|").trim() };
+    });
+}
+
+const lines = (text: string) =>
+  text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
 
 function useRun() {
   const router = useRouter();
@@ -229,6 +250,12 @@ function TopicText({ topic, place }: { topic: AdminAutopilotTopic; place?: numbe
         {topic.topic}
       </p>
       <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+        {topic.articleType === "comparison" ? (
+          <>
+            <Badge variant="outline">Comparison</Badge>
+            {topic.comparison ? <span>{comparisonLabel(topic.comparison)}</span> : <span className="text-danger">Nothing to compare: edit this topic</span>}
+          </>
+        ) : null}
         {topic.keyword ? <span>Search phrase: {topic.keyword}</span> : null}
         {topic.source === "suggested" ? (
           <span className="inline-flex items-center gap-1">
@@ -255,7 +282,7 @@ function QueuedRow({ topic, place, first, last }: { topic: AdminAutopilotTopic; 
           submitLabel="Save topic"
           pending={pending}
           onCancel={() => setEditing(false)}
-          onSubmit={(values) => run(() => saveBlogAutopilotTopic({ id: topic.id, ...values }), "Topic saved", () => setEditing(false))}
+          onSubmit={(values) => run(() => saveBlogAutopilotTopic({ id: topic.id, ...topicInput(values) }), "Topic saved", () => setEditing(false))}
         />
       </li>
     );
@@ -317,7 +344,21 @@ function FailedRow({ topic }: { topic: AdminAutopilotTopic }) {
   );
 }
 
-type TopicValues = { topic: string; keyword: string; notes: string };
+type TopicValues = { topic: string; keyword: string; notes: string; articleType: "informative" | "comparison"; entities: string; brief: string; criteria: string };
+
+/** What the server action takes. */
+function topicInput({ topic, keyword, notes, articleType, entities, brief, criteria }: TopicValues) {
+  return {
+    topic,
+    keyword,
+    notes,
+    articleType,
+    comparison: articleType === "comparison" ? { entities: parseEntityLines(entities), brief, criteria: lines(criteria) } : undefined,
+  };
+}
+
+const entityLines = (comparison: ComparisonBrief | null | undefined) =>
+  (comparison?.entities ?? []).map((entity) => (entity.url ? `${entity.name} | ${entity.url}` : entity.name)).join("\n");
 
 function TopicForm({
   initial,
@@ -326,7 +367,7 @@ function TopicForm({
   onSubmit,
   onCancel,
 }: {
-  initial?: Partial<Pick<AdminAutopilotTopic, "topic" | "keyword" | "notes">>;
+  initial?: Partial<Pick<AdminAutopilotTopic, "topic" | "keyword" | "notes" | "articleType" | "comparison">>;
   submitLabel: string;
   pending: boolean;
   onSubmit: (values: TopicValues) => void;
@@ -337,7 +378,12 @@ function TopicForm({
     topic: initial?.topic ?? "",
     keyword: initial?.keyword ?? "",
     notes: initial?.notes ?? "",
+    articleType: initial?.articleType ?? "informative",
+    entities: entityLines(initial?.comparison),
+    brief: initial?.comparison?.brief ?? "",
+    criteria: (initial?.comparison?.criteria ?? []).join("\n"),
   });
+  const comparing = values.articleType === "comparison";
   return (
     <form
       className="grid gap-3"
@@ -346,6 +392,20 @@ function TopicForm({
         onSubmit(values);
       }}
     >
+      <div className="space-y-1.5">
+        <label htmlFor={`${id}-type`} className="text-sm font-medium">
+          Kind of article
+        </label>
+        <select
+          id={`${id}-type`}
+          value={values.articleType}
+          onChange={(event) => setValues({ ...values, articleType: event.target.value === "comparison" ? "comparison" : "informative" })}
+          className="flex h-9 w-full max-w-xs rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+        >
+          <option value="informative">Informative</option>
+          <option value="comparison">Comparison</option>
+        </select>
+      </div>
       <div className="grid gap-3 sm:grid-cols-[2fr_1fr]">
         <div className="space-y-1.5">
           <label htmlFor={`${id}-topic`} className="text-sm font-medium">
@@ -373,6 +433,50 @@ function TopicForm({
           />
         </div>
       </div>
+      {comparing ? (
+        <div className="grid gap-3 rounded-lg border bg-muted/30 p-3">
+          <div className="space-y-1.5">
+            <label htmlFor={`${id}-entities`} className="text-sm font-medium">
+              What to compare, one per line
+            </label>
+            <Textarea
+              id={`${id}-entities`}
+              value={values.entities}
+              rows={3}
+              placeholder={"First product | https://its-own-page.example\nSecond product | https://its-own-page.example"}
+              onChange={(event) => setValues({ ...values, entities: event.target.value })}
+            />
+            <p className="text-xs text-muted-foreground">
+              2 to 5. An address after &ldquo;|&rdquo; is read first as research. The article only states what its sources say, and with sources for fewer than two the run stops without writing anything.
+            </p>
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor={`${id}-criteria`} className="text-sm font-medium">
+              Compare them on <span className="font-normal text-muted-foreground">(optional, one per line)</span>
+            </label>
+            <Textarea
+              id={`${id}-criteria`}
+              value={values.criteria}
+              rows={2}
+              placeholder={"Price\nWho it suits"}
+              onChange={(event) => setValues({ ...values, criteria: event.target.value })}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor={`${id}-brief`} className="text-sm font-medium">
+              Brief <span className="font-normal text-muted-foreground">(optional)</span>
+            </label>
+            <Textarea
+              id={`${id}-brief`}
+              value={values.brief}
+              maxLength={2000}
+              rows={2}
+              placeholder="Who the comparison is for, and what they are deciding."
+              onChange={(event) => setValues({ ...values, brief: event.target.value })}
+            />
+          </div>
+        </div>
+      ) : null}
       <div className="space-y-1.5">
         <label htmlFor={`${id}-notes`} className="text-sm font-medium">
           Notes for the writer <span className="font-normal text-muted-foreground">(optional)</span>
@@ -392,7 +496,7 @@ function TopicForm({
             Cancel
           </Button>
         ) : null}
-        <Button type="submit" disabled={pending || values.topic.trim().length < 3}>
+        <Button type="submit" disabled={pending || values.topic.trim().length < 3 || (comparing && parseEntityLines(values.entities).length < 2)}>
           <Plus aria-hidden="true" />
           {pending ? "Saving…" : submitLabel}
         </Button>
@@ -464,7 +568,7 @@ function AddTopics() {
             onSubmit={(values) =>
               run(
                 async () => {
-                  const result = await addBlogAutopilotTopics({ topics: [values] });
+                  const result = await addBlogAutopilotTopics({ topics: [topicInput(values)] });
                   if (result.ok) {
                     if (result.data.added === 0) return { ok: false as const, error: "That topic is already on the list" };
                     toast.success(added(result.data.added, result.data.skipped));

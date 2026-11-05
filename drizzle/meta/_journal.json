@@ -596,6 +596,13 @@
       "when": 1793774804616,
       "tag": "0084_plan_catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 87,
+      "version": "7",
+      "when": 1793880000000,
+      "tag": "0087_blog_autopilot_comparison",
+      "breakpoints": true
     }
   ]
 }

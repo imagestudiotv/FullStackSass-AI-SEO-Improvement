@@ -45,6 +45,12 @@ vi.mock("@/lib/images/storage", () => ({
 const mail = vi.hoisted(() => ({ send: vi.fn() }));
 vi.mock("@/lib/email/send", () => ({ sendEmail: mail.send }));
 
+// A comparison's research: the search stubbed, so nothing reaches the search provider or a website.
+const research = vi.hoisted(() => ({ collect: vi.fn() }));
+vi.mock("@/lib/articles/research", () => ({ collectResearchSources: research.collect }));
+const search = vi.hoisted(() => ({ configured: false }));
+vi.mock("@/lib/providers/dataforseo", async (original) => ({ ...(await original<typeof import("@/lib/providers/dataforseo")>()), isDataForSeoConfigured: () => search.configured }));
+
 import { startAutopilotRun } from "@/lib/blog/autopilot/run";
 import { bodyParts } from "@/lib/blog/autopilot/write";
 
@@ -481,6 +487,187 @@ describe("the blog autopilot's job", () => {
     ]);
     expect(mail.send.mock.calls[0][0].text).toContain("The English draft and its Italian translation are ready to review.");
     expect(mail.send.mock.calls[0][0].text).toContain("- The French translation could not be made");
+  });
+});
+
+describe("a comparison article", () => {
+  const COMPARISON = {
+    entities: [
+      { name: "Acme SEO", url: null },
+      { name: "Beta Rank", url: null },
+    ],
+    brief: "For a small shop choosing its first tool.",
+    criteria: ["Price"],
+  };
+  const COMPARE_HEADINGS = ["How we compared", "At a glance", "Key differences", "The trade-offs of each", "Which one should you choose", "Costs you should plan for", "Where RepGet fits", "The bottom line"];
+  const COMPARE_PLAN = () =>
+    planReply({
+      title: "Acme SEO vs Beta Rank: Which Suits a Small Shop in 2026?",
+      slug: "acme-seo-vs-beta-rank",
+      sections: COMPARE_HEADINGS.map((heading, index) => ({ heading, covers: `Section ${index + 1}.`, subheadings: [], table: "", links: [] })),
+      pictures: [{ afterSection: 2, title: "Acme SEO and Beta Rank", idea: "Two columns", labels: ["Acme SEO", "Beta Rank"], alt: "Two tools compared" }],
+      criteria: ["Price", "Tracking"],
+      facts: [
+        { entity: "Acme SEO", claim: "Acme SEO's Starter plan is $29 a month", sourceId: "S1", quote: "Acme SEO costs $29 a month on the Starter plan" },
+        { entity: "Beta Rank", claim: "Beta Rank tracks 100 keywords", sourceId: "S2", quote: "Beta Rank includes rank tracking for 100 keywords" },
+      ],
+      unverified: ["Beta Rank: current price"],
+    });
+  const COMPARE_PARTS = () =>
+    bodyParts(8).map(({ from, to }, index, all) => {
+      const sections = COMPARE_HEADINGS.slice(from, to).map((heading) => {
+        const table = heading === "At a glance" ? "<table><tbody><tr><th><p>Criterion</p></th><th><p>Acme SEO</p></th><th><p>Beta Rank</p></th></tr><tr><td><p>Price</p></td><td><p>$29 a month</p></td><td><p>Not confirmed in the sources we checked</p></td></tr></tbody></table>" : "";
+        return `<h2>${heading}</h2><p>Acme SEO and Beta Rank. See <a href="https://acme.example/pricing">their page</a>.</p>${table}`;
+      });
+      const last = index === all.length - 1;
+      return message(
+        last
+          ? { bodyHtml: `${sections.join("")}<h3>Find out</h3><p><a href="https://www.repget.com/audit">Free audit</a>.</p>`, faqs: [1, 2, 3, 4, 5, 6].map((n) => ({ question: `Question ${n}?`, answer: `<p>Answer ${n}.</p>` })) }
+          : { bodyHtml: sections.join("") },
+      );
+    });
+  const SOURCES: Record<string, string> = { "Acme SEO": "Acme SEO costs $29 a month on the Starter plan, billed monthly.", "Beta Rank": "Beta Rank includes rank tracking for 100 keywords, and more." };
+
+  afterEach(() => {
+    search.configured = false;
+  });
+
+  beforeEach(() => {
+    search.configured = true;
+    research.collect.mockReset();
+    research.collect.mockImplementation(async (brief: { title: string }, onCost: (cost: number) => Promise<void>) => {
+      await onCost(0.01);
+      const name = Object.keys(SOURCES).find((entity) => brief.title.startsWith(entity))!;
+      return [{ id: "S1", url: `https://reviews.example/${name[0]}`, title: name, retrievedAt: "2026-11-05T10:00:00.000Z", excerpt: SOURCES[name] }];
+    });
+  });
+
+  async function queuedComparison(comparison: unknown = COMPARISON) {
+    await test.db.insert(blogAutopilotTopics).values({ topic: "Acme SEO or Beta Rank for a small shop", articleType: "comparison", comparison: comparison as never, sortOrder: 1 });
+    const outcome = await startAutopilotRun({ trigger: "manual", requestedBy: "admin@repget.test" });
+    if (!("claimed" in outcome)) throw new Error("no claim");
+    return outcome.claimed;
+  }
+
+  it("goes through the same run: researched first, then one linked translation per language, with sources kept for administrators only", async () => {
+    await languages("it", "de");
+    const claim = await queuedComparison();
+    expect(claim).toMatchObject({ articleType: "comparison", comparison: COMPARISON });
+    modelWrites(message(COMPARE_PLAN()), ...COMPARE_PARTS(), message({ issues: ['"their page" needs checking.'] }));
+    const step = memoisedStep();
+    const result = (await invoke(claim.runId, step)) as { written: boolean; postId: string; translations: number };
+
+    expect(result).toMatchObject({ written: true, translations: 2 });
+    expect(step.ran.slice(0, 3)).toEqual(["load-run", "research-comparison", "plan-article"]);
+    expect(step.ran).toContain("check-evidence");
+    expect(step.ran.indexOf("check-evidence")).toBeLessThan(step.ran.indexOf("save-draft"));
+    // The same steps as any article after that: no second generator, and no job per language.
+    for (const id of ["check-article", "picture-en-1", "save-draft", "translate-it-fields", "translate-de-part-1", "save-it", "save-de", "finish-run", "email-admins"]) expect(step.ran).toContain(id);
+    expect(inngestMock.send).toHaveBeenCalledTimes(1);
+
+    // The plan read the sources and the rules; the parts read only the fact sheet.
+    const calls = ai.stream.mock.calls.map(([params]) => params as Params);
+    expect(calls[0].messages[0].content).toContain("Article type: comparison");
+    expect(calls[0].messages[0].content).toContain("<website_page>");
+    expect(calls[0].messages[0].content).toContain("rank tracking for 100 keywords");
+    expect(calls[0].system[0].text).toContain("<comparison_rules>");
+    expect(calls[1].system[0].text).toBe(calls[0].system[0].text);
+    expect(calls[1].messages[0].content).not.toContain("<website_page>");
+    expect(calls[1].messages[0].content).toContain("Acme SEO's Starter plan is $29 a month");
+
+    const rows = await test.db.select().from(blogPosts);
+    const english = rows.find((row) => row.id === result.postId)!;
+    expect(english).toMatchObject({ status: "draft", locale: "en", translationOf: null, sources: [] });
+    expect(english.bodyHtml).toContain("Not confirmed in the sources we checked");
+    expect(english.bodyHtml).toContain("their page");
+    const translations = rows.filter((row) => row.translationOf === result.postId);
+    expect(translations.map((row) => row.locale).sort()).toEqual(["de", "it"]);
+    for (const post of translations) expect(post).toMatchObject({ status: "draft", needsReview: true, sources: [] });
+    for (const post of rows) expect(post.bodyHtml).not.toContain("acme.example");
+
+    const [run] = await test.db.select().from(blogAutopilotRuns).where(eq(blogAutopilotRuns.id, claim.runId));
+    expect(run).toMatchObject({ status: "done", postId: english.id });
+    const detail = run.detail as {
+      costs: Record<string, number>;
+      research: { sources: { url: string }[] };
+      comparison: { facts: unknown[]; unverified: string[] };
+      links: { removed: { href: string }[] };
+      warnings: string[];
+      evidenceIssues: string[];
+    };
+    expect(detail.costs["research-comparison"]).toBeCloseTo(0.02);
+    expect(detail.costs["check-evidence"]).toBeGreaterThan(0);
+    expect(detail.research.sources.map((source) => source.url)).toEqual(["https://reviews.example/A", "https://reviews.example/B"]);
+    expect(detail.comparison.facts).toHaveLength(2);
+    expect(detail.links.removed.map((link) => link.href)).toContain("https://acme.example/pricing");
+    expect(detail.warnings).toContain('Evidence check: "their page" needs checking.');
+    expect(detail.warnings).toContain("Could not be confirmed from the sources: Beta Rank: current price.");
+  });
+
+  it("an ordinary article's run and instructions are as they were, and it keeps its translations", async () => {
+    await languages("it");
+    const claim = await queuedRun();
+    expect(claim).toMatchObject({ articleType: "informative", comparison: null });
+    modelWrites(...WHOLE_ARTICLE());
+    const step = memoisedStep();
+    const result = (await invoke(claim.runId, step)) as { postId: string };
+    expect(step.ran).not.toContain("research-comparison");
+    expect(step.ran).not.toContain("check-evidence");
+    expect(research.collect).not.toHaveBeenCalled();
+    const calls = ai.stream.mock.calls.map(([params]) => params as Params);
+    expect(calls[0].system[0].text).not.toContain("<comparison_rules>");
+    expect(calls[0].messages[0].content).not.toContain("<website_page>");
+    const [italian] = await test.db.select().from(blogPosts).where(eq(blogPosts.translationOf, result.postId));
+    expect(italian).toMatchObject({ locale: "it", status: "draft", needsReview: true });
+  });
+
+  it("with sources for fewer than two, stops before paying a model, and says so; the topic can be tried again", async () => {
+    await languages();
+    const claim = await queuedComparison();
+    research.collect.mockImplementation(async (brief: { title: string }) => (brief.title.startsWith("Acme") ? [{ id: "S1", url: "https://r.example/a", title: "Acme SEO", retrievedAt: "2026-11-05", excerpt: SOURCES["Acme SEO"] }] : []));
+    const step = memoisedStep();
+    await expect(invoke(claim.runId, step)).rejects.toThrow(/No sources could be found for Beta Rank.*nothing was invented/);
+    expect(ai.stream).not.toHaveBeenCalled();
+    expect(step.ran).toEqual(["load-run", "research-comparison"]);
+
+    await job.config.onFailure({ event: { data: { event: { data: { runId: claim.runId } } } }, error: new Error("No sources could be found for Beta Rank"), logger });
+    const [topic] = await test.db.select().from(blogAutopilotTopics).where(eq(blogAutopilotTopics.id, claim.topicId));
+    expect(topic).toMatchObject({ status: "failed" });
+    expect(topic.error).toContain("No sources could be found");
+    const [run] = await test.db.select().from(blogAutopilotRuns).where(eq(blogAutopilotRuns.id, claim.runId));
+    expect(run.status).toBe("failed");
+    expect((await test.db.select().from(blogPosts)).length).toBe(0);
+  });
+
+  it("refuses a plan whose quotations are not in the sources, counting what it cost", async () => {
+    await languages();
+    const claim = await queuedComparison();
+    modelWrites(message({ ...COMPARE_PLAN(), facts: [{ entity: "Acme SEO", claim: "Invented", sourceId: "S1", quote: "Acme SEO won every benchmark we ran last year" }] }));
+    await expect(invoke(claim.runId, memoisedStep())).rejects.toThrow(/do not support this comparison/);
+    const [run] = await test.db.select().from(blogAutopilotRuns).where(eq(blogAutopilotRuns.id, claim.runId));
+    expect(Object.keys((run.detail as { costs: Record<string, number> }).costs)).toContain("plan-article-refused-1");
+  });
+
+  it("a stored comparison with nothing to compare fails with a reason, before anything is paid", async () => {
+    await languages();
+    const claim = await queuedComparison({ entities: [] });
+    await expect(invoke(claim.runId, memoisedStep())).rejects.toThrow(/nothing to compare/);
+    expect(ai.stream).not.toHaveBeenCalled();
+  });
+
+  it("goes on without the evidence check when it cannot run, saying nothing compared the draft with its facts", async () => {
+    await languages();
+    const claim = await queuedComparison();
+    modelWrites(message(COMPARE_PLAN()), ...COMPARE_PARTS());
+    ai.stream.mockImplementationOnce(() => ({
+      finalMessage: async () => {
+        throw new Error("overloaded_error");
+      },
+    }));
+    const result = (await invoke(claim.runId, memoisedStep(), 2)) as { written: boolean };
+    expect(result.written).toBe(true);
+    const [run] = await test.db.select().from(blogAutopilotRuns).where(eq(blogAutopilotRuns.id, claim.runId));
+    expect((run.detail as { warnings: string[] }).warnings.join(" ")).toContain("The evidence check could not run");
   });
 });
 

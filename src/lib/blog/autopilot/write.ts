@@ -13,6 +13,17 @@ import type { Executor } from "@/lib/db/types";
 import { siteUrl } from "@/lib/site-url";
 import { TOOLS } from "@/lib/tools/registry";
 
+import {
+  COMPARISON_PLAN_PROPERTIES,
+  COMPARISON_PLAN_REQUEST,
+  comparisonChecks,
+  comparisonRules,
+  comparisonTopicLines,
+  readComparisonPlan,
+  researchBlock,
+  type ComparisonResearch,
+  type PlannedComparison,
+} from "./comparison";
 import { checkLinks, pagePath, removeExternalLinks, type RemovedLink } from "./links";
 import { askClaude, SpentError, type CallUsage } from "./model";
 import type { AutopilotClaim } from "./run";
@@ -87,7 +98,12 @@ export type ArticlePlan = {
   sections: PlannedSection[];
   pictures: PictureIdea[];
   faqQuestions: string[];
+  /** A comparison's fact sheet (lib/blog/autopilot/comparison.ts): every part is written from it, as part of the plan. */
+  comparison?: PlannedComparison;
 };
+
+/** What a run writes about. `comparison` is set for a comparison article only. */
+type TopicClaim = Pick<AutopilotClaim, "topic" | "keyword" | "notes"> & Partial<Pick<AutopilotClaim, "comparison">>;
 
 export type { CallUsage };
 
@@ -168,7 +184,7 @@ export function internalPaths(context: WriterContext): Set<string> {
 }
 
 /** The instructions every call shares: who writes, the house style, what is true about RepGet, and the examples. */
-export function writerInstructions(context: WriterContext): string {
+export function writerInstructions(context: WriterContext, comparison = false): string {
   const tools = TOOLS.filter((tool) => tool.href !== "/audit").map((tool) => tool.title).join(", ");
   return [
     "You write articles for RepGet's own blog. RepGet is an AI SEO platform for small businesses. The blog's readers run a small business or look after its website; they are not SEO specialists. They come to understand a problem and leave knowing what to do on their own site.",
@@ -247,14 +263,16 @@ export function writerInstructions(context: WriterContext): string {
       "</example_post>",
       "",
     ]),
+    ...(comparison ? [comparisonRules()] : []),
   ].join("\n");
 }
 
 /** The topic, as the administrator wrote it. Tags in it are neutralised so it cannot end its own block. */
-function topicBlock(claim: Pick<AutopilotClaim, "topic" | "keyword" | "notes">): string {
+function topicBlock(claim: TopicClaim): string {
   const lines = [`Topic: ${claim.topic}`];
   if (claim.keyword) lines.push(`Search phrase to target: ${claim.keyword}`);
   if (claim.notes) lines.push(`Notes from RepGet's team:\n${claim.notes}`);
+  if (claim.comparison) lines.push(...comparisonTopicLines(claim.comparison));
   return `<topic>\n${lines.join("\n").replace(/<\/?\s*topic/gi, (match) => match.replace("<", "&lt;"))}\n</topic>`;
 }
 
@@ -265,11 +283,12 @@ function topicBlock(claim: Pick<AutopilotClaim, "topic" | "keyword" | "notes">):
 const STRING = { type: "string" } as const;
 const STRINGS = { type: "array", items: { type: "string" } } as const;
 
-function planSchema(categories: string[]): Record<string, unknown> {
+function planSchema(categories: string[], comparison = false): Record<string, unknown> {
   return {
     type: "object",
     additionalProperties: false,
     properties: {
+      ...(comparison ? COMPARISON_PLAN_PROPERTIES : {}),
       title: STRING,
       slug: STRING,
       seoTitle: STRING,
@@ -314,6 +333,7 @@ function planSchema(categories: string[]): Record<string, unknown> {
       "sections",
       "pictures",
       "faqQuestions",
+      ...(comparison ? Object.keys(COMPARISON_PLAN_PROPERTIES) : []),
     ],
   };
 }
@@ -413,19 +433,26 @@ export function readPlan(value: Record<string, unknown>, context: WriterContext)
 }
 
 export async function planArticle(
-  claim: Pick<AutopilotClaim, "topic" | "keyword" | "notes">,
+  claim: TopicClaim,
   context: WriterContext,
+  /** A comparison's sources; a comparison is never planned without them. */
+  research?: ComparisonResearch,
 ): Promise<{ plan: ArticlePlan; warnings: string[]; usage: CallUsage }> {
   if (context.categories.length === 0) throw new Error("The blog has no categories. Add one in Admin > Blog > Categories, then try again.");
+  if (claim.comparison && !research) throw new Error("A comparison cannot be planned without its research.");
+  const comparing = claim.comparison && research ? { brief: claim.comparison, research } : null;
   const { value, usage } = await askClaude({
-    system: writerInstructions(context),
-    request: `${topicBlock(claim)}\n\n${PLAN_REQUEST}`,
-    schema: planSchema(context.categories.map((category) => category.name)),
+    system: writerInstructions(context, Boolean(comparing)),
+    request: comparing ? `${topicBlock(claim)}\n\n${researchBlock(comparing.research)}\n\n${PLAN_REQUEST}\n${COMPARISON_PLAN_REQUEST}` : `${topicBlock(claim)}\n\n${PLAN_REQUEST}`,
+    schema: planSchema(context.categories.map((category) => category.name), Boolean(comparing)),
     effort: "high",
     cache: true,
   });
   try {
-    return { ...readPlan(value, context), usage };
+    const read = readPlan(value, context);
+    if (!comparing) return { ...read, usage };
+    const { comparison, warnings } = readComparisonPlan(value, comparing.brief, comparing.research);
+    return { plan: { ...read.plan, comparison }, warnings: [...read.warnings, ...warnings], usage };
   } catch (error) {
     // Refused by the checks, but answered: the run still counts what it cost.
     throw new SpentError(error instanceof Error ? error.message : "The plan could not be used. Try again.", usage);
@@ -552,7 +579,7 @@ export function sameHeading(written: string, planned: string): boolean {
  * answering the FAQs, which are required from the part that completes it.
  */
 export async function writePart(
-  claim: Pick<AutopilotClaim, "topic" | "keyword" | "notes">,
+  claim: TopicClaim,
   context: WriterContext,
   plan: ArticlePlan,
   part: { number: number; from: number },
@@ -570,7 +597,7 @@ export async function writePart(
   ]
     .filter(Boolean)
     .join("\n\n");
-  const { value, usage } = await askClaude({ system: writerInstructions(context), request, schema: last ? LAST_PART_SCHEMA : PART_SCHEMA, effort: "high", cache: true });
+  const { value, usage } = await askClaude({ system: writerInstructions(context, Boolean(claim.comparison)), request, schema: last ? LAST_PART_SCHEMA : PART_SCHEMA, effort: "high", cache: true });
 
   const html = tidyPart(String(value.bodyHtml ?? ""));
   const expected = to - from;
@@ -619,6 +646,8 @@ export type DraftReport = {
   keywordMissing: string[];
   warnings: string[];
   pictures: PictureIdea[];
+  /** A comparison's fact sheet, kept with the run for administrators to check against its sources. */
+  comparison?: PlannedComparison;
 };
 
 /**
@@ -674,6 +703,7 @@ export async function finishDraft(
     warnings.push(`Links removed, their words kept: ${named.join(", ")}${more}.`);
   }
   if (checkedFaqs.length < 6) warnings.push(`The article has ${checkedFaqs.length} FAQs; the blog's posts have 6 to 8.`);
+  if (plan.comparison) warnings.push(...comparisonChecks(bodyHtml, checkedFaqs.map((faq) => faq.answer), plan.comparison));
 
   const keywords = keywordReport({ ...draft, shortAnswer: draft.shortAnswer, faqs: checkedFaqs });
   return {
@@ -687,6 +717,7 @@ export async function finishDraft(
       keywordMissing: keywords.primary.filter((place) => !place.found).map((place) => place.label),
       warnings,
       pictures: plan.pictures,
+      ...(plan.comparison ? { comparison: plan.comparison } : {}),
     },
   };
 }
