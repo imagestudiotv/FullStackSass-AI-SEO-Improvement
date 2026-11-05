@@ -3097,6 +3097,7 @@ export type Messages = {
       researching: string;
       generated: string;
       ready: string;
+      preparing: string;
       queued: string;
       running: string;
       completed: string;
@@ -6367,6 +6368,7 @@ const en: Messages = {
       researching: "Finding opportunities",
       generated: "Content planned",
       ready: "Ready",
+      preparing: "With the RepGet team",
       queued: "Waiting",
       running: "Running",
       completed: "Completed",
@@ -9642,6 +9644,7 @@ const es: Messages = {
       researching: "Buscando oportunidades",
       generated: "Contenido planificado",
       ready: "Listo",
+      preparing: "Con el equipo de RepGet",
       queued: "En espera",
       running: "En curso",
       completed: "Completado",
@@ -12918,6 +12921,7 @@ const fr: Messages = {
       researching: "Recherche d\u2019opportunités",
       generated: "Contenu planifié",
       ready: "Prêt",
+      preparing: "Chez l'équipe RepGet",
       queued: "En attente",
       running: "En cours",
       completed: "Terminé",
@@ -16193,6 +16197,7 @@ const it: Messages = {
       researching: "Ricerca di opportunità",
       generated: "Contenuti pianificati",
       ready: "Pronto",
+      preparing: "Presso il team RepGet",
       queued: "In coda",
       running: "In corso",
       completed: "Completato",
@@ -19465,6 +19470,7 @@ const de: Messages = {
       researching: "Chancen werden gesucht",
       generated: "Inhalte geplant",
       ready: "Bereit",
+      preparing: "Beim RepGet-Team",
       queued: "In Warteschlange",
       running: "Läuft",
       completed: "Abgeschlossen",

@@ -39,6 +39,13 @@ export type PublishFacts = {
   review: ReviewState;
   /** Which outstanding review needs action; research approval never clears team review. */
   reviewSource?: "research" | "team";
+  /**
+   * platform_controls.two_step_articles: the customer has one Publish action,
+   * nothing else to press, and approves nothing (docs/two-step-articles.md).
+   */
+  twoStep?: boolean;
+  /** The team has a newer copy; this is the last approved revision, which Publish sends. */
+  withTeam?: boolean;
   /** platform_controls.publication_freeze: nothing is sent while on. */
   frozen: boolean;
   /** The latest direct send got no answer (lib/publishing/dispatch.ts). */

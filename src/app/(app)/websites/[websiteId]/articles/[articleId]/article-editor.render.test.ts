@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import type { ArticleDetail } from "@/lib/articles/actions";
+import { ARTICLE_DELIVERY } from "@/lib/i18n/article-delivery";
 import { format } from "@/lib/i18n/format";
 import { getMessages } from "@/lib/i18n/messages";
 
@@ -57,6 +58,8 @@ const ARTICLE: ArticleDetail = {
   imageAttempts: 0,
   publishedUrl: null,
   publishRequested: null,
+  preparing: null,
+  withTeam: false,
 };
 
 const FACTS: PublishFacts = {
@@ -295,6 +298,7 @@ describe("the publishing panel after a press", () => {
         onCheckAgain: () => {},
         t: en.app.editor,
         tCommon: en.app.common,
+        delivery: ARTICLE_DELIVERY.en,
       }),
     );
   }
@@ -315,5 +319,102 @@ describe("the publishing panel after a press", () => {
     expect(button(html, en.app.editor.publish)).not.toContain('disabled=""');
     expect(button(html, en.app.editor.sendAsDraft)).not.toBeNull();
     expect(button(html, en.app.editor.sendAsDraft)).not.toContain('disabled=""');
+  });
+});
+
+describe("the two-step flow (docs/two-step-articles.md)", () => {
+  const d = ARTICLE_DELIVERY.en;
+  const READY: PublishFacts = { ...FACTS, twoStep: true, review: "approved", reviewSource: "team", autoPublish: "off", plannedInFuture: false };
+
+  it("a ready article: the finished text, one Publish, no second button and no approval", () => {
+    const html = render({ facts: READY });
+    expect(html).toContain("Some words here.");
+    expect(html).toContain(d.ready);
+    expect(button(html, en.app.editor.publish)).not.toBeNull();
+    expect(button(html, en.app.editor.publish)).not.toContain('disabled=""');
+    expect(button(html, en.app.editor.sendAsDraft)).toBeNull();
+    expect(html).not.toContain("Approve");
+    expect(html).toContain(en.app.status.ready);
+  });
+
+  it("automatic publishing says when it goes, and Publish stays as the way to go sooner", () => {
+    const live = render({ facts: { ...READY, autoPublish: "live", plannedInFuture: true } });
+    expect(live).toContain(format(d.readyAutoLive, { date: "12 October 2026" }));
+    expect(button(live, en.app.editor.publish)).not.toContain('disabled=""');
+    const drafts = render({ facts: { ...READY, autoPublish: "draft", plannedInFuture: true } });
+    expect(drafts).toContain(format(d.readyAutoDraft, { date: "12 October 2026" }));
+    expect(button(drafts, en.app.editor.sendAsDraft)).toBeNull();
+  });
+
+  it("not connected: says it is ready and not on the website, and leads to the connection", () => {
+    const html = render({ facts: { ...READY, destination: { kind: "none" } } });
+    expect(html).toContain(d.readyConnect);
+    expect(html).toContain(en.app.editor.connectToPublish);
+    expect(html).toContain("/integrations");
+    expect(button(html, en.app.editor.publish)).toBeNull();
+    expect(html).not.toContain(d.ready);
+  });
+
+  it("a version already on the website: Publish waits, and says why", () => {
+    const html = render({ facts: { ...READY, alreadySent: { publish: true, draft: false }, liveOnSite: true, lastOutcome: { kind: "live", when: "1 Oct" } } });
+    expect(button(html, en.app.editor.updatePost)).toContain('disabled=""');
+    expect(html).toContain(en.app.editor.alreadySentLive);
+  });
+
+  it("a change to a live post: the team's check is said plainly, and nothing is asked", () => {
+    const html = render({
+      article: { ...ARTICLE, status: "published", publishedUrl: "https://example.com/a", withTeam: true },
+      facts: { ...READY, withTeam: true, liveOnSite: true, alreadySent: { publish: true, draft: false }, lastOutcome: { kind: "live", when: "1 Oct" } },
+    });
+    expect(html).toContain(d.withTeamLive);
+    // That version is what is on the site, so there is nothing to send yet.
+    expect(button(html, en.app.editor.updatePost)).toContain('disabled=""');
+    expect(html).toContain(d.lockedWithTeam);
+  });
+
+  it("re-editing an approved article: the last approved version stays, with Publish working and the text locked", () => {
+    const html = render({ article: { ...ARTICLE, withTeam: true }, facts: { ...READY, withTeam: true } });
+    expect(html).toContain("Some words here.");
+    expect(html).toContain(d.withTeam);
+    expect(button(html, en.app.editor.publish)).not.toContain('disabled=""');
+    expect(button(html, en.app.editor.saveArticle)).toContain("disabled");
+    expect(html).toContain(d.lockedWithTeam);
+  });
+
+  it("with the switch off, the panel is as it was", () => {
+    const html = render({ facts: { ...FACTS, review: "approved", reviewSource: "team" } });
+    expect(button(html, en.app.editor.sendAsDraft)).not.toBeNull();
+    expect(html).not.toContain(d.ready);
+  });
+});
+
+describe("the page while the team has the article", () => {
+  it("shows honest progress with nothing of the article and no action to take", async () => {
+    const { ArticlePreparing } = await import("./article-preparing");
+    const props = {
+      websiteId: "33333333-3333-4333-8333-333333333333",
+      title: "Planned topic",
+      stage: "team" as const,
+      destination: { kind: "none" as const },
+      autoPublish: "off" as const,
+      canEdit: true,
+      locale: "en" as const,
+      plannedArticlesLabel: en.app.nav.plannedArticles,
+      breadcrumbLabel: en.app.editor.breadcrumbLabel,
+      tStatus: en.app.status,
+    };
+    const html = renderToStaticMarkup(createElement(ArticlePreparing, props));
+    expect(html).toContain(ARTICLE_DELIVERY.en.teamTitle);
+    expect(html).toContain(ARTICLE_DELIVERY.en.connectNote);
+    expect(html).toContain("/integrations");
+    expect(html).not.toContain("<button");
+    expect(html).not.toMatch(/approve/i);
+
+    const connected = renderToStaticMarkup(createElement(ArticlePreparing, { ...props, destination: { kind: "plugin" as const }, autoPublish: "live" as const }));
+    expect(connected).not.toContain(ARTICLE_DELIVERY.en.connectNote);
+    expect(connected).toContain(ARTICLE_DELIVERY.en.autoNoteLive);
+
+    const viewer = renderToStaticMarkup(createElement(ArticlePreparing, { ...props, canEdit: false }));
+    expect(viewer).not.toContain(ARTICLE_DELIVERY.en.connectAction);
   });
 });

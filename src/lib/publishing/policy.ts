@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { deliverNow, enqueueJob } from "@/lib/jobs/outbox";
 import { isPublishingConnection, PUBLISHING_KINDS } from "@/lib/publishing/kinds";
 import { articles, calendarItems, integrations, websites } from "@/lib/db/schema";
-import { notBeforePlannedSql, releasableSql } from "@/lib/articles/review";
+import { notBeforePlannedSql, releasableSql, twoStepOffSql } from "@/lib/articles/review";
 
 /**
  * What happens to an article once it is written - the rules every publishing
@@ -27,6 +27,11 @@ import { notBeforePlannedSql, releasableSql } from "@/lib/articles/review";
  * the customer sees the product work on their own site straight away. It is
  * ALWAYS published live - in "draft" mode too, by the client's decision: the
  * point is to see a real post on the real site.
+ *
+ * NOT UNDER THE TWO-STEP FLOW (lib/publishing/controls.ts). There the client's
+ * rule is that the team prepares the first article and the customer publishes
+ * it, so it is an article like any other: it goes out by the customer's press,
+ * or by the automatic mode they chose, and never before the team's approval.
  */
 
 /** How the first article goes out, in every mode. See above. */
@@ -63,10 +68,12 @@ export function automaticStatus(site: PublishSettings): "publish" | "draft" {
  * first_article_sent_at is null. Requiring the earliest means a customer who
  * has been reviewing drafts for weeks does not find the next one published by
  * surprise; the flag means the rule fires once. Shared by every path, the
- * plugin's queue included, so they cannot disagree about which article it is.
+ * plugin's queue included, so they cannot disagree about which article it is -
+ * or about the two-step flow switching the exception off.
  */
 export const isFirstArticle = and(
   isNull(websites.firstArticleSentAt),
+  twoStepOffSql,
   raw`${articles.id} = (
     select first.id from articles first
     where first.website_id = ${articles.websiteId}

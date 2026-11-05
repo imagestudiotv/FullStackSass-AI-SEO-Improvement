@@ -2,9 +2,10 @@ import { randomUUID } from "node:crypto";
 
 import { and, desc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
 
-import { plannedDayHasCome, releaseCheckFor, reviewHash } from "@/lib/articles/review";
+import { plannedDayHasCome, releaseCheckFor, reviewHash, sendableRevision, type ReviewFields } from "@/lib/articles/review";
 import { db } from "@/lib/db";
-import { articles, calendarItems, publicationDispatches, websites } from "@/lib/db/schema";
+import { linksTo } from "@/lib/articles/link-guard";
+import { articles, backlinkRequests, calendarItems, placements, publicationDispatches, websites } from "@/lib/db/schema";
 import type { Executor } from "@/lib/db/types";
 import { FREEZE_LOCK, isControlEnabled } from "@/lib/publishing/controls";
 import { ownershipMarker } from "@/lib/publishing/ownership";
@@ -54,6 +55,9 @@ import { automaticStatus, FIRST_ARTICLE_STATUS, isFirstArticle } from "@/lib/pub
  *   - the article still exists and has content;
  *   - the review gate: approved, and exactly the approved revision;
  *   - the exact revision the caller prepared (expectedRevision);
+ *   - under the two-step flow, which revision may go out at all, and its hash
+ *     (sendableRevision): what the claim returns is what is sent, never a
+ *     working copy waiting for the team;
  *   - the schedule rules for WHY it is being sent (trigger): an automatic
  *     release needs auto-publish still on and its planned day come; the
  *     first-article exception only while it is still the first article; a
@@ -347,6 +351,7 @@ export async function claimDispatch(input: {
         reviewApprovedHash: articles.reviewApprovedHash,
         researchReviewRequired: articles.researchReviewRequired,
         researchApprovedHash: articles.researchApprovedHash,
+        approvedRevision: articles.approvedRevision,
         publishRequested: articles.publishRequested,
         translationOf: articles.translationOf,
         autoPublish: websites.autoPublish,
@@ -373,10 +378,30 @@ export async function claimDispatch(input: {
     */
     if (row.translationOf && input.channel !== "plugin") return { ok: false, reason: "translation_needs_plugin" } as const;
 
-    const gate = releaseCheckFor(row);
-    if (!gate.ok) return { ok: false, reason: gate.reason === "not_found" ? "not_found" : gate.reason } as const;
+    /*
+      Which revision goes out. With the two-step flow off, the row as it is.
+      With it on, the approved working copy or the stored revision, and only
+      that: everything below, and what the caller sends, is this revision. Only
+      a person's press may send a revision nobody approved (what stood on the
+      website when the flow was switched on).
+    */
+    let revision: ReviewFields = row;
+    if (await isControlEnabled("two_step_articles", tx)) {
+      const pressed = input.trigger === "manual" || (input.trigger === "plugin" && row.publishRequested !== null);
+      const sendable = sendableRevision(row, { automatic: !pressed });
+      if (!sendable.ok) return { ok: false, reason: sendable.reason } as const;
+      revision = sendable.revision;
+      // A link the team has withdrawn since: its credits are released, so it may not go out with this revision.
+      if (sendable.from === "stored" && (await carriesWithdrawnLink(tx, row.id, revision.bodyHtml))) {
+        return { ok: false, reason: "pending_review" } as const;
+      }
+    } else {
+      const gate = releaseCheckFor(row);
+      if (!gate.ok) return { ok: false, reason: gate.reason === "not_found" ? "not_found" : gate.reason } as const;
+    }
+    if (!revision.bodyHtml) return { ok: false, reason: "no_content" } as const;
 
-    const revisionHash = reviewHash(row);
+    const revisionHash = reviewHash(revision);
     if (input.expectedRevision && input.expectedRevision !== revisionHash) {
       return { ok: false, reason: "revision_changed" } as const;
     }
@@ -417,12 +442,12 @@ export async function claimDispatch(input: {
 
     const article: ClaimedArticle = {
       id: row.id,
-      title: row.title,
-      slug: row.slug,
-      metaDescription: row.metaDescription,
-      bodyHtml: row.bodyHtml,
-      imageUrl: row.imageUrl,
-      imageAlt: row.imageAlt,
+      title: revision.title,
+      slug: revision.slug,
+      metaDescription: revision.metaDescription,
+      bodyHtml: revision.bodyHtml,
+      imageUrl: revision.imageUrl,
+      imageAlt: revision.imageAlt,
       publishRequested: row.publishRequested,
       isFirst: row.isFirst,
     };
@@ -484,8 +509,8 @@ export async function claimDispatch(input: {
       protocol,
       integrationId: input.integrationId ?? null,
       requestSnapshot: {
-        title: row.title,
-        slug: row.slug,
+        title: revision.title,
+        slug: revision.slug,
         status,
         revisionHash,
         marker,
@@ -522,6 +547,38 @@ export async function settleDispatch(
     .where(and(eq(publicationDispatches.id, dispatchId), eq(publicationDispatches.status, "in_flight")))
     .returning({ id: publicationDispatches.id });
   return rows.length > 0;
+}
+
+/**
+ * A managed link the team withdrew that this text still carries. Withdrawing
+ * unwraps it from the working copy and releases its credits, so a stored
+ * revision from before that may not go out until the team approves a new one.
+ */
+export async function carriesWithdrawnLink(executor: Executor, articleId: string, bodyHtml: string | null): Promise<boolean> {
+  const withdrawn = await executor
+    .select({ url: backlinkRequests.targetUrl })
+    .from(placements)
+    .innerJoin(backlinkRequests, eq(backlinkRequests.id, placements.requestId))
+    .where(and(eq(placements.articleId, articleId), eq(placements.status, "cancelled")));
+  return withdrawn.some((row) => linksTo(bodyHtml ?? "", row.url));
+}
+
+/**
+ * What the link check found in the revision that was sent, kept with the send.
+ * Under the two-step flow a send changes nothing in approved text: a dead link
+ * goes out as approved and stays on record here (lib/articles/internal-links.ts).
+ */
+export async function recordLinkFindings(dispatchId: string, findings: { outcome: string; href: string; reason: string }[], executor: Executor = db): Promise<void> {
+  const defects = findings
+    .filter((finding) => finding.outcome !== "kept" && finding.outcome !== "unverified")
+    .map(({ outcome, href, reason }) => ({ wouldHave: outcome, href, reason }));
+  if (defects.length === 0) return;
+  await executor
+    .update(publicationDispatches)
+    .set({
+      requestSnapshot: sql`coalesce(${publicationDispatches.requestSnapshot}, '{}'::jsonb) || ${JSON.stringify({ linkDefects: defects.slice(0, 50) })}::jsonb`,
+    })
+    .where(eq(publicationDispatches.id, dispatchId));
 }
 
 /**

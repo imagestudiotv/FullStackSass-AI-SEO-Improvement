@@ -2,6 +2,8 @@ import "server-only";
 
 import { and, count, eq, gt, gte, inArray, isNotNull, lte, sql, type SQL } from "drizzle-orm";
 
+import { customerTitleSql } from "@/lib/articles/review";
+
 import { isFreeArticlesTrial } from "@/lib/billing/entitlement-period";
 import { db } from "@/lib/db";
 import {
@@ -386,7 +388,8 @@ export async function emailArticleFailed(
       dedupeKey: `${input.websiteId}:${now.toISOString().slice(0, 10)}`,
       build: async () => {
         const [article] = await executor
-          .select({ title: articles.title, domain: websites.domain })
+          // A failed send's title: the revision that went out, never a working copy.
+          .select({ title: customerTitleSql, domain: websites.domain })
           .from(articles)
           .innerJoin(websites, eq(websites.id, articles.websiteId))
           .where(eq(articles.id, input.articleId))

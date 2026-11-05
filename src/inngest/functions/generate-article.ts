@@ -34,7 +34,7 @@ import {
   summarize,
 } from "@/lib/articles/internal-links";
 import { applyTableOfContents } from "@/lib/articles/toc";
-import { checkReleasable, reviewStatusForNewDraft } from "@/lib/articles/review";
+import { checkReleasable, heldFromCustomer, PREPARING_MESSAGE, reviewStatusForNewDraft, twoStepArticles } from "@/lib/articles/review";
 import { ArticleInFlightError, lockForEdit } from "@/lib/publishing/dispatch";
 import {
   generateArticleImage,
@@ -1064,6 +1064,12 @@ export const generateArticle = inngest.createFunction(
      * been changed while the article was being written.
      */
     const autoPublished = await step.run("auto-publish", async () => {
+      /*
+        The two-step flow: what was just written goes to the team. Nothing is
+        released from here; the approval or the daily release does that.
+      */
+      if (await twoStepArticles()) return false;
+
       const [site] = await db
         .select({
           autoPublish: websites.autoPublish,
@@ -1236,6 +1242,11 @@ export const generateArticle = inngest.createFunction(
     });
 
     await step.run("notify-ready", async () => {
+      /*
+        The two-step flow: written is not ready. The customer hears when the
+        team has approved it (notifyReady, lib/articles/release.ts), once.
+      */
+      if (await twoStepArticles()) return;
       await notify({
         organizationId,
         type: "article.ready",
@@ -1551,11 +1562,19 @@ export async function requeueArticle(input: {
 
   // Scoped by website as well as id: an id alone came from the client.
   const [current] = await db
-    .select({ status: articles.status })
+    .select()
     .from(articles)
     .where(and(eq(articles.id, articleId), eq(articles.websiteId, websiteId)))
     .limit(1);
   if (!current) return { ok: false, error: "Article not found" };
+  /*
+    The two-step flow: an article the team has is theirs until they approve
+    it, and a rewrite would replace their work. One whose writing failed can
+    still be tried again.
+  */
+  if (current.status !== "failed" && heldFromCustomer(current) && (await twoStepArticles())) {
+    return { ok: false, error: PREPARING_MESSAGE };
+  }
 
   /*
     During the free articles (lib/billing/free-articles.ts) only one that

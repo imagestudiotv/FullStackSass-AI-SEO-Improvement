@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import sharp from "sharp";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { articles, calendarItems, integrations, networkSites, platformControls, websites } from "@/lib/db/schema";
 import { createTestDb, type TestDb } from "@/test/db";
@@ -40,7 +40,8 @@ vi.mock("@/lib/images/storage", () => ({
   }),
 }));
 vi.mock("@/lib/images/scene", () => ({ describeArticleScene: vi.fn(async () => ({ scene: "a couple at sunset", alt: "A couple at sunset" })) }));
-vi.mock("@/lib/notifications/create", () => ({ notify: vi.fn() }));
+const bell = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/notifications/create", () => ({ notify: bell }));
 vi.mock("@/lib/plugin/sync", () => ({ nudgePluginIfDue: vi.fn(async () => "nothing-due"), recordSyncUrl: vi.fn() }));
 const cms = vi.hoisted(() => ({ uploads: [] as { data: Buffer; contentType: string; filename: string }[] }));
 vi.mock("@/lib/publishing/credentials", () => ({
@@ -149,6 +150,32 @@ describe("a website outside the network", () => {
     const { row } = await generate(false);
     expect(row.reviewStatus).toBeNull();
     expect(publishes()).toHaveLength(1);
+  });
+});
+
+describe("the two-step flow (docs/two-step-articles.md)", () => {
+  afterEach(async () => {
+    await test.db.delete(platformControls).where(eq(platformControls.key, "two_step_articles"));
+    bell.mockClear();
+  });
+
+  it("a new customer's first article goes straight to the team on the ordinary path: not published, nothing to approve, no 'ready' message", async () => {
+    await test.db.insert(platformControls).values({ key: "two_step_articles", enabled: true, updatedBy: "test" });
+    bell.mockClear();
+    const { row } = await generate(false);
+    expect(row.reviewStatus).toBe("pending");
+    expect(row.status).toBe("draft");
+    expect(publishes()).toEqual([]);
+    expect(bell).not.toHaveBeenCalled();
+    // Generation leaves the customer's plan row alone: its topic is theirs, and separable.
+    const [item] = await test.db.select().from(calendarItems).where(eq(calendarItems.id, row.calendarItemId!));
+    expect(item.title).toBe("Planning a wedding");
+  });
+
+  it("with the switch off, the customer is told as before", async () => {
+    bell.mockClear();
+    await generate(false);
+    expect(bell).toHaveBeenCalledWith(expect.objectContaining({ type: "article.ready" }));
   });
 });
 

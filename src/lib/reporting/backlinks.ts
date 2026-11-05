@@ -2,6 +2,8 @@ import "server-only";
 
 import { sql, type SQL } from "drizzle-orm";
 
+import { customerTitleOf, heldFromCustomerSql } from "@/lib/articles/review";
+
 import { AUTHORITY_METRIC, normalizeDomain, readAuthority, type AuthorityReading } from "@/lib/authority/metric";
 import { ensureMonthlyCredits, getAvailable } from "@/lib/backlinks/credits";
 import { db } from "@/lib/db";
@@ -140,7 +142,16 @@ const OUT = sql.raw(`
  * workspace whose ledger rows are ever joined in).
  */
 function facts(direction: Direction, websiteId: string, orgId: string): SQL {
-  const scope = direction === "received" ? sql`r.website_id = ${websiteId}` : sql`p.host_website_id = ${websiteId}`;
+  /*
+    Links this website hosts, without the team's links not yet on the page in
+    an article they still have (the two-step flow): those are part of what the
+    customer has not received yet. The other direction hides the partner's
+    article until it is published.
+  */
+  const scope =
+    direction === "received"
+      ? sql`r.website_id = ${websiteId}`
+      : sql`p.host_website_id = ${websiteId} and not (p.status in ('pending', 'drafted') and exists (select 1 from articles where articles.id = p.article_id and ${heldFromCustomerSql}))`;
   // The website on the OTHER side of the link.
   const counterpart = direction === "received" ? sql`h` : sql`b`;
   return sql`
@@ -160,7 +171,7 @@ function facts(direction: Direction, websiteId: string, orgId: string): SQL {
       h.domain as host_domain,
       b.domain as beneficiary_domain,
       ${counterpart}.domain as counterpart_domain,
-      a.title as article_title,
+      ${customerTitleOf(sql`a.id`)} as article_title,
       case p.status
         when 'pending' then 'awaiting_publication'
         when 'drafted' then 'awaiting_publication'

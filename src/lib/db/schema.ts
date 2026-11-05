@@ -883,6 +883,12 @@ export const articles = pgTable(
     /** SHA-256 of the approved title, body and image. See reviewHashSql. */
     reviewApprovedHash: text("review_approved_hash"),
     /**
+     * The two-step flow: the revision customers read and every path sends while
+     * a newer working copy waits for the team. See StoredRevision in
+     * lib/articles/review.ts.
+     */
+    approvedRevision: jsonb("approved_revision"),
+    /**
      * A translation (client, 2026-10-20, Image Studio: "we have other 2
      * additional languages: italian and spanish"): the live article this is
      * in another of the website's languages (websites.extra_languages), made

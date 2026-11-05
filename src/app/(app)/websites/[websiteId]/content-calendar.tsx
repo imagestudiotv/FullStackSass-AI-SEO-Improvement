@@ -125,7 +125,7 @@ const DOT_TONE: Record<string, string> = {
  * the work that is done appears before the work that is not, which is the
  * order a customer scans for.
  */
-const STATUS_ORDER = ["published", "draft", "generating", "failed", "planned"];
+const STATUS_ORDER = ["published", "ready", "draft", "preparing", "generating", "failed", "planned"];
 
 function groupByStatus(
   items: CalendarRow[],
@@ -144,6 +144,8 @@ function groupByStatus(
 function statusFor(article: ArticleRow | undefined): string {
   if (article?.status === "published") return "published";
   if (article?.status === "draft") return "draft";
+  // The two-step flow's two display states (listArticles).
+  if (article?.status === "ready" || article?.status === "preparing") return article.status;
   if (article?.status === "generating" || article?.status === "queued") {
     return "generating";
   }
@@ -238,10 +240,17 @@ export function ContentCalendar({
     let published = 0;
     let generating = 0;
     let queued = 0;
+    // The two-step flow's two states, which are neither "written" nor "being written" to the customer.
+    let ready = 0;
+    let preparing = 0;
     for (const item of calendar) {
       const article = articleByItem.get(item.id);
       if (article?.status === "published" || article?.status === "draft") {
         published += 1;
+      } else if (article?.status === "ready") {
+        ready += 1;
+      } else if (article?.status === "preparing") {
+        preparing += 1;
       } else if (
         article?.status === "generating" ||
         article?.status === "queued"
@@ -251,7 +260,7 @@ export function ContentCalendar({
         queued += 1;
       }
     }
-    return { published, generating, queued };
+    return { published, generating, queued, ready, preparing };
   }, [calendar, articleByItem]);
 
   const days = useMemo(() => monthGrid(month), [month]);
@@ -508,6 +517,8 @@ export function ContentCalendar({
             status="published"
             label={`${counts.published} ${tStatus.published}`}
           />
+          {counts.ready > 0 ? <StatusBadge status="ready" label={`${counts.ready} ${tStatus.ready}`} /> : null}
+          {counts.preparing > 0 ? <StatusBadge status="preparing" label={`${counts.preparing} ${tStatus.preparing}`} /> : null}
           <StatusBadge
             status="generating"
             label={`${counts.generating} ${tStatus.generating}`}

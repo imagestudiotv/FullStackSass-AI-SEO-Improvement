@@ -1,6 +1,6 @@
 "use server";
 
-import { and, desc, eq, isNotNull, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { queueJob } from "@/inngest/send";
@@ -10,9 +10,10 @@ import {
   articles,
   integrationKeys,
   integrations,
+  publicationDispatches,
   publishLogs,
 } from "@/lib/db/schema";
-import { checkReleasable, HELD_MESSAGE } from "@/lib/articles/review";
+import { checkReleasable, HELD_MESSAGE, PREPARING_MESSAGE, sendableRevision, sendToTeam, twoStepArticles } from "@/lib/articles/review";
 import {
   ProviderError,
   type Credentials,
@@ -28,7 +29,7 @@ import {
 } from "@/lib/publishing/policy";
 import type { IntegrationView, ProviderInfo } from "@/lib/publishing/shared";
 import { triggerPluginSync } from "@/lib/plugin/sync";
-import { HOLD_MESSAGES, latestUncertain, reconcileUncertain } from "@/lib/publishing/dispatch";
+import { carriesWithdrawnLink, HOLD_MESSAGES, IN_FLIGHT_TIMEOUT_MS, latestUncertain, reconcileUncertain } from "@/lib/publishing/dispatch";
 import { isPublishingConnection } from "@/lib/publishing/kinds";
 import { requireWebsite } from "@/lib/tenant";
 import { requireEditor } from "@/lib/websites/require-editor";
@@ -362,7 +363,7 @@ export async function confirmNotPublished(
 export async function publishArticle(
   websiteId: string,
   articleId: string,
-  status: "publish" | "draft" = "publish",
+  requested: "publish" | "draft" = "publish",
 ): Promise<ActionResult<PublishResult>> {
   const guard = await requireEditor(websiteId);
   if (!guard.ok) return { ok: false, error: guard.error };
@@ -370,11 +371,17 @@ export async function publishArticle(
   const { site, ownerOrgId } = guard.context;
 
   const [article] = await db
-    .select({ id: articles.id, bodyHtml: articles.bodyHtml, translationOf: articles.translationOf })
+    .select()
     .from(articles)
     .where(and(eq(articles.id, articleId), eq(articles.websiteId, site.id)))
     .limit(1);
   if (!article) return { ok: false, error: "Article not found" };
+  /*
+    The two-step flow: one Publish action, so a press is always "publish". A
+    website's automatic "draft" mode is its own setting, and is untouched.
+  */
+  const twoStep = await twoStepArticles();
+  const status = twoStep ? "publish" : requested;
   if (!article.bodyHtml) {
     return { ok: false, error: "This article has not been written yet" };
   }
@@ -384,7 +391,43 @@ export async function publishArticle(
     Enforced here and again by the publish job itself.
   */
   const gate = await checkReleasable(article.id);
-  if (!gate.ok) return { ok: false, error: HELD_MESSAGE };
+  if (!gate.ok) {
+    if (!twoStep) return { ok: false, error: HELD_MESSAGE };
+    // Older, and never approved: it is the team's now.
+    if (article.reviewStatus === null) await sendToTeam(article.id);
+    return { ok: false, error: PREPARING_MESSAGE };
+  }
+  /*
+    Under the two-step flow a press sends the revision the customer is reading:
+    the approved one, even while the team works on a newer copy (the claim
+    enforces it). What it would send is checked here for what they are told:
+    a stored revision carrying a link the team withdrew waits for the team; the
+    same version pressed twice says so, rather than looking like a second
+    delivery. The claim refuses a duplicate either way.
+  */
+  const sendable = twoStep ? sendableRevision(article) : null;
+  if (sendable?.ok) {
+    if (sendable.from === "stored" && (await carriesWithdrawnLink(db, article.id, sendable.revision.bodyHtml))) {
+      return { ok: false, error: PREPARING_MESSAGE };
+    }
+    const [latest] = await db
+      .select({
+        status: publicationDispatches.status,
+        revisionHash: publicationDispatches.revisionHash,
+        requestedStatus: publicationDispatches.requestedStatus,
+        claimedAt: publicationDispatches.claimedAt,
+      })
+      .from(publicationDispatches)
+      .where(and(eq(publicationDispatches.articleId, article.id), inArray(publicationDispatches.status, ["in_flight", "sent"]), eq(publicationDispatches.late, false)))
+      .orderBy(desc(publicationDispatches.claimedAt))
+      .limit(1);
+    if (latest?.status === "in_flight" && latest.claimedAt.getTime() > Date.now() - IN_FLIGHT_TIMEOUT_MS) {
+      return { ok: false, error: HOLD_MESSAGES.in_flight };
+    }
+    if (latest?.status === "sent" && latest.revisionHash === sendable.hash && latest.requestedStatus === "publish") {
+      return { ok: false, error: HOLD_MESSAGES.already_sent };
+    }
+  }
 
   // A CMS connection, not merely any connection: the Google one lives in the
   // same table and cannot publish. See lib/publishing/kinds.ts.

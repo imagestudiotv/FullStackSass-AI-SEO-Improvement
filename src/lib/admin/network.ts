@@ -1,14 +1,13 @@
 "use server";
 
-import { and, asc, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { requireAdmin } from "@/lib/admin/guard";
 import { linksTo, siteScope, type LinkVerdict } from "@/lib/articles/link-guard";
 import { verifyUrl } from "@/lib/articles/link-verify";
-import { releaseAfterApproval, type ReleaseOutcome } from "@/lib/articles/release";
-import { reviewHash, reviewHashSql, twoStepArticles } from "@/lib/articles/review";
-import { notify } from "@/lib/notifications/create";
+import { notifyReady, releaseAfterApproval, type ReleaseOutcome } from "@/lib/articles/release";
+import { reviewHash, reviewHashSql, twoStepOffSql } from "@/lib/articles/review";
 import {
   approveArticle,
   creditsFor,
@@ -208,7 +207,7 @@ export async function getReviewQueue(): Promise<{
         where p.article_id = ${articles.id} and p.status in ('pending', 'drafted', 'published', 'live')
       )`,
       // Nothing of this website's published or approved yet: a new customer waiting for their first article.
-      firstArticle: sql<boolean>`not exists (
+      firstArticle: sql<boolean>`${articles.publishedUrl} is null and not exists (
         select 1 from ${articles} other
         where other.website_id = ${articles.websiteId} and other.id <> ${articles.id}
           and (other.published_url is not null or other.status = 'published' or other.review_status = 'approved')
@@ -220,10 +219,18 @@ export async function getReviewQueue(): Promise<{
     .innerJoin(organization, eq(organization.id, websites.organizationId))
     .leftJoin(calendarItems, eq(calendarItems.id, articles.calendarItemId))
     .where(
-      and(
-        inArray(articles.reviewStatus, ["pending", "approved"]),
-        eq(articles.status, "draft"),
-        isNull(articles.publishedUrl),
+      or(
+        and(
+          inArray(articles.reviewStatus, ["pending", "approved"]),
+          eq(articles.status, "draft"),
+          isNull(articles.publishedUrl),
+        ),
+        /*
+          Under the two-step flow a customer's change to a post already on
+          their site comes to the team too (afterCustomerEdit): it waits here
+          for its approval, or the customer's Update would wait for ever.
+        */
+        and(eq(articles.reviewStatus, "pending"), sql`not ${twoStepOffSql}`),
       ),
     )
     .orderBy(asc(calendarItems.scheduledFor), asc(articles.createdAt))
@@ -580,33 +587,8 @@ export async function approveForRelease(input: {
   }
   // After the commit: delivery follows the customer's mode and planned day.
   const release = await releaseAfterApproval(input.articleId);
-  /*
-    Step 2 of the two-step flow: the customer is told their article is ready
-    to publish. Only when they are the one who publishes it - an article
-    released automatically tells them when it is live. Never fails the
-    approval.
-  */
-  if (release === "customer_publishes" && (await twoStepArticles())) {
-    try {
-      const [target] = await db
-        .select({ organizationId: websites.organizationId, websiteId: articles.websiteId, title: articles.title })
-        .from(articles)
-        .innerJoin(websites, eq(websites.id, articles.websiteId))
-        .where(eq(articles.id, input.articleId))
-        .limit(1);
-      if (target) {
-        await notify({
-          organizationId: target.organizationId,
-          type: "article.ready",
-          title: "Your article is ready to publish",
-          body: target.title,
-          href: `/websites/${target.websiteId}/articles/${input.articleId}`,
-        });
-      }
-    } catch (error) {
-      console.error("[network] approved, but the ready notification failed", error);
-    }
-  }
+  // Step 2 of the two-step flow: the customer is told their article is ready.
+  await notifyReady(input.articleId, release);
   refresh(input.articleId);
   return { ok: true, data: { placements: approved.placements, release } };
 }

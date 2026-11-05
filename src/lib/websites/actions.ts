@@ -6,7 +6,8 @@ import { revalidatePath } from "next/cache";
 import { isEntitledToSpend } from "@/lib/billing/entitled";
 import { db } from "@/lib/db";
 import { competitors, networkSites, websiteMembers, websites } from "@/lib/db/schema";
-import { NEW_SITE_DEFAULTS, NEW_SITE_NETWORK } from "@/lib/websites/new-site-defaults";
+import { twoStepArticles } from "@/lib/articles/review";
+import { NEW_SITE_NETWORK, newSiteDefaults } from "@/lib/websites/new-site-defaults";
 import { settingsForMode, type FinishedMode } from "@/lib/publishing/policy";
 import {
   requireOrg,
@@ -205,7 +206,7 @@ export async function addWebsite(
         domain: normalized.domain,
         status: "pending",
         // Written here, not as column defaults: see new-site-defaults.ts.
-        ...NEW_SITE_DEFAULTS,
+        ...newSiteDefaults(await twoStepArticles(tx)),
       })
       .returning({ id: websites.id });
     /*

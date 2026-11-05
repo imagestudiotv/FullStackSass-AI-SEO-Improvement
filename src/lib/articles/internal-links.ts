@@ -9,7 +9,7 @@ import {
   type LinkVerdict,
 } from "@/lib/articles/link-guard";
 import { findVerifiedTargets, pageTitle } from "@/lib/articles/link-inventory";
-import { reviewHash } from "@/lib/articles/review";
+import { reviewHash, sendableRevision, twoStepArticles } from "@/lib/articles/review";
 import { ArticleInFlightError, lockForEdit } from "@/lib/publishing/dispatch";
 import { cachedPages, verifyUrls, type VerifyOptions } from "@/lib/articles/link-verify";
 import { db } from "@/lib/db";
@@ -187,6 +187,12 @@ export type PreparedArticle = {
  *   stored content may be hand-edited, and a timeout proves nothing.
  * - Nothing is added here; automatic links are chosen when an article is
  *   written, not at publication.
+ *
+ * UNDER THE TWO-STEP FLOW NOTHING IS WRITTEN. The team approved one exact text,
+ * and a repair would send a different one under that approval. So the revision
+ * that will actually go out is checked and returned unchanged, and the defects
+ * are returned for the caller to keep with the send (recordLinkFindings). A dead
+ * link goes out as approved, on record; the customer's press still works.
  */
 export async function prepareStoredArticle(
   articleId: string,
@@ -197,6 +203,7 @@ export async function prepareStoredArticle(
   if (!site) return null;
   const scope = siteScope(site);
   const targets = await knownTargets(websiteId);
+  const twoStep = await twoStepArticles();
 
   for (let attempt = 0; attempt < 3; attempt++) {
     const [article] = await db
@@ -210,12 +217,17 @@ export async function prepareStoredArticle(
         imageAlt: articles.imageAlt,
         reviewStatus: articles.reviewStatus,
         reviewApprovedHash: articles.reviewApprovedHash,
+        researchReviewRequired: articles.researchReviewRequired,
+        researchApprovedHash: articles.researchApprovedHash,
+        approvedRevision: articles.approvedRevision,
       })
       .from(articles)
       .where(and(eq(articles.id, articleId), eq(articles.websiteId, websiteId)))
       .limit(1);
     if (!article?.bodyHtml) return null;
-    const original = article.bodyHtml;
+    const sendable = twoStep ? sendableRevision(article) : null;
+    const original = sendable?.ok ? sendable.revision.bodyHtml : article.bodyHtml;
+    if (!original) return null;
 
     const keys = internalLinkKeys(original, scope, article.publishedUrl);
     const verdicts = keys.length > 0 ? await verifyUrls(websiteId, keys, scope, options) : new Map<string, LinkVerdict>();
@@ -226,7 +238,7 @@ export async function prepareStoredArticle(
       articleUrl: article.publishedUrl,
       targets,
     });
-    if (!result.changed) return { html: original, changed: false, findings: result.findings };
+    if (!result.changed || twoStep) return { html: original, changed: false, findings: result.findings };
 
     /*
       An APPROVED article (lib/articles/review.ts) that is still exactly what
@@ -250,7 +262,6 @@ export async function prepareStoredArticle(
               reviewVersion: sql`${articles.reviewVersion} + 1`,
             }
           : {};
-
     /*
       Under the article's row lock like every edit; while a revision of it is
       being sent (lib/publishing/dispatch.ts) the repair waits for the next

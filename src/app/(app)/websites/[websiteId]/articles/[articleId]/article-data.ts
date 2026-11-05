@@ -3,6 +3,7 @@ import "server-only";
 import { and, desc, eq } from "drizzle-orm";
 
 import type { ArticleDetail } from "@/lib/articles/actions";
+import { linksTo } from "@/lib/articles/link-guard";
 import { releaseCheckFor, reviewHash } from "@/lib/articles/review";
 import { db } from "@/lib/db";
 import { articles, calendarItems, publicationDispatches, publishLogs } from "@/lib/db/schema";
@@ -57,6 +58,15 @@ export function formatDay(value: Date, locale: Locale): string {
   return formatDate(value, locale, { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 }
 
+/**
+ * The partner links to highlight. Under the two-step flow the page may show the
+ * last approved revision while the team has placed a newer link in their working
+ * copy: only links in the text on this page reach the browser.
+ */
+export function partnerLinksInText(urls: string[], bodyHtml: string | null): string[] {
+  return urls.filter((url) => linksTo(bodyHtml ?? "", url));
+}
+
 /** The connection the publish job uses: connected, newest verified first (lib/publishing/credentials.ts). */
 export function pickDestination(integrations: IntegrationView[], pluginConnected: boolean): Destination {
   const connected = integrations
@@ -105,7 +115,7 @@ export async function loadPublishing(input: {
   const { siteId, article, locale } = input;
   const now = input.now ?? new Date();
 
-  const [[extra], [latest], [lastSent], logs, frozen] = await Promise.all([
+  const [[extra], [latest], [lastSent], logs, frozen, twoStep] = await Promise.all([
     db
       .select({
         reviewStatus: articles.reviewStatus,
@@ -163,6 +173,7 @@ export async function loadPublishing(input: {
       .orderBy(desc(publishLogs.createdAt))
       .limit(HISTORY_LIMIT),
     isControlEnabled("publication_freeze"),
+    isControlEnabled("two_step_articles"),
   ]);
 
   const fields = {
@@ -175,7 +186,10 @@ export async function loadPublishing(input: {
   };
 
   let review: ReviewState = "none";
-  if (extra && (extra.reviewStatus !== null || extra.researchReviewRequired)) {
+  if (article.withTeam) {
+    // The last approved revision, served and sendable, while the team has a newer copy.
+    review = "approved";
+  } else if (extra && (extra.reviewStatus !== null || (extra.researchReviewRequired && !twoStep))) {
     const check = releaseCheckFor({ ...fields, ...extra });
     review = check.ok ? "approved" : check.reason === "changed_since_approval" ? "changed" : "pending";
   }
@@ -192,7 +206,10 @@ export async function loadPublishing(input: {
   const facts: PublishFacts = {
     destination: input.destination,
     review,
-    reviewSource: extra?.researchReviewRequired && (extra.researchApprovedHash !== revision || extra.reviewStatus === null) ? "research" : "team",
+    // Under the two-step flow every review is the team's: the customer approves nothing.
+    reviewSource: !twoStep && extra?.researchReviewRequired && (extra.researchApprovedHash !== revision || extra.reviewStatus === null) ? "research" : "team",
+    twoStep,
+    withTeam: article.withTeam,
     frozen,
     uncertain: input.uncertain,
     delivering: Boolean(

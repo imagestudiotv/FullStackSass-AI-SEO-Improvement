@@ -5,7 +5,7 @@ import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import { recordAdminAction } from "@/lib/admin/audit";
 import { countWords, normaliseSlug } from "@/lib/articles/generate";
 import { linkPhrase, linksTo, linkTextFor, siteScope, unlinkUrl } from "@/lib/articles/link-guard";
-import { reviewHash, twoStepArticles } from "@/lib/articles/review";
+import { reviewHash, revisionToStore, twoStepArticles } from "@/lib/articles/review";
 import { sanitizeHtml } from "@/lib/articles/sanitize";
 import { readOneAuthority } from "@/lib/authority/metric";
 import { effectiveMinSourceRank, minRankCapFor } from "@/lib/backlinks/authority-cap";
@@ -722,7 +722,8 @@ export async function approveArticle(input: {
       them separately (lib/publishing/controls.ts, two_step_articles). The
       review page shows the sources and their warnings for that reason.
     */
-    const coversResearch = article.researchReviewRequired && (await twoStepArticles(tx));
+    const twoStep = await twoStepArticles(tx);
+    const coversResearch = article.researchReviewRequired && twoStep;
     const [updated] = await tx
       .update(articles)
       .set({
@@ -734,6 +735,9 @@ export async function approveArticle(input: {
         ...(coversResearch
           ? { researchApprovedHash: reviewHash(article), researchApprovedBy: input.actorEmail, researchApprovedAt: new Date() }
           : {}),
+        // A press made for an earlier revision does not carry this one out: the customer presses again.
+        // And this revision is now what the customer reads and every path sends, until the next approval.
+        ...(twoStep ? { publishRequested: null, approvedRevision: revisionToStore(article, "approved") } : {}),
       })
       .where(and(eq(articles.id, article.id), eq(articles.reviewVersion, input.expectedVersion)))
       .returning({ reviewVersion: articles.reviewVersion });

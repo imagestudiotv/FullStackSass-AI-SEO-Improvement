@@ -28,7 +28,7 @@ import {
   releaseUnspent,
   reserveAll,
 } from "@/lib/billing/spend-quota";
-import { followCustomerEdit } from "@/lib/articles/review";
+import { afterArticleEdit, heldFromCustomerSql, PREPARING_MESSAGE } from "@/lib/articles/review";
 import { ArticleInFlightError, editArticle, isInFlight } from "@/lib/publishing/dispatch";
 
 /**
@@ -90,10 +90,14 @@ async function loadArticle(websiteId: string, articleId: string) {
       bodyHtml: articles.bodyHtml,
       imageUrl: articles.imageUrl,
       imageAttempts: articles.imageAttempts,
+      held: heldFromCustomerSql,
     })
     .from(articles)
     .where(and(eq(articles.id, articleId), eq(articles.websiteId, site.id)))
     .limit(1);
+
+  // The two-step flow: the team's revision, picture included, until they approve it.
+  if (article?.held) return { site: null, article: undefined, error: PREPARING_MESSAGE };
 
   return { site, article, error: null as string | null };
 }
@@ -390,7 +394,17 @@ export async function listReusableImages(
 ): Promise<ActionResult<{ images: { url: string; name: string }[] }>> {
   const { site } = await requireWebsite(websiteId);
 
-  const all = await listWebsiteImages(site.id);
+  /*
+    Stored under <website>/<article>/ (storeArticleImage). The pictures of an
+    article the team has are not offered yet: under the two-step flow they
+    are part of what the customer has not received.
+  */
+  const held = await db
+    .select({ id: articles.id })
+    .from(articles)
+    .where(and(eq(articles.websiteId, site.id), heldFromCustomerSql));
+  const hidden = held.map((row) => `/${row.id}/`);
+  const all = (await listWebsiteImages(site.id)).filter((image) => !hidden.some((folder) => image.url.includes(folder)));
   const term = query?.trim().toLowerCase();
 
   return {
@@ -412,8 +426,8 @@ async function writeImage(articleId: string, patch: Parameters<ReturnType<typeof
   try {
     await editArticle(articleId, async (tx) => {
       await tx.update(articles).set(patch).where(eq(articles.id, articleId));
-      // An image change after approval: back to the review queue, or kept under the two-step flow.
-      await followCustomerEdit(articleId, tx);
+      // An image change after approval: back to the review queue.
+      await afterArticleEdit(articleId, tx);
     });
     return null;
   } catch (error) {

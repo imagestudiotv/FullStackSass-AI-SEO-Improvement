@@ -1,5 +1,7 @@
-import { and, desc, eq, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull, lt, notInArray, or, sql } from "drizzle-orm";
 
+import { linksTo } from "@/lib/articles/link-guard";
+import { storedRevision, twoStepArticles, twoStepOffSql } from "@/lib/articles/review";
 import { recordCredit } from "@/lib/backlinks/credits";
 import type { LinkCheckResult } from "@/lib/backlinks/verify";
 import { db } from "@/lib/db";
@@ -93,6 +95,9 @@ export async function markPlacementDrafted(
  * The article went out. Records the real URL on its placements so the
  * verifier can look for the link there. A CMS draft is not publication:
  * nothing changes. A republish at a new URL moves the URL along.
+ *
+ * Under the two-step flow, only placements whose link is in the revision that
+ * went out: a link the team has placed in a newer working copy is not on the page.
  */
 export async function recordArticlePublication(
   articleId: string,
@@ -101,6 +106,7 @@ export async function recordArticlePublication(
 ): Promise<number> {
   if (status !== "publish" || !publishedUrl) return 0;
   const now = new Date();
+  const notInSentText = await placementsOutsideSentText(articleId);
   const promoted = await db
     .update(placements)
     .set({ status: "published", liveUrl: publishedUrl, publishedAt: now, updatedAt: now })
@@ -108,6 +114,7 @@ export async function recordArticlePublication(
       and(
         eq(placements.articleId, articleId),
         inArray(placements.status, ["drafted", "published", "unverified"]),
+        notInSentText.length > 0 ? notInArray(placements.id, notInSentText) : undefined,
       ),
     )
     .returning({ id: placements.id });
@@ -117,6 +124,19 @@ export async function recordArticlePublication(
     .set({ liveUrl: publishedUrl, updatedAt: now })
     .where(and(eq(placements.articleId, articleId), eq(placements.status, "live")));
   return promoted.length;
+}
+
+async function placementsOutsideSentText(articleId: string): Promise<string[]> {
+  if (!(await twoStepArticles())) return [];
+  const [article] = await db.select({ approvedRevision: articles.approvedRevision }).from(articles).where(eq(articles.id, articleId)).limit(1);
+  const sent = storedRevision(article?.approvedRevision);
+  if (!sent?.bodyHtml) return [];
+  const rows = await db
+    .select({ id: placements.id, url: backlinkRequests.targetUrl })
+    .from(placements)
+    .innerJoin(backlinkRequests, eq(backlinkRequests.id, placements.requestId))
+    .where(and(eq(placements.articleId, articleId), inArray(placements.status, ["drafted", "unverified"])));
+  return rows.filter((row) => !linksTo(sent.bodyHtml ?? "", row.url)).map((row) => row.id);
 }
 
 /**
@@ -134,6 +154,8 @@ export async function discoverPublishedPlacements(): Promise<number> {
         inArray(placements.status, ["drafted", "live"]),
         eq(articles.status, "published"),
         isNotNull(articles.publishedUrl),
+        // A team's new link in a working copy on a live article is not on the page yet.
+        sql`(${twoStepOffSql} or ${articles.reviewStatus} is distinct from 'pending')`,
       ),
     )
     .limit(200);

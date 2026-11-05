@@ -1,6 +1,6 @@
 import { eq, sql, type SQL } from "drizzle-orm";
 
-import { reviewHashSql } from "@/lib/articles/review";
+import { revisionToStore, reviewHashSql } from "@/lib/articles/review";
 import { db } from "@/lib/db";
 import { articles, networkSites, platformControls } from "@/lib/db/schema";
 import type { Executor } from "@/lib/db/types";
@@ -25,17 +25,20 @@ import type { Executor } from "@/lib/db/types";
  *     (activateManagedReview), under REVIEW_LOCK, which the generation save
  *     step holds shared while it decides a draft's review state - so no
  *     draft slips between the two.
- *   two_step_articles  - the client's two-step article flow (2026-11-02):
+ *   two_step_articles  - the client's two-step article flow (2026-11-02, and
+ *     the ticket of 2026-11-05; docs/two-step-articles.md):
  *     1. every new draft, on every website and on the free articles too,
  *        comes to the RepGet team first - they edit it, place links and
- *        check its sources; 2. their ONE approval makes it ready, and the
- *        customer only publishes. No approval is asked of the customer
- *        (the team's approval covers the sources), and a customer's own
- *        edit keeps the approval as long as every placed network link is
- *        still in the text (followCustomerEdit in lib/articles/review.ts).
- *        Same lock as managed review; switching it on also hands the team
- *        the unpublished drafts still waiting for a customer's research
- *        approval (activateTwoStep).
+ *        check its sources - and the customer reads none of it until they
+ *        approve (heldFromCustomer in lib/articles/review.ts);
+ *     2. their ONE approval makes that exact revision ready. The customer
+ *        has one Publish action and approves nothing, and a later change to
+ *        the revision goes back to the team (afterArticleEdit).
+ *        The first-article exception does not apply while it is on
+ *        (isFirstArticle in lib/publishing/policy.ts). Automatic publishing
+ *        the customer chose still runs, for approved articles only, on their
+ *        day. Same lock as managed review; switching it on sorts what was
+ *        written under the old rules (activateTwoStep).
  *
  * A missing row means disabled: a fresh database, or one a previous build
  * migrated, behaves exactly as before until an operator acts.
@@ -108,7 +111,7 @@ export async function writeControl(
  *               review the unpublished drafts written since the cutover on
  *               websites taking part in the network, and returns how many.
  *   two-step  - the same lock; switched on, it hands the team the drafts
- *               waiting for a customer's research approval.
+ *               activateTwoStep describes, and returns how many.
  */
 export async function switchControl(
   tx: Executor,
@@ -130,27 +133,69 @@ export async function switchControl(
 }
 
 /**
- * Switching the two-step flow on: the unpublished drafts outside the team's
- * review that are held for a CUSTOMER's research approval go to the team
- * instead, whose approval now covers the sources. Without this they would
- * keep asking the customer for the approval the new flow no longer asks
- * for. Drafts already approved by the customer, and everything else, keep
- * the state they are in.
+ * Switching the two-step flow on: what was written under the old rules is
+ * sorted so that nothing goes out without the team, and nobody waits for an
+ * approval the new flow no longer asks of them. Only never-delivered drafts
+ * move to the queue, none in the middle of a delivery, and nothing is approved
+ * or sent.
+ *
+ *  - Never approved by the team: to the team. Every path now checks approval.
+ *  - Approved by the team earlier, but no longer standing - changed since, or
+ *    waiting for the customer's source approval: back to the team.
+ *
+ * Staying as they are: articles the team approved as they stand (they keep their
+ * date), and everything delivered or live. Those two get their stored revision
+ * here, from the row as it stands, so a later working copy stays private (see
+ * StoredRevision). The same sorting is counted, read-only, by
+ * scripts/two-step-transition-dry-run.mjs.
  */
 export async function activateTwoStep(tx: Executor): Promise<number> {
-  const rows = await tx
+  const notDelivering = sql`not exists (select 1 from publication_dispatches pd where pd.article_id = ${articles.id} and pd.status = 'in_flight')`;
+  const waiting = await tx
     .update(articles)
     .set({ reviewStatus: "pending", reviewVersion: sql`${articles.reviewVersion} + 1` })
     .where(
       sql`${articles.reviewStatus} is null
-        and ${articles.researchReviewRequired}
-        and ${articles.researchApprovedHash} is distinct from ${reviewHashSql}
         and ${articles.status} = 'draft'
         and ${articles.publishedUrl} is null
-        and not exists (select 1 from publication_dispatches pd where pd.article_id = ${articles.id} and pd.status = 'in_flight')`,
+        and ${notDelivering}`,
     )
     .returning({ id: articles.id });
-  return rows.length;
+  const stale = await tx
+    .update(articles)
+    .set({
+      reviewStatus: "pending",
+      reviewApprovedAt: null,
+      reviewApprovedBy: null,
+      reviewApprovedHash: null,
+      reviewVersion: sql`${articles.reviewVersion} + 1`,
+    })
+    .where(
+      sql`${articles.reviewStatus} = 'approved'
+        and ${articles.status} = 'draft'
+        and ${articles.publishedUrl} is null
+        and ${notDelivering}
+        and (
+          ${articles.reviewApprovedHash} is distinct from ${reviewHashSql}
+          or (${articles.researchReviewRequired} and ${articles.researchApprovedHash} is distinct from ${reviewHashSql})
+        )`,
+    )
+    .returning({ id: articles.id });
+
+  const standing = await tx
+    .select()
+    .from(articles)
+    .where(
+      sql`(${articles.reviewStatus} = 'approved' and ${articles.reviewApprovedHash} = ${reviewHashSql})
+        or (${articles.reviewStatus} is null and (${articles.status} = 'published' or ${articles.publishedUrl} is not null))`,
+    );
+  for (const row of standing) {
+    await tx
+      .update(articles)
+      .set({ approvedRevision: revisionToStore(row, row.reviewStatus === "approved" ? "approved" : "published") })
+      .where(eq(articles.id, row.id));
+  }
+  return waiting.length + stale.length;
 }
 
 /**
