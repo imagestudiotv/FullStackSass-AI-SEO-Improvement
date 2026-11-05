@@ -111,10 +111,12 @@ const SWITCH_COPY: Record<
       title: "Turn on two-step articles?",
       body: (
         <>
-          Every new article, on every website and the free articles of new customers too, comes to the review queue first. Your
-          approval makes it ready: the customer is no longer asked to approve its sources, and their own later edits keep your approval
-          unless they remove a placed network link. Drafts still waiting for a customer&apos;s source approval move to the queue now.
-          Turn on only after a deploy has finished.
+          Every new article, on every website and the free articles of new customers too, comes to the review queue first, and the
+          customer reads none of it until you approve. Your approval makes that exact version ready: they press Publish and approve
+          nothing, and a later change by them comes back to this queue. A first article no longer goes live by itself. Automatic
+          publishing a customer chose still runs, for approved articles only. Drafts on automatic publishing, and drafts waiting for a
+          customer&apos;s source approval, move to the queue now; nothing is approved or republished. Count them first with
+          scripts/two-step-transition-dry-run.mjs. Turn on only after a deploy has finished.
         </>
       ),
       confirm: "Turn on two-step",
@@ -123,8 +125,9 @@ const SWITCH_COPY: Record<
       title: "Turn off two-step articles?",
       body: (
         <>
-          New drafts go back to the earlier rules: only Partner Network websites (with managed review on) wait for the team, and customers
-          approve flagged sources themselves. Articles already in the queue stay there.
+          New drafts go back to the earlier rules: only Partner Network websites (with managed review on) wait for the team, customers
+          approve flagged sources themselves, and a first article goes live by itself again. Articles already in the queue stay there,
+          and their customers can read them again while they wait.
         </>
       ),
       confirm: "Turn off two-step",
