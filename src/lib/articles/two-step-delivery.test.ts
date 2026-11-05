@@ -208,7 +208,7 @@ async function scene(options: SceneOptions = {}) {
     cms.integrationId = integration.id;
   }
   if (options.plugin) {
-    await test.db.insert(integrationKeys).values({ websiteId, name: "k", keyHash: randomUUID(), keyPrefix: "k", lastUsedAt: new Date() });
+    await test.db.insert(integrationKeys).values({ websiteId, keyHash: randomUUID(), keyPrefix: "k", lastUsedAt: new Date() });
     key.websiteId = websiteId;
   }
   const [item] = await test.db
@@ -512,7 +512,7 @@ describe("after the team's approval: the exact revision, one notification, one P
   it("a CMS failure is recorded and said; the customer can press again", async () => {
     const s = await scene();
     await approveAndRelease(s.post.id);
-    cms.error = new ProviderError("The site refused it", "rejected", 422);
+    cms.error = new ProviderError("The site refused it", "permission", 422);
     await expect(runJob(s)).rejects.toThrow("The site refused it");
     const logs = await test.db.select().from(publishLogs).where(eq(publishLogs.articleId, s.post.id));
     expect(logs[0]).toMatchObject({ status: "failed" });
