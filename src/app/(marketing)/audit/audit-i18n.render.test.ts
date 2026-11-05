@@ -2,7 +2,9 @@ import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
+import { ACCOUNT_AUDIT_MAX_PAGES, PUBLIC_AUDIT_MAX_PAGES } from "@/lib/audit/limits";
 import type { PublicAuditResult } from "@/lib/audit/public-audit";
+import { auditEndingCopy } from "@/lib/i18n/audit-ending";
 import { LOCALES, localePath, splitLocale } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
 
@@ -59,7 +61,7 @@ describe("the free check's result", () => {
     const html = text(render("en"));
     expect(html).toContain("Title is 82 characters and will be cut off after about 60.");
     expect(html).toContain("Plans start at €29 a month.");
-    expect(html).toContain("New accounts get their first 3 articles free.");
+    expect(html).toContain("your first 3 articles are free");
     expect(html).toContain("duplicate page titles, internal linking");
   });
 
@@ -77,7 +79,7 @@ describe("the free check's result", () => {
     expect(words).toContain(health.crossChecks.duplicateTitles);
     // The page's own words.
     const t = AUDIT_COPY[locale].result;
-    for (const phrase of [t.crawlersTitle, t.joinTitle, t.cached, t.seeFull]) expect(words).toContain(phrase);
+    for (const phrase of [t.crawlersTitle, t.cached, t.seePricing, auditEndingCopy(locale).finalBody]) expect(words).toContain(phrase);
     // No English sentence from the English page.
     const english = text(render("en"));
     for (const sentence of english.match(/[A-Z][a-z][^.!?]{30,}[.!?]/g) ?? []) {
@@ -91,21 +93,54 @@ describe("the free check's result", () => {
   });
 });
 
-describe("the join block's count", () => {
-  it.each(LOCALES)("in %s says one finding in the singular, and several in the plural", (locale) => {
-    const one: PublicAuditResult = { ...RESULT, issues: [RESULT.issues[1]], counts: { critical: 0, warning: 0, info: 1 }, hiddenIssues: 0 };
-    const [singular, several] = AUDIT_COPY[locale].result.joinItems[0].body;
-    expect(text(renderToStaticMarkup(createElement(AuditResult, { result: one, offer: OFFER, locale })))).toContain(singular);
-    // The total of the bar at the top (1 critical + 1 warning), not that plus the 3 hidden issue types.
-    expect(text(render(locale))).toContain(several.replace("{count}", "2"));
-    expect(singular).not.toContain("{count}");
+describe("how the report ends (client's design, 2026-11-05)", () => {
+  const signUp = `/sign-up?next=${encodeURIComponent("/onboarding/website?domain=example.com")}`;
+  const hrefs = (html: string) => [...html.matchAll(/href="([^"]+)"/g)].map(([, href]) => href.replaceAll("&amp;", "&"));
+
+  it.each(LOCALES)("in %s carries the audited website through sign-up, from both sections and nowhere else", (locale) => {
+    const links = hrefs(render(locale));
+    expect(links.filter((href) => href.startsWith("/sign-up"))).toEqual([signUp, signUp]);
+    expect(links).toContain(localePath(locale, "/pricing"));
   });
 
-  it.each(LOCALES)("in %s has its own words for a clean result, never \"0 of them\"", (locale) => {
-    const clean: PublicAuditResult = { ...RESULT, issues: [], counts: { critical: 0, warning: 0, info: 0 }, hiddenIssues: 0 };
-    const page = text(renderToStaticMarkup(createElement(AuditResult, { result: clean, offer: OFFER, locale })));
-    expect(page).toContain(AUDIT_COPY[locale].result.joinItems[0].none);
-    expect(page).not.toContain(AUDIT_COPY[locale].result.joinItems[0].body[1].replace("{count}", "0"));
+  it.each(LOCALES)("in %s has one closing offer: the old gate and join block are gone", (locale) => {
+    const html = render(locale);
+    expect(html.match(/<section/g)).toHaveLength(1);
+    expect(text(html).split(auditEndingCopy(locale).title)).toHaveLength(2);
+  });
+
+  it.each(LOCALES)("in %s states the real offer, with the numbers read from where they are enforced", (locale) => {
+    const words = text(render(locale));
+    const t = auditEndingCopy(locale);
+    expect(words).toContain(t.noteOffer[1].replace("{count}", "3"));
+    expect(words).toContain(t.noteTerms);
+    expect(words).toContain(t.deeperAudit.body.replace("{pages}", String(ACCOUNT_AUDIT_MAX_PAGES)).replace("{freePages}", String(PUBLIC_AUDIT_MAX_PAGES)));
+    expect(words).toContain(AUDIT_COPY[locale].result.plansStart.replace("{price}", "€29").trim());
+    expect(words).not.toMatch(/\{(count|pages|freePages|price)\}/);
+    expect(words).not.toContain("**");
+    // The design's stale offer, in any language.
+    expect(words).not.toMatch(/3[- ](day|días|jours|giorni|Tage)/i);
+  });
+
+  it("follows the configured offer, not the number 3", () => {
+    const words = text(renderToStaticMarkup(createElement(AuditResult, { result: RESULT, offer: { price: null, freeArticles: 1 }, locale: "en" })));
+    expect(words).toContain("your first article is free");
+    expect(words).toContain("1 free article");
+    expect(words).not.toContain("Plans start at");
+  });
+
+  it.each(LOCALES)("in %s shows the real count of what the check did not list, only when there is one", (locale) => {
+    const count = AUDIT_COPY[locale].result.hidden[1].replace("{count}", "3");
+    expect(text(render(locale))).toContain(count);
+    const none = renderToStaticMarkup(createElement(AuditResult, { result: { ...RESULT, hiddenIssues: 0 }, offer: OFFER, locale }));
+    expect(text(none)).not.toContain(count);
+  });
+
+  it.each(LOCALES)("in %s does not promise a free backlink", (locale) => {
+    const copy = AUDIT_COPY[locale];
+    for (const label of [...copy.steps.assetLabels, ...copy.progress.assets.map((asset) => asset.label)]) {
+      expect(label.toLowerCase()).not.toContain("backlink");
+    }
   });
 });
 
