@@ -1,9 +1,10 @@
+import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), permanentRedirect: vi.fn() }));
 vi.mock("next/image", () => ({
-  default: ({ src, alt }: { src: string; alt: string }) => <img src={src} alt={alt} />,
+  default: ({ src, alt }: { src: string; alt: string }) => createElement("img", { src, alt }),
 }));
 
 import { websiteBuildRedirect } from "@/lib/config/site";
@@ -14,7 +15,7 @@ import { signUpForWebsiteProject } from "@/lib/website-projects/shared";
 
 import { WebsiteCreationContent } from "./website-creation-page";
 
-const render = (locale: (typeof LOCALES)[number]) => renderToStaticMarkup(<WebsiteCreationContent locale={locale} />);
+const render = (locale: (typeof LOCALES)[number]) => renderToStaticMarkup(createElement(WebsiteCreationContent, { locale }));
 
 /** Every string in a copy tree, for the checks that apply to all of them. */
 function strings(value: unknown): string[] {
@@ -41,8 +42,9 @@ describe.each(LOCALES)("/website-creation in %s", (locale) => {
     expect(html.split(t.work.conceptLabel).length - 1).toBeGreaterThanOrEqual(4);
     expect(html).toContain("aurenia-residences.com");
     expect(html).toContain("atelier-forme.com");
-    expect(html).not.toMatch(/href="[^"]*aurenia/);
-    expect(html).not.toMatch(/href="[^"]*atelier-forme/);
+    // An <a>: React also writes a preload <link> for the mock <img>, which is no link to anywhere.
+    expect(html).not.toMatch(/<a [^>]*href="[^"]*aurenia/);
+    expect(html).not.toMatch(/<a [^>]*href="[^"]*(atelier-forme|forme-objects)/);
     expect(t.work.honesty).toContain("Aurenia Residences");
     expect(t.work.honesty).toContain("Forme Objects");
   });
