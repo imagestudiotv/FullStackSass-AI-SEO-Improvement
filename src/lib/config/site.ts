@@ -16,11 +16,30 @@
 
 /** Support address shown on legal and contact pages. */
 /**
- * /contact?about=... when someone asks for a website to be built ("We'll build
- * one for you" in the homepage's hero). There is no builder yet: the request
- * goes to the team, from a page that says what it is about.
+ * Where "We'll build one for you" goes: the public page for website builds and
+ * redesigns.
+ */
+export const WEBSITE_CREATION_PATH = "/website-creation";
+
+/**
+ * The old way there, /contact?about=website_build. Links to it are out in the
+ * world, so the contact page forwards it (websiteBuildRedirect).
  */
 export const WEBSITE_BUILD_TOPIC = "website_build";
+
+/**
+ * The address /contact?about=website_build now lives at, in the same language
+ * and keeping every other parameter (utm tags, ?type=, ?email=).
+ */
+export function websiteBuildRedirect(path: string, params: Record<string, string | string[] | undefined>): string {
+  const kept = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (key === "about" || value === undefined) continue;
+    for (const one of Array.isArray(value) ? value : [value]) kept.append(key, one);
+  }
+  const query = kept.toString();
+  return query ? `${path}?${query}` : path;
+}
 
 export const SUPPORT_EMAIL =
   process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@repget.com";

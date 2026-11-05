@@ -1,7 +1,7 @@
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 
-import { SUPPORT_EMAIL, WEBSITE_BUILD_TOPIC } from "@/lib/config/site";
-import { isLocale, LOCALES } from "@/lib/i18n/config";
+import { SUPPORT_EMAIL, WEBSITE_BUILD_TOPIC, WEBSITE_CREATION_PATH, websiteBuildRedirect } from "@/lib/config/site";
+import { isLocale, localePath, LOCALES } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
 import { ContactContent } from "../../static-pages";
@@ -35,8 +35,11 @@ export default async function LocalisedContactPage({
   if (!isLocale(locale) || locale === "en") notFound();
 
   const t = getMessages(locale);
-  // The homepage's "We'll build one for you".
-  const build = (await searchParams).about === WEBSITE_BUILD_TOPIC ? t.contact.websiteBuild : null;
+  const params = await searchParams;
+  // The homepage's old "We'll build one for you" link: that has a page of its own now, in this language.
+  if (params.about === WEBSITE_BUILD_TOPIC) {
+    permanentRedirect(websiteBuildRedirect(localePath(locale, WEBSITE_CREATION_PATH), params));
+  }
 
-  return <ContactContent t={t} locale={locale} supportEmail={SUPPORT_EMAIL} subject={build?.subject} title={build?.title} subtitle={build?.subtitle} />;
+  return <ContactContent t={t} locale={locale} supportEmail={SUPPORT_EMAIL} />;
 }

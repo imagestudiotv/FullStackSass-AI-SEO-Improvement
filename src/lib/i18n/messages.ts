@@ -511,8 +511,6 @@ export type Messages = {
     subtitle: string;
     emailLabel: string;
     accountNote: string;
-    /** /contact?about=website_build: the homepage's "We'll build one for you". */
-    websiteBuild: { title: string; subtitle: string; subject: string };
   };
   /** The public site's "page not found" (components/not-found-panel.tsx). */
   notFound: {
@@ -4015,11 +4013,6 @@ const en: Messages = {
     subtitle:
       "Questions about the product, your account, or billing - we read every message and reply within two working days.",
     emailLabel: "Email",
-    websiteBuild: {
-      title: "We'll build your website",
-      subtitle: "Tell us about your business and what you need from your website, and we will reply with how we can help and what it costs.",
-      subject: "Build a website for me",
-    },
     accountNote:
       "If you are writing about your account, please send it from the address you signed up with.",
   },
@@ -7294,11 +7287,6 @@ const es: Messages = {
     subtitle:
       "Preguntas sobre el producto, su cuenta o la facturación: leemos todos los mensajes y respondemos en un plazo de dos días laborables.",
     emailLabel: "Correo electrónico",
-    websiteBuild: {
-      title: "Creamos su sitio web",
-      subtitle: "Cuéntenos a qué se dedica y qué necesita de su sitio web, y le responderemos con cómo podemos ayudarle y cuánto cuesta.",
-      subject: "Quiero que creen mi sitio web",
-    },
     accountNote:
       "Si escribe sobre su cuenta, hágalo desde la dirección con la que se registró.",
   },
@@ -10576,11 +10564,6 @@ const fr: Messages = {
     subtitle:
       "Des questions sur le produit, votre compte ou la facturation : nous lisons chaque message et répondons sous deux jours ouvrés.",
     emailLabel: "E-mail",
-    websiteBuild: {
-      title: "Nous créons votre site web",
-      subtitle: "Parlez-nous de votre activité et de ce que vous attendez de votre site : nous vous répondrons en précisant comment nous pouvons vous aider et à quel prix.",
-      subject: "Créer mon site web",
-    },
     accountNote:
       "Si votre message concerne votre compte, envoyez-le depuis l'adresse utilisée lors de l'inscription.",
   },
@@ -13855,11 +13838,6 @@ const it: Messages = {
     subtitle:
       "Domande sul prodotto, sul suo account o sulla fatturazione: leggiamo ogni messaggio e rispondiamo entro due giorni lavorativi.",
     emailLabel: "E-mail",
-    websiteBuild: {
-      title: "Creiamo noi il Suo sito web",
-      subtitle: "Ci parli della Sua attività e di ciò che Le serve dal sito: Le risponderemo spiegando come possiamo aiutarLa e quanto costa.",
-      subject: "Creare il mio sito web",
-    },
     accountNote:
       "Se scrive riguardo al suo account, lo faccia dall'indirizzo con cui si è registrato.",
   },
@@ -17132,11 +17110,6 @@ const de: Messages = {
     subtitle:
       "Fragen zum Produkt, zu Ihrem Konto oder zur Abrechnung - wir lesen jede Nachricht und antworten innerhalb von zwei Werktagen.",
     emailLabel: "E-Mail",
-    websiteBuild: {
-      title: "Wir erstellen Ihre Website",
-      subtitle: "Erzählen Sie uns von Ihrem Unternehmen und davon, was Ihre Website leisten soll. Wir antworten Ihnen, wie wir helfen können und was es kostet.",
-      subject: "Website für mich erstellen",
-    },
     accountNote:
       "Wenn es um Ihr Konto geht, schreiben Sie bitte von der Adresse, mit der Sie sich registriert haben.",
   },

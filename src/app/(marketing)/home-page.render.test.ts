@@ -256,10 +256,8 @@ describe("homepage sections", () => {
   });
 
   it.each(LOCALES)("%s: asks for a website to be built on a page that says so", (locale) => {
-    const contact = locale === "en" ? "/contact" : `/${locale}/contact`;
-    expect(renderHome(locale)).toContain(`href="${contact}?about=website_build"`);
-    const { title, subtitle, subject } = getMessages(locale).contact.websiteBuild;
-    expect([title, subtitle, subject].every(Boolean)).toBe(true);
+    const build = locale === "en" ? "/website-creation" : `/${locale}/website-creation`;
+    expect(renderHome(locale)).toContain(`href="${build}"`);
     expect(title).not.toBe(getMessages(locale).contact.title);
   });
 

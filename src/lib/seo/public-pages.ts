@@ -20,6 +20,7 @@ export const PUBLIC_PAGES: { path: string; priority: number }[] = [
   { path: "/publishers", priority: 0.7 },
   { path: "/backlinks", priority: 0.7 },
   { path: "/rank-on-chatgpt", priority: 0.7 },
+  { path: "/website-creation", priority: 0.7 },
   { path: "/affiliate", priority: 0.6 },
   { path: "/partners", priority: 0.6 },
   { path: "/success-stories", priority: 0.6 },

@@ -1,4 +1,6 @@
-import { SUPPORT_EMAIL, WEBSITE_BUILD_TOPIC } from "@/lib/config/site";
+import { permanentRedirect } from "next/navigation";
+
+import { SUPPORT_EMAIL, WEBSITE_BUILD_TOPIC, WEBSITE_CREATION_PATH, websiteBuildRedirect } from "@/lib/config/site";
 import { getMessages } from "@/lib/i18n/messages";
 import { ContactContent } from "../static-pages";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
@@ -28,18 +30,9 @@ export default async function ContactPage({
   const params = await searchParams;
   const quote = params.about === "audit_fix";
 
-  // The homepage's "We'll build one for you".
+  // The homepage's old "We'll build one for you" link: that has a page of its own now.
   if (params.about === WEBSITE_BUILD_TOPIC) {
-    return (
-      <ContactContent
-        t={t}
-        locale="en"
-        supportEmail={SUPPORT_EMAIL}
-        subject={t.contact.websiteBuild.subject}
-        title={t.contact.websiteBuild.title}
-        subtitle={t.contact.websiteBuild.subtitle}
-      />
-    );
+    permanentRedirect(websiteBuildRedirect(WEBSITE_CREATION_PATH, params));
   }
 
   return (
