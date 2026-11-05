@@ -8,6 +8,8 @@ import type { Locale } from "@/lib/i18n/config";
  * (lib/i18n/format.ts).
  */
 export type ArticleDeliveryCopy = {
+  /** The title of a held article no plan entry names. See PREPARING_TITLE. */
+  preparingTitle: string;
   /** While the article is first being written. */
   writingTitle: string;
   writingBody: string;
@@ -50,8 +52,22 @@ export type ArticleDeliveryCopy = {
   dashboardReadyHelp: string;
 };
 
+/**
+ * What a read returns as the title of a held article no plan entry names.
+ * The reads do not know the reader's language, so this marker travels to the
+ * page, which says it with articleTitleText. U+001F never appears in a real
+ * title (lib/articles/review.ts).
+ */
+export const PREPARING_TITLE = "\u001fpreparing";
+
+/** An article title from a customer's read, ready to show. */
+export function articleTitleText(title: string, locale: Locale): string {
+  return title === PREPARING_TITLE ? ARTICLE_DELIVERY[locale].preparingTitle : title;
+}
+
 export const ARTICLE_DELIVERY: Record<Locale, ArticleDeliveryCopy> = {
   en: {
+    preparingTitle: "Article in preparation",
     writingTitle: "We are writing this article",
     writingBody: "When it is written, it goes to the RepGet team to be edited and checked. There is nothing for you to do.",
     teamTitle: "The RepGet team is preparing this article",
@@ -80,6 +96,7 @@ export const ARTICLE_DELIVERY: Record<Locale, ArticleDeliveryCopy> = {
     dashboardReadyHelp: "The RepGet team has finished it. Open it to publish.",
   },
   es: {
+    preparingTitle: "Artículo en preparación",
     writingTitle: "Estamos escribiendo este artículo",
     writingBody: "Cuando esté escrito, pasará al equipo de RepGet para que lo edite y lo revise. Usted no tiene que hacer nada.",
     teamTitle: "El equipo de RepGet está preparando este artículo",
@@ -108,6 +125,7 @@ export const ARTICLE_DELIVERY: Record<Locale, ArticleDeliveryCopy> = {
     dashboardReadyHelp: "El equipo de RepGet lo ha terminado. Ábralo para publicarlo.",
   },
   fr: {
+    preparingTitle: "Article en préparation",
     writingTitle: "Nous rédigeons cet article",
     writingBody: "Une fois rédigé, il passe à l’équipe RepGet, qui le relit et le vérifie. Vous n’avez rien à faire.",
     teamTitle: "L’équipe RepGet prépare cet article",
@@ -136,6 +154,7 @@ export const ARTICLE_DELIVERY: Record<Locale, ArticleDeliveryCopy> = {
     dashboardReadyHelp: "L’équipe RepGet l’a terminé. Ouvrez-le pour le publier.",
   },
   it: {
+    preparingTitle: "Articolo in preparazione",
     writingTitle: "Stiamo scrivendo questo articolo",
     writingBody: "Una volta scritto, passa al team di RepGet per la revisione e i controlli. Lei non deve fare nulla.",
     teamTitle: "Il team di RepGet sta preparando questo articolo",
@@ -164,6 +183,7 @@ export const ARTICLE_DELIVERY: Record<Locale, ArticleDeliveryCopy> = {
     dashboardReadyHelp: "Il team di RepGet lo ha completato. Lo apra per pubblicarlo.",
   },
   de: {
+    preparingTitle: "Artikel in Vorbereitung",
     writingTitle: "Wir schreiben diesen Artikel",
     writingBody: "Sobald er geschrieben ist, geht er zur Bearbeitung und Prüfung an das RepGet-Team. Sie müssen nichts tun.",
     teamTitle: "Das RepGet-Team bereitet diesen Artikel vor",

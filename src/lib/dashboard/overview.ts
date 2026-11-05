@@ -2,7 +2,8 @@ import "server-only";
 
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
-import { heldFromCustomerSql, PREPARING_TITLE, reviewHashSql, twoStepOffSql } from "@/lib/articles/review";
+import { heldFromCustomerSql, reviewHashSql, twoStepOffSql } from "@/lib/articles/review";
+import { PREPARING_TITLE } from "@/lib/i18n/article-delivery";
 import { readOneAuthority, type AuthorityReading } from "@/lib/authority/metric";
 import { db } from "@/lib/db";
 import { articles, audits, calendarItems, keywords, websites } from "@/lib/db/schema";

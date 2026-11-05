@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight, ListChecks } from "lucide-react";
 import type { Locale } from "@/lib/i18n/config";
 import { getNextActions, type NextActionKind } from "@/lib/dashboard/next-actions";
+import { articleTitleText } from "@/lib/i18n/article-delivery";
 import { NEXT_ACTIONS_COPY } from "@/lib/i18n/next-actions";
 import { CONTENT_COPY } from "@/lib/i18n/content-improvements";
 import { snoozeNextAction, restoreNextActions } from "@/lib/dashboard/next-action-actions";
@@ -29,7 +30,7 @@ export async function NextActions({ websiteId, ownerOrgId, canManage, locale, ex
             <span className="min-w-0">
               <span className="mb-1 block text-xs font-medium text-primary">{t[action.priority]}</span>
               <span className="block text-sm font-medium">{t[action.kind]}</span>
-              {action.detail && <span className="mt-0.5 block break-words text-sm">{action.detail}</span>}
+              {action.detail && <span className="mt-0.5 block break-words text-sm">{articleTitleText(action.detail, locale)}</span>}
               <span className="mt-0.5 block break-words text-sm text-muted-foreground">{t[`${action.kind}Help`]}</span>
               {action.evidence && <span className="mt-1 block text-xs text-muted-foreground">
                 {"before" in action.evidence

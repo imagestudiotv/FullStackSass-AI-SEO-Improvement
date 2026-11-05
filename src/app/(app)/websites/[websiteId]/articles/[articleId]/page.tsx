@@ -11,6 +11,7 @@ import { requireWebsitePlan } from "@/lib/billing/require-plan";
 import { db } from "@/lib/db";
 import { integrationKeys } from "@/lib/db/schema";
 import { getAppMessages } from "@/lib/i18n/app-locale";
+import { articleTitleText, PREPARING_TITLE } from "@/lib/i18n/article-delivery";
 import { MAX_IMAGE_BYTES } from "@/lib/images/storage";
 import { listIntegrations } from "@/lib/publishing/actions";
 import { latestUncertain } from "@/lib/publishing/dispatch";
@@ -43,7 +44,8 @@ export async function generateMetadata({
   if (!UUID_RE.test(articleId)) return { title: "Article" };
   try {
     const article = await loadArticle(websiteId, articleId);
-    return { title: article?.title ?? "Article" };
+    // A held article with no planned title: the marker is not a title.
+    return { title: article && article.title !== PREPARING_TITLE ? article.title : "Article" };
   } catch {
     // The page itself answers a missing or foreign article (404) or a signed-out visit.
     return { title: "Article" };
@@ -97,7 +99,7 @@ export default async function ArticlePage({
     return (
       <ArticlePreparing
         websiteId={websiteId}
-        title={article.title}
+        title={articleTitleText(article.title, locale)}
         stage={article.preparing}
         destination={pickDestination(integrations, connectedPlugin.length > 0)}
         autoPublish={gate.site.autoPublish ? (gate.site.publishAs === "draft" ? "draft" : "live") : "off"}
@@ -155,7 +157,7 @@ export default async function ArticlePage({
       websiteId={websiteId}
       // The stored error is written for logs (internal names, raw provider
       // answers); only its classification reaches the browser.
-      article={{ ...article, error: null }}
+      article={{ ...article, title: articleTitleText(article.title, locale), error: null }}
       failureKind={article.status === "failed" ? generationFailureKind(article.error) : null}
       canEdit={gate.access !== "viewer"}
       locale={locale}

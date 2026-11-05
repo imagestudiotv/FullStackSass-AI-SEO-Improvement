@@ -1,6 +1,7 @@
 import { requireWebsitePage } from "@/lib/tenant";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { listArticles } from "@/lib/articles/actions";
+import { articleTitleText } from "@/lib/i18n/article-delivery";
 import { listCalendar, listKeywords } from "@/lib/keywords/actions";
 import { articlesToPlan } from "@/lib/keywords/replan";
 import { researchInFlight } from "@/lib/keywords/research-state";
@@ -40,7 +41,7 @@ export default async function WebsiteContentPage({
         websiteId={site.id}
         keywords={keywords}
         calendar={calendar}
-        articles={articles}
+        articles={articles.map((article) => ({ ...article, title: articleTitleText(article.title, locale) }))}
         researching={researchInFlight(site)}
         monthUsedUp={allowance.usedUp}
         t={t.app.research}

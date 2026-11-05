@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { and, eq, isNull, sql, type SQL } from "drizzle-orm";
 
 import { onFreeArticles } from "@/lib/billing/free-articles";
+import { PREPARING_TITLE } from "@/lib/i18n/article-delivery";
 import { db } from "@/lib/db";
 import { articles, calendarItems, networkSites, platformControls } from "@/lib/db/schema";
 import type { Executor } from "@/lib/db/types";
@@ -233,8 +234,17 @@ export const heldFromCustomerSql: SQL<boolean> = sql<boolean>`(case
   else false
 end)`;
 
-/** What the customer reads as the title when no plan entry names a held article. */
-export const PREPARING_TITLE = "Article in preparation";
+/**
+ * The title a customer's read may name, in SQL: a held article's planned title,
+ * or the marker the page translates. For a query with articles in scope.
+ */
+export const customerTitleSql: SQL<string> = sql<string>`(case
+  when ${heldFromCustomerSql} then coalesce(
+    (select planned.title from ${calendarItems} planned where planned.id = ${articles.calendarItemId}),
+    ${PREPARING_TITLE}
+  )
+  else ${articles.title}
+end)`;
 
 /** The refusal for anything a customer tries on an article the team has. */
 export const PREPARING_MESSAGE = "This article is being prepared by the RepGet team. You will be told when it is ready to publish.";

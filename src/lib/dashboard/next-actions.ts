@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { nextActionPreferences, websites } from "@/lib/db/schema";
 import { findTrafficChanges } from "@/lib/articles/decay";
 import { PUBLISHING_KINDS } from "@/lib/publishing/kinds";
-import { reviewHashSql, releasableSql, twoStepOffSql } from "@/lib/articles/review";
+import { customerTitleSql, reviewHashSql, releasableSql, twoStepOffSql } from "@/lib/articles/review";
 
 export type NextActionKind = "publishing" | "publishFailed" | "failed" | "draft" | "ready" | "audit" | "google" | "traffic" | "searchData" | "snippet" | "research";
 export type NextAction = {
@@ -34,12 +34,13 @@ export async function getNextActions(
     google: sql<boolean>`exists (select 1 from integrations i where i.website_id = ${websiteId}
       and i.kind = 'google_analytics' and i.status = 'connected' and coalesce(i.meta->>'searchConsoleSite', '') <> '')`,
     hasSearchData: sql<boolean>`exists (select 1 from gsc_page_metrics g where g.website_id = ${websiteId})`,
-    failed: sql<ArticleTask>`(select json_build_object('id', a.id, 'title', a.title, 'version', a.updated_at::text) from articles a
-      where a.website_id = ${websiteId} and a.status = 'failed' order by a.updated_at desc, a.id limit 1)`,
-    publishFailed: sql<ArticleTask>`(select json_build_object('id', a.id, 'title', a.title, 'version', p.id::text)
-      from articles a join publish_logs p on p.article_id = a.id
-      where a.website_id = ${websiteId} and p.status = 'failed'
-        and p.id = (select last.id from publish_logs last where last.article_id = a.id order by last.created_at desc, last.id desc limit 1)
+    // customerTitleSql: under the two-step flow, an article the team has shows only its planned title.
+    failed: sql<ArticleTask>`(select json_build_object('id', articles.id, 'title', ${customerTitleSql}, 'version', articles.updated_at::text) from articles
+      where articles.website_id = ${websiteId} and articles.status = 'failed' order by articles.updated_at desc, articles.id limit 1)`,
+    publishFailed: sql<ArticleTask>`(select json_build_object('id', articles.id, 'title', ${customerTitleSql}, 'version', p.id::text)
+      from articles join publish_logs p on p.article_id = articles.id
+      where articles.website_id = ${websiteId} and p.status = 'failed'
+        and p.id = (select last.id from publish_logs last where last.article_id = articles.id order by last.created_at desc, last.id desc limit 1)
       order by p.created_at desc, p.id desc limit 1)`,
     // The two-step flow asks no approval of the customer: this task does not exist under it.
     research: sql<ArticleTask>`(select json_build_object('id', articles.id, 'title', articles.title)

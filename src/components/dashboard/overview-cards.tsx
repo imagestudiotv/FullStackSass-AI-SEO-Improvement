@@ -7,7 +7,7 @@ import { StatusBadge, type StatusTone } from "@/components/ui/status-badge";
 import type { DashboardOverview, TodaysArticle, Win } from "@/lib/dashboard/overview";
 import { format, formatDate, formatNumber, plural } from "@/lib/i18n/format";
 import type { Locale } from "@/lib/i18n/config";
-import { ARTICLE_DELIVERY } from "@/lib/i18n/article-delivery";
+import { ARTICLE_DELIVERY, articleTitleText } from "@/lib/i18n/article-delivery";
 import { CONTENT_COPY } from "@/lib/i18n/content-improvements";
 import type { Messages } from "@/lib/i18n/messages";
 import { cn } from "@/lib/utils";
@@ -173,7 +173,7 @@ export function TodaysArticleCard({ overview, t, locale }: { overview: Dashboard
           <Eyebrow>{t.todaysArticle}</Eyebrow>
           <h2 id="todays-title" className="text-xl font-semibold leading-tight">
             <Link href={`/websites/${overview.websiteId}/articles/${article.id}`} className="hover:underline">
-              {article.title}
+              {articleTitleText(article.title, locale)}
             </Link>
           </h2>
           <div className="flex flex-wrap items-center gap-2">

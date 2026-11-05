@@ -13,13 +13,13 @@ import { requireWebsite } from "@/lib/tenant";
 import { requireEditor } from "@/lib/websites/require-editor";
 import { sanitizeHtml, countWords, normaliseSlug } from "@/lib/articles/generate";
 import { siteScope } from "@/lib/articles/link-guard";
+import { PREPARING_TITLE } from "@/lib/i18n/article-delivery";
 import type { ActionResult } from "@/lib/websites/actions";
 import {
   afterCustomerEdit,
   heldFromCustomer,
   heldFromCustomerSql,
   PREPARING_MESSAGE,
-  PREPARING_TITLE,
   twoStepArticles,
   twoStepOffSql,
 } from "@/lib/articles/review";
