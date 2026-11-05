@@ -33,8 +33,10 @@ export type ArticleDeliveryCopy = {
   readyAutoLive: string;
   readyAutoDraft: string;
   readyConnect: string;
-  /** A change to a post already on the site, while the team checks it. */
-  liveChangeWithTeam: string;
+  /** The team has a newer copy; the customer sees the last approved one. */
+  withTeam: string;
+  withTeamLive: string;
+  lockedWithTeam: string;
 
   /** Beside Save, on an article the team approved. */
   saveNote: string;
@@ -45,6 +47,12 @@ export type ArticleDeliveryCopy = {
   errPreparing: string;
   errAlreadyOnSite: string;
   errAlreadyDelivering: string;
+
+  /** The bell, written when the team approves. {title} is the article's. */
+  notifyReady: string;
+  notifyUpdate: string;
+  notifyConnect: string;
+  notifyDay: string;
 
   /** The dashboard's card. */
   dashboardPreparingHelp: string;
@@ -84,16 +92,22 @@ export const ARTICLE_DELIVERY: Record<Locale, ArticleDeliveryCopy> = {
     readyAutoLive: "Ready. Automatic publishing is on, so it goes live by itself on {date}. You can publish it sooner.",
     readyAutoDraft: "Ready. Automatic publishing is on, as drafts, so it goes to your website as a draft on {date}. You can publish it live now.",
     readyConnect: "This article is ready, but it is not on your website yet. Connect your website to publish it.",
-    liveChangeWithTeam: "The RepGet team is checking your change. The post on your website stays as it is until they finish and you press Update.",
-    saveNote: "Saving sends this article back to the RepGet team for a final check. It is hidden here until they finish, and you will be told when it is ready again.",
-    saveNoteLive: "Saving sends your change to the RepGet team for a check. The post on your website stays as it is until they finish and you press Update.",
-    rewriteNote: "The new version goes to the RepGet team. It is hidden here until they finish, and you will be told when it is ready.",
+    withTeam: "The RepGet team is working on a change. You are seeing the last approved version, and Publish sends exactly this version. You will be told when the new one is ready.",
+    withTeamLive: "The RepGet team is checking a change. The post on your website stays as it is, and you are seeing what is on it. You will be told when the change is ready.",
+    lockedWithTeam: "This can be changed again once the RepGet team has finished.",
+    saveNote: "Saving sends your change to the RepGet team to check. Until they finish you keep seeing, and can publish, the last approved version. You will be told when the new one is ready.",
+    saveNoteLive: "Saving sends your change to the RepGet team to check. Until they finish, this page and your website keep the current version. You will be told when the new one is ready.",
+    rewriteNote: "The new version goes to the RepGet team. Until they finish you keep seeing, and can publish, the last approved version.",
     errPreparing: "This article is being prepared by the RepGet team. You will be told when it is ready to publish.",
     errAlreadyOnSite: "This exact version is already on your website.",
     errAlreadyDelivering: "This article is already on its way to your website.",
     dashboardPreparingHelp: "The RepGet team is preparing it. You will be told when it is ready to publish; there is nothing for you to do.",
     dashboardReady: "Ready to publish",
     dashboardReadyHelp: "The RepGet team has finished it. Open it to publish.",
+    notifyReady: "Your article is ready to publish",
+    notifyUpdate: "Your article's update is ready to publish",
+    notifyConnect: "{title}. Connect your website to publish it.",
+    notifyDay: "{title}. It goes out by itself on its planned day, or you can publish it now.",
   },
   es: {
     preparingTitle: "Artículo en preparación",
@@ -113,16 +127,22 @@ export const ARTICLE_DELIVERY: Record<Locale, ArticleDeliveryCopy> = {
     readyAutoLive: "Listo. La publicación automática está activada, así que se publicará solo el {date}. Puede publicarlo antes.",
     readyAutoDraft: "Listo. La publicación automática está activada como borradores, así que llegará a su sitio web como borrador el {date}. Puede publicarlo ya.",
     readyConnect: "Este artículo está listo, pero aún no está en su sitio web. Conecte su sitio web para publicarlo.",
-    liveChangeWithTeam: "El equipo de RepGet está revisando su cambio. La publicación de su sitio web no cambia hasta que terminen y usted pulse Actualizar.",
-    saveNote: "Al guardar, este artículo vuelve al equipo de RepGet para una última revisión. Quedará oculto aquí hasta que terminen, y le avisaremos cuando vuelva a estar listo.",
-    saveNoteLive: "Al guardar, su cambio pasa al equipo de RepGet para que lo revise. La publicación de su sitio web no cambia hasta que terminen y usted pulse Actualizar.",
-    rewriteNote: "La nueva versión pasa al equipo de RepGet. Quedará oculta aquí hasta que terminen, y le avisaremos cuando esté lista.",
+    withTeam: "El equipo de RepGet está trabajando en un cambio. Ve la última versión aprobada, y Publicar envía exactamente esta versión. Le avisaremos cuando la nueva esté lista.",
+    withTeamLive: "El equipo de RepGet está revisando un cambio. La publicación de su sitio web no cambia, y lo que ve aquí es lo que está publicado. Le avisaremos cuando el cambio esté listo.",
+    lockedWithTeam: "Podrá cambiarlo de nuevo cuando el equipo de RepGet haya terminado.",
+    saveNote: "Al guardar, su cambio pasa al equipo de RepGet para que lo revise. Hasta que terminen, seguirá viendo y podrá publicar la última versión aprobada. Le avisaremos cuando la nueva esté lista.",
+    saveNoteLive: "Al guardar, su cambio pasa al equipo de RepGet para que lo revise. Hasta que terminen, esta página y su sitio web mantienen la versión actual. Le avisaremos cuando la nueva esté lista.",
+    rewriteNote: "La nueva versión pasa al equipo de RepGet. Hasta que terminen, seguirá viendo y podrá publicar la última versión aprobada.",
     errPreparing: "El equipo de RepGet está preparando este artículo. Le avisaremos cuando esté listo para publicar.",
     errAlreadyOnSite: "Esta misma versión ya está en su sitio web.",
     errAlreadyDelivering: "Este artículo ya va de camino a su sitio web.",
     dashboardPreparingHelp: "El equipo de RepGet lo está preparando. Le avisaremos cuando esté listo para publicar; usted no tiene que hacer nada.",
     dashboardReady: "Listo para publicar",
     dashboardReadyHelp: "El equipo de RepGet lo ha terminado. Ábralo para publicarlo.",
+    notifyReady: "Su artículo está listo para publicar",
+    notifyUpdate: "La actualización de su artículo está lista para publicar",
+    notifyConnect: "{title}. Conecte su sitio web para publicarlo.",
+    notifyDay: "{title}. Se publicará solo en la fecha prevista, o puede publicarlo ya.",
   },
   fr: {
     preparingTitle: "Article en préparation",
@@ -142,16 +162,22 @@ export const ARTICLE_DELIVERY: Record<Locale, ArticleDeliveryCopy> = {
     readyAutoLive: "Prêt. La publication automatique est activée : il sera publié de lui-même le {date}. Vous pouvez le publier plus tôt.",
     readyAutoDraft: "Prêt. La publication automatique est activée en brouillon : il arrivera sur votre site en brouillon le {date}. Vous pouvez le publier dès maintenant.",
     readyConnect: "Cet article est prêt, mais il n’est pas encore sur votre site. Connectez votre site pour le publier.",
-    liveChangeWithTeam: "L’équipe RepGet vérifie votre modification. L’article en ligne reste inchangé jusqu’à ce qu’elle ait terminé et que vous cliquiez sur Mettre à jour.",
-    saveNote: "En enregistrant, cet article retourne à l’équipe RepGet pour une dernière vérification. Il reste masqué ici jusqu’à ce qu’elle ait terminé, et vous serez averti lorsqu’il sera de nouveau prêt.",
-    saveNoteLive: "En enregistrant, votre modification passe à l’équipe RepGet pour vérification. L’article en ligne reste inchangé jusqu’à ce qu’elle ait terminé et que vous cliquiez sur Mettre à jour.",
-    rewriteNote: "La nouvelle version passe à l’équipe RepGet. Elle reste masquée ici jusqu’à ce que l’équipe ait terminé, et vous serez averti lorsqu’elle sera prête.",
+    withTeam: "L’équipe RepGet travaille sur une modification. Vous voyez la dernière version approuvée, et Publier envoie exactement cette version. Vous serez averti lorsque la nouvelle sera prête.",
+    withTeamLive: "L’équipe RepGet vérifie une modification. L’article en ligne reste inchangé, et vous voyez ici ce qui est en ligne. Vous serez averti lorsque la modification sera prête.",
+    lockedWithTeam: "Vous pourrez de nouveau modifier ceci lorsque l’équipe RepGet aura terminé.",
+    saveNote: "En enregistrant, votre modification passe à l’équipe RepGet pour vérification. En attendant, vous voyez et pouvez publier la dernière version approuvée. Vous serez averti lorsque la nouvelle sera prête.",
+    saveNoteLive: "En enregistrant, votre modification passe à l’équipe RepGet pour vérification. En attendant, cette page et votre site conservent la version actuelle. Vous serez averti lorsque la nouvelle sera prête.",
+    rewriteNote: "La nouvelle version passe à l’équipe RepGet. En attendant, vous voyez et pouvez publier la dernière version approuvée.",
     errPreparing: "L’équipe RepGet prépare cet article. Vous serez averti lorsqu’il sera prêt à publier.",
     errAlreadyOnSite: "Cette version exacte est déjà sur votre site.",
     errAlreadyDelivering: "Cet article est déjà en route vers votre site.",
     dashboardPreparingHelp: "L’équipe RepGet le prépare. Vous serez averti lorsqu’il sera prêt à publier ; vous n’avez rien à faire.",
     dashboardReady: "Prêt à publier",
     dashboardReadyHelp: "L’équipe RepGet l’a terminé. Ouvrez-le pour le publier.",
+    notifyReady: "Votre article est prêt à publier",
+    notifyUpdate: "La mise à jour de votre article est prête à publier",
+    notifyConnect: "{title}. Connectez votre site pour le publier.",
+    notifyDay: "{title}. Il sera publié de lui-même à la date prévue, ou vous pouvez le publier dès maintenant.",
   },
   it: {
     preparingTitle: "Articolo in preparazione",
@@ -171,16 +197,22 @@ export const ARTICLE_DELIVERY: Record<Locale, ArticleDeliveryCopy> = {
     readyAutoLive: "Pronto. La pubblicazione automatica è attiva, quindi verrà pubblicato da solo il {date}. Può pubblicarlo prima.",
     readyAutoDraft: "Pronto. La pubblicazione automatica è attiva come bozze, quindi arriverà sul suo sito come bozza il {date}. Può pubblicarlo subito.",
     readyConnect: "Questo articolo è pronto, ma non è ancora sul suo sito. Colleghi il suo sito per pubblicarlo.",
-    liveChangeWithTeam: "Il team di RepGet sta controllando la sua modifica. L’articolo sul suo sito resta invariato finché non hanno finito e lei non preme Aggiorna.",
-    saveNote: "Salvando, questo articolo torna al team di RepGet per un ultimo controllo. Resta nascosto qui finché non hanno finito, e la avviseremo quando sarà di nuovo pronto.",
-    saveNoteLive: "Salvando, la sua modifica passa al team di RepGet per un controllo. L’articolo sul suo sito resta invariato finché non hanno finito e lei non preme Aggiorna.",
-    rewriteNote: "La nuova versione passa al team di RepGet. Resta nascosta qui finché non hanno finito, e la avviseremo quando sarà pronta.",
+    withTeam: "Il team di RepGet sta lavorando a una modifica. Vede l’ultima versione approvata, e Pubblica invia esattamente questa versione. La avviseremo quando la nuova sarà pronta.",
+    withTeamLive: "Il team di RepGet sta controllando una modifica. L’articolo sul suo sito resta invariato, e qui vede ciò che è pubblicato. La avviseremo quando la modifica sarà pronta.",
+    lockedWithTeam: "Potrà modificarlo di nuovo quando il team di RepGet avrà finito.",
+    saveNote: "Salvando, la sua modifica passa al team di RepGet per un controllo. Fino ad allora vede e può pubblicare l’ultima versione approvata. La avviseremo quando la nuova sarà pronta.",
+    saveNoteLive: "Salvando, la sua modifica passa al team di RepGet per un controllo. Fino ad allora questa pagina e il suo sito mantengono la versione attuale. La avviseremo quando la nuova sarà pronta.",
+    rewriteNote: "La nuova versione passa al team di RepGet. Fino ad allora vede e può pubblicare l’ultima versione approvata.",
     errPreparing: "Il team di RepGet sta preparando questo articolo. La avviseremo quando sarà pronto per la pubblicazione.",
     errAlreadyOnSite: "Questa versione è già sul suo sito.",
     errAlreadyDelivering: "Questo articolo è già in viaggio verso il suo sito.",
     dashboardPreparingHelp: "Il team di RepGet lo sta preparando. La avviseremo quando sarà pronto per la pubblicazione; lei non deve fare nulla.",
     dashboardReady: "Pronto per la pubblicazione",
     dashboardReadyHelp: "Il team di RepGet lo ha completato. Lo apra per pubblicarlo.",
+    notifyReady: "Il suo articolo è pronto per la pubblicazione",
+    notifyUpdate: "L’aggiornamento del suo articolo è pronto per la pubblicazione",
+    notifyConnect: "{title}. Colleghi il suo sito per pubblicarlo.",
+    notifyDay: "{title}. Verrà pubblicato da solo nella data prevista, oppure può pubblicarlo subito.",
   },
   de: {
     preparingTitle: "Artikel in Vorbereitung",
@@ -200,15 +232,21 @@ export const ARTICLE_DELIVERY: Record<Locale, ArticleDeliveryCopy> = {
     readyAutoLive: "Fertig. Die automatische Veröffentlichung ist aktiv, daher wird er am {date} von selbst veröffentlicht. Sie können ihn auch früher veröffentlichen.",
     readyAutoDraft: "Fertig. Die automatische Veröffentlichung ist als Entwurf aktiv, daher kommt er am {date} als Entwurf auf Ihre Website. Sie können ihn jetzt veröffentlichen.",
     readyConnect: "Dieser Artikel ist fertig, aber noch nicht auf Ihrer Website. Verbinden Sie Ihre Website, um ihn zu veröffentlichen.",
-    liveChangeWithTeam: "Das RepGet-Team prüft Ihre Änderung. Der Beitrag auf Ihrer Website bleibt unverändert, bis die Prüfung abgeschlossen ist und Sie auf Aktualisieren klicken.",
-    saveNote: "Beim Speichern geht dieser Artikel zur letzten Prüfung zurück an das RepGet-Team. Er ist hier ausgeblendet, bis die Prüfung abgeschlossen ist, und Sie werden benachrichtigt, sobald er wieder fertig ist.",
-    saveNoteLive: "Beim Speichern geht Ihre Änderung zur Prüfung an das RepGet-Team. Der Beitrag auf Ihrer Website bleibt unverändert, bis die Prüfung abgeschlossen ist und Sie auf Aktualisieren klicken.",
-    rewriteNote: "Die neue Version geht an das RepGet-Team. Sie ist hier ausgeblendet, bis die Prüfung abgeschlossen ist, und Sie werden benachrichtigt, sobald sie fertig ist.",
+    withTeam: "Das RepGet-Team arbeitet an einer Änderung. Sie sehen die zuletzt freigegebene Version, und Veröffentlichen sendet genau diese Version. Sie werden benachrichtigt, sobald die neue fertig ist.",
+    withTeamLive: "Das RepGet-Team prüft eine Änderung. Der Beitrag auf Ihrer Website bleibt unverändert, und Sie sehen hier, was dort steht. Sie werden benachrichtigt, sobald die Änderung fertig ist.",
+    lockedWithTeam: "Das können Sie wieder ändern, sobald das RepGet-Team fertig ist.",
+    saveNote: "Beim Speichern geht Ihre Änderung zur Prüfung an das RepGet-Team. Bis dahin sehen Sie die zuletzt freigegebene Version und können sie veröffentlichen. Sie werden benachrichtigt, sobald die neue fertig ist.",
+    saveNoteLive: "Beim Speichern geht Ihre Änderung zur Prüfung an das RepGet-Team. Bis dahin behalten diese Seite und Ihre Website die aktuelle Version. Sie werden benachrichtigt, sobald die neue fertig ist.",
+    rewriteNote: "Die neue Version geht an das RepGet-Team. Bis dahin sehen Sie die zuletzt freigegebene Version und können sie veröffentlichen.",
     errPreparing: "Das RepGet-Team bereitet diesen Artikel vor. Sie werden benachrichtigt, sobald er zur Veröffentlichung bereit ist.",
     errAlreadyOnSite: "Genau diese Version ist bereits auf Ihrer Website.",
     errAlreadyDelivering: "Dieser Artikel ist bereits auf dem Weg zu Ihrer Website.",
     dashboardPreparingHelp: "Das RepGet-Team bereitet ihn vor. Sie werden benachrichtigt, sobald er zur Veröffentlichung bereit ist; Sie müssen nichts tun.",
     dashboardReady: "Bereit zur Veröffentlichung",
     dashboardReadyHelp: "Das RepGet-Team hat ihn fertiggestellt. Öffnen Sie ihn, um ihn zu veröffentlichen.",
+    notifyReady: "Ihr Artikel ist zur Veröffentlichung bereit",
+    notifyUpdate: "Die Aktualisierung Ihres Artikels ist zur Veröffentlichung bereit",
+    notifyConnect: "{title}. Verbinden Sie Ihre Website, um ihn zu veröffentlichen.",
+    notifyDay: "{title}. Er wird am geplanten Tag von selbst veröffentlicht, oder Sie veröffentlichen ihn jetzt.",
   },
 };

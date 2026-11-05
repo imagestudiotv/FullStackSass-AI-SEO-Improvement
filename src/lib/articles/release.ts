@@ -1,11 +1,15 @@
 import "server-only";
 
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import { queueJob } from "@/inngest/send";
 import { plannedDayHasCome, twoStepArticles } from "@/lib/articles/review";
 import { db } from "@/lib/db";
+import { member, user } from "@/lib/db/auth-tables";
 import { articles, calendarItems, websites } from "@/lib/db/schema";
+import { ARTICLE_DELIVERY } from "@/lib/i18n/article-delivery";
+import { DEFAULT_LOCALE, isLocale } from "@/lib/i18n/config";
+import { format } from "@/lib/i18n/format";
 import { notify } from "@/lib/notifications/create";
 import { nudgePluginIfDue } from "@/lib/plugin/sync";
 import { PUBLISHING_KINDS } from "@/lib/publishing/kinds";
@@ -116,14 +120,22 @@ export async function notifyReady(articleId: string, release: ReleaseOutcome): P
       .where(eq(articles.id, articleId))
       .limit(1);
     if (!target) return;
+    // Stored once, for everyone in the workspace, in its owner's language.
+    const [owner] = await db
+      .select({ locale: user.locale })
+      .from(member)
+      .innerJoin(user, eq(user.id, member.userId))
+      .where(and(eq(member.organizationId, target.organizationId), eq(member.role, "owner")))
+      .limit(1);
+    const copy = ARTICLE_DELIVERY[owner?.locale && isLocale(owner.locale) ? owner.locale : DEFAULT_LOCALE];
     await notify({
       organizationId: target.organizationId,
       type: "article.ready",
-      title: target.publishedUrl ? "Your article's update is ready to publish" : "Your article is ready to publish",
+      title: target.publishedUrl ? copy.notifyUpdate : copy.notifyReady,
       body: !target.connected
-        ? `${target.title}. Connect your website to publish it.`
+        ? format(copy.notifyConnect, { title: target.title })
         : release === "waiting_for_day"
-          ? `${target.title}. It goes out by itself on its planned day, or you can publish it now.`
+          ? format(copy.notifyDay, { title: target.title })
           : target.title,
       href: `/websites/${target.websiteId}/articles/${articleId}`,
     });

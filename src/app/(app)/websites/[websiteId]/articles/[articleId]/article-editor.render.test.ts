@@ -59,6 +59,7 @@ const ARTICLE: ArticleDetail = {
   publishedUrl: null,
   publishRequested: null,
   preparing: null,
+  withTeam: false,
 };
 
 const FACTS: PublishFacts = {
@@ -360,13 +361,24 @@ describe("the two-step flow (docs/two-step-articles.md)", () => {
     expect(html).toContain(en.app.editor.alreadySentLive);
   });
 
-  it("a change to a live post: the team's check is said plainly, Update waits, nothing is asked", () => {
+  it("a change to a live post: the team's check is said plainly, and nothing is asked", () => {
     const html = render({
-      article: { ...ARTICLE, status: "published", publishedUrl: "https://example.com/a" },
-      facts: { ...READY, review: "pending", liveOnSite: true, lastOutcome: { kind: "live", when: "1 Oct" } },
+      article: { ...ARTICLE, status: "published", publishedUrl: "https://example.com/a", withTeam: true },
+      facts: { ...READY, withTeam: true, liveOnSite: true, alreadySent: { publish: true, draft: false }, lastOutcome: { kind: "live", when: "1 Oct" } },
     });
-    expect(html).toContain(d.liveChangeWithTeam);
+    expect(html).toContain(d.withTeamLive);
+    // That version is what is on the site, so there is nothing to send yet.
     expect(button(html, en.app.editor.updatePost)).toContain('disabled=""');
+    expect(html).toContain(d.lockedWithTeam);
+  });
+
+  it("re-editing an approved article: the last approved version stays, with Publish working and the text locked", () => {
+    const html = render({ article: { ...ARTICLE, withTeam: true }, facts: { ...READY, withTeam: true } });
+    expect(html).toContain("Some words here.");
+    expect(html).toContain(d.withTeam);
+    expect(button(html, en.app.editor.publish)).not.toContain('disabled=""');
+    expect(button(html, en.app.editor.saveArticle)).toContain("disabled");
+    expect(html).toContain(d.lockedWithTeam);
   });
 
   it("with the switch off, the panel is as it was", () => {

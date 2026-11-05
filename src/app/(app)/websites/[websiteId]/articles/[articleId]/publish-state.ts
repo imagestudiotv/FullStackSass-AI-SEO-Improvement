@@ -44,6 +44,8 @@ export type PublishFacts = {
    * nothing else to press, and approves nothing (docs/two-step-articles.md).
    */
   twoStep?: boolean;
+  /** The team has a newer copy; this is the last approved revision, which Publish sends. */
+  withTeam?: boolean;
   /** platform_controls.publication_freeze: nothing is sent while on. */
   frozen: boolean;
   /** The latest direct send got no answer (lib/publishing/dispatch.ts). */

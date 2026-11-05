@@ -151,8 +151,10 @@ export function ArticleEditor({
   const working = article.status === "generating" || article.status === "queued";
   const hasBody = Boolean(article.bodyHtml);
   const delivering = facts.delivering;
+  /** The two-step flow: the page shows the last approved revision, and the team has the working copy. */
+  const textLocked = article.withTeam;
   /** Edits wait while a rewrite would replace them or a delivery holds the row. */
-  const editable = canEdit && !working && !delivering;
+  const editable = canEdit && !working && !delivering && !textLocked;
   const delivery = ARTICLE_DELIVERY[locale];
   const errorText = (error: string) => actionErrorText(error, { t, tWorkspace, tImage, delivery });
   /** The two-step flow's words for "this goes back to the team" (lib/i18n/article-delivery.ts). */
@@ -179,7 +181,9 @@ export function ArticleEditor({
   useUnsavedChanges(dirty || saving || altUnsaved, tWorkspace.leaveConfirm);
 
   const titleMissing = savedForm("title", values.title) === "";
-  const saveHeldNote = titleMissing
+  const saveHeldNote = textLocked
+    ? ARTICLE_DELIVERY[locale].lockedWithTeam
+    : titleMissing
     ? t.saveNoteTitle
     : working
       ? t.saveNoteWorking
@@ -325,7 +329,9 @@ export function ArticleEditor({
   const [rewriteError, setRewriteError] = useState<string | null>(null);
   const [rewriteStarted, setRewriteStarted] = useState(false);
   if (rewriteStarted && working) setRewriteStarted(false);
-  const rewriteReason = !article.calendarItemId
+  const rewriteReason = textLocked
+    ? delivery.lockedWithTeam
+    : !article.calendarItemId
     ? t.rewriteNoPlan
     : working || delivering
       ? t.rewriteBlocked
@@ -707,8 +713,8 @@ export function ArticleEditor({
               maxAttempts={imageMaxAttempts}
               maxBytes={imageMaxBytes}
               canEdit={canEdit}
-              lockedReason={working ? t.imageLockedWorking : delivering ? t.imageLockedDelivering : null}
-              reviewApproved={facts.review === "approved"}
+              lockedReason={textLocked ? delivery.lockedWithTeam : working ? t.imageLockedWorking : delivering ? t.imageLockedDelivering : null}
+              reviewApproved={facts.review === "approved" && !textLocked}
               reviewNote={facts.twoStep ? backToTeam : facts.reviewSource === "research" ? t.researchEditNote : undefined}
               locale={locale}
               onAltUnsavedChange={setAltUnsaved}

@@ -176,7 +176,10 @@ export async function loadPublishing(input: {
   };
 
   let review: ReviewState = "none";
-  if (extra && (extra.reviewStatus !== null || extra.researchReviewRequired)) {
+  if (article.withTeam) {
+    // The last approved revision, served and sendable, while the team has a newer copy.
+    review = "approved";
+  } else if (extra && (extra.reviewStatus !== null || (extra.researchReviewRequired && !twoStep))) {
     const check = releaseCheckFor({ ...fields, ...extra });
     review = check.ok ? "approved" : check.reason === "changed_since_approval" ? "changed" : "pending";
   }
@@ -196,6 +199,7 @@ export async function loadPublishing(input: {
     // Under the two-step flow every review is the team's: the customer approves nothing.
     reviewSource: !twoStep && extra?.researchReviewRequired && (extra.researchApprovedHash !== revision || extra.reviewStatus === null) ? "research" : "team",
     twoStep,
+    withTeam: article.withTeam,
     frozen,
     uncertain: input.uncertain,
     delivering: Boolean(

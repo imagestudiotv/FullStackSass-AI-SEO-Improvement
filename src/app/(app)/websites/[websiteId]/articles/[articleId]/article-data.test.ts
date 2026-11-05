@@ -68,6 +68,7 @@ function detail(row: typeof articles.$inferSelect): ArticleDetail {
     publishedUrl: row.publishedUrl,
     publishRequested: row.publishRequested,
     preparing: null,
+    withTeam: false,
   };
 }
 

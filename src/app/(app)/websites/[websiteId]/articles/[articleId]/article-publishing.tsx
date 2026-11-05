@@ -59,9 +59,9 @@ function currentLine(input: {
   const { facts, plan, t, delivery } = input;
   if (input.working) return { icon: Loader2, tone: "progress", text: t.stateWriting };
   if (facts.frozen) return { icon: AlertTriangle, tone: "warning", text: t.stateFrozen };
-  // The two-step flow: what is held here is the customer's own change to a live post; it is the team's to check.
-  if (facts.twoStep && (facts.review === "pending" || facts.review === "changed")) {
-    return { icon: Info, tone: "info", text: delivery.liveChangeWithTeam };
+  // The two-step flow: the team has a newer copy. Publish stays, and sends what is on this page.
+  if (facts.withTeam && !facts.delivering) {
+    return { icon: Info, tone: "info", text: facts.liveOnSite ? delivery.withTeamLive : delivery.withTeam };
   }
   if (facts.review === "pending") return { icon: AlertTriangle, tone: "warning", text: facts.reviewSource === "research" ? t.stateResearchPending : t.stateReviewPending };
   if (facts.review === "changed") return { icon: AlertTriangle, tone: "warning", text: facts.reviewSource === "research" ? t.stateResearchChanged : t.stateReviewChanged };
