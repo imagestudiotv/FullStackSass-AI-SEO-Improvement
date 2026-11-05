@@ -15,6 +15,8 @@ export type DailyClaimCopy = {
   /** The launchers. */
   launchClaim: string;
   launchView: string;
+  /** The banner's button once the server has confirmed today's claim. */
+  claimedToday: string;
   bannerTitle: string;
   bannerBody: string;
 
@@ -78,6 +80,7 @@ const en: DailyClaimCopy = {
 
   launchClaim: "Claim {credits}",
   launchView: "View daily rewards",
+  claimedToday: "Claimed today",
   bannerTitle: "Show up daily. Grow for free.",
   bannerBody: "Check in today and get {credits} to use in your workspace.",
 
@@ -135,6 +138,7 @@ const es: DailyClaimCopy = {
 
   launchClaim: "Reclamar {credits}",
   launchView: "Ver recompensas diarias",
+  claimedToday: "Recogido hoy",
   bannerTitle: "Vuelva cada día. Crezca gratis.",
   bannerBody: "Registre su visita de hoy y reciba {credits} para usar en su espacio de trabajo.",
 
@@ -192,6 +196,7 @@ const fr: DailyClaimCopy = {
 
   launchClaim: "Récupérer {credits}",
   launchView: "Voir les récompenses",
+  claimedToday: "Récupéré aujourd’hui",
   bannerTitle: "Revenez chaque jour. Progressez gratuitement.",
   bannerBody: "Faites votre check-in aujourd’hui et recevez {credits} à utiliser dans votre espace de travail.",
 
@@ -249,6 +254,7 @@ const it: DailyClaimCopy = {
 
   launchClaim: "Richieda {credits}",
   launchView: "Vedi premi giornalieri",
+  claimedToday: "Ricevuto oggi",
   bannerTitle: "Torni ogni giorno. Cresca gratis.",
   bannerBody: "Faccia il check-in di oggi e riceva {credits} da usare nel Suo spazio di lavoro.",
 
@@ -306,6 +312,7 @@ const de: DailyClaimCopy = {
 
   launchClaim: "{credits} abholen",
   launchView: "Tägliche Prämien ansehen",
+  claimedToday: "Heute abgeholt",
   bannerTitle: "Täglich dabei. Kostenlos wachsen.",
   bannerBody: "Checken Sie heute ein und erhalten Sie {credits} für Ihren Arbeitsbereich.",
 

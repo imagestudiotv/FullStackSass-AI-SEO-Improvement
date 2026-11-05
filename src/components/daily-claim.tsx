@@ -71,13 +71,12 @@ export function DailyClaim({
   const status = answer?.for === served ? answer.status : served;
   const [message, setMessage] = useState<{ text: string; tone: "status" | "alert" } | null>(null);
   const [celebrate, setCelebrate] = useState(false);
-  // A chip or a banner only appears for an open check-in, but stays through it so the focus has somewhere to return.
+  // The phone chip only appears for an open check-in, but stays through it so the focus has somewhere to return.
   const [wasClaimable] = useState(served.claimable);
   const contentRef = useRef<HTMLDivElement>(null);
 
   const offered = status.eligible && status.perDay > 0;
-  const onlyWhileOpen = variant === "chip" || variant === "banner";
-  if (!open && (!offered || (onlyWhileOpen && !served.claimable && !wasClaimable))) return null;
+  if (!open && (!offered || (variant === "chip" && !served.claimable && !wasClaimable))) return null;
 
   const creditWord = (count: number) => plural(copy.credits, count);
   const amount = creditWord(status.perDay);
@@ -118,7 +117,7 @@ export function DailyClaim({
 
   return (
     <Dialog open={open} onOpenChange={changeOpen}>
-      <Launcher status={status} variant={variant} copy={copy} amount={amount} className={className} />
+      <Launcher status={status} variant={variant} copy={copy} locale={locale} amount={amount} creditWord={creditWord} className={className} />
       <DialogContent
         ref={contentRef}
         closeLabel={copy.close}
@@ -228,13 +227,17 @@ function Launcher({
   status,
   variant,
   copy,
+  locale,
   amount,
+  creditWord,
   className,
 }: {
   status: DailyCredits;
   variant: Variant;
   copy: DailyClaimCopy;
+  locale: Locale;
   amount: string;
+  creditWord: (count: number) => string;
   className?: string;
 }) {
   const label = status.claimable ? format(copy.launchClaim, { credits: amount }) : copy.launchView;
@@ -289,12 +292,32 @@ function Launcher({
             {copy.eyebrow}
           </p>
           <h2 className="mt-2 text-xl font-bold tracking-tight">{copy.bannerTitle}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">{format(copy.bannerBody, { credits: amount })}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {status.claimable
+              ? format(copy.bannerBody, { credits: amount })
+              : status.nextAt
+                ? format(copy.doneSub, { when: dailyWhen(new Date(status.nextAt), locale) })
+                : status.paidPerDay > 0
+                  ? format(copy.trialLastSubPaid, { credits: creditWord(status.paidPerDay) })
+                  : copy.trialLastSub}
+          </p>
         </div>
+        {/*
+          The same button in both states, so the focus can return to it when the
+          modal closes. Claimed, it is marked disabled and does nothing, rather
+          than natively disabled, which would throw the keyboard's place away.
+        */}
         <DialogTrigger asChild>
-          <Button type="button" className="shrink-0">
-            {label}
-            <ArrowUpRight aria-hidden="true" />
+          <Button
+            type="button"
+            variant={status.claimable ? "default" : "secondary"}
+            aria-disabled={status.claimable ? undefined : true}
+            onClick={status.claimable ? undefined : (event) => event.preventDefault()}
+            className={cn("shrink-0", !status.claimable && "cursor-default text-muted-foreground hover:bg-secondary")}
+          >
+            {status.claimable ? null : <Check aria-hidden="true" />}
+            {status.claimable ? label : copy.claimedToday}
+            {status.claimable ? <ArrowUpRight aria-hidden="true" /> : null}
           </Button>
         </DialogTrigger>
       </section>

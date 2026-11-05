@@ -42,7 +42,7 @@ The pricing pages and the plan step show the difference side by side (`component
 
 **The next check-in** is the next UTC midnight on a paid plan, and the next 24-hour mark on a trial. Screens print it in UTC.
 
-**Launchers** (`components/daily-claim.tsx`, on the Radix dialog): the sidebar's row and, on a phone, a chip in the top bar; a banner on the dashboard beside a site the reader owns, while today's is open; a button on Earn Credits and on /credits. None appears when there is nothing to claim: no plan, a failed payment, a trial past its days, an amount of 0, or a shared site, because there it would be a promise the server refuses. Earn Credits says why instead and links to the plans.
+**Launchers** (`components/daily-claim.tsx`, on the Radix dialog): the sidebar's row and, on a phone, a chip in the top bar; a banner on the dashboard beside a site the reader owns, which stays once today's is claimed, with a disabled "Claimed today" from what the ledger holds; a button on Earn Credits and on /credits. None appears when there is nothing to claim: no plan, a failed payment, a trial past its days, an amount of 0, or a shared site, because there it would be a promise the server refuses. Earn Credits says why instead and links to the plans.
 
 ## What credits buy
 
