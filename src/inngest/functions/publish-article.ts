@@ -154,7 +154,8 @@ export const publishArticleJob = inngest.createFunction(
       */
       const twoStep = await twoStepArticles();
       // Under the two-step flow, the approved revision to send, which need not be the working copy.
-      const gate = (row: typeof article) => (twoStep ? sendableRevision(row, { automatic: trigger !== "manual" }) : releaseCheckFor(row));
+      const gate = (row: typeof article): { ok: true; revision?: ReviewFields } | { ok: false; reason: string } =>
+        twoStep ? sendableRevision(row, { automatic: trigger !== "manual" }) : releaseCheckFor(row);
       const before = gate(article);
       if (!before.ok) {
         logger.info(
@@ -219,7 +220,7 @@ export const publishArticleJob = inngest.createFunction(
         return { held: after.reason };
       }
       // Exactly what passed the gate: under the two-step flow, never a working copy waiting for the team.
-      const revision: ReviewFields = "revision" in after ? after.revision : current;
+      const revision: ReviewFields = after.revision ?? current;
       if (!revision.bodyHtml) throw new Error("Article has no content to publish");
 
       // Industry lives on the website, and steers the header image prompt.
