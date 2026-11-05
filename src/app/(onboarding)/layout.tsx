@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import type { Metadata } from "next";
 
 import { BrandLogo } from "@/components/brand-logo";
@@ -9,6 +10,8 @@ import { isAdmin } from "@/lib/admin/guard";
 import { requireSession } from "@/lib/auth-guard";
 import { pendingConversions } from "@/lib/conversions/conversions";
 import { db } from "@/lib/db";
+import { websites } from "@/lib/db/schema";
+import { WEBSITE_PROJECTS_PATH } from "@/lib/website-projects/shared";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { ReferralClaim } from "@/components/referral-claim";
 import { readReferralCookie } from "@/lib/referrals/cookie";
@@ -62,6 +65,7 @@ export default async function OnboardingLayout({ children }: LayoutProps<"/">) {
 
   // Creates the workspace for an account that has none. See requireOrg.
   const { orgId } = await requireOrg();
+  const [ownSite] = await db.select({ id: websites.id }).from(websites).where(eq(websites.organizationId, orgId)).limit(1);
 
   /*
     New sign-ups land here before the dashboard, and checkout starts here, so
@@ -125,7 +129,7 @@ export default async function OnboardingLayout({ children }: LayoutProps<"/">) {
             A way out that is not the dashboard — except on the plan step,
             where it becomes the checkout reassurance. See header-trailing.
           */}
-          <HeaderTrailing t={t.app.common} />
+          <HeaderTrailing t={t.app.common} skipHref={ownSite ? "/dashboard" : WEBSITE_PROJECTS_PATH} />
           <ThemeToggle label={t.app.common.darkMode} />
           <UserMenu
             name={session.user.name}

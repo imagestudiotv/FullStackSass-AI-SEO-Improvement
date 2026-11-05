@@ -255,12 +255,9 @@ describe("homepage sections", () => {
     expect(html).toMatch(new RegExp(`<a[^>]*href="/sign-up"[^>]*>(?:(?!</a>).)*${esc(heroCopy("en").hero.joinGoogle)}`));
   });
 
-  it.each(LOCALES)("%s: asks for a website to be built on a page that says so", (locale) => {
-    const contact = locale === "en" ? "/contact" : `/${locale}/contact`;
-    expect(renderHome(locale)).toContain(`href="${contact}?about=website_build"`);
-    const { title, subtitle, subject } = getMessages(locale).contact.websiteBuild;
-    expect([title, subtitle, subject].every(Boolean)).toBe(true);
-    expect(title).not.toBe(getMessages(locale).contact.title);
+  it.each(LOCALES)("%s: asks for a website to be built on the page for that", (locale) => {
+    const build = locale === "en" ? "/website-creation" : `/${locale}/website-creation`;
+    expect(renderHome(locale)).toContain(`href="${build}"`);
   });
 
   it.each(LOCALES)("%s: the FAQ's social post figures are the catalog's", (locale) => {

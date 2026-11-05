@@ -16,6 +16,7 @@ import type { Locale } from "@/lib/i18n/config";
 import { format, formatDate, plural } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
 import { cn } from "@/lib/utils";
+import { websiteProjectKindOf, websiteProjectsHref } from "@/lib/website-projects/shared";
 
 import { formatMoney } from "./billing-view";
 
@@ -24,6 +25,12 @@ import { formatMoney } from "./billing-view";
  * (a module-level array exists before any locale does).
  */
 const CREDIT_TERMS = ["oneTime", "neverExpire", "useAnytime"] as const;
+
+/** Where "Request a quote" goes: a website project has its own form, anything else the contact page. */
+function quoteHref(slug: string): string {
+  const kind = websiteProjectKindOf(slug);
+  return kind ? websiteProjectsHref(kind) : `/contact?about=${encodeURIComponent(slug)}`;
+}
 
 /** listPurchases() returns at most this many rows (LIMIT 25 in lib/addons/actions.ts). */
 const PURCHASES_SHOWN = 25;
@@ -284,7 +291,7 @@ export function AddonsPanel({
                     </div>
                   </div>
                   <Button variant="outline" className="shrink-0" asChild>
-                    <Link href={`/contact?about=${encodeURIComponent(addon.slug)}`}>{t.requestQuote}</Link>
+                    <Link href={quoteHref(addon.slug)}>{t.requestQuote}</Link>
                   </Button>
                 </li>
               ))}

@@ -26,9 +26,16 @@ import { usePathname } from "next/navigation";
  */
 export function HeaderTrailing({
   t = getMessages("en").app.common,
+  skipHref = "/dashboard",
 }: {
   /** Shared words, defaulting to English. */
   t?: Messages["app"]["common"];
+  /**
+   * Where "Skip for now" goes. With no website yet the dashboard only sends
+   * someone straight back here, so the layout points it at the one screen that
+   * works without one (lib/website-projects).
+   */
+  skipHref?: string;
 } = {}) {
   const pathname = usePathname();
   const onPlanStep = pathname?.startsWith("/onboarding/plan") ?? false;
@@ -44,8 +51,8 @@ export function HeaderTrailing({
 
   return (
     <Link
-      href="/dashboard"
-      className="hidden rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground sm:block"
+      href={skipHref}
+      className="rounded-md px-2 py-1.5 text-xs whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground sm:px-3 sm:text-sm"
     >
       {t.skipForNow}
     </Link>

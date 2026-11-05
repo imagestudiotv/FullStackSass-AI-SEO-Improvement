@@ -14,6 +14,7 @@ import { ROBOTS_COPY } from "@/app/(marketing)/tools/robots-checker/copy";
 import { SITEMAP_COPY } from "@/app/(marketing)/tools/sitemap-checker/copy";
 import { SNIPPET_COPY } from "@/app/(marketing)/tools/snippet-preview/copy";
 import { LIMITS } from "@/lib/audit/rules";
+import { WEBSITE_CREATION_COPY } from "@/lib/marketing/website-creation/copy";
 import { BLOG_CHROME } from "@/lib/blog/locale";
 import { pageSuffix } from "@/lib/blog/pagination";
 import { LOCALES, type Locale } from "@/lib/i18n/config";
@@ -82,6 +83,7 @@ function pagesIn(locale: Locale): Meta[] {
     add(path, page.metaTitle, page.metaDescription);
   }
   add("/audit", AUDIT_COPY[locale].metaTitle, AUDIT_COPY[locale].metaDescription);
+  add("/website-creation", WEBSITE_CREATION_COPY[locale].metaTitle, WEBSITE_CREATION_COPY[locale].metaDescription);
   add(CASE_STUDY_PATH, CASE_STUDY_COPY[locale].metaTitle, CASE_STUDY_COPY[locale].metaDescription);
   return pages;
 }

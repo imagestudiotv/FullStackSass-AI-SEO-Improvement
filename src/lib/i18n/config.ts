@@ -128,6 +128,8 @@ export const TRANSLATED_PATHS: ReadonlySet<string> = new Set([
   "/tools",
   ...TOOL_SLUGS.map((slug) => `/tools/${slug}`),
   "/audit",
+  // Website builds and redesigns (lib/marketing/website-creation/copy.ts).
+  "/website-creation",
 ]);
 
 /**

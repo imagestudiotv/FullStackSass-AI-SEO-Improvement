@@ -1,7 +1,7 @@
 import Image from "next/image";
 import type { ReactElement } from "react";
 
-import { WEBSITE_BUILD_TOPIC } from "@/lib/config/site";
+import { WEBSITE_CREATION_PATH } from "@/lib/config/site";
 import { finalCtaCopy } from "@/lib/i18n/home/final-cta";
 import { heroCopy } from "@/lib/i18n/home/hero";
 import type { Testimonial } from "@/lib/marketing/testimonials";
@@ -229,7 +229,7 @@ export function Hero({ locale, href, testimonials }: SectionProps & { testimonia
           }}
           signUpPath={href("/sign-up")}
           onboardingPath={href("/onboarding/website")}
-          buildPath={`${href("/contact")}?about=${WEBSITE_BUILD_TOPIC}`}
+          buildPath={href(WEBSITE_CREATION_PATH)}
           googleLabel={t.joinGoogle}
           googleIcon={
             <svg viewBox="0 0 24 24" aria-hidden="true">

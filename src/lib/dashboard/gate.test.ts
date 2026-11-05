@@ -58,6 +58,7 @@ import {
   user,
   websiteInvitations,
   websiteMembers,
+  websiteProjects,
   websites,
 } from "@/lib/db/schema";
 import { createInvitationToken } from "@/lib/websites/invitation-token";
@@ -97,6 +98,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   state.siteCookie = null;
   await test.client.exec(`
+    delete from website_projects;
     delete from website_invitations;
     delete from website_members;
     delete from subscriptions;
@@ -286,6 +288,45 @@ describe("a guest-only user (invited, owns nothing)", () => {
 
 /** Exactly /onboarding - not the plan screen, which also starts with it. */
 const ONBOARDING_ONLY = /^redirect:\/onboarding$/;
+
+describe("a customer who asked us to build their website", () => {
+  async function asked(organizationId: string) {
+    await test.db.insert(websiteProjects).values({
+      organizationId,
+      kind: "new",
+      requestKey: randomUUID(),
+      brief: "A site for our bakery.",
+      contactName: "Ada",
+      contactEmail: "ada@example.com",
+    });
+  }
+
+  it("with no website, goes to their project rather than round the domain form", async () => {
+    await asked(NEW_ORG);
+    signIn(NEW_USER, NEW_ORG);
+    await expect(resolveDashboard(null)).rejects.toThrow(/^redirect:\/website-projects$/);
+  });
+
+  it("with an unpaid website, still meets the paywall: the project opens nothing", async () => {
+    await asked(NEW_ORG);
+    await test.db.insert(websites).values({ organizationId: NEW_ORG, url: "https://bakery.example", domain: "bakery.example" });
+    signIn(NEW_USER, NEW_ORG);
+    await expect(resolveDashboard(null)).rejects.toThrow(/^redirect:\/onboarding\/plan\?site=/);
+  });
+
+  it("another workspace's project changes nothing for this one", async () => {
+    await asked(OWNER_ORG);
+    signIn(NEW_USER, NEW_ORG);
+    await expect(resolveDashboard(null)).rejects.toThrow(ONBOARDING_ONLY);
+  });
+
+  it("an invited user's shared site still comes first", async () => {
+    await asked(GUEST_ORG);
+    signIn(GUEST_USER, GUEST_ORG);
+    const gate = await resolveDashboard(null);
+    expect(gate.kind).toBe("site");
+  });
+});
 
 describe("a brand-new user", () => {
   it("is sent to onboarding, as before", async () => {

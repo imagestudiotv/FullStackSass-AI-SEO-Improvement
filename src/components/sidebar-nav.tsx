@@ -37,7 +37,12 @@ function websiteIdFrom(pathname: string): string | null {
 }
 
 /** One purchasable add-on, as the sidebar needs it. */
-export type SidebarAddon = { id: string; name: string };
+export type SidebarAddon = {
+  id: string;
+  name: string;
+  /** Its own screen; without one, the panel on Billing. */
+  href?: string;
+};
 
 const STORAGE_KEY = "repget.sidebar.groups";
 
@@ -265,12 +270,13 @@ export function SidebarNav({
                 {entry.children === "addons"
                   ? (children as SidebarAddon[]).map((addon) => (
                       /*
-                        Every add-on links to the same panel: buying one is a
-                        Stripe checkout started from there.
+                        An add-on links to the panel on Billing, where it is
+                        bought, unless it has a screen of its own (website
+                        projects).
                       */
                       <Link
                         key={addon.id}
-                        href="/billing#addons"
+                        href={addon.href ?? "/billing#addons"}
                         onClick={onNavigate}
                         className="flex items-start gap-3 rounded-md py-1.5 pr-3 pl-9 text-sm text-muted-foreground transition-colors hover:bg-accent/60 hover:text-accent-foreground"
                       >
