@@ -43,7 +43,7 @@ describe.skipIf(!available)("the two-step flow on real Postgres", () => {
     dbs = created.dbs as unknown as Db[];
     dispose = created.dispose;
     route.fallback = dbs[0];
-  }, 120_000);
+  }, 300_000);
   afterAll(async () => {
     await dispose?.();
   }, 180_000);
