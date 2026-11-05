@@ -14,8 +14,7 @@ import { getMessages } from "@/lib/i18n/messages";
  */
 
 vi.mock("next/link", () => ({
-  default: ({ href, children, prefetch: _prefetch, ...rest }: { href: string; children: ReactNode; prefetch?: boolean; [key: string]: unknown }) =>
-    createElement("a", { href, ...rest }, children),
+  default: ({ href, children }: { href: string; children: ReactNode }) => createElement("a", { href }, children),
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => "/" }));
 vi.mock("@/components/post-cover", () => ({ PostCover: () => null }));

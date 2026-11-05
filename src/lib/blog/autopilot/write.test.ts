@@ -387,7 +387,7 @@ describe("the draft", () => {
 
   it("fills in every field the editor has, and passes the rules a published post must", async () => {
     const parts = partReplies(bodyParts(10)).map((part) => ({ html: String(part.bodyHtml), faqs: (part.faqs as { question: string; answer: string }[]) ?? [] }));
-    const { draft, report } = await finishDraft(context(), plan(), parts, ["From the plan."], async () => true);
+    const { draft, report } = await finishDraft(context(), plan(), parts, ["From the plan."]);
     expect(draft).toMatchObject({
       title: "Local SEO for Plumbers: How to Get Found by Nearby Customers",
       slug: "local-seo-for-plumbers",
@@ -414,7 +414,7 @@ describe("the draft", () => {
       html: String(part.bodyHtml).replace(/<table>[\s\S]*?<\/table>/g, "").replace("bursts.", "bursts — again."),
       faqs: ((part.faqs as { question: string; answer: string }[]) ?? []).slice(0, 4),
     }));
-    const { report } = await finishDraft(context(), plan(), short, [], async () => true);
+    const { report } = await finishDraft(context(), plan(), short);
     expect(report.warnings).toEqual([
       expect.stringMatching(/^The article is 1,\d{3} words; the blog's posts run 3,200 to 3,700\.$/),
       "The article has 0 tables; the blog's posts have 3 to 5.",

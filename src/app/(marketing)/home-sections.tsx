@@ -25,7 +25,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties } from "react";
 
 import { BrandMark } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
