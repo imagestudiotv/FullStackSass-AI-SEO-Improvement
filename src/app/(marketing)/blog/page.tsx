@@ -6,10 +6,9 @@ import { PostCard } from "@/components/post-card";
 import { listCategories } from "@/lib/blog/categories";
 import { blogPage, blogPageHref, pageSuffix } from "@/lib/blog/pagination";
 import { listPostPage, publishedCategoryCounts } from "@/lib/blog/posts";
-import { getMessages } from "@/lib/i18n/messages";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
-import { ClosingCta } from "../home-sections";
+import { FinalCta } from "../_home/sections/final-cta";
 import { CategoryChips } from "./category-chips";
 
 const DESCRIPTION =
@@ -88,7 +87,7 @@ export default async function BlogIndexPage({ searchParams }: Props) {
       </div>
 
       {/* The blog exists to bring people into the product: the homepage's closing panel. */}
-      <ClosingCta t={getMessages("en").home} href={(path) => path} />
+      <FinalCta locale="en" href={(path) => path} />
     </div>
   );
 }

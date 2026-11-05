@@ -5,8 +5,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, type ReactNode } from "react";
 
+import { usePostVersions } from "@/components/post-languages";
 import { buttonVariants } from "@/components/ui/button";
-import { LOCALE_NAMES, localePath, LOCALES, splitLocale, TRANSLATED_PATHS } from "@/lib/i18n/config";
+import { LOCALE_NAMES, localePath, LOCALES, splitLocale, TRANSLATED_PATHS, type Locale } from "@/lib/i18n/config";
 import { cn } from "@/lib/utils";
 
 /**
@@ -21,6 +22,15 @@ import { cn } from "@/lib/utils";
  * in the other language, which is worse than not offering the switch, so the
  * list is explicit.
  *
+ * BLOG POSTS TOO (client, 2026-11-05: English articles had no switcher), where
+ * every language's address is its own. A language with a PUBLISHED translation
+ * leads to that same article (components/post-languages.tsx). Any other leads
+ * to that language's blog, which always exists, and says so: never a made-up
+ * address, a draft, or another article. Before the page has said which
+ * translations exist (no script, or not yet) each language is offered as its
+ * blog, which is true whichever it turns out to be. Canonical and hreflang are
+ * the page's own (app/(marketing)/blog/post-view.tsx) and do not depend on this.
+ *
  * A native disclosure (<details>) rather than the Radix dropdown it used to
  * be: that brought a positioning engine, focus management and a scroll lock -
  * about 20 KB compressed - into every public page's first download, for a
@@ -31,6 +41,18 @@ import { cn } from "@/lib/utils";
  * lib/i18n/site-chrome.ts; never messages.ts here). Each language's name is
  * written in that language, so its link says so with lang.
  */
+
+/** "/blog/<slug>": a post's page. Not /blog itself, nor /blog/category/..., which have more parts. */
+const POST_PATH = /^\/blog\/(?!category$|author$|sponsorship$)[^/]+$/;
+
+/** A language's blog, and that an article is not in it - each in that language, as the link's name is. */
+const BLOG_FALLBACK: Record<Locale, { blog: string; missing: string }> = {
+  en: { blog: "Blog in English", missing: "This article is not available in English" },
+  es: { blog: "Blog en español", missing: "Este artículo no está disponible en español" },
+  fr: { blog: "Blog en français", missing: "Cet article n’est pas disponible en français" },
+  it: { blog: "Blog in italiano", missing: "Questo articolo non è disponibile in italiano" },
+  de: { blog: "Blog auf Deutsch", missing: "Dieser Artikel ist nicht auf Deutsch verfügbar" },
+};
 
 /**
  * `appearance` restyles it for the public footer's design (globe, the
@@ -48,6 +70,8 @@ export function LanguageSwitcher({
   const pathname = usePathname();
   const { locale, path } = splitLocale(pathname);
   const menu = useRef<HTMLDetailsElement>(null);
+  const isPost = POST_PATH.test(path);
+  const versions = usePostVersions(pathname);
 
   /*
     A disclosure closes only from its own summary; these make it behave like
@@ -77,7 +101,7 @@ export function LanguageSwitcher({
   }, []);
 
   // Nothing to switch to on a page that only exists in English.
-  if (!TRANSLATED_PATHS.has(path)) return null;
+  if (!TRANSLATED_PATHS.has(path) && !isPost) return null;
 
   return (
     <details ref={menu} className={cn("group relative", appearance?.details)}>
@@ -98,31 +122,36 @@ export function LanguageSwitcher({
         {appearance?.chevron}
       </summary>
 
-      {/* Opens upwards: it sits at the very bottom of the page. */}
-      <ul className="absolute bottom-full left-0 z-50 mb-1 min-w-32 rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10">
-        {LOCALES.map((option) => (
-          <li key={option}>
-            <Link
-              href={localePath(option, path)}
-              // Tells a crawler which language this link leads to, which is
-              // what makes a switcher useful for indexing rather than only
-              // for people.
-              hrefLang={option}
-              // "Español" is Spanish whatever the page's language.
-              lang={option}
-              aria-current={option === locale ? "true" : undefined}
-              onClick={() => {
-                if (menu.current) menu.current.open = false;
-              }}
-              className={cn(
-                "flex rounded-md px-1.5 py-1 text-sm outline-none hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground",
-                option === locale && "font-medium",
-              )}
-            >
-              {LOCALE_NAMES[option]}
-            </Link>
-          </li>
-        ))}
+      {/* Opens upwards: it sits at the very bottom of the page. On a post its wider words wrap inside the screen. */}
+      <ul className={cn("absolute bottom-full left-0 z-50 mb-1 min-w-32 rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10", isPost && "w-max max-w-[min(20rem,calc(100vw-2rem))]")}>
+        {LOCALES.map((option) => {
+          // On a post: this article (the language being read, or a published translation), or that language's blog.
+          const article = !isPost ? localePath(option, path) : option === locale ? pathname : versions?.[option];
+          return (
+            <li key={option}>
+              <Link
+                href={article ?? localePath(option, "/blog")}
+                // Tells a crawler which language this link leads to, which is
+                // what makes a switcher useful for indexing rather than only
+                // for people.
+                hrefLang={option}
+                // "Español" is Spanish whatever the page's language.
+                lang={option}
+                aria-current={option === locale ? "true" : undefined}
+                onClick={() => {
+                  if (menu.current) menu.current.open = false;
+                }}
+                className={cn(
+                  "flex flex-col rounded-md px-1.5 py-1 text-sm outline-none hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground",
+                  option === locale && "font-medium",
+                )}
+              >
+                {article ? LOCALE_NAMES[option] : BLOG_FALLBACK[option].blog}
+                {!article && versions ? <span className="text-xs text-muted-foreground">{BLOG_FALLBACK[option].missing}</span> : null}
+              </Link>
+            </li>
+          );
+        })}
       </ul>
     </details>
   );

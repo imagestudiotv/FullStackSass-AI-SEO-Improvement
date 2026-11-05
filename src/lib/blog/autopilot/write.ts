@@ -13,7 +13,18 @@ import type { Executor } from "@/lib/db/types";
 import { siteUrl } from "@/lib/site-url";
 import { TOOLS } from "@/lib/tools/registry";
 
-import { checkLinks, pagePath, type LinkRules, type RemovedLink } from "./links";
+import {
+  COMPARISON_PLAN_PROPERTIES,
+  COMPARISON_PLAN_REQUEST,
+  comparisonChecks,
+  comparisonRules,
+  comparisonTopicLines,
+  readComparisonPlan,
+  researchBlock,
+  type ComparisonResearch,
+  type PlannedComparison,
+} from "./comparison";
+import { checkLinks, pagePath, removeExternalLinks, type RemovedLink } from "./links";
 import { askClaude, SpentError, type CallUsage } from "./model";
 import type { AutopilotClaim } from "./run";
 
@@ -87,7 +98,12 @@ export type ArticlePlan = {
   sections: PlannedSection[];
   pictures: PictureIdea[];
   faqQuestions: string[];
+  /** A comparison's fact sheet (lib/blog/autopilot/comparison.ts): every part is written from it, as part of the plan. */
+  comparison?: PlannedComparison;
 };
+
+/** What a run writes about. `comparison` is set for a comparison article only. */
+type TopicClaim = Pick<AutopilotClaim, "topic" | "keyword" | "notes"> & Partial<Pick<AutopilotClaim, "comparison">>;
 
 export type { CallUsage };
 
@@ -146,10 +162,19 @@ export async function loadWriterContext(asOf: Date, executor: Executor = db): Pr
     categories,
     pages,
     posts: published.map((post) => ({ url: `${origin}${blogPath("en", post.slug)}`, title: post.title, keyword: post.primaryKeyword })),
+    // Without their links to other websites, so the writer does not copy a habit it must not have.
     examples: published
       .filter((post) => countWords(post.bodyHtml) >= EXAMPLE_MIN_WORDS)
       .slice(0, 2)
-      .map((post) => ({ title: post.title, shortAnswer: post.shortAnswer ?? "", bodyHtml: post.bodyHtml, faqs: post.faqs })),
+      .map((post) => {
+        const rules = { siteOrigin: origin, siteHosts: blogSiteHosts() };
+        return {
+          title: post.title,
+          shortAnswer: post.shortAnswer ?? "",
+          bodyHtml: removeExternalLinks(post.bodyHtml, rules).html,
+          faqs: post.faqs.map((faq) => ({ ...faq, answer: removeExternalLinks(faq.answer, rules).html })),
+        };
+      }),
   };
 }
 
@@ -159,7 +184,7 @@ export function internalPaths(context: WriterContext): Set<string> {
 }
 
 /** The instructions every call shares: who writes, the house style, what is true about RepGet, and the examples. */
-export function writerInstructions(context: WriterContext): string {
+export function writerInstructions(context: WriterContext, comparison = false): string {
   const tools = TOOLS.filter((tool) => tool.href !== "/audit").map((tool) => tool.title).join(", ");
   return [
     "You write articles for RepGet's own blog. RepGet is an AI SEO platform for small businesses. The blog's readers run a small business or look after its website; they are not SEO specialists. They come to understand a problem and leave knowing what to do on their own site.",
@@ -196,14 +221,15 @@ export function writerInstructions(context: WriterContext): string {
     "",
     "<accuracy>",
     "- Describe how Google, Bing and AI assistants work only as they document it themselves. Do not guess at what they have not said; when something changed recently, say what is documented and leave out the rest.",
-    "- No statistics, percentages, studies, quotes, case studies or customer stories unless they come from the official documentation you link to. Examples are illustrative and say so.",
+    "- No statistics, percentages, studies, quotes, case studies or customer stories unless they come from official documentation you name. Examples are illustrative and say so.",
     "- No promises about rankings, traffic, AI-assistant mentions or results, from RepGet or anyone.",
     "</accuracy>",
     "",
     "<links>",
     "- Link to 3 to 6 of the pages in <repget_pages> and <blog_posts> where they genuinely help the reader, with the full address exactly as listed.",
-    "- Link to official documentation (Google Search Central, Search Console Help, Google Business Profile Help, Bing Webmaster Guidelines, schema.org, MDN, web.dev, W3C, llmstxt.org, OpenAI's crawler documentation) where a claim rests on it: 1 to 4 links, only at addresses you are certain exist.",
-    "- Every other link is removed before the article is saved, and so is any link whose page does not load. Never link to other blogs, SEO tools, agencies or competitors, and never name a competitor.",
+    "- Never link to another website: no links to official documentation, other blogs, SEO tools, agencies or competitors, and no web address of another site written out as text. Links to RepGet's own pages are the only links in the article.",
+    "- Where a claim rests on official documentation (Google Search Central, Search Console Help, Google Business Profile Help, Bing Webmaster Guidelines, schema.org, MDN, web.dev, W3C, llmstxt.org, OpenAI's crawler documentation), name it in words, without a link: \"Google's Search Central documentation says...\".",
+    "- Every other link is removed before the article is saved, and its words stay. Also, never name a competitor.",
     "</links>",
     "",
     "<repget_facts>",
@@ -237,14 +263,16 @@ export function writerInstructions(context: WriterContext): string {
       "</example_post>",
       "",
     ]),
+    ...(comparison ? [comparisonRules()] : []),
   ].join("\n");
 }
 
 /** The topic, as the administrator wrote it. Tags in it are neutralised so it cannot end its own block. */
-function topicBlock(claim: Pick<AutopilotClaim, "topic" | "keyword" | "notes">): string {
+function topicBlock(claim: TopicClaim): string {
   const lines = [`Topic: ${claim.topic}`];
   if (claim.keyword) lines.push(`Search phrase to target: ${claim.keyword}`);
   if (claim.notes) lines.push(`Notes from RepGet's team:\n${claim.notes}`);
+  if (claim.comparison) lines.push(...comparisonTopicLines(claim.comparison));
   return `<topic>\n${lines.join("\n").replace(/<\/?\s*topic/gi, (match) => match.replace("<", "&lt;"))}\n</topic>`;
 }
 
@@ -255,11 +283,12 @@ function topicBlock(claim: Pick<AutopilotClaim, "topic" | "keyword" | "notes">):
 const STRING = { type: "string" } as const;
 const STRINGS = { type: "array", items: { type: "string" } } as const;
 
-function planSchema(categories: string[]): Record<string, unknown> {
+function planSchema(categories: string[], comparison = false): Record<string, unknown> {
   return {
     type: "object",
     additionalProperties: false,
     properties: {
+      ...(comparison ? COMPARISON_PLAN_PROPERTIES : {}),
       title: STRING,
       slug: STRING,
       seoTitle: STRING,
@@ -304,6 +333,7 @@ function planSchema(categories: string[]): Record<string, unknown> {
       "sections",
       "pictures",
       "faqQuestions",
+      ...(comparison ? Object.keys(COMPARISON_PLAN_PROPERTIES) : []),
     ],
   };
 }
@@ -321,7 +351,7 @@ const PLAN_REQUEST = [
   "- shortAnswer: plain text (no HTML), 330 to 430 characters: the direct answer to the article's main question in two to four sentences, as in the examples.",
   "- reader: in a sentence, who this is for and what they can do after reading.",
   "- opening: in a sentence or two, the concrete situation the article opens with.",
-  '- sections: 10 to 13, in reading order. For each: heading (its H2), covers (what it says, specifically, in a sentence or two), subheadings (its H3s, 0 to 4), table (what its table compares and its columns, or empty), links (the full addresses it links to, from <repget_pages>, <blog_posts> or official documentation; may be empty). Include a worked example and a practical plan or checklist. The second-to-last is "Where RepGet fits" and the last is "The bottom line".',
+  '- sections: 10 to 13, in reading order. For each: heading (its H2), covers (what it says, specifically, in a sentence or two), subheadings (its H3s, 0 to 4), table (what its table compares and its columns, or empty), links (the full addresses it links to, only from <repget_pages> or <blog_posts>; may be empty). Include a worked example and a practical plan or checklist. The second-to-last is "Where RepGet fits" and the last is "The bottom line".',
   "- pictures: exactly 2 diagrams that make a point of the article easier to grasp at a glance (a flow, a decision tree, a checklist, a simple comparison). For each: afterSection (the number, from 1, of the section it illustrates, not one of the last two), title (its headline, under 50 characters), idea (what it shows and how it is laid out, for an illustrator: the boxes, arrows or columns and what goes in each), labels (every other text in it, 3 to 10 short texts of a few words each, spelled exactly as they should appear), alt (alt text under 125 characters).",
   "- faqQuestions: 6 to 8 questions people search about this topic that the article answers, worded as they would type them, not repeating the section headings.",
   "",
@@ -403,19 +433,26 @@ export function readPlan(value: Record<string, unknown>, context: WriterContext)
 }
 
 export async function planArticle(
-  claim: Pick<AutopilotClaim, "topic" | "keyword" | "notes">,
+  claim: TopicClaim,
   context: WriterContext,
+  /** A comparison's sources; a comparison is never planned without them. */
+  research?: ComparisonResearch,
 ): Promise<{ plan: ArticlePlan; warnings: string[]; usage: CallUsage }> {
   if (context.categories.length === 0) throw new Error("The blog has no categories. Add one in Admin > Blog > Categories, then try again.");
+  if (claim.comparison && !research) throw new Error("A comparison cannot be planned without its research.");
+  const comparing = claim.comparison && research ? { brief: claim.comparison, research } : null;
   const { value, usage } = await askClaude({
-    system: writerInstructions(context),
-    request: `${topicBlock(claim)}\n\n${PLAN_REQUEST}`,
-    schema: planSchema(context.categories.map((category) => category.name)),
+    system: writerInstructions(context, Boolean(comparing)),
+    request: comparing ? `${topicBlock(claim)}\n\n${researchBlock(comparing.research)}\n\n${PLAN_REQUEST}\n${COMPARISON_PLAN_REQUEST}` : `${topicBlock(claim)}\n\n${PLAN_REQUEST}`,
+    schema: planSchema(context.categories.map((category) => category.name), Boolean(comparing)),
     effort: "high",
     cache: true,
   });
   try {
-    return { ...readPlan(value, context), usage };
+    const read = readPlan(value, context);
+    if (!comparing) return { ...read, usage };
+    const { comparison, warnings } = readComparisonPlan(value, comparing.brief, comparing.research);
+    return { plan: { ...read.plan, comparison }, warnings: [...read.warnings, ...warnings], usage };
   } catch (error) {
     // Refused by the checks, but answered: the run still counts what it cost.
     throw new SpentError(error instanceof Error ? error.message : "The plan could not be used. Try again.", usage);
@@ -542,7 +579,7 @@ export function sameHeading(written: string, planned: string): boolean {
  * answering the FAQs, which are required from the part that completes it.
  */
 export async function writePart(
-  claim: Pick<AutopilotClaim, "topic" | "keyword" | "notes">,
+  claim: TopicClaim,
   context: WriterContext,
   plan: ArticlePlan,
   part: { number: number; from: number },
@@ -560,7 +597,7 @@ export async function writePart(
   ]
     .filter(Boolean)
     .join("\n\n");
-  const { value, usage } = await askClaude({ system: writerInstructions(context), request, schema: last ? LAST_PART_SCHEMA : PART_SCHEMA, effort: "high", cache: true });
+  const { value, usage } = await askClaude({ system: writerInstructions(context, Boolean(claim.comparison)), request, schema: last ? LAST_PART_SCHEMA : PART_SCHEMA, effort: "high", cache: true });
 
   const html = tidyPart(String(value.bodyHtml ?? ""));
   const expected = to - from;
@@ -603,11 +640,14 @@ export type DraftReport = {
   sections: number;
   subheadings: number;
   tables: number;
-  links: { internal: number; external: number; removed: RemovedLink[] };
+  /** What the check kept, and what it removed: with their addresses, for administrators only. */
+  links: { internal: number; fragments: number; removed: RemovedLink[] };
   /** Where the primary keyword is missing (the editor's keyword check). */
   keywordMissing: string[];
   warnings: string[];
   pictures: PictureIdea[];
+  /** A comparison's fact sheet, kept with the run for administrators to check against its sources. */
+  comparison?: PlannedComparison;
 };
 
 /**
@@ -620,14 +660,12 @@ export async function finishDraft(
   plan: ArticlePlan,
   parts: Pick<WrittenPart, "html" | "faqs">[],
   planWarnings: string[] = [],
-  pageAnswers?: LinkRules["pageAnswers"],
 ): Promise<{ draft: BlogPostInput; report: DraftReport }> {
   const faqs = parts.at(-1)?.faqs ?? [];
-  const checked = await checkLinks([parts.map((part) => part.html).join("\n"), ...faqs.map((faq) => faq.answer)], {
+  const checked = checkLinks([parts.map((part) => part.html).join("\n"), ...faqs.map((faq) => faq.answer)], {
     siteOrigin: context.origin,
     siteHosts: blogSiteHosts(),
     internalPaths: internalPaths(context),
-    pageAnswers,
   });
   const [bodyHtml, ...answers] = checked.html;
   const checkedFaqs = faqs.map((faq, index) => ({ question: faq.question, answer: answers[index] }));
@@ -665,6 +703,7 @@ export async function finishDraft(
     warnings.push(`Links removed, their words kept: ${named.join(", ")}${more}.`);
   }
   if (checkedFaqs.length < 6) warnings.push(`The article has ${checkedFaqs.length} FAQs; the blog's posts have 6 to 8.`);
+  if (plan.comparison) warnings.push(...comparisonChecks(bodyHtml, checkedFaqs.map((faq) => faq.answer), plan.comparison));
 
   const keywords = keywordReport({ ...draft, shortAnswer: draft.shortAnswer, faqs: checkedFaqs });
   return {
@@ -678,6 +717,7 @@ export async function finishDraft(
       keywordMissing: keywords.primary.filter((place) => !place.found).map((place) => place.label),
       warnings,
       pictures: plan.pictures,
+      ...(plan.comparison ? { comparison: plan.comparison } : {}),
     },
   };
 }

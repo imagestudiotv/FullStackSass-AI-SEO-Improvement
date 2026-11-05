@@ -23,8 +23,8 @@ const c = (names: string) =>
  *
  * The field submits as the hero's does (FinalCtaForm). "Check my website for
  * free" is the free check (/audit, no account needed); "Create {n} Articles
- * for Free" is sign-up, where {n} is FREE_ARTICLES - the number the account
- * really gets.
+ * for Free" is sign-up. In both that and the field's button, {n} is
+ * FREE_ARTICLES - the number the account really gets.
  */
 export function FinalCta({ locale, href }: SectionProps) {
   const t = finalCtaCopy(locale);
@@ -40,7 +40,7 @@ export function FinalCta({ locale, href }: SectionProps) {
             {t.titleLead} <em>{t.titleAccent}</em>
           </h2>
           <p className={c("rcta-desc")}>{t.desc}</p>
-          <FinalCtaForm strings={t.form} signUpPath={href("/sign-up")} onboardingPath={href("/onboarding/website")} />
+          <FinalCtaForm strings={{ ...t.form, submit: format(t.form.submit, n) }} signUpPath={href("/sign-up")} onboardingPath={href("/onboarding/website")} />
           <div className={c("rcta-quick-actions")} aria-label={t.quickLabel}>
             <Link prefetch={false} className={c("rcta-quick-btn rcta-quick-primary")} href={href("/audit")}>
               {t.checkFree} <span aria-hidden="true">→</span>

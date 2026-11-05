@@ -25,7 +25,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties } from "react";
 
 import { BrandMark } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
@@ -1438,111 +1438,6 @@ export function ProductPreview({ t }: SectionProps) {
         </div>
 
         <p className="mt-4 text-center text-xs text-muted-foreground">{t.previewCaption}</p>
-      </div>
-    </section>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Closing call to action                                                     */
-/* -------------------------------------------------------------------------- */
-
-/** The bright orange of the client's closing panel (7RRq4-suyqqc.jpg), for the heading's last words. */
-const CLOSING_ACCENT = "#ff5a1f";
-
-/**
- * Two corners of the panel are dotted, as in the client's design: grey dots
- * on a 30px grid with a few orange ones, fading out towards the middle. Pure
- * CSS backgrounds - nothing to load, nothing a screen reader meets.
- */
-function dots(orange: [number, number][]) {
-  return [
-    ...orange.map(([x, y]) => `radial-gradient(circle at ${x}px ${y}px, rgb(255 90 31 / 0.32) 7px, transparent 7.5px)`),
-    "radial-gradient(circle, rgb(255 255 255 / 0.07) 7px, transparent 7.5px)",
-  ].join(", ");
-}
-const DOTS_TOP_RIGHT = dots([[195, 45], [225, 105], [135, 75]]);
-const DOTS_BOTTOM_LEFT = dots([[75, 135], [135, 195], [45, 225]]);
-
-/** The heading with its last words (closingTitleAccent) in orange; plain if a translation does not end with them. */
-function closingTitle(t: SectionProps["t"]): ReactNode {
-  const accent = t.closingTitleAccent;
-  if (!accent || !t.closingTitle.endsWith(accent)) return t.closingTitle;
-  return (
-    <>
-      {t.closingTitle.slice(0, -accent.length)}
-      <span style={{ color: CLOSING_ACCENT }}>{accent}</span>
-    </>
-  );
-}
-
-/**
- * The closing offer, on the homepage, the blog, its category and author pages
- * and every article - the client's design (2026-10-08, 7RRq4-suyqqc.jpg): a
- * near-black panel, "growing faster." in orange, the free check and "Create 3
- * Articles for Free" (to sign-up), then "Cancel any time" and "Set up in
- * minutes".
- *
- * The free check keeps the site's own orange button: white text on the
- * brighter orange of the drawing is too faint to read comfortably. The
- * bright orange is used where it is large - the heading - and on the ticks.
- */
-export function ClosingCta({ t, href }: SectionProps) {
-  return (
-    <section className={`${OFFSCREEN} px-4 pt-4 pb-20`}>
-      <div className="relative isolate mx-auto max-w-7xl overflow-hidden rounded-2xl bg-[#171717] px-6 py-16 text-center text-white sm:px-10 sm:py-20 dark:bg-card dark:ring-1 dark:ring-border">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute top-0 right-0 -z-10 h-60 w-72 sm:h-72 sm:w-96"
-          style={{
-            backgroundImage: DOTS_TOP_RIGHT,
-            backgroundSize: "auto, auto, auto, 30px 30px",
-            maskImage: "radial-gradient(farthest-side at 100% 0%, black 35%, transparent 100%)",
-          }}
-        />
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute bottom-0 left-0 -z-10 h-60 w-60 sm:h-80 sm:w-80"
-          style={{
-            backgroundImage: DOTS_BOTTOM_LEFT,
-            backgroundSize: "auto, auto, auto, 30px 30px",
-            maskImage: "radial-gradient(farthest-side at 0% 100%, black 35%, transparent 100%)",
-          }}
-        />
-
-        <h2 className="mx-auto max-w-3xl text-3xl font-bold tracking-tight text-balance sm:text-[2.5rem] sm:leading-[1.15]">
-          {closingTitle(t)}
-        </h2>
-        <p className="mx-auto mt-4 max-w-3xl text-pretty text-white/75 sm:text-lg">{t.closingSub}</p>
-
-        <div className="mt-9 flex flex-wrap justify-center gap-3 sm:gap-4">
-          <Button size="lg" asChild className={`${CTA} h-auto min-h-14 max-w-full whitespace-normal px-5 py-3 font-semibold sm:px-8 sm:text-lg`}>
-            <Link href={href("/audit")}>
-              {t.checkFree}
-              <ArrowRight className="size-5" />
-            </Link>
-          </Button>
-          <Button
-            size="lg"
-            variant="outline"
-            asChild
-            className={`${CTA} h-auto min-h-14 max-w-full whitespace-normal border-white bg-white px-5 py-3 font-semibold text-[#171717] hover:bg-white/90 hover:text-[#171717] sm:px-8 sm:text-lg dark:border-white dark:bg-white dark:text-[#171717] dark:hover:bg-white/90`}
-          >
-            <Link href={href("/sign-up")}>
-              {t.createFreeArticles}
-              <ArrowRight className="size-5" />
-            </Link>
-          </Button>
-        </div>
-
-        <ul className="mt-7 flex flex-wrap items-center justify-center gap-x-7 gap-y-2 text-white/70 sm:text-lg">
-          {[t.cancelAnytime, t.setupInMinutes].map((item) => (
-            <li key={item} className="flex items-center gap-2">
-              <Check className="size-5" style={{ color: CLOSING_ACCENT }} aria-hidden="true" />
-              {item}
-            </li>
-          ))}
-        </ul>
       </div>
     </section>
   );

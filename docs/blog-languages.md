@@ -19,7 +19,7 @@ Added 2026-10-10. The client asked for the same articles in every language the s
 
 1. Open the **English** post and save any changes. A translation is always made from the saved post.
 2. In the **Language** box on the right, find the language, then choose one:
-   - **Draft with AI** translates and adapts the post: title, headings, description, keywords, text and FAQs. Links, pictures and facts stay as they are. A long post takes a minute or two.
+   - **Draft with AI** translates and adapts the post: title, headings, description, keywords, text and FAQs. Links, pictures and facts stay as they are, and a link to another website that the English post does not have is removed. A long post takes a minute or two.
    - **Copy** copies the English text, so a person can translate it by hand.
 3. The draft opens. It is **not published**, and it is marked **Needs review**.
 4. Have a **native speaker** read and correct it. Check the title, the headings and the primary keyword above all: they should be the words people actually search with in that country. Check the address too: it can still change until the post is published.

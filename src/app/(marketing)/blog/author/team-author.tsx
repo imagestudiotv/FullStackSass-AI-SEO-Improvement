@@ -15,7 +15,7 @@ import { publicPageMetadata } from "@/lib/seo/page-metadata";
 import { siteUrl } from "@/lib/site-url";
 import { breadcrumbList, entityIds } from "@/lib/structured-data";
 
-import { ClosingCta } from "../../home-sections";
+import { FinalCta } from "../../_home/sections/final-cta";
 
 /**
  * The RepGet team's author page (client, 2026-10-08, after
@@ -189,7 +189,7 @@ export async function teamAuthorPage({ locale, page }: { locale: Locale; page: n
         <BlogPagination page={page} total={total} path={path} locale={locale} />
       </div>
 
-      <ClosingCta t={getMessages(locale).home} href={(target) => localePath(locale, target)} />
+      <FinalCta locale={locale} href={(target) => localePath(locale, target)} />
     </div>
   );
 }

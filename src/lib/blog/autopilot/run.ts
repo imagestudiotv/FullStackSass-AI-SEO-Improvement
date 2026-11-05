@@ -3,6 +3,7 @@ import "server-only";
 import { and, asc, eq, like, lt, or, sql } from "drizzle-orm";
 
 import { recordAdminAction } from "@/lib/admin/audit";
+import { readComparison, type ArticleType, type ComparisonBrief } from "@/lib/blog/autopilot/comparison-brief";
 import { LANGUAGE_NAMES_EN } from "@/lib/blog/locale";
 import { BlogPostError, cleanBlogPost, isUniqueViolation, RESERVED_SLUGS, type BlogPostInput } from "@/lib/blog/post-fields";
 import { blogSlug } from "@/lib/blog/shared";
@@ -37,6 +38,10 @@ export type AutopilotClaim = {
   topic: string;
   keyword: string | null;
   notes: string | null;
+  /** "informative" (every article until 2026-11-05) or "comparison" (lib/blog/autopilot/comparison.ts). */
+  articleType: ArticleType;
+  /** What to compare, for a comparison; null for any other article. */
+  comparison: ComparisonBrief | null;
   /** When the topic was taken: the writer's "today", and the posts it may link to. */
   claimedAt: string;
 };
@@ -45,6 +50,12 @@ export type ClaimOutcome =
   | { claimed: AutopilotClaim }
   /** busy: an article is being written; empty: no topic waits; done-today: that scheduled slot already ran today. */
   | { skipped: "busy" | "empty" | "done-today" };
+
+/** A topic's kind of article. Anything but a readable comparison is the ordinary article. */
+function topicKind(topic: { articleType: string; comparison: unknown }): Pick<AutopilotClaim, "articleType" | "comparison"> {
+  if (topic.articleType !== "comparison") return { articleType: "informative", comparison: null };
+  return { articleType: "comparison", comparison: readComparison(topic.comparison) };
+}
 
 /** Serialises the topic list: the same lock lib/admin/blog-autopilot.ts takes. */
 const lockTopics = (tx: Executor) => tx.execute(sql`select pg_advisory_xact_lock(hashtext('blog_autopilot_topics'))`);
@@ -99,7 +110,7 @@ export async function startAutopilotRun(input: {
     if (!run) return { skipped: "done-today" };
     await tx.update(blogAutopilotTopics).set({ status: "writing", error: null, updatedAt: now }).where(eq(blogAutopilotTopics.id, next.id));
     await enqueueJob(tx, { id: `${RUN_EVENT}:${run.id}`, name: RUN_EVENT, data: { runId: run.id } });
-    const claimed: AutopilotClaim = { runId: run.id, topicId: next.id, topic: next.topic, keyword: next.keyword, notes: next.notes, claimedAt: now.toISOString() };
+    const claimed: AutopilotClaim = { runId: run.id, topicId: next.id, topic: next.topic, keyword: next.keyword, notes: next.notes, ...topicKind(next), claimedAt: now.toISOString() };
     await input.record?.(tx, claimed);
     return { claimed };
   });
@@ -123,6 +134,7 @@ export async function loadClaim(runId: string, executor: Executor = db): Promise
     topic: row.topic.topic,
     keyword: row.topic.keyword,
     notes: row.topic.notes,
+    ...topicKind(row.topic),
     claimedAt: row.run.startedAt.toISOString(),
   };
 }

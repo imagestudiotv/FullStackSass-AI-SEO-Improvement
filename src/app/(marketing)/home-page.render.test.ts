@@ -29,7 +29,6 @@ vi.mock("next/image", () => ({
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => "/" }));
 
-import { ClosingCta } from "./home-sections";
 import { HomePageSections } from "./home-page";
 import { PricingPreview } from "./pricing-preview";
 import { Testimonials } from "./testimonials-section";
@@ -286,8 +285,8 @@ describe("homepage sections", () => {
   });
 });
 
-/** The closing panel on the blog and every article (client's design, 7RRq4-suyqqc.jpg). */
-describe("closing panel", () => {
+/** The words of the old closing panel, kept in messages.ts; the blog now ends with the homepage's banner (blog-closing-cta.render.test.ts). */
+describe("closing panel's words", () => {
   it("says exactly what the client's design says, in English", () => {
     const t = getMessages("en").home;
     expect([t.closingTitle, t.closingTitleAccent, t.closingSub, t.checkFree, t.createFreeArticles, t.cancelAnytime, t.setupInMinutes]).toEqual([
@@ -301,17 +300,6 @@ describe("closing panel", () => {
     ]);
   });
 
-  it.each(LOCALES)("%s: the heading's last words in orange, the free check, free articles at sign-up, two reassurances", (locale) => {
-    const t = getMessages(locale).home;
-    expect(t.closingTitle.endsWith(t.closingTitleAccent)).toBe(true);
-    const html = renderToStaticMarkup(createElement(ClosingCta, { t, href: (path: string) => (locale === "en" ? path : localePath(locale, path)) }));
-    const panel = html.slice(html.lastIndexOf("<h2", html.indexOf(esc(t.closingSub))));
-    expect(panel).toContain(`<span style="color:#ff5a1f">${esc(t.closingTitleAccent)}</span>`);
-    expect(panel).toMatch(new RegExp(`href="(?:/[a-z]{2})?/sign-up"[^>]*>${esc(t.createFreeArticles)}`));
-    expect(panel).toContain(esc(t.checkFree));
-    expect(panel).toContain(esc(t.cancelAnytime));
-    expect(panel).toContain(esc(t.setupInMinutes));
-  });
 });
 
 describe("pricing preview", () => {

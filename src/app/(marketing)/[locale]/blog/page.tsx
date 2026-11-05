@@ -9,11 +9,10 @@ import { BLOG_CHROME, blogPath, fill, LANGUAGE_NAMES } from "@/lib/blog/locale";
 import { blogPage, blogPageHref, pageSuffix } from "@/lib/blog/pagination";
 import { listPostPage, publishedCategoryCounts } from "@/lib/blog/posts";
 import { isLocale, localePath, type Locale } from "@/lib/i18n/config";
-import { getMessages } from "@/lib/i18n/messages";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
 import { CategoryChips } from "../../blog/category-chips";
-import { ClosingCta } from "../../home-sections";
+import { FinalCta } from "../../_home/sections/final-cta";
 
 /**
  * The blog's front page in one language: /it/blog, /es/blog, ... (client,
@@ -118,7 +117,7 @@ export default async function LocaleBlogIndexPage({ params, searchParams }: Prop
         </div>
       ) : null}
 
-      <ClosingCta t={getMessages(locale).home} href={(path) => localePath(locale, path)} />
+      <FinalCta locale={locale} href={(path) => localePath(locale, path)} />
     </div>
   );
 }

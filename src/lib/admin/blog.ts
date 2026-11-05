@@ -16,6 +16,7 @@ import {
   type BlogFaq,
   type BlogSource,
 } from "@/lib/blog/shared";
+import { removeAddedLinks } from "@/lib/blog/autopilot/links";
 import { translateBlogPost, type TranslatableFields } from "@/lib/blog/translate";
 import { blogLinkTargets, localizeLinks } from "@/lib/blog/translation-links";
 import { db } from "@/lib/db";
@@ -29,6 +30,7 @@ import {
   storeArticleImage,
 } from "@/lib/images/storage";
 import {
+  blogSiteHosts,
   BlogPostError as BlogError,
   cleanBlogPost as clean,
   isUniqueViolation,
@@ -37,6 +39,7 @@ import {
   type BlogPostInput,
   type CleanBlogPost as Clean,
 } from "@/lib/blog/post-fields";
+import { siteUrl } from "@/lib/site-url";
 import type { ActionResult } from "@/lib/websites/actions";
 
 /**
@@ -505,7 +508,19 @@ export async function createBlogTranslation(input: {
   if (input.mode === "ai") {
     if (!isAiConfigured()) return { ok: false, error: "AI is not set up on this server (ANTHROPIC_API_KEY). Copy the post to translate it by hand instead." };
     try {
-      content = await translateBlogPost(translatable(source), DEFAULT_LOCALE, locale);
+      const drafted = await translateBlogPost(translatable(source), DEFAULT_LOCALE, locale);
+      /*
+        Links to other websites the English post already has were put there by a
+        person and stay; one the translator added goes, its words kept
+        (lib/blog/autopilot/links.ts).
+      */
+      const originals = [source.bodyHtml, ...source.faqs.map((faq) => faq.answer)];
+      const rules = { siteOrigin: new URL(siteUrl()).origin, siteHosts: blogSiteHosts() };
+      content = {
+        ...drafted,
+        bodyHtml: removeAddedLinks(drafted.bodyHtml, originals, rules).html,
+        faqs: drafted.faqs.map((faq) => ({ ...faq, answer: removeAddedLinks(faq.answer, originals, rules).html })),
+      };
     } catch (error) {
       console.error("[admin/blog] AI translation failed", error);
       return { ok: false, error: `The ${LANGUAGE_NAMES_EN[locale]} draft could not be written: ${error instanceof Error ? error.message : "the AI did not answer"}. Try again, or copy the post to translate it by hand.` };

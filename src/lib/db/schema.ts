@@ -30,6 +30,8 @@ import {
   vector,
 } from "drizzle-orm/pg-core";
 
+import type { ComparisonBrief } from "../blog/autopilot/comparison-brief";
+
 // Every table gets Row Level Security - see ./table.ts.
 import { pgTable } from "./table";
 
@@ -2927,6 +2929,10 @@ export const blogAutopilotTopics = pgTable(
     keyword: text("keyword"),
     /** Anything the writer should know for this one article. */
     notes: text("notes"),
+    /** "informative" | "comparison" (client, 2026-11-05; lib/blog/autopilot/comparison.ts). */
+    articleType: text("article_type").default("informative").notNull(),
+    /** What a comparison compares, and its brief (lib/blog/autopilot/comparison-brief.ts). Null for any other article. */
+    comparison: jsonb("comparison").$type<ComparisonBrief>(),
     /** "admin" | "suggested". */
     source: text("source").default("admin").notNull(),
     status: text("status").default("queued").notNull(),
