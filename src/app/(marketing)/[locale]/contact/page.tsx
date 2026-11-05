@@ -35,10 +35,10 @@ export default async function LocalisedContactPage({
   if (!isLocale(locale) || locale === "en") notFound();
 
   const t = getMessages(locale);
-  const params = await searchParams;
+  const query = await searchParams;
   // The homepage's old "We'll build one for you" link: that has a page of its own now, in this language.
-  if (params.about === WEBSITE_BUILD_TOPIC) {
-    permanentRedirect(websiteBuildRedirect(localePath(locale, WEBSITE_CREATION_PATH), params));
+  if (query.about === WEBSITE_BUILD_TOPIC) {
+    permanentRedirect(websiteBuildRedirect(localePath(locale, WEBSITE_CREATION_PATH), query));
   }
 
   return <ContactContent t={t} locale={locale} supportEmail={SUPPORT_EMAIL} />;
