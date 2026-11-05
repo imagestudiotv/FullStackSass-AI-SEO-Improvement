@@ -1,4 +1,4 @@
-import { ArrowUpRight, CheckCircle2, ChevronDown, Info, Lightbulb, Plus, Sun, UsersRound, Wallet } from "lucide-react";
+import { ArrowUpRight, Check, CheckCircle2, ChevronDown, Info, Lightbulb, Plus, Sun, UserPlus, UsersRound, Wallet } from "lucide-react";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -28,12 +28,6 @@ import { hasOnlySharedWork } from "@/lib/websites/accessible";
 
 import { EarnWays, EnterReferralCode, ReferralShare } from "./earn-client";
 import { ShareKit } from "./share-kit";
-
-/**
- * The reward drawn into the referral artwork. The picture is only shown while
- * it matches REFERRAL_REWARD_CREDITS, so a changed reward cannot be contradicted by it.
- */
-const ART_REWARD_CREDITS = 100;
 
 const messagesFor = cache((userId: string) => getAppMessages(userId));
 
@@ -151,16 +145,38 @@ export default async function EarnCreditsPage() {
                 </a>
               ) : null}
             </div>
-            {credits === ART_REWARD_CREDITS ? (
+            {/*
+              The client's artwork with its drawn words removed, and the words set
+              here over its pills, sized to the picture (cqw): in the reader's
+              language, with the reward from REFERRAL_REWARD_CREDITS. The alt says
+              it all for a screen reader, so these are hidden from one.
+            */}
+            <div className="@container relative mx-auto w-full max-w-84 sm:max-w-none">
               <Image
                 src="/images/earn/referral-invite.webp"
                 width={860}
                 height={645}
                 sizes="(min-width: 1024px) 22rem, (min-width: 640px) 40vw, 90vw"
                 alt={format(k.artAlt, { credits })}
-                className="mx-auto w-full max-w-84 rounded-xl mix-blend-multiply sm:max-w-none dark:mix-blend-normal"
+                className="w-full rounded-xl mix-blend-multiply dark:mix-blend-normal"
               />
-            ) : null}
+              <div className="pointer-events-none absolute inset-0 font-medium text-[#181715]" aria-hidden="true">
+                <span className="absolute top-[14.1%] left-[50.2%] flex min-w-[30.4cqw] -translate-x-1/2 -translate-y-1/2 items-center justify-center gap-[1.4cqw] rounded-full bg-[#fce7da] px-[3cqw] py-[2.2cqw] text-[3cqw] leading-none whitespace-nowrap">
+                  <UserPlus className="size-[4.2cqw] text-primary" />
+                  {e.inviteEyebrow}
+                </span>
+                <span className="absolute top-[42.9%] left-[65%] flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-[1cqw] leading-none whitespace-nowrap">
+                  <strong className="text-[7cqw] font-extrabold tracking-tight text-[#d9500f]">+{credits}</strong>
+                  <span className="text-[3.2cqw] font-semibold">{k.artCredits}</span>
+                </span>
+                <span className="absolute top-[62.1%] left-[37.5%] flex min-w-[22.3cqw] -translate-x-1/2 -translate-y-1/2 items-center justify-center gap-[1.4cqw] rounded-full bg-white px-[1.8cqw] py-[1.7cqw] text-[2.7cqw] leading-none whitespace-nowrap shadow-sm">
+                  <span className="grid size-[3.6cqw] place-items-center rounded-full bg-emerald-200 text-emerald-700">
+                    <Check className="size-[2.6cqw] stroke-[3]" />
+                  </span>
+                  {k.artFriend}
+                </span>
+              </div>
+            </div>
           </div>
           <div className="relative mt-4 max-w-2xl">
             {referrals && link ? (

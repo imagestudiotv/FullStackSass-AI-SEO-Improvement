@@ -16,14 +16,16 @@ Client design 2026-11-02. A page of its own, `/earn-credits`, opened from **Earn
 
 ## Share kit
 
-Client design 2026-11-05. A ready-made message for LinkedIn, Facebook, X, WhatsApp and Email, with the reader's own referral link (`/r/<code>` on the production domain, from `getReferralSummary`). The text is editable per platform, and switching platform keeps the edits; Reset restores that platform's template. Each template says the author may receive RepGet credits, as the claim rules ask, and claims no result or experience.
+Client design 2026-11-05. A ready-made message for LinkedIn, Facebook, X, WhatsApp and Email, with the reader's own referral link (`/r/<code>` on the production domain, from `getReferralSummary`). The text is editable per platform, and switching platform keeps the edits; Reset restores that platform's template. Each template is an editable starting point, says the author may receive RepGet credits, as the claim rules ask, and claims no result or experience.
 
 - **Limits**: LinkedIn 3,000, Facebook 63,206, X 280 (a link counts as 23, wide characters as 2, as X counts them), WhatsApp 65,536, Email none. Over the limit, Copy & Open is disabled and the reader is told by how much. Taking the link out of the text brings a warning.
 - **Copy & Open**: copies the text, then a real link opens the platform, URL-encoded. X, WhatsApp and Email open with the text filled in (mail line breaks are CRLF). LinkedIn and Facebook accept only a link, so the reader pastes the copied text; so do WhatsApp and Email when the message is too long for an address.
 - **When the browser refuses to copy**: the kit says so, selects the text and says what to press. The code and link do the same in a field of their own.
 - **It posts nothing and credits nothing.** The kit reaches only the clipboard and an address: no server action, no route. RepGet cannot know whether anything was posted, so no wording says it was. Credits still come only from a referral's first real payment and from a claim the team approves.
 
-The artwork (`public/images/earn/referral-invite.webp`, from the client's design) has English words and "+100" drawn into it. It is shown only while `REFERRAL_REWARD_CREDITS` is 100.
+The artwork (`public/images/earn/referral-invite.webp`) is the client's picture with its three drawn labels erased, each from its flat pill or card. The labels are HTML over it (`page.tsx`), in the reader's language, with the reward read from `REFERRAL_REWARD_CREDITS`. The picture's people are the client's.
+
+The templates are starting points, and the kit says so. The rules do not change: a post that claims the reward must be public and in the author's own words, and the team reviews every claim. Sending a claim only creates a pending claim, with no ledger row, whatever text it carries.
 
 ## Rewards
 

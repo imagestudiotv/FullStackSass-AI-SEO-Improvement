@@ -77,6 +77,14 @@ describe("the Earn Credits page", () => {
     expect(html).toContain("+100 credits");
   });
 
+  it("sets the artwork's words as HTML, with the reward from its canonical value", async () => {
+    const html = await render({});
+    expect(html).toContain("/images/earn/referral-invite.webp");
+    expect(html).toContain("+100");
+    expect(html).toContain("Friend joined");
+    expect(html).toContain("Four people connected to RepGet, and a reward of 100 credits");
+  });
+
   it("rendering sends no claim and enters no code", async () => {
     await render({});
     expect(claimAction.submit).not.toHaveBeenCalled();
