@@ -9,12 +9,11 @@ import { categoryAlternates } from "@/lib/blog/locale";
 import { blogPage, blogPageHref, pageSuffix } from "@/lib/blog/pagination";
 import { listPostPage, publishedCategoryLocales } from "@/lib/blog/posts";
 import { jsonLdScript } from "@/lib/blog/shared";
-import { getMessages } from "@/lib/i18n/messages";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
 import { siteUrl } from "@/lib/site-url";
 import { breadcrumbList } from "@/lib/structured-data";
 
-import { ClosingCta } from "../../../home-sections";
+import { FinalCta } from "../../../_home/sections/final-cta";
 
 // Live posts from the database (see lib/blog/posts.ts).
 export const dynamic = "force-dynamic";
@@ -132,7 +131,7 @@ export default async function BlogCategoryPage({
         <BlogPagination page={page} total={total} path={`/blog/category/${category.slug}`} />
       </div>
 
-      <ClosingCta t={getMessages("en").home} href={(path) => path} />
+      <FinalCta locale="en" href={(path) => path} />
     </div>
   );
 }

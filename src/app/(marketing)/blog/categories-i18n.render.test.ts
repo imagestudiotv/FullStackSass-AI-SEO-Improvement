@@ -43,7 +43,7 @@ vi.mock("next/link", () => ({
   default: ({ href, children, ...rest }: { href: string; children: ReactNode; [key: string]: unknown }) =>
     createElement("a", { href, ...rest }, children),
 }));
-vi.mock("@/app/(marketing)/home-sections", () => ({ ClosingCta: () => null }));
+vi.mock("@/app/(marketing)/_home/sections/final-cta", () => ({ FinalCta: () => null }));
 vi.mock("@/components/post-cover", () => ({ PostCover: () => null }));
 // The database's readers only; the hreflang rule (lib/blog/locale.ts) is the real one.
 vi.mock("@/lib/blog/categories", () => ({

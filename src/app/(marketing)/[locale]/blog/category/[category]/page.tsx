@@ -15,7 +15,7 @@ import { publicPageMetadata } from "@/lib/seo/page-metadata";
 import { siteUrl } from "@/lib/site-url";
 import { breadcrumbList } from "@/lib/structured-data";
 
-import { ClosingCta } from "../../../../home-sections";
+import { FinalCta } from "../../../../_home/sections/final-cta";
 
 /**
  * A blog category in another language than English: /it/blog/category/<slug>
@@ -159,7 +159,7 @@ export default async function LocaleBlogCategoryPage({ params, searchParams }: P
         <BlogPagination page={page} total={total} path={path} locale={locale} />
       </div>
 
-      <ClosingCta t={getMessages(locale).home} href={(target) => localePath(locale, target)} />
+      <FinalCta locale={locale} href={(target) => localePath(locale, target)} />
     </div>
   );
 }

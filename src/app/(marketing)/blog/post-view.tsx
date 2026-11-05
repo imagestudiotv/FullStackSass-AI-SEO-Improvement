@@ -13,7 +13,7 @@ import { SHARE_IMAGE } from "@/lib/share-image";
 import { siteUrl } from "@/lib/site-url";
 import { breadcrumbList, entityIds } from "@/lib/structured-data";
 
-import { ClosingCta } from "../home-sections";
+import { FinalCta } from "../_home/sections/final-cta";
 
 /**
  * One blog post's page, in any language: /blog/<slug> for English and
@@ -214,8 +214,8 @@ export function BlogPostView({
         ) : null}
       </div>
 
-      {/* The blog exists to bring people into the product: the homepage's closing panel, in the post's language. */}
-      <ClosingCta t={getMessages(locale).home} href={(path) => localePath(locale, path)} />
+      {/* The blog exists to bring people into the product: the homepage's closing banner, in the post's language. */}
+      <FinalCta locale={locale} href={(path) => localePath(locale, path)} />
     </div>
   );
 }
