@@ -136,11 +136,15 @@ function get_post_status($id) {
 function get_posts($args) {
     $out = array();
     foreach ($GLOBALS['meta'] as $id => $m) {
-        if (isset($GLOBALS['posts'][$id]) && isset($m[$args['meta_key']]) && $m[$args['meta_key']] === $args['meta_value']) {
+        // No meta_value: every post carrying the key, as WP_Query does.
+        if (isset($GLOBALS['posts'][$id]) && isset($m[$args['meta_key']]) && (!isset($args['meta_value']) || $m[$args['meta_key']] === $args['meta_value'])) {
             $out[] = $id;
         }
     }
     sort($out);
+    if (isset($args['posts_per_page'])) {
+        $out = array_slice($out, isset($args['offset']) ? $args['offset'] : 0, $args['posts_per_page']);
+    }
     return $out;
 }
 
@@ -243,7 +247,25 @@ $GLOBALS['http'] = array();
 
 function repget_key() { return 'test-key'; }
 function repget_post_type() { return 'post'; }
-function repget_attach_image($post_id, $url, $alt) { $GLOBALS['images'][] = $post_id; }
+/** Stands in for the download: a failed one (image_fails) sets nothing, as the real one does. */
+function repget_attach_image($post_id, $url, $alt) {
+    $GLOBALS['images'][] = $post_id;
+    if (!empty($GLOBALS['image_fails'])) return 0;
+    $attachment = 1000 + crc32($url) % 100000;
+    $GLOBALS['attachments'][$attachment] = 'https://site.test/wp-content/uploads/' . basename($url);
+    update_post_meta($post_id, '_thumbnail_id', (string) $attachment);
+    return $attachment;
+}
+function get_post_thumbnail_id($id) { return (int) get_post_meta($id, '_thumbnail_id', true); }
+function wp_get_attachment_url($id) { return isset($GLOBALS['attachments'][$id]) ? $GLOBALS['attachments'][$id] : false; }
+function wp_slash($v) { return $v; }
+function delete_post_meta($id, $k) { unset($GLOBALS['meta'][$id][$k]); return true; }
+function repget_own_attachment($url, $hint) { return 0; }
+function repget_find_image($url) { return 0; }
+function get_post($id) {
+    if (!isset($GLOBALS['posts'][$id])) return null;
+    return (object) array_merge(array('ID' => $id, 'post_title' => '', 'post_excerpt' => ''), $GLOBALS['posts'][$id]);
+}
 
 function repget_request($path, $args = array()) {
     if ($path === '/api/plugin/articles') {
@@ -307,7 +329,7 @@ function wp_count_posts($t) { return (object) array('publish' => 0); }
 $src = file_get_contents($argv[1]);
 $src = preg_replace('/^<\?php/', '', $src, 1);
 $src = str_replace("if (!defined('ABSPATH')) {\n    exit;\n}", '', $src);
-foreach (array('repget_key', 'repget_post_type', 'repget_attach_image', 'repget_request') as $fn) {
+foreach (array('repget_key', 'repget_post_type', 'repget_attach_image', 'repget_own_attachment', 'repget_find_image', 'repget_request') as $fn) {
     $src = preg_replace('/\nfunction ' . $fn . '\(/', "\nfunction __unused_{$fn}(", $src, 1);
 }
 eval($src);
@@ -322,7 +344,7 @@ function check($label, $cond, $detail = '') {
 function reset_all() {
     $GLOBALS['options_table'] = array(); $GLOBALS['opts_cache'] = array();
     $GLOBALS['posts'] = array(); $GLOBALS['meta'] = array();
-    $GLOBALS['next_id'] = 100; $GLOBALS['images'] = array();
+    $GLOBALS['next_id'] = 100; $GLOBALS['images'] = array(); $GLOBALS['image_fails'] = false; $GLOBALS['attachments'] = array();
     $GLOBALS['insert_calls'] = 0; $GLOBALS['update_calls'] = 0;
     $GLOBALS['ack_calls'] = 0; $GLOBALS['ack_works'] = true; $GLOBALS['ack_bodies'] = array(); $GLOBALS['http'] = array();
     $GLOBALS['queue'] = array();
@@ -584,6 +606,156 @@ reset_all();
 $GLOBALS['queue']['m1'] = article('m1', 'Hello', 'publish', "x'; DROP");
 repget_sync_locked();
 check('reported without a dispatch id', !isset($GLOBALS['ack_bodies'][0]['dispatchId']));
+
+echo "\nRANK MATH (1.10.0): social fields follow the article and its featured image\n";
+function social_article($id, $title, $excerpt, $image) {
+    $a = article($id, $title);
+    $a['excerpt'] = $excerpt;
+    $a['image'] = $image === null ? null : array('url' => $image, 'alt' => 'alt');
+    return $a;
+}
+function send_article($a) {
+    $GLOBALS['queue'][$a['id']] = $a;
+    repget_sync_locked();
+    return repget_find_post($a['id']);
+}
+function m($post, $key) { return get_post_meta($post, $key, true); }
+function social_keys($post) {
+    return array_values(array_filter(array_keys(isset($GLOBALS['meta'][$post]) ? $GLOBALS['meta'][$post] : array()), function ($k) { return strpos($k, 'rank_math_') === 0; }));
+}
+
+reset_all();
+$p = send_article(social_article('s0', 'Title', 'Desc', 'https://store.test/a.jpg'));
+check('without Rank Math nothing of Rank Math is written', social_keys($p) === array() && m($p, REPGET_META_SOCIAL) === '');
+check('...and the featured image is still set', get_post_thumbnail_id($p) > 0);
+
+define('RANK_MATH_VERSION', '1.0.281');
+
+reset_all();
+$p = send_article(social_article('s1', 'Rainy Wedding', 'Worried about rain?', 'https://store.test/a.jpg'));
+$first = get_post_thumbnail_id($p);
+check('create: Facebook and Twitter titles', m($p, 'rank_math_facebook_title') === 'Rainy Wedding' && m($p, 'rank_math_twitter_title') === 'Rainy Wedding');
+check('create: Facebook and Twitter descriptions', m($p, 'rank_math_facebook_description') === 'Worried about rain?' && m($p, 'rank_math_twitter_description') === 'Worried about rain?');
+check('create: both image ids ARE the featured image', $first > 0 && m($p, 'rank_math_facebook_image_id') === (string) $first && m($p, 'rank_math_twitter_image_id') === (string) $first);
+check('create: both addresses are that attachment\'s, never RepGet\'s', m($p, 'rank_math_facebook_image') === wp_get_attachment_url($first) && m($p, 'rank_math_twitter_image') === wp_get_attachment_url($first));
+check('create: Twitter uses its own fields', m($p, 'rank_math_twitter_use_facebook') === 'off');
+check('only the expected keys are written', count(social_keys($p)) === 9, implode(',', social_keys($p)));
+
+$image_count = count($GLOBALS['images']);
+$marker = m($p, REPGET_META_SOCIAL);
+send_article(social_article('s1', 'Rainy Wedding', 'Worried about rain?', 'https://store.test/a.jpg'));
+check('retried hand-over: the picture is not fetched again', count($GLOBALS['images']) === $image_count);
+check('retried hand-over: nothing changes', m($p, REPGET_META_SOCIAL) === $marker && get_post_thumbnail_id($p) === $first);
+
+send_article(social_article('s1', 'New Title', 'New words', 'https://store.test/a.jpg'));
+check('update: new title and description reach both networks', m($p, 'rank_math_facebook_title') === 'New Title' && m($p, 'rank_math_twitter_title') === 'New Title' && m($p, 'rank_math_twitter_description') === 'New words');
+
+send_article(social_article('s1', 'New Title', 'New words', 'https://store.test/b.jpg'));
+$second = get_post_thumbnail_id($p);
+check('changed picture: a new featured image', $second > 0 && $second !== $first);
+check('changed picture: the social images move with it', m($p, 'rank_math_facebook_image_id') === (string) $second && m($p, 'rank_math_twitter_image_id') === (string) $second && m($p, 'rank_math_twitter_image') === wp_get_attachment_url($second));
+
+echo "\nRANK MATH: a site owner's edit is kept\n";
+reset_all();
+$p = send_article(social_article('s2', 'T1', 'D1', 'https://store.test/a.jpg'));
+update_post_meta($p, 'rank_math_facebook_title', 'My own Facebook title');
+update_post_meta($p, 'rank_math_twitter_description', 'My own Twitter words');
+delete_post_meta($p, 'rank_math_twitter_title');
+send_article(social_article('s2', 'T2', 'D2', 'https://store.test/a.jpg'));
+check('an edited title stays', m($p, 'rank_math_facebook_title') === 'My own Facebook title');
+check('an edited description stays', m($p, 'rank_math_twitter_description') === 'My own Twitter words');
+check('a field emptied by hand stays empty', m($p, 'rank_math_twitter_title') === '');
+check('the fields not edited still follow the article', m($p, 'rank_math_facebook_description') === 'D2');
+
+reset_all();
+$p = send_article(social_article('s3', 'T1', 'D1', 'https://store.test/a.jpg'));
+$first = get_post_thumbnail_id($p);
+update_post_meta($p, 'rank_math_facebook_image', 'https://site.test/mine.jpg');
+update_post_meta($p, 'rank_math_facebook_image_id', '77');
+send_article(social_article('s3', 'T1', 'D1', 'https://store.test/b.jpg'));
+$second = get_post_thumbnail_id($p);
+check('a Facebook image chosen by hand survives a changed picture', m($p, 'rank_math_facebook_image_id') === '77' && m($p, 'rank_math_facebook_image') === 'https://site.test/mine.jpg');
+check('...while Twitter, not edited, moves to the new featured image', $second !== $first && m($p, 'rank_math_twitter_image_id') === (string) $second);
+
+reset_all();
+$p = send_article(social_article('s4', 'T1', 'D1', 'https://store.test/a.jpg'));
+update_post_meta($p, 'rank_math_facebook_title', 'T1 &amp; more');
+update_post_meta($p, REPGET_META_SOCIAL, array('facebook_title' => array('rank_math_facebook_title' => 'T1 & more')) + m($p, REPGET_META_SOCIAL));
+send_article(social_article('s4', 'T2', 'D1', 'https://store.test/a.jpg'));
+check('the same words stored with an entity are not an edit', m($p, 'rank_math_facebook_title') === 'T2');
+
+reset_all();
+$p = wp_insert_post(array('post_title' => 'Before', 'guid' => repget_identity_guid('s5'), 'meta_input' => array(REPGET_META_ARTICLE => 's5', '_thumbnail_id' => '555', 'rank_math_facebook_title' => 'Filled in before 1.10.0')));
+$GLOBALS['attachments'][555] = 'https://site.test/wp-content/uploads/own.jpg';
+send_article(social_article('s5', 'T1', 'D1', 'https://store.test/a.jpg'));
+check('a value there before this plugin wrote anything is kept', m($p, 'rank_math_facebook_title') === 'Filled in before 1.10.0');
+check('a post from before 1.10.0 keeps its featured image', get_post_thumbnail_id($p) === 555 && $GLOBALS['images'] === array());
+check('...and its social images are that image', m($p, 'rank_math_twitter_image_id') === '555');
+
+echo "\nRANK MATH: the featured image, whoever changes it\n";
+reset_all();
+$p = send_article(social_article('s6', 'T1', 'D1', 'https://store.test/a.jpg'));
+$GLOBALS['attachments'][777] = 'https://site.test/wp-content/uploads/chosen.jpg';
+update_post_meta($p, '_thumbnail_id', '777');
+repget_social_follow_thumbnail(0, $p, '_thumbnail_id');
+check('chosen on this site: the social images follow', m($p, 'rank_math_facebook_image_id') === '777' && m($p, 'rank_math_twitter_image') === 'https://site.test/wp-content/uploads/chosen.jpg');
+send_article(social_article('s6', 'T1', 'D1', 'https://store.test/b.jpg'));
+check('...and a later picture from RepGet does not replace it', get_post_thumbnail_id($p) === 777 && m($p, 'rank_math_facebook_image_id') === '777');
+delete_post_meta($p, '_thumbnail_id');
+repget_social_follow_thumbnail(0, $p, '_thumbnail_id');
+check('removed: the social images RepGet wrote go with it', m($p, 'rank_math_facebook_image_id') === '' && m($p, 'rank_math_twitter_image') === '');
+send_article(social_article('s6', 'T1', 'D1', 'https://store.test/c.jpg'));
+check('...and it is not put back', get_post_thumbnail_id($p) === 0);
+$other = wp_insert_post(array('post_title' => 'Not RepGet\'s', 'guid' => ''));
+update_post_meta($other, '_thumbnail_id', '777');
+repget_social_follow_thumbnail(0, $other, '_thumbnail_id');
+check('a post that is not RepGet\'s is never touched', social_keys($other) === array());
+
+echo "\nRANK MATH: a picture that failed\n";
+reset_all();
+$GLOBALS['image_fails'] = true;
+$p = send_article(social_article('s7', 'T1', 'D1', 'https://store.test/a.jpg'));
+check('no attachment: no social image, and no outside address', m($p, 'rank_math_facebook_image') === '' && m($p, 'rank_math_facebook_image_id') === '');
+check('...but the words are there', m($p, 'rank_math_facebook_title') === 'T1');
+$GLOBALS['image_fails'] = false;
+send_article(social_article('s7', 'T1', 'D1', 'https://store.test/a.jpg'));
+$first = get_post_thumbnail_id($p);
+check('retried publish: the picture comes, and the social images with it', $first > 0 && m($p, 'rank_math_twitter_image_id') === (string) $first);
+$GLOBALS['image_fails'] = true;
+send_article(social_article('s7', 'T1', 'D1', 'https://store.test/b.jpg'));
+check('a failed replacement keeps the old picture everywhere', get_post_thumbnail_id($p) === $first && m($p, 'rank_math_facebook_image_id') === (string) $first);
+$GLOBALS['image_fails'] = false;
+send_article(social_article('s7', 'T1', 'D1', 'https://store.test/b.jpg'));
+check('...and is tried again at the next hand-over', get_post_thumbnail_id($p) !== $first && m($p, 'rank_math_facebook_image_id') === (string) get_post_thumbnail_id($p));
+
+echo "\nRANK MATH: the backfill\n";
+reset_all();
+$GLOBALS['attachments'][900] = 'https://site.test/wp-content/uploads/old.jpg';
+$old = array();
+for ($i = 1; $i <= 4; $i++) {
+    $old[$i] = wp_insert_post(array('post_title' => "Old {$i}", 'post_excerpt' => "Excerpt {$i}", 'guid' => repget_identity_guid("o{$i}"), 'meta_input' => array(REPGET_META_ARTICLE => "o{$i}", '_thumbnail_id' => '900')));
+}
+update_post_meta($old[2], 'rank_math_twitter_title', 'Written by hand');
+update_post_meta($old[3], 'rank_math_title', 'Hand-written SEO title');
+update_post_meta($old[3], 'rank_math_description', '%excerpt% | %sitename%');
+$bystander = wp_insert_post(array('post_title' => 'Not RepGet\'s', 'guid' => '', 'meta_input' => array('_thumbnail_id' => '900')));
+$before = $GLOBALS['meta'];
+$r = repget_social_backfill(2);
+check('a dry run by default: nothing at all is written', $GLOBALS['meta'] === $before);
+check('...it says what it would do', $r['applied'] === false && $r['to_write'] > 0 && count($r['posts']) === 2 && $r['posts'][0]['changes'] === 7);
+check('...it is bounded, and says where to go on', $r['next'] === 2);
+check('...and reports a hand-written field as kept', $r['posts'][1]['kept'] === array('twitter_title'));
+$r = repget_social_backfill(1000);
+check('never more than the maximum a run', $r['offset'] === 0 && count($r['posts']) === 4 && $r['next'] === 0 && REPGET_SOCIAL_BACKFILL_MAX === 50);
+check('the dry run wrote no record either', m($old[1], REPGET_META_SOCIAL) === '');
+$r = repget_social_backfill(2, 0, true);
+check('apply: the batch asked for only', m($old[1], 'rank_math_facebook_title') === 'Old 1' && m($old[2], 'rank_math_facebook_image_id') === '900' && m($old[3], 'rank_math_facebook_title') === '');
+check('apply: a hand-written field stays', m($old[2], 'rank_math_twitter_title') === 'Written by hand');
+$r = repget_social_backfill(2, $r['next'], true);
+check('apply, next batch: plain SEO title used, a template is not', m($old[3], 'rank_math_facebook_title') === 'Hand-written SEO title' && m($old[3], 'rank_math_facebook_description') === 'Excerpt 3');
+check('posts that are not RepGet\'s are never looked at', social_keys($bystander) === array());
+$r = repget_social_backfill(50, 0, false);
+check('a second look finds nothing left to do', $r['to_write'] === 0);
 
 /*
   The 1.7.0 connect flow and updates have their own stubbed-WordPress harness

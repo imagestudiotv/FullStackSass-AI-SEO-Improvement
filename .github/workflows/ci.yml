@@ -187,6 +187,13 @@ jobs:
       - name: Plugin translations against real WordPress + MySQL
         run: php wordpress-plugin/tests/real-wordpress-translations.php "$RUNNER_TEMP/wordpress" wordpress-plugin/repget-connector/repget-connector.php
 
+      # The free Rank Math, at a fixed version: the tags it prints itself.
+      - name: Plugin Rank Math social fields against real WordPress + MySQL
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/rank-math.zip" https://downloads.wordpress.org/plugin/seo-by-rank-math.1.0.281.zip
+          unzip -q "$RUNNER_TEMP/rank-math.zip" -d "$RUNNER_TEMP/wordpress/wp-content/plugins"
+          php wordpress-plugin/tests/real-wordpress-rank-math.php "$RUNNER_TEMP/wordpress" wordpress-plugin/repget-connector/repget-connector.php
+
       # Separate PHP processes released together at a barrier: lock races,
       # lease takeover, a process killed mid-insert, failed acknowledgements,
       # overlapping entry points, and the upgrade from 1.5.0.
