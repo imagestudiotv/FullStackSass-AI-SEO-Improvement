@@ -10,8 +10,10 @@ Night Mode paints every header bar solid white in light mode, also over the home
 - **After scrolling, with the pointer or keyboard focus in the bar, with Services open, or with the phone menu open:** solid white with dark words, exactly as today.
 - **Every other page keeps the white bar:** About, Academy, Contact, Editorial, Shop, Wedding, Wedding Content Creator, articles, products, cart, account and the checkout with its "Secure Checkout" header. Their tops are white or a photo grid with white gaps, where white words could not be read.
 - **Tablets (768 to 1024px):** unchanged. Their bar is solid in dark mode too.
-- **The Italian site:** unchanged. Its header is solid in dark mode too.
+- **Italian and Spanish:** unchanged. The snippet lists English page ids only. Checked with public page requests on 2026-11-06: the Italian versions have their own page ids (home 5944, Commercial 6568, Social Media 6729, Music Video 6732, Film Production 6565, AI Production 6737, Wedding Photographer 6853) and their own header, solid in dark mode too. Podcast, Drone, Reel and Wedding Videographer have no Italian page. None of these pages has a Spanish version: `/es/` and these addresses under it answer 404. A translation added later stays out until its id is added.
 - **Dark mode:** unchanged.
+
+The repo copy of this snippet lives at `wordpress-plugin/imagestudio-snippets/header/`.
 
 ## Install (5 minutes)
 

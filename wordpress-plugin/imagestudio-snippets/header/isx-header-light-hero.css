@@ -20,9 +20,15 @@
      31 home              597 /commercial/      8151 /social-media/
      2166 /music-video/   847 /film-production/ 2171 /ai-production/
      5050 /wedding-photographer/                7947 /podcast/  7851 /drone/  8077 /reel/  8254 /wedding-videographer/
-   Not on: checkout, cart, account, other white pages, the Italian
-   site (its own header stays solid in dark mode too). Nothing here
-   is about the checkout's "Secure Checkout" header.
+   Not on: checkout, cart, account or other white pages. Nothing
+   here is about the checkout's "Secure Checkout" header.
+   English pages only. Checked on the public site, 2026-11-06: the
+   Italian versions have their own page ids (home 5944, 6568, 6729,
+   6732, 6565, 6737, 6853), none in this list, and their own header,
+   solid in dark mode too. Podcast, Drone, Reel and Wedding
+   Videographer have no Italian page, and these pages have no Spanish
+   one (/es/ and these addresses answer 404). A translation added
+   later gets a new id and stays out until it is added here.
 
    Switch this snippet off to undo. Nothing else was edited.
 
