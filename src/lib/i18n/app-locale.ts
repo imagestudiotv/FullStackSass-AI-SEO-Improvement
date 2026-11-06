@@ -1,11 +1,11 @@
 import "server-only";
 
 import { eq } from "drizzle-orm";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema";
-import { DEFAULT_LOCALE, isLocale, splitLocale, type Locale } from "@/lib/i18n/config";
+import { DEFAULT_LOCALE, isLocale, SITE_LANGUAGE_COOKIE, splitLocale, type Locale } from "@/lib/i18n/config";
 import { getMessages, type Messages } from "@/lib/i18n/messages";
 
 /**
@@ -82,23 +82,33 @@ export function localeFromReferrer(referer: string | null | undefined, host: str
 }
 
 /**
- * Sign-in and sign-up have one address for every language, so the address cannot
- * say which. The site page that led here can, and it is what the visitor was just
- * reading; a browser set to Italian on the English site should stay in English.
- * Arriving from anywhere else, it is the browser's language, as elsewhere.
+ * Which language sign-in and sign-up use. The page that led here first: it is what
+ * the visitor was just reading. Then the site's language they last read, because a
+ * reload may not say where they came from. Then the browser's, for somebody who has
+ * not read the site. A browser set to Italian on the English site stays in English.
  */
+export function authLocale(input: { referer?: string | null; host?: string | null; siteLanguage?: string | null; acceptLanguage?: string | null }): Locale {
+  const remembered = input.siteLanguage && isLocale(input.siteLanguage) ? input.siteLanguage : null;
+  return localeFromReferrer(input.referer, input.host) ?? remembered ?? localeFromAcceptLanguage(input.acceptLanguage) ?? DEFAULT_LOCALE;
+}
+
+/** Sign-in and sign-up have one address for every language, so it cannot say which: authLocale. */
 export async function getAuthMessages(): Promise<{
   locale: Locale;
   t: Messages;
 }> {
-  let fromPage: Locale | null = null;
+  let locale: Locale = DEFAULT_LOCALE;
   try {
     const list = await headers();
-    fromPage = localeFromReferrer(list.get("referer"), list.get("host"));
+    locale = authLocale({
+      referer: list.get("referer"),
+      host: list.get("host"),
+      siteLanguage: (await cookies()).get(SITE_LANGUAGE_COOKIE)?.value,
+      acceptLanguage: list.get("accept-language"),
+    });
   } catch {
-    // Called outside a request scope. Fall through to the browser's.
+    // Called outside a request scope: the default.
   }
-  const locale = fromPage ?? (await localeFromRequest()) ?? DEFAULT_LOCALE;
   return { locale, t: getMessages(locale) };
 }
 

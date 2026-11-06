@@ -2,8 +2,8 @@ import type { Locale } from "@/lib/i18n/config";
 
 /**
  * The right-hand panel of the sign-up page (client's design, 2026-11-05,
- * RepGet-Signup-Official-Logo.html), in every language. The site page the visitor
- * came from picks one, or else their browser's language (getAuthMessages).
+ * RepGet-Signup-Official-Logo.html), in every language. The site language the
+ * visitor was reading picks one, or else their browser's (authLocale).
  */
 
 export type SignupShowcaseCopy = {

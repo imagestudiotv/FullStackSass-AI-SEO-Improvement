@@ -16,7 +16,7 @@ import {
 } from "@/components/marketing-mega-menu";
 import { ArrowUpRightIcon, BarsIcon, ChevronIcon, CloseIcon, MoonIcon, SunIcon } from "@/components/site-icons";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { localePath, splitLocale } from "@/lib/i18n/config";
+import { localePath, SITE_LANGUAGE_COOKIE, splitLocale } from "@/lib/i18n/config";
 import type { siteMenuCopy } from "@/lib/i18n/home/site-menu";
 import type { SiteChrome } from "@/lib/i18n/site-chrome";
 
@@ -116,6 +116,11 @@ export function MarketingNav({ chrome }: { chrome: SiteChrome }) {
   const [feature, setFeature] = useState(0);
   const [channel, setChannel] = useState<Channel["key"] | null>(null);
   const inDrawer = useDrawerLayout();
+
+  // For sign-in and sign-up, whose address cannot say which language this visitor is reading.
+  useEffect(() => {
+    document.cookie = `${SITE_LANGUAGE_COOKIE}=${locale}; path=/; max-age=31536000; samesite=lax${window.location.protocol === "https:" ? "; secure" : ""}`;
+  }, [locale]);
   /*
     A visitor is about to open a menu: draw its icons and load the words of its
     drawings (marketing-mega-menu.tsx). A failed download only leaves the

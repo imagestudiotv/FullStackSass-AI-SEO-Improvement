@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/db", () => ({ db: {} }));
 
-import { localeFromReferrer } from "@/lib/i18n/app-locale";
+import { authLocale, localeFromReferrer } from "@/lib/i18n/app-locale";
 
 /** Which language sign-in and sign-up take from the page someone came from. */
 const HOST = "www.repget.com";
@@ -35,5 +35,32 @@ describe("the language of the page someone came from", () => {
     expect(localeFromReferrer(null, HOST)).toBeNull();
     expect(localeFromReferrer("https://www.repget.com/it", null)).toBeNull();
     expect(localeFromReferrer("not a url", HOST)).toBeNull();
+  });
+});
+
+describe("the language sign-up uses", () => {
+  const italianBrowser = { host: HOST, acceptLanguage: "it-IT,it;q=0.9" };
+
+  it("the page just read wins over the remembered language and the browser", () => {
+    expect(authLocale({ ...italianBrowser, referer: `https://${HOST}/pricing`, siteLanguage: "de" })).toBe("en");
+  });
+
+  it("a reload, with no page to go by: the language last read on the site, not the browser's", () => {
+    expect(authLocale({ ...italianBrowser, siteLanguage: "de" })).toBe("de");
+    expect(authLocale({ ...italianBrowser, siteLanguage: "en" })).toBe("en");
+    expect(authLocale({ ...italianBrowser, referer: `https://${HOST}/sign-up`, siteLanguage: "de" })).toBe("de");
+  });
+
+  it("somebody who has not read the site: the browser's", () => {
+    expect(authLocale(italianBrowser)).toBe("it");
+    expect(authLocale({ ...italianBrowser, referer: "https://www.google.com/" })).toBe("it");
+  });
+
+  it("a cookie holding anything else is ignored", () => {
+    expect(authLocale({ ...italianBrowser, siteLanguage: "xx" })).toBe("it");
+  });
+
+  it("nothing at all: the default", () => {
+    expect(authLocale({})).toBe("en");
   });
 });
