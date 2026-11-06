@@ -235,6 +235,28 @@ export async function isInFlight(articleId: string, now: Date = new Date()): Pro
   return Boolean(row && row.claimedAt > staleBefore(now));
 }
 
+/**
+ * Whether any of these websites has a live (not stale) delivery in flight, for
+ * deleting them: their dispatches go with them, and a post landing after that
+ * would have no record. Read under the websites' locks, so a claim either shows
+ * here or finds no website (claimDispatch).
+ */
+export async function hasDeliveryInFlight(tx: Executor, websiteIds: string[], now: Date = new Date()): Promise<boolean> {
+  if (websiteIds.length === 0) return false;
+  const [row] = await tx
+    .select({ id: publicationDispatches.id })
+    .from(publicationDispatches)
+    .where(
+      and(
+        inArray(publicationDispatches.websiteId, websiteIds),
+        eq(publicationDispatches.status, "in_flight"),
+        gt(publicationDispatches.claimedAt, staleBefore(now)),
+      ),
+    )
+    .limit(1);
+  return Boolean(row);
+}
+
 /** lockForEdit plus the edit, in one transaction. */
 export async function editArticle<T>(articleId: string, edit: (tx: Tx) => Promise<T>): Promise<T> {
   return db.transaction(async (tx) => {
@@ -352,6 +374,14 @@ export async function claimDispatch(input: {
       returns, nothing more can be admitted.
     */
     await tx.execute(sql`select pg_advisory_xact_lock_shared(${FREEZE_LOCK})`);
+    /*
+      The website before the article, the order a deletion takes them in
+      (lib/websites/deletion.ts). The new dispatch's foreign key needs this key
+      share anyway: taken there, with the article already locked, it is a
+      deadlock with the website or workspace being deleted. Once this is held, a
+      deletion waits for this claim and then sees what it recorded.
+    */
+    await tx.select({ id: websites.id }).from(websites).where(eq(websites.id, input.websiteId)).for("key share");
     const [row] = await tx
       .select({
         id: articles.id,
