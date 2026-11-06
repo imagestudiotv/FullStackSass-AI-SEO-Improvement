@@ -106,6 +106,11 @@ only fetches articles and reports whether each one published.
   published earlier" fills them for older articles. It previews first and
   changes nothing until you press Apply. With WP-CLI:
   wp repget social-backfill (add --apply to write).
+* Pressing Publish in RepGet now works on an article your site holds as a
+  draft: that same post goes live, and no second post is made. If the draft was
+  changed in WordPress, it is neither published nor overwritten, and RepGet says
+  so. A draft written by an earlier version goes live only if it still holds
+  exactly what RepGet would send.
 
 = 1.9.0 =
 * When RepGet uses your website's own photos for an article (Article
