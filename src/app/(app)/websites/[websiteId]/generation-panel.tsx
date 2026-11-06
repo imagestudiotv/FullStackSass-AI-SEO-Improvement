@@ -42,6 +42,7 @@ export function GenerationPanel({
   canEdit,
   firstArticleSent,
   inPartnerNetwork,
+  firstArticleNote,
   t,
   tArticle,
   tWorkspace,
@@ -60,6 +61,8 @@ export function GenerationPanel({
   firstArticleSent: boolean;
   /** Managed Partner Network review is on for this website. */
   inPartnerNetwork: boolean;
+  /** Replaces the first-article note where that rule does not apply (the two-step flow). */
+  firstArticleNote?: string;
   t: Messages["app"]["common"];
   tArticle: Messages["app"]["article"];
   tWorkspace: Messages["app"]["workspace"];
@@ -138,7 +141,7 @@ export function GenerationPanel({
   }
 
   const busy = pending || undefined;
-  const firstNote = [firstArticleSent ? null : tArticle.firstArticleOnly, inPartnerNetwork ? tArticle.networkReview : null]
+  const firstNote = [firstArticleSent ? null : (firstArticleNote ?? tArticle.firstArticleOnly), inPartnerNetwork ? tArticle.networkReview : null]
     .filter(Boolean)
     .join(" ");
 

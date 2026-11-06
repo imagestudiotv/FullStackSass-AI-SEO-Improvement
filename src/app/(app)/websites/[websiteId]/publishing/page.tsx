@@ -11,7 +11,9 @@ import { requireWebsitePlan } from "@/lib/billing/require-plan";
 import { getBrandVoice } from "@/lib/brand/actions";
 import { db } from "@/lib/db";
 import { integrationKeys, siteImages } from "@/lib/db/schema";
+import { twoStepArticles } from "@/lib/articles/review";
 import { getAppMessages } from "@/lib/i18n/app-locale";
+import { ARTICLE_DELIVERY } from "@/lib/i18n/article-delivery";
 import { formatDate } from "@/lib/i18n/format";
 import { pluginTranslates } from "@/lib/plugin/protocol";
 import { listIntegrations } from "@/lib/publishing/actions";
@@ -216,6 +218,7 @@ export default async function WebsitePublishingPage({
             }
             canEdit={canEdit}
             firstArticleSent={site.firstArticleSentAt !== null}
+            firstArticleNote={(await twoStepArticles()) ? ARTICLE_DELIVERY[locale].firstArticleTwoStep : undefined}
             inPartnerNetwork={managedNetwork}
             t={t.app.common}
             tArticle={t.app.article}
