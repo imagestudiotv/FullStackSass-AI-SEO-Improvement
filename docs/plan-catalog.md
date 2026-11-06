@@ -22,6 +22,23 @@ Until step 6 the site keeps selling catalog 1. Do not merge the code before it: 
 - **Customer Portal (required):** "Switch to this plan" opens the portal's update flow with the target price, and fails unless that price is in the portal's configuration. In Settings -> Billing -> Customer portal, enable "Customers can switch plans" and add all three products with their new prices. While there, check the proration setting: it decides what an upgrade charges and what a downgrade credits.
 - **Coupons:** a coupon limited to certain products does not apply to a new one. Check that the 40% REPGET code and partner coupons cover Launch.
 
+## The REPGET code and annual plans
+
+The owner's decision (2026-11-05): 40% for one month, starting with the paid plan purchase, not with signup or the free period. Annual handling is still open, so 40% must not reach a full annual payment without confirmation. Stripe's local-currency behaviour stays as it is. None of this activates the coupon, and no code here creates one.
+
+Monthly and annual prices share a Stripe product, so a coupon cannot be limited to monthly by product. `STRIPE_PROMO_CODES_MONTHLY_ONLY=1` does it in the app, in `lib/stripe/actions.ts`:
+
+- An annual subscription checkout has no code box (`allow_promotion_codes: false`). A monthly one is unchanged.
+- A subscription carrying a discount cannot move to an annual price through **Change plan**. Otherwise a discount not yet used on a trial would land on the full annual payment.
+
+Unset, both behave as before. What it does not cover:
+
+- **Every code is affected, not only REPGET.** With it on, partner coupons also cannot be entered on an annual checkout (`docs/partner-program.md`).
+- **Credit packs** still accept codes (`lib/addons/actions.ts`). Limit the coupon to the plans' product in Stripe.
+- **PayPal** has no code field.
+- **The customer portal's** own plan-switching settings live in Stripe's dashboard.
+- **A checkout already open** when it is turned on keeps its code box until it expires, since an open checkout is reused rather than made again.
+
 ## What happens to existing subscribers
 
 - They stay on their catalog 1 row: same price id, price and limits (a Grow subscriber keeps €99 and 30 articles a month).

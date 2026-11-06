@@ -178,7 +178,7 @@ The base is subscription revenue actually collected, excluding tax (`domain/poli
 ### Coupons
 
 - **Assignment.** Coupons are optional and assigned by administrators. The default is no discount: a partner gets no coupon unless one is assigned. A coupon is a Stripe coupon plus a promotion code, created through the API.
-  - The existing subscription Checkout already accepts promotion codes (`allow_promotion_codes`).
+  - The existing subscription Checkout already accepts promotion codes (`allow_promotion_codes`). With `STRIPE_PROMO_CODES_MONTHLY_ONLY=1` an annual checkout does not, for any code (`docs/plan-catalog.md`).
   - Redemption is read from the paid invoice's discounts, never trusted from a form.
 - **Coupon-only attribution** requires all of:
   - signup eligibility captured at account creation;
