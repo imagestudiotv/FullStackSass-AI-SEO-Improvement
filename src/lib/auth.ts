@@ -358,6 +358,14 @@ function createAuth() {
          * reachable whether or not anything renders a form for it.
          */
         allowUserToCreateOrganization: false,
+        /**
+         * Nor delete them. The plugin's /organization/delete is a bare row delete
+         * open to any workspace owner: no billing guard, no audit entry, and every
+         * link the workspace hosts left holding another customer's credits.
+         * Deleting a workspace is the guarded admin action (deleteOrganization,
+         * lib/websites/deletion.ts); nothing in the app calls this endpoint.
+         */
+        disableOrganizationDeletion: true,
       }),
     ],
   });

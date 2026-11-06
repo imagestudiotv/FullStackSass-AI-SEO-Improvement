@@ -1,5 +1,6 @@
 import { and, eq, isNull, or, sql } from "drizzle-orm";
 
+import { lockPlacementsOfWebsites, releaseLinksHostedOn } from "@/lib/backlinks/placements";
 import { checkoutProviderOps } from "@/lib/billing/checkout-providers";
 import {
   checkoutsBlockDeletion,
@@ -18,7 +19,7 @@ import type { WebsiteContext } from "@/lib/tenant";
  * database is passed in rather than imported, so the same code runs against
  * the app's client and the disposable test database.
  *
- * TWO RULES, both enforced here so neither caller can drift from the other:
+ * THREE RULES, all enforced here so neither caller can drift from the other:
  *
  *  1. Only an OWNER deletes. An invited editor is trusted to work on the
  *     site's content, not to destroy it; that belongs to the workspace that
@@ -43,8 +44,29 @@ import type { WebsiteContext } from "@/lib/tenant";
  * SET NULL, so the provider ids and plan survive the site for reconciliation.
  * Payments hang off the organization and are untouched.
  *
+ * WHAT ANOTHER CUSTOMER'S CREDITS DO. A link placed on a website being deleted
+ * holds its partner's credits (backlink_requests.credits_reserved, see "RESERVED
+ * IS NOT THE LEDGER" in lib/backlinks/placements.ts). The cascade alone would
+ * leave that hold with no article and no host, and nothing could release it. So
+ * each deletion gives those links up in its own transaction, by the rule for
+ * deleting the host article (lib/articles/deletion.ts): pending, drafted and
+ * unverified are withdrawn and their hold released, with no ledger row; published
+ * stays with the verifier, which needs only liveUrl; live, removed and cancelled
+ * do not move. A failed deletion leaves every hold as it was, and a repeated one
+ * finds no website.
+ *
+ * Refusing instead would be worse: a customer cannot withdraw a link the RepGet
+ * team placed, so they could not clear it themselves, and the credits are somebody
+ * else's. A website's OWN requests go with it (ON DELETE CASCADE), and their holds
+ * with the rows.
+ *
  * LOCK ORDER, shared with checkout creation and the webhooks: organization,
- * then website, then subscriptions, then checkouts.
+ * then website, then subscriptions, then checkouts. Placements come before all of
+ * them: the verifier holds a placement while it writes to the ledger, which needs
+ * a key share on the organization, so the other way round is a deadlock with a
+ * workspace's deletion. They are read again under the website's lock: a new link
+ * needs a key share on its host website (placeManagedLink, before its article), so
+ * by then every link is either visible or can never be placed.
  */
 
 /** Statuses the provider reports once a subscription can never bill again. */
@@ -121,6 +143,9 @@ export function websiteDeletionDenial(
 
 export type DeletionResult = { ok: true } | { ok: false; error: string };
 
+/** What a deletion did besides deleting, for its audit entry. */
+export type DeletionEffects = { releasedLinks: number };
+
 const BILLING_COLUMNS = {
   status: subscriptions.status,
   provider: subscriptions.provider,
@@ -146,14 +171,14 @@ const BILLING_COLUMNS = {
  *
  * `beforeDelete` runs after every check has passed and before the delete, for
  * the admin audit entry. It gets the transaction, so the entry commits only
- * with the delete, and a failed log write stops the deletion.
+ * with the delete, and a failed log write stops the deletion and the releases.
  */
 export async function deleteWebsiteIfBillingResolved(
   database: Database,
   input: {
     websiteId: string;
     organizationId: string;
-    beforeDelete?: (tx: Transaction) => Promise<void>;
+    beforeDelete?: (tx: Transaction, effects: DeletionEffects) => Promise<void>;
     providers?: CheckoutProviderOps;
   },
 ): Promise<DeletionResult> {
@@ -166,6 +191,17 @@ export async function deleteWebsiteIfBillingResolved(
   );
 
   return database.transaction(async (tx) => {
+    const own = await tx
+      .select({ id: websites.id })
+      .from(websites)
+      .where(
+        and(
+          eq(websites.id, websiteId),
+          eq(websites.organizationId, organizationId),
+        ),
+      );
+    await lockPlacementsOfWebsites(tx, own.map((row) => row.id));
+
     // Key share: excludes a concurrent workspace deletion, nothing else.
     await tx
       .select({ id: organization.id })
@@ -206,7 +242,9 @@ export async function deleteWebsiteIfBillingResolved(
       (await checkoutsBlockDeletion(tx, { websiteId }, "website"));
     if (blocked) return { ok: false, error: blocked };
 
-    await input.beforeDelete?.(tx);
+    const releasedLinks = await releaseLinksHostedOn(tx, [websiteId]);
+
+    await input.beforeDelete?.(tx, { releasedLinks });
 
     // Content cascades; subscriptions and checkouts are detached, not deleted.
     await tx.delete(websites).where(eq(websites.id, websiteId));
@@ -223,15 +261,19 @@ export async function deleteWebsiteIfBillingResolved(
  * the point of an erasure - so every one of them must have ended first. The
  * audit entry is written by `beforeDelete` inside the same transaction.
  *
- * Locks: the workspace FOR UPDATE, which excludes checkout creation and the
- * webhooks (both take a key share on it first), then its websites,
- * subscriptions and checkouts - the shared order.
+ * Locks: the placements, then the workspace FOR UPDATE, which excludes checkout
+ * creation and the webhooks (both take a key share on it first), then its
+ * websites, subscriptions and checkouts - the shared order.
+ *
+ * Links its websites host for other workspaces are given up as for one website;
+ * those workspaces' ledgers and balances are not touched. Its own ledger goes with
+ * it: that is the erasure.
  */
 export async function deleteWorkspaceIfBillingResolved(
   database: Database,
   input: {
     organizationId: string;
-    beforeDelete?: (tx: Transaction) => Promise<void>;
+    beforeDelete?: (tx: Transaction, effects: DeletionEffects) => Promise<void>;
     providers?: CheckoutProviderOps;
   },
 ): Promise<DeletionResult> {
@@ -244,6 +286,12 @@ export async function deleteWorkspaceIfBillingResolved(
   );
 
   return database.transaction(async (tx) => {
+    const sites = await tx
+      .select({ id: websites.id })
+      .from(websites)
+      .where(eq(websites.organizationId, organizationId));
+    await lockPlacementsOfWebsites(tx, sites.map((row) => row.id));
+
     const [org] = await tx
       .select({ id: organization.id })
       .from(organization)
@@ -251,7 +299,7 @@ export async function deleteWorkspaceIfBillingResolved(
       .for("update");
     if (!org) return { ok: false, error: "Workspace not found." };
 
-    await tx
+    const locked = await tx
       .select({ id: websites.id })
       .from(websites)
       .where(eq(websites.organizationId, organizationId))
@@ -268,7 +316,9 @@ export async function deleteWorkspaceIfBillingResolved(
       (await checkoutsBlockDeletion(tx, { organizationId }, "workspace"));
     if (blocked) return { ok: false, error: blocked };
 
-    await input.beforeDelete?.(tx);
+    const releasedLinks = await releaseLinksHostedOn(tx, locked.map((row) => row.id));
+
+    await input.beforeDelete?.(tx, { releasedLinks });
 
     await tx.delete(organization).where(eq(organization.id, organizationId));
 
