@@ -3,6 +3,7 @@
 import { Check, ChevronDown, ChevronUp, Lock, X } from "lucide-react";
 import { getMessages, type Messages } from "@/lib/i18n/messages";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
 
 import type { LaunchStep } from "@/lib/onboarding/launch";
@@ -141,9 +142,18 @@ export function SetupTracker({
     () => false,
   );
 
-  const dismissed = dismissedBefore || dismissedNow;
+  /*
+    An article's page starts on the badge. The open panel sits over its Publish
+    button at desktop widths, and the people with this panel are the ones
+    publishing their first article. One click on the badge still opens it.
+  */
+  const pathname = usePathname();
+  const [openedHere, setOpenedHere] = useState<string | null>(null);
+  const coversPublish = /^\/websites\/[^/]+\/articles\/[^/]+/.test(pathname ?? "") && openedHere !== pathname;
+  const dismissed = dismissedBefore || dismissedNow || coversPublish;
 
   function dismiss() {
+    setOpenedHere(null);
     setDismissedNow(true);
     try {
       window.sessionStorage.setItem(STORAGE_KEY, "1");
@@ -155,6 +165,7 @@ export function SetupTracker({
 
   /** Puts the panel back from the collapsed badge. */
   function restore() {
+    setOpenedHere(pathname);
     setDismissedNow(false);
     try {
       window.sessionStorage.removeItem(STORAGE_KEY);
