@@ -381,7 +381,21 @@ export function servedStatus(row: { publishedUrl: string | null; firstLiveAt: Da
 export const PREPARING_MESSAGE = "This article is being prepared by the RepGet team. You will be told when it is ready to publish.";
 
 /** The refusal for an update of a post on a site whose plugin is too old to make one. */
-export const PLUGIN_UPDATE_NEEDED = "To send this update, first update the RepGet plugin on your website to version 1.6 or later.";
+export const PLUGIN_UPDATE_NEEDED = "To send this update, first update the RepGet plugin on your website to version 1.10 or later.";
+
+/** The refusal for a press on a post the plugin holds as a WordPress draft: an update would overwrite an editor's work. */
+export const PLUGIN_DRAFT_MESSAGE = "This article is on your website as a draft. Publish it from WordPress.";
+
+/**
+ * The post is actually live on the website: the article says so, or (a rewrite
+ * sets it back to draft) the latest delivery was stored as published.
+ */
+export const liveOnSiteSql: SQL<boolean> = sql<boolean>`(${articles.status} = 'published' or (${articles.publishedUrl} is not null and (
+  select pd.remote_status from publication_dispatches pd
+  -- Nested, so a single-table select keeps it qualified: bare, it would read pd.id.
+  where pd.article_id = ${sql`${articles.id}`} and pd.status = 'sent' and not pd.late
+  order by pd.claimed_at desc limit 1
+) = 'publish'))`;
 
 /**
  * The review state a freshly written draft is saved with, decided INSIDE the

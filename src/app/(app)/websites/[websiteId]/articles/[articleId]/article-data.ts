@@ -4,7 +4,7 @@ import { and, desc, eq, sql } from "drizzle-orm";
 
 import type { ArticleDetail } from "@/lib/articles/actions";
 import { linksTo } from "@/lib/articles/link-guard";
-import { releaseCheckFor, reviewHash } from "@/lib/articles/review";
+import { liveOnSiteSql, releaseCheckFor, reviewHash } from "@/lib/articles/review";
 import { db } from "@/lib/db";
 import { articles, calendarItems, publicationDispatches, publishLogs } from "@/lib/db/schema";
 import type { Locale } from "@/lib/i18n/config";
@@ -122,6 +122,7 @@ export async function loadPublishing(input: {
         reviewApprovedHash: articles.reviewApprovedHash,
         researchReviewRequired: articles.researchReviewRequired,
         researchApprovedHash: articles.researchApprovedHash,
+        live: liveOnSiteSql,
         storedSource: sql<string | null>`${articles.approvedRevision} ->> 'source'`,
         storedHash: sql<string | null>`${articles.approvedRevision} ->> 'hash'`,
         scheduledFor: calendarItems.scheduledFor,
@@ -218,7 +219,7 @@ export async function loadPublishing(input: {
     delivering: Boolean(
       latest && latest.status === "in_flight" && latest.claimedAt.getTime() > now.getTime() - IN_FLIGHT_TIMEOUT_MS,
     ),
-    liveOnSite: article.status === "published" || lastSent?.remoteStatus === "publish",
+    liveOnSite: twoStep ? Boolean(extra?.live) : article.status === "published" || lastSent?.remoteStatus === "publish",
     alreadySent: {
       // What stood on the website at switch-on is already there, with or without a recorded send.
       publish:

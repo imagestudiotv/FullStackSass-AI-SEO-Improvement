@@ -3,7 +3,7 @@ import { and, asc, eq, isNotNull, isNull, lte, or, sql as raw } from "drizzle-or
 import { db } from "@/lib/db";
 import { articles, calendarItems, publishLogs, websites } from "@/lib/db/schema";
 import { isFirstArticle } from "@/lib/publishing/policy";
-import { notBeforePlannedSql, releasableSql, twoStepOffSql } from "@/lib/articles/review";
+import { liveOnSiteSql, notBeforePlannedSql, releasableSql, twoStepOffSql } from "@/lib/articles/review";
 import { notFrozenSql } from "@/lib/publishing/controls";
 import { notInFlightSql } from "@/lib/publishing/dispatch";
 
@@ -74,12 +74,14 @@ export function dueArticlesForPlugin(
         /*
           Written but not yet live. A published row already has its post - except
           under the two-step flow, where a person's press sends an approved
-          update of that post to a plugin that can make one (pluginUpdates): it
-          updates the post it already has for this article, and never its status.
+          update of a LIVE post to a plugin that can make one (pluginUpdates): it
+          updates the post it already has for this article. Never a post held as
+          a WordPress draft: the update would overwrite an editor's work there
+          and leave it a draft.
         */
         or(
           and(eq(articles.status, "draft"), isNull(articles.publishedUrl)),
-          options.updates ? and(isNotNull(articles.publishRequested), raw`not ${twoStepOffSql}`) : undefined,
+          options.updates ? and(isNotNull(articles.publishRequested), raw`not ${twoStepOffSql}`, liveOnSiteSql) : undefined,
         ),
         // Never an article held for, or changed since, the RepGet team's
         // review - whatever else makes it due. See lib/articles/review.ts.
