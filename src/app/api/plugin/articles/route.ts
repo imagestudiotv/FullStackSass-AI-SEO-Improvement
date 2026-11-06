@@ -8,7 +8,7 @@ import { prepareStoredArticle } from "@/lib/articles/internal-links";
 import { siteScope } from "@/lib/articles/link-guard";
 import { placementUrlsForArticle } from "@/lib/backlinks/placements";
 import { db } from "@/lib/db";
-import { websites } from "@/lib/db/schema";
+import { articles, websites } from "@/lib/db/schema";
 import { storedImagePrefix } from "@/lib/images/storage";
 import { dueArticlesForPlugin, pluginPostsForWebsite } from "@/lib/plugin/due";
 import { recordPluginLanguages } from "@/lib/plugin/languages";
@@ -16,7 +16,7 @@ import { recordSyncUrl } from "@/lib/plugin/sync";
 import { recordInstall, recordPluginVersion, resolveIntegrationKey } from "@/lib/plugin/keys";
 import { claimDispatch, recordLinkFindings } from "@/lib/publishing/dispatch";
 import { pointAtCopies } from "@/lib/publishing/picture-copies";
-import { pluginProtocol, pluginTranslates } from "@/lib/plugin/protocol";
+import { pluginProtocol, pluginTranslates, pluginUpdates } from "@/lib/plugin/protocol";
 import { libraryMediaIds, ownCopies, pictureAddresses } from "@/lib/sites/library-media";
 
 /**
@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
 
   const [due, sent] = await Promise.all([
     // Translations only to 1.9.0+, which files them under their language in WPML.
-    dueArticlesForPlugin(resolved.websiteId, BATCH_SIZE, new Date(), { translations: pluginTranslates(pluginVersion) }),
+    dueArticlesForPlugin(resolved.websiteId, BATCH_SIZE, new Date(), { translations: pluginTranslates(pluginVersion), updates: pluginUpdates(pluginVersion) }),
     pluginPostsForWebsite(resolved.websiteId),
   ]);
 
@@ -149,7 +149,13 @@ export async function GET(request: NextRequest) {
       protocol,
       owner: `plugin:${resolved.keyId}`,
     });
-    if (!claim.ok) continue;
+    if (!claim.ok) {
+      // A press for what is already there has nothing left to do: it must not stay in the feed.
+      if (claim.reason === "already_sent" && row.publishRequested) {
+        await db.update(articles).set({ publishRequested: null }).where(eq(articles.id, row.id));
+      }
+      continue;
+    }
     // Under the two-step flow a dead link goes out as approved, on record with the send (lib/articles/internal-links.ts).
     if (checked && !checked.changed) await recordLinkFindings(claim.dispatchId, checked.findings).catch(() => undefined);
     rows.push({

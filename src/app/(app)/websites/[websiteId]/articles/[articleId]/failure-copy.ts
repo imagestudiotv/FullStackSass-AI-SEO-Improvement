@@ -120,6 +120,7 @@ export function actionErrorText(
     [/^You have view-only access/i, tWorkspace.viewOnly],
     [/being delivered to the website right now/i, t.errInFlight],
     [/being prepared by the RepGet team/i, delivery?.errPreparing ?? t.stateReviewPending],
+    [/RepGet plugin on your website to version 1\.6/i, delivery?.errPluginUpdate ?? error],
     [/^This exact version is already on the website/i, delivery?.errAlreadyOnSite ?? t.alreadySentLive],
     [/^Already being delivered/i, delivery?.errAlreadyDelivering ?? t.errInFlight],
     [/^Title cannot be empty/i, t.titleRequired],

@@ -132,8 +132,9 @@ export function planPublishing(input: {
     if (input.publishRequested === "publish" || input.publishRequested === "draft") {
       return { mode: "pluginWaiting", as: input.publishRequested };
     }
-    // The plugin's feed offers only articles it has not created yet (lib/plugin/due.ts).
-    if (input.publishedUrl) return { mode: "pluginPublished" };
+    // The plugin's feed offers only articles it has not created yet (lib/plugin/due.ts),
+    // except an approved update a person presses for under the two-step flow.
+    if (input.publishedUrl && !facts.twoStep) return { mode: "pluginPublished" };
   }
 
   let blocked: Blocker | null = null;
