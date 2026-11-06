@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+import { notifyDraftRefused } from "@/lib/articles/release";
+import { isDraftRefusal } from "@/lib/articles/review";
 import { emailArticleFailed, emailArticlePublished } from "@/lib/email/lifecycle-triggers";
 import { notify } from "@/lib/notifications/create";
 import { resolveIntegrationKey } from "@/lib/plugin/keys";
@@ -56,6 +58,7 @@ export async function POST(request: NextRequest) {
     remoteId?: unknown;
     error?: unknown;
     status?: unknown;
+    outcome?: unknown;
   };
   try {
     body = (await request.json()) as typeof body;
@@ -84,14 +87,21 @@ export async function POST(request: NextRequest) {
     nothing and always published live, so absent means "publish".
   */
   const reported = typeof body.status === "string" && POST_STATUSES.has(body.status) ? body.status : "publish";
-  const report: PluginReport = failure
-    ? { kind: "failed", error: failure }
-    : {
-        kind: "sent",
-        remoteUrl: typeof body.url === "string" ? body.url : null,
-        remoteId: typeof body.remoteId === "string" || typeof body.remoteId === "number" ? String(body.remoteId) : null,
-        remoteStatus: reported,
-      };
+  /*
+    1.10.0: what a Publish press on a draft found on the site. A refusal says
+    nothing was written; published_in_wordpress, that somebody else put it live.
+  */
+  const report: PluginReport = isDraftRefusal(body.outcome)
+    ? { kind: "refused", refusal: body.outcome }
+    : failure
+      ? { kind: "failed", error: failure }
+      : {
+          kind: "sent",
+          remoteUrl: typeof body.url === "string" ? body.url : null,
+          remoteId: typeof body.remoteId === "string" || typeof body.remoteId === "number" ? String(body.remoteId) : null,
+          remoteStatus: reported,
+          publishedInWordPress: body.outcome === "published_in_wordpress",
+        };
 
   /**
    * Scoped to the key's website. An articleId (or dispatchId) from another
@@ -116,6 +126,11 @@ export async function POST(request: NextRequest) {
   }
 
   const href = `/websites/${resolved.websiteId}/articles/${ack.article.id}`;
+  if (ack.report.kind === "refused") {
+    // In the workspace's language, and no failure email: nothing failed, and the page says what to do.
+    await notifyDraftRefused({ organizationId: resolved.organizationId, href, title: ack.article.title, refusal: ack.report.refusal });
+    return NextResponse.json({ ok: true, recorded: ack.report.refusal }, { headers: CORS });
+  }
   if (ack.report.kind === "failed") {
     await notify({
       organizationId: resolved.organizationId,

@@ -165,7 +165,9 @@ import { CONTENT_COPY } from "@/lib/i18n/content-improvements";
 import { NEXT_ACTIONS_COPY } from "@/lib/i18n/next-actions";
 import { coveredTopics } from "@/lib/sites/covered";
 import { creditsFor } from "@/lib/backlinks/managed";
-import { ARTICLE_DELIVERY, articleTitleText, PREPARING_TITLE } from "@/lib/i18n/article-delivery";
+import { ARTICLE_DELIVERY, articleTitleText, draftRefusalText, PREPARING_TITLE } from "@/lib/i18n/article-delivery";
+import { emailArticleFailed } from "@/lib/email/lifecycle-triggers";
+import { triggerPluginSync } from "@/lib/plugin/sync";
 import { queueArticleForCalendarItem } from "@/inngest/functions/generate-article";
 import { checkLimit } from "@/lib/usage";
 import { publishArticleJob } from "@/inngest/functions/publish-article";
@@ -177,7 +179,7 @@ import { listReusableImages, removeArticleImage, updateArticleImageAlt } from "@
 import { prepareStoredArticle } from "@/lib/articles/internal-links";
 import { notifyReady, releaseAfterApproval } from "@/lib/articles/release";
 import { approveArticleResearch } from "@/lib/articles/research-actions";
-import { checkReleasable, customerTitleSql, PLUGIN_DRAFT_MESSAGE, PLUGIN_UPDATE_NEEDED, PREPARING_MESSAGE, publicFieldSql, publicRevisionSql, revisionToStore, reviewHash, sendableRevision, storedRevision, type StoredRevision } from "@/lib/articles/review";
+import { checkReleasable, customerTitleSql, DRAFT_REFUSALS, draftRefusalOf, PLUGIN_DRAFT_MESSAGE, PLUGIN_UPDATE_NEEDED, PREPARING_MESSAGE, publicFieldSql, publicRevisionSql, revisionToStore, reviewHash, sendableRevision, storedRevision, type StoredRevision } from "@/lib/articles/review";
 import { listGiven } from "@/lib/backlinks/actions";
 import { approveArticle, editReviewedArticle, removeManagedPlacement, reopenArticle } from "@/lib/backlinks/managed";
 import { setParticipation } from "@/lib/backlinks/network-settings";
@@ -187,7 +189,7 @@ import { getDashboardOverview } from "@/lib/dashboard/overview";
 import { dueArticlesForPlugin } from "@/lib/plugin/due";
 import { connectProvider, publishArticle } from "@/lib/publishing/actions";
 import { switchControl, writeControl } from "@/lib/publishing/controls";
-import { claimDispatch, type DispatchTrigger } from "@/lib/publishing/dispatch";
+import { claimDispatch, IN_FLIGHT_TIMEOUT_MS, type DispatchTrigger } from "@/lib/publishing/dispatch";
 import { pendingFirstArticle } from "@/lib/publishing/policy";
 import { ProviderError } from "@/lib/publishing/provider";
 import { listLinks } from "@/lib/reporting/backlinks";
@@ -1776,18 +1778,248 @@ describe("review of the combined diff: what stays true on the edges", () => {
     expect(actionErrorText(PLUGIN_UPDATE_NEEDED, { t: t.editor, tWorkspace: t.workspace, tImage: t.image, delivery: ARTICLE_DELIVERY.de })).toBe(ARTICLE_DELIVERY.de.errPluginUpdate);
   });
 
-  it("a post held as a WordPress draft is never updated from RepGet: refused, not in the feed, and an editor's work is safe", async () => {
-    const s = await scene({ plugin: true, fields: { status: "draft", publishedUrl: "https://site.test/draft", reviewStatus: "pending", researchReviewRequired: false } });
-    await test.db.update(integrationKeys).set({ siteInfo: "6.4.3 / plugin 1.10.0" }).where(eq(integrationKeys.websiteId, s.websiteId));
-    await approve(s.post.id);
-    expect(await publishArticle(s.websiteId, s.post.id)).toEqual({ ok: false, error: PLUGIN_DRAFT_MESSAGE });
-    expect((await row(s.post.id)).publishRequested).toBeNull();
-    await test.db.update(articles).set({ publishRequested: "publish" }).where(eq(articles.id, s.post.id));
-    expect(await dueArticlesForPlugin(s.websiteId, 5, new Date(), { updates: true })).toEqual([]);
-    expect((await (await pluginPull()).json()).articles).toEqual([]);
-    expect(await test.db.select().from(publicationDispatches).where(eq(publicationDispatches.articleId, s.post.id))).toEqual([]);
-    const t = getMessages("it").app;
-    expect(actionErrorText(PLUGIN_DRAFT_MESSAGE, { t: t.editor, tWorkspace: t.workspace, tImage: t.image, delivery: ARTICLE_DELIVERY.it })).toBe(ARTICLE_DELIVERY.it.pluginDraftNote);
+  describe("a Publish press on a post held as a WordPress draft", () => {
+    const DRAFT_URL = "https://site.test/?p=7";
+    const LIVE_URL = "https://site.test/the-article/";
+    /** Delivered as a draft by the site's automatic mode, then approved: what the plugin holds, as it last reported. */
+    const heldDraft = async (version = "1.10.0", options: SceneOptions = {}) => {
+      const s = await scene({
+        plugin: true,
+        ...options,
+        fields: { status: "draft", publishedUrl: DRAFT_URL, reviewStatus: "pending", researchReviewRequired: false, title: "Approved title", bodyHtml: "<p>Approved text</p>", metaDescription: "Approved excerpt", imageUrl: null, imageAlt: null, ...options.fields },
+      });
+      await test.db.update(integrationKeys).set({ siteInfo: `6.4.3 / plugin ${version}` }).where(eq(integrationKeys.websiteId, s.websiteId));
+      await approve(s.post.id);
+      await test.db.insert(publicationDispatches).values({ articleId: s.post.id, websiteId: s.websiteId, channel: "plugin", trigger: "plugin", protocol: "plugin_v2", revisionHash: reviewHash(await row(s.post.id)), requestedStatus: "draft", status: "sent", remoteStatus: "draft", remoteId: "7", remoteUrl: DRAFT_URL, claimedAt: new Date(Date.now() - 3_600_000) });
+      await test.db.insert(publishLogs).values({ articleId: s.post.id, status: "published", remoteId: "7", remoteUrl: DRAFT_URL, remoteStatus: "draft" });
+      return s;
+    };
+    const report = (body: Record<string, unknown>) =>
+      pluginPublished(new NextRequest("https://app.test/api/plugin/published", { method: "POST", headers: { "x-integration-key": "k", "content-type": "application/json" }, body: JSON.stringify(body) }));
+    const handOver = async (version?: string) => (await (await pluginPull(version)).json()).articles as { id: string; title: string; html: string; status: string; existingDraft?: { delivered: boolean }; dispatch: { id: string; revision: string } }[];
+    const live = (id: string, dispatchId: string) => report({ articleId: id, dispatchId, url: LIVE_URL, remoteId: 7, status: "publish" });
+    const dispatches = async (id: string) => test.db.select().from(publicationDispatches).where(eq(publicationDispatches.articleId, id));
+    const logs = async (id: string) => test.db.select().from(publishLogs).where(eq(publishLogs.articleId, id));
+
+    it("one press: the post it already has goes live, with its real address", async () => {
+      const s = await heldDraft();
+      expect((await handOver())).toEqual([]);
+      expect(await publishArticle(s.websiteId, s.post.id)).toEqual({ ok: true, data: { publishedUrl: null, queued: true } });
+      expect((await row(s.post.id)).publishRequested).toBe("publish");
+
+      const [handed, ...others] = await handOver();
+      expect(others).toEqual([]);
+      expect(handed).toMatchObject({ id: s.post.id, status: "publish", title: "Approved title", existingDraft: { delivered: true }, dispatch: { revision: reviewHash(await row(s.post.id)) } });
+
+      expect((await live(s.post.id, handed.dispatch.id)).status).toBe(200);
+      expect(await row(s.post.id)).toMatchObject({ status: "published", publishedUrl: LIVE_URL, publishRequested: null, error: null });
+      expect((await row(s.post.id)).firstLiveAt).not.toBeNull();
+      expect(bell.sent.at(-1)).toMatchObject({ type: "article.published", title: '"Approved title" is live', body: LIVE_URL });
+
+      expect(await handOver()).toEqual([]);
+      expect(await publishArticle(s.websiteId, s.post.id)).toEqual({ ok: false, error: "This exact version is already on the website." });
+    });
+
+    it("the plugin answers while the press waits: the customer is told at once, and only a live post counts as on the site", async () => {
+      const synced = vi.mocked(triggerPluginSync);
+      const s = await heldDraft();
+      synced.mockImplementationOnce(async () => {
+        await live(s.post.id, (await handOver())[0].dispatch.id);
+        return "synced";
+      });
+      expect(await publishArticle(s.websiteId, s.post.id)).toEqual({ ok: true, data: { publishedUrl: LIVE_URL, queued: false } });
+
+      const refused = await heldDraft();
+      synced.mockImplementationOnce(async () => {
+        await report({ articleId: refused.post.id, dispatchId: (await handOver())[0].dispatch.id, url: null, remoteId: 7, error: "draft_changed", status: "draft", outcome: "draft_changed" });
+        return "synced";
+      });
+      expect(await publishArticle(refused.websiteId, refused.post.id)).toEqual({ ok: true, data: { publishedUrl: null, queued: false } });
+    });
+
+    it("changed in WordPress: a distinct outcome, the press answered, nothing live and no address changed", async () => {
+      const s = await heldDraft();
+      await publishArticle(s.websiteId, s.post.id);
+      const [handed] = await handOver();
+      const body = { articleId: s.post.id, dispatchId: handed.dispatch.id, url: null, remoteId: 7, error: "draft_changed", status: "draft", outcome: "draft_changed" };
+      expect(await (await report(body)).json()).toEqual({ ok: true, recorded: "draft_changed" });
+
+      expect(await row(s.post.id)).toMatchObject({ status: "draft", publishedUrl: DRAFT_URL, publishRequested: null, error: DRAFT_REFUSALS.draft_changed, firstLiveAt: null });
+      expect(await handOver()).toEqual([]);
+      const settled = (await dispatches(s.post.id)).find((dispatch) => dispatch.id === handed.dispatch.id);
+      expect(settled).toMatchObject({ status: "failed", error: DRAFT_REFUSALS.draft_changed, remoteStatus: null });
+      expect(draftRefusalOf((await logs(s.post.id)).find((log) => log.status === "failed")?.error)).toBe("draft_changed");
+      expect(bell.sent.at(-1)).toMatchObject({ type: "article.failed", title: ARTICLE_DELIVERY.en.notifyNotPublished, body: `Approved title. ${ARTICLE_DELIVERY.en.refusedChanged}` });
+      expect(vi.mocked(emailArticleFailed)).not.toHaveBeenCalled();
+
+      // The same report again: nothing more.
+      const before = bell.sent.length;
+      expect(await (await report(body)).json()).toEqual({ ok: true, recorded: "duplicate" });
+      expect(bell.sent).toHaveLength(before);
+      expect((await logs(s.post.id)).filter((log) => log.status === "failed")).toHaveLength(1);
+
+      // Not auto-resolved, and not a dead end: pressing again asks the site again.
+      expect(await publishArticle(s.websiteId, s.post.id)).toMatchObject({ ok: true, data: { publishedUrl: null } });
+      const [again] = await handOver();
+      expect(again.dispatch.id).not.toBe(handed.dispatch.id);
+      expect(again.existingDraft).toEqual({ delivered: true });
+
+      // Somebody published it in WordPress meanwhile: true, recorded, and marked as not this revision's doing.
+      await report({ articleId: s.post.id, dispatchId: again.dispatch.id, url: LIVE_URL, remoteId: 7, status: "publish", outcome: "published_in_wordpress" });
+      expect(await row(s.post.id)).toMatchObject({ status: "published", publishedUrl: LIVE_URL, publishRequested: null, error: null });
+      expect((await dispatches(s.post.id)).find((dispatch) => dispatch.id === again.dispatch.id)?.requestSnapshot).toMatchObject({ publishedInWordPress: true });
+    });
+
+    it.each(["draft_unverified", "post_trashed", "post_deleted"] as const)("%s: answered, nothing live, and its own text in all five languages", async (refusal) => {
+      const s = await heldDraft();
+      await publishArticle(s.websiteId, s.post.id);
+      const [handed] = await handOver();
+      await report({ articleId: s.post.id, dispatchId: handed.dispatch.id, url: null, remoteId: null, error: refusal, status: "draft", outcome: refusal });
+      expect(await row(s.post.id)).toMatchObject({ status: "draft", publishedUrl: DRAFT_URL, publishRequested: null, error: DRAFT_REFUSALS[refusal] });
+      expect(await handOver()).toEqual([]);
+      for (const locale of ["en", "es", "fr", "it", "de"] as const) {
+        const text = draftRefusalText(refusal, ARTICLE_DELIVERY[locale]);
+        expect(text).toBeTruthy();
+        expect(new Set((["draft_changed", "draft_unverified", "post_trashed", "post_deleted"] as const).map((key) => draftRefusalText(key, ARTICLE_DELIVERY[locale]))).size).toBe(4);
+      }
+    });
+
+    it("an unknown outcome is no refusal, and a plain failure is retried rather than answered", async () => {
+      const s = await heldDraft();
+      await publishArticle(s.websiteId, s.post.id);
+      const [handed] = await handOver();
+      await report({ articleId: s.post.id, dispatchId: handed.dispatch.id, url: null, remoteId: 7, error: "The site database refused the change", status: "draft", outcome: "nonsense" });
+      expect(await row(s.post.id)).toMatchObject({ status: "draft", publishRequested: "publish", error: "The site database refused the change" });
+      expect(await handOver()).toHaveLength(1);
+    });
+
+    it("a double press: one delivery in flight, and the second is told so", async () => {
+      const s = await heldDraft();
+      await publishArticle(s.websiteId, s.post.id);
+      expect(await handOver()).toHaveLength(1);
+      expect(await publishArticle(s.websiteId, s.post.id)).toEqual({ ok: false, error: "Already being delivered." });
+      expect(await handOver()).toEqual([]);
+      expect((await dispatches(s.post.id)).filter((dispatch) => dispatch.status === "in_flight")).toHaveLength(1);
+    });
+
+    it("a lost response: the parked report settles its own hand-over, and a re-offer after the lease is answered once", async () => {
+      const s = await heldDraft();
+      await publishArticle(s.websiteId, s.post.id);
+      const [first] = await handOver();
+      const expire = () => test.db.update(publicationDispatches).set({ claimedAt: new Date(Date.now() - IN_FLIGHT_TIMEOUT_MS - 60_000) }).where(eq(publicationDispatches.id, first.dispatch.id));
+
+      // The plugin published, its report never arrived, and the lease ran out.
+      await expire();
+      const [second] = await handOver();
+      expect(second.dispatch.id).not.toBe(first.dispatch.id);
+      expect(second.dispatch.revision).toBe(first.dispatch.revision);
+      expect(second.existingDraft).toEqual({ delivered: true });
+
+      // On that re-offer the plugin finds it published. Then the parked report arrives, out of order.
+      await live(s.post.id, second.dispatch.id);
+      expect(await row(s.post.id)).toMatchObject({ status: "published", publishedUrl: LIVE_URL, publishRequested: null });
+      const bells = bell.sent.length;
+      expect(await (await live(s.post.id, first.dispatch.id)).json()).toEqual({ ok: true, recorded: "late" });
+      expect(bell.sent).toHaveLength(bells);
+      expect((await dispatches(s.post.id)).filter((dispatch) => dispatch.id !== first.dispatch.id && dispatch.status === "sent" && dispatch.remoteStatus === "publish")).toHaveLength(1);
+      expect(await handOver()).toEqual([]);
+    });
+
+    it("exactly the sendable revision: a working copy with the team stays home, a newer approval clears the press", async () => {
+      const s = await heldDraft();
+      const approved = await row(s.post.id);
+      await reopenArticle({ articleId: s.post.id, expectedVersion: approved.reviewVersion, actorEmail: ADMIN });
+      await test.db.update(articles).set({ title: STAFF_TITLE, bodyHtml: `<p>${BODY}</p>`, metaDescription: "SECRETEXCERPT" }).where(eq(articles.id, s.post.id));
+
+      expect((await publishArticle(s.websiteId, s.post.id)).ok).toBe(true);
+      const [handed] = await handOver();
+      expect(handed).toMatchObject({ title: "Approved title", dispatch: { revision: reviewHash(approved) } });
+      expect(leakIn(handed)).toEqual([]);
+      await live(s.post.id, handed.dispatch.id);
+
+      // Pressed, and before the plugin collected it the team approved something newer: the press covered the older one.
+      const other = await heldDraft();
+      await publishArticle(other.websiteId, other.post.id);
+      const current = await row(other.post.id);
+      await reopenArticle({ articleId: other.post.id, expectedVersion: current.reviewVersion, actorEmail: ADMIN });
+      await test.db.update(articles).set({ bodyHtml: "<p>Newer text</p>" }).where(eq(articles.id, other.post.id));
+      await approve(other.post.id);
+      expect((await row(other.post.id)).publishRequested).toBeNull();
+      expect(await handOver()).toEqual([]);
+
+      // Its own press then carries that revision, for the plugin to write to the same post if the draft is unchanged.
+      await publishArticle(other.websiteId, other.post.id);
+      const [newer] = await handOver();
+      expect(newer.dispatch.revision).toBe(reviewHash(await row(other.post.id)));
+      expect(newer.dispatch.revision).not.toBe(reviewHash(current));
+      expect(newer.html).toContain("Newer text");
+    });
+
+    it("the same revision asked for live, but stored as a draft, is not \"already there\"", async () => {
+      const s = await heldDraft();
+      await test.db.update(publicationDispatches).set({ requestedStatus: "publish" }).where(eq(publicationDispatches.articleId, s.post.id));
+      expect((await publishArticle(s.websiteId, s.post.id)).ok).toBe(true);
+      expect(await handOver()).toHaveLength(1);
+    });
+
+    it("plugin 1.9.0 or older: no press taken, no instruction it would misread, and the customer is told to update", async () => {
+      const s = await heldDraft("1.9.0");
+      expect(await publishArticle(s.websiteId, s.post.id)).toEqual({ ok: false, error: PLUGIN_DRAFT_MESSAGE });
+      expect((await row(s.post.id)).publishRequested).toBeNull();
+
+      // Even a press recorded some other way goes nowhere: it would overwrite the draft and leave it a draft.
+      await test.db.update(articles).set({ publishRequested: "publish" }).where(eq(articles.id, s.post.id));
+      expect(await handOver("1.9.0")).toEqual([]);
+      expect(await handOver("1.5.0")).toEqual([]);
+      expect(await dueArticlesForPlugin(s.websiteId, 5, new Date(), { updates: false })).toEqual([]);
+      expect((await dispatches(s.post.id)).filter((dispatch) => dispatch.status === "in_flight")).toEqual([]);
+
+      const t = getMessages("it").app;
+      expect(actionErrorText(PLUGIN_DRAFT_MESSAGE, { t: t.editor, tWorkspace: t.workspace, tImage: t.image, delivery: ARTICLE_DELIVERY.it })).toBe(ARTICLE_DELIVERY.it.pluginDraftNote);
+
+      // Never delivered: an older plugin still creates it as before, with nothing it does not know.
+      const fresh = await scene({ plugin: true, fields: { reviewStatus: "pending", researchReviewRequired: false } });
+      await test.db.update(integrationKeys).set({ siteInfo: "6.4.3 / plugin 1.9.0" }).where(eq(integrationKeys.websiteId, fresh.websiteId));
+      await approve(fresh.post.id);
+      await publishArticle(fresh.websiteId, fresh.post.id);
+      const [created] = await handOver("1.9.0");
+      expect(created.status).toBe("publish");
+      expect(created).not.toHaveProperty("existingDraft");
+    });
+
+    it("never delivered, on a current plugin: it may find a post whose report was lost, and otherwise creates one", async () => {
+      const s = await scene({ plugin: true, fields: { reviewStatus: "pending", researchReviewRequired: false } });
+      await test.db.update(integrationKeys).set({ siteInfo: "6.4.3 / plugin 1.10.0" }).where(eq(integrationKeys.websiteId, s.websiteId));
+      await approve(s.post.id);
+      await publishArticle(s.websiteId, s.post.id);
+      expect((await handOver())[0].existingDraft).toEqual({ delivered: false });
+    });
+
+    it("automatic paths never publish a draft: only a person's press does", async () => {
+      const s = await heldDraft("1.10.0", { autoPublish: true, publishAs: "draft", plannedInDays: -1 });
+      expect(await handOver()).toEqual([]);
+      expect(await dueArticlesForPlugin(s.websiteId, 5, new Date(), { updates: true })).toEqual([]);
+      // An approval releases nothing onto a post already there.
+      expect(await releaseAfterApproval(s.post.id)).toBe("customer_publishes");
+      // A leftover press for a draft is not this one.
+      await test.db.update(articles).set({ publishRequested: "draft" }).where(eq(articles.id, s.post.id));
+      expect(await handOver()).toEqual([]);
+      // An automatic send of a draft not delivered yet carries no instruction.
+      const fresh = await scene({ plugin: true, autoPublish: true, publishAs: "draft", plannedInDays: -1, fields: { reviewStatus: "pending", researchReviewRequired: false } });
+      await test.db.update(integrationKeys).set({ siteInfo: "6.4.3 / plugin 1.10.0" }).where(eq(integrationKeys.websiteId, fresh.websiteId));
+      await approve(fresh.post.id);
+      const [sent] = await handOver();
+      expect(sent.status).toBe("draft");
+      expect(sent).not.toHaveProperty("existingDraft");
+    });
+
+    it("with the switch off, as before: a delivered draft is not in the feed, and nothing carries the instruction", async () => {
+      const s = await heldDraft();
+      await twoStep(false);
+      await test.db.update(articles).set({ publishRequested: "publish" }).where(eq(articles.id, s.post.id));
+      expect(await dueArticlesForPlugin(s.websiteId, 5, new Date(), { updates: true })).toEqual([]);
+      expect(await handOver()).toEqual([]);
+    });
   });
 
   it("a rewrite of a post that is live (the row reads draft) can still be updated: the last delivery says it is live", async () => {

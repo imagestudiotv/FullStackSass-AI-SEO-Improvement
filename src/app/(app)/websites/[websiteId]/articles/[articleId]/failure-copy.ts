@@ -120,8 +120,9 @@ export function actionErrorText(
     [/^You have view-only access/i, tWorkspace.viewOnly],
     [/being delivered to the website right now/i, t.errInFlight],
     [/being prepared by the RepGet team/i, delivery?.errPreparing ?? t.stateReviewPending],
+    // Before the update message: this one names the plugin's version too.
+    [/on your website as a draft\. To publish it from here/i, delivery?.pluginDraftNote ?? error],
     [/RepGet plugin on your website to version 1\.10/i, delivery?.errPluginUpdate ?? error],
-    [/on your website as a draft\. Publish it from WordPress/i, delivery?.pluginDraftNote ?? error],
     [/^This exact version is already on the website/i, delivery?.errAlreadyOnSite ?? t.alreadySentLive],
     [/^Already being delivered/i, delivery?.errAlreadyDelivering ?? t.errInFlight],
     [/^Title cannot be empty/i, t.titleRequired],

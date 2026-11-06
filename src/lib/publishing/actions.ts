@@ -13,7 +13,7 @@ import {
   publicationDispatches,
   publishLogs,
 } from "@/lib/db/schema";
-import { pluginUpdates } from "@/lib/plugin/protocol";
+import { pluginUpdates, siteInfoPluginVersion } from "@/lib/plugin/protocol";
 import { checkReleasable, HELD_MESSAGE, liveOnSiteSql, PLUGIN_DRAFT_MESSAGE, PLUGIN_UPDATE_NEEDED, PREPARING_MESSAGE, sendableRevision, sendToTeam, twoStepArticles } from "@/lib/articles/review";
 import {
   ProviderError,
@@ -416,6 +416,8 @@ export async function publishArticle(
         status: publicationDispatches.status,
         revisionHash: publicationDispatches.revisionHash,
         requestedStatus: publicationDispatches.requestedStatus,
+        remoteStatus: publicationDispatches.remoteStatus,
+        channel: publicationDispatches.channel,
         claimedAt: publicationDispatches.claimedAt,
       })
       .from(publicationDispatches)
@@ -425,7 +427,8 @@ export async function publishArticle(
     if (latest?.status === "in_flight" && latest.claimedAt.getTime() > Date.now() - IN_FLIGHT_TIMEOUT_MS) {
       return { ok: false, error: HOLD_MESSAGES.in_flight };
     }
-    if (latest?.status === "sent" && latest.revisionHash === sendable.hash && latest.requestedStatus === "publish") {
+    // A plugin's post the site stored as a draft is not "already there": the press publishes it.
+    if (latest?.status === "sent" && latest.revisionHash === sendable.hash && latest.requestedStatus === "publish" && !(latest.channel === "plugin" && latest.remoteStatus !== "publish")) {
       return { ok: false, error: HOLD_MESSAGES.already_sent };
     }
   }
@@ -456,6 +459,7 @@ export async function publishArticle(
           isNotNull(integrationKeys.lastUsedAt),
         ),
       )
+      .orderBy(desc(integrationKeys.lastUsedAt))
       .limit(1);
 
     if (!plugin) {
@@ -463,18 +467,20 @@ export async function publishArticle(
     }
 
     /*
-      An update of a post already on the site needs a plugin that can make one
-      (lib/plugin/protocol.ts). An older one would wait for ever, so say so now.
+      A post already on the site, live or held as a draft, needs a plugin that
+      can act on the press (lib/plugin/protocol.ts). An older one would wait for
+      ever, so say so now.
     */
     if (twoStep && article.publishedUrl) {
-      const [{ live }] = await db.select({ live: liveOnSiteSql }).from(articles).where(eq(articles.id, article.id));
-      if (!live) return { ok: false, error: PLUGIN_DRAFT_MESSAGE };
       const [key] = await db
         .select({ siteInfo: integrationKeys.siteInfo })
         .from(integrationKeys)
         .where(eq(integrationKeys.id, plugin.id))
         .limit(1);
-      if (!pluginUpdates(key?.siteInfo?.match(/plugin (\d+\.\d+\.\d+)/)?.[1])) return { ok: false, error: PLUGIN_UPDATE_NEEDED };
+      if (!pluginUpdates(siteInfoPluginVersion(key?.siteInfo))) {
+        const [{ live }] = await db.select({ live: liveOnSiteSql }).from(articles).where(eq(articles.id, article.id));
+        return { ok: false, error: live ? PLUGIN_UPDATE_NEEDED : PLUGIN_DRAFT_MESSAGE };
+      }
     }
 
     await db
@@ -492,7 +498,7 @@ export async function publishArticle(
     await triggerPluginSync(site.id);
 
     const [after] = await db
-      .select({ publishedUrl: articles.publishedUrl, publishRequested: articles.publishRequested })
+      .select({ publishedUrl: articles.publishedUrl, publishRequested: articles.publishRequested, live: liveOnSiteSql })
       .from(articles)
       .where(eq(articles.id, articleId))
       .limit(1);
@@ -503,7 +509,8 @@ export async function publishArticle(
     return {
       ok: true,
       data: {
-        publishedUrl: answered ? (after?.publishedUrl ?? null) : null,
+        // An address is "it is on your site" to the page. Under the flow only a live post is that: a refusal is on the panel.
+        publishedUrl: answered && (!twoStep || after?.live) ? (after?.publishedUrl ?? null) : null,
         queued: !answered,
       },
     };

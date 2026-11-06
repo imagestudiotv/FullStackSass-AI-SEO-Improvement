@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { and, desc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
 
-import { plannedDayHasCome, releaseCheckFor, reviewHash, sendableRevision, type ReviewFields } from "@/lib/articles/review";
+import { liveOnSiteSql, plannedDayHasCome, releaseCheckFor, reviewHash, sendableRevision, type ReviewFields } from "@/lib/articles/review";
 import { db } from "@/lib/db";
 import { linksTo } from "@/lib/articles/link-guard";
 import { articles, backlinkRequests, calendarItems, placements, publicationDispatches, websites } from "@/lib/db/schema";
@@ -143,6 +143,13 @@ export type Claim =
       marker: string;
       /** A legacy plugin's expired hand-over of this same revision, offered again under its own id. */
       reused: boolean;
+      /**
+       * A person's Publish press, under the two-step flow, on an article not live
+       * on a plugin site: the plugin must look for the post it may already hold
+       * and not overwrite it blindly. `delivered`: RepGet has a post on record, so
+       * finding none means it was deleted there, and nothing is created.
+       */
+      existingDraft: { delivered: boolean } | null;
       /** The revision as locked and checked: exactly what may be sent. */
       article: ClaimedArticle;
     }
@@ -353,6 +360,8 @@ export async function claimDispatch(input: {
         researchApprovedHash: articles.researchApprovedHash,
         approvedRevision: articles.approvedRevision,
         publishRequested: articles.publishRequested,
+        publishedUrl: articles.publishedUrl,
+        live: liveOnSiteSql,
         translationOf: articles.translationOf,
         autoPublish: websites.autoPublish,
         publishAs: websites.publishAs,
@@ -386,7 +395,8 @@ export async function claimDispatch(input: {
       website when the flow was switched on).
     */
     let revision: ReviewFields = row;
-    if (await isControlEnabled("two_step_articles", tx)) {
+    const twoStep = await isControlEnabled("two_step_articles", tx);
+    if (twoStep) {
       const pressed = input.trigger === "manual" || (input.trigger === "plugin" && row.publishRequested !== null);
       const sendable = sendableRevision(row, { automatic: !pressed });
       if (!sendable.ok) return { ok: false, reason: sendable.reason } as const;
@@ -412,21 +422,30 @@ export async function claimDispatch(input: {
     if (await liveInFlight(tx, row.id, now)) return { ok: false, reason: "in_flight" } as const;
 
     const status = effectiveStatus(input.trigger, row, input.requestedStatus);
+    const existingDraft =
+      twoStep && input.channel === "plugin" && row.publishRequested === "publish" && status === "publish" && !row.live
+        ? { delivered: Boolean(row.publishedUrl) }
+        : null;
 
     /*
       The same revision, with the same status, already reached the site: a
       second request for it (a Publish press repeated, a release that raced
       another path) sends nothing. A NEW revision of a published article is
       an update and goes out. A late report of an OLDER hand-over is history,
-      not the current delivery.
+      not the current delivery. Nor is a post the site stored as something other
+      than live "already there" for a person's press on it (existingDraft).
     */
     const [lastSent] = await tx
-      .select({ revisionHash: publicationDispatches.revisionHash, requestedStatus: publicationDispatches.requestedStatus })
+      .select({
+        revisionHash: publicationDispatches.revisionHash,
+        requestedStatus: publicationDispatches.requestedStatus,
+        remoteStatus: publicationDispatches.remoteStatus,
+      })
       .from(publicationDispatches)
       .where(and(eq(publicationDispatches.articleId, row.id), eq(publicationDispatches.status, "sent"), eq(publicationDispatches.late, false)))
       .orderBy(desc(publicationDispatches.claimedAt))
       .limit(1);
-    if (lastSent && lastSent.revisionHash === revisionHash && lastSent.requestedStatus === status) {
+    if (lastSent && lastSent.revisionHash === revisionHash && lastSent.requestedStatus === status && !(existingDraft && lastSent.remoteStatus !== "publish")) {
       return { ok: false, reason: "already_sent" } as const;
     }
 
@@ -488,6 +507,7 @@ export async function claimDispatch(input: {
           status,
           marker: ownershipMarker({ articleId: row.id, websiteId: input.websiteId, dispatchId: outstanding.id }),
           reused: true,
+          existingDraft,
           article,
         } as const;
       }
@@ -519,7 +539,7 @@ export async function claimDispatch(input: {
       claimedAt: now,
     });
 
-    return { ok: true, dispatchId, revisionHash, status, marker, reused: false, article } as const;
+    return { ok: true, dispatchId, revisionHash, status, marker, reused: false, existingDraft, article } as const;
   });
 }
 
