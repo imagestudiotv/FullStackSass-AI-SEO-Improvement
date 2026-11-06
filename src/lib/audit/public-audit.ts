@@ -2,6 +2,7 @@ import { and, eq, gte } from "drizzle-orm";
 
 import { auditPage, auditSite, scoreAudit, type Issue } from "@/lib/audit/rules";
 import { crawlSite } from "@/lib/audit/crawler";
+import { PUBLIC_AUDIT_MAX_PAGES } from "@/lib/audit/limits";
 import { db } from "@/lib/db";
 import { providerCache } from "@/lib/db/schema";
 import { normalizeWebsiteUrl, InvalidUrlError } from "@/lib/websites/url";
@@ -30,7 +31,7 @@ import { guardPublicTool } from "@/lib/tools/public-guard";
  */
 
 /** Public runs crawl far fewer pages than the authenticated audit's 25. */
-const PUBLIC_MAX_PAGES = 5;
+const PUBLIC_MAX_PAGES = PUBLIC_AUDIT_MAX_PAGES;
 
 /** Cached results are reused for a day; a site rarely changes faster. */
 const CACHE_HOURS = 24;

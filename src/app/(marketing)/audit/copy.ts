@@ -79,18 +79,9 @@ export type AuditResultCopy = {
   linksOutTitle: string;
   linksOutBody: string;
   hidden: [string, string];
-  hiddenBody: string;
-  seeFull: string;
-  joinEyebrow: string;
-  joinTitle: string;
-  /** The first body is [one, other] with {count}: "All 1 of them" read oddly (live check, 2026-10-13). */
-  /** The first item's body: one finding, several, and none (a clean result still has a next step). */
-  joinItems: [{ title: string; body: [string, string]; none: string }, { title: string; body: string }, { title: string; body: string }];
-  getStarted: string;
   seePricing: string;
-  /** {price}; ends with a space, followed by freeArticles. */
+  /** {price} */
   plansStart: string;
-  freeArticles: [string, string];
   cached: string;
 };
 
@@ -124,7 +115,7 @@ export const AUDIT_COPY: Record<Locale, AuditCopy> = {
       assets: [
         { label: "AI SEO Audit", lines: ["Opening {domain} and mapping the site…", "Crawling pages & detecting the platform behind {domain}"] },
         { label: "Personalized Growth Plan", lines: ["Scoring titles, headings, images and links", "Ordering what to fix by what it is worth"] },
-        { label: "Business Profile + Free Backlink", lines: ["Checking which AI crawlers are allowed in", "Matching you with a business in a related field"] },
+        { label: "AI Crawler Access", lines: ["Checking which AI crawlers are allowed in", "Noting the sites {domain} links out to"] },
       ],
       working: "Working on it",
       building: "Building your 3 free assets…",
@@ -135,7 +126,7 @@ export const AUDIT_COPY: Record<Locale, AuditCopy> = {
       yourAssets: "Your 3 free assets",
       done: "Done. Here is what each one found.",
       openAny: "Open any of them to see the detail.",
-      assetLabels: ["AI SEO Audit", "Personalized Growth Plan", "Business Profile + Free Backlink"],
+      assetLabels: ["AI SEO Audit", "Personalized Growth Plan", "AI Crawler Access"],
       pagesRead: ["{count} page read", "{count} pages read"],
       termPages: "Pages read",
       noteFive: "Free checks read up to five.",
@@ -159,7 +150,7 @@ export const AUDIT_COPY: Record<Locale, AuditCopy> = {
       robotsAllAllowed: "Your robots.txt lets every major AI crawler through, so you can be cited in their answers.",
       robotsBlocks: "Your robots.txt blocks {count} of them. They cannot cite a site they are not allowed to read.",
       profileNote:
-        "Your profile and first backlink are set up when you join - we match you with a business in a related field and your article carries a link back to your site.",
+        "When you add your website to an account, we read it to fill in your business profile. Backlinks start with your plan: host an article for a business in a related field and earn a link back to your site.",
       linkOutAlready: "Sites you already link out to",
     },
     result: {
@@ -189,22 +180,8 @@ export const AUDIT_COPY: Record<Locale, AuditCopy> = {
       linksOutTitle: "Sites you link out to",
       linksOutBody: "Read from your own pages. Useful for spotting links you did not mean to give away.",
       hidden: ["{count} more thing to fix", "{count} more things to fix"],
-      hiddenBody: "Sign up free to see the full list, and we will start writing the pages that fix them.",
-      seeFull: "See the full report",
-      joinEyebrow: "What happens when you join",
-      joinTitle: "We fix what we found, then keep going",
-      joinItems: [
-        {
-          title: "Every finding, in order",
-          body: ["The one finding, with what to change and how long it takes.", "All {count} of them, with what to change and how long it takes."], none: "We check your whole site, not just the pages read here, with what to change and how long it takes.",
-        },
-        { title: "Articles written for you", body: "Researched from what your customers search for, published to your own site." },
-        { title: "Real backlinks, earned", body: "Host one article for a related business and earn a link back to yours." },
-      ],
-      getStarted: "Get Started",
       seePricing: "See pricing",
       plansStart: "Plans start at {price} a month. ",
-      freeArticles: ["New accounts get their first article free.", "New accounts get their first {count} articles free."],
       cached: "Showing a check from the last 24 hours.",
     },
   },
@@ -223,8 +200,8 @@ export const AUDIT_COPY: Record<Locale, AuditCopy> = {
         { label: "Auditoría SEO con IA", lines: ["Abriendo {domain} y trazando el mapa de la web…", "Rastreando páginas y detectando la plataforma de {domain}"] },
         { label: "Plan de crecimiento personalizado", lines: ["Puntuando títulos, encabezados, imágenes y enlaces", "Ordenando qué arreglar según lo que vale"] },
         {
-          label: "Perfil de empresa + backlink gratuito",
-          lines: ["Comprobando qué rastreadores de IA tienen acceso", "Buscando para usted un negocio de un sector relacionado"],
+          label: "Acceso de rastreadores de IA",
+          lines: ["Comprobando qué rastreadores de IA tienen acceso", "Anotando los sitios a los que enlaza {domain}"],
         },
       ],
       working: "Manos a la obra",
@@ -236,7 +213,7 @@ export const AUDIT_COPY: Record<Locale, AuditCopy> = {
       yourAssets: "Sus 3 recursos gratuitos",
       done: "Listo. Esto es lo que ha encontrado cada uno.",
       openAny: "Abra cualquiera para ver el detalle.",
-      assetLabels: ["Auditoría SEO con IA", "Plan de crecimiento personalizado", "Perfil de empresa + backlink gratuito"],
+      assetLabels: ["Auditoría SEO con IA", "Plan de crecimiento personalizado", "Acceso de rastreadores de IA"],
       pagesRead: ["{count} página leída", "{count} páginas leídas"],
       termPages: "Páginas leídas",
       noteFive: "Las revisiones gratuitas leen hasta cinco.",
@@ -260,7 +237,7 @@ export const AUDIT_COPY: Record<Locale, AuditCopy> = {
       robotsAllAllowed: "Su robots.txt deja pasar a todos los grandes rastreadores de IA, así que pueden citarle en sus respuestas.",
       robotsBlocks: "Su robots.txt bloquea a {count} de ellos. No pueden citar una web que no se les permite leer.",
       profileNote:
-        "Su perfil y su primer backlink se preparan cuando se une: le emparejamos con un negocio de un sector relacionado y su artículo lleva un enlace a su web.",
+        "Cuando añade su web a una cuenta, la leemos para rellenar su perfil de empresa. Los backlinks empiezan con su plan: aloje un artículo de un negocio de un sector relacionado y gane un enlace hacia su web.",
       linkOutAlready: "Webs a las que ya enlaza",
     },
     result: {
@@ -290,19 +267,8 @@ export const AUDIT_COPY: Record<Locale, AuditCopy> = {
       linksOutTitle: "Webs a las que enlaza",
       linksOutBody: "Leídas de sus propias páginas. Útil para detectar enlaces que no quería regalar.",
       hidden: ["{count} cosa más que arreglar", "{count} cosas más que arreglar"],
-      hiddenBody: "Regístrese gratis para ver la lista completa, y empezaremos a escribir las páginas que lo arreglan.",
-      seeFull: "Ver el informe completo",
-      joinEyebrow: "Qué pasa cuando se une",
-      joinTitle: "Arreglamos lo que encontramos y seguimos adelante",
-      joinItems: [
-        { title: "Cada hallazgo, en orden", body: ["El hallazgo, con lo que hay que cambiar y cuánto lleva.", "Los {count}, con lo que hay que cambiar y cuánto lleva."], none: "Revisamos toda su web, no solo las páginas leídas aquí, con lo que hay que cambiar y cuánto lleva." },
-        { title: "Artículos escritos para usted", body: "Basados en lo que buscan sus clientes y publicados en su propia web." },
-        { title: "Backlinks reales, ganados", body: "Aloje un artículo de un negocio relacionado y gane un enlace hacia el suyo." },
-      ],
-      getStarted: "Empezar",
       seePricing: "Ver precios",
       plansStart: "Planes desde {price} al mes. ",
-      freeArticles: ["Las cuentas nuevas reciben gratis su primer artículo.", "Las cuentas nuevas reciben gratis sus primeros {count} artículos."],
       cached: "Mostrando una revisión de las últimas 24 horas.",
     },
   },
@@ -324,8 +290,8 @@ export const AUDIT_COPY: Record<Locale, AuditCopy> = {
           lines: ["Notation des titres, intertitres, images et liens", "Classement de ce qu’il faut corriger selon ce que cela rapporte"],
         },
         {
-          label: "Profil d’entreprise + backlink gratuit",
-          lines: ["Vérification des robots d’IA autorisés", "Recherche d’une entreprise d’un secteur proche pour vous"],
+          label: "Accès des robots d’IA",
+          lines: ["Vérification des robots d’IA autorisés", "Relevé des sites vers lesquels {domain} fait des liens"],
         },
       ],
       working: "C’est parti",
@@ -337,7 +303,7 @@ export const AUDIT_COPY: Record<Locale, AuditCopy> = {
       yourAssets: "Vos 3 ressources gratuites",
       done: "Terminé. Voici ce que chacune a trouvé.",
       openAny: "Ouvrez-en une pour voir le détail.",
-      assetLabels: ["Audit SEO par IA", "Plan de croissance personnalisé", "Profil d’entreprise + backlink gratuit"],
+      assetLabels: ["Audit SEO par IA", "Plan de croissance personnalisé", "Accès des robots d’IA"],
       pagesRead: ["{count} page lue", "{count} pages lues"],
       termPages: "Pages lues",
       noteFive: "Les vérifications gratuites en lisent jusqu’à cinq.",
@@ -361,7 +327,7 @@ export const AUDIT_COPY: Record<Locale, AuditCopy> = {
       robotsAllAllowed: "Votre robots.txt laisse passer tous les grands robots d’IA : vous pouvez être cité dans leurs réponses.",
       robotsBlocks: "Votre robots.txt en bloque {count}. Ils ne peuvent pas citer un site qu’ils n’ont pas le droit de lire.",
       profileNote:
-        "Votre profil et votre premier backlink sont mis en place à l’inscription : nous vous associons à une entreprise d’un secteur proche, et votre article contient un lien vers votre site.",
+        "Quand vous ajoutez votre site à un compte, nous le lisons pour remplir votre profil d’entreprise. Les backlinks commencent avec votre formule : hébergez un article pour une entreprise d’un secteur proche et gagnez un lien vers votre site.",
       linkOutAlready: "Sites vers lesquels vous faites déjà des liens",
     },
     result: {
@@ -391,25 +357,8 @@ export const AUDIT_COPY: Record<Locale, AuditCopy> = {
       linksOutTitle: "Sites vers lesquels vous faites des liens",
       linksOutBody: "Lus sur vos propres pages. Utile pour repérer des liens que vous ne vouliez pas offrir.",
       hidden: ["{count} autre point à corriger", "{count} autres points à corriger"],
-      hiddenBody: "Inscrivez-vous gratuitement pour voir la liste complète, et nous commencerons à rédiger les pages qui les corrigent.",
-      seeFull: "Voir le rapport complet",
-      joinEyebrow: "Ce qui se passe quand vous nous rejoignez",
-      joinTitle: "Nous corrigeons ce que nous avons trouvé, puis nous continuons",
-      joinItems: [
-        {
-          title: "Chaque constat, dans l’ordre",
-          body: ["Le constat, avec ce qu’il faut changer et le temps que cela prend.", "Les {count}, avec ce qu’il faut changer et le temps que cela prend."], none: "Nous vérifions tout votre site, pas seulement les pages lues ici, avec ce qu’il faut changer et le temps que cela prend.",
-        },
-        { title: "Des articles rédigés pour vous", body: "Fondés sur ce que recherchent vos clients, publiés sur votre propre site." },
-        { title: "De vrais backlinks, mérités", body: "Hébergez un article pour une entreprise d’un secteur proche et gagnez un lien vers le vôtre." },
-      ],
-      getStarted: "Commencer",
       seePricing: "Voir les tarifs",
       plansStart: "Formules à partir de {price} par mois. ",
-      freeArticles: [
-        "Les nouveaux comptes reçoivent leur premier article gratuitement.",
-        "Les nouveaux comptes reçoivent leurs {count} premiers articles gratuitement.",
-      ],
       cached: "Résultat d’une vérification des dernières 24 heures.",
     },
   },
@@ -427,7 +376,7 @@ export const AUDIT_COPY: Record<Locale, AuditCopy> = {
       assets: [
         { label: "Audit SEO con AI", lines: ["Apertura di {domain} e mappatura del sito…", "Scansione delle pagine e rilevamento della piattaforma di {domain}"] },
         { label: "Piano di crescita personalizzato", lines: ["Valutazione di titoli, intestazioni, immagini e link", "Ordinamento di cosa correggere in base a quanto vale"] },
-        { label: "Profilo aziendale + backlink gratuito", lines: ["Verifica dei crawler AI ammessi", "Ricerca di un’azienda di un settore affine per lei"] },
+        { label: "Accesso dei crawler AI", lines: ["Verifica dei crawler AI ammessi", "Annotazione dei siti a cui rimanda {domain}"] },
       ],
       working: "Al lavoro",
       building: "Stiamo preparando le sue 3 risorse gratuite…",
@@ -438,7 +387,7 @@ export const AUDIT_COPY: Record<Locale, AuditCopy> = {
       yourAssets: "Le sue 3 risorse gratuite",
       done: "Fatto. Ecco cosa ha trovato ciascuna.",
       openAny: "Ne apra una per vedere i dettagli.",
-      assetLabels: ["Audit SEO con AI", "Piano di crescita personalizzato", "Profilo aziendale + backlink gratuito"],
+      assetLabels: ["Audit SEO con AI", "Piano di crescita personalizzato", "Accesso dei crawler AI"],
       pagesRead: ["{count} pagina letta", "{count} pagine lette"],
       termPages: "Pagine lette",
       noteFive: "I controlli gratuiti ne leggono fino a cinque.",
@@ -462,7 +411,7 @@ export const AUDIT_COPY: Record<Locale, AuditCopy> = {
       robotsAllAllowed: "Il suo robots.txt lascia passare tutti i principali crawler AI, così può essere citato nelle loro risposte.",
       robotsBlocks: "Il suo robots.txt ne blocca {count}. Non possono citare un sito che non hanno il permesso di leggere.",
       profileNote:
-        "Il suo profilo e il primo backlink vengono impostati quando si iscrive: la abbiniamo a un’azienda di un settore affine e il suo articolo contiene un link al suo sito.",
+        "Quando aggiunge il suo sito a un account, lo leggiamo per compilare il profilo aziendale. I backlink iniziano con il piano: ospiti un articolo per un’azienda di un settore affine e guadagni un link verso il suo sito.",
       linkOutAlready: "Siti a cui già rimanda con un link",
     },
     result: {
@@ -492,19 +441,8 @@ export const AUDIT_COPY: Record<Locale, AuditCopy> = {
       linksOutTitle: "Siti a cui rimanda con un link",
       linksOutBody: "Letti dalle sue pagine. Utile per individuare link che non intendeva regalare.",
       hidden: ["Ancora {count} cosa da correggere", "Ancora {count} cose da correggere"],
-      hiddenBody: "Si iscriva gratis per vedere l’elenco completo, e inizieremo a scrivere le pagine che le correggono.",
-      seeFull: "Vedi il report completo",
-      joinEyebrow: "Cosa succede quando si iscrive",
-      joinTitle: "Correggiamo ciò che abbiamo trovato, poi andiamo avanti",
-      joinItems: [
-        { title: "Ogni segnalazione, in ordine", body: ["La segnalazione, con cosa cambiare e quanto tempo serve.", "Tutte e {count}, con cosa cambiare e quanto tempo serve."], none: "Controlliamo tutto il suo sito, non solo le pagine lette qui, con cosa cambiare e quanto tempo serve." },
-        { title: "Articoli scritti per lei", body: "Basati su ciò che cercano i suoi clienti, pubblicati sul suo sito." },
-        { title: "Backlink veri, guadagnati", body: "Ospiti un articolo per un’azienda affine e guadagni un link verso il suo sito." },
-      ],
-      getStarted: "Inizia",
       seePricing: "Vedi i prezzi",
       plansStart: "Piani a partire da {price} al mese. ",
-      freeArticles: ["I nuovi account ricevono gratis il primo articolo.", "I nuovi account ricevono gratis i primi {count} articoli."],
       cached: "Risultato di un controllo delle ultime 24 ore.",
     },
   },
@@ -523,8 +461,8 @@ export const AUDIT_COPY: Record<Locale, AuditCopy> = {
         { label: "KI-SEO-Audit", lines: ["{domain} wird geöffnet und erfasst…", "Seiten werden gecrawlt und die Plattform hinter {domain} erkannt"] },
         { label: "Persönlicher Wachstumsplan", lines: ["Titel, Überschriften, Bilder und Links werden bewertet", "Was zu beheben ist, wird nach seinem Wert sortiert"] },
         {
-          label: "Unternehmensprofil + kostenloser Backlink",
-          lines: ["Es wird geprüft, welche KI-Crawler zugelassen sind", "Ein Unternehmen aus einer verwandten Branche wird für Sie gesucht"],
+          label: "Zugriff von KI-Crawlern",
+          lines: ["Es wird geprüft, welche KI-Crawler zugelassen sind", "Websites werden notiert, auf die {domain} verlinkt"],
         },
       ],
       working: "In Arbeit",
@@ -536,7 +474,7 @@ export const AUDIT_COPY: Record<Locale, AuditCopy> = {
       yourAssets: "Ihre 3 kostenlosen Ergebnisse",
       done: "Fertig. Das hat jedes davon gefunden.",
       openAny: "Öffnen Sie eines, um die Details zu sehen.",
-      assetLabels: ["KI-SEO-Audit", "Persönlicher Wachstumsplan", "Unternehmensprofil + kostenloser Backlink"],
+      assetLabels: ["KI-SEO-Audit", "Persönlicher Wachstumsplan", "Zugriff von KI-Crawlern"],
       pagesRead: ["{count} Seite gelesen", "{count} Seiten gelesen"],
       termPages: "Gelesene Seiten",
       noteFive: "Kostenlose Prüfungen lesen bis zu fünf.",
@@ -560,7 +498,7 @@ export const AUDIT_COPY: Record<Locale, AuditCopy> = {
       robotsAllAllowed: "Ihre robots.txt lässt alle großen KI-Crawler durch, sodass Sie in ihren Antworten zitiert werden können.",
       robotsBlocks: "Ihre robots.txt sperrt {count} davon. Sie können keine Website zitieren, die sie nicht lesen dürfen.",
       profileNote:
-        "Ihr Profil und Ihr erster Backlink werden eingerichtet, wenn Sie beitreten: Wir bringen Sie mit einem Unternehmen aus einer verwandten Branche zusammen, und Ihr Artikel enthält einen Link zurück zu Ihrer Website.",
+        "Wenn Sie Ihre Website zu einem Konto hinzufügen, lesen wir sie, um Ihr Unternehmensprofil auszufüllen. Backlinks beginnen mit Ihrem Tarif: Hosten Sie einen Artikel für ein Unternehmen aus einer verwandten Branche und verdienen Sie einen Link zu Ihrer Website.",
       linkOutAlready: "Websites, auf die Sie bereits verlinken",
     },
     result: {
@@ -590,22 +528,8 @@ export const AUDIT_COPY: Record<Locale, AuditCopy> = {
       linksOutTitle: "Websites, auf die Sie verlinken",
       linksOutBody: "Aus Ihren eigenen Seiten gelesen. Nützlich, um Links zu entdecken, die Sie nicht verschenken wollten.",
       hidden: ["{count} weiterer Punkt zu beheben", "{count} weitere Punkte zu beheben"],
-      hiddenBody: "Melden Sie sich kostenlos an, um die ganze Liste zu sehen, und wir beginnen, die Seiten zu schreiben, die sie beheben.",
-      seeFull: "Vollständigen Bericht ansehen",
-      joinEyebrow: "Was passiert, wenn Sie beitreten",
-      joinTitle: "Wir beheben, was wir gefunden haben, und machen dann weiter",
-      joinItems: [
-        {
-          title: "Jeder Befund, der Reihe nach",
-          body: ["Der Befund, mit dem, was zu ändern ist, und wie lange es dauert.", "Alle {count}, mit dem, was zu ändern ist, und wie lange es dauert."], none: "Wir prüfen Ihre ganze Website, nicht nur die hier gelesenen Seiten, mit dem, was zu ändern ist, und wie lange es dauert.",
-        },
-        { title: "Für Sie geschriebene Artikel", body: "Recherchiert nach dem, wonach Ihre Kunden suchen, und auf Ihrer eigenen Website veröffentlicht." },
-        { title: "Echte, verdiente Backlinks", body: "Hosten Sie einen Artikel für ein verwandtes Unternehmen und verdienen Sie einen Link zu Ihrem." },
-      ],
-      getStarted: "Jetzt starten",
       seePricing: "Preise ansehen",
       plansStart: "Tarife ab {price} im Monat. ",
-      freeArticles: ["Neue Konten erhalten ihren ersten Artikel kostenlos.", "Neue Konten erhalten ihre ersten {count} Artikel kostenlos."],
       cached: "Ergebnis einer Prüfung aus den letzten 24 Stunden.",
     },
   },

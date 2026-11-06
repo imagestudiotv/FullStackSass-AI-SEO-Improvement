@@ -1,0 +1,426 @@
+/*
+ * The sign-up page's right-hand panel (client's design, 2026-11-05,
+ * RepGet-Signup-Official-Logo.html, "premium dark storytelling"). Dark in both
+ * themes on purpose. The font sizes under 12px are inside the drawing, which
+ * is an illustration with its own accessible name.
+ */
+.cell {
+  display: flex;
+  min-width: 0;
+  padding: 16px;
+}
+
+.showcase {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #202024;
+  border-radius: 34px;
+  color: #f8f7f7;
+  background:
+    radial-gradient(ellipse 56% 36% at 100% 100%, rgba(235, 91, 24, 0.12), transparent 83%),
+    radial-gradient(ellipse 52% 35% at 5% -4%, rgba(174, 65, 30, 0.09), transparent 86%),
+    #0c0d10;
+}
+.showcase::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.33;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+  background-size: 46px 46px;
+  mask-image: linear-gradient(to bottom, transparent, #000 24%, #000 62%, transparent 95%);
+}
+:global(.dark) .showcase {
+  border-color: #38383f;
+}
+
+.body {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  width: 100%;
+  max-width: 742px;
+  margin: 0 auto;
+  padding: clamp(54px, 8.2vh, 94px) clamp(27px, 3.4vw, 60px) 28px;
+}
+
+.top {
+  text-align: center;
+}
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: #ff9555;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.eyebrow::before {
+  content: "";
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 100%;
+  background: #eb5a13;
+}
+.title {
+  max-width: 620px;
+  margin: 15px auto 12px;
+  color: #fbfaf9;
+  font-size: clamp(29px, 2.27vw, 39px);
+  font-weight: 750;
+  line-height: 1.17;
+  letter-spacing: -0.049em;
+}
+.accent {
+  color: #fa782d;
+}
+.lead {
+  max-width: 495px;
+  margin: 0 auto;
+  color: #a8a6ae;
+  font-size: clamp(13px, 1vw, 14px);
+  line-height: 1.7;
+}
+
+.panel {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(190px, 0.85fr) minmax(0, 1.15fr);
+  gap: 26px;
+  min-height: 302px;
+  margin-top: clamp(36px, 6vh, 55px);
+  padding: 14px;
+  overflow: hidden;
+  border: 1px solid #313037;
+  border-radius: 27px;
+  background: #1a1b1f;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.23);
+}
+
+.display {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: 14px;
+  overflow: hidden;
+  border-radius: 19px;
+  background:
+    radial-gradient(ellipse at 10% 0, #5b291e, transparent 60%),
+    linear-gradient(146deg, #2b2328, #121318 67%);
+}
+.glow {
+  position: absolute;
+  inset: auto -84px -95px auto;
+  width: 190px;
+  height: 190px;
+  border: 42px solid rgba(236, 95, 28, 0.14);
+  border-radius: 50%;
+  filter: blur(5px);
+}
+.window {
+  position: relative;
+  width: 100%;
+  min-height: 238px;
+  padding: 15px 12px 12px;
+  border: 1px solid #4b3833;
+  border-radius: 14px;
+  background: #151519;
+  box-shadow: 0 13px 30px #0006;
+  transform: rotate(-3deg) translateX(2px);
+}
+.windowHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding-bottom: 13px;
+  border-bottom: 1px solid #302d30;
+}
+.windowLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  color: #f5eeeb;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+.windowMark {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+}
+.windowDots {
+  display: flex;
+  flex: none;
+  gap: 3px;
+}
+.windowDots i {
+  display: block;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #585258;
+}
+.chart {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 5px;
+  height: 91px;
+  padding: 22px 3px 10px;
+  border-bottom: 1px solid #343037;
+}
+.chart span {
+  display: block;
+  width: 13%;
+  border-radius: 4px 4px 1px 1px;
+  background: linear-gradient(0deg, #81371c, #f9752e);
+  opacity: 0.86;
+}
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin-top: 10px;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ded7d4;
+  font-size: 8.2px;
+}
+.rowIcon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid #5e3930;
+  border-radius: 6px;
+  color: #ff8a4c;
+}
+.rowIcon svg {
+  width: 10px;
+  height: 10px;
+}
+.row strong {
+  margin-left: auto;
+  color: #a9d6aa;
+  font-size: 7.5px;
+  font-weight: 600;
+  text-align: right;
+}
+
+.copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding: 22px 6px 14px 0;
+}
+.kicker {
+  margin: 0;
+  color: #ff8a4b;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.panelTitle {
+  max-width: 310px;
+  margin: 13px 0 10px;
+  color: #fff;
+  font-size: clamp(20px, 1.42vw, 24px);
+  font-weight: 750;
+  line-height: 1.25;
+  letter-spacing: -0.046em;
+}
+.panelBody {
+  max-width: 335px;
+  margin: 0;
+  color: #a9a7af;
+  font-size: 12px;
+  line-height: 1.68;
+}
+.features {
+  display: grid;
+  gap: 9px;
+  margin: auto 0 0;
+  padding: 15px 0 0;
+  list-style: none;
+}
+.features li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: #f2eef0;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 17px;
+}
+.featureCheck {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  color: #fff;
+  background: #ed671f;
+}
+.featureCheck svg {
+  width: 11px;
+  height: 11px;
+  stroke-width: 3;
+}
+
+.footer {
+  margin-top: auto;
+  padding-top: 58px;
+}
+.caption {
+  margin: 0 0 24px;
+  color: #aaa7ae;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.17em;
+  text-align: center;
+  text-transform: uppercase;
+}
+.channels {
+  display: grid;
+  grid-template-columns: repeat(4, auto);
+  justify-content: space-between;
+  gap: 24px 13px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.channels li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #b9b6c0;
+  font-size: clamp(12px, 0.9vw, 14px);
+  font-weight: 800;
+  letter-spacing: -0.037em;
+  white-space: nowrap;
+}
+.channelIcon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+
+/* A short laptop screen: the panel and the channels still fit beside the form. */
+@media (max-height: 790px) and (min-width: 1024px) {
+  .body {
+    padding-top: 42px;
+  }
+  .panel {
+    min-height: 250px;
+    margin-top: 25px;
+  }
+  .window {
+    min-height: 207px;
+  }
+  .footer {
+    padding-top: 24px;
+  }
+  .channels {
+    row-gap: 12px;
+  }
+  .caption {
+    margin-bottom: 13px;
+  }
+}
+
+@media (max-width: 1170px) {
+  .panel {
+    gap: 13px;
+  }
+  .panelTitle {
+    font-size: 20px;
+  }
+}
+
+/* Under the form from here on (the layout's lg). */
+@media (max-width: 1023.98px) {
+  .cell {
+    padding: 10px;
+  }
+  .showcase {
+    border-radius: 28px;
+  }
+  .body {
+    max-width: 720px;
+    padding: 48px 35px 30px;
+  }
+  .panel {
+    min-height: 255px;
+    margin-top: 32px;
+  }
+  .footer {
+    padding-top: 35px;
+  }
+}
+
+@media (max-width: 600px) {
+  .cell {
+    padding: 7px;
+  }
+  .showcase {
+    border-radius: 23px;
+  }
+  .body {
+    padding: 43px 20px 32px;
+  }
+  .title {
+    font-size: 30px;
+  }
+  .panel {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 12px;
+  }
+  .display {
+    justify-content: center;
+    min-height: 230px;
+  }
+  .window {
+    width: min(100%, 260px);
+    min-height: 210px;
+  }
+  .copy {
+    padding: 18px 12px 17px;
+  }
+  .panelTitle,
+  .panelBody {
+    max-width: 100%;
+  }
+  .features {
+    padding-top: 20px;
+  }
+  .channels {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-content: stretch;
+    gap: 15px 16px;
+  }
+}

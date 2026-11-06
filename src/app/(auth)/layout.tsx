@@ -2,16 +2,19 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { BrandLogo } from "@/components/brand-logo";
+import { AuthAside } from "@/components/auth-aside";
 import { AuthShowcase } from "@/components/auth-showcase";
 import { ConsentBanner } from "@/components/consent-banner";
+import { SignUpShowcase } from "@/components/signup-showcase";
 import { getPublicMessages } from "@/lib/i18n/app-locale";
 
 /**
  * Sign-in and sign-up, following the reference design: the form on the left,
- * a rotating panel on the right.
+ * a panel on the right (each page's own: AuthAside).
  *
- * The panel collapses below lg. On a phone it would push the form below the
- * fold, and the form is the only reason anyone is on this page.
+ * Sign-in's panel collapses below lg. On a phone it would push the form below
+ * the fold, and the form is the only reason anyone is on this page. Sign-up's
+ * follows the form instead, so the form still comes first.
  *
  * Sign-in and sign-up read the session to redirect a user who is already
  * logged in, so they cannot be prerendered — doing so would demand the auth
@@ -90,7 +93,7 @@ export default async function AuthLayout({ children }: LayoutProps<"/">) {
         </div>
       </div>
 
-      <AuthShowcase />
+      <AuthAside signIn={<AuthShowcase />} signUp={<SignUpShowcase locale={locale} />} />
     </div>
   );
 }

@@ -6,31 +6,26 @@
 */
 import {
   AlertTriangle,
-  ArrowRight,
   Bot,
   Check,
-  FileText,
   Globe,
   Info,
   Languages,
   Layers,
   Link2,
-  ListChecks,
-  Lock,
   X,
 } from "lucide-react";
-import Link from "next/link";
 
 import { issueText, notAssessed as localisedNotAssessed, rowDetail } from "@/app/(app)/websites/[websiteId]/health-model";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { fixFor } from "@/lib/audit/fixes";
 import { ISSUE_LABELS, type AuditSummary } from "@/lib/audit/rules";
 import type { PublicAuditResult } from "@/lib/audit/public-audit";
-import { localePath, type Locale } from "@/lib/i18n/config";
+import type { Locale } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
 import { TOOLS_COMMON } from "@/lib/tools/i18n/common";
 
+import { AuditEnding } from "./audit-ending";
 import { AuditSteps } from "./audit-steps";
 import { AUDIT_COPY, type AuditResultCopy } from "./copy";
 import { plural } from "./plural";
@@ -53,7 +48,7 @@ import { plural } from "./plural";
  *    site that has no search footprint.
  *
  * So this shows the same shape — a scored header, context tiles, findings with
- * fixes, a gate — built only from what the crawl actually read. The one thing
+ * fixes, a closing offer — built only from what the crawl actually read. The one thing
  * added beyond the reference is the AI crawler check, which is both a real
  * differentiator and a yes/no fact rather than an estimate.
  */
@@ -206,7 +201,6 @@ export function AuditResult({
   const copy = AUDIT_COPY[locale];
   const t = copy.result;
   const english = locale === "en";
-  const findings = result.counts.critical + result.counts.warning + result.counts.info;
   // The Website health page's words for each finding (messages.ts app.health), so the
   // free check and the paid one describe a problem the same way. English keeps its own.
   const health = getMessages(locale).app.health;
@@ -552,118 +546,13 @@ export function AuditResult({
         </Card>
       ) : null}
 
-      {/*
-        The gate. States a real number from the real crawl — never an invented
-        "47 issues found" — so the visitor can trust it.
-      */}
-      {result.hiddenIssues > 0 ? (
-        <Card className="border-primary/40">
-          <CardContent className="flex flex-wrap items-center justify-between gap-4 py-6">
-            <div className="flex items-start gap-3">
-              <Lock
-                className="mt-0.5 size-5 shrink-0 text-primary"
-                aria-hidden="true"
-              />
-              <div>
-                <p className="font-medium">{plural(t.hidden, result.hiddenIssues)}</p>
-                <p className="mt-1 text-sm text-muted-foreground">{t.hiddenBody}</p>
-              </div>
-            </div>
-            <Button asChild className="h-11 rounded-full px-6">
-              <Link href="/sign-up">
-                {t.seeFull}
-                <ArrowRight className="size-4" />
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {/*
-        The join block.
-
-        A bare "sign up" button after a page of findings asks the visitor to
-        take it on faith that signing up does something about them. This names
-        what happens next, in the order it happens, and every line is a real
-        feature rather than a promise — the fixes come from the findings above,
-        the articles from the content planner, the links from the exchange.
-
-        Kept to three so it reads as a next step rather than a pricing table;
-        the plans are one click away for anyone who wants them.
-      */}
-      <Card className="border-primary/30 bg-primary/[0.03]">
-        <CardContent className="py-8">
-          <div className="text-center">
-            <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">
-              {t.joinEyebrow}
-            </p>
-            <h3 className="mt-3 text-2xl font-semibold tracking-tight text-balance">
-              {t.joinTitle}
-            </h3>
-          </div>
-
-          <div className="mt-7 grid gap-5 sm:grid-cols-3">
-            {[
-              {
-                icon: ListChecks,
-                title: t.joinItems[0].title,
-                // The same total as the bar at the top (hiddenIssues counts issue types, not findings).
-                body: findings === 0 ? t.joinItems[0].none : plural(t.joinItems[0].body, findings),
-              },
-              { icon: FileText, title: t.joinItems[1].title, body: t.joinItems[1].body },
-              { icon: Link2, title: t.joinItems[2].title, body: t.joinItems[2].body },
-            ].map((item) => {
-              const Icon = item.icon;
-              return (
-                <div key={item.title} className="text-center sm:text-left">
-                  <span className="inline-flex size-10 items-center justify-center rounded-xl bg-primary/10">
-                    <Icon
-                      className="size-5 text-primary"
-                      aria-hidden="true"
-                    />
-                  </span>
-                  <p className="mt-3 font-semibold">{item.title}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {item.body}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-            <Button asChild className="h-12 rounded-full px-7 text-base font-semibold">
-              <Link href="/sign-up">
-                {t.getStarted}
-                <ArrowRight className="size-4" />
-              </Link>
-            </Button>
-            <Button
-              variant="outline"
-              asChild
-              className="h-12 rounded-full px-7 text-base"
-            >
-              <Link href={localePath(locale, "/pricing")}>{t.seePricing}</Link>
-            </Button>
-          </div>
-
-          {/*
-            From the plans table and the offer checkout applies, so it cannot
-            outlive an offer: it said "EUR 1 for the first month" after that
-            price was gone.
-          */}
-          <p className="mt-4 text-center text-xs text-muted-foreground">
-            {offer.price ? t.plansStart.replace("{price}", offer.price) : ""}
-            {plural(t.freeArticles, offer.freeArticles)}
-          </p>
-        </CardContent>
-      </Card>
-
       {result.cached ? (
         <p className="text-center text-xs text-muted-foreground">
           {t.cached}
         </p>
       ) : null}
+
+      <AuditEnding domain={result.domain} hiddenIssues={result.hiddenIssues} offer={offer} locale={locale} />
     </div>
   );
 }

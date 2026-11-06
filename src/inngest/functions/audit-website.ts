@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { inngest } from "@/inngest/client";
 import { crawlSite } from "@/lib/audit/crawler";
 import { detectPlatform, parseCrawlerAccess } from "@/lib/audit/ai-crawlers";
+import { ACCOUNT_AUDIT_MAX_PAGES } from "@/lib/audit/limits";
 import { fetchRobotsTxt } from "@/lib/audit/robots";
 import { auditPage, auditSite, scoreAudit } from "@/lib/audit/rules";
 import { db } from "@/lib/db";
@@ -28,7 +29,7 @@ import {
 
 /** Pages crawled per audit. Deliberately modest: the issues found on page 200
  *  are almost always the ones already found on page 20. */
-const MAX_PAGES = 25;
+const MAX_PAGES = ACCOUNT_AUDIT_MAX_PAGES;
 
 export const auditWebsite = inngest.createFunction(
   {
