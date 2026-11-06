@@ -5,6 +5,8 @@ import type Stripe from "stripe";
 
 import { requireSession } from "@/lib/auth-guard";
 import { checkoutProviderOps } from "@/lib/billing/checkout-providers";
+import { OFFER_UNAVAILABLE, readOfferCode, REPGET_CODE, repgetOfferUsed } from "@/lib/billing/repget-offer";
+import { alertStaffAboutOffer, isCouponRefusal, OFFER_KEY } from "@/lib/billing/repget-subscription";
 import {
   beginCheckout,
   isTrialEligible,
@@ -68,6 +70,8 @@ export async function createCheckoutSession(
   websiteId: string,
   /** Where the customer started, so paying returns them there. */
   origin: CheckoutOrigin = "billing",
+  /** A code the customer gave RepGet, not Stripe. Checked below (lib/billing/repget-offer.ts). */
+  offerCode?: string | null,
 ): Promise<CheckoutResult> {
   const { orgId } = await requireOrg();
 
@@ -95,6 +99,10 @@ export async function createCheckoutSession(
       id: plans.id,
       name: plans.name,
       stripePriceId: plans.stripePriceId,
+      tier: plans.tier,
+      interval: plans.interval,
+      currency: plans.currency,
+      priceCents: plans.priceCents,
       isActive: plans.isActive,
     })
     .from(plans)
@@ -120,13 +128,20 @@ export async function createCheckoutSession(
     return { error: CONFIRM_EMAIL_FIRST };
   }
 
+  const offer = readOfferCode(offerCode, plan);
+  if (offer.error !== undefined) return { error: offer.error };
+  const offerCoupon = offer.coupon;
+  if (offerCoupon && (await repgetOfferUsed(db, orgId))) {
+    return { error: `This workspace has already used the ${REPGET_CODE} code.` };
+  }
+
   const base = appUrl();
 
   let begun: Awaited<ReturnType<typeof beginCheckout>>;
   try {
     begun = await beginCheckout(
       db,
-      { organizationId: orgId, websiteId, provider: "stripe", planId: plan.id },
+      { organizationId: orgId, websiteId, provider: "stripe", planId: plan.id, offer: offerCoupon ? REPGET_CODE : null },
       checkoutProviderOps,
     );
   } catch (error) {
@@ -141,6 +156,7 @@ export async function createCheckoutSession(
     if (begun.current.planId === plan.id) {
       return { error: `This website is already on ${plan.name}.` };
     }
+    if (offerCoupon) return { error: `The ${REPGET_CODE} code is for starting a first paid plan, not for changing one.` };
     return changeStripePlan({
       organizationId: orgId,
       providerSubscriptionId: begun.current.providerSubscriptionId,
@@ -180,7 +196,12 @@ export async function createCheckoutSession(
     */
     success_url: `${base}${checkoutReturnPath(origin, "success", websiteId)}`,
     cancel_url: `${base}${checkoutReturnPath(origin, "cancelled", websiteId)}`,
-    allow_promotion_codes: true,
+    /*
+      Stripe's code box, for every other code. With the REPGET offer the plan's
+      coupon is on the Checkout instead, and Stripe keeps it through a free period
+      for the first paid invoice (lib/billing/repget-offer.ts).
+    */
+    ...(offerCoupon ? { discounts: [{ coupon: offerCoupon }] } : { allow_promotion_codes: true }),
     // Metadata on the SESSION identifies this checkout...
     metadata,
     // ...and so does this, which is what a lost answer is searched by.
@@ -188,7 +209,7 @@ export async function createCheckoutSession(
     // ...but session metadata does NOT propagate to the subscription, so it
     // is written there too, for every later subscription event.
     subscription_data: {
-      metadata,
+      metadata: { ...metadata, ...(offerCoupon ? { [OFFER_KEY]: REPGET_CODE } : {}) },
       /**
        * A trial ONLY for a workspace that has never had a subscription
        * (isTrialEligible: durable history, decided under a lock). It used to
@@ -207,7 +228,7 @@ export async function createCheckoutSession(
     // needed to find the session it made (checkouts.ts findStripeSession).
     await recordCheckoutRequest(db, checkoutId, {
       idempotencyKey,
-      params: { customer: customerId, price: plan.stripePriceId, trialDays },
+      params: { customer: customerId, price: plan.stripePriceId, trialDays, ...(offerCoupon ? { offer: REPGET_CODE } : {}) },
     });
 
     const session = await stripe.checkout.sessions.create(params, { idempotencyKey });
@@ -235,6 +256,11 @@ export async function createCheckoutSession(
       await markCheckoutFailed(db, checkoutId).catch((markError) =>
         console.error("[stripe] could not mark checkout failed", markError),
       );
+      // Never a checkout without what was promised: nothing was started, and staff are told.
+      if (offerCoupon && isCouponRefusal(error)) {
+        await alertStaffAboutOffer(error instanceof Error ? error.message : String(error), `Stripe refused coupon ${offerCoupon} at Checkout, so the customer could not start. Website: ${websiteId}.`);
+        return { error: OFFER_UNAVAILABLE };
+      }
       return { error: stripeErrorMessage(error) };
     }
     try {

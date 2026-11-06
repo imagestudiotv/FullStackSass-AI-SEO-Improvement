@@ -10,8 +10,8 @@ import { seedWebsite } from "@/test/fixtures";
 /**
  * Credits (client, 2026-10-26): spending them on an action - nothing when it
  * is not enough, back again when the action could not be done - and the
- * daily credits a paying workspace is given on each day it uses RepGet, which
- * never expire.
+ * daily credits a paying workspace claims with a check-in, which never expire.
+ * Concurrency and the claim's edges on real Postgres: daily.concurrency.test.ts.
  */
 
 const state = vi.hoisted(() => ({ db: null as unknown }));
@@ -20,7 +20,7 @@ vi.mock("@/lib/db", () => ({
 }));
 
 import { recordCredit } from "@/lib/backlinks/credits";
-import { ensureDailyCredits } from "@/lib/credits/daily";
+import { claimDailyCredits } from "@/lib/credits/daily";
 import { creditHistory, creditKindOf, creditOverview, creditToday, type CreditKind } from "@/lib/credits/overview";
 import { readCreditSettings } from "@/lib/credits/prices";
 import { chargeCredits, refundSpend, spendCredits, type SpendInput } from "@/lib/credits/spend";
@@ -159,17 +159,22 @@ describe("spending", () => {
 });
 
 describe("daily credits", () => {
-  it("are given once on each day the workspace uses RepGet, and never expire", async () => {
+  it("are given once on each day the workspace checks in, and never expire", async () => {
     await settings({ dailyFree: 3 });
     const { orgId } = await seedWebsite(test);
-    expect((await creditOverview(orgId, NOON)).daily).toEqual({ eligible: true, perDay: 3, today: 3, trialEndsAt: null });
-    // The same day, however many pages: once.
-    await creditOverview(orgId, EVENING);
-    await Promise.all([ensureDailyCredits(orgId, EVENING), ensureDailyCredits(orgId, EVENING)]);
+    // Reading gives nothing, however often.
+    expect((await creditOverview(orgId, NOON)).daily).toMatchObject({ eligible: true, perDay: 3, today: 0, claimable: true, trialEndsAt: null });
+    expect((await creditOverview(orgId, NOON)).balance).toBe(0);
+    expect(await claimDailyCredits(orgId, NOON)).toMatchObject({ outcome: "claimed", amount: 3 });
+    expect((await creditOverview(orgId, NOON)).daily).toMatchObject({ eligible: true, perDay: 3, today: 3, claimable: false, trialEndsAt: null });
+    // The same day, however many claims: once.
+    expect(await claimDailyCredits(orgId, EVENING)).toMatchObject({ outcome: "already_claimed", amount: 3 });
     expect((await creditOverview(orgId, EVENING)).balance).toBe(3);
     // The next day adds to them; nothing lapsed overnight.
+    await claimDailyCredits(orgId, NEXT_DAY);
     expect((await creditOverview(orgId, NEXT_DAY)).balance).toBe(6);
-    // A week without a visit gives nothing for the days missed - only the day of the visit.
+    // A week without a check-in gives nothing for the days missed - only the day of the claim.
+    await claimDailyCredits(orgId, A_WEEK_LATER);
     expect((await creditOverview(orgId, A_WEEK_LATER)).balance).toBe(9);
     const grants = (await ledgerOf(orgId)).filter((row) => row.type === "daily_grant");
     expect(grants.map((row) => row.idempotencyKey).sort()).toEqual([
@@ -182,8 +187,8 @@ describe("daily credits", () => {
   it("are spent like any other credit", async () => {
     await settings({ dailyFree: 3, audit: 5 });
     const { orgId } = await seedWebsite(test);
-    await creditOverview(orgId, NOON);
-    await creditOverview(orgId, NEXT_DAY);
+    await claimDailyCredits(orgId, NOON);
+    await claimDailyCredits(orgId, NEXT_DAY);
     expect(await spend({ organizationId: orgId }, NEXT_DAY)).toMatchObject({ ok: true, credits: 5 });
     expect((await creditOverview(orgId, NEXT_DAY)).available).toBe(1);
   });
@@ -192,7 +197,8 @@ describe("daily credits", () => {
     await settings({ dailyFree: 3 });
     for (const status of ["trialing", "past_due", null]) {
       const { orgId } = await seedWebsite(test, { status });
-      expect((await creditOverview(orgId, NOON)).daily).toEqual({ eligible: false, perDay: 3, today: 0, trialEndsAt: null });
+      expect((await creditOverview(orgId, NOON)).daily).toMatchObject({ eligible: false, perDay: 3, today: 0, claimable: false, trialEndsAt: null });
+      expect(await claimDailyCredits(orgId, NOON)).toMatchObject({ outcome: "not_eligible", amount: 0 });
       expect((await ledgerOf(orgId)).filter((row) => row.type === "daily_grant")).toHaveLength(0);
     }
   });
@@ -200,7 +206,8 @@ describe("daily credits", () => {
   it("are off at 0", async () => {
     await settings({ dailyFree: 0 });
     const { orgId } = await seedWebsite(test);
-    expect((await creditOverview(orgId, NOON)).daily).toEqual({ eligible: true, perDay: 0, today: 0, trialEndsAt: null });
+    expect((await creditOverview(orgId, NOON)).daily).toMatchObject({ eligible: true, perDay: 0, today: 0, claimable: false, trialEndsAt: null });
+    expect(await claimDailyCredits(orgId, NOON)).toMatchObject({ outcome: "not_eligible" });
     expect(await ledgerOf(orgId)).toHaveLength(0);
   });
 
@@ -228,15 +235,20 @@ describe("daily credits", () => {
       const { orgId } = await seedTrial();
       const endsAt = at(72);
 
-      expect((await creditOverview(orgId, at(1))).daily).toEqual({ eligible: true, perDay: 15, today: 15, trialEndsAt: endsAt });
+      expect((await claimDailyCredits(orgId, at(1))).status).toMatchObject({ eligible: true, perDay: 15, today: 15, trialEndsAt: endsAt });
       // A new UTC day, but the same first 24 hours: nothing more.
+      expect(await claimDailyCredits(orgId, at(20))).toMatchObject({ outcome: "already_claimed", amount: 15 });
       expect((await creditOverview(orgId, at(20))).balance).toBe(15);
+      await claimDailyCredits(orgId, at(25));
       expect((await creditOverview(orgId, at(25))).balance).toBe(30);
+      await claimDailyCredits(orgId, at(71));
       expect((await creditOverview(orgId, at(71))).balance).toBe(45);
       // Day 4: none, and the page is told they have ended.
+      expect(await claimDailyCredits(orgId, at(73))).toMatchObject({ outcome: "not_eligible" });
       const dayFour = await creditOverview(orgId, at(73));
       expect(dayFour.balance).toBe(45);
-      expect(dayFour.daily).toEqual({ eligible: false, perDay: 3, today: 0, trialEndsAt: endsAt });
+      expect(dayFour.daily).toMatchObject({ eligible: false, perDay: 3, today: 0, trialEndsAt: endsAt });
+      expect(await claimDailyCredits(orgId, at(24 * 10))).toMatchObject({ outcome: "not_eligible" });
       expect((await creditOverview(orgId, at(24 * 10))).balance).toBe(45);
 
       const grants = (await ledgerOf(orgId)).filter((row) => row.type === "daily_grant");
@@ -247,26 +259,27 @@ describe("daily credits", () => {
       ]);
     });
 
-    it("grant once however many pages open at once", async () => {
+    it("grant once however many claims come in a trial day", async () => {
       await settings({ trialDailyFree: 15 });
       const { orgId } = await seedTrial();
-      await Promise.all([ensureDailyCredits(orgId, at(2)), ensureDailyCredits(orgId, at(2)), ensureDailyCredits(orgId, at(3))]);
+      await Promise.all([claimDailyCredits(orgId, at(2)), claimDailyCredits(orgId, at(2)), claimDailyCredits(orgId, at(3))]);
       expect((await creditOverview(orgId, at(4))).balance).toBe(15);
     });
 
     it("give the paid plan's amount once the plan starts", async () => {
       await settings({ dailyFree: 3, trialDailyFree: 15 });
       const { orgId } = await seedTrial();
-      await creditOverview(orgId, at(1));
+      await claimDailyCredits(orgId, at(1));
       await test.db.update(subscriptions).set({ status: "active" }).where(eq(subscriptions.organizationId, orgId));
-      expect((await creditOverview(orgId, at(30))).daily).toEqual({ eligible: true, perDay: 3, today: 3, trialEndsAt: null });
+      expect((await claimDailyCredits(orgId, at(30))).status).toMatchObject({ eligible: true, perDay: 3, today: 3, trialEndsAt: null });
       expect((await creditOverview(orgId, at(30))).balance).toBe(18);
     });
 
     it("are off at 0, and say nothing about the trial", async () => {
       await settings({ dailyFree: 3, trialDailyFree: 0 });
       const { orgId } = await seedTrial();
-      expect((await creditOverview(orgId, at(1))).daily).toEqual({ eligible: false, perDay: 3, today: 0, trialEndsAt: null });
+      expect((await creditOverview(orgId, at(1))).daily).toMatchObject({ eligible: false, perDay: 3, today: 0, trialEndsAt: null });
+      expect(await claimDailyCredits(orgId, at(1))).toMatchObject({ outcome: "not_eligible" });
       expect(await ledgerOf(orgId)).toHaveLength(0);
     });
   });
@@ -274,7 +287,7 @@ describe("daily credits", () => {
   it("show in the history", async () => {
     await settings({ dailyFree: 3 });
     const { orgId } = await seedWebsite(test);
-    await creditOverview(orgId, NOON);
+    await claimDailyCredits(orgId, NOON);
     const history = await creditHistory(orgId, { page: 1, pageSize: 25 });
     expect(history.rows).toEqual([expect.objectContaining({ type: "daily_grant", amount: 3, action: null })]);
   });

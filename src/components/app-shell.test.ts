@@ -104,7 +104,7 @@ vi.mock("@/components/app-sidebar", () => ({
 }));
 vi.mock("@/components/mobile-nav", () => ({ MobileNav: () => null }));
 vi.mock("@/components/sidebar-nav", () => ({ SidebarNav: () => null }));
-vi.mock("@/components/sidebar-usage", () => ({ SidebarUsage: () => null, SidebarCredits: () => null }));
+vi.mock("@/components/sidebar-usage", () => ({ SidebarUsage: () => null, SidebarCredits: () => null, PhoneDailyClaim: () => null }));
 vi.mock("@/components/dashboard/website-switcher", () => ({
   WebsiteSwitcher: () => null,
 }));

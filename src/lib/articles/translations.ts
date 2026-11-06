@@ -7,7 +7,7 @@ import { and, eq, sql } from "drizzle-orm";
 
 import { MODELS } from "@/lib/ai/client";
 import { siteScope } from "@/lib/articles/link-guard";
-import { reviewStatusForNewDraft } from "@/lib/articles/review";
+import { heldFromCustomer, reviewStatusForNewDraft, storedRevision, twoStepArticles } from "@/lib/articles/review";
 import { isEntitledToSpend } from "@/lib/billing/entitled";
 import { db } from "@/lib/db";
 import { articles, articleTranslationAttempts, spendReservations, websites } from "@/lib/db/schema";
@@ -110,6 +110,10 @@ export async function translateLiveArticle(due: TranslationDue): Promise<Transla
       language: websites.language,
       url: websites.url,
       domain: websites.domain,
+      reviewStatus: articles.reviewStatus,
+      reviewApprovedHash: articles.reviewApprovedHash,
+      status: articles.status,
+      approvedRevision: articles.approvedRevision,
     })
     .from(articles)
     .innerJoin(websites, eq(websites.id, articles.websiteId))
@@ -117,6 +121,14 @@ export async function translateLiveArticle(due: TranslationDue): Promise<Transla
     .limit(1);
   const to = languageName(due.language);
   if (!row?.bodyHtml || !to) return { status: "skipped", reason: !to ? "not a language RepGet writes" : "no article" };
+  /*
+    The two-step flow: "the text that went live", never a working copy waiting
+    for the team. With nothing stored to translate, it waits for their approval.
+  */
+  const held = heldFromCustomer(row) && (await twoStepArticles());
+  const stored = held ? storedRevision(row.approvedRevision) : null;
+  if (held && !stored?.bodyHtml) return { status: "skipped", reason: "the team is working on this article" };
+  const source = stored ?? row;
 
   // The try counts before anything is spent: a job that dies mid-call still used one.
   const [tried] = await db
@@ -145,11 +157,11 @@ export async function translateLiveArticle(due: TranslationDue): Promise<Transla
   let translated;
   try {
     translated = await translateArticle({
-      title: row.title,
-      slug: row.slug,
-      metaDescription: row.metaDescription,
-      imageAlt: row.imageAlt,
-      bodyHtml: row.bodyHtml,
+      title: source.title,
+      slug: source.slug,
+      metaDescription: source.metaDescription,
+      imageAlt: source.imageAlt,
+      bodyHtml: source.bodyHtml ?? "",
       from: normalizeLanguage(row.language) ?? "English",
       to,
       siteHosts: siteScope({ url: row.url, domain: row.domain }).hosts,
@@ -204,8 +216,8 @@ export async function translateLiveArticle(due: TranslationDue): Promise<Transla
       bodyHtml: translated.bodyHtml,
       wordCount: wordsIn(translated.bodyHtml),
       status: "draft",
-      imageUrl: row.imageUrl,
-      imageAlt: translated.imageAlt ?? row.imageAlt,
+      imageUrl: source.imageUrl,
+      imageAlt: translated.imageAlt ?? source.imageAlt,
       reviewStatus: await reviewStatusForNewDraft(tx, due.websiteId),
     });
     return true;

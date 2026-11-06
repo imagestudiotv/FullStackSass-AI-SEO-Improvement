@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { articles } from "@/lib/db/schema";
 import { requireEditor } from "@/lib/websites/require-editor";
 import { lockForEdit } from "@/lib/publishing/dispatch";
-import { reviewHashSql } from "./review";
+import { reviewHashSql, twoStepArticles } from "./review";
 
 export async function approveArticleResearch(websiteId: string, articleId: string, form: FormData): Promise<void> {
   const guard = await requireEditor(z.string().uuid().parse(websiteId));
@@ -14,6 +14,8 @@ export async function approveArticleResearch(websiteId: string, articleId: strin
   z.string().uuid().parse(articleId);
   const expectedHash = z.string().regex(/^[a-f0-9]{64}$/).parse(form.get("revision"));
   if (form.get("reviewed") !== "yes") throw new Error("Review the article and its sources before approving.");
+  // The two-step flow asks no approval of the customer: the team's covers the sources.
+  if (await twoStepArticles()) throw new Error("The RepGet team checks this article's sources. Nothing is needed from you.");
   await db.transaction(async tx => {
     const [owned] = await tx.select({ id: articles.id }).from(articles)
       .where(and(eq(articles.id, articleId), eq(articles.websiteId, websiteId))).limit(1);

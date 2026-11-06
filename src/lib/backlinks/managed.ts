@@ -1,17 +1,18 @@
 import "server-only";
 
-import { and, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, ne, or, sql } from "drizzle-orm";
 
 import { recordAdminAction } from "@/lib/admin/audit";
 import { countWords, normaliseSlug } from "@/lib/articles/generate";
 import { linkPhrase, linksTo, linkTextFor, siteScope, unlinkUrl } from "@/lib/articles/link-guard";
-import { reviewHash, twoStepArticles } from "@/lib/articles/review";
+import { reviewHash, revisionToStore, twoStepArticles } from "@/lib/articles/review";
 import { sanitizeHtml } from "@/lib/articles/sanitize";
 import { readOneAuthority } from "@/lib/authority/metric";
 import { effectiveMinSourceRank, minRankCapFor } from "@/lib/backlinks/authority-cap";
 import { ArticleInFlightError, lockForEdit } from "@/lib/publishing/dispatch";
 import { ensureMonthlyCredits } from "@/lib/backlinks/credits";
 import { isRelevantPair } from "@/lib/backlinks/matching";
+import { withdrawPlacement } from "@/lib/backlinks/placements";
 import { db } from "@/lib/db";
 import {
   articles,
@@ -225,6 +226,25 @@ export async function placeManagedLink(input: PlaceInput): Promise<{ placementId
   if (owner) await ensureMonthlyCredits(owner.organizationId);
 
   return db.transaction(async (tx) => {
+    /*
+      Key shares on both websites, BEFORE the article. The inserts below need them
+      anyway, and a website's deletion takes its row and then the article's: the
+      other way round, this and a deletion would each wait for the other. Now a link
+      either commits first, and the deletion finds and releases it, or finds no
+      article or website (lib/websites/deletion.ts).
+    */
+    await tx
+      .select({ id: websites.id })
+      .from(websites)
+      .where(
+        or(
+          eq(websites.id, input.beneficiaryWebsiteId),
+          eq(websites.id, sql`(select ${articles.websiteId} from ${articles} where ${articles.id} = ${input.articleId})`),
+        ),
+      )
+      .orderBy(asc(websites.id))
+      .for("key share");
+
     const article = await lockArticle(tx, input.articleId, input.expectedVersion);
 
     const sites = await tx
@@ -428,17 +448,10 @@ export async function removeManagedPlacement(input: {
     if (!row?.articleId) throw new PlacementError("Placement not found");
     const article = await lockArticle(tx, row.articleId, input.expectedVersion);
 
-    const cancelled = await tx
-      .update(placements)
-      .set({ status: "cancelled", updatedAt: new Date() })
-      // Compare-and-set: only a placement still in the draft stage.
-      .where(and(eq(placements.id, row.id), inArray(placements.status, ["pending", "drafted"])))
-      .returning({ id: placements.id });
-    if (cancelled.length === 0) throw new PlacementError("That link is already published; it can no longer be withdrawn here");
-    await tx
-      .update(backlinkRequests)
-      .set({ status: "cancelled", creditsReserved: 0, updatedAt: new Date() })
-      .where(eq(backlinkRequests.id, row.requestId));
+    // Compare-and-set: only a placement still in the draft stage.
+    if (!(await withdrawPlacement(tx, row, ["pending", "drafted"]))) {
+      throw new PlacementError("That link is already published; it can no longer be withdrawn here");
+    }
 
     const [host] = await tx
       .select({ url: websites.url, domain: websites.domain })
@@ -722,7 +735,8 @@ export async function approveArticle(input: {
       them separately (lib/publishing/controls.ts, two_step_articles). The
       review page shows the sources and their warnings for that reason.
     */
-    const coversResearch = article.researchReviewRequired && (await twoStepArticles(tx));
+    const twoStep = await twoStepArticles(tx);
+    const coversResearch = article.researchReviewRequired && twoStep;
     const [updated] = await tx
       .update(articles)
       .set({
@@ -734,6 +748,9 @@ export async function approveArticle(input: {
         ...(coversResearch
           ? { researchApprovedHash: reviewHash(article), researchApprovedBy: input.actorEmail, researchApprovedAt: new Date() }
           : {}),
+        // A press made for an earlier revision does not carry this one out: the customer presses again.
+        // And this revision is now what the customer reads and every path sends, until the next approval.
+        ...(twoStep ? { publishRequested: null, approvedRevision: revisionToStore(article, "approved") } : {}),
       })
       .where(and(eq(articles.id, article.id), eq(articles.reviewVersion, input.expectedVersion)))
       .returning({ reviewVersion: articles.reviewVersion });

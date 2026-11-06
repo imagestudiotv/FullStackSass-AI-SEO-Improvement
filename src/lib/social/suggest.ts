@@ -3,6 +3,7 @@ import "server-only";
 import { and, desc, eq, inArray, isNotNull, notInArray, sql } from "drizzle-orm";
 
 import { isAiConfigured } from "@/lib/ai/client";
+import { customerTitleSql, publicRevisionSql, publicFieldSql } from "@/lib/articles/review";
 import { mainLanguageCode } from "@/lib/articles/translation-languages";
 import { db } from "@/lib/db";
 import { articles, brandVoice, keywords, socialSuggestions, websites } from "@/lib/db/schema";
@@ -99,9 +100,9 @@ export async function suggestForWebsite(websiteId: string, deps: Partial<Suggest
 
   // ---- Own posts: OWN_POSTS_PER_ACCOUNT per account a day (accounts are one per platform), at most half the day's ten.
   const live = await db
-    .select({ title: articles.title, url: articles.publishedUrl, imageUrl: articles.imageUrl })
+    .select({ title: customerTitleSql, url: articles.publishedUrl, imageUrl: publicFieldSql(articles.imageUrl, "imageUrl") })
     .from(articles)
-    .where(and(eq(articles.websiteId, websiteId), isNotNull(articles.publishedUrl), isNotNull(articles.firstLiveAt)))
+    .where(and(eq(articles.websiteId, websiteId), isNotNull(articles.publishedUrl), isNotNull(articles.firstLiveAt), sql`${publicRevisionSql}`))
     .orderBy(desc(articles.firstLiveAt))
     .limit(10);
 
@@ -209,7 +210,8 @@ export async function suggestForWebsite(websiteId: string, deps: Partial<Suggest
     // Only a post whose slot offered a link may carry one (LINK_EVERY), even to the website itself.
     if (!slot.link && linksIn(`${title ?? ""} ${body}`).length > 0) continue;
     const auto = Boolean(
-      slot.account.bundleAccountId &&
+      !access.manualOnly &&
+        slot.account.bundleAccountId &&
         slot.account.autoPost &&
         !slot.account.pausedAt &&
         // A Pin needs its board; without one it waits for the customer's click.
@@ -281,7 +283,7 @@ async function nextPinImage(websiteId: string): Promise<{ title: string; url: st
     ).map((row) => row.imageUrl),
   );
   const candidates = await db
-    .select({ title: articles.title, url: articles.publishedUrl, imageUrl: articles.imageUrl })
+    .select({ title: customerTitleSql, url: articles.publishedUrl, imageUrl: publicFieldSql(articles.imageUrl, "imageUrl") })
     .from(articles)
     .where(
       and(
@@ -289,6 +291,7 @@ async function nextPinImage(websiteId: string): Promise<{ title: string; url: st
         isNotNull(articles.publishedUrl),
         isNotNull(articles.firstLiveAt),
         isNotNull(articles.imageUrl),
+        sql`${publicRevisionSql}`,
       ),
     )
     .orderBy(desc(articles.firstLiveAt))

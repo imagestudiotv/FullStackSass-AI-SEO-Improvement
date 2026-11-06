@@ -1,5 +1,7 @@
-import { and, desc, eq, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, lt, ne, notInArray, or, sql } from "drizzle-orm";
 
+import { linksTo } from "@/lib/articles/link-guard";
+import { storedRevision, twoStepArticles } from "@/lib/articles/review";
 import { recordCredit } from "@/lib/backlinks/credits";
 import type { LinkCheckResult } from "@/lib/backlinks/verify";
 import { db } from "@/lib/db";
@@ -8,6 +10,7 @@ import {
   backlinkRequests,
   linkChecks,
   placements,
+  publicationDispatches,
   websites,
 } from "@/lib/db/schema";
 import type { Executor } from "@/lib/db/types";
@@ -49,6 +52,12 @@ import type { Executor } from "@/lib/db/types";
  * A check that could not REACH the page (timeout, 5xx, DNS) is an "error",
  * not a "missing": it neither counts toward the missing streak nor resets it.
  *
+ * RESERVED IS NOT THE LEDGER. From drafted until the verifier's verdict the
+ * requester's credits are only HELD: the request's credits_reserved, counted
+ * while it is pending or matched. Giving up a link that never went live
+ * (withdrawPlacement) ends that hold and writes no ledger row, because nothing
+ * was ever charged. Only "live" and "removed" move credits.
+ *
  * MISSING LINKS ARE NOT REFUNDED AUTOMATICALLY (client, 2026-10-01). A live
  * link missing on FAILURES_BEFORE_REMOVED consecutive checks used to be
  * removed and refunded by the verifier. But a host site in maintenance mode,
@@ -75,6 +84,118 @@ export function classifyCheck(result: LinkCheckResult): CheckOutcome {
   return "error";
 }
 
+/** Placements still on their way to being, or being, the link a request paid for. */
+const ACTIVE_PLACEMENT = ["pending", "drafted", "published", "live"];
+
+/**
+ * Gives up a placement that never went live, inside the caller's transaction
+ * and with its row already locked: the placement ends "cancelled", and its
+ * request is closed with the hold released. Used by an administrator's
+ * withdrawal (lib/backlinks/managed.ts) and by deleting the host article
+ * (lib/articles/deletion.ts) or its whole website (lib/websites/deletion.ts).
+ *
+ * The request is closed rather than sent back to "pending". A pending request
+ * still counts its credits_reserved as held, and nothing matches a request again
+ * while the network is managed, so the credits would stay locked up for good.
+ * This writes no ledger row: nothing was charged (see "RESERVED IS NOT THE
+ * LEDGER" above). A second call is a no-op, by the compare-and-set on `from`.
+ *
+ * A request another placement has since taken over is left alone: its hold
+ * belongs to that placement now.
+ */
+export async function withdrawPlacement(
+  tx: Executor,
+  placement: { id: string; requestId: string },
+  from: string[],
+  now: Date = new Date(),
+): Promise<boolean> {
+  const withdrawn = await tx
+    .update(placements)
+    .set({ status: "cancelled", updatedAt: now })
+    .where(and(eq(placements.id, placement.id), inArray(placements.status, from)))
+    .returning({ id: placements.id });
+  if (withdrawn.length === 0) return false;
+
+  const [other] = await tx
+    .select({ id: placements.id })
+    .from(placements)
+    .where(
+      and(
+        eq(placements.requestId, placement.requestId),
+        ne(placements.id, placement.id),
+        inArray(placements.status, ACTIVE_PLACEMENT),
+      ),
+    )
+    .limit(1);
+  if (!other) {
+    await tx
+      .update(backlinkRequests)
+      .set({ status: "cancelled", creditsReserved: 0, updatedAt: now })
+      .where(and(eq(backlinkRequests.id, placement.requestId), inArray(backlinkRequests.status, ["pending", "matched"])));
+  }
+  return true;
+}
+
+/**
+ * What goes with the host article or website: a link that never went live and
+ * that nobody can carry further now. A "published" one is left to the verifier,
+ * which needs only liveUrl; a "live" one is settled. See lib/articles/deletion.ts.
+ */
+export const GIVEN_UP_WITH_HOST = ["pending", "drafted", "unverified"];
+
+/**
+ * Locks every placement a website's deletion will touch, in id order: those it
+ * hosts, those on its articles, and those it receives (they cascade). Taken before
+ * any other lock of the deletion, as the verifier and an administrator's withdrawal
+ * lock the placement before everything else. See lib/websites/deletion.ts.
+ */
+export async function lockPlacementsOfWebsites(tx: Executor, websiteIds: string[]) {
+  if (websiteIds.length === 0) return [];
+  return tx
+    .select({
+      id: placements.id,
+      requestId: placements.requestId,
+      hostWebsiteId: placements.hostWebsiteId,
+      articleWebsiteId: articles.websiteId,
+    })
+    .from(placements)
+    .innerJoin(backlinkRequests, eq(backlinkRequests.id, placements.requestId))
+    .leftJoin(articles, eq(articles.id, placements.articleId))
+    .where(
+      or(
+        inArray(placements.hostWebsiteId, websiteIds),
+        inArray(articles.websiteId, websiteIds),
+        inArray(backlinkRequests.websiteId, websiteIds),
+      ),
+    )
+    .orderBy(asc(placements.id))
+    .for("update", { of: placements });
+}
+
+/**
+ * Gives up the links these websites host, by the rule for deleting the article
+ * they sit on, inside the deletion's transaction: a failure leaves every hold as
+ * it was. Returns how many were given up. A link these websites only RECEIVE is
+ * not touched: it cascades with its request, and the hold goes with the row.
+ */
+export async function releaseLinksHostedOn(
+  tx: Executor,
+  websiteIds: string[],
+  now: Date = new Date(),
+): Promise<number> {
+  const deleted = new Set(websiteIds);
+  const hosted = (await lockPlacementsOfWebsites(tx, websiteIds)).filter(
+    (row) =>
+      (row.hostWebsiteId && deleted.has(row.hostWebsiteId)) ||
+      (row.articleWebsiteId && deleted.has(row.articleWebsiteId)),
+  );
+  let released = 0;
+  for (const placement of hosted) {
+    if (await withdrawPlacement(tx, placement, GIVEN_UP_WITH_HOST, now)) released++;
+  }
+  return released;
+}
+
 /** The link is in a generated article. Called from the generation job. */
 export async function markPlacementDrafted(
   placementId: string,
@@ -93,6 +214,9 @@ export async function markPlacementDrafted(
  * The article went out. Records the real URL on its placements so the
  * verifier can look for the link there. A CMS draft is not publication:
  * nothing changes. A republish at a new URL moves the URL along.
+ *
+ * Under the two-step flow, only placements whose link is in the revision that
+ * went out: a link the team has placed in a newer working copy is not on the page.
  */
 export async function recordArticlePublication(
   articleId: string,
@@ -101,6 +225,7 @@ export async function recordArticlePublication(
 ): Promise<number> {
   if (status !== "publish" || !publishedUrl) return 0;
   const now = new Date();
+  const notInSentText = await placementsOutsideSentText(articleId);
   const promoted = await db
     .update(placements)
     .set({ status: "published", liveUrl: publishedUrl, publishedAt: now, updatedAt: now })
@@ -108,6 +233,7 @@ export async function recordArticlePublication(
       and(
         eq(placements.articleId, articleId),
         inArray(placements.status, ["drafted", "published", "unverified"]),
+        notInSentText.length > 0 ? notInArray(placements.id, notInSentText) : undefined,
       ),
     )
     .returning({ id: placements.id });
@@ -120,12 +246,42 @@ export async function recordArticlePublication(
 }
 
 /**
+ * Under the two-step flow, the text actually on the website: the stored revision
+ * if the latest delivery was that revision, or if it is what stood there at
+ * switch-on. Null when that is not known: an approved revision may not be sent yet.
+ */
+async function sentText(articleId: string): Promise<string | null> {
+  const [article] = await db.select({ approvedRevision: articles.approvedRevision }).from(articles).where(eq(articles.id, articleId)).limit(1);
+  const stored = storedRevision(article?.approvedRevision);
+  if (!stored?.bodyHtml) return null;
+  const [last] = await db
+    .select({ revisionHash: publicationDispatches.revisionHash })
+    .from(publicationDispatches)
+    .where(and(eq(publicationDispatches.articleId, articleId), eq(publicationDispatches.status, "sent"), eq(publicationDispatches.late, false)))
+    .orderBy(desc(publicationDispatches.claimedAt))
+    .limit(1);
+  if (last) return last.revisionHash === stored.hash ? stored.bodyHtml : null;
+  return stored.source === "published" ? stored.bodyHtml : null;
+}
+
+async function placementsOutsideSentText(articleId: string): Promise<string[]> {
+  if (!(await twoStepArticles())) return [];
+  const sent = await sentText(articleId);
+  const rows = await db
+    .select({ id: placements.id, url: backlinkRequests.targetUrl })
+    .from(placements)
+    .innerJoin(backlinkRequests, eq(backlinkRequests.id, placements.requestId))
+    .where(and(eq(placements.articleId, articleId), inArray(placements.status, ["drafted", "unverified"])));
+  return rows.filter((row) => !sent || !linksTo(sent, row.url)).map((row) => row.id);
+}
+
+/**
  * Placements the old model left without a URL, whose article has since been
  * published: give them the article's URL so they can be verified at all.
  */
 export async function discoverPublishedPlacements(): Promise<number> {
   const found = await db
-    .select({ id: placements.id, status: placements.status, url: articles.publishedUrl })
+    .select({ id: placements.id, status: placements.status, url: articles.publishedUrl, articleId: articles.id })
     .from(placements)
     .innerJoin(articles, eq(articles.id, placements.articleId))
     .where(
@@ -138,6 +294,8 @@ export async function discoverPublishedPlacements(): Promise<number> {
     )
     .limit(200);
   for (const row of found) {
+    // Under the two-step flow a link counts only if it is in what actually went out.
+    if (row.status === "drafted" && (await placementsOutsideSentText(row.articleId)).includes(row.id)) continue;
     await db
       .update(placements)
       .set({
@@ -253,6 +411,7 @@ export async function applyCheck(
         credits: placements.credits,
         requestId: placements.requestId,
         hostWebsiteId: placements.hostWebsiteId,
+        articleId: placements.articleId,
         managed: placements.managed,
       })
       .from(placements)
@@ -345,6 +504,17 @@ export async function applyCheck(
     }
 
     // Published, never seen, never charged: the request goes back to matching.
+
+    /*
+      Unless its article has since been deleted from RepGet (lib/articles/
+      deletion.ts). The verifier was the last thing that could settle this link:
+      nobody can correct or send that article again, so a kept hold would never
+      be released. Nothing was charged, so nothing is refunded.
+    */
+    if (!placement.articleId) {
+      await withdrawPlacement(tx, placement, ["published"], now);
+      return "unverified";
+    }
 
     /*
       The request goes back to matching: the customer still wants a link.

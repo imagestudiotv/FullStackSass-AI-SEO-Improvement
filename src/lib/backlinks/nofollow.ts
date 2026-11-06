@@ -3,6 +3,8 @@ import { alias } from "drizzle-orm/pg-core";
 
 import { isUnfollowed } from "@/lib/backlinks/follow";
 import { db } from "@/lib/db";
+import { customerTitleSql } from "@/lib/articles/review";
+import { PREPARING_TITLE } from "@/lib/i18n/article-delivery";
 import { articles, backlinkRequests, linkChecks, placements, websites } from "@/lib/db/schema";
 import { notify } from "@/lib/notifications/create";
 
@@ -39,7 +41,7 @@ export async function alertIfNewlyUnfollowed(placementId: string): Promise<boole
   const [row] = await db
     .select({
       liveUrl: placements.liveUrl,
-      articleTitle: articles.title,
+      articleTitle: customerTitleSql,
       hostId: host.id,
       hostDomain: host.domain,
       hostOrgId: host.organizationId,
@@ -57,7 +59,7 @@ export async function alertIfNewlyUnfollowed(placementId: string): Promise<boole
   if (!row) return false;
 
   const rel = latest.rel ?? "";
-  const where = row.articleTitle ? `"${row.articleTitle}"` : (row.liveUrl ?? "your article");
+  const where = row.articleTitle && row.articleTitle !== PREPARING_TITLE ? `"${row.articleTitle}"` : (row.liveUrl ?? "your article");
   await notify({
     organizationId: row.hostOrgId,
     type: "backlink.nofollow",

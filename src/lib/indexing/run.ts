@@ -1,6 +1,7 @@
 import { and, eq, gte, inArray, isNotNull, lt, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
+import { customerTitleSql } from "@/lib/articles/review";
 import { articleIndexing, articles, websites } from "@/lib/db/schema";
 import { isEntitledToSpend } from "@/lib/billing/entitled";
 import { notify } from "@/lib/notifications/create";
@@ -312,7 +313,7 @@ async function describeIndexed(ids: string[]): Promise<IndexedArticle[]> {
       articleId: articleIndexing.articleId,
       websiteId: articleIndexing.websiteId,
       organizationId: websites.organizationId,
-      title: articles.title,
+      title: sql<string>`${customerTitleSql}`,
       url: articleIndexing.url,
     })
     .from(articleIndexing)

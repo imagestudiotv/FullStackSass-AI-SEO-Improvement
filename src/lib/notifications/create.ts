@@ -39,6 +39,14 @@ export type NotificationType =
   | "earn.approved"
   | "earn.declined"
   | "addon.purchased"
+  /** A delayed payment for credits failed: nothing was added. */
+  | "addon.payment_failed"
+  /** A website project moving along (lib/website-projects). */
+  | "website.quote_requested"
+  | "website.quote_ready"
+  | "website.paid"
+  | "website.fulfilled"
+  | "website.declined"
   /** A WordPress site this workspace published to was connected to another RepGet website. */
   | "plugin.moved"
   /** A network backlink was found marked nofollow/sponsored/ugc on its live page. */

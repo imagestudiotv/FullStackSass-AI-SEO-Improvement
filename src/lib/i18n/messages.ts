@@ -511,8 +511,6 @@ export type Messages = {
     subtitle: string;
     emailLabel: string;
     accountNote: string;
-    /** /contact?about=website_build: the homepage's "We'll build one for you". */
-    websiteBuild: { title: string; subtitle: string; subject: string };
   };
   /** The public site's "page not found" (components/not-found-panel.tsx). */
   notFound: {
@@ -3010,7 +3008,7 @@ export type Messages = {
       intro: string;
       buy: string;
       availableHelp: string;
-      /** Daily credits (lib/credits/daily.ts): given on each day a paying workspace uses RepGet. {count} in dailyValue and dailyPlan. */
+      /** Daily credits (lib/credits/daily.ts): claimed with a check-in, once a day, on a paid plan. {count} in dailyValue and dailyPlan. */
       daily: string;
       dailyValue: string;
       dailyHelp: string;
@@ -3099,6 +3097,7 @@ export type Messages = {
       researching: string;
       generated: string;
       ready: string;
+      preparing: string;
       queued: string;
       running: string;
       completed: string;
@@ -3743,7 +3742,7 @@ const en: Messages = {
       articlesPaid: "All your plan's articles, every month",
       check: "Website check",
       creditsTrial: "{count} credits a day for your first {days} days",
-      creditsPaid: "Credits every month, plus more on each day you use RepGet",
+      creditsPaid: "Credits every month, plus more on each day you check in",
       aiVisibility: "AI visibility in ChatGPT, Claude, Gemini and Perplexity",
       backlinks: "Backlinks from our partner network",
       notIncluded: "Not included",
@@ -4015,11 +4014,6 @@ const en: Messages = {
     subtitle:
       "Questions about the product, your account, or billing - we read every message and reply within two working days.",
     emailLabel: "Email",
-    websiteBuild: {
-      title: "We'll build your website",
-      subtitle: "Tell us about your business and what you need from your website, and we will reply with how we can help and what it costs.",
-      subject: "Build a website for me",
-    },
     accountNote:
       "If you are writing about your account, please send it from the address you signed up with.",
   },
@@ -4515,7 +4509,7 @@ const en: Messages = {
       socialPostsEachMonth: "{n} social post each month|{n} social posts each month",
       paymentReceived: "Payment received - confirming your subscription…",
       checkoutCancelled: "Checkout cancelled.",
-      purchaseReceived: "Payment received - your purchase will appear shortly.",
+      purchaseReceived: "Thank you. Your credits appear here once the payment is confirmed. With some payment methods this can take a few days.",
       purchaseCancelled: "Purchase cancelled.",
       addWebsiteFirst: "Add a website first - each plan pays for one site.",
       checkoutFailed: "Could not start checkout. Please try again.",
@@ -6301,10 +6295,10 @@ const en: Messages = {
       availableHelp: "Credits you can spend now.",
       daily: "Daily credits",
       dailyValue: "+{count} today",
-      dailyHelp: "Added on each day you use RepGet. They never expire.",
-      dailyPlan: "With a paid plan you get {count} credits on each day you use RepGet.",
-      dailyTrialHelp: "On your trial: {count} credits on each of your first {days} days you use RepGet, until {date}. They never expire.",
-      dailyTrialOver: "Your trial's daily credits have ended. With a paid plan you get {count} credits on each day you use RepGet.",
+      dailyHelp: "Check in once a day to collect them. They never expire.",
+      dailyPlan: "With a paid plan you can collect {count} credits on each day you check in.",
+      dailyTrialHelp: "On your trial: check in to collect {count} credits on each of your first {days} days, until {date}. They never expire.",
+      dailyTrialOver: "Your trial's daily credits have ended. With a paid plan you can collect {count} credits on each day you check in.",
       reserved: "Reserved for links",
       reservedHelp: "Held for links being placed; spent only once a link is verified live.",
       balance: "Balance",
@@ -6374,6 +6368,7 @@ const en: Messages = {
       researching: "Finding opportunities",
       generated: "Content planned",
       ready: "Ready",
+      preparing: "With the RepGet team",
       queued: "Waiting",
       running: "Running",
       completed: "Completed",
@@ -7020,7 +7015,7 @@ const es: Messages = {
       articlesPaid: "Todos los artículos de su plan, cada mes",
       check: "Revisión del sitio web",
       creditsTrial: "{count} créditos al día durante sus primeros {days} días",
-      creditsPaid: "Créditos cada mes, y más cada día que usa RepGet",
+      creditsPaid: "Créditos cada mes, y más cada día que registra su visita",
       aiVisibility: "Visibilidad en IA en ChatGPT, Claude, Gemini y Perplexity",
       backlinks: "Backlinks de nuestra red de socios",
       notIncluded: "No incluido",
@@ -7294,11 +7289,6 @@ const es: Messages = {
     subtitle:
       "Preguntas sobre el producto, su cuenta o la facturación: leemos todos los mensajes y respondemos en un plazo de dos días laborables.",
     emailLabel: "Correo electrónico",
-    websiteBuild: {
-      title: "Creamos su sitio web",
-      subtitle: "Cuéntenos a qué se dedica y qué necesita de su sitio web, y le responderemos con cómo podemos ayudarle y cuánto cuesta.",
-      subject: "Quiero que creen mi sitio web",
-    },
     accountNote:
       "Si escribe sobre su cuenta, hágalo desde la dirección con la que se registró.",
   },
@@ -7794,7 +7784,7 @@ const es: Messages = {
       socialPostsEachMonth: "{n} publicación en redes al mes|{n} publicaciones en redes al mes",
       paymentReceived: "Pago recibido - confirmando su suscripción…",
       checkoutCancelled: "Pago cancelado.",
-      purchaseReceived: "Pago recibido - su compra aparecerá en breve.",
+      purchaseReceived: "Gracias. Sus créditos aparecerán aquí cuando se confirme el pago. Con algunos métodos de pago puede tardar unos días.",
       purchaseCancelled: "Compra cancelada.",
       addWebsiteFirst: "Añada primero un sitio web - cada plan paga un solo sitio.",
       checkoutFailed: "No se pudo iniciar el pago. Inténtelo de nuevo.",
@@ -9581,10 +9571,10 @@ const es: Messages = {
       availableHelp: "Créditos que puede gastar ahora.",
       daily: "Créditos diarios",
       dailyValue: "+{count} hoy",
-      dailyHelp: "Se añaden cada día que usa RepGet. No caducan nunca.",
-      dailyPlan: "Con un plan de pago recibe {count} créditos cada día que usa RepGet.",
-      dailyTrialHelp: "Durante su prueba: {count} créditos en cada uno de sus primeros {days} días en que usa RepGet, hasta el {date}. No caducan nunca.",
-      dailyTrialOver: "Los créditos diarios de su prueba han terminado. Con un plan de pago recibe {count} créditos cada día que usa RepGet.",
+      dailyHelp: "Registre su visita una vez al día para recogerlos. No caducan nunca.",
+      dailyPlan: "Con un plan de pago puede recoger {count} créditos cada día que registra su visita.",
+      dailyTrialHelp: "Durante su prueba: registre su visita para recoger {count} créditos en cada uno de sus primeros {days} días, hasta el {date}. No caducan nunca.",
+      dailyTrialOver: "Los créditos diarios de su prueba han terminado. Con un plan de pago puede recoger {count} créditos cada día que registra su visita.",
       reserved: "Reservados para enlaces",
       reservedHelp: "Retenidos para enlaces en curso; solo se gastan cuando el enlace se verifica activo.",
       balance: "Saldo",
@@ -9654,6 +9644,7 @@ const es: Messages = {
       researching: "Buscando oportunidades",
       generated: "Contenido planificado",
       ready: "Listo",
+      preparing: "Con el equipo de RepGet",
       queued: "En espera",
       running: "En curso",
       completed: "Completado",
@@ -10301,7 +10292,7 @@ const fr: Messages = {
       articlesPaid: "Tous les articles de votre forfait, chaque mois",
       check: "Vérification du site",
       creditsTrial: "{count} crédits par jour pendant vos {days} premiers jours",
-      creditsPaid: "Des crédits chaque mois, et d’autres chaque jour où vous utilisez RepGet",
+      creditsPaid: "Des crédits chaque mois, et d’autres chaque jour où vous faites votre check-in",
       aiVisibility: "Visibilité IA dans ChatGPT, Claude, Gemini et Perplexity",
       backlinks: "Backlinks de notre réseau de partenaires",
       notIncluded: "Non inclus",
@@ -10576,11 +10567,6 @@ const fr: Messages = {
     subtitle:
       "Des questions sur le produit, votre compte ou la facturation : nous lisons chaque message et répondons sous deux jours ouvrés.",
     emailLabel: "E-mail",
-    websiteBuild: {
-      title: "Nous créons votre site web",
-      subtitle: "Parlez-nous de votre activité et de ce que vous attendez de votre site : nous vous répondrons en précisant comment nous pouvons vous aider et à quel prix.",
-      subject: "Créer mon site web",
-    },
     accountNote:
       "Si votre message concerne votre compte, envoyez-le depuis l'adresse utilisée lors de l'inscription.",
   },
@@ -11076,7 +11062,7 @@ const fr: Messages = {
       socialPostsEachMonth: "{n} publication sociale par mois|{n} publications sociales par mois",
       paymentReceived: "Paiement reçu - confirmation de votre abonnement…",
       checkoutCancelled: "Paiement annulé.",
-      purchaseReceived: "Paiement reçu - votre achat apparaîtra sous peu.",
+      purchaseReceived: "Merci. Vos crédits apparaîtront ici une fois le paiement confirmé. Avec certains moyens de paiement, cela peut prendre quelques jours.",
       purchaseCancelled: "Achat annulé.",
       addWebsiteFirst: "Ajoutez d\u2019abord un site - chaque forfait paie un seul site.",
       checkoutFailed: "Impossible de lancer le paiement. Réessayez.",
@@ -12862,10 +12848,10 @@ const fr: Messages = {
       availableHelp: "Les crédits que vous pouvez dépenser maintenant.",
       daily: "Crédits quotidiens",
       dailyValue: "+{count} aujourd’hui",
-      dailyHelp: "Ajoutés chaque jour où vous utilisez RepGet. Ils n’expirent jamais.",
-      dailyPlan: "Avec un forfait payant, vous recevez {count} crédits chaque jour où vous utilisez RepGet.",
-      dailyTrialHelp: "Pendant votre essai : {count} crédits chacun de vos {days} premiers jours d’utilisation de RepGet, jusqu’au {date}. Ils n’expirent jamais.",
-      dailyTrialOver: "Les crédits quotidiens de votre essai sont terminés. Avec un forfait payant, vous recevez {count} crédits chaque jour où vous utilisez RepGet.",
+      dailyHelp: "Faites votre check-in une fois par jour pour les récupérer. Ils n’expirent jamais.",
+      dailyPlan: "Avec un forfait payant, vous pouvez récupérer {count} crédits chaque jour où vous faites votre check-in.",
+      dailyTrialHelp: "Pendant votre essai : faites votre check-in pour récupérer {count} crédits chacun de vos {days} premiers jours, jusqu’au {date}. Ils n’expirent jamais.",
+      dailyTrialOver: "Les crédits quotidiens de votre essai sont terminés. Avec un forfait payant, vous pouvez récupérer {count} crédits chaque jour où vous faites votre check-in.",
       reserved: "Réservés pour des liens",
       reservedHelp: "Retenus pour des liens en cours ; dépensés seulement une fois le lien vérifié.",
       balance: "Solde",
@@ -12935,6 +12921,7 @@ const fr: Messages = {
       researching: "Recherche d\u2019opportunités",
       generated: "Contenu planifié",
       ready: "Prêt",
+      preparing: "Chez l'équipe RepGet",
       queued: "En attente",
       running: "En cours",
       completed: "Terminé",
@@ -13583,7 +13570,7 @@ const it: Messages = {
       articlesPaid: "Tutti gli articoli del suo piano, ogni mese",
       check: "Controllo del sito",
       creditsTrial: "{count} crediti al giorno per i primi {days} giorni",
-      creditsPaid: "Crediti ogni mese, e altri ogni giorno in cui usa RepGet",
+      creditsPaid: "Crediti ogni mese, e altri ogni giorno in cui fa il check-in",
       aiVisibility: "Visibilità nelle IA su ChatGPT, Claude, Gemini e Perplexity",
       backlinks: "Backlink dalla nostra rete di partner",
       notIncluded: "Non incluso",
@@ -13855,11 +13842,6 @@ const it: Messages = {
     subtitle:
       "Domande sul prodotto, sul suo account o sulla fatturazione: leggiamo ogni messaggio e rispondiamo entro due giorni lavorativi.",
     emailLabel: "E-mail",
-    websiteBuild: {
-      title: "Creiamo noi il Suo sito web",
-      subtitle: "Ci parli della Sua attività e di ciò che Le serve dal sito: Le risponderemo spiegando come possiamo aiutarLa e quanto costa.",
-      subject: "Creare il mio sito web",
-    },
     accountNote:
       "Se scrive riguardo al suo account, lo faccia dall'indirizzo con cui si è registrato.",
   },
@@ -14355,7 +14337,7 @@ const it: Messages = {
       socialPostsEachMonth: "{n} post social al mese|{n} post social al mese",
       paymentReceived: "Pagamento ricevuto - stiamo confermando il suo abbonamento…",
       checkoutCancelled: "Pagamento annullato.",
-      purchaseReceived: "Pagamento ricevuto - il suo acquisto comparirà a breve.",
+      purchaseReceived: "Grazie. I Suoi crediti compariranno qui una volta confermato il pagamento. Con alcuni metodi di pagamento possono servire alcuni giorni.",
       purchaseCancelled: "Acquisto annullato.",
       addWebsiteFirst: "Aggiunga prima un sito web - ogni piano paga un solo sito.",
       checkoutFailed: "Non è stato possibile avviare il pagamento. Riprovi.",
@@ -16142,10 +16124,10 @@ const it: Messages = {
       availableHelp: "I crediti che può spendere ora.",
       daily: "Crediti giornalieri",
       dailyValue: "+{count} oggi",
-      dailyHelp: "Aggiunti ogni giorno in cui usa RepGet. Non scadono mai.",
-      dailyPlan: "Con un piano a pagamento riceve {count} crediti ogni giorno in cui usa RepGet.",
-      dailyTrialHelp: "Durante la prova: {count} crediti in ciascuno dei primi {days} giorni in cui usa RepGet, fino al {date}. Non scadono mai.",
-      dailyTrialOver: "I crediti giornalieri della prova sono terminati. Con un piano a pagamento riceve {count} crediti ogni giorno in cui usa RepGet.",
+      dailyHelp: "Faccia il check-in una volta al giorno per riceverli. Non scadono mai.",
+      dailyPlan: "Con un piano a pagamento può ricevere {count} crediti ogni giorno in cui fa il check-in.",
+      dailyTrialHelp: "Durante la prova: faccia il check-in per ricevere {count} crediti in ciascuno dei primi {days} giorni, fino al {date}. Non scadono mai.",
+      dailyTrialOver: "I crediti giornalieri della prova sono terminati. Con un piano a pagamento può ricevere {count} crediti ogni giorno in cui fa il check-in.",
       reserved: "Riservati ai link",
       reservedHelp: "Trattenuti per link in corso; spesi solo quando il link è verificato online.",
       balance: "Saldo",
@@ -16215,6 +16197,7 @@ const it: Messages = {
       researching: "Ricerca di opportunità",
       generated: "Contenuti pianificati",
       ready: "Pronto",
+      preparing: "Presso il team RepGet",
       queued: "In coda",
       running: "In corso",
       completed: "Completato",
@@ -16858,7 +16841,7 @@ const de: Messages = {
       articlesPaid: "Alle Artikel Ihres Tarifs, jeden Monat",
       check: "Website-Prüfung",
       creditsTrial: "{count} Credits pro Tag in Ihren ersten {days} Tagen",
-      creditsPaid: "Credits jeden Monat, dazu weitere an jedem Tag, an dem Sie RepGet nutzen",
+      creditsPaid: "Credits jeden Monat, dazu weitere an jedem Tag, an dem Sie einchecken",
       aiVisibility: "KI-Sichtbarkeit in ChatGPT, Claude, Gemini und Perplexity",
       backlinks: "Backlinks aus unserem Partnernetzwerk",
       notIncluded: "Nicht enthalten",
@@ -17132,11 +17115,6 @@ const de: Messages = {
     subtitle:
       "Fragen zum Produkt, zu Ihrem Konto oder zur Abrechnung - wir lesen jede Nachricht und antworten innerhalb von zwei Werktagen.",
     emailLabel: "E-Mail",
-    websiteBuild: {
-      title: "Wir erstellen Ihre Website",
-      subtitle: "Erzählen Sie uns von Ihrem Unternehmen und davon, was Ihre Website leisten soll. Wir antworten Ihnen, wie wir helfen können und was es kostet.",
-      subject: "Website für mich erstellen",
-    },
     accountNote:
       "Wenn es um Ihr Konto geht, schreiben Sie bitte von der Adresse, mit der Sie sich registriert haben.",
   },
@@ -17633,7 +17611,7 @@ const de: Messages = {
       socialPostsEachMonth: "{n} Social-Post pro Monat|{n} Social-Posts pro Monat",
       paymentReceived: "Zahlung erhalten - Ihr Abonnement wird bestätigt…",
       checkoutCancelled: "Bezahlvorgang abgebrochen.",
-      purchaseReceived: "Zahlung erhalten - Ihr Kauf erscheint in Kürze.",
+      purchaseReceived: "Vielen Dank. Ihre Credits erscheinen hier, sobald die Zahlung bestätigt ist. Bei manchen Zahlungsarten kann das einige Tage dauern.",
       purchaseCancelled: "Kauf abgebrochen.",
       addWebsiteFirst: "Fügen Sie zuerst eine Website hinzu - jeder Tarif bezahlt eine Website.",
       checkoutFailed: "Der Bezahlvorgang konnte nicht gestartet werden. Bitte erneut versuchen.",
@@ -19419,10 +19397,10 @@ const de: Messages = {
       availableHelp: "Credits, die Sie jetzt ausgeben können.",
       daily: "Tägliche Credits",
       dailyValue: "+{count} heute",
-      dailyHelp: "An jedem Tag hinzugefügt, an dem Sie RepGet nutzen. Sie verfallen nie.",
-      dailyPlan: "Mit einem kostenpflichtigen Tarif erhalten Sie an jedem Tag, an dem Sie RepGet nutzen, {count} Credits.",
-      dailyTrialHelp: "In Ihrer Testphase: {count} Credits an jedem Ihrer ersten {days} Tage, an denen Sie RepGet nutzen, bis zum {date}. Sie verfallen nie.",
-      dailyTrialOver: "Die täglichen Credits Ihrer Testphase sind vorbei. Mit einem kostenpflichtigen Tarif erhalten Sie an jedem Tag, an dem Sie RepGet nutzen, {count} Credits.",
+      dailyHelp: "Checken Sie einmal täglich ein, um sie abzuholen. Sie verfallen nie.",
+      dailyPlan: "Mit einem kostenpflichtigen Tarif können Sie an jedem Tag, an dem Sie einchecken, {count} Credits abholen.",
+      dailyTrialHelp: "In Ihrer Testphase: Checken Sie ein, um an jedem Ihrer ersten {days} Tage {count} Credits abzuholen, bis zum {date}. Sie verfallen nie.",
+      dailyTrialOver: "Die täglichen Credits Ihrer Testphase sind vorbei. Mit einem kostenpflichtigen Tarif können Sie an jedem Tag, an dem Sie einchecken, {count} Credits abholen.",
       reserved: "Für Links reserviert",
       reservedHelp: "Für Links in Arbeit zurückgehalten; erst bei bestätigtem Link verbraucht.",
       balance: "Guthaben",
@@ -19492,6 +19470,7 @@ const de: Messages = {
       researching: "Chancen werden gesucht",
       generated: "Inhalte geplant",
       ready: "Bereit",
+      preparing: "Beim RepGet-Team",
       queued: "In Warteschlange",
       running: "Läuft",
       completed: "Abgeschlossen",

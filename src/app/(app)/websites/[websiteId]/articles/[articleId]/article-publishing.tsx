@@ -18,6 +18,7 @@ import { useId } from "react";
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/workspace/notice";
 import { WorkspaceSection } from "@/components/workspace/section";
+import { draftRefusalText, type ArticleDeliveryCopy } from "@/lib/i18n/article-delivery";
 import { format } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
 import { cn } from "@/lib/utils";
@@ -53,10 +54,15 @@ function currentLine(input: {
   pressExpired: boolean;
   pressTime: string | null;
   t: Messages["app"]["editor"];
+  delivery: ArticleDeliveryCopy;
 }): Line | null {
-  const { facts, plan, t } = input;
+  const { facts, plan, t, delivery } = input;
   if (input.working) return { icon: Loader2, tone: "progress", text: t.stateWriting };
   if (facts.frozen) return { icon: AlertTriangle, tone: "warning", text: t.stateFrozen };
+  // The two-step flow: the team has a newer copy. Publish stays if what is on this page is approved, and sends it.
+  if (facts.withTeam && !facts.delivering && (facts.liveOnSite || facts.review !== "pending")) {
+    return { icon: Info, tone: "info", text: facts.liveOnSite ? delivery.withTeamLive : delivery.withTeam };
+  }
   if (facts.review === "pending") return { icon: AlertTriangle, tone: "warning", text: facts.reviewSource === "research" ? t.stateResearchPending : t.stateReviewPending };
   if (facts.review === "changed") return { icon: AlertTriangle, tone: "warning", text: facts.reviewSource === "research" ? t.stateResearchChanged : t.stateReviewChanged };
   if (facts.delivering) return { icon: Loader2, tone: "progress", text: t.stateDelivering };
@@ -72,11 +78,33 @@ function currentLine(input: {
     };
   }
   if (facts.uncertain) return { icon: AlertTriangle, tone: "warning", text: t.stateUncertain };
+  // On the site as a draft, and the plugin can publish it: what the one button does here.
+  if (facts.twoStep && facts.review === "approved" && !facts.liveOnSite && facts.lastOutcome.kind === "draft" && plan.mode === "actions" && facts.destination.kind === "plugin") {
+    return { icon: CheckCircle2, tone: "success", text: delivery.pluginDraftReady };
+  }
+  // Finished and not on the site yet: step 2 of the two-step flow, said plainly.
+  if (facts.twoStep && facts.review === "approved" && !facts.liveOnSite && facts.lastOutcome.kind === "none" && plan.mode !== "connect") {
+    const auto = facts.plannedInFuture && facts.planned ? facts.autoPublish : "off";
+    return {
+      icon: CheckCircle2,
+      tone: "success",
+      text:
+        auto === "live"
+          ? format(delivery.readyAutoLive, { date: facts.planned ?? "" })
+          : auto === "draft"
+            ? format(delivery.readyAutoDraft, { date: facts.planned ?? "" })
+            : delivery.ready,
+    };
+  }
   return null;
 }
 
-/** The latest recorded result of sending it. */
-function outcomeLine(facts: PublishFacts, t: Messages["app"]["editor"]): Line {
+/**
+ * The latest recorded result of sending it. `nothingToPress`: the plugin's side of
+ * it is out of the customer's hands (a failed press goes round its feed again), so
+ * the failure's "try again" is left out rather than pointing at no button.
+ */
+function outcomeLine(facts: PublishFacts, t: Messages["app"]["editor"], delivery: ArticleDeliveryCopy, nothingToPress: boolean): Line {
   const outcome = facts.lastOutcome;
   switch (outcome.kind) {
     case "live":
@@ -94,8 +122,10 @@ function outcomeLine(facts: PublishFacts, t: Messages["app"]["editor"]): Line {
         icon: XCircle,
         tone: "danger",
         text: format(t.stateFailed, { date: outcome.when }),
-        detail: publishFailureText(outcome.errorKind, t),
+        detail: nothingToPress ? undefined : publishFailureText(outcome.errorKind, t),
       };
+    case "refused":
+      return { icon: AlertTriangle, tone: "warning", text: draftRefusalText(outcome.refusal, delivery) };
     default:
       return { icon: Info, tone: "info", text: t.stateNotSent };
   }
@@ -145,6 +175,7 @@ export function ArticlePublishing({
   className,
   t,
   tCommon,
+  delivery,
 }: {
   websiteId: string;
   plan: PublishPlan;
@@ -166,14 +197,15 @@ export function ArticlePublishing({
   className?: string;
   t: Messages["app"]["editor"];
   tCommon: Messages["app"]["common"];
+  delivery: ArticleDeliveryCopy;
 }) {
   const statusId = useId();
   const unsavedId = useId();
   const liveSentId = useId();
   const draftSentId = useId();
-  const now = currentLine({ facts, plan, working, awaiting, pressExpired, pressTime, t });
-  const outcome = outcomeLine(facts, t);
+  const now = currentLine({ facts, plan, working, awaiting, pressExpired, pressTime, t, delivery });
   const destination = facts.destination;
+  const outcome = outcomeLine(facts, t, delivery, destination.kind === "plugin" && plan.mode !== "actions");
 
   const actions = plan.mode === "actions" ? plan : null;
   const blocked = actions?.blocked ?? null;
@@ -198,6 +230,80 @@ export function ArticlePublishing({
     </Button>
   );
 
+  /*
+    What the customer can do. Under the two-step flow it comes first, above the
+    facts: it is the one thing they are here for, and on a small laptop it would
+    otherwise start below the fold.
+  */
+  const connectBlock = canEdit && plan.mode === "connect" ? (
+        <div className="space-y-2">
+          <p className="text-sm text-muted-foreground">{facts.twoStep ? delivery.readyConnect : t.connectHelp}</p>
+          {/* Wraps: "Website verbinden, um zu veröffentlichen" is wider than this panel on a phone or beside the article. */}
+          <Button asChild className="h-auto min-h-8 whitespace-normal text-left">
+            <Link href={`/websites/${websiteId}/integrations`}>
+              <Upload aria-hidden="true" />
+              {t.connectToPublish}
+            </Link>
+          </Button>
+        </div>
+      ) : null;
+
+  const actionsBlock = actions ? (
+        <div className="space-y-2">
+          <div className="flex flex-wrap gap-2">
+            {/* The two-step flow's one Publish action: no second button. */}
+            {facts.twoStep ? null : actions.confirmDraft ? (
+              <ConfirmDialog
+                trigger={draftButton(true, busy || blocked !== null || actions.draftAlreadySent)}
+                disabled={busy || blocked !== null || actions.draftAlreadySent}
+                title={t.confirmDraftTitle}
+                confirmLabel={t.sendAsDraft}
+                cancelLabel={tCommon.cancel}
+                onConfirm={() => onPublish("draft")}
+              >
+                <p>{t.confirmDraftBody}</p>
+              </ConfirmDialog>
+            ) : (
+              draftButton(false, busy || blocked !== null || actions.draftAlreadySent)
+            )}
+            <Button
+              type="button"
+              disabled={busy || blocked !== null || actions.publishAlreadySent}
+              aria-describedby={describedBy(liveSent ? liveSentId : null)}
+              onClick={() => onPublish("publish")}
+            >
+              {pressing === "publish" ? (
+                <Loader2 className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
+              ) : (
+                <Upload aria-hidden="true" />
+              )}
+              {actions.publishLabel === "update" ? t.updatePost : t.publish}
+            </Button>
+          </div>
+          {blocked === "unsaved" ? (
+            <p id={unsavedId} className="text-xs leading-5 text-muted-foreground">
+              {t.blockedUnsaved}
+            </p>
+          ) : null}
+          {liveSent ? (
+            <p id={liveSentId} className="text-xs leading-5 text-muted-foreground">
+              {facts.publishedInWordPress ? delivery.publishedInWordPress : t.alreadySentLive}
+            </p>
+          ) : null}
+          {draftSent && !facts.twoStep ? (
+            <p id={draftSentId} className="text-xs leading-5 text-muted-foreground">
+              {t.alreadySentDraft}
+            </p>
+          ) : null}
+          {facts.plannedInFuture && !facts.liveOnSite && !blocked ? (
+            <p className="text-xs leading-5 text-muted-foreground">{t.beforePlanned}</p>
+          ) : null}
+          {facts.uncertain && !facts.liveOnSite ? (
+            <p className="text-xs leading-5 text-muted-foreground">{t.uncertainPublishNote}</p>
+          ) : null}
+        </div>
+      ) : null;
+
   return (
     <WorkspaceSection
       id="article-publishing"
@@ -219,6 +325,9 @@ export function ArticlePublishing({
           {t.checkAgain}
         </Button>
       ) : null}
+
+      {facts.twoStep ? connectBlock : null}
+      {facts.twoStep ? actionsBlock : null}
 
       <dl className="grid gap-3 text-sm sm:grid-cols-3 xl:grid-cols-1">
         <div className="min-w-0">
@@ -254,74 +363,10 @@ export function ArticlePublishing({
       </dl>
 
       {plan.mode === "pluginPublished" ? <Notice tone="info">{t.statePluginPublished}</Notice> : null}
+      {plan.mode === "pluginDraft" ? <Notice tone="info">{delivery.pluginDraftNote}</Notice> : null}
 
-      {canEdit && plan.mode === "connect" ? (
-        <div className="space-y-2">
-          <p className="text-sm text-muted-foreground">{t.connectHelp}</p>
-          {/* Wraps: "Website verbinden, um zu veröffentlichen" is wider than this panel on a phone or beside the article. */}
-          <Button asChild className="h-auto min-h-8 whitespace-normal text-left">
-            <Link href={`/websites/${websiteId}/integrations`}>
-              <Upload aria-hidden="true" />
-              {t.connectToPublish}
-            </Link>
-          </Button>
-        </div>
-      ) : null}
-
-      {actions ? (
-        <div className="space-y-2">
-          <div className="flex flex-wrap gap-2">
-            {actions.confirmDraft ? (
-              <ConfirmDialog
-                trigger={draftButton(true, busy || blocked !== null || actions.draftAlreadySent)}
-                disabled={busy || blocked !== null || actions.draftAlreadySent}
-                title={t.confirmDraftTitle}
-                confirmLabel={t.sendAsDraft}
-                cancelLabel={tCommon.cancel}
-                onConfirm={() => onPublish("draft")}
-              >
-                <p>{t.confirmDraftBody}</p>
-              </ConfirmDialog>
-            ) : (
-              draftButton(false, busy || blocked !== null || actions.draftAlreadySent)
-            )}
-            <Button
-              type="button"
-              disabled={busy || blocked !== null || actions.publishAlreadySent}
-              aria-describedby={describedBy(liveSent ? liveSentId : null)}
-              onClick={() => onPublish("publish")}
-            >
-              {pressing === "publish" ? (
-                <Loader2 className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
-              ) : (
-                <Upload aria-hidden="true" />
-              )}
-              {actions.publishLabel === "update" ? t.updatePost : t.publish}
-            </Button>
-          </div>
-          {blocked === "unsaved" ? (
-            <p id={unsavedId} className="text-xs leading-5 text-muted-foreground">
-              {t.blockedUnsaved}
-            </p>
-          ) : null}
-          {liveSent ? (
-            <p id={liveSentId} className="text-xs leading-5 text-muted-foreground">
-              {t.alreadySentLive}
-            </p>
-          ) : null}
-          {draftSent ? (
-            <p id={draftSentId} className="text-xs leading-5 text-muted-foreground">
-              {t.alreadySentDraft}
-            </p>
-          ) : null}
-          {facts.plannedInFuture && !facts.liveOnSite && !blocked ? (
-            <p className="text-xs leading-5 text-muted-foreground">{t.beforePlanned}</p>
-          ) : null}
-          {facts.uncertain && !facts.liveOnSite ? (
-            <p className="text-xs leading-5 text-muted-foreground">{t.uncertainPublishNote}</p>
-          ) : null}
-        </div>
-      ) : null}
+      {facts.twoStep ? null : connectBlock}
+      {facts.twoStep ? null : actionsBlock}
 
       {pressError ? (
         <Notice tone="danger" role="alert">

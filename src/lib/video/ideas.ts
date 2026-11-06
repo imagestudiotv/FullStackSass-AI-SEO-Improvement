@@ -6,6 +6,7 @@ import { z } from "zod/v4";
 
 import { anthropic, isAiConfigured, MODELS } from "@/lib/ai/client";
 import { dataBlock, dataRule } from "@/lib/ai/untrusted";
+import { customerTitleSql, publicRevisionSql, publicFieldSql } from "@/lib/articles/review";
 import { mainLanguageCode } from "@/lib/articles/translation-languages";
 import { db } from "@/lib/db";
 import { articles, brandVoice, videoIdeas, videoMedia, websites } from "@/lib/db/schema";
@@ -121,9 +122,9 @@ export async function suggestVideoIdeas(websiteId: string, now: Date = new Date(
   const [settings, live, own, recent, [voice]] = await Promise.all([
     readVideoSettings(websiteId),
     db
-      .select({ id: articles.id, title: articles.title, keyword: articles.targetKeyword, summary: articles.metaDescription, imageUrl: articles.imageUrl })
+      .select({ id: articles.id, title: customerTitleSql, keyword: articles.targetKeyword, summary: publicFieldSql(articles.metaDescription, "metaDescription"), imageUrl: publicFieldSql(articles.imageUrl, "imageUrl") })
       .from(articles)
-      .where(and(eq(articles.websiteId, websiteId), isNotNull(articles.publishedUrl), isNotNull(articles.firstLiveAt)))
+      .where(and(eq(articles.websiteId, websiteId), isNotNull(articles.publishedUrl), isNotNull(articles.firstLiveAt), sql`${publicRevisionSql}`))
       .orderBy(desc(articles.firstLiveAt))
       .limit(15),
     db.select().from(videoMedia).where(eq(videoMedia.websiteId, websiteId)).orderBy(desc(videoMedia.createdAt)).limit(12),

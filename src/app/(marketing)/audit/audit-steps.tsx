@@ -284,9 +284,9 @@ export function AuditSteps({
           </p>
 
           {/*
-            The backlink is what joining gives, not what the check produced.
-            Said plainly here rather than implied by the step's name, which
-            comes from the design.
+            What joining and the plan give, not what the check produced. A
+            backlink is not free: backlinks wait for the plan to start
+            (lib/billing/entitled.ts).
           */}
           <p className="mt-3 text-sm text-muted-foreground">{copy.profileNote}</p>
 

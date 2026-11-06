@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useDeferredValue, useEffect, useState, useTransition } from "react";
+import { useCallback, useDeferredValue, useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { PARTNER_LINK_SCOPE, PartnerLinkStyles } from "@/components/partner-link-styles";
@@ -29,6 +29,7 @@ import { useUnsavedChanges } from "@/components/workspace/use-unsaved-changes";
 import { regenerateArticle, updateArticle, type ArticleDetail } from "@/lib/articles/actions";
 import { listReusableImages, uploadInlineImage } from "@/lib/articles/image-actions";
 import { articleStats } from "@/lib/articles/stats";
+import { ARTICLE_DELIVERY } from "@/lib/i18n/article-delivery";
 import type { Locale } from "@/lib/i18n/config";
 import { CONTENT_COPY } from "@/lib/i18n/content-improvements";
 import { format, formatNumber, intlTag, plural } from "@/lib/i18n/format";
@@ -150,9 +151,16 @@ export function ArticleEditor({
   const working = article.status === "generating" || article.status === "queued";
   const hasBody = Boolean(article.bodyHtml);
   const delivering = facts.delivering;
+  /** The two-step flow: the page shows the last approved revision, and the team has the working copy. */
+  const textLocked = article.withTeam;
   /** Edits wait while a rewrite would replace them or a delivery holds the row. */
-  const editable = canEdit && !working && !delivering;
-  const errorText = (error: string) => actionErrorText(error, { t, tWorkspace, tImage });
+  const editable = canEdit && !working && !delivering && !textLocked;
+  const delivery = ARTICLE_DELIVERY[locale];
+  const errorText = (error: string) => actionErrorText(error, { t, tWorkspace, tImage, delivery });
+  /** The two-step flow's words for "this goes back to the team" (lib/i18n/article-delivery.ts). */
+  const backToTeam = facts.liveOnSite ? delivery.saveNoteLive : delivery.saveNote;
+  /** Finished by the team and not on the website yet. */
+  const readyToPublish = Boolean(facts.twoStep && facts.review === "approved" && article.status === "draft" && !article.publishedUrl);
 
   /* ------------------------------------------------------------ the draft */
   const draft = useArticleDraft({
@@ -167,13 +175,16 @@ export function ArticleEditor({
   const [saving, startSave] = useTransition();
   const [saveError, setSaveError] = useState<string | null>(null);
   const [lastSaveOk, setLastSaveOk] = useState(false);
+  const savedHere = useRef(false);
   /** A featured-image description typed and not saved yet (it saves when its field is left). */
   const [altUnsaved, setAltUnsaved] = useState(false);
   // One guard for the page: the article's fields and that description.
   useUnsavedChanges(dirty || saving || altUnsaved, tWorkspace.leaveConfirm);
 
   const titleMissing = savedForm("title", values.title) === "";
-  const saveHeldNote = titleMissing
+  const saveHeldNote = textLocked
+    ? ARTICLE_DELIVERY[locale].lockedWithTeam
+    : titleMissing
     ? t.saveNoteTitle
     : working
       ? t.saveNoteWorking
@@ -196,9 +207,22 @@ export function ArticleEditor({
       }
       draft.saveSucceeded();
       setLastSaveOk(true);
+      savedHere.current = true;
       router.refresh();
     });
   }
+
+  /*
+    A save that hands the article back to the team replaces this editor, and the
+    Save button with it, with the "preparing" panel. Its heading takes the focus
+    that went with the button, or a keyboard user is back at the top of the page.
+  */
+  useEffect(() => {
+    return () => {
+      if (!savedHere.current || document.activeElement !== document.body) return;
+      document.getElementById("article-preparing-title")?.focus({ preventScroll: true });
+    };
+  }, []);
 
   function handleDiscard() {
     draft.discard();
@@ -217,7 +241,7 @@ export function ArticleEditor({
           : { kind: "clean" };
   const saveNote =
     saveHeldNote ??
-    (lastSaveOk && dirty ? tWorkspace.editsKept : facts.review === "approved" && dirty ? facts.reviewSource === "research" ? t.researchEditNote : t.saveNoteReview : undefined);
+    (lastSaveOk && dirty ? tWorkspace.editsKept : facts.review === "approved" && dirty ? facts.twoStep ? backToTeam : facts.reviewSource === "research" ? t.researchEditNote : t.saveNoteReview : undefined);
 
   /* ---------------------------------------------------------------- tabs */
   const [tab, setTab] = useState<"preview" | "edit">("preview");
@@ -319,7 +343,9 @@ export function ArticleEditor({
   const [rewriteError, setRewriteError] = useState<string | null>(null);
   const [rewriteStarted, setRewriteStarted] = useState(false);
   if (rewriteStarted && working) setRewriteStarted(false);
-  const rewriteReason = !article.calendarItemId
+  const rewriteReason = textLocked
+    ? delivery.lockedWithTeam
+    : !article.calendarItemId
     ? t.rewriteNoPlan
     : working || delivering
       ? t.rewriteBlocked
@@ -347,7 +373,7 @@ export function ArticleEditor({
       <>
         <p>{t.rewriteConfirmBody}</p>
         {article.publishedUrl ? <p>{t.rewriteConfirmPublished}</p> : null}
-        {facts.review !== "none" ? <p>{facts.reviewSource === "research" ? t.researchEditNote : t.rewriteConfirmReview}</p> : null}
+        {facts.twoStep ? <p>{delivery.rewriteNote}</p> : facts.review !== "none" ? <p>{facts.reviewSource === "research" ? t.researchEditNote : t.rewriteConfirmReview}</p> : null}
         {dirty ? <p>{t.rewriteConfirmUnsaved}</p> : null}
       </>
     );
@@ -466,10 +492,10 @@ export function ArticleEditor({
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
               {/* Large and filled: the answer to "is it on my site yet?". A draft reads amber - not live. */}
               <StatusBadge
-                status={article.status}
+                status={readyToPublish ? "ready" : article.status}
                 t={tStatus}
                 size="lg"
-                tone={article.status === "draft" ? "warning" : undefined}
+                tone={article.status === "draft" && !readyToPublish ? "warning" : undefined}
               />
               {article.targetKeyword ? (
                 <span className="inline-flex min-w-0 flex-wrap items-center gap-1.5">
@@ -602,6 +628,7 @@ export function ArticleEditor({
             onCheckAgain={() => startCheck(() => router.refresh())}
             t={t}
             tCommon={tCommon}
+            delivery={delivery}
           />
 
           <div className="min-w-0 xl:col-start-1 xl:row-span-2 xl:row-start-1">
@@ -700,9 +727,9 @@ export function ArticleEditor({
               maxAttempts={imageMaxAttempts}
               maxBytes={imageMaxBytes}
               canEdit={canEdit}
-              lockedReason={working ? t.imageLockedWorking : delivering ? t.imageLockedDelivering : null}
-              reviewApproved={facts.review === "approved"}
-              reviewNote={facts.reviewSource === "research" ? t.researchEditNote : undefined}
+              lockedReason={textLocked ? delivery.lockedWithTeam : working ? t.imageLockedWorking : delivering ? t.imageLockedDelivering : null}
+              reviewApproved={facts.review === "approved" && !textLocked}
+              reviewNote={facts.twoStep ? backToTeam : facts.reviewSource === "research" ? t.researchEditNote : undefined}
               locale={locale}
               onAltUnsavedChange={setAltUnsaved}
               t={t}
@@ -732,7 +759,7 @@ export function ArticleEditor({
               </div>
             </WorkspaceSection>
 
-            <PublishHistory rows={history} limit={historyLimit} t={t} />
+            <PublishHistory rows={history} limit={historyLimit} t={t} delivery={delivery} />
 
             {canEdit ? (
               <WorkspaceSection

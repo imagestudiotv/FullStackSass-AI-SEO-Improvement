@@ -154,7 +154,7 @@ export async function nudgePluginIfDue(
   websiteId: string,
 ): Promise<SyncOutcome | "nothing-due"> {
   // Translations too: a plugin too old for them checks and finds nothing, which costs nothing.
-  const [due] = await dueArticlesForPlugin(websiteId, 1, new Date(), { translations: true });
+  const [due] = await dueArticlesForPlugin(websiteId, 1, new Date(), { translations: true, updates: true });
   if (!due) return "nothing-due";
   return triggerPluginSync(websiteId);
 }

@@ -40,6 +40,8 @@ import { format, formatDate } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
 import { createPayPalCheckout } from "@/lib/paypal/actions";
 import { CONFIRM_EMAIL_FIRST, STARTER_TIER } from "@/lib/plans/features";
+import { OfferCodeField } from "@/components/billing/offer-code-field";
+import type { OfferCodeCopy } from "@/lib/i18n/offer-code";
 import { createCheckoutSession } from "@/lib/stripe/actions";
 import { createPortalSession, type PortalFlow } from "@/lib/stripe/portal";
 import { cn } from "@/lib/utils";
@@ -89,6 +91,8 @@ type BillingClientProps = {
   t: Messages["app"]["billing"];
   /** For dates, prices and thousands separators. */
   locale: Locale;
+  /** The REPGET field's words, or null while the offer is off. */
+  offerCopy?: OfferCodeCopy | null;
   /** Shared words used on several screens. */
   tCommon: Messages["app"]["common"];
 };
@@ -118,8 +122,10 @@ export function BillingClient({
   viewingSharedDomain,
   t,
   locale,
+  offerCopy = null,
   tCommon,
 }: BillingClientProps) {
+  const [offerCode, setOfferCode] = useState("");
   const [interval, setBillingInterval] = useState<"month" | "year">(
     subscription?.interval === "year" ? "year" : "month",
   );
@@ -210,6 +216,9 @@ export function BillingClient({
             : t.billedByCard
           : null;
 
+  // Monthly on a card only, as the server holds it to (lib/billing/repget-offer.ts).
+  const offerField = offerCopy && options.card ? <OfferCodeField copy={offerCopy} value={offerCode} onChange={setOfferCode} /> : null;
+
   async function handleCard(planId: string) {
     setPending({ planId, provider: "stripe" });
     try {
@@ -222,7 +231,7 @@ export function BillingClient({
         setPending(null);
         return;
       }
-      const result = await createCheckoutSession(planId, websiteId);
+      const result = await createCheckoutSession(planId, websiteId, "billing", interval === "month" ? offerCode : "");
       /*
         A new workspace confirms its email before the free articles, and
         the code box is on the onboarding plan screen - which also states
@@ -751,6 +760,7 @@ export function BillingClient({
             tCommon={tCommon}
             options={options}
             processorNote={processorNote}
+            offerField={interval === "month" ? offerField : null}
             actions={
               <TabsList aria-label={t.billingPeriod}>
                 <TabsTrigger value="month">{t.monthly}</TabsTrigger>
@@ -770,7 +780,7 @@ export function BillingClient({
           </PlansSection>
         </Tabs>
       ) : (
-        <PlansSection domain={domain} t={t} tCommon={tCommon} options={options} processorNote={processorNote}>
+        <PlansSection domain={domain} t={t} tCommon={tCommon} options={options} processorNote={processorNote} offerField={offerField}>
           {planGrid("month")}
         </PlansSection>
       )}
@@ -785,6 +795,7 @@ function PlansSection({
   tCommon,
   options,
   processorNote,
+  offerField,
   actions,
   children,
 }: {
@@ -794,6 +805,8 @@ function PlansSection({
   options: ReturnType<typeof paymentOptions>;
   /** Why one processor's buttons are missing, already worded; null when nothing is. */
   processorNote: string | null;
+  /** The REPGET field, when a monthly plan on a card can take it. */
+  offerField?: ReactNode;
   actions?: ReactNode;
   children: ReactNode;
 }) {
@@ -807,6 +820,7 @@ function PlansSection({
     >
       <div className="space-y-4">
         {processorNote ? <Notice tone="info">{processorNote}</Notice> : null}
+        {offerField}
         {children}
         {options.card && options.paypal ? (
           <p className="text-center text-xs text-muted-foreground">{tCommon.promoCodesHelp}</p>

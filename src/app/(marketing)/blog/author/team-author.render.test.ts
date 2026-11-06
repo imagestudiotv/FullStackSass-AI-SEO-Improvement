@@ -28,7 +28,7 @@ vi.mock("next/link", () => ({
     createElement("a", { href, ...rest }, children),
 }));
 vi.mock("next/image", () => ({ default: () => null }));
-vi.mock("@/app/(marketing)/home-sections", () => ({ ClosingCta: () => null }));
+vi.mock("@/app/(marketing)/_home/sections/final-cta", () => ({ FinalCta: () => null }));
 vi.mock("@/components/post-cover", () => ({ PostCover: () => null }));
 vi.mock("@/lib/blog/posts", async () => {
   const { BLOG_PAGE_SIZE: size } = await import("@/lib/blog/pagination");

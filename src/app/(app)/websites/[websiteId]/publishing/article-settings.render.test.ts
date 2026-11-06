@@ -11,6 +11,8 @@ import { describe, expect, it, vi } from "vitest";
  */
 
 vi.mock("@/lib/websites/article-settings", () => ({ saveArticleSettings: vi.fn() }));
+import { ARTICLE_DELIVERY } from "@/lib/i18n/article-delivery";
+
 vi.mock("@/lib/websites/actions", () => ({ setGenerationMode: vi.fn(), setFinishedMode: vi.fn() }));
 vi.mock("next/link", () => ({
   default: ({ href, children, ...rest }: { href: string; children: ReactNode; [key: string]: unknown }) =>
@@ -235,6 +237,21 @@ describe("publishing notices", () => {
   it("mentions the first-article rule only while the first article is still to come", () => {
     expect(panel({ firstArticleSent: false })).toContain(t.article.firstArticleOnly);
     expect(panel({ firstArticleSent: true })).not.toContain(t.article.firstArticleOnly);
+  });
+
+  it("says what is true of the first article under the two-step flow", () => {
+    const note = ARTICLE_DELIVERY.en.firstArticleTwoStep;
+    const html = panel({ firstArticleSent: false, firstArticleNote: note });
+    expect(html).toContain(note);
+    expect(html).not.toContain(t.article.firstArticleOnly);
+    expect(panel({ firstArticleSent: true, firstArticleNote: note })).not.toContain(note);
+  });
+
+  it("names the manual mode for what it is under the two-step flow", () => {
+    const html = panel({ finishedManualLabel: ARTICLE_DELIVERY.en.finishedManual });
+    expect(html).toContain(ARTICLE_DELIVERY.en.finishedManual);
+    expect(html).not.toContain(t.common.finishedReview);
+    expect(panel()).toContain(t.common.finishedReview);
   });
 
   it("mentions the Partner Network review only for a website in it", () => {

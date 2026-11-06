@@ -111,6 +111,7 @@ export function DeleteWebsiteDialog({
         <div className="space-y-4">
           <DialogNotes>
             <li>The workspace, its members and its payment history are NOT deleted. Only this website goes.</li>
+            <li>Links this website hosts for other customers that are not yet on a page are withdrawn, and the credits held for them go back to those customers.</li>
             <li>
               {/*
                 The refusal is stated up front rather than left to surprise

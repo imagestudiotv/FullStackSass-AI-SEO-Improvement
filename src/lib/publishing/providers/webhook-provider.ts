@@ -140,9 +140,9 @@ async function send(
   }
 
   /**
-   * A response is optional. An endpoint that returns an id lets us update the
-   * same post later; one that returns nothing still works, it just means every
-   * publish creates rather than edits — which is the receiver's choice to make.
+   * A response is optional, and one that returns nothing still works. An update
+   * of a post already sent is not offered here (see readRemote, below): what the
+   * endpoint returns is kept as the post's address and id.
    */
   let remoteId = "";
   let remoteUrl = "";
@@ -258,5 +258,9 @@ export const webhookProvider: CmsProvider = {
   /**
    * No uploadMedia. The payload carries an image URL when one exists, which is
    * simpler for a receiver than handling a multipart upload.
+   *
+   * No readRemote either: RepGet can only post to this endpoint, never read
+   * from it. So nothing can show a post there is unchanged, and an update is
+   * refused before it gets here (lib/publishing/overwrite-guard.ts).
    */
 };

@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { recordAdminAction } from "@/lib/admin/audit";
 import { requireAdmin } from "@/lib/admin/guard";
 import { isAiConfigured } from "@/lib/ai/client";
+import { cleanComparison, comparisonKey, readComparison, type ArticleType, type ComparisonBrief } from "@/lib/blog/autopilot/comparison-brief";
 import { startAutopilotRun } from "@/lib/blog/autopilot/run";
 import { SuggestError, suggestTopics } from "@/lib/blog/autopilot/suggest";
 import {
@@ -36,7 +37,9 @@ import type { ActionResult } from "@/lib/websites/actions";
  *  - Only a topic that is not being written can be edited or deleted. A
  *    written topic is history: deleting it leaves its post untouched.
  *  - The same topic cannot wait twice, and one already written is refused,
- *    so a pasted list cannot make the blog write the same article again.
+ *    so a pasted list cannot make the blog write the same article again. The
+ *    same comparison is the same topic however it is worded: "A vs B" and
+ *    "B vs A" are one article.
  */
 
 export type AdminAutopilotTopic = {
@@ -44,6 +47,9 @@ export type AdminAutopilotTopic = {
   topic: string;
   keyword: string | null;
   notes: string | null;
+  articleType: ArticleType;
+  /** What to compare, for a comparison. */
+  comparison: ComparisonBrief | null;
   source: string;
   status: TopicStatus;
   error: string | null;
@@ -63,13 +69,25 @@ export type AdminAutopilotRun = {
   error: string | null;
   startedAt: Date;
   finishedAt: Date | null;
-  /** From the run's record: what its AI cost (in all, and for the writing, the pictures and the translations), its length, what fell short of the house style. */
+  /** From the run's record: what its AI cost (in all, and for the research, the writing, the pictures and the translations), its length, what fell short of the house style. */
   costUsd: number | null;
-  costs: { writing: number; pictures: number; translations: number };
+  costs: { research: number; writing: number; pictures: number; translations: number };
   words: number | null;
   /** The translations it saved, once it has finished. */
   translations: number | null;
   warnings: string[];
+  /** Links to other websites the check took out of the generated article, with their addresses. For administrators only. */
+  removedLinks: { href: string; text: string; reason: string }[];
+  /** A comparison's research and fact sheet. For administrators only: none of it is in the article. */
+  provenance: RunProvenance | null;
+};
+
+export type RunProvenance = {
+  checkedAt: string | null;
+  entities: { name: string; status: string; notes: string[] }[];
+  sources: { id: string; entity: string; url: string; title: string; retrievedAt: string }[];
+  facts: { entity: string; claim: string; sourceId: string; quote: string }[];
+  unverified: string[];
 };
 
 export type AdminAutopilot = {
@@ -96,8 +114,8 @@ const oneLine = (value: unknown) => String(value ?? "").trim().replace(/\s+/g, "
 /** Compared without case or spacing: "Local SEO  tips" waits once, however it is typed. */
 const sameTopic = (value: string) => oneLine(value).toLowerCase();
 
-type TopicInput = { topic: string; keyword?: string; notes?: string };
-type CleanTopic = { topic: string; keyword: string | null; notes: string | null };
+type TopicInput = { topic: string; keyword?: string; notes?: string; articleType?: string; comparison?: unknown };
+type CleanTopic = { topic: string; keyword: string | null; notes: string | null; articleType: ArticleType; comparison: ComparisonBrief | null };
 
 function cleanTopic(input: TopicInput): CleanTopic | string {
   const topic = oneLine(input.topic);
@@ -116,7 +134,26 @@ function cleanTopic(input: TopicInput): CleanTopic | string {
   }
   const notes = String(input.notes ?? "").trim();
   if (notes.length > TOPIC_LIMITS.notes) return `Keep the notes under ${TOPIC_LIMITS.notes} characters`;
-  return { topic, keyword: keyword || null, notes: notes || null };
+  if (input.articleType === "comparison") {
+    const comparison = cleanComparison(input.comparison);
+    if (typeof comparison === "string") return comparison;
+    return { topic, keyword: keyword || null, notes: notes || null, articleType: "comparison", comparison };
+  }
+  return { topic, keyword: keyword || null, notes: notes || null, articleType: "informative", comparison: null };
+}
+
+/** Comparisons already waiting or written, by what they compare (all of them when `except` is not given). */
+async function comparisonsTaken(tx: Pick<typeof db, "select">, except?: string): Promise<Set<string>> {
+  const rows = await tx
+    .select({ id: blogAutopilotTopics.id, comparison: blogAutopilotTopics.comparison })
+    .from(blogAutopilotTopics)
+    .where(and(eq(blogAutopilotTopics.articleType, "comparison"), inArray(blogAutopilotTopics.status, ["queued", "writing", "written"])));
+  const keys = new Set<string>();
+  for (const row of rows) {
+    const brief = row.id === except ? null : readComparison(row.comparison);
+    if (brief) keys.add(comparisonKey(brief));
+  }
+  return keys;
 }
 
 /**
@@ -125,23 +162,49 @@ function cleanTopic(input: TopicInput): CleanTopic | string {
  * and "write-part-N" are the writing, "picture-*" the pictures,
  * "translate-*" the translations - and the checks' report.
  */
-function runFigures(detail: Record<string, unknown>): Pick<AdminAutopilotRun, "costUsd" | "costs" | "words" | "translations" | "warnings"> {
-  const costs = { writing: 0, pictures: 0, translations: 0 };
+function runFigures(detail: Record<string, unknown>): Pick<AdminAutopilotRun, "costUsd" | "costs" | "words" | "translations" | "warnings" | "removedLinks" | "provenance"> {
+  const costs = { research: 0, writing: 0, pictures: 0, translations: 0 };
   let any = false;
   for (const [stepId, value] of Object.entries((detail.costs ?? {}) as Record<string, unknown>)) {
     const usd = Number(value);
     if (!Number.isFinite(usd)) continue;
     any = true;
-    if (stepId.startsWith("picture-")) costs.pictures += usd;
+    if (stepId.startsWith("research-")) costs.research += usd;
+    else if (stepId.startsWith("picture-")) costs.pictures += usd;
     else if (stepId.startsWith("translate-")) costs.translations += usd;
     else costs.writing += usd;
   }
   return {
-    costUsd: any ? costs.writing + costs.pictures + costs.translations : null,
+    costUsd: any ? costs.research + costs.writing + costs.pictures + costs.translations : null,
     costs,
     words: typeof detail.words === "number" ? detail.words : null,
     translations: detail.translations && typeof detail.translations === "object" ? Object.keys(detail.translations).length : null,
     warnings: Array.isArray(detail.warnings) ? detail.warnings.filter((warning): warning is string => typeof warning === "string") : [],
+    removedLinks: removedLinks(detail),
+    provenance: provenance(detail),
+  };
+}
+
+function removedLinks(detail: Record<string, unknown>): AdminAutopilotRun["removedLinks"] {
+  const removed = (detail.links as { removed?: unknown } | undefined)?.removed;
+  if (!Array.isArray(removed)) return [];
+  return removed
+    .map((link) => link as { href?: unknown; text?: unknown; reason?: unknown })
+    .filter((link) => typeof link.href === "string" && link.href !== "")
+    .map((link) => ({ href: String(link.href), text: String(link.text ?? ""), reason: String(link.reason ?? "") }));
+}
+
+/** A comparison's research (noted when it ran) and fact sheet (noted with the checks), read defensively. */
+function provenance(detail: Record<string, unknown>): RunProvenance | null {
+  const research = (detail.research ?? null) as Partial<RunProvenance> | null;
+  const sheet = (detail.comparison ?? null) as Partial<RunProvenance> | null;
+  if (!research && !sheet) return null;
+  return {
+    checkedAt: typeof research?.checkedAt === "string" ? research.checkedAt : null,
+    entities: Array.isArray(research?.entities) ? research.entities : [],
+    sources: Array.isArray(research?.sources) ? research.sources : [],
+    facts: Array.isArray(sheet?.facts) ? sheet.facts : [],
+    unverified: Array.isArray(sheet?.unverified) ? sheet.unverified.filter((item) => typeof item === "string") : [],
   };
 }
 
@@ -163,6 +226,8 @@ export async function getBlogAutopilotAdmin(): Promise<AdminAutopilot> {
     topic: topic.topic,
     keyword: topic.keyword,
     notes: topic.notes,
+    articleType: topic.articleType === "comparison" ? "comparison" : "informative",
+    comparison: topic.articleType === "comparison" ? readComparison(topic.comparison) : null,
     source: topic.source,
     status: topic.status as TopicStatus,
     error: topic.error,
@@ -268,13 +333,16 @@ export async function addBlogAutopilotTopics(input: {
       .from(blogAutopilotTopics)
       .where(inArray(blogAutopilotTopics.status, ["queued", "writing", "written"]));
     const taken = new Set(existing.map((row) => sameTopic(row.topic)));
+    const comparing = await comparisonsTaken(tx);
     const fresh: CleanTopic[] = [];
     const skipped: string[] = [];
     for (const topic of cleaned) {
       const key = sameTopic(topic.topic);
-      if (taken.has(key)) skipped.push(topic.topic);
+      const compared = topic.comparison ? comparisonKey(topic.comparison) : null;
+      if (taken.has(key) || (compared && comparing.has(compared))) skipped.push(topic.topic);
       else {
         taken.add(key);
+        if (compared) comparing.add(compared);
         fresh.push(topic);
       }
     }
@@ -342,6 +410,7 @@ export async function saveBlogAutopilotTopic(input: TopicInput & { id: string })
       )
       .limit(1);
     if (clash) return "Another topic already says that";
+    if (clean.comparison && (await comparisonsTaken(tx, current.id)).has(comparisonKey(clean.comparison))) return "Another topic already compares those";
     await tx.update(blogAutopilotTopics).set({ ...clean, updatedAt: new Date() }).where(eq(blogAutopilotTopics.id, current.id));
     await recordAdminAction(
       {
@@ -423,9 +492,15 @@ export async function retryBlogAutopilotTopic(id: string): Promise<ActionResult<
   const admin = await requireAdmin();
   if (!UUID.test(String(id))) return { ok: false, error: NOT_FOUND };
   const error = await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext('blog_autopilot_topics'))`);
     const [current] = await tx.select().from(blogAutopilotTopics).where(eq(blogAutopilotTopics.id, id)).for("update");
     if (!current) return NOT_FOUND;
     if (current.status !== "failed") return "Only a topic that could not be written can be tried again";
+    // The same comparison may have been added since this one failed: trying again would pay for it twice.
+    const comparison = current.articleType === "comparison" ? readComparison(current.comparison) : null;
+    if (comparison && (await comparisonsTaken(tx, current.id)).has(comparisonKey(comparison))) {
+      return "Another topic already compares those, waiting or written. Remove this one instead of trying it again";
+    }
     const [{ first }] = await tx
       .select({ first: min(blogAutopilotTopics.sortOrder) })
       .from(blogAutopilotTopics)

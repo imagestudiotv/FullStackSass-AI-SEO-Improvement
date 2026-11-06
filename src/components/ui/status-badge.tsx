@@ -99,6 +99,8 @@ const STATUS: Record<string, StatusMeta> = {
   published: { label: "published", tone: "positive", icon: Check },
   publish: { label: "publish", tone: "active", icon: Send },
   scheduled: { label: "scheduled", tone: "neutral", icon: CalendarClock },
+  /* The two-step flow, display only (listArticles): the team has it; "ready" above once they approve it. */
+  preparing: { label: "preparing", tone: "active", icon: Loader2 },
 
   /* integrations */
   connected: { label: "connected", tone: "positive", icon: Link2 },

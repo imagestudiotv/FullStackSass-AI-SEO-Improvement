@@ -18,6 +18,8 @@ import {
   planFeatures,
   type PickerPlan,
 } from "@/lib/plans/features";
+import { OfferCodeField } from "@/components/billing/offer-code-field";
+import type { OfferCodeCopy } from "@/lib/i18n/offer-code";
 import { createPayPalCheckout } from "@/lib/paypal/actions";
 import { createCheckoutSession } from "@/lib/stripe/actions";
 import { WIZARD_STEPS, wizardStepIndex } from "@/lib/onboarding/wizard";
@@ -63,6 +65,7 @@ export function PlanStep({
   monthlyPlans,
   annualPlans,
   paypalAvailable,
+  offerCopy = null,
   paypalPlanIds,
   paypalFreeArticlePlanIds = [],
   websiteId,
@@ -77,6 +80,8 @@ export function PlanStep({
   annualPlans: PickerPlan[];
   /** Whether PayPal can complete a checkout at all (lib/paypal/client.ts). */
   paypalAvailable: boolean;
+  /** The REPGET field's words, or null while the offer is off. */
+  offerCopy?: OfferCodeCopy | null;
   /** The plans that exist in PayPal; any other gets no PayPal button. */
   paypalPlanIds: string[];
   /**
@@ -101,6 +106,7 @@ export function PlanStep({
   t?: Messages["app"]["onboarding"];
 }) {
   const [annual, setAnnual] = useState(false);
+  const [offerCode, setOfferCode] = useState("");
   /**
    * Which tier is on screen. The mid tier by default — the reference opens on
    * Grow and offers Scale through a link, which is the same judgement: most
@@ -223,6 +229,12 @@ export function PlanStep({
 
   async function handleCheckout(provider: "stripe" | "paypal") {
     if (!plan) return;
+    // The field only shows on a monthly plan: a value left from before switching to annual does not count.
+    const offer = offerCopy && !annual ? offerCode : "";
+    if (provider === "paypal" && offer.trim() && offerCopy) {
+      toast.error(offerCopy.cardOnly);
+      return;
+    }
     setPending(provider);
 
     /*
@@ -234,7 +246,7 @@ export function PlanStep({
     const result =
       provider === "paypal"
         ? await createPayPalCheckout(plan.id, websiteId, "onboarding")
-        : await createCheckoutSession(plan.id, websiteId, "onboarding");
+        : await createCheckoutSession(plan.id, websiteId, "onboarding", offer);
 
     if ("error" in result) {
       setPending(null);
@@ -500,6 +512,8 @@ export function PlanStep({
             )}
           </div>
         ) : null}
+
+        {offerCopy && !annual ? <OfferCodeField copy={offerCopy} value={offerCode} onChange={setOfferCode} className="mt-4" /> : null}
 
         <Button
           onClick={() => handleCheckout("stripe")}

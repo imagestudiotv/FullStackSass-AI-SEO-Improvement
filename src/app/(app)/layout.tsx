@@ -10,7 +10,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { BrandLogo, BrandMark } from "@/components/brand-logo";
 import { LiveChat } from "@/components/live-chat";
 import { SidebarNav } from "@/components/sidebar-nav";
-import { SidebarCredits, SidebarUsage } from "@/components/sidebar-usage";
+import { PhoneDailyClaim, SidebarCredits, SidebarUsage } from "@/components/sidebar-usage";
 import { UserMenu } from "@/components/user-menu";
 import { WebsiteSwitcher } from "@/components/dashboard/website-switcher";
 import { isAdmin } from "@/lib/admin/guard";
@@ -26,6 +26,8 @@ import { ReferralClaim } from "@/components/referral-claim";
 import { ResearchWatcher } from "@/components/research-watcher";
 import { readReferralCookie } from "@/lib/referrals/cookie";
 import { getLaunchState } from "@/lib/onboarding/launch";
+import { WEBSITE_PROJECT_COPY } from "@/lib/i18n/website-projects";
+import { websiteProjectKindOf, websiteProjectsHref } from "@/lib/website-projects/shared";
 import { SetupTracker } from "@/components/setup-tracker";
 import { getSubscription } from "@/lib/billing";
 import { requireOrg } from "@/lib/tenant";
@@ -224,7 +226,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
    * sidebar needs only the name.
    */
   const addonRows = await db
-    .select({ id: addons.id, name: addons.name, kind: addons.kind })
+    .select({ id: addons.id, slug: addons.slug, name: addons.name, kind: addons.kind })
     .from(addons)
     .where(eq(addons.isActive, true))
     .orderBy(asc(addons.sortOrder));
@@ -243,7 +245,13 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     ...(creditPack ? [{ id: creditPack.id, name: t.app.nav.creditPacks }] : []),
     ...addonRows
       .filter((row) => row.kind !== "credits")
-      .map((row) => ({ id: row.id, name: row.name })),
+      .map((row) => {
+        // "New website" and "Website redesign" have their own screen, and their names in the reader's language.
+        const kind = websiteProjectKindOf(row.slug);
+        return kind
+          ? { id: row.id, name: WEBSITE_PROJECT_COPY[locale].addons[kind].name, href: websiteProjectsHref(kind) }
+          : { id: row.id, name: row.name };
+      }),
   ];
 
   /**
@@ -289,7 +297,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             is this person's own workspace, so the number would be THEIR
             balance beside credits they cannot spend there.
           */
-          <SidebarUsage organizationId={orgId} showCredits={showCredits} t={t.app.nav} tc={creditWords} />
+          <SidebarUsage organizationId={orgId} showCredits={showCredits} locale={locale} t={t.app.nav} tc={creditWords} />
         }
       >
         <SidebarNav
@@ -317,7 +325,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             addons={sidebarAddons}
             hideAddons={hideAddons}
             hideCredits={sharedWorkOnly}
-            footer={<SidebarUsage organizationId={orgId} showCredits={showCredits} t={t.app.nav} tc={creditWords} />}
+            footer={<SidebarUsage organizationId={orgId} showCredits={showCredits} locale={locale} t={t.app.nav} tc={creditWords} />}
           />
           <HeaderBrand>
             <Link href="/dashboard" aria-label="RepGet" className="flex items-center">
@@ -331,8 +339,9 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           </HeaderBrand>
           {/* On a phone the credits sit in this bar, where the sidebar's are out of sight. */}
           {showCredits ? (
-            <div className="md:hidden">
+            <div className="flex items-center gap-1 md:hidden">
               <SidebarCredits organizationId={orgId} t={t.app.nav} tc={creditWords} />
+              <PhoneDailyClaim organizationId={orgId} locale={locale} />
             </div>
           ) : null}
 

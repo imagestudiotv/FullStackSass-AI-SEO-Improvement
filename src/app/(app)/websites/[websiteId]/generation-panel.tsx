@@ -42,6 +42,8 @@ export function GenerationPanel({
   canEdit,
   firstArticleSent,
   inPartnerNetwork,
+  firstArticleNote,
+  finishedManualLabel,
   t,
   tArticle,
   tWorkspace,
@@ -60,6 +62,10 @@ export function GenerationPanel({
   firstArticleSent: boolean;
   /** Managed Partner Network review is on for this website. */
   inPartnerNetwork: boolean;
+  /** Replaces the first-article note where that rule does not apply (the two-step flow). */
+  firstArticleNote?: string;
+  /** Replaces the manual mode's label where the customer reviews nothing (the two-step flow). */
+  finishedManualLabel?: string;
   t: Messages["app"]["common"];
   tArticle: Messages["app"]["article"];
   tWorkspace: Messages["app"]["workspace"];
@@ -119,7 +125,7 @@ export function GenerationPanel({
   }
 
   const FINISHED_OPTIONS: { value: FinishedMode; label: string; help: string }[] = [
-    { value: "review", label: t.finishedReview, help: t.finishedReviewHelp },
+    { value: "review", label: finishedManualLabel ?? t.finishedReview, help: t.finishedReviewHelp },
     { value: "draft", label: t.finishedDraft, help: t.finishedDraftHelp },
     { value: "live", label: t.finishedLive, help: t.finishedLiveHelp },
   ];
@@ -138,7 +144,7 @@ export function GenerationPanel({
   }
 
   const busy = pending || undefined;
-  const firstNote = [firstArticleSent ? null : tArticle.firstArticleOnly, inPartnerNetwork ? tArticle.networkReview : null]
+  const firstNote = [firstArticleSent ? null : (firstArticleNote ?? tArticle.firstArticleOnly), inPartnerNetwork ? tArticle.networkReview : null]
     .filter(Boolean)
     .join(" ");
 

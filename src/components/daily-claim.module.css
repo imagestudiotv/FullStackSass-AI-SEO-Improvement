@@ -1,0 +1,342 @@
+/*
+  The daily check-in's artwork (client design, 2026-11-05). Layout is Tailwind
+  in daily-claim.tsx; only what utilities cannot say lives here: the coins, the
+  hero's wash and the two small animations, all off for reduced motion.
+*/
+
+.hero {
+  position: relative;
+  overflow: hidden;
+  text-align: center;
+  background:
+    radial-gradient(ellipse at 8% 5%, rgb(255 255 255 / 0.8), transparent 35%),
+    radial-gradient(ellipse at 80% 12%, rgb(255 255 255 / 0.78), transparent 35%),
+    linear-gradient(105deg, #fff4e8 0%, #ffddbf 48%, #fff0e0 100%);
+  border-radius: 0 0 49% 49% / 0 0 18% 18%;
+  padding: 30px 90px 43px;
+}
+
+:global(.dark) .hero {
+  background:
+    radial-gradient(ellipse at 8% 5%, rgb(255 255 255 / 0.05), transparent 35%),
+    linear-gradient(105deg, #2c1b12 0%, #47291a 48%, #2c1b12 100%);
+}
+
+.banner {
+  background: linear-gradient(104deg, #fff0df 0%, #ffe6d1 56%, #fff8ef 100%);
+  border-color: #f7e3d5;
+}
+
+:global(.dark) .banner {
+  background: linear-gradient(104deg, #2c1b12 0%, #3d2416 56%, #2c1b12 100%);
+  border-color: #4a2d1c;
+}
+
+/* The design's two rings, behind the banner's words. */
+.bannerRing {
+  position: absolute;
+  top: -91px;
+  right: 89px;
+  width: 340px;
+  height: 340px;
+  border: 1px solid rgb(255 180 130 / 0.6);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.bannerRingInner {
+  top: -64px;
+  right: 117px;
+  width: 270px;
+  height: 270px;
+}
+
+.bannerCoin {
+  width: 66px;
+  height: 66px;
+  flex: none;
+  transform: rotate(15deg);
+  font-size: 25px;
+}
+
+.spark {
+  position: absolute;
+  color: #f5ae5e;
+  font-size: 21px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.sparkA {
+  top: 42px;
+  left: 201px;
+}
+
+.sparkB {
+  top: 117px;
+  right: 165px;
+}
+
+.sparkC {
+  top: 30px;
+  right: 130px;
+  font-size: 13px;
+}
+
+.doodle {
+  position: absolute;
+  border: 1px solid rgb(240 139 75 / 0.29);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.doodleLeft {
+  left: -65px;
+  top: -91px;
+  width: 180px;
+  height: 180px;
+}
+
+.doodleRight {
+  right: -49px;
+  bottom: -115px;
+  width: 245px;
+  height: 245px;
+}
+
+.coin {
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-weight: 800;
+  color: #9d5016;
+  background: linear-gradient(145deg, #ffe7a3, #ffac43);
+  border: 4px solid #f7bc57;
+  box-shadow:
+    0 6px 10px rgb(218 139 57 / 0.22),
+    inset 0 1px 2px #fff8c7,
+    inset 0 -3px 1px #e68d1b;
+  user-select: none;
+}
+
+.floating {
+  position: absolute;
+}
+
+.coinA {
+  width: 57px;
+  height: 57px;
+  top: 47px;
+  left: 76px;
+  transform: rotate(-15deg);
+  font-size: 23px;
+  animation: floatUp 5s ease-in-out infinite;
+}
+
+.coinB {
+  width: 36px;
+  height: 36px;
+  top: 119px;
+  left: 147px;
+  transform: rotate(22deg);
+  font-size: 15px;
+  animation: floatDown 4.8s ease-in-out infinite;
+}
+
+.coinC {
+  width: 59px;
+  height: 59px;
+  top: 64px;
+  right: 84px;
+  transform: rotate(16deg);
+  font-size: 23px;
+  animation: floatDown 5s ease-in-out infinite;
+}
+
+.coinD {
+  width: 29px;
+  height: 29px;
+  top: 27px;
+  right: 188px;
+  font-size: 12px;
+  animation: floatUp 4.2s ease-in-out infinite;
+}
+
+/* The small coin in each day of the strip. */
+.dayCoin {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-width: 3px;
+  font-size: 13px;
+}
+
+.dayCoinMuted {
+  filter: saturate(0.55);
+  opacity: 0.84;
+}
+
+.today {
+  background: linear-gradient(153deg, #e9652f, #c64a12);
+  border-color: #d9571e;
+  box-shadow: 0 12px 22px rgb(235 114 54 / 0.21);
+  color: #fff;
+  transform: translateY(-3px);
+}
+
+@keyframes floatUp {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -8px;
+  }
+}
+
+@keyframes floatDown {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 7px;
+  }
+}
+
+/* Only after the server has confirmed a claim. */
+.confetti {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 4;
+}
+
+.confetti i {
+  position: absolute;
+  left: 50%;
+  top: 60%;
+  width: 7px;
+  height: 12px;
+  background: #fb9b57;
+  opacity: 0;
+  border-radius: 2px;
+  animation: confettiOut 0.9s ease-out forwards;
+}
+
+.confetti i:nth-child(2n) {
+  background: #ffc76b;
+}
+
+.confetti i:nth-child(3n) {
+  background: #f4d5b9;
+}
+
+.confetti i:nth-child(5n) {
+  background: #26221e;
+}
+
+@keyframes confettiOut {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) rotate(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--x), var(--y)) rotate(var(--turn));
+  }
+}
+
+@media (max-width: 800px) {
+  .spark {
+    display: none;
+  }
+  .hero {
+    padding: 39px 36px 45px;
+  }
+  .coinA {
+    left: 18px;
+  }
+  .coinB {
+    left: 38px;
+    top: 130px;
+  }
+  .coinC {
+    right: 20px;
+  }
+  .coinD {
+    right: 90px;
+    top: 20px;
+  }
+}
+
+@media (max-width: 560px) {
+  .hero {
+    padding: 30px 28px 34px;
+  }
+  .coinA {
+    width: 30px;
+    height: 30px;
+    left: 7px;
+    top: 41px;
+    font-size: 13px;
+    border-width: 2px;
+  }
+  .coinC {
+    width: 31px;
+    height: 31px;
+    right: 9px;
+    top: 60px;
+    font-size: 14px;
+    border-width: 2px;
+  }
+  .coinB,
+  .coinD {
+    display: none;
+  }
+  .dayCoin {
+    width: 34px;
+    height: 34px;
+    border-width: 2px;
+    font-size: 11px;
+  }
+}
+
+/* A small laptop: keep the button on screen without scrolling. */
+@media (max-height: 760px) {
+  .hero {
+    padding-top: 22px;
+    padding-bottom: 28px;
+  }
+  .coinB,
+  .coinD {
+    display: none;
+  }
+  .coinA {
+    top: 30px;
+  }
+  .coinC {
+    top: 40px;
+  }
+  .dayCoin {
+    width: 36px;
+    height: 36px;
+    font-size: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .coinA,
+  .coinB,
+  .coinC,
+  .coinD {
+    animation: none;
+  }
+  .confetti {
+    display: none;
+  }
+  .today {
+    transform: none;
+  }
+}

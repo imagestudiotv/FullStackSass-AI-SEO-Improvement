@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import type { ArticleDetail } from "@/lib/articles/actions";
+import { ARTICLE_DELIVERY } from "@/lib/i18n/article-delivery";
 import { format } from "@/lib/i18n/format";
 import { getMessages } from "@/lib/i18n/messages";
 
@@ -57,6 +58,8 @@ const ARTICLE: ArticleDetail = {
   imageAttempts: 0,
   publishedUrl: null,
   publishRequested: null,
+  preparing: null,
+  withTeam: false,
 };
 
 const FACTS: PublishFacts = {
@@ -214,13 +217,15 @@ describe("the article workspace", () => {
   it("lists the publishing history with what the website stored and a link to the real post", () => {
     const html = render({
       history: [
-        { id: "a", status: "published", remoteStatus: "draft", remoteUrl: "https://example.com/?p=1", errorKind: null, at: "2026-10-02T09:00:00.000Z", when: "2 Oct 2026, 09:00 UTC" },
-        { id: "b", status: "failed", remoteStatus: null, remoteUrl: null, errorKind: "unreachable", at: "2026-10-01T09:00:00.000Z", when: "1 Oct 2026, 09:00 UTC" },
-        { id: "c", status: "published", remoteStatus: "publish", remoteUrl: "/relative-path", errorKind: null, at: "2026-09-30T09:00:00.000Z", when: "30 Sept 2026, 09:00 UTC" },
+        { id: "a", status: "published", remoteStatus: "draft", remoteUrl: "https://example.com/?p=1", errorKind: null, refusal: null, at: "2026-10-02T09:00:00.000Z", when: "2 Oct 2026, 09:00 UTC" },
+        { id: "b", status: "failed", remoteStatus: null, remoteUrl: null, errorKind: "unreachable", refusal: null, at: "2026-10-01T09:00:00.000Z", when: "1 Oct 2026, 09:00 UTC" },
+        { id: "c", status: "published", remoteStatus: "publish", remoteUrl: "/relative-path", errorKind: null, refusal: null, at: "2026-09-30T09:00:00.000Z", when: "30 Sept 2026, 09:00 UTC" },
+        { id: "d", status: "failed", remoteStatus: null, remoteUrl: null, errorKind: null, refusal: "draft_changed", at: "2026-09-29T09:00:00.000Z", when: "29 Sept 2026, 09:00 UTC" },
       ],
     });
     expect(html).toContain(en.app.editor.logDraft);
     expect(html).toContain(en.app.editor.pubErrUnreachable);
+    expect(html).toContain(ARTICLE_DELIVERY.en.refusedChanged);
     expect(html).toContain('href="https://example.com/?p=1"');
     // A bare path would link into this app: not offered.
     expect(html).not.toContain('href="/relative-path"');
@@ -295,6 +300,7 @@ describe("the publishing panel after a press", () => {
         onCheckAgain: () => {},
         t: en.app.editor,
         tCommon: en.app.common,
+        delivery: ARTICLE_DELIVERY.en,
       }),
     );
   }
@@ -315,5 +321,216 @@ describe("the publishing panel after a press", () => {
     expect(button(html, en.app.editor.publish)).not.toContain('disabled=""');
     expect(button(html, en.app.editor.sendAsDraft)).not.toBeNull();
     expect(button(html, en.app.editor.sendAsDraft)).not.toContain('disabled=""');
+  });
+});
+
+describe("the two-step flow (docs/two-step-articles.md)", () => {
+  const d = ARTICLE_DELIVERY.en;
+  const READY: PublishFacts = { ...FACTS, twoStep: true, review: "approved", reviewSource: "team", autoPublish: "off", plannedInFuture: false };
+
+  it("a ready article: the finished text, one Publish, no second button and no approval", () => {
+    const html = render({ facts: READY });
+    expect(html).toContain("Some words here.");
+    expect(html).toContain(d.ready);
+    expect(button(html, en.app.editor.publish)).not.toBeNull();
+    expect(button(html, en.app.editor.publish)).not.toContain('disabled=""');
+    expect(button(html, en.app.editor.sendAsDraft)).toBeNull();
+    expect(html).not.toContain("Approve");
+    expect(html).toContain(en.app.status.ready);
+  });
+
+  it("automatic publishing says when it goes, and Publish stays as the way to go sooner", () => {
+    const live = render({ facts: { ...READY, autoPublish: "live", plannedInFuture: true } });
+    expect(live).toContain(format(d.readyAutoLive, { date: "12 October 2026" }));
+    expect(button(live, en.app.editor.publish)).not.toContain('disabled=""');
+    const drafts = render({ facts: { ...READY, autoPublish: "draft", plannedInFuture: true } });
+    expect(drafts).toContain(format(d.readyAutoDraft, { date: "12 October 2026" }));
+    expect(button(drafts, en.app.editor.sendAsDraft)).toBeNull();
+  });
+
+  it("not connected: says it is ready and not on the website, and leads to the connection", () => {
+    const html = render({ facts: { ...READY, destination: { kind: "none" } } });
+    expect(html).toContain(d.readyConnect);
+    expect(html).toContain(en.app.editor.connectToPublish);
+    expect(html).toContain("/integrations");
+    expect(button(html, en.app.editor.publish)).toBeNull();
+    expect(html).not.toContain(d.ready);
+  });
+
+  it("a version already on the website: Publish waits, and says why", () => {
+    const html = render({ facts: { ...READY, alreadySent: { publish: true, draft: false }, liveOnSite: true, lastOutcome: { kind: "live", when: "1 Oct" } } });
+    expect(button(html, en.app.editor.updatePost)).toContain('disabled=""');
+    expect(html).toContain(en.app.editor.alreadySentLive);
+  });
+
+  it("a change to a live post: the team's check is said plainly, and nothing is asked", () => {
+    const html = render({
+      article: { ...ARTICLE, status: "published", publishedUrl: "https://example.com/a", withTeam: true },
+      facts: { ...READY, withTeam: true, liveOnSite: true, alreadySent: { publish: true, draft: false }, lastOutcome: { kind: "live", when: "1 Oct" } },
+    });
+    expect(html).toContain(d.withTeamLive);
+    // That version is what is on the site, so there is nothing to send yet.
+    expect(button(html, en.app.editor.updatePost)).toContain('disabled=""');
+    expect(html).toContain(d.lockedWithTeam);
+  });
+
+  it("a WordPress draft, on a plugin too old to publish it: says to update, with no Publish button pretending to work", () => {
+    const html = render({
+      article: { ...ARTICLE, status: "draft", publishedUrl: "https://example.com/a" },
+      facts: { ...READY, destination: { kind: "plugin" }, liveOnSite: false, lastOutcome: { kind: "draft", when: "1 Oct" } },
+    });
+    expect(html).toContain(d.pluginDraftNote);
+    expect(d.pluginDraftNote).toContain("1.10");
+    expect(button(html, en.app.editor.publish)).toBeNull();
+    expect(button(html, en.app.editor.updatePost)).toBeNull();
+  });
+
+  describe("a failed delivery says try again only where there is something to press", () => {
+    const failed = { kind: "failed" as const, when: "1 Oct", errorKind: "unknown" as const };
+    const tooHard = en.app.editor.pubErrUnknown;
+    const plugin = { destination: { kind: "plugin" as const }, lastOutcome: failed };
+
+    it.each([
+      ["two-step on", READY],
+      ["two-step off", FACTS],
+    ])("a press the plugin failed, %s: waiting for its next check, with no instruction nobody can follow", (_what, base) => {
+      const html = render({ article: { ...ARTICLE, publishRequested: "publish" }, facts: { ...base, ...plugin } });
+      expect(html).toContain(format(en.app.editor.statePluginWaiting, { mode: en.app.editor.modeLive }));
+      expect(html).toContain(format(en.app.editor.stateFailed, { date: "1 Oct" }));
+      expect(html).not.toContain(tooHard);
+      expect(button(html, en.app.editor.publish)).toBeNull();
+    });
+
+    it("a post the plugin cannot update from here: nothing to press, so nothing to try again", () => {
+      const html = render({ article: { ...ARTICLE, publishedUrl: "https://example.com/a" }, facts: { ...FACTS, ...plugin } });
+      expect(html).toContain(en.app.editor.statePluginPublished);
+      expect(html).not.toContain(tooHard);
+    });
+
+    it("a plugin with a Publish to press: the instruction stays, beside the button", () => {
+      const html = render({ facts: { ...FACTS, ...plugin } });
+      expect(html).toContain(tooHard);
+      expect(button(html, en.app.editor.publish)).not.toContain('disabled=""');
+    });
+
+    it("a direct connection: the instruction stays, beside the button", () => {
+      const html = render({ facts: { ...FACTS, lastOutcome: failed } });
+      expect(html).toContain(tooHard);
+      expect(button(html, en.app.editor.publish)).not.toContain('disabled=""');
+    });
+  });
+
+  it("a WordPress draft, on a plugin that can publish it: one working Publish button, and what it does", () => {
+    const facts = { ...READY, destination: { kind: "plugin" as const }, pluginPublishesDrafts: true, liveOnSite: false, lastOutcome: { kind: "draft" as const, when: "1 Oct" } };
+    const html = render({ article: { ...ARTICLE, status: "draft", publishedUrl: "https://example.com/a" }, facts });
+    expect(html).toContain(d.pluginDraftReady);
+    expect(html).not.toContain(d.pluginDraftNote);
+    expect(button(html, en.app.editor.publish)).not.toContain('disabled=""');
+    expect(button(html, en.app.editor.updatePost)).toBeNull();
+    expect(button(html, en.app.editor.sendAsDraft)).toBeNull();
+  });
+
+  it("published by a person in WordPress: live, with no claim that this exact version is what is there, and nothing to overwrite it with", () => {
+    const html = render({
+      article: { ...ARTICLE, status: "published", publishedUrl: "https://example.com/a" },
+      facts: { ...READY, destination: { kind: "plugin" }, pluginPublishesDrafts: true, liveOnSite: true, alreadySent: { publish: true, draft: false }, publishedInWordPress: true, lastOutcome: { kind: "live", when: "1 Oct" } },
+    });
+    expect(html).toContain(d.publishedInWordPress);
+    expect(html).not.toContain(en.app.editor.alreadySentLive);
+    expect(button(html, en.app.editor.updatePost)).toContain('disabled=""');
+  });
+
+  it("the draft was not published: the reason is said plainly, in place of a failure, and Publish can ask the site again", () => {
+    const refusals = [
+      ["draft_changed", d.refusedChanged],
+      ["draft_unverified", d.refusedUnverified],
+      ["post_trashed", d.refusedTrashed],
+      ["post_deleted", d.refusedDeleted],
+      ["post_changed", d.refusedPostChanged],
+      ["post_unverified", d.refusedPostUnverified],
+      ["post_locked", d.refusedPostLocked],
+      ["update_trashed", d.refusedUpdateTrashed],
+      ["update_deleted", d.refusedUpdateDeleted],
+      ["update_unavailable", d.refusedUpdateUnavailable],
+    ] as const;
+    for (const [refusal, text] of refusals) {
+      const html = render({
+        article: { ...ARTICLE, status: "draft", publishedUrl: "https://example.com/a" },
+        facts: { ...READY, destination: { kind: "plugin" }, pluginPublishesDrafts: true, liveOnSite: false, lastOutcome: { kind: "refused", when: "1 Oct", refusal } },
+      });
+      expect(html).toContain(text.replaceAll("'", "&#x27;"));
+      expect(html).not.toContain(d.pluginDraftReady);
+      expect(html).not.toContain(en.app.editor.pubErrUnknown);
+      expect(button(html, en.app.editor.publish)).not.toContain('disabled=""');
+    }
+  });
+
+  it("an approved update on a plugin site has its Update button, where the plugin path used to end", () => {
+    const facts = { ...READY, destination: { kind: "plugin" as const }, liveOnSite: true, lastOutcome: { kind: "live" as const, when: "1 Oct" } };
+    const html = render({ article: { ...ARTICLE, status: "published", publishedUrl: "https://example.com/a" }, facts });
+    expect(button(html, en.app.editor.updatePost)).not.toContain('disabled=""');
+    expect(html).not.toContain(en.app.editor.statePluginPublished);
+    const off = render({ article: { ...ARTICLE, status: "published", publishedUrl: "https://example.com/a" }, facts: { ...facts, twoStep: false } });
+    expect(off).toContain(en.app.editor.statePluginPublished);
+  });
+
+  it("re-editing an approved article: the last approved version stays, with Publish working and the text locked", () => {
+    const html = render({ article: { ...ARTICLE, withTeam: true }, facts: { ...READY, withTeam: true } });
+    expect(html).toContain("Some words here.");
+    expect(html).toContain(d.withTeam);
+    expect(button(html, en.app.editor.publish)).not.toContain('disabled=""');
+    expect(button(html, en.app.editor.saveArticle)).toContain("disabled");
+    expect(html).toContain(d.lockedWithTeam);
+  });
+
+  it("with the switch off, the panel is as it was", () => {
+    const html = render({ facts: { ...FACTS, review: "approved", reviewSource: "team" } });
+    expect(button(html, en.app.editor.sendAsDraft)).not.toBeNull();
+    expect(html).not.toContain(d.ready);
+  });
+});
+
+describe("the page while the team has the article", () => {
+  it("shows honest progress with nothing of the article and no action to take", async () => {
+    const { ArticlePreparing } = await import("./article-preparing");
+    const props = {
+      websiteId: "33333333-3333-4333-8333-333333333333",
+      title: "Planned topic",
+      stage: "team" as const,
+      postUrl: null,
+      status: "draft",
+      viewOnSiteLabel: en.app.editor.viewOnSite,
+      destination: { kind: "none" as const },
+      autoPublish: "off" as const,
+      canEdit: true,
+      locale: "en" as const,
+      plannedArticlesLabel: en.app.nav.plannedArticles,
+      breadcrumbLabel: en.app.editor.breadcrumbLabel,
+      tStatus: en.app.status,
+    };
+    const html = renderToStaticMarkup(createElement(ArticlePreparing, props));
+    expect(html).toContain(ARTICLE_DELIVERY.en.teamTitle);
+    expect(html).toContain(ARTICLE_DELIVERY.en.connectNote);
+    expect(html).toContain("/integrations");
+    expect(html).not.toContain("<button");
+    expect(html).not.toMatch(/approve/i);
+
+    const connected = renderToStaticMarkup(createElement(ArticlePreparing, { ...props, destination: { kind: "plugin" as const }, autoPublish: "live" as const }));
+    expect(connected).not.toContain(ARTICLE_DELIVERY.en.connectNote);
+    expect(connected).toContain(ARTICLE_DELIVERY.en.autoNoteLive);
+
+    const viewer = renderToStaticMarkup(createElement(ArticlePreparing, { ...props, canEdit: false }));
+    expect(viewer).not.toContain(ARTICLE_DELIVERY.en.connectAction);
+
+    // A post already on the website, with no text RepGet can prove: it says so and links to it, and asks nothing.
+    const onSite = renderToStaticMarkup(createElement(ArticlePreparing, { ...props, postUrl: "https://example.com/a", status: "published", autoPublish: "live" as const }));
+    expect(onSite).toContain(ARTICLE_DELIVERY.en.withTeamChange);
+    expect(onSite).toContain('href="https://example.com/a"');
+    expect(onSite).toContain(en.app.editor.viewOnSite);
+    expect(onSite).not.toContain(ARTICLE_DELIVERY.en.teamBody);
+    expect(onSite).not.toContain(ARTICLE_DELIVERY.en.stepPublish);
+    expect(onSite).not.toContain(ARTICLE_DELIVERY.en.autoNoteLive);
+    expect(onSite).not.toContain(ARTICLE_DELIVERY.en.connectNote);
+    expect(onSite).not.toContain("<button");
   });
 });

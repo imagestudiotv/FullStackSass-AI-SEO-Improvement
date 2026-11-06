@@ -78,6 +78,23 @@ The client asked for this explicitly. Every draft is checked in code (`lib/socia
 3. In Admin → Credits, set "Social media post or reply" to 1.
 4. DataForSEO and Anthropic keys must be set; they already are for articles.
 
+## RepGet's own website (internal testing)
+
+The owner's decision (2026-11-05): repget.com goes in Daniel's existing workspace, the one holding Image Studio, with scoped internal testing access and no paid subscription.
+
+1. **Add the website.** `scripts/setup-repget-site.ts --workspace <id or slug>` shows what it would do; `--apply` does it. It refuses a workspace without `imagestudio.com`, makes one website however often it runs, and starts no blog, publishing or link job (`lib/websites/own-site-setup.ts`). It grants nothing.
+2. **Open the two tools.** Add the website id it prints to `INTERNAL_TEST_WEBSITE_IDS` on the deployment and redeploy. Unset means nobody.
+
+What that opens (`lib/billing/internal-testing.ts`):
+
+- **Website audits and these social tools, on that website only, while it has no subscription.** A cancelled subscription stays refused. Buying a plan simply replaces the access.
+- **Everything else stays closed:** articles, keywords, AI visibility, backlinks, chat, videos, translations. Other websites in the workspace, Image Studio included, are not affected.
+- **It writes nothing:** no subscription, plan, credits or agency row. Priced actions are charged to the workspace's wallet as usual.
+
+**Nothing posts by itself.** A paid plan's connected accounts publish own posts automatically, and `auto_post` defaults to on, so this access has its own setting: every platform is available, own posts wait for a click like replies, and the publishing job hands back anything it is given (`manualOnly` in `socialAccess`).
+
+**It still costs something once an account is connected:** the daily suggestions make searches and a model call, as for any website (see Daily run above). Without keywords, which stay closed, replies are searched from the website's industry and services.
+
 ## Open
 
 - **Bluesky was tested on a real account (2026-10-29)**, on the free bundle.social plan. The steps:

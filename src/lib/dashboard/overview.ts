@@ -2,7 +2,8 @@ import "server-only";
 
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
-import { reviewHashSql } from "@/lib/articles/review";
+import { customerTitleOf, hasCustomerRevision, heldFromCustomerSql, reviewHashSql, servedStatus, twoStepOffSql } from "@/lib/articles/review";
+import { PREPARING_TITLE } from "@/lib/i18n/article-delivery";
 import { readOneAuthority, type AuthorityReading } from "@/lib/authority/metric";
 import { db } from "@/lib/db";
 import { articles, audits, calendarItems, keywords, websites } from "@/lib/db/schema";
@@ -86,11 +87,11 @@ function articlePages(websiteId: string, domain: string) {
     select distinct on (keyed.page_key) keyed.*
     from (
       select ${pageKeySql(sql`a.published_url`, domain)} as page_key,
-        a.id, a.title, a.published_url as url, a.target_keyword as keyword, a.first_live_at, a.created_at,
+        a.id, ${customerTitleOf(sql`a.id`)} as title, a.published_url as url, a.target_keyword as keyword, a.first_live_at, a.created_at,
         k.cpc::float as cpc
       from articles a
       left join keywords k on k.website_id = a.website_id and k.term = a.target_keyword
-      where a.website_id = ${websiteId} and a.published_url is not null
+      where a.website_id = ${websiteId} and a.published_url is not null and ${hasCustomerRevision(sql`a.id`)}
     ) keyed
     order by keyed.page_key, keyed.first_live_at asc nulls last, keyed.created_at asc, keyed.id
   )`;
@@ -132,7 +133,7 @@ export type TodaysArticle = {
    * waiting for its day or the customer) | scheduled (goes out on its day) |
    * draft (waits for the customer) | writing.
    */
-  state: "published" | "awaiting_research_review" | "awaiting_review" | "approved" | "scheduled" | "draft" | "writing" | "failed";
+  state: "published" | "awaiting_research_review" | "awaiting_review" | "approved" | "preparing" | "ready" | "scheduled" | "draft" | "writing" | "failed";
 };
 
 export type Win =
@@ -304,6 +305,11 @@ async function loadTodaysArticle(websiteId: string): Promise<TodaysArticle | nul
       researchHeld: sql<boolean>`${articles.researchReviewRequired} and ${articles.researchApprovedHash} is distinct from ${reviewHashSql}`,
       plannedFor: calendarItems.scheduledFor,
       autoPublish: websites.autoPublish,
+      plannedTitle: calendarItems.title,
+      twoStep: sql<boolean>`not ${twoStepOffSql}`,
+      held: heldFromCustomerSql,
+      firstLiveAt: articles.firstLiveAt,
+      stored: sql<Record<string, unknown> | null>`${articles.approvedRevision} - 'bodyHtml'`,
     })
     .from(articles)
     .innerJoin(websites, eq(websites.id, articles.websiteId))
@@ -332,19 +338,26 @@ async function loadTodaysArticle(websiteId: string): Promise<TodaysArticle | nul
     intent = keyword?.intent ?? null;
   }
 
+  // Held with a stored revision: the customer has that one, finished, or on their website.
+  const served = article.held && article.stored;
   const state: TodaysArticle["state"] =
-    article.status === "published" ? "published"
+    served ? (servedStatus(article) === "published" ? "published" : "ready")
+    : article.status === "published" ? "published"
     : article.status === "generating" || article.status === "queued" ? "writing"
     : article.status === "failed" ? "failed"
-    : article.researchHeld ? "awaiting_research_review"
+    // Under the two-step flow: with the team, or ready. Nothing here asks the customer to review.
+    : article.held ? "preparing"
+    : article.twoStep && article.reviewStatus === "approved" && !article.publishedUrl ? "ready"
+    : article.researchHeld && !article.twoStep ? "awaiting_research_review"
     : article.reviewStatus === "pending" ? "awaiting_review"
     : article.reviewStatus === "approved" ? "approved"
     : article.autoPublish ? "scheduled"
     : "draft";
   return {
     id: article.id,
-    title: article.title,
-    imageUrl: article.imageUrl,
+    // Never a held article's stored title: its stored revision's, or the customer's own plan row.
+    title: served ? (article.stored?.title as string) : article.held ? (article.plannedTitle ?? PREPARING_TITLE) : article.title,
+    imageUrl: served ? ((article.stored?.imageUrl as string | null) ?? null) : article.held ? null : article.imageUrl,
     publishedUrl: article.publishedUrl,
     targetKeyword: article.targetKeyword,
     volume,
@@ -363,17 +376,17 @@ async function loadWins(subject: { websiteId: string; orgId: string; domain: str
   const base = `/websites/${subject.websiteId}`;
   const [published, indexed, metrics, given, audit, clicks] = await Promise.all([
     db.execute(sql`
-      select a.id, a.title, to_char(a.first_live_at, 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as at
+      select a.id, ${customerTitleOf(sql`a.id`)} as title, to_char(a.first_live_at, 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as at
       from articles a
-      where a.website_id = ${subject.websiteId}
+      where a.website_id = ${subject.websiteId} and ${hasCustomerRevision(sql`a.id`)}
         and a.first_live_at >= ${utc(week.from)} and a.first_live_at < ${utc(week.to)}
       order by a.first_live_at desc limit 5
     `),
     db.execute(sql`
-      select a.id, a.title, to_char(ai.indexed_at, 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as at
+      select a.id, ${customerTitleOf(sql`a.id`)} as title, to_char(ai.indexed_at, 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as at
       from article_indexing ai
       join articles a on a.id = ai.article_id
-      where ai.website_id = ${subject.websiteId} and ai.status = 'indexed'
+      where ai.website_id = ${subject.websiteId} and ai.status = 'indexed' and ${hasCustomerRevision(sql`a.id`)}
         and ai.indexed_at >= ${utc(week.from)} and ai.indexed_at < ${utc(week.to)}
       order by ai.indexed_at desc limit 5
     `),

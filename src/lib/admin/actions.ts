@@ -31,7 +31,7 @@ import {
 import { sanitizeHtml, countWords } from "@/lib/articles/generate";
 import { siteScope } from "@/lib/articles/link-guard";
 import type { ActionResult } from "@/lib/websites/actions";
-import { syncApproval, underReview } from "@/lib/articles/review";
+import { afterArticleEdit, underReview } from "@/lib/articles/review";
 import { ArticleInFlightError, editArticle } from "@/lib/publishing/dispatch";
 
 /**
@@ -431,8 +431,13 @@ export async function updateAnyArticle(
         .limit(1);
       if (current && underReview(current)) throw new UnderReviewError();
       await tx.update(articles).set(patch).where(eq(articles.id, articleId));
-      // An admin edit after approval needs approving too (lib/articles/review.ts).
-      await syncApproval(articleId, tx);
+      /*
+        An admin edit after approval needs approving too (lib/articles/review.ts).
+        Under the two-step flow any staff edit is a working copy until approved,
+        on an article from before the flow too: the customer and every send keep
+        the stored revision.
+      */
+      await afterArticleEdit(articleId, tx);
     });
   } catch (error) {
     if (error instanceof ArticleInFlightError || error instanceof UnderReviewError) return { ok: false, error: error.message };

@@ -1,3 +1,4 @@
+import type { DraftRefusal } from "@/lib/articles/review";
 import type { ProviderErrorKind } from "@/lib/publishing/provider";
 
 /**
@@ -31,7 +32,9 @@ export type ReviewState = "none" | "pending" | "changed" | "approved";
 export type LastOutcome =
   | { kind: "none" }
   | { kind: "live" | "draft" | "scheduled" | "delivered" | "pluginUnconfirmed"; when: string }
-  | { kind: "failed"; when: string; errorKind: ProviderErrorKind };
+  | { kind: "failed"; when: string; errorKind: ProviderErrorKind }
+  /** A press on a draft the plugin would not publish, and why. */
+  | { kind: "refused"; when: string; refusal: DraftRefusal };
 
 /** Read on the server; plain data, dates already formatted. */
 export type PublishFacts = {
@@ -39,6 +42,15 @@ export type PublishFacts = {
   review: ReviewState;
   /** Which outstanding review needs action; research approval never clears team review. */
   reviewSource?: "research" | "team";
+  /**
+   * platform_controls.two_step_articles: the customer has one Publish action,
+   * nothing else to press, and approves nothing (docs/two-step-articles.md).
+   */
+  twoStep?: boolean;
+  /** The site's plugin can act on a Publish press on a post it holds as a draft (lib/plugin/protocol.ts). */
+  pluginPublishesDrafts?: boolean;
+  /** The team has a newer copy; this is the last approved revision, which Publish sends. */
+  withTeam?: boolean;
   /** platform_controls.publication_freeze: nothing is sent while on. */
   frozen: boolean;
   /** The latest direct send got no answer (lib/publishing/dispatch.ts). */
@@ -49,6 +61,8 @@ export type PublishFacts = {
   liveOnSite: boolean;
   /** The saved revision already reached the site with this status (the claim's already_sent rule). */
   alreadySent: { publish: boolean; draft: boolean };
+  /** Somebody published the post in WordPress, so nothing says it holds this version. Publish stays off: it would overwrite them. */
+  publishedInWordPress?: boolean;
   lastOutcome: LastOutcome;
   /** Identities of the newest dispatch and log, to notice a press's result arriving. */
   latestDispatchId: string | null;
@@ -88,6 +102,8 @@ export type PublishPlan =
   | { mode: "pluginWaiting"; as: "publish" | "draft" }
   /** Created by the plugin, which cannot update a post it created. */
   | { mode: "pluginPublished" }
+  /** The two-step flow: held as a WordPress draft by a plugin too old to publish it from here. Says to update it; no button. */
+  | { mode: "pluginDraft" }
   | {
       mode: "actions";
       /** Why both buttons wait, or null. */
@@ -125,8 +141,10 @@ export function planPublishing(input: {
     if (input.publishRequested === "publish" || input.publishRequested === "draft") {
       return { mode: "pluginWaiting", as: input.publishRequested };
     }
-    // The plugin's feed offers only articles it has not created yet (lib/plugin/due.ts).
-    if (input.publishedUrl) return { mode: "pluginPublished" };
+    // The plugin's feed offers only articles it has not created yet (lib/plugin/due.ts),
+    // except an approved update a person presses for under the two-step flow.
+    if (input.publishedUrl && !facts.twoStep) return { mode: "pluginPublished" };
+    if (input.publishedUrl && !facts.liveOnSite && !facts.pluginPublishesDrafts) return { mode: "pluginDraft" };
   }
 
   let blocked: Blocker | null = null;

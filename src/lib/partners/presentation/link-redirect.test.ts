@@ -6,7 +6,7 @@ import robots from "@/app/robots";
 
 import { checkReferralCode, referralCodeSuggestions, referralLinkPath } from "../domain/entities/partner";
 import { partnerLinkRedirects } from "./link-redirect";
-import { campaignParams, landingPath } from "./tracking-cookie";
+import { campaignParams, landingParams, landingPath } from "./tracking-cookie";
 
 /**
  * The partner link repget.com/?ref=<name>: the name rules, the redirect rule
@@ -124,5 +124,77 @@ describe("where /go/<name> lands", () => {
       ["utm_campaign", "launch"],
     ]);
     expect(campaignParams(new URLSearchParams({ utm_source: "y".repeat(300) }))[0][1]).toHaveLength(200);
+  });
+});
+
+describe("what ?ref= must not lose (landingParams)", () => {
+  const query = (values: Record<string, string>) => new URLSearchParams(values);
+  const next = "/onboarding/website?domain=acme.com";
+
+  it("keeps sign-up's destination and pre-filled address", () => {
+    expect(landingParams("/sign-up", query({ next, email: "me+x@acme.com", ref: "dami", to: "/sign-up", other: "x" }))).toEqual([
+      ["next", next],
+      ["email", "me+x@acme.com"],
+    ]);
+    expect(landingParams("/sign-up", query({ next: "/onboarding/website?plan=grow" }))).toEqual([["next", "/onboarding/website?plan=grow"]]);
+  });
+
+  it.each([
+    "https://evil.example/x",
+    "http://evil.example",
+    "//evil.example/x",
+    "/\\evil.example/x",
+    "/\t/evil.example/x",
+    "javascript:alert(1)",
+    "evil.example",
+  ])("drops a next the sign-in guard would refuse: %j", (bad) => {
+    expect(landingParams("/sign-up", query({ next: bad }))).toEqual([]);
+  });
+
+  it.each(["<script>", "not an email", "a@b", `${"a".repeat(2000)}@acme.com`])("drops an email that is not one: %j", (bad) => {
+    expect(landingParams("/sign-up", query({ email: bad }))).toEqual([]);
+  });
+
+  it("keeps the website the audit was asked to check, in any language", () => {
+    expect(landingParams("/audit", query({ domain: "acme.com", email: "me@acme.com", next }))).toEqual([["domain", "acme.com"]]);
+    expect(landingParams("/es/audit", query({ domain: "acme.com" }))).toEqual([["domain", "acme.com"]]);
+  });
+
+  it.each(["/", "/pricing", "/es", "/es/pricing", "/blog/a-post", "/contact", "/partners"])("puts no address or destination on %s", (landing) => {
+    expect(landingParams(landing, query({ next, email: "me@acme.com", domain: "acme.com", plan: "grow" }))).toEqual([]);
+  });
+
+  it("keeps the website creation page and its project type and address, in any language", () => {
+    expect(landingPath("/website-creation")).toBe("/website-creation");
+    expect(landingPath("/es/website-creation")).toBe("/es/website-creation");
+    const carried = query({ type: "redesign", email: "a@b.com", ref: "dami", next, domain: "acme.com", other: "x" });
+    expect(landingParams("/website-creation", carried)).toEqual([["type", "redesign"], ["email", "a@b.com"]]);
+    expect(landingParams("/es/website-creation", carried)).toEqual([["type", "redesign"], ["email", "a@b.com"]]);
+    expect(landingParams("/es/website-creation", query({ type: "new" }))).toEqual([["type", "new"]]);
+  });
+
+  it.each(["other", "NEW", "<script>"])("drops a project type that is not one: %j", (bad) => {
+    expect(landingParams("/website-creation", query({ type: bad }))).toEqual([]);
+  });
+
+  it.each(["<script>", "not an email", "a@b"])("drops an address on the website creation page that is not one: %j", (bad) => {
+    expect(landingParams("/es/website-creation", query({ email: bad }))).toEqual([]);
+  });
+
+  it("puts no project type on any other page", () => {
+    expect(landingParams("/pricing", query({ type: "redesign" }))).toEqual([]);
+    expect(landingParams("/sign-up", query({ type: "redesign" }))).toEqual([]);
+  });
+
+  it("is not read for a language prefix sign-up does not have", () => {
+    expect(landingParams("/es/sign-up", query({ next, email: "me@acme.com" }))).toEqual([]);
+  });
+
+  it("never lands off this site, whatever `to` says, so the values cannot leave it", () => {
+    for (const to of ["https://evil.example/", "//evil.example/", "/\\evil.example", "https://evil.example/sign-up"]) {
+      const landing = landingPath(to);
+      expect(landing).toBe("/");
+      expect(landingParams(landing, query({ next, email: "me@acme.com" }))).toEqual([]);
+    }
   });
 });

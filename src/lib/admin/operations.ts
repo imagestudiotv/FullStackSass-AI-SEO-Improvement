@@ -695,7 +695,8 @@ export async function setOrganizationActive(
  *  - Remove links this workspace hosts for other customers. Those pages
  *    belong to this customer and stay up; placements.host_website_id is
  *    "set null", so the other customer's record survives with the host
- *    unknown rather than vanishing.
+ *    unknown rather than vanishing. A link not yet on a page is withdrawn and
+ *    its hold released (lib/websites/deletion.ts); the audit entry counts them.
  *  - Erase the audit log. It has no foreign keys precisely so a deletion
  *    leaves a trace of itself — which is what makes the action accountable.
  */
@@ -749,7 +750,7 @@ export async function deleteOrganization(
    */
   const result = await deleteWorkspaceIfBillingResolved(db, {
     organizationId: org.id,
-    beforeDelete: async (tx) => {
+    beforeDelete: async (tx, { releasedLinks }) => {
       /**
        * Counted just before the delete, for the audit entry. Afterwards
        * there is nothing left to count, and "deleted a workspace" without
@@ -770,8 +771,8 @@ export async function deleteOrganization(
           targetType: "organization",
           targetId: org.id,
           organizationId: org.id,
-          summary: `Deleted ${org.name} - ${counts?.websites ?? 0} websites, ${counts?.members ?? 0} members, ${counts?.payments ?? 0} payments - ${note}`,
-          detail: { name: org.name, ...counts, reason: note },
+          summary: `Deleted ${org.name} - ${counts?.websites ?? 0} websites, ${counts?.members ?? 0} members, ${counts?.payments ?? 0} payments, ${releasedLinks} unpublished links withdrawn - ${note}`,
+          detail: { name: org.name, ...counts, releasedLinks, reason: note },
         },
         tx,
       );
@@ -1030,7 +1031,7 @@ export async function deleteWebsite(
   const result = await deleteWebsiteIfBillingResolved(db, {
     websiteId: site.id,
     organizationId: site.organizationId,
-    beforeDelete: (tx) =>
+    beforeDelete: (tx, { releasedLinks }) =>
       recordAdminAction(
         {
           actorEmail: admin.email,
@@ -1038,12 +1039,13 @@ export async function deleteWebsite(
           targetType: "website",
           targetId: site.id,
           organizationId: site.organizationId,
-          summary: `Deleted ${site.domain} from ${site.organizationName ?? "an unnamed workspace"} - ${counts?.articles ?? 0} articles, ${counts?.keywords ?? 0} keywords - ${note}`,
+          summary: `Deleted ${site.domain} from ${site.organizationName ?? "an unnamed workspace"} - ${counts?.articles ?? 0} articles, ${counts?.keywords ?? 0} keywords, ${releasedLinks} unpublished links withdrawn - ${note}`,
           detail: {
             domain: site.domain,
             url: site.url,
             organizationName: site.organizationName,
             ...counts,
+            releasedLinks,
             reason: note,
           },
         },

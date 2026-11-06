@@ -6,6 +6,10 @@ import type { Locale } from "@/lib/i18n/config";
  *
  * `{n}` is FREE_ARTICLES (lib/plans/features.ts), the number sign-up really
  * grants, so the button cannot promise more articles than the account gets.
+ *
+ * The field's button states the real offer (client, 2026-11-05). The design
+ * says "Start free trial", but what a new account gets is its free articles,
+ * not a trial period. It goes to the same sign-up as before.
  */
 
 export type FinalCtaCopy = {
@@ -49,7 +53,7 @@ const en: FinalCtaCopy = {
     emailLabel: "Email address",
     websitePlaceholder: "yourwebsite.com",
     emailPlaceholder: "demo@gmail.com",
-    submit: "Start free trial",
+    submit: "Create {n} free articles",
     under: "Enter your website or email to get started.",
     useEmail: "Use your email instead",
     useWebsite: "Use your website instead",
@@ -84,7 +88,7 @@ const es: FinalCtaCopy = {
     emailLabel: "Correo electrónico",
     websitePlaceholder: "susitioweb.com",
     emailPlaceholder: "demo@gmail.com",
-    submit: "Empezar la prueba gratis",
+    submit: "Crear {n} artículos gratis",
     under: "Introduzca su sitio web o su correo para empezar.",
     useEmail: "Usar su correo en su lugar",
     useWebsite: "Usar su sitio web en su lugar",
@@ -119,7 +123,7 @@ const fr: FinalCtaCopy = {
     emailLabel: "Adresse e-mail",
     websitePlaceholder: "votresite.com",
     emailPlaceholder: "demo@gmail.com",
-    submit: "Commencer l’essai gratuit",
+    submit: "Créer {n} articles gratuits",
     under: "Saisissez votre site ou votre e-mail pour commencer.",
     useEmail: "Utiliser votre e-mail à la place",
     useWebsite: "Utiliser votre site à la place",
@@ -154,7 +158,7 @@ const it: FinalCtaCopy = {
     emailLabel: "Indirizzo email",
     websitePlaceholder: "ilsuosito.com",
     emailPlaceholder: "demo@gmail.com",
-    submit: "Inizi la prova gratuita",
+    submit: "Crei {n} articoli gratis",
     under: "Inserisca il Suo sito o la Sua email per iniziare.",
     useEmail: "Usi l’email al suo posto",
     useWebsite: "Usi il sito al suo posto",
@@ -189,7 +193,7 @@ const de: FinalCtaCopy = {
     emailLabel: "E-Mail-Adresse",
     websitePlaceholder: "ihrewebsite.de",
     emailPlaceholder: "demo@gmail.com",
-    submit: "Kostenlos testen",
+    submit: "{n} Artikel gratis erstellen",
     under: "Geben Sie Ihre Website oder E-Mail-Adresse ein, um zu starten.",
     useEmail: "Stattdessen E-Mail verwenden",
     useWebsite: "Stattdessen Website verwenden",

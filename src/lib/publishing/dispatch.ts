@@ -2,13 +2,15 @@ import { randomUUID } from "node:crypto";
 
 import { and, desc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
 
-import { plannedDayHasCome, releaseCheckFor, reviewHash } from "@/lib/articles/review";
+import { liveOnSiteSql, plannedDayHasCome, releaseCheckFor, reviewHash, sendableRevision, type ReviewFields } from "@/lib/articles/review";
 import { db } from "@/lib/db";
-import { articles, calendarItems, publicationDispatches, websites } from "@/lib/db/schema";
+import { linksTo } from "@/lib/articles/link-guard";
+import { articles, backlinkRequests, calendarItems, placements, publicationDispatches, websites } from "@/lib/db/schema";
 import type { Executor } from "@/lib/db/types";
 import { FREEZE_LOCK, isControlEnabled } from "@/lib/publishing/controls";
 import { ownershipMarker } from "@/lib/publishing/ownership";
 import { readPictureCopies, type PictureCopies } from "@/lib/publishing/picture-copies";
+import type { RemoteBaseline } from "@/lib/publishing/provider";
 import { automaticStatus, FIRST_ARTICLE_STATUS, isFirstArticle } from "@/lib/publishing/policy";
 
 /**
@@ -54,6 +56,9 @@ import { automaticStatus, FIRST_ARTICLE_STATUS, isFirstArticle } from "@/lib/pub
  *   - the article still exists and has content;
  *   - the review gate: approved, and exactly the approved revision;
  *   - the exact revision the caller prepared (expectedRevision);
+ *   - under the two-step flow, which revision may go out at all, and its hash
+ *     (sendableRevision): what the claim returns is what is sent, never a
+ *     working copy waiting for the team;
  *   - the schedule rules for WHY it is being sent (trigger): an automatic
  *     release needs auto-publish still on and its planned day come; the
  *     first-article exception only while it is still the first article; a
@@ -139,6 +144,19 @@ export type Claim =
       marker: string;
       /** A legacy plugin's expired hand-over of this same revision, offered again under its own id. */
       reused: boolean;
+      /**
+       * A person's Publish press, under the two-step flow, on an article not live
+       * on a plugin site: the plugin must look for the post it may already hold
+       * and not overwrite it blindly. `delivered`: RepGet has a post on record, so
+       * finding none means it was deleted there, and nothing is created.
+       */
+      existingDraft: { delivered: boolean } | null;
+      /**
+       * A person's press updating a post live on a plugin site. The plugin treats
+       * it as a press: it refuses and says why, where a hand-over nobody pressed
+       * reports the post as it stands (repget_press_step).
+       */
+      existingPost: { delivered: true } | null;
       /** The revision as locked and checked: exactly what may be sent. */
       article: ClaimedArticle;
     }
@@ -215,6 +233,28 @@ export async function isInFlight(articleId: string, now: Date = new Date()): Pro
     .where(and(eq(publicationDispatches.articleId, articleId), eq(publicationDispatches.status, "in_flight")))
     .limit(1);
   return Boolean(row && row.claimedAt > staleBefore(now));
+}
+
+/**
+ * Whether any of these websites has a live (not stale) delivery in flight, for
+ * deleting them: their dispatches go with them, and a post landing after that
+ * would have no record. Read under the websites' locks, so a claim either shows
+ * here or finds no website (claimDispatch).
+ */
+export async function hasDeliveryInFlight(tx: Executor, websiteIds: string[], now: Date = new Date()): Promise<boolean> {
+  if (websiteIds.length === 0) return false;
+  const [row] = await tx
+    .select({ id: publicationDispatches.id })
+    .from(publicationDispatches)
+    .where(
+      and(
+        inArray(publicationDispatches.websiteId, websiteIds),
+        eq(publicationDispatches.status, "in_flight"),
+        gt(publicationDispatches.claimedAt, staleBefore(now)),
+      ),
+    )
+    .limit(1);
+  return Boolean(row);
 }
 
 /** lockForEdit plus the edit, in one transaction. */
@@ -334,6 +374,14 @@ export async function claimDispatch(input: {
       returns, nothing more can be admitted.
     */
     await tx.execute(sql`select pg_advisory_xact_lock_shared(${FREEZE_LOCK})`);
+    /*
+      The website before the article, the order a deletion takes them in
+      (lib/websites/deletion.ts). The new dispatch's foreign key needs this key
+      share anyway: taken there, with the article already locked, it is a
+      deadlock with the website or workspace being deleted. Once this is held, a
+      deletion waits for this claim and then sees what it recorded.
+    */
+    await tx.select({ id: websites.id }).from(websites).where(eq(websites.id, input.websiteId)).for("key share");
     const [row] = await tx
       .select({
         id: articles.id,
@@ -347,7 +395,10 @@ export async function claimDispatch(input: {
         reviewApprovedHash: articles.reviewApprovedHash,
         researchReviewRequired: articles.researchReviewRequired,
         researchApprovedHash: articles.researchApprovedHash,
+        approvedRevision: articles.approvedRevision,
         publishRequested: articles.publishRequested,
+        publishedUrl: articles.publishedUrl,
+        live: liveOnSiteSql,
         translationOf: articles.translationOf,
         autoPublish: websites.autoPublish,
         publishAs: websites.publishAs,
@@ -373,10 +424,28 @@ export async function claimDispatch(input: {
     */
     if (row.translationOf && input.channel !== "plugin") return { ok: false, reason: "translation_needs_plugin" } as const;
 
-    const gate = releaseCheckFor(row);
-    if (!gate.ok) return { ok: false, reason: gate.reason === "not_found" ? "not_found" : gate.reason } as const;
+    /*
+      Which revision goes out. With the two-step flow off, the row as it is.
+      With it on, the approved working copy or the last approved revision, and
+      only that: everything below, and what the caller sends, is this revision.
+    */
+    let revision: ReviewFields = row;
+    const twoStep = await isControlEnabled("two_step_articles", tx);
+    if (twoStep) {
+      const sendable = sendableRevision(row);
+      if (!sendable.ok) return { ok: false, reason: sendable.reason } as const;
+      revision = sendable.revision;
+      // A link the team has withdrawn since: its credits are released, so it may not go out with this revision.
+      if (sendable.from === "stored" && (await carriesWithdrawnLink(tx, row.id, revision.bodyHtml))) {
+        return { ok: false, reason: "pending_review" } as const;
+      }
+    } else {
+      const gate = releaseCheckFor(row);
+      if (!gate.ok) return { ok: false, reason: gate.reason === "not_found" ? "not_found" : gate.reason } as const;
+    }
+    if (!revision.bodyHtml) return { ok: false, reason: "no_content" } as const;
 
-    const revisionHash = reviewHash(row);
+    const revisionHash = reviewHash(revision);
     if (input.expectedRevision && input.expectedRevision !== revisionHash) {
       return { ok: false, reason: "revision_changed" } as const;
     }
@@ -387,21 +456,32 @@ export async function claimDispatch(input: {
     if (await liveInFlight(tx, row.id, now)) return { ok: false, reason: "in_flight" } as const;
 
     const status = effectiveStatus(input.trigger, row, input.requestedStatus);
+    const existingDraft =
+      twoStep && input.channel === "plugin" && row.publishRequested === "publish" && status === "publish" && !row.live
+        ? { delivered: Boolean(row.publishedUrl) }
+        : null;
+    const existingPost =
+      twoStep && input.channel === "plugin" && row.publishRequested !== null && row.live ? ({ delivered: true } as const) : null;
 
     /*
       The same revision, with the same status, already reached the site: a
       second request for it (a Publish press repeated, a release that raced
       another path) sends nothing. A NEW revision of a published article is
       an update and goes out. A late report of an OLDER hand-over is history,
-      not the current delivery.
+      not the current delivery. Nor is a post the site stored as something other
+      than live "already there" for a person's press on it (existingDraft).
     */
     const [lastSent] = await tx
-      .select({ revisionHash: publicationDispatches.revisionHash, requestedStatus: publicationDispatches.requestedStatus })
+      .select({
+        revisionHash: publicationDispatches.revisionHash,
+        requestedStatus: publicationDispatches.requestedStatus,
+        remoteStatus: publicationDispatches.remoteStatus,
+      })
       .from(publicationDispatches)
       .where(and(eq(publicationDispatches.articleId, row.id), eq(publicationDispatches.status, "sent"), eq(publicationDispatches.late, false)))
       .orderBy(desc(publicationDispatches.claimedAt))
       .limit(1);
-    if (lastSent && lastSent.revisionHash === revisionHash && lastSent.requestedStatus === status) {
+    if (lastSent && lastSent.revisionHash === revisionHash && lastSent.requestedStatus === status && !(existingDraft && lastSent.remoteStatus !== "publish")) {
       return { ok: false, reason: "already_sent" } as const;
     }
 
@@ -417,12 +497,12 @@ export async function claimDispatch(input: {
 
     const article: ClaimedArticle = {
       id: row.id,
-      title: row.title,
-      slug: row.slug,
-      metaDescription: row.metaDescription,
-      bodyHtml: row.bodyHtml,
-      imageUrl: row.imageUrl,
-      imageAlt: row.imageAlt,
+      title: revision.title,
+      slug: revision.slug,
+      metaDescription: revision.metaDescription,
+      bodyHtml: revision.bodyHtml,
+      imageUrl: revision.imageUrl,
+      imageAlt: revision.imageAlt,
       publishRequested: row.publishRequested,
       isFirst: row.isFirst,
     };
@@ -463,6 +543,8 @@ export async function claimDispatch(input: {
           status,
           marker: ownershipMarker({ articleId: row.id, websiteId: input.websiteId, dispatchId: outstanding.id }),
           reused: true,
+          existingDraft,
+          existingPost,
           article,
         } as const;
       }
@@ -484,8 +566,8 @@ export async function claimDispatch(input: {
       protocol,
       integrationId: input.integrationId ?? null,
       requestSnapshot: {
-        title: row.title,
-        slug: row.slug,
+        title: revision.title,
+        slug: revision.slug,
         status,
         revisionHash,
         marker,
@@ -494,16 +576,21 @@ export async function claimDispatch(input: {
       claimedAt: now,
     });
 
-    return { ok: true, dispatchId, revisionHash, status, marker, reused: false, article } as const;
+    return { ok: true, dispatchId, revisionHash, status, marker, reused: false, existingDraft, existingPost, article } as const;
   });
+}
+
+function mergeSnapshot(fields: Record<string, unknown>) {
+  return sql`coalesce(${publicationDispatches.requestSnapshot}, '{}'::jsonb) || ${JSON.stringify(fields)}::jsonb`;
 }
 
 /** Records the outcome. Only an in-flight row moves; a second call is a no-op. */
 export async function settleDispatch(
   dispatchId: string,
   outcome:
-    | { status: "sent"; remoteId?: string | null; remoteUrl?: string | null; remoteStatus?: string | null }
-    | { status: "failed" | "uncertain"; error: string },
+    | { status: "sent"; remoteId?: string | null; remoteUrl?: string | null; remoteStatus?: string | null; baseline?: RemoteBaseline }
+    /** mayHaveLanded: an update with no clear answer. A retry must not take its own write for somebody's edit. */
+    | { status: "failed" | "uncertain"; error: string; mayHaveLanded?: boolean },
   executor: Executor = db,
 ): Promise<boolean> {
   const rows = await executor
@@ -516,12 +603,51 @@ export async function settleDispatch(
             remoteUrl: outcome.remoteUrl ?? null,
             remoteStatus: outcome.remoteStatus ?? null,
             completedAt: new Date(),
+            // In the row that says it was sent: there is no moment with one and not the other.
+            ...(outcome.baseline ? { requestSnapshot: mergeSnapshot({ remoteBaseline: outcome.baseline }) } : {}),
           }
-        : { status: outcome.status, error: outcome.error.slice(0, 500), completedAt: new Date() },
+        : {
+            status: outcome.status,
+            error: outcome.error.slice(0, 500),
+            completedAt: new Date(),
+            ...(outcome.mayHaveLanded ? { requestSnapshot: mergeSnapshot({ mayHaveLanded: true }) } : {}),
+          },
     )
     .where(and(eq(publicationDispatches.id, dispatchId), eq(publicationDispatches.status, "in_flight")))
     .returning({ id: publicationDispatches.id });
   return rows.length > 0;
+}
+
+/**
+ * A managed link the team withdrew that this text still carries. Withdrawing
+ * unwraps it from the working copy and releases its credits, so a stored
+ * revision from before that may not go out until the team approves a new one.
+ */
+export async function carriesWithdrawnLink(executor: Executor, articleId: string, bodyHtml: string | null): Promise<boolean> {
+  const withdrawn = await executor
+    .select({ url: backlinkRequests.targetUrl })
+    .from(placements)
+    .innerJoin(backlinkRequests, eq(backlinkRequests.id, placements.requestId))
+    .where(and(eq(placements.articleId, articleId), eq(placements.status, "cancelled")));
+  return withdrawn.some((row) => linksTo(bodyHtml ?? "", row.url));
+}
+
+/**
+ * What the link check found in the revision that was sent, kept with the send.
+ * Under the two-step flow a send changes nothing in approved text: a dead link
+ * goes out as approved and stays on record here (lib/articles/internal-links.ts).
+ */
+export async function recordLinkFindings(dispatchId: string, findings: { outcome: string; href: string; reason: string }[], executor: Executor = db): Promise<void> {
+  const defects = findings
+    .filter((finding) => finding.outcome !== "kept" && finding.outcome !== "unverified")
+    .map(({ outcome, href, reason }) => ({ wouldHave: outcome, href, reason }));
+  if (defects.length === 0) return;
+  await executor
+    .update(publicationDispatches)
+    .set({
+      requestSnapshot: sql`coalesce(${publicationDispatches.requestSnapshot}, '{}'::jsonb) || ${JSON.stringify({ linkDefects: defects.slice(0, 50) })}::jsonb`,
+    })
+    .where(eq(publicationDispatches.id, dispatchId));
 }
 
 /**

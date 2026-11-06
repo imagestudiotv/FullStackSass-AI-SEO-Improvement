@@ -1,5 +1,6 @@
 import { explainCrawlError } from "@/lib/audit/explain";
 import { fixFor } from "@/lib/audit/fixes";
+import { ACCOUNT_AUDIT_MAX_PAGES } from "@/lib/audit/limits";
 import type { AuditSummary } from "@/lib/audit/rules";
 import type { Locale } from "@/lib/i18n/config";
 import { format, formatDate, formatNumber } from "@/lib/i18n/format";
@@ -19,8 +20,8 @@ import { FREE_ARTICLES_ONLY, FREE_ARTICLES_ONLY_PAYPAL } from "@/lib/plans/featu
 export type HealthText = Messages["app"]["health"];
 export type WorkspaceText = Messages["app"]["workspace"];
 
-/** Pages one check reads at most: MAX_PAGES in inngest/functions/audit-website.ts. */
-export const PAGES_PER_CHECK = 25;
+/** Pages one check reads at most. */
+export const PAGES_PER_CHECK = ACCOUNT_AUDIT_MAX_PAGES;
 
 /**
  * A "one|many" message whose {count} is written with the reader's

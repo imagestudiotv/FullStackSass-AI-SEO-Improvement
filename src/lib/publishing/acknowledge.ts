@@ -1,5 +1,6 @@
 import { and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 
+import { DRAFT_REFUSALS, type DraftRefusal } from "@/lib/articles/review";
 import { db } from "@/lib/db";
 import { articles, publicationDispatches, publishLogs } from "@/lib/db/schema";
 import { hasNewerDispatch, UNACKNOWLEDGED } from "@/lib/publishing/dispatch";
@@ -31,6 +32,12 @@ import { hasNewerDispatch, UNACKNOWLEDGED } from "@/lib/publishing/dispatch";
  *     reports get_post_status; an older one reports the status it was asked
  *     for). Only a post stored as "publish" makes the article published.
  *
+ * A press on a draft the plugin would not publish (lib/articles/review.ts,
+ * DRAFT_REFUSALS) ends that delivery as failed and answers the press: nothing
+ * was written on the site and nothing retries it. A post somebody published in
+ * WordPress themselves is recorded as live, with a note on the delivery that
+ * this revision is not what put it there.
+ *
  * A report with no dispatch for a post already delivered, at a NEW address,
  * is the plugin saying it MOVED the post (a content-type change, 1.5.0+):
  * only the address is updated - it is not a delivery, so nothing is logged
@@ -42,8 +49,14 @@ import { hasNewerDispatch, UNACKNOWLEDGED } from "@/lib/publishing/dispatch";
  */
 
 export type PluginReport =
-  | { kind: "sent"; remoteId: string | null; remoteUrl: string | null; remoteStatus: string }
-  | { kind: "failed"; error: string };
+  | { kind: "sent"; remoteId: string | null; remoteUrl: string | null; remoteStatus: string; publishedInWordPress?: boolean }
+  | { kind: "failed"; error: string }
+  | { kind: "refused"; refusal: DraftRefusal };
+
+/** What is stored for a report that is not a delivery. */
+function failureText(report: Exclude<PluginReport, { kind: "sent" }>): string {
+  return (report.kind === "refused" ? DRAFT_REFUSALS[report.refusal] : report.error).slice(0, 500);
+}
 
 export type Acknowledgement =
   | { result: "unknown_article" }
@@ -126,8 +139,16 @@ export async function acknowledgePluginDispatch(input: {
       .update(publicationDispatches)
       .set(
         report.kind === "sent"
-          ? { status: "sent", remoteId: report.remoteId, remoteUrl: report.remoteUrl, remoteStatus: report.remoteStatus, late, completedAt: now }
-          : { status: "failed", error: report.error.slice(0, 500), late, completedAt: now },
+          ? {
+              status: "sent",
+              remoteId: report.remoteId,
+              remoteUrl: report.remoteUrl,
+              remoteStatus: report.remoteStatus,
+              late,
+              completedAt: now,
+              ...(report.publishedInWordPress ? { requestSnapshot: sql`coalesce(${publicationDispatches.requestSnapshot}, '{}'::jsonb) || '{"publishedInWordPress":true}'::jsonb` } : {}),
+            }
+          : { status: "failed", error: failureText(report), late, completedAt: now },
       )
       .where(eq(publicationDispatches.id, dispatch.id));
 
@@ -136,7 +157,7 @@ export async function acknowledgePluginDispatch(input: {
       .values(
         report.kind === "sent"
           ? { articleId: article.id, dispatchId: dispatch.id, status: "published", remoteId: report.remoteId, remoteUrl: report.remoteUrl, remoteStatus: report.remoteStatus }
-          : { articleId: article.id, dispatchId: dispatch.id, status: "failed", error: report.error.slice(0, 500) },
+          : { articleId: article.id, dispatchId: dispatch.id, status: "failed", error: failureText(report) },
       )
       .onConflictDoNothing();
 
@@ -149,7 +170,7 @@ export async function acknowledgePluginDispatch(input: {
       return { result: "late", dispatchId: dispatch.id, article, report, live } as const;
     }
 
-    const snapshot = (dispatch.requestSnapshot ?? {}) as { publishRequested?: string | null };
+    const snapshot = (dispatch.requestSnapshot ?? {}) as { publishRequested?: string | null; title?: string };
     // A Publish press made AFTER this hand-over was claimed is not answered by it.
     const pressAnswered =
       snapshot.publishRequested === undefined || (article.publishRequested ?? null) === (snapshot.publishRequested ?? null);
@@ -166,9 +187,18 @@ export async function acknowledgePluginDispatch(input: {
         })
         .where(eq(articles.id, article.id));
     } else {
-      await tx.update(articles).set({ error: report.error.slice(0, 500), updatedAt: now }).where(eq(articles.id, article.id));
+      await tx
+        .update(articles)
+        .set({
+          error: failureText(report),
+          // Answered: it is the customer's to resolve, and must not go round the feed. A failure is retried.
+          ...(report.kind === "refused" && pressAnswered ? { publishRequested: null } : {}),
+          updatedAt: now,
+        })
+        .where(eq(articles.id, article.id));
     }
-    return { result: "applied", dispatchId: dispatch.id, article, report, live } as const;
+    // What went out, for what the customer is told: the row's own title may be a working copy by now.
+    return { result: "applied", dispatchId: dispatch.id, article: { ...article, title: snapshot.title ?? article.title }, report, live } as const;
   });
 }
 
@@ -235,7 +265,7 @@ async function applyUndispatched(
       .where(eq(articles.id, article.id));
     return { result: "applied", dispatchId: null, article, report, live };
   }
-  await tx.insert(publishLogs).values({ articleId: article.id, status: "failed", error: report.error.slice(0, 500) });
-  await tx.update(articles).set({ error: report.error.slice(0, 500), updatedAt: now }).where(eq(articles.id, article.id));
+  await tx.insert(publishLogs).values({ articleId: article.id, status: "failed", error: failureText(report) });
+  await tx.update(articles).set({ error: failureText(report), updatedAt: now }).where(eq(articles.id, article.id));
   return { result: "applied", dispatchId: null, article, report, live: false };
 }

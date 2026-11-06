@@ -59,6 +59,7 @@ require __DIR__ . '/../imagestudio-blog/includes/settings.php';
 require __DIR__ . '/../imagestudio-blog/includes/author.php';
 require __DIR__ . '/../imagestudio-blog/includes/limits.php';
 require __DIR__ . '/../imagestudio-blog/includes/extras.php';
+require __DIR__ . '/../imagestudio-blog/includes/white-article.php';
 
 $failures = 0;
 function check($label, $ok) {
@@ -417,6 +418,28 @@ $wp['meta'][42] = $before;
 define('DOING_AUTOSAVE', true);
 check('during an autosave: nothing changes', $save(42, $posted) === $before);
 $_POST = array();
+
+echo "White article in dark mode\n";
+$article = function ($type, $name) { return (object) array('post_type' => $type, 'post_name' => $name); };
+check('the named article', isb_is_white_article($article('custom_post', 'rainy-wedding-photography-italy'), 'custom_post'));
+check('another article is not', !isb_is_white_article($article('custom_post', 'natural-light-photography'), 'custom_post'));
+check('a slug that only contains it is not', !isb_is_white_article($article('custom_post', 'rainy-wedding-photography-italy-2'), 'custom_post'));
+check('the same slug on another post type is not', !isb_is_white_article($article('page', 'rainy-wedding-photography-italy'), 'custom_post'));
+check('no post is not', !isb_is_white_article(null, 'custom_post'));
+$white_css = (string) file_get_contents(__DIR__ . '/../imagestudio-blog/assets/white-article.css');
+$white_rules = preg_replace('~/\*.*?\*/~s', '', $white_css);
+preg_match_all('~([^{}]+)\{~', $white_rules, $white_selectors);
+$unscoped = array();
+foreach ($white_selectors[1] as $list) {
+    foreach (explode(',', preg_replace('~\([^)]*\)~', '', $list)) as $selector) {
+        if (strpos(trim($selector), 'body.isb-white-article ') !== 0) $unscoped[] = trim($selector);
+    }
+}
+check('every rule of its stylesheet is limited to that article', count($white_selectors[1]) > 10 && $unscoped === array(), implode(' | ', $unscoped));
+check('no fragile position selectors', !preg_match('~:nth-|:first-child|:last-child~', $white_rules));
+check('it changes no header, footer or picture', !preg_match('~masthead|isx-desktop-header|colophon|cps-single-thumb|cps-single-title|\bfilter\s*:~', $white_rules));
+check('colours are variables night mode cannot remap', !preg_match('~(?<![-\w])(color|background-color|border-color|stroke)\s*:\s*(#|rgb|white|black)~i', $white_rules));
+check('its variables avoid the words night mode remaps', preg_match_all('~--isb-[a-z]+~', $white_rules, $names) > 0 && !preg_grep('~bg|background|border|line|text|font|heading|title|link|color~', array_unique($names[0])));
 
 echo $failures ? "\n$failures FAILED\n" : "\nALL PASSED\n";
 exit($failures ? 1 : 0);

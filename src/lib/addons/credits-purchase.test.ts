@@ -130,6 +130,7 @@ describe("card checkout", () => {
 
   it("lists each service's price in credits", async () => {
     const listed = Object.fromEntries((await listAddons()).map((addon) => [addon.slug, addon.creditPrice]));
-    expect(listed).toEqual({ credits_10: null, usa_local_citations: 250, audit_fix: 190, off_sale: null });
+    // website_new and website_redesign come with the migration, unpriced: each is quoted per project.
+    expect(listed).toEqual({ credits_10: null, usa_local_citations: 250, audit_fix: 190, off_sale: null, website_new: null, website_redesign: null });
   });
 });

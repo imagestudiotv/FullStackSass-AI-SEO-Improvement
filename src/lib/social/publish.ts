@@ -77,6 +77,7 @@ export async function publishSuggestion(id: string, now: Date = new Date()): Pro
     const [team] = await tx.select().from(socialTeams).where(eq(socialTeams.websiteId, row.websiteId));
     // Not publishable any more: it waits for the customer's one click instead.
     if (
+      access.manualOnly ||
       !isBundleConfigured() ||
       !account?.bundleAccountId ||
       !account.autoPost ||

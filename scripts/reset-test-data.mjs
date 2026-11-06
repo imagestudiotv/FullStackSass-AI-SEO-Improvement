@@ -152,6 +152,7 @@ const TABLES = [
   "website_members",
   "websites",
   "addon_purchases",
+  "website_projects",
   "payments",
   "subscriptions",
   /*

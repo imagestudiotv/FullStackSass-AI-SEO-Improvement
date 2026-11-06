@@ -1,11 +1,11 @@
 import { createHash } from "node:crypto";
 
-import { and, eq, inArray, sql, type SQL } from "drizzle-orm";
+import { and, eq, isNull, sql, type SQL } from "drizzle-orm";
 
-import { linksTo } from "@/lib/articles/link-guard";
 import { onFreeArticles } from "@/lib/billing/free-articles";
+import { PREPARING_TITLE } from "@/lib/i18n/article-delivery";
 import { db } from "@/lib/db";
-import { articles, backlinkRequests, calendarItems, networkSites, placements, platformControls } from "@/lib/db/schema";
+import { articles, calendarItems, networkSites, platformControls } from "@/lib/db/schema";
 import type { Executor } from "@/lib/db/types";
 
 /**
@@ -64,12 +64,23 @@ export const reviewHashSql: SQL<string> = sql<string>`encode(sha256(convert_to(
   coalesce(${articles.imageUrl}, '') || chr(31) || coalesce(${articles.imageAlt}, ''),
   'UTF8')), 'hex')`;
 
-/** True for an article any publishing path may deliver (rules 1 and 2). */
-export const releasableSql: SQL = sql`(
-  (${articles.reviewStatus} is null
-  or (${articles.reviewStatus} = 'approved' and ${articles.reviewApprovedHash} = ${reviewHashSql}))
-  and (not ${articles.researchReviewRequired} or ${articles.researchApprovedHash} = ${reviewHashSql})
-)`;
+/**
+ * True for an article any publishing path may deliver (rules 1 and 2). Under
+ * the two-step flow: it is approved as it stands, or has a stored revision to
+ * send instead of its working copy (sendableRevision, which the dispatch claim
+ * applies to what is actually sent).
+ */
+export const releasableSql: SQL = sql`(case when not exists (
+    select 1 from platform_controls pc where pc.key = 'two_step_articles' and pc.enabled
+  ) then (
+    (${articles.reviewStatus} is null
+    or (${articles.reviewStatus} = 'approved' and ${articles.reviewApprovedHash} = ${reviewHashSql}))
+    and (not ${articles.researchReviewRequired} or ${articles.researchApprovedHash} = ${reviewHashSql})
+  ) else (
+    ${articles.approvedRevision} ->> 'source' = 'approved'
+    or (${articles.reviewStatus} = 'approved' and ${articles.reviewApprovedHash} = ${reviewHashSql}
+      and (not ${articles.researchReviewRequired} or ${articles.researchApprovedHash} = ${reviewHashSql}))
+  ) end)`;
 
 /**
  * Rule 3: a reviewed article is not released automatically before its
@@ -104,8 +115,10 @@ export type ReleaseCheck =
 
 /** The gate, for one article, as the publish job and Publish press apply it. */
 export async function checkReleasable(articleId: string, executor: Executor = db): Promise<ReleaseCheck> {
+  const twoStep = await twoStepArticles(executor);
   const [row] = await executor
     .select({
+      approvedRevision: articles.approvedRevision,
       title: articles.title,
       slug: articles.slug,
       metaDescription: articles.metaDescription,
@@ -121,7 +134,95 @@ export async function checkReleasable(articleId: string, executor: Executor = db
     .where(eq(articles.id, articleId))
     .limit(1);
   if (!row) return { ok: false, reason: "not_found" };
+  if (twoStep) {
+    const sendable = sendableRevision(row);
+    return sendable.ok ? { ok: true } : sendable;
+  }
   return releaseCheckFor(row);
+}
+
+/**
+ * The two-step flow's stored revision (articles.approved_revision): everything
+ * that is delivered, and its hash.
+ *
+ *   source "approved"  - what the team last approved (approveArticle).
+ *   source "published" - what stood on the website when the flow was switched
+ *                        on (activateTwoStep). Nobody approved it, so it is what
+ *                        the customer reads, and no path sends it: not even a
+ *                        press. The team's approval replaces it.
+ *
+ * A post on the website with a change waiting for the team at switch-on gets
+ * one only when the text last sent can be proven (activateTwoStep). Otherwise it
+ * has none: the post stays where it is, the customer is told its text is with the
+ * team, and neither the working copy nor anything made up stands in for it.
+ *
+ * While a working copy waits for the team this is what the customer reads and,
+ * when approved, what every path sends, so their edits stay private until
+ * approved. It is replaced only by the next approval.
+ */
+export type StoredRevision = ReviewFields & {
+  wordCount: number | null;
+  hash: string;
+  source: "approved" | "published";
+  at: string;
+};
+
+export function revisionToStore(
+  row: ReviewFields & { wordCount?: number | null },
+  source: StoredRevision["source"],
+  now: Date = new Date(),
+): StoredRevision {
+  return {
+    title: row.title,
+    slug: row.slug,
+    metaDescription: row.metaDescription,
+    bodyHtml: row.bodyHtml,
+    imageUrl: row.imageUrl,
+    imageAlt: row.imageAlt,
+    wordCount: row.wordCount ?? null,
+    hash: reviewHash(row),
+    source,
+    at: now.toISOString(),
+  };
+}
+
+/** The stored revision, if it still is what its hash says. */
+export function storedRevision(value: unknown): StoredRevision | null {
+  if (!value || typeof value !== "object") return null;
+  const stored = value as StoredRevision;
+  if (typeof stored.title !== "string" || typeof stored.hash !== "string") return null;
+  return reviewHash(stored) === stored.hash ? stored : null;
+}
+
+/**
+ * Under the two-step flow: exactly which revision may go out now. The working
+ * copy when the team approved it as it stands; otherwise the revision they last
+ * approved; otherwise nothing. Every path sends what this returns and compares
+ * its hash at the claim, so no approval can carry a different text, and a press
+ * is no exception: only text the team approved goes out.
+ */
+export function sendableRevision(
+  row: ReviewFields & {
+    reviewStatus: string | null;
+    reviewApprovedHash: string | null;
+    researchReviewRequired?: boolean;
+    researchApprovedHash?: string | null;
+    approvedRevision?: unknown;
+  },
+):
+  | { ok: true; revision: ReviewFields; hash: string; from: "working_copy" | "stored" }
+  | { ok: false; reason: "pending_review" | "changed_since_approval" } {
+  const hash = reviewHash(row);
+  const approved =
+    row.reviewStatus === "approved" &&
+    row.reviewApprovedHash === hash &&
+    (!row.researchReviewRequired || row.researchApprovedHash === hash);
+  if (approved) return { ok: true, revision: row, hash, from: "working_copy" };
+  const stored = storedRevision(row.approvedRevision);
+  if (stored?.source === "approved") {
+    return { ok: true, revision: stored, hash: stored.hash, from: "stored" };
+  }
+  return { ok: false, reason: row.reviewStatus === "approved" ? "changed_since_approval" : "pending_review" };
 }
 
 export function releaseCheckFor(row: ReviewFields & {
@@ -182,8 +283,9 @@ export async function inManagedNetwork(websiteId: string, executor: Executor = d
 /**
  * True while the client's two-step article flow is on
  * (platform_controls.two_step_articles, see lib/publishing/controls.ts):
- * every new draft comes to the RepGet team first, their one approval makes
- * it ready - sources included - and the customer only publishes.
+ * every new draft comes to the RepGet team first, the customer reads none of
+ * it until their one approval makes it ready - sources included - and the
+ * customer only publishes.
  *
  * Read here rather than through lib/publishing/controls.ts, which imports
  * this module.
@@ -196,6 +298,147 @@ export async function twoStepArticles(executor: Executor = db): Promise<boolean>
     .limit(1);
   return row?.enabled ?? false;
 }
+
+/** True while the two-step flow is off; for queries that decide in SQL. */
+export const twoStepOffSql: SQL = sql`not exists (
+  select 1 from platform_controls pc where pc.key = 'two_step_articles' and pc.enabled
+)`;
+
+/**
+ * THE CUSTOMER'S SIDE OF THE GATE, under the two-step flow: this working copy
+ * is the team's until they approve it. Its text, title, excerpt, picture,
+ * sources and links reach the customer by no read and no public output, and
+ * they can change nothing in it. Live on the website or not.
+ *
+ * What they get instead is the stored revision, when there is one
+ * (StoredRevision), or the topic from their own plan, or the translated fallback.
+ *
+ * The caller has read the switch (twoStepArticles): with the flow off nothing
+ * is ever held from the customer.
+ */
+export function heldFromCustomer(row: ReviewFields & { status: string; reviewStatus: string | null; reviewApprovedHash: string | null }): boolean {
+  if (row.reviewStatus === "pending") return true;
+  return row.reviewStatus === "approved" && row.reviewApprovedHash !== reviewHash(row);
+}
+
+/**
+ * The same rule in SQL, switch included. The hash is only taken for approved
+ * rows, and never with the flow off.
+ */
+export const heldFromCustomerSql: SQL<boolean> = sql<boolean>`(case
+  when ${twoStepOffSql} then false
+  when ${articles.reviewStatus} = 'pending' then true
+  when ${articles.reviewStatus} = 'approved' then ${articles.reviewApprovedHash} is distinct from ${reviewHashSql}
+  else false
+end)`;
+
+/**
+ * The title a customer's read may name, in SQL, for a query with articles in
+ * scope. A held article's stored article title never appears: the stored
+ * revision's, else the topic on the customer's own plan row (which neither
+ * generation nor the team writes), else the marker the page translates.
+ */
+export const customerTitleSql: SQL<string> = sql<string>`(case
+  when ${heldFromCustomerSql} then coalesce(
+    ${articles.approvedRevision} ->> 'title',
+    (select planned.title from ${calendarItems} planned where planned.id = ${articles.calendarItemId}),
+    ${PREPARING_TITLE}
+  )
+  else ${articles.title}
+end)`;
+
+/** A delivered field as public outputs may use it: never a held working copy's. */
+export function publicFieldSql(column: typeof articles.metaDescription | typeof articles.imageUrl, key: "metaDescription" | "imageUrl"): SQL<string | null> {
+  return sql<string | null>`(case when ${heldFromCustomerSql} then ${articles.approvedRevision} ->> ${key} else ${column} end)`;
+}
+
+/** Held with nothing stored to show: public outputs leave such an article out. */
+export const nothingToShowSql: SQL<boolean> = sql<boolean>`(${heldFromCustomerSql} and ${articles.approvedRevision} is null)`;
+
+/**
+ * May public outputs (social, video, internal links) use this article? Not while
+ * it is held with no revision anyone approved or published.
+ */
+export const publicRevisionSql: SQL<boolean> = sql<boolean>`not ${nothingToShowSql}`;
+
+/** customerTitleSql for an article named by id, in raw queries that alias articles. */
+export function customerTitleOf(id: SQL): SQL<string> {
+  return sql<string>`(select ${customerTitleSql} from articles where articles.id = ${id})`;
+}
+
+/** False for an article named by id that is held with nothing stored to show. */
+export function hasCustomerRevision(id: SQL): SQL<boolean> {
+  return sql<boolean>`not exists (select 1 from articles where articles.id = ${id} and ${nothingToShowSql})`;
+}
+
+/** What the customer's status says for an article served from its stored revision. */
+export function servedStatus(row: { publishedUrl: string | null; firstLiveAt: Date | null; status: string }): "published" | "draft" {
+  return row.status === "published" || (row.publishedUrl && row.firstLiveAt) ? "published" : "draft";
+}
+
+/** The refusal for anything a customer tries on an article the team has. */
+export const PREPARING_MESSAGE = "This article is being prepared by the RepGet team. You will be told when it is ready to publish.";
+
+/** The refusal for an update of a post on a site whose plugin is too old to make one. */
+export const PLUGIN_UPDATE_NEEDED = "To send this update, first update the RepGet plugin on your website to version 1.10 or later.";
+
+/** The refusal for a press on a post held as a WordPress draft, by a plugin too old to act on it: it would overwrite an editor's work. */
+export const PLUGIN_DRAFT_MESSAGE = "This article is on your website as a draft. To publish it from here, update the RepGet plugin on your website to version 1.10 or later, or publish it from WordPress.";
+
+/**
+ * What a plugin can report instead of publishing the draft a person pressed
+ * Publish on (`outcome`, POST /api/plugin/published). Nothing was written on the
+ * site, nothing here retries it, and it is the customer's to resolve. Stored as
+ * the delivery's error, so the page can say it in the reader's language.
+ */
+export const DRAFT_REFUSALS = {
+  draft_changed: "This draft was changed in WordPress, so it was neither published nor overwritten. Publish it from WordPress.",
+  draft_unverified: "This draft was saved by an earlier version of the plugin and RepGet cannot confirm it is unchanged, so it was neither published nor overwritten. Publish it from WordPress.",
+  post_trashed: "This draft is in the WordPress trash, so nothing was published. Restore it there, then press Publish again.",
+  post_deleted: "This draft was deleted from WordPress, so nothing was published and no new post was made. Contact the RepGet team to have it sent again.",
+  // An update of a post already on the website (plugin and direct: lib/publishing/overwrite-guard.ts).
+  post_changed: "This post was changed on your website after RepGet last sent it, so RepGet stopped and overwrote nothing. You need to resolve this in WordPress, or in your site's own editor on another platform, by making the change in the post there. RepGet cannot overwrite it for you.",
+  post_unverified: "RepGet cannot confirm this post is unchanged since it was last sent, so RepGet stopped and overwrote nothing. You need to resolve this in WordPress, or in your site's own editor on another platform, by making the change in the post there. RepGet cannot overwrite it for you.",
+  post_locked: "Someone has this post open in WordPress, so nothing was changed. Ask them to finish and close it, then try again.",
+  update_trashed: "This post is in the trash on your website, so nothing was sent. Restore it there, then try again.",
+  update_deleted: "This post no longer exists on your website, so nothing was sent and no new post was made. Contact the RepGet team to have it sent again.",
+  update_unavailable: "This connection cannot check the post on your website before changing it, so it was not overwritten and nothing was sent. To use this version, make the change in the post on your website.",
+} as const;
+
+export type DraftRefusal = keyof typeof DRAFT_REFUSALS;
+
+export function isDraftRefusal(value: unknown): value is DraftRefusal {
+  return typeof value === "string" && Object.prototype.hasOwnProperty.call(DRAFT_REFUSALS, value);
+}
+
+/**
+ * The article's latest delivery was refused: the post on the website may not be
+ * overwritten, and that is the customer's to resolve. The daily release leaves it
+ * until a person presses Publish, which asks the site again. Otherwise it would
+ * read the site, and record another failed delivery, every day for ever.
+ */
+export const lastDeliveryRefusedSql: SQL<boolean> = sql<boolean>`coalesce((
+  select pd.error from publication_dispatches pd
+  where pd.article_id = ${articles.id}
+  order by pd.claimed_at desc
+  limit 1
+) in (${sql.join(Object.values(DRAFT_REFUSALS).map((text) => sql`${text}`), sql`, `)}), false)`;
+
+/** The refusal a stored error is, if it is one. */
+export function draftRefusalOf(stored: string | null | undefined): DraftRefusal | null {
+  return (Object.keys(DRAFT_REFUSALS) as DraftRefusal[]).find((key) => DRAFT_REFUSALS[key] === stored) ?? null;
+}
+
+/**
+ * The post is actually live on the website: the article says so, or (a rewrite
+ * sets it back to draft) the latest delivery was stored as published.
+ */
+export const liveOnSiteSql: SQL<boolean> = sql<boolean>`(${articles.status} = 'published' or (${articles.publishedUrl} is not null and (
+  select pd.remote_status from publication_dispatches pd
+  -- Nested, so a single-table select keeps it qualified: bare, it would read pd.id.
+  where pd.article_id = ${sql`${articles.id}`} and pd.status = 'sent' and not pd.late
+  order by pd.claimed_at desc limit 1
+) = 'publish'))`;
 
 /**
  * The review state a freshly written draft is saved with, decided INSIDE the
@@ -262,24 +505,26 @@ export async function syncApproval(articleId: string, executor: Executor = db): 
 }
 
 /**
- * After the CUSTOMER's own edit (text, title, slug, excerpt, image).
+ * After an edit by the customer or in the general admin editor (text, title,
+ * slug, excerpt, image).
  *
  * With the two-step flow off: syncApproval, as before - the article goes
  * back to the team's queue.
  *
- * With it on, the team's approval FOLLOWS the customer's edit: the client's
- * rule is "the team works on it, the customer gets a ready version to
- * publish", with no approve-change-approve-again loop. It is the customer's
- * own article, so their change needs nobody's permission. The one exception
- * is a placed Partner Network link: its credits are reserved against that
- * link on this page, so an edit that removes one goes back to the team, who
- * restore it or withdraw the placement - otherwise the customer would
- * publish an article without the link another customer is paying for.
+ * With it on, every change to a revision the team approved goes back to the
+ * TEAM. Their approval covers one exact revision, so it does not follow an
+ * edit and no unreviewed text is released; and the customer is asked for
+ * nothing: the team checks it and it comes back ready, with one new
+ * notification. Until then the customer reads, and can publish, the stored
+ * revision. Placed Partner Network links stay safe the same way, since
+ * approval refuses an article whose placed link is missing. A save that
+ * changed nothing keeps the approval. An article from before the flow goes to
+ * the team on the same terms.
  *
  * Runs inside the edit's transaction, under the article's row lock
  * (editArticle in lib/publishing/dispatch.ts).
  */
-export async function followCustomerEdit(articleId: string, executor: Executor = db): Promise<void> {
+export async function afterArticleEdit(articleId: string, executor: Executor = db): Promise<void> {
   if (!(await twoStepArticles(executor))) return syncApproval(articleId, executor);
 
   const [row] = await executor
@@ -294,30 +539,27 @@ export async function followCustomerEdit(articleId: string, executor: Executor =
       reviewApprovedHash: articles.reviewApprovedHash,
       researchReviewRequired: articles.researchReviewRequired,
       researchApprovedHash: articles.researchApprovedHash,
+      approvedRevision: articles.approvedRevision,
     })
     .from(articles)
     .where(eq(articles.id, articleId))
     .limit(1);
-  if (row?.reviewStatus !== "approved") return;
+  if (!row) return;
   const hash = reviewHash(row);
-  if (row.reviewApprovedHash === hash) return;
-
-  const committed = await executor
-    .select({ targetUrl: backlinkRequests.targetUrl })
-    .from(placements)
-    .innerJoin(backlinkRequests, eq(backlinkRequests.id, placements.requestId))
-    .where(and(eq(placements.articleId, articleId), inArray(placements.status, ["pending", "drafted"])));
-  if (committed.some((placement) => !linksTo(row.bodyHtml ?? "", placement.targetUrl))) {
+  if (row.reviewStatus === "approved" && row.reviewApprovedHash !== hash) {
     await invalidateApproval(articleId, executor);
-    return;
+  } else if (row.reviewStatus === null && storedRevision(row.approvedRevision)?.hash !== hash) {
+    await sendToTeam(articleId, executor);
   }
+}
 
+/**
+ * Hands an article outside the team's review to them, under the two-step flow.
+ * Only a row still outside the review moves, so a second call does nothing.
+ */
+export async function sendToTeam(articleId: string, executor: Executor = db): Promise<void> {
   await executor
     .update(articles)
-    .set({
-      reviewApprovedHash: hash,
-      // The team's approval covered the sources (approveArticle); it covers this revision too.
-      ...(row.researchReviewRequired && row.researchApprovedHash === row.reviewApprovedHash ? { researchApprovedHash: hash } : {}),
-    })
-    .where(and(eq(articles.id, articleId), eq(articles.reviewStatus, "approved")));
+    .set({ reviewStatus: "pending", reviewVersion: sql`${articles.reviewVersion} + 1` })
+    .where(and(eq(articles.id, articleId), isNull(articles.reviewStatus)));
 }

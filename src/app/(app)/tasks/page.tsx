@@ -38,7 +38,7 @@ export const metadata = { title: "Tasks" };
 export const dynamic = "force-dynamic";
 
 /** Next-action kinds this page already has rows for: today's work and set-up. */
-const LISTED_BELOW = ["failed", "draft", "publishing", "google"] as const;
+const LISTED_BELOW = ["failed", "draft", "readyToPublish", "publishing", "google"] as const;
 
 const WORK_ICONS: Record<WorkTaskId, LucideIcon> = {
   failed: TriangleAlert,

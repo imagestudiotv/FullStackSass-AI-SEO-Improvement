@@ -77,6 +77,7 @@ export function SaveBar({
   const keyboardOpen = useKeyboardOpen();
   const pending = state.kind === "dirty" || state.kind === "saving" || state.kind === "failed";
   const saving = state.kind === "saving";
+  const unavailable = disabled || saving || !pending;
 
   let status: ReactNode;
   if (state.kind === "saving") {
@@ -130,7 +131,13 @@ export function SaveBar({
               {t.discard}
             </Button>
           ) : null}
-          <Button type="button" onClick={onSave} disabled={disabled || saving || !pending}>
+          {/* aria-disabled, not disabled: a focused button that becomes disabled drops keyboard focus to the page body the moment a save finishes. */}
+          <Button
+            type="button"
+            onClick={unavailable ? undefined : onSave}
+            aria-disabled={unavailable || undefined}
+            className={unavailable ? "pointer-events-none opacity-50" : undefined}
+          >
             {saving ? <Loader2 className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : null}
             {saveLabel ?? t.save}
           </Button>

@@ -10,6 +10,8 @@ import { getNetworkStatus, listRequests } from "@/lib/backlinks/actions";
 import { creditOverview } from "@/lib/credits/overview";
 import { getDashboardOverview } from "@/lib/dashboard/overview";
 import { getNextActions } from "@/lib/dashboard/next-actions";
+import { articleTitleText } from "@/lib/i18n/article-delivery";
+import { DEFAULT_LOCALE, isLocale } from "@/lib/i18n/config";
 import { db } from "@/lib/db";
 import { socialSuggestions, videoIdeas } from "@/lib/db/schema";
 import { getGeoOverview } from "@/lib/geo/actions";
@@ -54,6 +56,8 @@ const short = (text: string | null | undefined, max = 160) => {
 const day = (date: Date | string | null | undefined) => (date ? new Date(date).toISOString().slice(0, 10) : null);
 const noInput: JsonSchema = { type: "object", properties: {} };
 
+const titleFor = (ctx: ChatContext, title: string) => articleTitleText(title, isLocale(ctx.locale) ? ctx.locale : DEFAULT_LOCALE);
+
 export const READ_TOOLS: ReadTool[] = [
   {
     name: "get_overview",
@@ -68,13 +72,16 @@ export const READ_TOOLS: ReadTool[] = [
       ]);
       return {
         website: { domain: ctx.domain, brand: ctx.brandName, plan: ctx.level === "trial" ? "free trial" : "paid plan" },
-        todaysArticle: overview?.todaysArticle,
+        // A held article's title marker, in words (lib/i18n/article-delivery.ts).
+        todaysArticle: overview?.todaysArticle.ok && overview.todaysArticle.data
+          ? { ...overview.todaysArticle, data: { ...overview.todaysArticle.data, title: titleFor(ctx, overview.todaysArticle.data.title) } }
+          : overview?.todaysArticle,
         wins: overview?.wins,
         bestArticles: overview?.bestArticles,
         search: overview?.search,
         backlinks: overview?.backlinks,
         credits: overview?.credits ?? "only the workspace owner sees the credits",
-        tasks: tasks.map((task) => ({ id: task.id, kind: task.kind, priority: task.priority, detail: short(task.detail), page: task.href })),
+        tasks: tasks.map((task) => ({ id: task.id, kind: task.kind, priority: task.priority, detail: short(task.detail && titleFor(ctx, task.detail)), page: task.href })),
       };
     },
   },
@@ -128,7 +135,7 @@ export const READ_TOOLS: ReadTool[] = [
           .slice()
           .sort((a, b) => +new Date(b.updatedAt) - +new Date(a.updatedAt))
           .slice(0, 15)
-          .map((a) => ({ title: short(a.title, 120), keyword: a.targetKeyword, status: a.status, language: a.languageCode, updated: day(a.updatedAt), error: a.error ? short(a.error, 120) : undefined })),
+          .map((a) => ({ title: short(titleFor(ctx, a.title), 120), keyword: a.targetKeyword, status: a.status, language: a.languageCode, updated: day(a.updatedAt), error: a.error ? short(a.error, 120) : undefined })),
         plannedCount: upcoming.length,
         planned: upcoming.slice(0, 20).map((item) => ({ calendarItemId: item.id, title: short(item.title, 120), keyword: item.targetKeyword, scheduledFor: day(item.scheduledFor) })),
       };
@@ -236,7 +243,7 @@ export const READ_TOOLS: ReadTool[] = [
   },
   {
     name: "get_credits",
-    description: "The workspace's credits: balance, reserved, available, the daily free credits and what each action costs.",
+    description: "The workspace's credits: balance, reserved, available, the daily free credits the customer can claim with a check-in and what each action costs.",
     input_schema: noInput,
     page: "credits",
     run: async (ctx) => {

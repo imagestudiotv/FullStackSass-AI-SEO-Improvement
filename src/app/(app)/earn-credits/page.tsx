@@ -1,18 +1,24 @@
-import { CheckCircle2, ChevronDown, Info, Lightbulb, Sun, UsersRound, Wallet } from "lucide-react";
+import { ArrowUpRight, Check, CheckCircle2, ChevronDown, Info, Lightbulb, Plus, Sun, UserPlus, UsersRound, Wallet } from "lucide-react";
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { cache } from "react";
 
+import { DailyClaim } from "@/components/daily-claim";
 import { Button } from "@/components/ui/button";
 import { PageShell } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Notice } from "@/components/workspace/notice";
 import { requireSession } from "@/lib/auth-guard";
 import { creditOverviewForRequest } from "@/lib/credits/overview-request";
+import { TRIAL_CREDIT_DAYS } from "@/lib/credits/prices";
 import { canEnterReferralCode, listEarnClaims } from "@/lib/earn/actions";
+import { EARN_WAYS } from "@/lib/earn/ways";
 import { getAppMessages } from "@/lib/i18n/app-locale";
+import { DAILY_CLAIM_COPY, dailyWhen } from "@/lib/i18n/daily-claim";
 import { EARN_COPY } from "@/lib/i18n/earn";
-import { format, formatDate, formatNumber } from "@/lib/i18n/format";
+import { EARN_SHARE_COPY } from "@/lib/i18n/earn-share";
+import { format, formatDate, formatNumber, plural } from "@/lib/i18n/format";
 import { getReferralSummary } from "@/lib/referrals/actions";
 import { referralLine, REFERRALS_LISTED } from "@/lib/referrals/display";
 import { REFERRAL_REWARD_CREDITS, type ReferralSummary } from "@/lib/referrals/shared";
@@ -21,6 +27,7 @@ import { requireOrg } from "@/lib/tenant";
 import { hasOnlySharedWork } from "@/lib/websites/accessible";
 
 import { EarnWays, EnterReferralCode, ReferralShare } from "./earn-client";
+import { ShareKit } from "./share-kit";
 
 const messagesFor = cache((userId: string) => getAppMessages(userId));
 
@@ -35,8 +42,8 @@ export const dynamic = "force-dynamic";
 
 /**
  * Earn Credits (client design, 2026-11-02), its own page rather than a card
- * on Settings: the referral program (code, link, sharing, who signed up),
- * the daily credits, the four other ways to earn (each reviewed by the
+ * on Settings: the referral program (code, link, the share kit, who signed
+ * up), the daily check-in, the four other ways to earn (each reviewed by the
  * RepGet team, lib/earn), entering someone else's code, and the FAQ.
  *
  * Everything is the reader's own workspace (requireOrg). Someone who owns no
@@ -78,6 +85,10 @@ export default async function EarnCreditsPage() {
   const link = referrals ? `${canonicalSiteUrl()}/r/${referrals.code}` : null;
   const day = (at: Date) => formatDate(at, locale, { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
   const credits = REFERRAL_REWARD_CREDITS;
+  const k = EARN_SHARE_COPY[locale];
+  const dc = DAILY_CLAIM_COPY[locale];
+  const daily = overview?.daily ?? null;
+  const dailyOffered = Boolean(daily?.eligible && daily.perDay > 0);
 
   return (
     <PageShell>
@@ -115,15 +126,61 @@ export default async function EarnCreditsPage() {
               {e.program}
             </span>
           </div>
-          <h2 id="invite" className="relative mt-4 text-3xl leading-tight font-bold tracking-tight sm:text-4xl">
-            {e.heroTitle}
-            <br />
-            <span className="text-primary">{format(e.heroEm, { credits })}</span>
-          </h2>
-          <p className="relative mt-3 max-w-xl text-sm text-muted-foreground">{format(e.heroBody, { credits })}</p>
-          <div className="relative mt-5 max-w-2xl">
+          <div className="relative mt-4 grid items-center gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
+            <div className="min-w-0">
+              <h2 id="invite" className="text-3xl leading-tight font-bold tracking-tight sm:text-4xl">
+                {e.heroTitle}
+                <br />
+                <span className="text-primary">{format(e.heroEm, { credits })}</span>
+              </h2>
+              <p className="mt-3 max-w-xl text-sm text-muted-foreground">{format(e.heroBody, { credits })}</p>
+              {referrals && link ? (
+                <a
+                  href="#share-kit"
+                  className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-primary/25 bg-primary/5 px-2.5 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary/10"
+                >
+                  <Plus className="size-3.5 shrink-0" aria-hidden="true" />
+                  {k.jump}
+                  <ArrowUpRight className="size-3.5 shrink-0" aria-hidden="true" />
+                </a>
+              ) : null}
+            </div>
+            {/*
+              The client's artwork with its drawn words removed, and the words set
+              here over its pills, sized to the picture (cqw): in the reader's
+              language, with the reward from REFERRAL_REWARD_CREDITS. The alt says
+              it all for a screen reader, so these are hidden from one.
+            */}
+            <div className="@container relative mx-auto w-full max-w-84 sm:max-w-none">
+              <Image
+                src="/images/earn/referral-invite.webp"
+                width={860}
+                height={645}
+                sizes="(min-width: 1024px) 22rem, (min-width: 640px) 40vw, 90vw"
+                alt={format(k.artAlt, { credits })}
+                className="w-full rounded-xl mix-blend-multiply dark:mix-blend-normal"
+              />
+              <div className="pointer-events-none absolute inset-0 font-medium text-[#181715]" aria-hidden="true">
+                <span className="absolute top-[14.1%] left-[50.2%] flex min-w-[30.4cqw] -translate-x-1/2 -translate-y-1/2 items-center justify-center gap-[1.4cqw] rounded-full bg-[#fce7da] px-[3cqw] py-[2.2cqw] text-[3cqw] leading-none whitespace-nowrap">
+                  <UserPlus className="size-[4.2cqw] text-primary" />
+                  {e.inviteEyebrow}
+                </span>
+                <span className="absolute top-[42.9%] left-[65%] flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-[1cqw] leading-none whitespace-nowrap">
+                  <strong className="text-[7cqw] font-extrabold tracking-tight text-[#d9500f]">+{credits}</strong>
+                  <span className="text-[3.2cqw] font-semibold">{k.artCredits}</span>
+                </span>
+                <span className="absolute top-[62.1%] left-[37.5%] flex min-w-[22.3cqw] -translate-x-1/2 -translate-y-1/2 items-center justify-center gap-[1.4cqw] rounded-full bg-white px-[1.8cqw] py-[1.7cqw] text-[2.7cqw] leading-none whitespace-nowrap shadow-sm">
+                  <span className="grid size-[3.6cqw] place-items-center rounded-full bg-emerald-200 text-emerald-700">
+                    <Check className="size-[2.6cqw] stroke-[3]" />
+                  </span>
+                  {k.artFriend}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="relative mt-4 max-w-2xl">
             {referrals && link ? (
-              <ReferralShare code={referrals.code} link={link} credits={credits} t={e} />
+              <ReferralShare code={referrals.code} link={link} t={e} />
             ) : (
               <Notice tone="danger" role="alert">
                 {e.unavailable}
@@ -142,13 +199,13 @@ export default async function EarnCreditsPage() {
           </ul>
         </section>
 
-        {/* The daily credits: given automatically (lib/credits/daily.ts), nothing to claim. */}
+        {/* The daily credits: the customer's own check-in (lib/credits/daily.ts). What it says comes from the ledger. */}
         <section aria-labelledby="daily" className="flex flex-col rounded-2xl border bg-card p-5 sm:p-6">
           <div className="flex items-center justify-between">
             <span className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary">
               <Sun className="size-5" aria-hidden="true" />
             </span>
-            {overview?.daily.eligible && overview.daily.perDay > 0 ? (
+            {dailyOffered ? (
               <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
                 <CheckCircle2 className="size-3.5" aria-hidden="true" />
                 {e.dailyActive}
@@ -158,25 +215,61 @@ export default async function EarnCreditsPage() {
           <h2 id="daily" className="mt-4 text-lg font-semibold tracking-tight">
             {e.dailyTitle}
           </h2>
-          <p className="mt-1 text-sm text-muted-foreground">{e.dailyBody}</p>
-          {overview?.daily.eligible && overview.daily.perDay > 0 ? (
+          {daily && dailyOffered ? (
             <>
+              <p className="mt-1 text-sm text-muted-foreground">{e.dailyBody}</p>
               <p className="mt-5 flex items-baseline gap-2 text-5xl font-bold tracking-tight tabular-nums">
-                +{overview.daily.perDay}
+                +{daily.perDay}
                 <small className="text-sm font-normal tracking-normal text-muted-foreground">{e.perDay}</small>
               </p>
-              <div className="mt-auto flex items-center justify-between gap-2 border-t pt-4 text-sm">
-                <span className="text-muted-foreground">{e.todayLabel}</span>
-                <strong className="text-emerald-700 tabular-nums dark:text-emerald-400">{format(e.todayAdded, { count: overview.daily.today })}</strong>
+              {daily.plan === "trial" && daily.trialEndsAt ? (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {format(t.app.credits.dailyTrialHelp, {
+                    count: daily.perDay,
+                    days: TRIAL_CREDIT_DAYS,
+                    date: formatDate(daily.trialEndsAt, locale, { day: "numeric", month: "long", timeZone: "UTC" }),
+                  })}
+                </p>
+              ) : null}
+              <div className="mt-auto pt-5">
+                <DailyClaim status={daily} copy={dc} locale={locale} variant="button" className="w-full" />
+                <div className="mt-4 flex items-center justify-between gap-2 border-t pt-4 text-sm">
+                  <span className="text-muted-foreground">{e.todayLabel}</span>
+                  {daily.today > 0 ? (
+                    <strong className="text-emerald-700 tabular-nums dark:text-emerald-400">{format(e.todayAdded, { count: daily.today })}</strong>
+                  ) : (
+                    <span className="text-muted-foreground">{dc.notCollected}</span>
+                  )}
+                </div>
+                {daily.nextAt ? <p className="mt-2 text-xs text-muted-foreground">{format(dc.next, { when: dailyWhen(daily.nextAt, locale) })}</p> : null}
               </div>
             </>
           ) : (
-            <p className="mt-5 text-sm text-muted-foreground">{e.dailyNone}</p>
+            /* Nothing to claim, and no button that would be refused: say what is true for this account. */
+            <>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {daily?.plan === "trial_over" && daily.trialEndsAt ? format(t.app.credits.dailyTrialOver, { count: daily.paidPerDay }) : e.dailyNone}
+              </p>
+              {daily && daily.paidPerDay > 0 && daily.plan !== "paid" ? (
+                <div className="mt-auto pt-5">
+                  {daily.plan === "trial_over" && daily.trialEndsAt ? null : (
+                    <p className="text-sm text-muted-foreground">{format(dc.noneHelp, { credits: plural(dc.credits, daily.paidPerDay) })}</p>
+                  )}
+                  <Button asChild variant="outline" className="mt-3 w-full">
+                    <Link href="/billing#plan">{dc.seePlans}</Link>
+                  </Button>
+                </div>
+              ) : null}
+            </>
           )}
         </section>
       </div>
 
-      <section aria-labelledby="ways" className="space-y-3">
+      {referrals && link ? (
+        <ShareKit code={referrals.code} link={link} postCredits={EARN_WAYS.post.credits} referralCredits={credits} locale={locale} t={k} />
+      ) : null}
+
+      <section id="more-ways" aria-labelledby="ways" className="scroll-mt-20 space-y-3">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 id="ways" className="text-lg font-semibold tracking-tight">

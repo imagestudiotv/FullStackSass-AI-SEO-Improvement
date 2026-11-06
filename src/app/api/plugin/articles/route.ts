@@ -8,15 +8,15 @@ import { prepareStoredArticle } from "@/lib/articles/internal-links";
 import { siteScope } from "@/lib/articles/link-guard";
 import { placementUrlsForArticle } from "@/lib/backlinks/placements";
 import { db } from "@/lib/db";
-import { websites } from "@/lib/db/schema";
+import { articles, websites } from "@/lib/db/schema";
 import { storedImagePrefix } from "@/lib/images/storage";
 import { dueArticlesForPlugin, pluginPostsForWebsite } from "@/lib/plugin/due";
 import { recordPluginLanguages } from "@/lib/plugin/languages";
 import { recordSyncUrl } from "@/lib/plugin/sync";
 import { recordInstall, recordPluginVersion, resolveIntegrationKey } from "@/lib/plugin/keys";
-import { claimDispatch } from "@/lib/publishing/dispatch";
+import { claimDispatch, recordLinkFindings } from "@/lib/publishing/dispatch";
 import { pointAtCopies } from "@/lib/publishing/picture-copies";
-import { pluginProtocol, pluginTranslates } from "@/lib/plugin/protocol";
+import { pluginProtocol, pluginTranslates, pluginUpdates } from "@/lib/plugin/protocol";
 import { libraryMediaIds, ownCopies, pictureAddresses } from "@/lib/sites/library-media";
 
 /**
@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
 
   const [due, sent] = await Promise.all([
     // Translations only to 1.9.0+, which files them under their language in WPML.
-    dueArticlesForPlugin(resolved.websiteId, BATCH_SIZE, new Date(), { translations: pluginTranslates(pluginVersion) }),
+    dueArticlesForPlugin(resolved.websiteId, BATCH_SIZE, new Date(), { translations: pluginTranslates(pluginVersion), updates: pluginUpdates(pluginVersion) }),
     pluginPostsForWebsite(resolved.websiteId),
   ]);
 
@@ -119,8 +119,9 @@ export async function GET(request: NextRequest) {
   for (const row of due) {
     // An article with no body is mid-generation, not ready to publish.
     if (!row.bodyHtml) continue;
+    let checked: Awaited<ReturnType<typeof prepareStoredArticle>> = null;
     try {
-      await prepareStoredArticle(row.id, resolved.websiteId, {
+      checked = await prepareStoredArticle(row.id, resolved.websiteId, {
         budgetMs: Math.max(0, deadline - Date.now()),
       });
     } catch (error) {
@@ -148,11 +149,22 @@ export async function GET(request: NextRequest) {
       protocol,
       owner: `plugin:${resolved.keyId}`,
     });
-    if (!claim.ok) continue;
+    if (!claim.ok) {
+      // A press for what is already there has nothing left to do: it must not stay in the feed.
+      if (claim.reason === "already_sent" && row.publishRequested) {
+        await db.update(articles).set({ publishRequested: null }).where(eq(articles.id, row.id));
+      }
+      continue;
+    }
+    // Under the two-step flow a dead link goes out as approved, on record with the send (lib/articles/internal-links.ts).
+    if (checked && !checked.changed) await recordLinkFindings(claim.dispatchId, checked.findings).catch(() => undefined);
     rows.push({
       ...row,
       status: claim.status,
       dispatch: { id: claim.dispatchId, revision: claim.revisionHash },
+      // Only a plugin that knows what it means: see PLUGIN_UPDATES_MIN.
+      existingDraft: pluginUpdates(pluginVersion) ? claim.existingDraft : null,
+      existingPost: pluginUpdates(pluginVersion) ? claim.existingPost : null,
       title: claim.article.title,
       slug: claim.article.slug,
       metaDescription: claim.article.metaDescription,
@@ -216,6 +228,10 @@ export async function GET(request: NextRequest) {
           status: row.status,
           // Echoed back by 1.6.0+ in its report; ignored by older plugins.
           dispatch: row.dispatch,
+          // A person's Publish press on a post this site may hold as a draft: the plugin decides from the post (1.10.0+).
+          ...(row.existingDraft ? { existingDraft: row.existingDraft } : {}),
+          // A person's press updating a post live on this site: the plugin refuses, rather than reports, if it may not write.
+          ...(row.existingPost ? { existingPost: row.existingPost } : {}),
           /*
             A translation (lib/articles/translations.ts): the original's id and
             the language, as WPML names it. Sent only to 1.9.0+ (see the due

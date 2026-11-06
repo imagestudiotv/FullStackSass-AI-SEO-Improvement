@@ -1,12 +1,18 @@
 import "server-only";
 
-import { eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import { queueJob } from "@/inngest/send";
-import { plannedDayHasCome } from "@/lib/articles/review";
+import { plannedDayHasCome, twoStepArticles, type DraftRefusal } from "@/lib/articles/review";
 import { db } from "@/lib/db";
+import { member, user } from "@/lib/db/auth-tables";
 import { articles, calendarItems, websites } from "@/lib/db/schema";
+import { ARTICLE_DELIVERY, draftRefusalText, type ArticleDeliveryCopy } from "@/lib/i18n/article-delivery";
+import { DEFAULT_LOCALE, isLocale } from "@/lib/i18n/config";
+import { format } from "@/lib/i18n/format";
+import { notify } from "@/lib/notifications/create";
 import { nudgePluginIfDue } from "@/lib/plugin/sync";
+import { PUBLISHING_KINDS } from "@/lib/publishing/kinds";
 import {
   automaticStatus,
   FIRST_ARTICLE_STATUS,
@@ -34,6 +40,11 @@ import {
  * Sends go through the durable job queue with an id tied to this approval's
  * version, so a retried approval cannot queue two publishes. The publish job
  * re-checks the gate itself before sending anything.
+ *
+ * UNDER THE TWO-STEP FLOW (lib/publishing/controls.ts) the first-article line
+ * above does not apply: pendingFirstArticle finds nothing, so a first article
+ * follows the same three modes. An article already on the website is only ever
+ * updated by the customer's press: an approval never republishes a post.
  */
 export type ReleaseOutcome = "queued" | "plugin" | "waiting_for_day" | "customer_publishes" | "nothing_connected";
 
@@ -47,6 +58,7 @@ export async function releaseAfterApproval(articleId: string): Promise<ReleaseOu
       organizationId: websites.organizationId,
       autoPublish: websites.autoPublish,
       publishAs: websites.publishAs,
+      publishedUrl: articles.publishedUrl,
     })
     .from(articles)
     .innerJoin(websites, eq(websites.id, articles.websiteId))
@@ -54,6 +66,7 @@ export async function releaseAfterApproval(articleId: string): Promise<ReleaseOu
     .where(eq(articles.id, articleId))
     .limit(1);
   if (!row) return "nothing_connected";
+  if (row.publishedUrl && (await twoStepArticles())) return "customer_publishes";
 
   const first = await pendingFirstArticle(row.websiteId);
   let status: "publish" | "draft";
@@ -78,4 +91,75 @@ export async function releaseAfterApproval(articleId: string): Promise<ReleaseOu
   // WordPress plugin sites pull: ask it to collect now (it only receives due articles).
   const nudged = await nudgePluginIfDue(row.websiteId);
   return nudged === "nothing-due" ? "nothing_connected" : "plugin";
+}
+
+/** Notifications are stored once, for everyone in the workspace, in its owner's language. */
+async function ownerCopy(organizationId: string): Promise<ArticleDeliveryCopy> {
+  const [owner] = await db
+    .select({ locale: user.locale })
+    .from(member)
+    .innerJoin(user, eq(user.id, member.userId))
+    .where(and(eq(member.organizationId, organizationId), eq(member.role, "owner")))
+    .limit(1);
+  return ARTICLE_DELIVERY[owner?.locale && isLocale(owner.locale) ? owner.locale : DEFAULT_LOCALE];
+}
+
+/** The plugin would not publish a draft somebody pressed Publish on: what happened, and what to do. Never fails the report. */
+export async function notifyDraftRefused(input: { organizationId: string; href: string; title: string; refusal: DraftRefusal }): Promise<void> {
+  try {
+    const copy = await ownerCopy(input.organizationId);
+    await notify({
+      organizationId: input.organizationId,
+      type: "article.failed",
+      title: copy.notifyNotPublished,
+      body: `${input.title}. ${draftRefusalText(input.refusal, copy)}`,
+      href: input.href,
+    });
+  } catch (error) {
+    console.error("[release] the draft refusal notification failed", error);
+  }
+}
+
+/**
+ * The two-step flow's one "ready" notification, sent after an approval when
+ * the customer has something to do or to expect. One approval is one message:
+ * approving twice is refused (approveArticle), and an article going out right
+ * now tells them when it is live or if it failed (the publish job). Never
+ * fails the approval, and nothing with the flow off.
+ */
+export async function notifyReady(articleId: string, release: ReleaseOutcome): Promise<void> {
+  if (release === "queued" || release === "plugin") return;
+  try {
+    if (!(await twoStepArticles())) return;
+    const [target] = await db
+      .select({
+        organizationId: websites.organizationId,
+        websiteId: articles.websiteId,
+        title: articles.title,
+        publishedUrl: articles.publishedUrl,
+        connected: sql<boolean>`exists (select 1 from integrations i where i.website_id = ${articles.websiteId}
+            and i.status = 'connected' and i.kind in (${sql.join(PUBLISHING_KINDS.map((kind) => sql`${kind}`), sql`, `)}))
+          or exists (select 1 from integration_keys k where k.website_id = ${articles.websiteId}
+            and k.revoked_at is null and k.last_used_at is not null)`,
+      })
+      .from(articles)
+      .innerJoin(websites, eq(websites.id, articles.websiteId))
+      .where(eq(articles.id, articleId))
+      .limit(1);
+    if (!target) return;
+    const copy = await ownerCopy(target.organizationId);
+    await notify({
+      organizationId: target.organizationId,
+      type: "article.ready",
+      title: target.publishedUrl ? copy.notifyUpdate : copy.notifyReady,
+      body: !target.connected
+        ? format(copy.notifyConnect, { title: target.title })
+        : release === "waiting_for_day"
+          ? format(copy.notifyDay, { title: target.title })
+          : target.title,
+      href: `/websites/${target.websiteId}/articles/${articleId}`,
+    });
+  } catch (error) {
+    console.error("[release] approved, but the ready notification failed", error);
+  }
 }

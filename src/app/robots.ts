@@ -25,6 +25,7 @@ export default function robots(): MetadataRoute.Robots {
         "/tasks",
         "/websites",
         "/billing",
+        "/website-projects",
         "/settings",
         "/admin",
         // The partner portal (the public page is /partners, which stays indexable).

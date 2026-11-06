@@ -5,9 +5,9 @@ import { db } from "@/lib/db";
 import { nextActionPreferences, websites } from "@/lib/db/schema";
 import { findTrafficChanges } from "@/lib/articles/decay";
 import { PUBLISHING_KINDS } from "@/lib/publishing/kinds";
-import { reviewHashSql, releasableSql } from "@/lib/articles/review";
+import { customerTitleSql, heldFromCustomerSql, reviewHashSql, releasableSql, twoStepOffSql } from "@/lib/articles/review";
 
-export type NextActionKind = "publishing" | "publishFailed" | "failed" | "draft" | "audit" | "google" | "traffic" | "searchData" | "snippet" | "research";
+export type NextActionKind = "publishing" | "publishFailed" | "failed" | "draft" | "readyToPublish" | "audit" | "google" | "traffic" | "searchData" | "snippet" | "research";
 export type NextAction = {
   id: string; kind: NextActionKind; href: string; detail?: string;
   priority: "high" | "medium" | "opportunity";
@@ -34,19 +34,23 @@ export async function getNextActions(
     google: sql<boolean>`exists (select 1 from integrations i where i.website_id = ${websiteId}
       and i.kind = 'google_analytics' and i.status = 'connected' and coalesce(i.meta->>'searchConsoleSite', '') <> '')`,
     hasSearchData: sql<boolean>`exists (select 1 from gsc_page_metrics g where g.website_id = ${websiteId})`,
-    failed: sql<ArticleTask>`(select json_build_object('id', a.id, 'title', a.title, 'version', a.updated_at::text) from articles a
-      where a.website_id = ${websiteId} and a.status = 'failed' order by a.updated_at desc, a.id limit 1)`,
-    publishFailed: sql<ArticleTask>`(select json_build_object('id', a.id, 'title', a.title, 'version', p.id::text)
-      from articles a join publish_logs p on p.article_id = a.id
-      where a.website_id = ${websiteId} and p.status = 'failed'
-        and p.id = (select last.id from publish_logs last where last.article_id = a.id order by last.created_at desc, last.id desc limit 1)
+    // customerTitleSql: under the two-step flow, an article the team has shows only its planned title.
+    failed: sql<ArticleTask>`(select json_build_object('id', articles.id, 'title', ${customerTitleSql}, 'version', articles.updated_at::text) from articles
+      where articles.website_id = ${websiteId} and articles.status = 'failed' order by articles.updated_at desc, articles.id limit 1)`,
+    publishFailed: sql<ArticleTask>`(select json_build_object('id', articles.id, 'title', ${customerTitleSql}, 'version', p.id::text)
+      from articles join publish_logs p on p.article_id = articles.id
+      where articles.website_id = ${websiteId} and p.status = 'failed'
+        and p.id = (select last.id from publish_logs last where last.article_id = articles.id order by last.created_at desc, last.id desc limit 1)
       order by p.created_at desc, p.id desc limit 1)`,
+    // The two-step flow asks no approval of the customer: this task does not exist under it.
     research: sql<ArticleTask>`(select json_build_object('id', articles.id, 'title', articles.title)
       from articles where articles.website_id = ${websiteId} and articles.status in ('draft', 'published')
       and articles.research_review_required and articles.research_approved_hash is distinct from ${reviewHashSql}
+      and ${twoStepOffSql}
       order by articles.updated_at desc, articles.id limit 1)`,
-    draft: sql<ArticleTask>`(select json_build_object('id', articles.id, 'title', articles.title) from articles
-      where articles.website_id = ${websiteId} and articles.status = 'draft' and ${releasableSql}
+    twoStep: sql<boolean>`not ${twoStepOffSql}`,
+    draft: sql<ArticleTask>`(select json_build_object('id', articles.id, 'title', ${customerTitleSql}) from articles
+      where articles.website_id = ${websiteId} and articles.status = 'draft' and ${releasableSql} and not ${heldFromCustomerSql}
       and not websites.auto_publish order by articles.updated_at desc, articles.id limit 1)`,
     audit: sql<string | null>`(select a.id::text from audits a where a.website_id = ${websiteId}
       and a.id = (select latest.id from audits latest where latest.website_id = ${websiteId} order by latest.created_at desc, latest.id desc limit 1)
@@ -91,7 +95,7 @@ export async function getNextActions(
         { clicks: candidate.clicks, impressions: candidate.impressions, end: traffic.windowEnd! });
     } else if (row.google && canManage) add("searchData", websiteId, "medium", `${base}/google`);
   } else if (row.google && canManage) add("searchData", websiteId, "medium", `${base}/google`);
-  if (row.draft) add("draft", row.draft.id, "medium", `${base}/articles/${row.draft.id}`, row.draft.title);
+  if (row.draft) add(row.twoStep ? "readyToPublish" : "draft", row.draft.id, "medium", `${base}/articles/${row.draft.id}`, row.draft.title);
   if (canManage && !row.google) add("google", websiteId, "medium", `${base}/google`);
   const order = { high: 0, medium: 1, opportunity: 2 };
   actions.sort((a, b) => order[a.priority] - order[b.priority]);

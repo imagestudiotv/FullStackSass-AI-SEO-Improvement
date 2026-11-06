@@ -11,7 +11,11 @@ import { DEFAULT_MONTHLY_CAP } from "@/lib/backlinks/network-defaults";
  * only this build hands them out. Existing websites are never changed.
  */
 export const NEW_SITE_DEFAULTS = {
-  /** "Publish live on the planned day" (with publishAs, whose default is live). */
+  /**
+   * "Publish live on the planned day" (with publishAs, whose default is live).
+   * The same under the two-step flow (decision of 2026-11-06): after the team
+   * approves, the article follows its schedule, with nothing to press.
+   */
   autoPublish: true,
   publishAs: "live",
   tableOfContents: true,

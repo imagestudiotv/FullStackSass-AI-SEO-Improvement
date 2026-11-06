@@ -14,6 +14,7 @@
  * whose choices govern Google's tags only (docs/partner-program.md).
  */
 
+import { safeNext } from "@/lib/auth/next";
 import { PREFIXED_LOCALES } from "@/lib/i18n/config";
 
 export const PARTNER_COOKIE = "repget_partner";
@@ -62,6 +63,7 @@ const LANDING_PATHS = [
   "/faq",
   "/docs",
   "/contact",
+  "/website-creation",
 ];
 const LOCALE_PREFIX = new RegExp(`^/(?:${PREFIXED_LOCALES.join("|")})(?=/|$)`);
 
@@ -74,7 +76,7 @@ export function landingPath(raw: string | null): string {
   return allowed ? path : prefix || "/";
 }
 
-/** Campaign tags a partner put on their link, carried to the page (for analytics); nothing else is. */
+/** Campaign tags a partner put on their link, carried to the page (for analytics). */
 const CAMPAIGN_PARAMS = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "utm_id"];
 
 export function campaignParams(query: URLSearchParams): [string, string][] {
@@ -82,4 +84,44 @@ export function campaignParams(query: URLSearchParams): [string, string][] {
     const value = query.get(key);
     return value ? [[key, value.slice(0, 200)] as [string, string]] : [];
   });
+}
+
+/** Longer than any address or path we produce: a value past this was not made by us. */
+const MAX_CARRIED_LENGTH = 2000;
+const EMAIL_SHAPE = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
+
+/**
+ * What the page itself would have read, had ?ref= not sent the visitor through
+ * /go/<code>: sign-up's destination and pre-filled address (app/(auth)/sign-up/
+ * page.tsx), the website the free audit is asked to check (audit-page.tsx), and
+ * the project type and address the website creation page reads, in any language
+ * (website-start.tsx). Only for those pages, so an address never reaches any
+ * other page's URL.
+ *
+ * `landing` is landingPath's answer, a path on this site, so none of this can
+ * leave it. `next` must pass safeNext unchanged: a rejected value is dropped,
+ * as authSwitchHref drops it, rather than repeated. The audit re-validates the
+ * domain itself, with its limits, exactly as for a direct visit.
+ */
+export function landingParams(landing: string, query: URLSearchParams): [string, string][] {
+  const rest = landing.replace(LOCALE_PREFIX, "") || "/";
+  const value = (key: string) => {
+    const raw = query.get(key)?.trim();
+    return raw && raw.length <= MAX_CARRIED_LENGTH ? raw : null;
+  };
+  const carried: [string, string | null][] = [];
+  if (landing === "/sign-up") {
+    const next = value("next");
+    const email = value("email");
+    carried.push(["next", next && safeNext(next) === next ? next : null]);
+    carried.push(["email", email && EMAIL_SHAPE.test(email) ? email : null]);
+  }
+  if (rest === "/audit") carried.push(["domain", value("domain")]);
+  if (rest === "/website-creation") {
+    const type = value("type");
+    const email = value("email");
+    carried.push(["type", type === "new" || type === "redesign" ? type : null]);
+    carried.push(["email", email && EMAIL_SHAPE.test(email) ? email : null]);
+  }
+  return carried.flatMap(([key, kept]) => (kept ? [[key, kept] as [string, string]] : []));
 }

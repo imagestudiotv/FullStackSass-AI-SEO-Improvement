@@ -15,6 +15,7 @@ const state = vi.hoisted(() => ({
   db: null as unknown,
   session: null as unknown,
   siteCookie: null as string | null,
+  locale: "en",
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -45,7 +46,7 @@ vi.mock("next/headers", () => ({
 }));
 vi.mock("@/lib/i18n/app-locale", async () => {
   const { getMessages } = await import("@/lib/i18n/messages");
-  return { getAppMessages: async () => ({ locale: "en", t: getMessages("en") }) };
+  return { getAppMessages: async () => ({ locale: state.locale, t: getMessages(state.locale as "en") }) };
 });
 vi.mock("@/lib/websites/pending-invitations", () => ({ listPendingInvitations: async () => [] }));
 vi.mock("@/lib/billing", () => ({
@@ -72,10 +73,14 @@ import { BillingClient } from "@/app/(app)/billing/billing-client";
 import BillingPage from "@/app/(app)/billing/page";
 import { PaymentsPanel } from "@/app/(app)/billing/payments-panel";
 import { SettingsNav } from "@/components/settings-nav";
+import { listPurchases } from "@/lib/addons/actions";
 import { listPayments, listPlans, listWebsiteSubscriptions } from "@/lib/billing";
 import { billingCustomers, member, organization, user, websiteMembers, websites } from "@/lib/db/schema";
 
 let test: TestDb;
+
+const WEBSITE_PURCHASE = { id: "p1", slug: "website_new", name: "New website", kind: "quote", pricePaidCents: 0, currency: "eur", creditsPaid: 100, status: "paid", fulfilledAt: null, createdAt: new Date() };
+const OTHER_PURCHASE = { ...WEBSITE_PURCHASE, id: "p2", slug: "usa_local_citations", name: "Top 250 live USA Local Citations" };
 
 const OWNER_ORG = "org_owner";
 const GUEST_ORG = "org_guest";
@@ -93,6 +98,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   vi.clearAllMocks();
   state.siteCookie = null;
+  state.locale = "en";
   await test.client.exec(`
     delete from billing_customers;
     delete from website_members;
@@ -161,6 +167,22 @@ function render(params: Record<string, string> = {}) {
 }
 
 describe("billing page", () => {
+  it("names a website project in the reader's language under Your purchases, and leaves other purchases alone", async () => {
+    state.locale = "es";
+    vi.mocked(listPurchases).mockResolvedValueOnce([WEBSITE_PURCHASE, OTHER_PURCHASE]);
+    signIn("user_owner", OWNER_ORG);
+    const purchases = findOne(await render(), AddonsPanel).purchases as { slug: string; name: string }[];
+    expect(purchases.map((row) => row.name)).toEqual(["Sitio web nuevo", "Top 250 live USA Local Citations"]);
+  });
+
+  it("does the same on a guest's page, which lists past purchases only", async () => {
+    state.locale = "de";
+    vi.mocked(listPurchases).mockResolvedValueOnce([WEBSITE_PURCHASE]);
+    signIn("user_guest", GUEST_ORG);
+    const purchases = findOne(await render(), AddonsPanel).purchases as { name: string }[];
+    expect(purchases.map((row) => row.name)).toEqual(["Neue Website"]);
+  });
+
   it("owner: their selected site, the strip, and an add-on shop", async () => {
     signIn("user_owner", OWNER_ORG);
     const tree = await render();

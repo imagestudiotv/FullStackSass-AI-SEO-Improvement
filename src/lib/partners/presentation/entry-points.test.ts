@@ -91,6 +91,51 @@ describe("/go/<code>", () => {
     expect(click).toMatchObject({ landingPath: "/es/pricing" });
   });
 
+  it("arriving from ?ref= on sign-up: keeps where they were going and the address, and sets the cookie", async () => {
+    const env = partnerTestDeps(test.db);
+    state.deps = env.deps;
+    const partner = await seedPartner(test.db, { code: "signup-link" });
+    const next = encodeURIComponent("/onboarding/website?domain=acme.com");
+    const response = await openLink("signup-link", `?to=/sign-up&ref=signup-link&next=${next}&email=me%2Bx%40acme.com&x=1`);
+    const location = new URL(response.headers.get("location")!);
+    expect(location.origin + location.pathname).toBe("https://repget.test/sign-up");
+    expect(Object.fromEntries(location.searchParams)).toEqual({ next: "/onboarding/website?domain=acme.com", email: "me+x@acme.com" });
+    expect(response.cookies.get(PARTNER_COOKIE)?.value).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    // The click stores the page, never the address that came with it.
+    const [click] = await test.db.select().from(partnerClicks).where(eq(partnerClicks.partnerId, partner.partnerId));
+    expect(click.landingPath).toBe("/sign-up");
+  });
+
+  it("arriving from ?ref= on the website creation page, in Spanish: same page, type and address; the click stores only the path", async () => {
+    const env = partnerTestDeps(test.db);
+    state.deps = env.deps;
+    const partner = await seedPartner(test.db, { code: "website-link" });
+    const response = await openLink("website-link", "?to=/es/website-creation&ref=website-link&type=redesign&email=a%40b.com&next=%2Fdashboard");
+    const location = new URL(response.headers.get("location")!);
+    expect(location.origin + location.pathname).toBe("https://repget.test/es/website-creation");
+    expect(Object.fromEntries(location.searchParams)).toEqual({ type: "redesign", email: "a@b.com" });
+    const [click] = await test.db.select().from(partnerClicks).where(eq(partnerClicks.partnerId, partner.partnerId));
+    expect(click.landingPath).toBe("/es/website-creation");
+  });
+
+  it("an unknown code keeps them too, with no cookie: the visitor did not choose the code", async () => {
+    const env = partnerTestDeps(test.db);
+    state.deps = env.deps;
+    const response = await openLink("no-such-code", "?to=/sign-up&email=me%40acme.com");
+    expect(response.headers.get("location")).toBe("https://repget.test/sign-up?email=me%40acme.com");
+    expect(response.cookies.get(PARTNER_COOKIE)).toBeUndefined();
+  });
+
+  it("does not repeat a crafted next, and carries nothing off the page's own site", async () => {
+    const env = partnerTestDeps(test.db);
+    state.deps = env.deps;
+    const partner = await seedPartner(test.db);
+    const evil = encodeURIComponent("https://evil.example/x");
+    expect((await openLink(partner.code, `?to=/sign-up&next=${evil}`)).headers.get("location")).toBe("https://repget.test/sign-up");
+    expect((await openLink(partner.code, `?to=${evil}&email=me%40acme.com&next=%2Fdashboard`)).headers.get("location")).toBe("https://repget.test/");
+    expect((await openLink(partner.code, "?to=/pricing&email=me%40acme.com")).headers.get("location")).toBe("https://repget.test/pricing");
+  });
+
   it("still lands the visitor on the site for an unknown code or a failure", async () => {
     state.deps = { ...partnerTestDeps(test.db).deps, uow: null };
     const broken = await openLink("abcdefghjk");

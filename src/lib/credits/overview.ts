@@ -5,7 +5,7 @@ import { sql } from "drizzle-orm";
 import { ensureMonthlyCredits } from "@/lib/backlinks/credits";
 import { db } from "@/lib/db";
 
-import { ensureDailyCredits, utcDay, type DailyCredits } from "./daily";
+import { readDailyStatus, utcDay, type DailyCredits } from "./daily";
 import { readCreditSettings, type CreditAction, type CreditSettings } from "./prices";
 import { walletOf } from "./spend";
 
@@ -25,15 +25,18 @@ export type CreditOverview = {
 };
 
 /**
- * Reading the overview is what grants this month's plan credits and today's
- * daily credits (both lazily, both keyed so they are granted once): every
- * signed-in page shows it in the sidebar, so "the customer opened RepGet
- * today" is exactly "an overview was read today".
+ * Reading the overview grants this month's plan credits (lazily, keyed so they
+ * are granted once), because every signed-in page shows it in the sidebar. It
+ * only REPORTS the daily credits: those take the customer's own check-in
+ * (claimDailyCredits in lib/credits/daily.ts), so no page load ever gives them.
  */
 export async function creditOverview(organizationId: string, now: Date = new Date()): Promise<CreditOverview> {
   await ensureMonthlyCredits(organizationId);
-  const daily = await ensureDailyCredits(organizationId, now);
-  const [settings, wallet] = await Promise.all([readCreditSettings(), walletOf(db, organizationId)]);
+  const [daily, settings, wallet] = await Promise.all([
+    readDailyStatus(organizationId, now),
+    readCreditSettings(),
+    walletOf(db, organizationId),
+  ]);
   return { ...wallet, daily, settings };
 }
 
@@ -85,10 +88,10 @@ function kindFilter(kind: CreditKind) {
  * earned (the "earned" rows) and credits used (the "spent" rows, net of
  * their refunds; never below 0, so a refund today of yesterday's spend reads
  * as nothing used rather than as a negative). "Today" is the UTC day, the
- * day daily credits are given on (lib/credits/daily.ts); created_at is
+ * day daily credits are claimed on (lib/credits/daily.ts); created_at is
  * stored in UTC, as creditHistory reads it.
  *
- * Read it after creditOverview, which is what grants today's daily credits.
+ * Read it after creditOverview, which is what grants this month's plan credits.
  */
 export async function creditToday(
   organizationId: string,

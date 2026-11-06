@@ -2,8 +2,10 @@ import { NonRetriableError } from "inngest";
 
 import { inngest } from "@/inngest/client";
 import { isAiConfigured, MODELS } from "@/lib/ai/client";
+import { checkComparisonEvidence, researchComparison, researchProvenance, researchShortfall } from "@/lib/blog/autopilot/comparison";
 import { addUsage, SpentError } from "@/lib/blog/autopilot/model";
 import { emailDraftsReady } from "@/lib/blog/autopilot/notify";
+import { removeExternalLinks } from "@/lib/blog/autopilot/links";
 import { canMakePictures, makePicture, placePictures } from "@/lib/blog/autopilot/pictures";
 import {
   failAutopilotRun,
@@ -27,14 +29,16 @@ import { queuedTopicCount, suggestTopics } from "@/lib/blog/autopilot/suggest";
 import { bodySlices, swapPictures, translateBodyPart, translateFields, type TranslationSource } from "@/lib/blog/autopilot/translate";
 import { bodyParts, finishDraft, loadWriterContext, planArticle, writePart, type WrittenPart } from "@/lib/blog/autopilot/write";
 import { LANGUAGE_NAMES_EN } from "@/lib/blog/locale";
-import { BlogPostError } from "@/lib/blog/post-fields";
+import { blogSiteHosts, BlogPostError } from "@/lib/blog/post-fields";
 import { blogLinkTargets, localizeLinks } from "@/lib/blog/translation-links";
+import { siteUrl } from "@/lib/site-url";
 
 /**
  * The blog autopilot writes one article (lib/blog/autopilot): the run and
  * its topic were taken when it was queued (startAutopilotRun), so this only
  * writes and saves.
  *
+ *   (a comparison: research first; see lib/blog/autopilot/comparison.ts)
  *   plan -> body, part by part -> links and checks -> pictures -> English draft
  *   -> for each chosen language: fields, its links, body part by part, pictures, draft
  *   -> run closed -> email to the administrators
@@ -106,8 +110,26 @@ export const blogAutopilotRun = inngest.createFunction(
 
     /* --- The English article -------------------------------------------- */
 
+    /*
+      A comparison starts from its sources, before anything is paid to a model.
+      With too little to compare, the run fails here saying so, and "Try again"
+      is there once better addresses are given: it never writes from memory.
+    */
+    if (claim.articleType === "comparison" && !claim.comparison) throw new NonRetriableError("This comparison has nothing to compare. Edit the topic, then try again.");
+    const research = claim.comparison
+      ? await step.run("research-comparison", async () => {
+          const result = await researchComparison(claim.topic, claim.comparison!);
+          await noteCost(runId, "research-comparison", result.costUsd);
+          await noteRun(runId, { research: researchProvenance(result) });
+          const shortfall = researchShortfall(result);
+          if (shortfall) throw new NonRetriableError(shortfall);
+          logger.info({ step: "research-comparison", runId, sources: result.sources.length, costUsd: result.costUsd }, "Comparison researched");
+          return result;
+        })
+      : undefined;
+
     const planned = await step.run("plan-article", async () => {
-      const result = await counted("plan-article", async () => planArticle(claim, await loadWriterContext(asOf)));
+      const result = await counted("plan-article", async () => planArticle(claim, await loadWriterContext(asOf), research));
       await noteCost(runId, "plan-article", result.usage.costUsd);
       logger.info(
         { step: "plan-article", runId, sections: result.plan.sections.length, warnings: result.warnings.length, costUsd: result.usage.costUsd },
@@ -155,6 +177,24 @@ export const blogAutopilotRun = inngest.createFunction(
 
     // The pictures, one step each. Without OpenAI images or storage the article has none, and says so.
     const warnings = [...finished.report.warnings];
+    /*
+      A comparison's second reading: what the draft says against its fact sheet.
+      Reported, not refused, like every other check here. If it cannot run, the
+      run says the draft was not checked this way.
+    */
+    if (planned.plan.comparison) {
+      const comparison = planned.plan.comparison;
+      const evidence = await step.run("check-evidence", () =>
+        settle("check-evidence", async () => {
+          const result = await counted("check-evidence", () => checkComparisonEvidence(finished.draft.bodyHtml, finished.draft.faqs.map((faq) => faq.answer), comparison));
+          await noteCost(runId, "check-evidence", result.usage.costUsd);
+          await noteRun(runId, { evidenceIssues: result.issues });
+          return result.issues;
+        }),
+      );
+      if ("value" in evidence) warnings.push(...evidence.value.map((issue) => `Evidence check: ${issue}`));
+      else warnings.push(`The evidence check could not run (${evidence.error}), so nothing has compared this draft with its facts: check them by hand.`);
+    }
     const pictures = await step.run("can-make-pictures", () => canMakePictures());
     const english: { idea: (typeof planned.plan.pictures)[number]; url: string; width: number; height: number; alt: string }[] = [];
     if (!pictures) {
@@ -275,8 +315,10 @@ export const blogAutopilotRun = inngest.createFunction(
       const savedTranslation = await step.run(`save-${locale}`, async () => {
         try {
           const { title, slug, seoTitle, description, shortAnswer, breadcrumbLabel, primaryKeyword, secondaryKeywords } = fields.value;
-          const faqs = fields.value.faqs.map((faq) => ({ ...faq, answer: localizeLinks(faq.answer, locale, links) }));
-          const bodyHtml = swapPictures(body.join(""), swaps);
+          // The last check before it is saved (lib/blog/autopilot/links.ts): no links to other websites, whatever came back.
+          const rules = { siteOrigin: new URL(siteUrl()).origin, siteHosts: blogSiteHosts() };
+          const faqs = fields.value.faqs.map((faq) => ({ ...faq, answer: removeExternalLinks(localizeLinks(faq.answer, locale, links), rules).html }));
+          const bodyHtml = removeExternalLinks(swapPictures(body.join(""), swaps), rules).html;
           const post = { title, slug, seoTitle, description, shortAnswer, breadcrumbLabel, primaryKeyword, secondaryKeywords, faqs, bodyHtml };
           return { value: await saveAutopilotTranslation(saved.postId, locale, post) };
         } catch (error) {

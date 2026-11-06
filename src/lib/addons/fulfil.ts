@@ -2,7 +2,11 @@ import { and, eq } from "drizzle-orm";
 
 import { recordCredit } from "@/lib/backlinks/credits";
 import { db } from "@/lib/db";
+import { member, user } from "@/lib/db/auth-tables";
 import { addonPurchases, addons, creditLedger } from "@/lib/db/schema";
+import { ADDON_PAYMENT_FAILED } from "@/lib/i18n/addon-payment";
+import { DEFAULT_LOCALE, isLocale } from "@/lib/i18n/config";
+import { format } from "@/lib/i18n/format";
 import { notify } from "@/lib/notifications/create";
 
 /**
@@ -171,4 +175,41 @@ export async function fulfilAddonPurchase(
   }
 
   return true;
+}
+
+/**
+ * A delayed payment failed: nothing was recorded for it, so nothing is taken
+ * back, and the customer hears that no credits are coming.
+ *
+ * Only a session an earlier build fulfilled on completion has a purchase here. Its
+ * credits stay, and the unpaid grant is logged: they may already be spent, so
+ * taking them back is a person's decision.
+ */
+export async function addonPaymentFailed(input: Pick<FulfilInput, "organizationId" | "addonId" | "stripeSessionId">): Promise<void> {
+  const [purchase] = await db
+    .select({ id: addonPurchases.id })
+    .from(addonPurchases)
+    .where(eq(addonPurchases.stripeSessionId, input.stripeSessionId))
+    .limit(1);
+  if (purchase) {
+    console.error(`[addons] purchase ${purchase.id} was fulfilled, but its delayed payment ${input.stripeSessionId} failed`);
+    return;
+  }
+  const [addon] = await db.select({ name: addons.name }).from(addons).where(eq(addons.id, input.addonId)).limit(1);
+  if (!addon) return;
+  // Stored once, for everyone in the workspace, in its owner's language.
+  const [owner] = await db
+    .select({ locale: user.locale })
+    .from(member)
+    .innerJoin(user, eq(user.id, member.userId))
+    .where(and(eq(member.organizationId, input.organizationId), eq(member.role, "owner")))
+    .limit(1);
+  const copy = ADDON_PAYMENT_FAILED[owner?.locale && isLocale(owner.locale) ? owner.locale : DEFAULT_LOCALE];
+  await notify({
+    organizationId: input.organizationId,
+    type: "addon.payment_failed",
+    title: format(copy.title, { name: addon.name }),
+    body: copy.body,
+    href: "/billing",
+  });
 }

@@ -10,11 +10,12 @@ import {
 import { prepareStoredArticle, summarize } from "@/lib/articles/internal-links";
 import { prepareForDelivery } from "@/lib/articles/delivery";
 import { siteScope } from "@/lib/articles/link-guard";
-import { checkReleasable, releaseCheckFor, reviewHash } from "@/lib/articles/review";
+import { checkReleasable, releaseCheckFor, reviewHash, sendableRevision, twoStepArticles, type ReviewFields } from "@/lib/articles/review";
 import {
   claimDispatch,
   HOLD_MESSAGES,
   latestUncertain,
+  recordLinkFindings,
   recordSentPictures,
   sentPictures,
   settleDispatch,
@@ -35,7 +36,8 @@ import {
   isImageGenerationConfigured,
 } from "@/lib/images/generate";
 import { storedImagePrefix } from "@/lib/images/storage";
-import { ProviderError } from "@/lib/publishing/provider";
+import { checkBeforeUpdate, refuseUpdate } from "@/lib/publishing/overwrite-guard";
+import { ProviderError, RemoteChangedError } from "@/lib/publishing/provider";
 import { getProvider } from "@/lib/publishing/registry";
 import { libraryMediaIds, ownCopies, pictureAddresses, sameAddress } from "@/lib/sites/library-media";
 
@@ -151,7 +153,11 @@ export const publishArticleJob = inngest.createFunction(
         Publish press or a retry. An article held for the RepGet team, or
         changed since they approved it, is not sent. See lib/articles/review.ts.
       */
-      const before = releaseCheckFor(article);
+      const twoStep = await twoStepArticles();
+      // Under the two-step flow, the approved revision to send, which need not be the working copy.
+      const gate = (row: typeof article): { ok: true; revision?: ReviewFields } | { ok: false; reason: string } =>
+        twoStep ? sendableRevision(row) : releaseCheckFor(row);
+      const before = gate(article);
       if (!before.ok) {
         logger.info(
           { step: "load-article", articleId, websiteId, reason: before.reason },
@@ -170,10 +176,12 @@ export const publishArticleJob = inngest.createFunction(
         A failure here never blocks publishing. See lib/articles/internal-links.ts.
       */
       let contentHtml = article.bodyHtml;
+      let linkFindings: { outcome: string; href: string; reason: string }[] = [];
       try {
         const checked = await prepareStoredArticle(articleId, websiteId, { budgetMs: 20_000 });
         if (checked) {
           contentHtml = checked.html;
+          linkFindings = twoStep ? checked.findings.map(({ outcome, href, reason }) => ({ outcome, href, reason })) : [];
           if (checked.changed) {
             logger.info(
               { step: "load-article", articleId, websiteId, ...summarize(checked.findings) },
@@ -204,7 +212,7 @@ export const publishArticleJob = inngest.createFunction(
         .where(and(eq(articles.id, articleId), eq(articles.websiteId, websiteId)))
         .limit(1);
       if (!current?.bodyHtml) throw new Error("Article has no content to publish");
-      const after = releaseCheckFor(current);
+      const after = gate(current);
       if (!after.ok) {
         logger.info(
           { step: "load-article", articleId, websiteId, reason: after.reason },
@@ -212,6 +220,9 @@ export const publishArticleJob = inngest.createFunction(
         );
         return { held: after.reason };
       }
+      // Exactly what passed the gate: under the two-step flow, never a working copy waiting for the team.
+      const revision: ReviewFields = after.revision ?? current;
+      if (!revision.bodyHtml) throw new Error("Article has no content to publish");
 
       // Industry lives on the website, and steers the header image prompt.
       const [site] = await db
@@ -230,7 +241,7 @@ export const publishArticleJob = inngest.createFunction(
         (the "Powered by RepGet" line per the website's setting, responsive
         images, section-link repair). See lib/articles/delivery.ts.
       */
-      contentHtml = prepareForDelivery(current.bodyHtml, {
+      contentHtml = prepareForDelivery(revision.bodyHtml, {
         poweredBy: site?.poweredByLink ?? false,
         siteHosts: site ? siteScope(site).hosts : undefined,
         followUrls: await placementUrlsForArticle(articleId),
@@ -280,8 +291,8 @@ export const publishArticleJob = inngest.createFunction(
           providerId: integration.providerId,
           isUpdate: Boolean(previous?.remoteId),
           htmlBytes: contentHtml.length,
-          hasSlug: Boolean(current.slug),
-          hasExcerpt: Boolean(current.metaDescription),
+          hasSlug: Boolean(revision.slug),
+          hasExcerpt: Boolean(revision.metaDescription),
         },
         "Article and integration loaded",
       );
@@ -293,7 +304,8 @@ export const publishArticleJob = inngest.createFunction(
           only if the article is STILL this revision (lib/publishing/dispatch.ts),
           so nothing prepared from an older revision can go out.
         */
-        revisionHash: reviewHash(current),
+        revisionHash: reviewHash(revision),
+        linkFindings,
         integrationId: integration.integrationId,
         providerId: integration.providerId,
         // No `credentials` key, deliberately: see above.
@@ -301,14 +313,14 @@ export const publishArticleJob = inngest.createFunction(
         // Used to steer the header image toward the customer's sector.
         industry: site?.industry ?? null,
         // The image saved with the article, published as-is when present.
-        image: current.imageUrl
-          ? { url: current.imageUrl, alt: current.imageAlt ?? current.title }
+        image: revision.imageUrl
+          ? { url: revision.imageUrl, alt: revision.imageAlt ?? revision.title }
           : null,
         post: {
-          title: current.title,
+          title: revision.title,
           contentHtml,
-          slug: current.slug,
-          excerpt: current.metaDescription,
+          slug: revision.slug,
+          excerpt: revision.metaDescription,
           status,
         },
       };
@@ -341,6 +353,13 @@ export const publishArticleJob = inngest.createFunction(
       // post. Do not download or generate bytes that this provider cannot use.
       const provider = getProvider(prepared.providerId);
       if (!provider?.uploadMedia) return null;
+
+      /*
+        The two-step flow sends exactly the approved revision: with no picture
+        in it, the post goes out with none. Nobody approved one made now, and
+        each later send would make and pay for another.
+      */
+      if (!prepared.image && (await twoStepArticles())) return null;
 
       /*
         One of the site's own photographs ("Use photos from my website"): it
@@ -633,7 +652,7 @@ export const publishArticleJob = inngest.createFunction(
         another attempt may have created it since.
       */
       const [previous] = await db
-        .select({ remoteId: publishLogs.remoteId })
+        .select({ remoteId: publishLogs.remoteId, createdAt: publishLogs.createdAt })
         .from(publishLogs)
         .where(and(eq(publishLogs.articleId, articleId), eq(publishLogs.status, "published")))
         .orderBy(desc(publishLogs.createdAt))
@@ -704,19 +723,19 @@ export const publishArticleJob = inngest.createFunction(
           revision: nothing to send. Its delivery was logged when it was
           found; the article is brought up to date below, once.
         */
-        const [current] = await db
-          .select({ title: articles.title })
-          .from(articles)
-          .where(eq(articles.id, articleId))
-          .limit(1);
-        return { held: null, sent: reconciled, title: current?.title ?? "", dispatchId: null as string | null };
+        return { held: null, sent: reconciled, title: prepared.post.title, dispatchId: null as string | null };
       }
       if (!claim.ok) {
         logger.info(
           { step: "send-to-cms", articleId, websiteId, trigger, reason: claim.reason },
           `Not sent: ${HOLD_MESSAGES[claim.reason]}`,
         );
-        if (claim.reason === "revision_changed") {
+        /*
+          Under the two-step flow, a press covers the revision it was made on:
+          a new revision is pressed for again (the customer was told it is
+          ready), never carried out by an older press.
+        */
+        if (claim.reason === "revision_changed" && !(trigger === "manual" && (await twoStepArticles()))) {
           /*
             Changed while this job prepared it. Nothing stale is sent; a
             fresh job prepares the new revision from the start (links
@@ -730,6 +749,9 @@ export const publishArticleJob = inngest.createFunction(
         }
         return { held: claim.reason, sent: null, title: null };
       }
+
+      // A dead link in approved text goes out as approved (lib/articles/internal-links.ts), on record with this send.
+      await recordLinkFindings(claim.dispatchId, prepared.linkFindings).catch(() => undefined);
 
       // 3. Send exactly the claimed revision.
       const [site] = await db
@@ -772,11 +794,48 @@ export const publishArticleJob = inngest.createFunction(
       };
 
       const startedAt = Date.now();
+      // Whether a request that could change the post has gone out: reading it first changes nothing.
+      let writing = false;
+      const refuse = async (refusal: Parameters<typeof refuseUpdate>[0]["refusal"]) => {
+        logger.warn({ step: "send-to-cms", articleId, websiteId, providerId: prepared.providerId, trigger, refusal }, "Not sent: the post on the website may not be overwritten");
+        await refuseUpdate({
+          refusal,
+          dispatchId: claim.dispatchId,
+          articleId,
+          integrationId: prepared.integrationId,
+          organizationId: event.data.organizationId as string,
+          href: `/websites/${websiteId}/articles/${articleId}`,
+          title: claim.article.title,
+          revisionHash: claim.revisionHash,
+          pressed: trigger === "manual",
+        });
+        return { held: refusal, sent: null, title: null };
+      };
       try {
+        /*
+          An update replaces a post somebody may have changed since RepGet last
+          sent it. Looked at last, right before the request. What this is, and
+          what it is not, on each platform: lib/publishing/overwrite-guard.ts.
+        */
+        let guard: { expectedModifiedAt: string | null } | undefined;
+        if (remoteId) {
+          const verdict = await checkBeforeUpdate({
+            provider,
+            credentials: integration.credentials,
+            articleId,
+            integrationId: prepared.integrationId,
+            remoteId,
+            dispatchId: claim.dispatchId,
+            loggedAt: previous?.createdAt ?? null,
+          });
+          if (!verdict.ok) return await refuse(verdict.refusal);
+          guard = { expectedModifiedAt: verdict.expectedModifiedAt };
+        }
+        writing = true;
         const sent = remoteId
-          ? await provider.updatePost(integration.credentials, remoteId, post)
+          ? await provider.updatePost(integration.credentials, remoteId, post, guard)
           : await provider.createPost(integration.credentials, post);
-        await settleDispatch(claim.dispatchId, { status: "sent", remoteId: sent.remoteId, remoteUrl: sent.remoteUrl, remoteStatus: sent.status });
+        await settleDispatch(claim.dispatchId, { status: "sent", remoteId: sent.remoteId, remoteUrl: sent.remoteUrl, remoteStatus: sent.status, baseline: sent.baseline });
         // Never fails the send: the post is out. Without the record, the next send uploads them again.
         await recordSentPictures(claim.dispatchId, pictureCopies).catch((error) =>
           logger.warn(
@@ -808,18 +867,25 @@ export const publishArticleJob = inngest.createFunction(
         );
         return { held: null, sent, title: claim.article.title, dispatchId: claim.dispatchId as string | null };
       } catch (error) {
+        // The platform's own precondition refused it: somebody saved it after we looked.
+        if (error instanceof RemoteChangedError) return await refuse("post_changed");
         /*
           Did the post get created? A refusal the site answered with a 4xx
           is a clear "no". No answer at all (timeout, connection lost), or a
           5xx on a CREATE, may have created it: recorded as uncertain, and
           the retry reconciles before creating anything. An UPDATE is safe
-          to repeat, so its failures are plain failures.
+          to repeat, so its failures are plain failures - marked if the write
+          may have landed, or the retry would take it for somebody's edit.
         */
         const httpStatus = error instanceof ProviderError ? error.status : undefined;
         const refused = typeof httpStatus === "number" && httpStatus < 500;
         const uncertain = !remoteId && !refused;
         const message = error instanceof Error ? error.message : "unknown";
-        await settleDispatch(claim.dispatchId, { status: uncertain ? "uncertain" : "failed", error: message });
+        await settleDispatch(claim.dispatchId, {
+          status: uncertain ? "uncertain" : "failed",
+          error: message,
+          mayHaveLanded: Boolean(remoteId) && writing && !refused,
+        });
 
         if (error instanceof ProviderError) {
           /*
@@ -885,6 +951,7 @@ export const publishArticleJob = inngest.createFunction(
       }
 
       const live = result.status === "publish";
+      const twoStep = await twoStepArticles();
       await db
         .update(articles)
         .set({
@@ -894,8 +961,10 @@ export const publishArticleJob = inngest.createFunction(
           // When it FIRST went live; a republish or a later edit keeps it.
           ...(live ? { firstLiveAt: sql`coalesce(${articles.firstLiveAt}, timezone('utc', now()))` } : {}),
           // The CMS's own URL, which does not expire the way the provider's
-          // does. Left untouched when no image was uploaded this run.
-          ...(featuredMedia ? { imageUrl: featuredMedia.url } : {}),
+          // does. Left untouched when no image was uploaded this run. Not under
+          // the two-step flow: the picture is part of the approved revision, and
+          // nothing a send does may change what was approved.
+          ...(featuredMedia && !twoStep ? { imageUrl: featuredMedia.url } : {}),
           error: null,
           updatedAt: new Date(),
         })

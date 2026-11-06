@@ -1,5 +1,5 @@
 === Image Studio Blog ===
-Version: 2.3.0
+Version: 2.4.0
 Requires WordPress 6.4+, PHP 7.4+. Built for imagestudio.com (Astra child theme, WPML, Rank Math).
 
 What it does
@@ -74,6 +74,14 @@ What it does
    "Article extras" box. "Hide 'In this article'" is copied from the English
    article to its Italian translation.
 
+7. A white article in dark mode (2.4.0). The article
+   https://imagestudio.com/editorial/post/rainy-wedding-photography-italy keeps a
+   white reading surface with dark text when a visitor chooses dark mode. Its
+   black title banner, the header, the footer and the pictures stay as they are.
+   Only that article: it is named by its slug in includes/white-article.php.
+   Changing the article's slug ends this; the isb_white_articles filter changes
+   the list.
+
 After a payment
 ---------------
 - PayPal emails the PayPal account owner, as for any payment. The item name says
@@ -93,7 +101,7 @@ After a payment
 
 Install
 -------
-1. Plugins -> Add Plugin -> Upload Plugin -> imagestudio-blog-2.3.0.zip -> Install Now ->
+1. Plugins -> Add Plugin -> Upload Plugin -> imagestudio-blog-2.4.0.zip -> Install Now ->
    Activate. When updating an installed copy, click "Replace current with uploaded".
    (If the earlier "Image Studio Layout Fixes" or "RepGet Blog Services" plugin is
    installed, deactivate and delete it first.)
@@ -125,6 +133,11 @@ Install
 9. (2.3.0) Open an article's "Get Featured" panel in English and in
    Italian: the price reads "€99" and "99 €", and "Continue to PayPal" opens
    PayPal's page for 99.00 EUR (no need to pay).
+
+10. (2.4.0) Clear the WP Rocket, Kinsta and Cloudflare caches. In a private window
+   open the article above, press the moon button: the text sits on white, dark and
+   readable, down to the table and the FAQ. Open another article: it turns dark,
+   as before.
 
 Price and currency (2.3.0)
 --------------------------

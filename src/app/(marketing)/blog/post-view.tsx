@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { BlogArticle } from "@/components/blog-article";
+import { PublishPostVersions } from "@/components/post-languages";
 import { BLOG_CHROME, blogPath, categoryPath, homePath, LANGUAGE_NAMES } from "@/lib/blog/locale";
 import type { PostVersion } from "@/lib/blog/posts";
 import { isTeamAuthor, TEAM_AUTHOR_PATH, jsonLdScript, plainText, type BlogPost } from "@/lib/blog/shared";
@@ -13,7 +14,7 @@ import { SHARE_IMAGE } from "@/lib/share-image";
 import { siteUrl } from "@/lib/site-url";
 import { breadcrumbList, entityIds } from "@/lib/structured-data";
 
-import { ClosingCta } from "../home-sections";
+import { FinalCta } from "../_home/sections/final-cta";
 
 /**
  * One blog post's page, in any language: /blog/<slug> for English and
@@ -161,6 +162,8 @@ export function BlogPostView({
 
   return (
     <div>
+      {/* The footer's language switcher sends a reader to this same article in the languages it is published in. */}
+      <PublishPostVersions path={blogPath(locale, post.slug)} versions={versions} />
       <script
         type="application/ld+json"
         // Escaped for a script block: titles and answers are typed by people.
@@ -214,8 +217,8 @@ export function BlogPostView({
         ) : null}
       </div>
 
-      {/* The blog exists to bring people into the product: the homepage's closing panel, in the post's language. */}
-      <ClosingCta t={getMessages(locale).home} href={(path) => localePath(locale, path)} />
+      {/* The blog exists to bring people into the product: the homepage's closing banner, in the post's language. */}
+      <FinalCta locale={locale} href={(path) => localePath(locale, path)} />
     </div>
   );
 }

@@ -1,10 +1,10 @@
 "use server";
 
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/lib/db";
-import { articles, articleVersions } from "@/lib/db/schema";
+import { articles, articleVersions, calendarItems } from "@/lib/db/schema";
 import {
   queueArticleForCalendarItem,
   requeueArticle,
@@ -12,9 +12,20 @@ import {
 import { requireWebsite } from "@/lib/tenant";
 import { requireEditor } from "@/lib/websites/require-editor";
 import { sanitizeHtml, countWords, normaliseSlug } from "@/lib/articles/generate";
+import { deleteArticleAndSettleLinks } from "@/lib/articles/deletion";
 import { siteScope } from "@/lib/articles/link-guard";
+import { PREPARING_TITLE } from "@/lib/i18n/article-delivery";
 import type { ActionResult } from "@/lib/websites/actions";
-import { followCustomerEdit } from "@/lib/articles/review";
+import {
+  afterArticleEdit,
+  heldFromCustomer,
+  heldFromCustomerSql,
+  PREPARING_MESSAGE,
+  servedStatus,
+  storedRevision,
+  twoStepArticles,
+  twoStepOffSql,
+} from "@/lib/articles/review";
 import { ArticleInFlightError, editArticle } from "@/lib/publishing/dispatch";
 
 /**
@@ -24,6 +35,14 @@ import { ArticleInFlightError, editArticle } from "@/lib/publishing/dispatch";
  * every article query is then scoped to that website's id. An article id alone
  * is never trusted: it arrives from the client and could belong to any tenant.
  */
+
+/** Not exported: a "use server" module exports only its actions. */
+class HeldFromCustomerError extends Error {
+  constructor() {
+    super(PREPARING_MESSAGE);
+    this.name = "HeldFromCustomerError";
+  }
+}
 
 export type ArticleRow = {
   id: string;
@@ -43,7 +62,7 @@ export type ArticleRow = {
 
 export async function listArticles(websiteId: string): Promise<ArticleRow[]> {
   const { site } = await requireWebsite(websiteId);
-  return db
+  const rows = await db
     .select({
       id: articles.id,
       calendarItemId: articles.calendarItemId,
@@ -56,11 +75,51 @@ export async function listArticles(websiteId: string): Promise<ArticleRow[]> {
       generationStep: articles.generationStep,
       error: articles.error,
       updatedAt: articles.updatedAt,
+      reviewStatus: articles.reviewStatus,
+      publishedUrl: articles.publishedUrl,
+      firstLiveAt: articles.firstLiveAt,
+      // What the customer gets of a held article; not its stored title, nor the body here.
+      stored: sql<Record<string, unknown> | null>`${articles.approvedRevision} - 'bodyHtml'`,
+      plannedTitle: calendarItems.title,
+      twoStep: sql<boolean>`not ${twoStepOffSql}`,
+      held: heldFromCustomerSql,
     })
     .from(articles)
+    .leftJoin(calendarItems, eq(calendarItems.id, articles.calendarItemId))
     .where(eq(articles.websiteId, site.id))
     .orderBy(desc(articles.updatedAt));
+
+  // Built field by field below: what the two-step flow's reads leave out never reaches the page.
+  return rows.map(({ reviewStatus, publishedUrl, firstLiveAt, stored, plannedTitle, twoStep, held, ...row }) => {
+    if (held && stored) {
+      const live = servedStatus({ publishedUrl, firstLiveAt, status: row.status }) === "published";
+      return {
+        ...row,
+        title: stored.title as string,
+        slug: (stored.slug as string | null) ?? null,
+        wordCount: (stored.wordCount as number | null) ?? null,
+        error: null,
+        status: live ? "published" : "ready",
+      };
+    }
+    if (held) {
+      const live = servedStatus({ publishedUrl, firstLiveAt, status: row.status }) === "published";
+      return {
+        ...row,
+        // Never the stored title: it is generation's and the team's. This one is the customer's own plan row.
+        title: plannedTitle ?? PREPARING_TITLE,
+        slug: null,
+        wordCount: null,
+        error: null,
+        status: WORKING.includes(row.status) || row.status === "failed" ? row.status : live ? "published" : "preparing",
+      };
+    }
+    return twoStep && reviewStatus === "approved" && row.status === "draft" && !publishedUrl ? { ...row, status: "ready" } : row;
+  });
 }
+
+/** Being written right now. */
+const WORKING = ["queued", "generating"];
 
 export type ArticleDetail = ArticleRow & {
   bodyHtml: string | null;
@@ -81,6 +140,17 @@ export type ArticleDetail = ArticleRow & {
    * it after Publish was pressed; null otherwise.
    */
   publishRequested: string | null;
+  /**
+   * The two-step flow (lib/publishing/controls.ts): the article is not the
+   * customer's to read yet. "writing" while it is first written, "team" while
+   * the RepGet team has it. Null otherwise, and always with the flow off.
+   */
+  preparing: "writing" | "team" | null;
+  /**
+   * The two-step flow: the team is working on a newer copy, and this is the last
+   * approved revision. Publish sends exactly this; the text cannot be changed.
+   */
+  withTeam: boolean;
 };
 
 export async function getArticle(
@@ -94,6 +164,65 @@ export async function getArticle(
     .where(and(eq(articles.id, articleId), eq(articles.websiteId, site.id)))
     .limit(1);
   if (!row) return null;
+
+  const twoStep = await twoStepArticles();
+  const working = WORKING.includes(row.status);
+  /*
+    The team's revision goes no further than this function: a page, a server
+    action called by hand and the tab title all get the same empty article.
+    A failed one stays failed, so the customer can still try again.
+  */
+  if (twoStep && heldFromCustomer(row)) {
+    const stored = storedRevision(row.approvedRevision);
+    if (stored) {
+      return {
+        id: row.id,
+        calendarItemId: row.calendarItemId,
+        title: stored.title,
+        slug: stored.slug,
+        targetKeyword: row.targetKeyword,
+        wordCount: stored.wordCount,
+        status: servedStatus(row),
+        generationStep: null,
+        error: null,
+        updatedAt: new Date(stored.at),
+        bodyHtml: stored.bodyHtml,
+        metaDescription: stored.metaDescription,
+        imageUrl: stored.imageUrl,
+        imageAlt: stored.imageAlt,
+        imageAttempts: row.imageAttempts,
+        publishedUrl: row.publishedUrl,
+        publishRequested: row.publishRequested,
+        preparing: null,
+        withTeam: true,
+      };
+    }
+    const [planned] = row.calendarItemId
+      ? await db.select({ title: calendarItems.title }).from(calendarItems).where(eq(calendarItems.id, row.calendarItemId)).limit(1)
+      : [];
+    return {
+      id: row.id,
+      calendarItemId: row.calendarItemId,
+      title: planned?.title ?? PREPARING_TITLE,
+      slug: null,
+      targetKeyword: row.targetKeyword,
+      wordCount: null,
+      // A post on the website with no text RepGet can show stays what it is there.
+      status: working || row.status === "failed" ? row.status : servedStatus(row),
+      generationStep: working ? row.generationStep : null,
+      error: row.status === "failed" ? row.error : null,
+      updatedAt: row.updatedAt,
+      bodyHtml: null,
+      metaDescription: null,
+      imageUrl: null,
+      imageAlt: null,
+      imageAttempts: 0,
+      publishedUrl: row.publishedUrl,
+      publishRequested: null,
+      preparing: row.status === "failed" ? null : working ? "writing" : "team",
+      withTeam: false,
+    };
+  }
 
   return {
     id: row.id,
@@ -113,6 +242,9 @@ export async function getArticle(
     imageAttempts: row.imageAttempts,
     publishedUrl: row.publishedUrl,
     publishRequested: row.publishRequested,
+    // Nothing written yet: the same waiting page, not an empty editor.
+    preparing: twoStep && working && !row.bodyHtml ? "writing" : null,
+    withTeam: false,
   };
 }
 
@@ -218,6 +350,9 @@ export async function updateArticle(
   */
   try {
     await editArticle(articleId, async (tx) => {
+      // Read under the lock: an article the team has is theirs until they approve it.
+      const [current] = await tx.select().from(articles).where(eq(articles.id, articleId)).limit(1);
+      if (current && heldFromCustomer(current) && (await twoStepArticles(tx))) throw new HeldFromCustomerError();
       // Snapshot the PREVIOUS body so an edit is always recoverable.
       if (typeof patch.bodyHtml === "string" && existing.bodyHtml && existing.bodyHtml !== patch.bodyHtml) {
         await tx.insert(articleVersions).values({
@@ -226,12 +361,11 @@ export async function updateArticle(
         });
       }
       await tx.update(articles).set(patch).where(eq(articles.id, articleId));
-      // Changed after the RepGet team approved it: back to their queue, or - under the
-      // two-step flow - the approval follows unless a placed network link was removed.
-      await followCustomerEdit(articleId, tx);
+      // Changed after the RepGet team approved it: back to their queue.
+      await afterArticleEdit(articleId, tx);
     });
   } catch (error) {
-    if (error instanceof ArticleInFlightError) return { ok: false, error: error.message };
+    if (error instanceof ArticleInFlightError || error instanceof HeldFromCustomerError) return { ok: false, error: error.message };
     throw error;
   }
 
@@ -248,9 +382,13 @@ export async function deleteArticle(
   if (!guard.ok) return { ok: false, error: guard.error };
   const { site } = guard.context;
 
-  await db
-    .delete(articles)
-    .where(and(eq(articles.id, articleId), eq(articles.websiteId, site.id)));
+  // With what the article's backlinks held, in one transaction (lib/articles/deletion.ts).
+  try {
+    await deleteArticleAndSettleLinks(site.id, articleId);
+  } catch (error) {
+    if (error instanceof ArticleInFlightError) return { ok: false, error: error.message };
+    throw error;
+  }
 
   revalidatePath(`/websites/${site.id}/content`);
   return { ok: true, data: null };

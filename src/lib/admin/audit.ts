@@ -77,6 +77,10 @@ export type AdminAction =
   /* Earn Credits claims (lib/earn/admin.ts). */
   | "earn.approved"
   | "earn.declined"
+  /* Website projects (lib/website-projects/admin.ts). */
+  | "website_project.quoted"
+  | "website_project.declined"
+  | "website_project.fulfilled"
   /* The cash partner program (lib/partners). */
   | PartnerAuditAction;
 

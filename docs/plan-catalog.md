@@ -22,6 +22,26 @@ Until step 6 the site keeps selling catalog 1. Do not merge the code before it: 
 - **Customer Portal (required):** "Switch to this plan" opens the portal's update flow with the target price, and fails unless that price is in the portal's configuration. In Settings -> Billing -> Customer portal, enable "Customers can switch plans" and add all three products with their new prices. While there, check the proration setting: it decides what an upgrade charges and what a downgrade credits.
 - **Coupons:** a coupon limited to certain products does not apply to a new one. Check that the 40% REPGET code and partner coupons cover Launch.
 
+## The REPGET code
+
+The owner's decision (2026-11-05): 40% off the first paid month, starting with the paid plan purchase, not with signup or the free period. Annual handling is still open, so no discount reaches a full annual payment. Stripe's local-currency behaviour stays as it is.
+
+The discount is three fixed-amount coupons, limited by product, one per plan: `LAUNCH40` €39.60, `GROW40` €59.60, `SCALE40` €139.60, each `once`. A Stripe promotion code points at one coupon and must be unique while active, so **REPGET is not a Stripe promotion code**. The customer gives it to RepGet on a plan screen, and the server picks the coupon (`lib/billing/repget-offer.ts`). Off until `REPGET_OFFER_ENABLED=1`.
+
+| Customer | What happens |
+|---|---|
+| With or without a free period | The plan's coupon is on the Checkout. Stripe keeps a `once` coupon through a free period, and uses it on the first paid invoice, including when the period is ended early (checked in Stripe's test mode, in euros) |
+| Plan changed during the free period | Each coupon is limited to its plan's product, so the coupon follows the plan on `customer.subscription.updated` (`lib/billing/repget-subscription.ts`). Moved to annual: it comes off |
+| Annual plan, or a price other than the coupon's | Refused before Stripe. The coupons' product limit does **not** exclude annual, because the prices share a product: Stripe takes the fixed amount off |
+| Credit packs | Never come here, and Stripe refuses the coupons on them |
+| Any other promotion code | Stripe's code box as before, partner coupons included. The box is off only on a REPGET checkout, so a second code cannot replace it |
+
+**If Stripe refuses a coupon at Checkout,** nothing starts and there is no checkout at full price: the customer is told, and the administrators (`ADMIN_EMAILS`) get an email.
+
+Before turning it on: **no active Stripe promotion code may be called REPGET.** One typed into Stripe's box would bypass all of this, on annual too.
+
+One redemption per workspace, counted from completed checkouts. PayPal has no way to take it.
+
 ## What happens to existing subscribers
 
 - They stay on their catalog 1 row: same price id, price and limits (a Grow subscriber keeps €99 and 30 articles a month).

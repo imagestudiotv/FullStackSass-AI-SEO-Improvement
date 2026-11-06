@@ -23,7 +23,7 @@ export function CreditsMenu({
   t,
 }: {
   available: number;
-  /** Daily credits given today; 0 when none. */
+  /** Daily credits collected today; 0 when none. */
   today: number;
   t: {
     yourCredits: string;

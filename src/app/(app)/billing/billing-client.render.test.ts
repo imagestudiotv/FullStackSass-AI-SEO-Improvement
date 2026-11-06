@@ -18,6 +18,8 @@ vi.mock("@/lib/stripe/portal", () => ({ createPortalSession: vi.fn() }));
 import type { CurrentSubscription, PlanRow } from "@/lib/billing-shared";
 import { getMessages } from "@/lib/i18n/messages";
 
+import { OFFER_CODE } from "@/lib/i18n/offer-code";
+
 import { BillingClient } from "./billing-client";
 
 const messages = getMessages("en");
@@ -74,6 +76,18 @@ const render = (subscription: CurrentSubscription, props: Partial<ComponentProps
       ...props,
     }),
   );
+
+describe("the REPGET field", () => {
+  const none = null as unknown as CurrentSubscription;
+
+  it("shows on the monthly plans while the offer is on, labelled in the reader's language", () => {
+    expect(render(none, { offerCopy: OFFER_CODE.de, entitled: false, websiteSubscriptions: [] })).toContain(OFFER_CODE.de.label);
+  });
+
+  it("does not show while the offer is off", () => {
+    expect(render(none, { entitled: false, websiteSubscriptions: [] })).not.toContain(OFFER_CODE.en.label);
+  });
+});
 
 describe("billing, on the free articles through PayPal", () => {
   it("says when PayPal starts the plan, offers to start it now, and that a plan chosen below starts today", () => {

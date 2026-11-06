@@ -79,6 +79,7 @@ export async function listPurchases(): Promise<PurchaseRow[]> {
   return db
     .select({
       id: addonPurchases.id,
+      slug: addons.slug,
       name: addons.name,
       kind: addons.kind,
       pricePaidCents: addonPurchases.pricePaidCents,

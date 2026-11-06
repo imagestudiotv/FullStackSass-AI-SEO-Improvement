@@ -298,11 +298,11 @@ if (has("STRIPE_WEBHOOK_SECRET")) {
          * matters most — it is what converts a referral, so without it a
          * referrer is simply never paid.
          *
-         * Read from the route file rather than a second hardcoded list, so
+         * Read from the handlers rather than a second hardcoded list, so
          * adding a handler cannot leave this check behind.
          */
         const routeSource = await readFile(
-          "src/app/api/stripe/webhook/route.ts",
+          "src/lib/billing/stripe-events.ts",
           "utf8",
         ).catch(() => "");
         const handled = [

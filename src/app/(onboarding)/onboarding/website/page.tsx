@@ -1,8 +1,11 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { requireSession } from "@/lib/auth-guard";
 import { getAppMessages } from "@/lib/i18n/app-locale";
+import { WEBSITE_PROJECT_COPY } from "@/lib/i18n/website-projects";
 import { getOnboardingState } from "@/lib/onboarding/steps";
+import { websiteProjectsHref } from "@/lib/website-projects/shared";
 import { requireOrg } from "@/lib/tenant";
 import { hasOnlySharedWork } from "@/lib/websites/accessible";
 import { WebsiteStep } from "./website-step";
@@ -23,7 +26,8 @@ export default async function OnboardingWebsitePage({
 }: PageProps<"/onboarding/website">) {
   const session = await requireSession();
   const { orgId } = await requireOrg();
-  const { t } = await getAppMessages(session.user.id);
+  const { t, locale } = await getAppMessages(session.user.id);
+  const noSite = WEBSITE_PROJECT_COPY[locale];
 
   const params = await searchParams;
   /**
@@ -98,6 +102,19 @@ export default async function OnboardingWebsitePage({
     */
     <div className="mx-auto max-w-6xl px-4 py-10 sm:py-14">
       <WebsiteStep t={t.app.onboarding} initialUrl={initialUrl} plan={plan} />
+      {/*
+        The step is required for anyone with a site to set up, but not everyone
+        has one. Below the form at every width, so nobody is held in a form they
+        cannot answer.
+      */}
+      {addingAnother ? null : (
+        <p className="mt-8 text-center text-sm text-muted-foreground">
+          {noSite.onboardingPrompt}{" "}
+          <Link href={websiteProjectsHref("new")} className="font-medium text-primary underline underline-offset-2">
+            {noSite.onboardingCta}
+          </Link>
+        </p>
+      )}
     </div>
   );
 }

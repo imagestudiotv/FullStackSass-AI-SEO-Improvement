@@ -8,7 +8,11 @@ import { PayPalReturn } from "@/components/paypal-return";
 import { TrialComparison } from "@/components/trial-comparison";
 import { WizardProgress } from "@/components/wizard-progress";
 import { requireSession } from "@/lib/auth-guard";
+import { twoStepArticles } from "@/lib/articles/review";
+import { repgetOfferEnabled } from "@/lib/billing/repget-offer";
 import { getAppMessages } from "@/lib/i18n/app-locale";
+import { OFFER_CODE } from "@/lib/i18n/offer-code";
+import { ARTICLE_DELIVERY } from "@/lib/i18n/article-delivery";
 import { PAYPAL_PENDING_COPY } from "@/lib/i18n/paypal-pending";
 import { listPlans } from "@/lib/billing";
 import { readCreditSettings, TRIAL_CREDIT_DAYS } from "@/lib/credits/prices";
@@ -178,6 +182,7 @@ export default async function OnboardingPlanPage({
               monthlyPlans={monthlyPlans}
               annualPlans={annualPlans}
               paypalAvailable={paypalAvailable}
+              offerCopy={repgetOfferEnabled() ? OFFER_CODE[locale] : null}
               paypalPlanIds={paypalPlanIds}
               paypalFreeArticlePlanIds={paypalFreeArticlePlanIds}
               websiteId={state.websiteId}
@@ -203,7 +208,7 @@ export default async function OnboardingPlanPage({
 
           <OnboardingAside
             title={t.app.onboarding.whatHappensSubscribe}
-            note={t.app.onboarding.weResearchKeywords}
+            note={(await twoStepArticles()) ? ARTICLE_DELIVERY[locale].onboardingNote : t.app.onboarding.weResearchKeywords}
             t={t.app.common}
           >
             {/*

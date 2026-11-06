@@ -1,5 +1,7 @@
+import { remoteHash } from "@/lib/publishing/remote-hash";
 import {
   ProviderError,
+  type RemoteBaseline,
   type CmsProvider,
   type Credentials,
   type PublishInput,
@@ -146,7 +148,38 @@ type ShopifyArticle = {
   id: number;
   handle?: string;
   published_at?: string | null;
+  updated_at?: string;
+  title?: string;
+  body_html?: string | null;
+  summary_html?: string | null;
+  image?: { src?: string } | null;
 };
+
+function baselineOf(article: ShopifyArticle): RemoteBaseline {
+  return {
+    modifiedAt: article.updated_at ?? null,
+    hash: typeof article.body_html === "string" ? remoteHash([article.title, article.body_html, article.summary_html, article.handle, article.image?.src]) : null,
+  };
+}
+
+/**
+ * remoteId is "blogId:articleId" because Shopify addresses an article through
+ * its blog. Older rows may hold a bare article id, so that case falls back to the
+ * stored or first blog rather than failing.
+ */
+async function articlePath(credentials: Credentials, remoteId: string): Promise<{ blogId: string; path: string }> {
+  const [maybeBlog, maybeArticle] = remoteId.split(":");
+  const articleId = maybeArticle ?? maybeBlog;
+  let blogId = maybeArticle ? maybeBlog : credentials.blogId?.trim();
+  if (!blogId) {
+    const blogs = await listShopifyBlogs(credentials);
+    blogId = blogs[0]?.id;
+    if (!blogId) {
+      throw new ProviderError("That store has no blog to publish to", "not_found");
+    }
+  }
+  return { blogId, path: `/blogs/${encodeURIComponent(blogId)}/articles/${encodeURIComponent(articleId)}.json` };
+}
 
 /** Lists the store's blogs, so the customer can pick where posts go. */
 export async function listShopifyBlogs(
@@ -269,30 +302,34 @@ export const shopifyProvider: CmsProvider = {
           ? `https://${shop}/blogs/news/${article.handle}`
           : "",
       status: article.published_at ? "publish" : "draft",
+      baseline: baselineOf(article),
     };
   },
 
-  async updatePost(credentials, remoteId, input) {
-    /**
-     * remoteId is "blogId:articleId" because Shopify addresses an article
-     * through its blog. Older rows may hold a bare article id, so that case
-     * falls back to the stored or first blog rather than failing.
-     */
-    const [maybeBlog, maybeArticle] = remoteId.split(":");
-    const articleId = maybeArticle ?? maybeBlog;
-    let blogId = maybeArticle ? maybeBlog : credentials.blogId?.trim();
-
-    if (!blogId) {
-      const blogs = await listShopifyBlogs(credentials);
-      blogId = blogs[0]?.id;
-      if (!blogId) {
-        throw new ProviderError("That store has no blog to publish to", "not_found");
-      }
+  /**
+   * Shopify's REST API has no precondition on an article, so this is read before
+   * writing, and the update can still land on a save made in between
+   * (lib/publishing/overwrite-guard.ts).
+   */
+  async readRemote(credentials, remoteId) {
+    const { path } = await articlePath(credentials, remoteId);
+    try {
+      const body = await request<{ article?: ShopifyArticle }>(credentials, path);
+      return body.article
+        ? { ...baselineOf(body.article), status: body.article.published_at ? "publish" : "draft", rawContent: null }
+        : null;
+    } catch (error) {
+      if (error instanceof ProviderError && error.status === 404) return null;
+      throw error;
     }
+  },
+
+  async updatePost(credentials, remoteId, input) {
+    const { blogId, path } = await articlePath(credentials, remoteId);
 
     const body = await request<{ article?: ShopifyArticle }>(
       credentials,
-      `/blogs/${encodeURIComponent(blogId)}/articles/${encodeURIComponent(articleId)}.json`,
+      path,
       { method: "PUT", body: JSON.stringify(articleBody(input)) },
     );
 
@@ -309,6 +346,7 @@ export const shopifyProvider: CmsProvider = {
           ? `https://${shop}/blogs/news/${article.handle}`
           : "",
       status: article.published_at ? "publish" : "draft",
+      baseline: baselineOf(article),
     };
   },
 

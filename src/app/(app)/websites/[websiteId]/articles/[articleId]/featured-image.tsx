@@ -16,6 +16,7 @@ import {
   updateArticleImageAlt,
   uploadArticleImage,
 } from "@/lib/articles/image-actions";
+import { ARTICLE_DELIVERY } from "@/lib/i18n/article-delivery";
 import type { Locale } from "@/lib/i18n/config";
 import { format } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
@@ -125,7 +126,7 @@ export function FeaturedImage({
   }, [altUnsaved, onAltUnsavedChange]);
   const remaining = Math.max(maxAttempts - attempts, 0);
   const locked = !canEdit || lockedReason !== null;
-  const errorText = (message: string) => actionErrorText(message, { t, tWorkspace, tImage });
+  const errorText = (message: string) => actionErrorText(message, { t, tWorkspace, tImage, delivery: ARTICLE_DELIVERY[locale] });
 
   function run(action: () => Promise<{ ok: true } | { ok: false; error: string }>, done: string, after?: () => void) {
     setStatus(null);

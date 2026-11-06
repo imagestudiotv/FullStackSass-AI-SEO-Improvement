@@ -1,3 +1,4 @@
+import type { ArticleDeliveryCopy } from "@/lib/i18n/article-delivery";
 import type { Locale } from "@/lib/i18n/config";
 import { format, formatNumber } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
@@ -110,13 +111,20 @@ export function actionErrorText(
     t: EditorCopy;
     tWorkspace: Messages["app"]["workspace"];
     tImage: Messages["app"]["image"];
+    /** The two-step flow's refusals (lib/i18n/article-delivery.ts). */
+    delivery?: ArticleDeliveryCopy;
   },
 ): string {
-  const { t, tWorkspace, tImage } = copy;
+  const { t, tWorkspace, tImage, delivery } = copy;
   const known: [RegExp, string][] = [
     [/^You have view-only access/i, tWorkspace.viewOnly],
     [/being delivered to the website right now/i, t.errInFlight],
-    [/being prepared by the RepGet team/i, t.stateReviewPending],
+    [/being prepared by the RepGet team/i, delivery?.errPreparing ?? t.stateReviewPending],
+    // Before the update message: this one names the plugin's version too.
+    [/on your website as a draft\. To publish it from here/i, delivery?.pluginDraftNote ?? error],
+    [/RepGet plugin on your website to version 1\.10/i, delivery?.errPluginUpdate ?? error],
+    [/^This exact version is already on the website/i, delivery?.errAlreadyOnSite ?? t.alreadySentLive],
+    [/^Already being delivered/i, delivery?.errAlreadyDelivering ?? t.errInFlight],
     [/^Title cannot be empty/i, t.titleRequired],
     [/has not been written yet/i, t.errNotWritten],
     [/^Connect somewhere to publish/i, t.errConnectFirst],

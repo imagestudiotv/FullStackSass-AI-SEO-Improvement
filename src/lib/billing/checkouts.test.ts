@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   adminAuditLog,
@@ -47,6 +47,7 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/inngest/send", () => ({ queueJob: vi.fn() }));
 vi.mock("@/lib/admin/guard", () => ({
   requireAdmin: vi.fn(async () => ({ email: "ops@example.test" })),
+  adminEmails: () => ["staff@fixture.test"],
 }));
 vi.mock("@/lib/backlinks/credits", () => ({
   recordCredit: vi.fn(),
@@ -56,6 +57,8 @@ vi.mock("@/lib/usage", () => ({ checkLimit: vi.fn() }));
 vi.mock("@/lib/stripe/customer", () => ({
   getOrCreateCustomer: vi.fn(async () => "cus_test"),
 }));
+const mail = vi.hoisted(() => ({ sendEmail: vi.fn() }));
+vi.mock("@/lib/email/send", () => mail);
 vi.mock("@/lib/stripe/client", () => ({
   isStripeConfigured: () => true,
   stripe: {
@@ -210,6 +213,136 @@ async function siteExists(id: string) {
   const rows = await test.db.select().from(websites).where(eq(websites.id, id));
   return rows.length === 1;
 }
+
+describe("the REPGET offer", () => {
+  const row = { articleLimit: 30, keywordLimit: 100, siteLimit: 1, monthlyCredits: 0 };
+  let version = 10;
+  const params = () => stripeMock.sessionsCreate.mock.calls.at(-1)![0];
+  const growPlan = async (fields: Partial<typeof plans.$inferInsert> = {}) =>
+    (await test.db.insert(plans).values({ ...row, name: "Grow", tier: "grow", interval: "month", currency: "eur", priceCents: 14900, stripePriceId: "price_grow_2", catalogVersion: (version += 1), ...fields }).returning())[0].id;
+  const usedTrial = async (organizationId = "org_a") => {
+    const site = await addSite(organizationId, "earlier.test");
+    await test.db.insert(subscriptions).values({ organizationId, websiteId: site.id, planId, status: "canceled", provider: "stripe", stripeSubscriptionId: "sub_earlier" });
+  };
+
+  beforeEach(() => {
+    process.env.REPGET_OFFER_ENABLED = "1";
+  });
+  afterEach(() => {
+    delete process.env.REPGET_OFFER_ENABLED;
+  });
+
+  it("no code: Stripe's code box as before, no coupon, nothing remembered", async () => {
+    const site = await addSite();
+    await createCheckoutSession(await growPlan(), site.id);
+    expect(params().allow_promotion_codes).toBe(true);
+    expect(params().discounts).toBeUndefined();
+    expect(params().subscription_data.metadata.repget_offer).toBeUndefined();
+  });
+
+  it("an annual checkout keeps Stripe's code box for other codes", async () => {
+    const site = await addSite();
+    await createCheckoutSession(await growPlan({ interval: "year", priceCents: 149000, stripePriceId: "price_year" }), site.id);
+    expect(params().allow_promotion_codes).toBe(true);
+  });
+
+  it("on a free period the plan's coupon is on the checkout, with the free period, and no code box beside it", async () => {
+    const site = await addSite();
+    await createCheckoutSession(await growPlan(), site.id, "billing", " repget ");
+    expect(params().discounts).toEqual([{ coupon: "GROW40" }]);
+    expect(params().allow_promotion_codes).toBeUndefined();
+    expect(params().subscription_data.trial_period_days).toBeGreaterThan(0);
+    expect(params().subscription_data.metadata.repget_offer).toBe("REPGET");
+    const [checkout] = await checkouts();
+    expect(checkout.requestParams).toMatchObject({ offer: "REPGET" });
+  });
+
+  it("with no free period, the same", async () => {
+    await usedTrial();
+    const site = await addSite();
+    await createCheckoutSession(await growPlan(), site.id, "billing", "REPGET");
+    expect(params().discounts).toEqual([{ coupon: "GROW40" }]);
+    expect(params().allow_promotion_codes).toBeUndefined();
+    expect(params().subscription_data.trial_period_days).toBeUndefined();
+  });
+
+  it("a coupon Stripe refuses starts nothing: no checkout at full price, the customer is told, staff are emailed", async () => {
+    const site = await addSite();
+    const plan = await growPlan();
+    stripeMock.sessionsCreate.mockRejectedValueOnce(stripeRefusal("No such coupon: 'GROW40'"));
+    expect(await createCheckoutSession(plan, site.id, "billing", "REPGET")).toEqual({ error: expect.stringContaining("you have not been charged") });
+    expect(stripeMock.sessionsCreate).toHaveBeenCalledTimes(1);
+    expect(mail.sendEmail).toHaveBeenCalledTimes(1);
+    expect(mail.sendEmail.mock.calls[0][0].text).toContain("GROW40");
+    const [checkout] = await checkouts();
+    expect(checkout.status).toBe("failed");
+  });
+
+  it("any other Stripe refusal answers as before, and tells nobody", async () => {
+    const site = await addSite();
+    stripeMock.sessionsCreate.mockRejectedValueOnce(stripeRefusal("Something else"));
+    const answer = await createCheckoutSession(await growPlan(), site.id);
+    expect(answer).toEqual({ error: expect.any(String) });
+    expect(JSON.stringify(answer)).not.toContain("REPGET");
+    expect(mail.sendEmail).not.toHaveBeenCalled();
+  });
+
+  it("the plan decides the coupon, not anything the browser sends", async () => {
+    await usedTrial();
+    const site = await addSite();
+    await createCheckoutSession(await growPlan({ name: "Scale", tier: "scale", priceCents: 34900, stripePriceId: "price_scale" }), site.id, "billing", "REPGET");
+    expect(params().discounts).toEqual([{ coupon: "SCALE40" }]);
+  });
+
+  it("an annual plan, or an older price, is refused before Stripe", async () => {
+    const site = await addSite();
+    const annual = await createCheckoutSession(await growPlan({ interval: "year", priceCents: 149000, stripePriceId: "price_year" }), site.id, "billing", "REPGET");
+    expect(annual).toEqual({ error: expect.stringContaining("monthly") });
+    const older = await createCheckoutSession(await growPlan({ name: "Old Grow", priceCents: 9900, stripePriceId: "price_old" }), site.id, "billing", "REPGET");
+    expect(older).toEqual({ error: expect.stringContaining("monthly") });
+    expect(stripeMock.sessionsCreate).not.toHaveBeenCalled();
+  });
+
+  it("another code is pointed at Stripe's box; switched off, so is REPGET", async () => {
+    const site = await addSite();
+    const plan = await growPlan();
+    expect(await createCheckoutSession(plan, site.id, "billing", "PARTNER10")).toEqual({ error: expect.stringContaining("card payment page") });
+    delete process.env.REPGET_OFFER_ENABLED;
+    expect(await createCheckoutSession(plan, site.id, "billing", "REPGET")).toEqual({ error: expect.stringContaining("not recognised") });
+    expect(stripeMock.sessionsCreate).not.toHaveBeenCalled();
+  });
+
+  it("once per workspace: another workspace is not affected", async () => {
+    const plan = await growPlan();
+    const earlier = await addSite("org_a", "earlier.test");
+    await test.db.insert(billingCheckouts).values({ organizationId: "org_a", websiteId: earlier.id, provider: "stripe", planId: plan, status: "completed", trialDays: 0, requestParams: { offer: "REPGET" }, createdAt: new Date() });
+    const site = await addSite();
+    expect(await createCheckoutSession(plan, site.id, "billing", "REPGET")).toEqual({ error: expect.stringContaining("already used") });
+    expect(stripeMock.sessionsCreate).not.toHaveBeenCalled();
+    const other = await addSite("org_b", "other.test");
+    state.orgId = "org_b";
+    expect(await createCheckoutSession(plan, other.id, "billing", "REPGET")).toEqual({ url: expect.any(String) });
+  });
+
+  it("an open checkout without the offer is not reused for one with it", async () => {
+    const site = await addSite();
+    const plan = await growPlan();
+    await createCheckoutSession(plan, site.id);
+    stripeMock.sessionsExpire.mockResolvedValueOnce({ status: "expired" });
+    stripeMock.sessionsCreate.mockImplementationOnce(async () => ({
+      id: "cs_test_2",
+      url: "https://checkout.stripe.test/cs_test_2",
+      expires_at: Math.floor(Date.now() / 1000) + 24 * 3600,
+    }));
+    await createCheckoutSession(plan, site.id, "billing", "REPGET");
+    expect(stripeMock.sessionsExpire).toHaveBeenCalledWith("cs_test_1");
+    expect(stripeMock.sessionsCreate).toHaveBeenCalledTimes(2);
+    expect(params().discounts).toEqual([{ coupon: "GROW40" }]);
+    // The same request again is the same checkout.
+    await createCheckoutSession(plan, site.id, "billing", "REPGET");
+    expect(stripeMock.sessionsCreate).toHaveBeenCalledTimes(2);
+  });
+});
 
 describe("opening a checkout", () => {
   it("records the checkout before sending the customer to Stripe", async () => {

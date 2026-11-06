@@ -1,8 +1,8 @@
-import { eq, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, sql, type SQL } from "drizzle-orm";
 
-import { reviewHashSql } from "@/lib/articles/review";
+import { reviewHash, reviewHashSql, revisionToStore, storedRevision, type StoredRevision } from "@/lib/articles/review";
 import { db } from "@/lib/db";
-import { articles, networkSites, platformControls } from "@/lib/db/schema";
+import { articles, articleVersions, networkSites, platformControls, publicationDispatches } from "@/lib/db/schema";
 import type { Executor } from "@/lib/db/types";
 
 /**
@@ -25,17 +25,21 @@ import type { Executor } from "@/lib/db/types";
  *     (activateManagedReview), under REVIEW_LOCK, which the generation save
  *     step holds shared while it decides a draft's review state - so no
  *     draft slips between the two.
- *   two_step_articles  - the client's two-step article flow (2026-11-02):
+ *   two_step_articles  - the client's two-step article flow (2026-11-02, and
+ *     the ticket of 2026-11-05; docs/two-step-articles.md):
  *     1. every new draft, on every website and on the free articles too,
  *        comes to the RepGet team first - they edit it, place links and
- *        check its sources; 2. their ONE approval makes it ready, and the
- *        customer only publishes. No approval is asked of the customer
- *        (the team's approval covers the sources), and a customer's own
- *        edit keeps the approval as long as every placed network link is
- *        still in the text (followCustomerEdit in lib/articles/review.ts).
- *        Same lock as managed review; switching it on also hands the team
- *        the unpublished drafts still waiting for a customer's research
- *        approval (activateTwoStep).
+ *        check its sources - and the customer reads none of it until they
+ *        approve (heldFromCustomer in lib/articles/review.ts);
+ *     2. their ONE approval makes that exact revision ready. The customer
+ *        has one Publish action and approves nothing, and a later change to
+ *        the revision goes back to the team (afterArticleEdit).
+ *        The first-article exception does not apply while it is on
+ *        (isFirstArticle in lib/publishing/policy.ts). Automatic publishing,
+ *        the default for a new website (decision of 2026-11-06), runs for
+ *        approved articles only, on their day. A website's mode is never
+ *        changed from here. Same lock as managed review; switching it on sorts
+ *        what was written under the old rules (activateTwoStep).
  *
  * A missing row means disabled: a fresh database, or one a previous build
  * migrated, behaves exactly as before until an operator acts.
@@ -108,7 +112,7 @@ export async function writeControl(
  *               review the unpublished drafts written since the cutover on
  *               websites taking part in the network, and returns how many.
  *   two-step  - the same lock; switched on, it hands the team the drafts
- *               waiting for a customer's research approval.
+ *               activateTwoStep describes, and returns how many.
  */
 export async function switchControl(
   tx: Executor,
@@ -130,27 +134,144 @@ export async function switchControl(
 }
 
 /**
- * Switching the two-step flow on: the unpublished drafts outside the team's
- * review that are held for a CUSTOMER's research approval go to the team
- * instead, whose approval now covers the sources. Without this they would
- * keep asking the customer for the approval the new flow no longer asks
- * for. Drafts already approved by the customer, and everything else, keep
- * the state they are in.
+ * Switching the two-step flow on: what was written under the old rules is
+ * sorted so that nothing goes out without the team, and nobody waits for an
+ * approval the new flow no longer asks of them. Only never-delivered drafts
+ * move to the queue, none in the middle of a delivery, and nothing is approved
+ * or sent.
+ *
+ *  - Never approved by the team: to the team. Every path now checks approval.
+ *  - Approved by the team earlier, but no longer standing - changed since, or
+ *    waiting for the customer's source approval: back to the team.
+ *
+ * Staying as they are: articles the team approved as they stand (they keep their
+ * date), and everything delivered or live. Those get their stored revision here
+ * (see StoredRevision), from the row as it stands, so a later working copy stays
+ * private and a post on a website always has a customer view:
+ *
+ *  - Approved as it stands, or from before the review: stored as approved or
+ *    published.
+ *  - Delivered with an approval that no longer matches: the row is not what was
+ *    approved, and nothing here can say why, so that approval is withdrawn. Back to
+ *    the team, as a change waiting (next line). The post stays on the website.
+ *  - Delivered with a change waiting for the team: stays in their queue. The text
+ *    last sent is stored as published when it can be proven (recoverSentRevision).
+ *    Otherwise nothing is stored: the working copy is not what the post says, so it
+ *    is neither shown to the customer nor stored under any label. The post stays on
+ *    the website, and nothing is approved or sent.
+ *
+ * A press still recorded on a delivered article is cleared.
+ *
+ * The same sorting is counted, read-only, by scripts/two-step-transition-dry-run.mjs.
  */
 export async function activateTwoStep(tx: Executor): Promise<number> {
-  const rows = await tx
+  const notDelivering = sql`not exists (select 1 from publication_dispatches pd where pd.article_id = ${articles.id} and pd.status = 'in_flight')`;
+  const waiting = await tx
     .update(articles)
     .set({ reviewStatus: "pending", reviewVersion: sql`${articles.reviewVersion} + 1` })
     .where(
       sql`${articles.reviewStatus} is null
-        and ${articles.researchReviewRequired}
-        and ${articles.researchApprovedHash} is distinct from ${reviewHashSql}
         and ${articles.status} = 'draft'
         and ${articles.publishedUrl} is null
-        and not exists (select 1 from publication_dispatches pd where pd.article_id = ${articles.id} and pd.status = 'in_flight')`,
+        and ${notDelivering}`,
     )
     .returning({ id: articles.id });
-  return rows.length;
+  const stale = await tx
+    .update(articles)
+    .set({
+      reviewStatus: "pending",
+      reviewApprovedAt: null,
+      reviewApprovedBy: null,
+      reviewApprovedHash: null,
+      reviewVersion: sql`${articles.reviewVersion} + 1`,
+    })
+    .where(
+      sql`${articles.reviewStatus} = 'approved'
+        and ${articles.status} = 'draft'
+        and ${articles.publishedUrl} is null
+        and ${notDelivering}
+        and (
+          ${articles.reviewApprovedHash} is distinct from ${reviewHashSql}
+          or (${articles.researchReviewRequired} and ${articles.researchApprovedHash} is distinct from ${reviewHashSql})
+        )`,
+    )
+    .returning({ id: articles.id });
+
+  const delivered = sql`(${articles.status} = 'published' or ${articles.publishedUrl} is not null)`;
+  // A press left over from before the flow is not a press for what is approved now: the feed would act on it.
+  await tx.update(articles).set({ publishRequested: null }).where(sql`${delivered} and ${articles.publishRequested} is not null`);
+  const staleOnSite = await tx
+    .select()
+    .from(articles)
+    .where(sql`${delivered} and ${articles.reviewStatus} = 'approved' and ${articles.reviewApprovedHash} is distinct from ${reviewHashSql}`);
+  for (const row of staleOnSite) {
+    await tx
+      .update(articles)
+      .set({
+        reviewStatus: "pending",
+        reviewApprovedAt: null,
+        reviewApprovedBy: null,
+        reviewApprovedHash: null,
+        reviewVersion: sql`${articles.reviewVersion} + 1`,
+        // A revision stored earlier is still the last approved one; else the text last sent, if it can be proven.
+        approvedRevision: storedRevision(row.approvedRevision) ?? (await recoverSentRevision(tx, row)),
+      })
+      .where(eq(articles.id, row.id));
+  }
+
+  const standing = await tx
+    .select()
+    .from(articles)
+    .where(
+      sql`(${articles.reviewStatus} = 'approved' and ${articles.reviewApprovedHash} = ${reviewHashSql})
+        or (${articles.reviewStatus} is null and ${delivered})`,
+    );
+  for (const row of standing) {
+    await tx
+      .update(articles)
+      .set({ approvedRevision: revisionToStore(row, row.reviewStatus === "approved" ? "approved" : "published") })
+      .where(eq(articles.id, row.id));
+  }
+
+  // A stored revision from an earlier time with the flow on is kept: it is still the last approved one.
+  const waitingOnSite = await tx
+    .select()
+    .from(articles)
+    .where(sql`${delivered} and ${articles.reviewStatus} = 'pending' and ${articles.approvedRevision} is null`);
+  for (const row of waitingOnSite) {
+    const sent = await recoverSentRevision(tx, row);
+    if (sent) await tx.update(articles).set({ approvedRevision: sent }).where(eq(articles.id, row.id));
+  }
+  return waiting.length + stale.length + staleOnSite.length;
+}
+
+/**
+ * The text last sent to the website, for a post whose working copy has moved on.
+ * A send keeps the hash of its revision but not its text, so this rebuilds it from
+ * what RepGet still holds - the working copy, the earlier bodies kept on each edit,
+ * the title and slug kept with the send - and accepts it only if the hash is the
+ * send's own. Anything else returns null, however close: only proof counts.
+ */
+async function recoverSentRevision(tx: Executor, row: typeof articles.$inferSelect): Promise<StoredRevision | null> {
+  const [sent] = await tx
+    .select({ hash: publicationDispatches.revisionHash, snapshot: publicationDispatches.requestSnapshot })
+    .from(publicationDispatches)
+    .where(and(eq(publicationDispatches.articleId, row.id), eq(publicationDispatches.status, "sent"), eq(publicationDispatches.late, false)))
+    .orderBy(desc(publicationDispatches.claimedAt))
+    .limit(1);
+  if (!sent) return null;
+  const snapshot = (sent.snapshot ?? {}) as { title?: string; slug?: string | null };
+  const versions = await tx.select({ bodyHtml: articleVersions.bodyHtml }).from(articleVersions).where(eq(articleVersions.articleId, row.id));
+  for (const title of new Set([row.title, snapshot.title ?? row.title])) {
+    for (const slug of new Set([row.slug, snapshot.slug === undefined ? row.slug : snapshot.slug])) {
+      for (const bodyHtml of new Set([row.bodyHtml, ...versions.map((version) => version.bodyHtml)])) {
+        const candidate = { ...row, title, slug, bodyHtml };
+        if (reviewHash(candidate) !== sent.hash) continue;
+        return revisionToStore({ ...candidate, wordCount: bodyHtml === row.bodyHtml ? row.wordCount : null }, "published");
+      }
+    }
+  }
+  return null;
 }
 
 /**

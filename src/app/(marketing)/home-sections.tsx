@@ -25,12 +25,11 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties } from "react";
 
 import { BrandMark } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
 import { GoogleMark } from "@/components/google-mark";
-import { AuditQuickForm } from "./audit-quick-form";
 import { ArticleExamples } from "./article-examples";
 import { WalkthroughPlayer } from "./walkthrough-player";
 import {
@@ -446,114 +445,6 @@ export function DemoVideo({ t, lang }: SectionProps & { lang: string }) {
             <span className="sr-only">{t.opensInNewTab}</span>
           </a>
         </p>
-      </div>
-    </section>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Free audit                                                                 */
-/* -------------------------------------------------------------------------- */
-
-/** Order matches auditItems in the dictionary. */
-const AUDIT_ICONS: LucideIcon[] = [Search, BarChart3, Link2];
-
-/**
- * The free check: three things it gives you, and the field.
- *
- * Also rendered on /audit itself, which supplies its own heading - so the
- * homepage's lead-in from the video ("Now see what RepGet finds on your
- * website") is opt-in through `intro`.
- */
-export function AuditBand({
-  t,
-  href,
-  intro = false,
-}: SectionProps & { intro?: boolean }) {
-  return (
-    <section className={`${OFFSCREEN} px-4 pb-20 ${intro ? "pt-8" : ""}`}>
-      <div className="mx-auto max-w-4xl">
-        {intro ? (
-          <SectionHeading
-            center
-            title={t.auditIntroTitle}
-            sub={t.auditIntroSub}
-            className="mb-8"
-          />
-        ) : null}
-
-        {/*
-          The glow the design puts behind this card. It is the page's primary
-          conversion point, and the surrounding sections are plain, so a tinted
-          ring is what separates it from the rest rather than making it louder.
-        */}
-        <div className="rounded-3xl bg-gradient-to-b from-primary/25 to-primary/5 p-[1.5px] shadow-[0_24px_70px_-30px_rgba(234,88,12,0.35)]">
-          <div className="rounded-3xl bg-card p-6 sm:p-8">
-            <p className="text-center text-xs font-semibold tracking-[0.14em] text-primary uppercase">
-              {t.auditBand}
-            </p>
-
-            <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-3 sm:gap-0">
-              {t.auditItems.map((item, index) => {
-                const Icon = AUDIT_ICONS[index] ?? Search;
-                return (
-                  <div
-                    key={item.title}
-                    /*
-                      Dividers only from sm, where the three sit in a row. At
-                      phone width they stack and a vertical rule would fall
-                      between nothing.
-                    */
-                    className="sm:px-5 sm:not-first:border-l"
-                  >
-                    <p className="flex items-start gap-2 font-semibold">
-                      <Icon
-                        className="mt-0.5 size-4 shrink-0 text-primary"
-                        aria-hidden="true"
-                      />
-                      <span>
-                        <span className="text-primary">{index + 1}.</span>{" "}
-                        {item.title}
-                      </span>
-                    </p>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      {item.body}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/*
-              A real field, as the design draws it — but it only carries the
-              domain to /audit rather than running anything here. That page
-              owns the validation, the SSRF guard and the caching; a second
-              entry point that did its own crawling would be a second copy of
-              all of it, and the two would drift.
-            */}
-            <div className="mt-8">
-              <AuditQuickForm
-                label={t.auditFieldLabel}
-                placeholder={t.auditPlaceholder}
-                cta={t.checkMyWebsite}
-                pendingLabel={t.auditChecking}
-                action={href("/audit")}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* The reassurances from the design, under the card. */}
-        <div className="mt-5 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm">
-          {t.auditAssurances.map((item) => (
-            <span key={item} className="flex items-center gap-1.5">
-              <span className="flex size-4 items-center justify-center rounded bg-success-soft">
-                <Check className="size-3 text-success" aria-hidden="true" />
-              </span>
-              {item}
-            </span>
-          ))}
-        </div>
       </div>
     </section>
   );
@@ -1438,111 +1329,6 @@ export function ProductPreview({ t }: SectionProps) {
         </div>
 
         <p className="mt-4 text-center text-xs text-muted-foreground">{t.previewCaption}</p>
-      </div>
-    </section>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Closing call to action                                                     */
-/* -------------------------------------------------------------------------- */
-
-/** The bright orange of the client's closing panel (7RRq4-suyqqc.jpg), for the heading's last words. */
-const CLOSING_ACCENT = "#ff5a1f";
-
-/**
- * Two corners of the panel are dotted, as in the client's design: grey dots
- * on a 30px grid with a few orange ones, fading out towards the middle. Pure
- * CSS backgrounds - nothing to load, nothing a screen reader meets.
- */
-function dots(orange: [number, number][]) {
-  return [
-    ...orange.map(([x, y]) => `radial-gradient(circle at ${x}px ${y}px, rgb(255 90 31 / 0.32) 7px, transparent 7.5px)`),
-    "radial-gradient(circle, rgb(255 255 255 / 0.07) 7px, transparent 7.5px)",
-  ].join(", ");
-}
-const DOTS_TOP_RIGHT = dots([[195, 45], [225, 105], [135, 75]]);
-const DOTS_BOTTOM_LEFT = dots([[75, 135], [135, 195], [45, 225]]);
-
-/** The heading with its last words (closingTitleAccent) in orange; plain if a translation does not end with them. */
-function closingTitle(t: SectionProps["t"]): ReactNode {
-  const accent = t.closingTitleAccent;
-  if (!accent || !t.closingTitle.endsWith(accent)) return t.closingTitle;
-  return (
-    <>
-      {t.closingTitle.slice(0, -accent.length)}
-      <span style={{ color: CLOSING_ACCENT }}>{accent}</span>
-    </>
-  );
-}
-
-/**
- * The closing offer, on the homepage, the blog, its category and author pages
- * and every article - the client's design (2026-10-08, 7RRq4-suyqqc.jpg): a
- * near-black panel, "growing faster." in orange, the free check and "Create 3
- * Articles for Free" (to sign-up), then "Cancel any time" and "Set up in
- * minutes".
- *
- * The free check keeps the site's own orange button: white text on the
- * brighter orange of the drawing is too faint to read comfortably. The
- * bright orange is used where it is large - the heading - and on the ticks.
- */
-export function ClosingCta({ t, href }: SectionProps) {
-  return (
-    <section className={`${OFFSCREEN} px-4 pt-4 pb-20`}>
-      <div className="relative isolate mx-auto max-w-7xl overflow-hidden rounded-2xl bg-[#171717] px-6 py-16 text-center text-white sm:px-10 sm:py-20 dark:bg-card dark:ring-1 dark:ring-border">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute top-0 right-0 -z-10 h-60 w-72 sm:h-72 sm:w-96"
-          style={{
-            backgroundImage: DOTS_TOP_RIGHT,
-            backgroundSize: "auto, auto, auto, 30px 30px",
-            maskImage: "radial-gradient(farthest-side at 100% 0%, black 35%, transparent 100%)",
-          }}
-        />
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute bottom-0 left-0 -z-10 h-60 w-60 sm:h-80 sm:w-80"
-          style={{
-            backgroundImage: DOTS_BOTTOM_LEFT,
-            backgroundSize: "auto, auto, auto, 30px 30px",
-            maskImage: "radial-gradient(farthest-side at 0% 100%, black 35%, transparent 100%)",
-          }}
-        />
-
-        <h2 className="mx-auto max-w-3xl text-3xl font-bold tracking-tight text-balance sm:text-[2.5rem] sm:leading-[1.15]">
-          {closingTitle(t)}
-        </h2>
-        <p className="mx-auto mt-4 max-w-3xl text-pretty text-white/75 sm:text-lg">{t.closingSub}</p>
-
-        <div className="mt-9 flex flex-wrap justify-center gap-3 sm:gap-4">
-          <Button size="lg" asChild className={`${CTA} h-auto min-h-14 max-w-full whitespace-normal px-5 py-3 font-semibold sm:px-8 sm:text-lg`}>
-            <Link href={href("/audit")}>
-              {t.checkFree}
-              <ArrowRight className="size-5" />
-            </Link>
-          </Button>
-          <Button
-            size="lg"
-            variant="outline"
-            asChild
-            className={`${CTA} h-auto min-h-14 max-w-full whitespace-normal border-white bg-white px-5 py-3 font-semibold text-[#171717] hover:bg-white/90 hover:text-[#171717] sm:px-8 sm:text-lg dark:border-white dark:bg-white dark:text-[#171717] dark:hover:bg-white/90`}
-          >
-            <Link href={href("/sign-up")}>
-              {t.createFreeArticles}
-              <ArrowRight className="size-5" />
-            </Link>
-          </Button>
-        </div>
-
-        <ul className="mt-7 flex flex-wrap items-center justify-center gap-x-7 gap-y-2 text-white/70 sm:text-lg">
-          {[t.cancelAnytime, t.setupInMinutes].map((item) => (
-            <li key={item} className="flex items-center gap-2">
-              <Check className="size-5" style={{ color: CLOSING_ACCENT }} aria-hidden="true" />
-              {item}
-            </li>
-          ))}
-        </ul>
       </div>
     </section>
   );

@@ -593,6 +593,8 @@ export async function beginCheckout(
     websiteId: string;
     provider: CheckoutProvider;
     planId: string;
+    /** The offer this checkout carries (lib/billing/repget-offer.ts). An open one without it is not the same checkout. */
+    offer?: string | null;
   },
   ops: CheckoutProviderOps,
   now: Date = new Date(),
@@ -601,6 +603,7 @@ export async function beginCheckout(
     BLOCKING_DELETION.includes(c.status) &&
     c.provider === input.provider &&
     c.planId === input.planId &&
+    ((c.requestParams as { offer?: string } | null)?.offer ?? null) === (input.offer ?? null) &&
     Boolean(c.checkoutUrl);
 
   /*

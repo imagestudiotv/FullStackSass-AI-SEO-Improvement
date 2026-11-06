@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRight, Check, CheckCircle2, Clapperboard, Clock3, Copy, Lightbulb, Link2, Mail, Megaphone, MessageCircle, Send, XCircle } from "lucide-react";
+import { ArrowUpRight, Check, CheckCircle2, Clapperboard, Clock3, Copy, Lightbulb, Link2, Megaphone, MessageCircle, Send, XCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useState, useTransition, type ComponentType } from "react";
 import { toast } from "sonner";
@@ -16,22 +16,14 @@ import { format } from "@/lib/i18n/format";
 import type { EarnCopy } from "@/lib/i18n/earn";
 import { cn } from "@/lib/utils";
 
+import { copyText } from "./copy-text";
+
 /**
  * The interactive parts of the Earn Credits page (client design,
- * 2026-11-02): copying and sharing the referral code and link, sending a
- * claim for one of the other ways to earn, and entering someone else's code.
- * The page around them is rendered on the server (page.tsx).
+ * 2026-11-02): copying the referral code and link, sending a claim for one of
+ * the other ways to earn, and entering someone else's code. The page around
+ * them is rendered on the server (page.tsx); sharing is the kit (share-kit.tsx).
  */
-
-/** Copies text; true when the clipboard took it. */
-async function copyText(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 /** "Copy" that says "Copied" for a moment. */
 function useFlag(): [boolean, () => void] {
@@ -44,26 +36,21 @@ function useFlag(): [boolean, () => void] {
   return [on, () => setOn(true)];
 }
 
-export function ReferralShare({ code, link, credits, t }: { code: string; link: string; credits: number; t: EarnCopy }) {
+export function ReferralShare({ code, link, t }: { code: string; link: string; t: EarnCopy }) {
   const [codeCopied, flagCode] = useFlag();
   const [linkCopied, flagLink] = useFlag();
-  const [shareOpen, setShareOpen] = useState(false);
-  const message = format(t.shareMessage, { code, link });
+  // What the browser refused to copy, held selected in a field for a manual copy.
+  const [manual, setManual] = useState<string | null>(null);
 
   async function copy(text: string, done: () => void, success: string) {
     if (await copyText(text)) {
+      setManual(null);
       done();
       toast.success(success);
     } else {
-      toast.error(t.copyFailed);
+      setManual(text);
     }
   }
-
-  const shareLinks = [
-    { label: t.shareEmail, icon: Mail, href: `mailto:?subject=${encodeURIComponent(t.shareSubject)}&body=${encodeURIComponent(message)}` },
-    { label: "WhatsApp", icon: MessageCircle, href: `https://wa.me/?text=${encodeURIComponent(message)}` },
-    { label: "LinkedIn", icon: Link2, href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(link)}` },
-  ];
 
   return (
     <div className="overflow-hidden rounded-xl border bg-card">
@@ -97,43 +84,24 @@ export function ReferralShare({ code, link, credits, t }: { code: string; link: 
             {linkCopied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
             {t.copyLink}
           </Button>
-          <Button type="button" size="sm" variant="outline" onClick={() => setShareOpen(true)} aria-label={t.share}>
-            <Send aria-hidden="true" />
-            <span className="sm:sr-only">{t.share}</span>
-          </Button>
         </div>
       </div>
-
-      <Dialog open={shareOpen} onOpenChange={setShareOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t.shareTitle}</DialogTitle>
-            <DialogDescription>{format(t.shareBody, { credits })}</DialogDescription>
-          </DialogHeader>
-          <ul className="grid gap-2">
-            {shareLinks.map((item) => (
-              <li key={item.label}>
-                <a
-                  href={item.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-3 rounded-lg border px-4 py-3 text-sm font-medium transition-colors hover:bg-accent/60"
-                >
-                  <item.icon className="size-4 text-primary" aria-hidden="true" />
-                  {item.label}
-                  <ArrowUpRight className="ml-auto size-4 text-muted-foreground" aria-hidden="true" />
-                </a>
-              </li>
-            ))}
-          </ul>
-          <DialogFooter>
-            <Button type="button" className="w-full" onClick={() => copy(link, flagLink, t.linkCopied).then(() => setShareOpen(false))}>
-              <Copy aria-hidden="true" />
-              {t.copyLink}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {manual ? (
+        <div className="border-t px-4 py-3">
+          <p role="alert" className="text-xs text-destructive">
+            {t.copyFailed}
+          </p>
+          <Input
+            key={manual}
+            value={manual}
+            readOnly
+            autoFocus
+            aria-label={t.copyFailed}
+            onFocus={(event) => event.currentTarget.select()}
+            className="mt-2 h-8 font-mono text-xs"
+          />
+        </div>
+      ) : null}
     </div>
   );
 }
