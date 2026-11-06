@@ -35,8 +35,8 @@ if (isset($argv[3]) && $argv[3] === '--page') {
     wp_print_styles();
     $printed = ob_get_clean();
     $link = (bool) preg_match('/<link[^>]+isb-white-article[^>]+href=["\']([^"\']+)/', $printed, $href);
-    $file = $link ? ABSPATH . ltrim(parse_url($href[1], PHP_URL_PATH), '/') : '';
-    echo "\n@@" . json_encode(array('class' => in_array('isb-white-article', get_body_class(), true), 'style' => $link && is_file($file)));
+    $named = $link && substr(parse_url($href[1], PHP_URL_PATH), -strlen('assets/white-article.css')) === 'assets/white-article.css';
+    echo "\n@@" . json_encode(array('class' => in_array('isb-white-article', get_body_class(), true), 'style' => $named && is_file(dirname($argv[2]) . '/assets/white-article.css')));
     exit(0);
 }
 

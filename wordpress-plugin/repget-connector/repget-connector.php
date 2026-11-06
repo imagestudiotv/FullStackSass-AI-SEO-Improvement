@@ -2623,7 +2623,8 @@ function repget_attach_image($post_id, $url, $alt, $slug = '', $title = '', $att
         }
     }
     set_post_thumbnail($post_id, $attachment_id);
-    return (int) $attachment_id;
+    // WordPress drops a featured image that does not render: that is no picture set, and is tried again.
+    return (int) get_post_thumbnail_id($post_id) === (int) $attachment_id ? (int) $attachment_id : 0;
 }
 
 /**
@@ -2959,13 +2960,14 @@ if (defined('WP_CLI') && WP_CLI) {
  */
 function repget_own_attachment($url, $hint) {
     $hint = (int) $hint;
-    if ($hint > 0 && get_post_type($hint) === 'attachment' && wp_attachment_is_image($hint)
+    // A photo somebody put in the trash (MEDIA_TRASH) is not one to bring back.
+    if ($hint > 0 && get_post_type($hint) === 'attachment' && wp_attachment_is_image($hint) && get_post_status($hint) !== 'trash'
         && repget_same_address(wp_get_attachment_url($hint), $url)) {
         return $hint;
     }
     // Only an address in this site's uploads can match; anything else costs one meta query and finds nothing.
     $found = (int) attachment_url_to_postid((string) $url);
-    return $found > 0 && wp_attachment_is_image($found) ? $found : 0;
+    return $found > 0 && wp_attachment_is_image($found) && get_post_status($found) !== 'trash' ? $found : 0;
 }
 
 /** Two addresses of one picture: the same but for http/https and letter case. */
@@ -3287,7 +3289,7 @@ function repget_find_image($url) {
         'meta_key'         => '_source_url',
         'meta_value'       => $url,
     ));
-    return $found ? (int) $found[0] : 0;
+    return $found && wp_attachment_is_image((int) $found[0]) ? (int) $found[0] : 0;
 }
 
 /**
