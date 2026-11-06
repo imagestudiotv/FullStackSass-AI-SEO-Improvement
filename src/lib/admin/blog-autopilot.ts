@@ -492,9 +492,15 @@ export async function retryBlogAutopilotTopic(id: string): Promise<ActionResult<
   const admin = await requireAdmin();
   if (!UUID.test(String(id))) return { ok: false, error: NOT_FOUND };
   const error = await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext('blog_autopilot_topics'))`);
     const [current] = await tx.select().from(blogAutopilotTopics).where(eq(blogAutopilotTopics.id, id)).for("update");
     if (!current) return NOT_FOUND;
     if (current.status !== "failed") return "Only a topic that could not be written can be tried again";
+    // The same comparison may have been added since this one failed: trying again would pay for it twice.
+    const comparison = current.articleType === "comparison" ? readComparison(current.comparison) : null;
+    if (comparison && (await comparisonsTaken(tx, current.id)).has(comparisonKey(comparison))) {
+      return "Another topic already compares those, waiting or written. Remove this one instead of trying it again";
+    }
     const [{ first }] = await tx
       .select({ first: min(blogAutopilotTopics.sortOrder) })
       .from(blogAutopilotTopics)
