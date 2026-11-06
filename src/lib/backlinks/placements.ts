@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNotNull, isNull, lt, ne, notInArray, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, lt, ne, notInArray, or, sql } from "drizzle-orm";
 
 import { linksTo } from "@/lib/articles/link-guard";
 import { storedRevision, twoStepArticles } from "@/lib/articles/review";
@@ -92,7 +92,7 @@ const ACTIVE_PLACEMENT = ["pending", "drafted", "published", "live"];
  * and with its row already locked: the placement ends "cancelled", and its
  * request is closed with the hold released. Used by an administrator's
  * withdrawal (lib/backlinks/managed.ts) and by deleting the host article
- * (lib/articles/deletion.ts).
+ * (lib/articles/deletion.ts) or its whole website (lib/websites/deletion.ts).
  *
  * The request is closed rather than sent back to "pending". A pending request
  * still counts its credits_reserved as held, and nothing matches a request again
@@ -134,6 +134,66 @@ export async function withdrawPlacement(
       .where(and(eq(backlinkRequests.id, placement.requestId), inArray(backlinkRequests.status, ["pending", "matched"])));
   }
   return true;
+}
+
+/**
+ * What goes with the host article or website: a link that never went live and
+ * that nobody can carry further now. A "published" one is left to the verifier,
+ * which needs only liveUrl; a "live" one is settled. See lib/articles/deletion.ts.
+ */
+export const GIVEN_UP_WITH_HOST = ["pending", "drafted", "unverified"];
+
+/**
+ * Locks every placement a website's deletion will touch, in id order: those it
+ * hosts, those on its articles, and those it receives (they cascade). Taken before
+ * any other lock of the deletion, as the verifier and an administrator's withdrawal
+ * lock the placement before everything else. See lib/websites/deletion.ts.
+ */
+export async function lockPlacementsOfWebsites(tx: Executor, websiteIds: string[]) {
+  if (websiteIds.length === 0) return [];
+  return tx
+    .select({
+      id: placements.id,
+      requestId: placements.requestId,
+      hostWebsiteId: placements.hostWebsiteId,
+      articleWebsiteId: articles.websiteId,
+    })
+    .from(placements)
+    .innerJoin(backlinkRequests, eq(backlinkRequests.id, placements.requestId))
+    .leftJoin(articles, eq(articles.id, placements.articleId))
+    .where(
+      or(
+        inArray(placements.hostWebsiteId, websiteIds),
+        inArray(articles.websiteId, websiteIds),
+        inArray(backlinkRequests.websiteId, websiteIds),
+      ),
+    )
+    .orderBy(asc(placements.id))
+    .for("update", { of: placements });
+}
+
+/**
+ * Gives up the links these websites host, by the rule for deleting the article
+ * they sit on, inside the deletion's transaction: a failure leaves every hold as
+ * it was. Returns how many were given up. A link these websites only RECEIVE is
+ * not touched: it cascades with its request, and the hold goes with the row.
+ */
+export async function releaseLinksHostedOn(
+  tx: Executor,
+  websiteIds: string[],
+  now: Date = new Date(),
+): Promise<number> {
+  const deleted = new Set(websiteIds);
+  const hosted = (await lockPlacementsOfWebsites(tx, websiteIds)).filter(
+    (row) =>
+      (row.hostWebsiteId && deleted.has(row.hostWebsiteId)) ||
+      (row.articleWebsiteId && deleted.has(row.articleWebsiteId)),
+  );
+  let released = 0;
+  for (const placement of hosted) {
+    if (await withdrawPlacement(tx, placement, GIVEN_UP_WITH_HOST, now)) released++;
+  }
+  return released;
 }
 
 /** The link is in a generated article. Called from the generation job. */

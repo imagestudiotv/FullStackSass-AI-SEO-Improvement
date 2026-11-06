@@ -1,6 +1,6 @@
 import { and, asc, eq, inArray, or } from "drizzle-orm";
 
-import { withdrawPlacement } from "@/lib/backlinks/placements";
+import { GIVEN_UP_WITH_HOST, withdrawPlacement } from "@/lib/backlinks/placements";
 import { db } from "@/lib/db";
 import { articles, placements } from "@/lib/db/schema";
 import { lockForEdit } from "@/lib/publishing/dispatch";
@@ -91,7 +91,7 @@ export async function deleteArticleAndSettleLinks(
       .for("update");
     let released = 0;
     for (const placement of carried) {
-      if (await withdrawPlacement(tx, placement, ["pending", "drafted", "unverified"], now)) released++;
+      if (await withdrawPlacement(tx, placement, GIVEN_UP_WITH_HOST, now)) released++;
     }
 
     const deleted = await tx

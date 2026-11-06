@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, ne, or, sql } from "drizzle-orm";
 
 import { recordAdminAction } from "@/lib/admin/audit";
 import { countWords, normaliseSlug } from "@/lib/articles/generate";
@@ -226,6 +226,25 @@ export async function placeManagedLink(input: PlaceInput): Promise<{ placementId
   if (owner) await ensureMonthlyCredits(owner.organizationId);
 
   return db.transaction(async (tx) => {
+    /*
+      Key shares on both websites, BEFORE the article. The inserts below need them
+      anyway, and a website's deletion takes its row and then the article's: the
+      other way round, this and a deletion would each wait for the other. Now a link
+      either commits first, and the deletion finds and releases it, or finds no
+      article or website (lib/websites/deletion.ts).
+    */
+    await tx
+      .select({ id: websites.id })
+      .from(websites)
+      .where(
+        or(
+          eq(websites.id, input.beneficiaryWebsiteId),
+          eq(websites.id, sql`(select ${articles.websiteId} from ${articles} where ${articles.id} = ${input.articleId})`),
+        ),
+      )
+      .orderBy(asc(websites.id))
+      .for("key share");
+
     const article = await lockArticle(tx, input.articleId, input.expectedVersion);
 
     const sites = await tx

@@ -417,7 +417,7 @@ export function WorkspaceDialogs({
             */}
             <DialogNotes>
               <li>Articles already published stay on the customer&apos;s own website. We cannot remove those.</li>
-              <li>Links this workspace hosts for other customers stay live on their pages.</li>
+              <li>Links this workspace hosts for other customers stay live on their pages. Links not yet on a page are withdrawn, and the credits held for them go back to those customers.</li>
               <li>
                 A workspace whose subscription is still running, or not yet confirmed as cancelled with the payment
                 provider, cannot be deleted. Cancel or refund it first from{" "}
