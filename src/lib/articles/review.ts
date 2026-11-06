@@ -411,6 +411,19 @@ export function isDraftRefusal(value: unknown): value is DraftRefusal {
   return typeof value === "string" && Object.prototype.hasOwnProperty.call(DRAFT_REFUSALS, value);
 }
 
+/**
+ * The article's latest delivery was refused: the post on the website may not be
+ * overwritten, and that is the customer's to resolve. The daily release leaves it
+ * until a person presses Publish, which asks the site again. Otherwise it would
+ * read the site, and record another failed delivery, every day for ever.
+ */
+export const lastDeliveryRefusedSql: SQL<boolean> = sql<boolean>`coalesce((
+  select pd.error from publication_dispatches pd
+  where pd.article_id = ${articles.id}
+  order by pd.claimed_at desc
+  limit 1
+) in (${sql.join(Object.values(DRAFT_REFUSALS).map((text) => sql`${text}`), sql`, `)}), false)`;
+
 /** The refusal a stored error is, if it is one. */
 export function draftRefusalOf(stored: string | null | undefined): DraftRefusal | null {
   return (Object.keys(DRAFT_REFUSALS) as DraftRefusal[]).find((key) => DRAFT_REFUSALS[key] === stored) ?? null;
