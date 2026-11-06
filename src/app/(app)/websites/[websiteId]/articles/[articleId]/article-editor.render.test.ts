@@ -385,6 +385,41 @@ describe("the two-step flow (docs/two-step-articles.md)", () => {
     expect(button(html, en.app.editor.updatePost)).toBeNull();
   });
 
+  describe("a failed delivery says try again only where there is something to press", () => {
+    const failed = { kind: "failed" as const, when: "1 Oct", errorKind: "unknown" as const };
+    const tooHard = en.app.editor.pubErrUnknown;
+    const plugin = { destination: { kind: "plugin" as const }, lastOutcome: failed };
+
+    it.each([
+      ["two-step on", READY],
+      ["two-step off", FACTS],
+    ])("a press the plugin failed, %s: waiting for its next check, with no instruction nobody can follow", (_what, base) => {
+      const html = render({ article: { ...ARTICLE, publishRequested: "publish" }, facts: { ...base, ...plugin } });
+      expect(html).toContain(format(en.app.editor.statePluginWaiting, { mode: en.app.editor.modeLive }));
+      expect(html).toContain(format(en.app.editor.stateFailed, { date: "1 Oct" }));
+      expect(html).not.toContain(tooHard);
+      expect(button(html, en.app.editor.publish)).toBeNull();
+    });
+
+    it("a post the plugin cannot update from here: nothing to press, so nothing to try again", () => {
+      const html = render({ article: { ...ARTICLE, publishedUrl: "https://example.com/a" }, facts: { ...FACTS, ...plugin } });
+      expect(html).toContain(en.app.editor.statePluginPublished);
+      expect(html).not.toContain(tooHard);
+    });
+
+    it("a plugin with a Publish to press: the instruction stays, beside the button", () => {
+      const html = render({ facts: { ...FACTS, ...plugin } });
+      expect(html).toContain(tooHard);
+      expect(button(html, en.app.editor.publish)).not.toContain('disabled=""');
+    });
+
+    it("a direct connection: the instruction stays, beside the button", () => {
+      const html = render({ facts: { ...FACTS, lastOutcome: failed } });
+      expect(html).toContain(tooHard);
+      expect(button(html, en.app.editor.publish)).not.toContain('disabled=""');
+    });
+  });
+
   it("a WordPress draft, on a plugin that can publish it: one working Publish button, and what it does", () => {
     const facts = { ...READY, destination: { kind: "plugin" as const }, pluginPublishesDrafts: true, liveOnSite: false, lastOutcome: { kind: "draft" as const, when: "1 Oct" } };
     const html = render({ article: { ...ARTICLE, status: "draft", publishedUrl: "https://example.com/a" }, facts });
