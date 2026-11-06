@@ -125,8 +125,8 @@ type SiteRules = Pick<LinkRules, "siteOrigin" | "siteHosts">;
  * The same HTML without links to other websites, for what the writer's check
  * does not see: a translation's links lead to its language's pages, which are
  * not on the writer's list, so RepGet's own are all kept here. `allowed`
- * (full addresses) keeps those too. HTML with nothing to remove comes back as
- * it was.
+ * (full addresses, or a mailto: or tel: link as written) keeps those too. HTML
+ * with nothing to remove comes back as it was.
  */
 export function removeExternalLinks(html: string, rules: SiteRules, allowed: ReadonlySet<string> = new Set()): { html: string; removed: RemovedLink[] } {
   if (!/<a[\s>]/i.test(html)) return { html, removed: [] };
@@ -137,7 +137,7 @@ export function removeExternalLinks(html: string, rules: SiteRules, allowed: Rea
     if (isFragment(href)) continue;
     const url = href && href !== "#" ? webAddress(href, rules.siteOrigin) : null;
     if (url && rules.siteHosts.has(url.hostname.toLowerCase())) continue;
-    if (url && allowed.has(url.href)) continue;
+    if (allowed.has(url ? url.href : href)) continue;
     removed.push({ href, text: $(el).text().replace(/\s+/g, " ").trim(), reason: url ? OTHER_SITE : "not a web address" });
     $(el).replaceWith($(el).contents());
   }
@@ -147,15 +147,17 @@ export function removeExternalLinks(html: string, rules: SiteRules, allowed: Rea
 /**
  * A translation of a post someone may have added links to by hand (the
  * editor's "Draft with AI"): the links to other websites the original already
- * has stay, and any the translator added go.
+ * has stay, and so do its mailto: and tel: links, and any the translator added go.
  */
 export function removeAddedLinks(translated: string, originals: string[], rules: SiteRules): { html: string; removed: RemovedLink[] } {
   const allowed = new Set<string>();
   for (const original of originals) {
     const $ = cheerio.load(original, null, false);
     for (const el of $("a[href]").toArray()) {
-      const url = webAddress(($(el).attr("href") ?? "").trim(), rules.siteOrigin);
+      const href = ($(el).attr("href") ?? "").trim();
+      const url = webAddress(href, rules.siteOrigin);
       if (url) allowed.add(url.href);
+      else if (/^(?:mailto|tel):/i.test(href)) allowed.add(href);
     }
   }
   return removeExternalLinks(translated, rules, allowed);

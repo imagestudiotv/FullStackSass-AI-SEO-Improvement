@@ -107,6 +107,30 @@ describe("the editor's Draft with AI", () => {
   });
 });
 
+describe("a person's mailto: and tel: links, in the editor's Draft with AI", () => {
+  const ORIGINAL = '<p><a href="mailto:press@example.com">Write</a> or <a href="tel:+390000000">call</a>.</p>';
+
+  it("stay in the translation", () => {
+    const translated = '<p><a href="mailto:press@example.com">Scriva</a> o <a href="tel:+390000000">chiami</a>.</p>';
+    expect(removeAddedLinks(translated, [ORIGINAL], SITE)).toEqual({ html: translated, removed: [] });
+  });
+
+  it("are not a licence: one the translator added goes, keeping its words", () => {
+    const translated = '<p><a href="mailto:press@example.com">Scriva</a>, <a href="mailto:added@example.com">altro</a>, <a href="tel:+391111111">numero</a>, <a href="javascript:alert(1)">qui</a>.</p>';
+    const result = removeAddedLinks(translated, [ORIGINAL], SITE);
+    expect(result.html).toBe('<p><a href="mailto:press@example.com">Scriva</a>, altro, numero, qui.</p>');
+    expect(result.removed.map((link) => link.href)).toEqual(["mailto:added@example.com", "tel:+391111111", "javascript:alert(1)"]);
+  });
+});
+
+describe("generated autopilot articles", () => {
+  it.each(["mailto:someone@example.com", "tel:+390000000"])("keep no %s link, in the writer's check or a translation's last check", (href) => {
+    const html = `<p><a href="${href}">words</a></p>`;
+    expect(checked(html).html[0]).toBe("<p>words</p>");
+    expect(removeExternalLinks(html, SITE).html).toBe("<p>words</p>");
+  });
+});
+
 describe("what a person saves", () => {
   it("is not stripped: a manual or sponsored link in a post saved later survives the save", () => {
     vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://www.repget.com");
