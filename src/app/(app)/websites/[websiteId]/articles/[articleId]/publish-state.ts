@@ -1,3 +1,4 @@
+import type { DraftRefusal } from "@/lib/articles/review";
 import type { ProviderErrorKind } from "@/lib/publishing/provider";
 
 /**
@@ -31,7 +32,9 @@ export type ReviewState = "none" | "pending" | "changed" | "approved";
 export type LastOutcome =
   | { kind: "none" }
   | { kind: "live" | "draft" | "scheduled" | "delivered" | "pluginUnconfirmed"; when: string }
-  | { kind: "failed"; when: string; errorKind: ProviderErrorKind };
+  | { kind: "failed"; when: string; errorKind: ProviderErrorKind }
+  /** A press on a draft the plugin would not publish, and why. */
+  | { kind: "refused"; when: string; refusal: DraftRefusal };
 
 /** Read on the server; plain data, dates already formatted. */
 export type PublishFacts = {
@@ -44,6 +47,8 @@ export type PublishFacts = {
    * nothing else to press, and approves nothing (docs/two-step-articles.md).
    */
   twoStep?: boolean;
+  /** The site's plugin can act on a Publish press on a post it holds as a draft (lib/plugin/protocol.ts). */
+  pluginPublishesDrafts?: boolean;
   /** The team has a newer copy; this is the last approved revision, which Publish sends. */
   withTeam?: boolean;
   /** platform_controls.publication_freeze: nothing is sent while on. */
@@ -95,7 +100,7 @@ export type PublishPlan =
   | { mode: "pluginWaiting"; as: "publish" | "draft" }
   /** Created by the plugin, which cannot update a post it created. */
   | { mode: "pluginPublished" }
-  /** The two-step flow: the plugin holds it as a WordPress draft, and it is published there. */
+  /** The two-step flow: held as a WordPress draft by a plugin too old to publish it from here. Says to update it; no button. */
   | { mode: "pluginDraft" }
   | {
       mode: "actions";
@@ -137,7 +142,7 @@ export function planPublishing(input: {
     // The plugin's feed offers only articles it has not created yet (lib/plugin/due.ts),
     // except an approved update a person presses for under the two-step flow.
     if (input.publishedUrl && !facts.twoStep) return { mode: "pluginPublished" };
-    if (input.publishedUrl && !facts.liveOnSite) return { mode: "pluginDraft" };
+    if (input.publishedUrl && !facts.liveOnSite && !facts.pluginPublishesDrafts) return { mode: "pluginDraft" };
   }
 
   let blocked: Blocker | null = null;

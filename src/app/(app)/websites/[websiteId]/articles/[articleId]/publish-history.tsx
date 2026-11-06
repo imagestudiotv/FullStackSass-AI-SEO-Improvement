@@ -2,6 +2,7 @@ import { ExternalLink, History } from "lucide-react";
 
 import { StatusBadge, type StatusTone } from "@/components/ui/status-badge";
 import { WorkspaceSection } from "@/components/workspace/section";
+import { draftRefusalText, type ArticleDeliveryCopy } from "@/lib/i18n/article-delivery";
 import { format } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
 
@@ -27,10 +28,12 @@ export function PublishHistory({
   rows,
   limit,
   t,
+  delivery,
 }: {
   rows: HistoryRow[];
   limit: number;
   t: Messages["app"]["editor"];
+  delivery: ArticleDeliveryCopy;
 }) {
   return (
     <WorkspaceSection
@@ -53,6 +56,7 @@ export function PublishHistory({
                     {row.when}
                   </time>
                 </div>
+                {row.refusal ? <p className="text-sm text-foreground">{draftRefusalText(row.refusal, delivery)}</p> : null}
                 {row.errorKind ? <p className="text-sm text-foreground">{publishFailureText(row.errorKind, t)}</p> : null}
                 {/* Only a real address: a provider that reports a bare path would link into this app. */}
                 {row.remoteUrl && /^https?:\/\//i.test(row.remoteUrl) ? (

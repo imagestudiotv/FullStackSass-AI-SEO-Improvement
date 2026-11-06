@@ -18,7 +18,7 @@ import { useId } from "react";
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/workspace/notice";
 import { WorkspaceSection } from "@/components/workspace/section";
-import type { ArticleDeliveryCopy } from "@/lib/i18n/article-delivery";
+import { draftRefusalText, type ArticleDeliveryCopy } from "@/lib/i18n/article-delivery";
 import { format } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
 import { cn } from "@/lib/utils";
@@ -79,6 +79,10 @@ function currentLine(input: {
     };
   }
   if (facts.uncertain) return { icon: AlertTriangle, tone: "warning", text: t.stateUncertain };
+  // On the site as a draft, and the plugin can publish it: what the one button does here.
+  if (facts.twoStep && facts.review === "approved" && !facts.liveOnSite && facts.lastOutcome.kind === "draft" && plan.mode === "actions" && facts.destination.kind === "plugin") {
+    return { icon: CheckCircle2, tone: "success", text: delivery.pluginDraftReady };
+  }
   // Finished and not on the site yet: step 2 of the two-step flow, said plainly.
   if (facts.twoStep && facts.review === "approved" && !facts.liveOnSite && facts.lastOutcome.kind === "none" && plan.mode !== "connect") {
     const auto = facts.plannedInFuture && facts.planned ? facts.autoPublish : "off";
@@ -97,7 +101,7 @@ function currentLine(input: {
 }
 
 /** The latest recorded result of sending it. */
-function outcomeLine(facts: PublishFacts, t: Messages["app"]["editor"]): Line {
+function outcomeLine(facts: PublishFacts, t: Messages["app"]["editor"], delivery: ArticleDeliveryCopy): Line {
   const outcome = facts.lastOutcome;
   switch (outcome.kind) {
     case "live":
@@ -117,6 +121,8 @@ function outcomeLine(facts: PublishFacts, t: Messages["app"]["editor"]): Line {
         text: format(t.stateFailed, { date: outcome.when }),
         detail: publishFailureText(outcome.errorKind, t),
       };
+    case "refused":
+      return { icon: AlertTriangle, tone: "warning", text: draftRefusalText(outcome.refusal, delivery) };
     default:
       return { icon: Info, tone: "info", text: t.stateNotSent };
   }
@@ -195,7 +201,7 @@ export function ArticlePublishing({
   const liveSentId = useId();
   const draftSentId = useId();
   const now = currentLine({ facts, plan, working, awaiting, pressExpired, pressTime, t, delivery });
-  const outcome = outcomeLine(facts, t);
+  const outcome = outcomeLine(facts, t, delivery);
   const destination = facts.destination;
 
   const actions = plan.mode === "actions" ? plan : null;

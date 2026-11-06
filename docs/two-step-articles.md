@@ -36,7 +36,7 @@ Publishing modes a customer explicitly chose stay in force, and only ever send a
 | --- | --- | --- |
 | Manual (auto-publish off) | Nothing can send it | Goes out only when the customer presses Publish |
 | Automatic, live | Nothing can send it | Goes live by itself on its planned day. Already due: at approval. Publish is still there to send it sooner |
-| Automatic, drafts | Nothing can send it | Sent to the CMS as a draft on its planned day. Publish makes it live |
+| Automatic, drafts | Nothing can send it | Sent to the CMS as a draft on its planned day. Publish makes it live. On a plugin site: see "Publish on a post held as a WordPress draft" |
 | Scheduled release (daily job) | Skips it | Sends approved revisions on their day, for automatic sites only |
 | First article | Nothing can send it | **Changed:** no longer goes live by itself. It follows the three modes above |
 | Connecting a CMS | Sends nothing | **Changed:** no longer sends the first article. A due article on an automatic site goes at the next daily release |
@@ -65,7 +65,34 @@ While a working copy waits:
 - **Automatic modes and the plugin** also send only the stored revision, on the same schedule rules.
 - **Public outputs** (translations, social suggestions, video ideas, internal-link suggestions) read the stored revision.
 
-An approval replaces the stored revision. An approval never republishes a live post by itself: the customer's Update does. On a plugin site that needs plugin 1.10.0 or later, which updates the post it already has for the article, featured image included. An older plugin is refused with a message to update it. A post held as a WordPress draft is not updated from RepGet, because that would overwrite an editor's work: the page says it is on the site as a draft and is published from WordPress, with no Publish button.
+An approval replaces the stored revision. An approval never republishes a live post by itself: the customer's Update does. On a plugin site that needs plugin 1.10.0 or later, which updates the post it already has for the article, featured image included. An older plugin is refused with a message to update it.
+
+### Publish on a post held as a WordPress draft (plugin sites)
+
+A site in the automatic "drafts" mode already holds the article as a WordPress draft, and somebody may have worked on it there. RepGet cannot see that, so the plugin decides, on the site, when the customer presses Publish. Only a person's press does this: the feed sends the instruction (`existingDraft`) from the claim, and automatic paths never carry it.
+
+Plugin 1.10.0 records, after every write, a fingerprint of the post as WordPress saved it (title, text, excerpt, address, password, featured image) and the RepGet revision it was. A date set in the future also counts as a change. Saving with no change does not, nor do categories, tags or SEO fields, which are not part of what the team approved.
+
+| The plugin finds | What it does | What the customer sees |
+| --- | --- | --- |
+| A draft, unchanged, holding this revision | Publishes that post, changing its status and giving it a date and a unique address | Live on your website, with the real address |
+| A draft, unchanged, holding an older approved revision | Writes exactly the sent revision to that post, then publishes it | The same |
+| A draft that was changed | Nothing | The draft was changed in WordPress and must be published there |
+| A draft written by plugin 1.9.0 or older | Publishes it only if it holds exactly what RepGet sends now. Otherwise nothing, because nothing proves it is unchanged | The same result, or RepGet cannot confirm it is unchanged and it must be published there |
+| Pending, scheduled or private | Nothing | The draft was changed in WordPress |
+| Already published | Nothing is written. Recorded as live with its real address, marked `publishedInWordPress` on the delivery | Live on your website |
+| In the trash | Nothing, and it stays there | Restore it, then press Publish again |
+| Deleted | Nothing, and no new post | It was deleted. Contact the team |
+
+A refusal ends that delivery as failed and answers the press, so nothing retries it and nothing resolves it. Publish stays, and pressing again asks the site again: after the customer publishes in WordPress, that records the post as live. There is no duplicate under any retry: the post is found by the article's identity, a press never creates a post RepGet has on record, a repeated hand-over finds it already live, and a parked report settles its own delivery.
+
+**Plugin 1.9.0 and older** cannot do this, and would overwrite the draft and leave it a draft, so they never receive these presses. The page shows no Publish button on such a draft and says to update the plugin to 1.10 or later, or publish from WordPress. The version is the one the site last reported, so a site updated moments ago shows this until its next check.
+
+**With the flow off** nothing changes: a delivered draft is not offered to the plugin, and the page shows what it showed before.
+
+**Direct WordPress connections** have the button already: a press updates the remote post with the revision and status, and that update does overwrite edits made in WordPress. This section's check applies to the plugin only.
+
+**What is not proved.** The plugin's check and its write are not one database transaction. Going live, the status change cannot overwrite text, and the write is guarded on the text being what was checked. Writing a newer revision, a save landing in the instant between the check and `wp_update_post` would be replaced; WordPress keeps it as a revision where revisions are on. A process killed between writing a newer revision and recording it reads as "changed", the safe direction. A person with the draft open in the editor is not detected until they save.
 
 **Reopening does not recall.** Reopening or editing an approved article leaves its stored revision in force. So on an automatic site the daily release can still send the old text on its day, and a customer's press still can.
 
