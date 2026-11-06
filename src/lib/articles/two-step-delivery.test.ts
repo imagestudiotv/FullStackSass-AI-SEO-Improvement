@@ -1686,7 +1686,7 @@ describe("review of the combined diff: what stays true on the edges", () => {
     expect(article).toMatchObject({ preparing: "team", withTeam: false, status: "published", publishedUrl: WAITING.publishedUrl, title: PLANNED, bodyHtml: null, metaDescription: null, imageUrl: null, imageAlt: null, slug: null });
     const listed = (await listArticles(s.websiteId)).find((item) => item.id === s.post.id);
     expect(listed).toMatchObject({ title: PLANNED, status: "published", slug: null, wordCount: null });
-    for (const read of [article, listed, await getDashboardOverview({ websiteId: s.websiteId, ownerOrgId: s.orgId, showCredits: false }), await getTasks(s.websiteId)]) {
+    for (const read of [article, listed, await getDashboardOverview({ websiteId: s.websiteId, ownerOrgId: s.orgId, showCredits: false }), await getTasks(s.websiteId, s.orgId, true)]) {
       const seen = JSON.stringify(read);
       for (const secret of [BODY, STAFF_TITLE, "SECRETEXCERPT", IMAGE, "SECRETALT", LINK]) expect(seen).not.toContain(secret);
     }

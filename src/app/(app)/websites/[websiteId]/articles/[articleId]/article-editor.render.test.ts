@@ -456,6 +456,9 @@ describe("the page while the team has the article", () => {
       websiteId: "33333333-3333-4333-8333-333333333333",
       title: "Planned topic",
       stage: "team" as const,
+      postUrl: null,
+      status: "draft",
+      viewOnSiteLabel: en.app.editor.viewOnSite,
       destination: { kind: "none" as const },
       autoPublish: "off" as const,
       canEdit: true,
@@ -477,5 +480,16 @@ describe("the page while the team has the article", () => {
 
     const viewer = renderToStaticMarkup(createElement(ArticlePreparing, { ...props, canEdit: false }));
     expect(viewer).not.toContain(ARTICLE_DELIVERY.en.connectAction);
+
+    // A post already on the website, with no text RepGet can prove: it says so and links to it, and asks nothing.
+    const onSite = renderToStaticMarkup(createElement(ArticlePreparing, { ...props, postUrl: "https://example.com/a", status: "published", autoPublish: "live" as const }));
+    expect(onSite).toContain(ARTICLE_DELIVERY.en.withTeamChange);
+    expect(onSite).toContain('href="https://example.com/a"');
+    expect(onSite).toContain(en.app.editor.viewOnSite);
+    expect(onSite).not.toContain(ARTICLE_DELIVERY.en.teamBody);
+    expect(onSite).not.toContain(ARTICLE_DELIVERY.en.stepPublish);
+    expect(onSite).not.toContain(ARTICLE_DELIVERY.en.autoNoteLive);
+    expect(onSite).not.toContain(ARTICLE_DELIVERY.en.connectNote);
+    expect(onSite).not.toContain("<button");
   });
 });
