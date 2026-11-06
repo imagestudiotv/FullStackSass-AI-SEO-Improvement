@@ -145,7 +145,7 @@ add_filter('pre_http_request', function ($pre, $args, $url) {
 function article($id, $title, $html, $extra = array()) {
     return array_merge(array(
         'id' => $id, 'title' => $title, 'slug' => sanitize_title($title), 'html' => $html, 'status' => 'publish',
-        'dispatch' => array('id' => wp_generate_uuid4(), 'revision' => 'r'),
+        'dispatch' => array('id' => wp_generate_uuid4(), 'revision' => md5($title . $html . wp_json_encode($extra))),
     ), $extra);
 }
 function post_for($article_id) {
