@@ -15,7 +15,7 @@ import {
   pendingFirstArticle,
   websitesAwaitingFirstArticle,
 } from "@/lib/publishing/policy";
-import { releasableSql } from "@/lib/articles/review";
+import { lastDeliveryRefusedSql, releasableSql } from "@/lib/articles/review";
 import { isControlEnabled } from "@/lib/publishing/controls";
 import { checkLimit } from "@/lib/usage";
 import { UNLIMITED } from "@/lib/usage-shared";
@@ -141,6 +141,8 @@ export async function publishDueDrafts(): Promise<number> {
         lte(calendarItems.scheduledFor, new Date()),
         // Held for, or changed since, the RepGet team's review: not released.
         releasableSql,
+        // Refused because the post on the website changed: stopped and explained, not tried again tomorrow.
+        raw`not ${lastDeliveryRefusedSql}`,
         raw`exists (
           select 1 from integrations i
           where i.website_id = ${articles.websiteId}

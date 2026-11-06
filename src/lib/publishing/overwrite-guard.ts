@@ -180,9 +180,10 @@ export async function checkBeforeUpdate(input: {
  * The refusal, recorded where the page and the history read it, and said once.
  * Nothing retries it: it is the customer's to resolve, and a press looks again.
  *
- * A press is told every time: it is an answer. An automatic release is not a
- * person asking, and the daily job will look at the same article again tomorrow,
- * so the same refusal of the same revision is not repeated to them.
+ * A press is told every time: it is an answer. The daily release does not come
+ * back to a refused article (lastDeliveryRefusedSql). Anything else automatic that
+ * reaches the same refusal of the same revision, a re-approval say, is not a person
+ * asking, so it is not repeated to them.
  */
 export async function refuseUpdate(input: {
   refusal: OverwriteRefusal;

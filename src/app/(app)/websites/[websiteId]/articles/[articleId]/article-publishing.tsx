@@ -99,8 +99,12 @@ function currentLine(input: {
   return null;
 }
 
-/** The latest recorded result of sending it. */
-function outcomeLine(facts: PublishFacts, t: Messages["app"]["editor"], delivery: ArticleDeliveryCopy): Line {
+/**
+ * The latest recorded result of sending it. `nothingToPress`: the plugin's side of
+ * it is out of the customer's hands (a failed press goes round its feed again), so
+ * the failure's "try again" is left out rather than pointing at no button.
+ */
+function outcomeLine(facts: PublishFacts, t: Messages["app"]["editor"], delivery: ArticleDeliveryCopy, nothingToPress: boolean): Line {
   const outcome = facts.lastOutcome;
   switch (outcome.kind) {
     case "live":
@@ -118,7 +122,7 @@ function outcomeLine(facts: PublishFacts, t: Messages["app"]["editor"], delivery
         icon: XCircle,
         tone: "danger",
         text: format(t.stateFailed, { date: outcome.when }),
-        detail: publishFailureText(outcome.errorKind, t),
+        detail: nothingToPress ? undefined : publishFailureText(outcome.errorKind, t),
       };
     case "refused":
       return { icon: AlertTriangle, tone: "warning", text: draftRefusalText(outcome.refusal, delivery) };
@@ -200,8 +204,8 @@ export function ArticlePublishing({
   const liveSentId = useId();
   const draftSentId = useId();
   const now = currentLine({ facts, plan, working, awaiting, pressExpired, pressTime, t, delivery });
-  const outcome = outcomeLine(facts, t, delivery);
   const destination = facts.destination;
+  const outcome = outcomeLine(facts, t, delivery, destination.kind === "plugin" && plan.mode !== "actions");
 
   const actions = plan.mode === "actions" ? plan : null;
   const blocked = actions?.blocked ?? null;

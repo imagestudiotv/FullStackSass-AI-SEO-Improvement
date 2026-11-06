@@ -193,7 +193,8 @@ export const wixProvider: CmsProvider = {
   },
 
   async createPost(credentials: Credentials, input: PublishInput) {
-    const created = await request<{ post?: WixPost }>(
+    // Create Draft Post answers { draftPost }, not { post }, and takes the address as seoSlug.
+    const created = await request<{ draftPost?: WixPost }>(
       credentials,
       "/blog/v3/draft-posts",
       {
@@ -208,13 +209,13 @@ export const wixProvider: CmsProvider = {
              * Doing it in two steps means a failure to publish still leaves the
              * article saved rather than losing it entirely.
              */
-            ...(input.slug ? { slugs: [input.slug] } : {}),
+            ...(input.slug ? { seoSlug: input.slug } : {}),
           },
         }),
       },
     );
 
-    const id = created.post?.id;
+    const id = created.draftPost?.id;
     if (!id) {
       throw new ProviderError(
         "Wix accepted the post but returned no id, so it cannot be updated later.",
@@ -230,7 +231,7 @@ export const wixProvider: CmsProvider = {
 
     return {
       remoteId: id,
-      remoteUrl: created.post?.url?.path ?? "",
+      remoteUrl: created.draftPost?.url?.path ?? "",
       status: input.status,
       baseline: await baselineAfterSend(credentials, id),
     };

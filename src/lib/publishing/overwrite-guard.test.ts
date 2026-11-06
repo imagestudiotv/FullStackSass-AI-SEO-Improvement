@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { articles, integrations, publicationDispatches, publishLogs, websites } from "@/lib/db/schema";
+import { articles, calendarItems, integrations, publicationDispatches, publishLogs, websites } from "@/lib/db/schema";
 import { createTestDb, type TestDb } from "@/test/db";
 import { seedWebsite } from "@/test/fixtures";
 import { NEW_SITE_DEFAULTS } from "@/lib/websites/new-site-defaults";
@@ -81,6 +81,7 @@ vi.mock("@/lib/publishing/registry", () => {
 });
 
 import { publishArticleJob } from "@/inngest/functions/publish-article";
+import { publishDueDrafts } from "@/inngest/functions/scheduled-articles";
 import { DRAFT_REFUSALS, draftRefusalOf, type DraftRefusal } from "@/lib/articles/review";
 import { ARTICLE_DELIVERY, draftRefusalText } from "@/lib/i18n/article-delivery";
 import { LOCALES } from "@/lib/i18n/config";
@@ -259,6 +260,80 @@ describe("a refusal", () => {
     const last = (await dispatches(s.post.id)).at(-1);
     expect(last).toMatchObject({ status: "failed", error: "Could not reach the site" });
     expect(last?.requestSnapshot).not.toHaveProperty("mayHaveLanded");
+  });
+});
+
+describe("a refusal is not retried on a schedule", () => {
+  /** On an automatic site, delivered as a CMS draft on its planned day, with a newer revision to send: what the daily release picks up. */
+  async function dueAgain(): Promise<Scene> {
+    const s = await scene();
+    const [item] = await test.db.insert(calendarItems).values({ websiteId: s.websiteId, title: "Wedding films", scheduledFor: new Date(Date.now() - 86_400_000) }).returning();
+    await test.db.update(articles).set({ calendarItemId: item.id }).where(eq(articles.id, s.post.id));
+    await test.db.update(websites).set({ publishAs: "draft" }).where(eq(websites.id, s.websiteId));
+    await run(s, replayingSteps(), "automatic");
+    expect(cms.calls).toEqual(["create"]);
+    expect((await row(s.post.id)).status).toBe("draft");
+    cms.calls.length = 0;
+    await edit(s.post.id, "The edited text.");
+    return s;
+  }
+  async function dailyReleaseSends(s: Scene) {
+    inngestMock.send.mockClear();
+    await publishDueDrafts();
+    return (inngestMock.send.mock.calls as unknown as [{ data: { articleId: string } }][]).filter(([event]) => event.data.articleId === s.post.id);
+  }
+
+  it.each([
+    ["post_changed", { modifiedAt: "2026-01-05T10:00:00", hash: "somebody's", status: "publish", rawContent: null }, { modifiedAt: "2026-01-01T10:00:00", hash: "first" }],
+    ["post_unverified", { modifiedAt: null, hash: null, status: "publish", rawContent: null }, undefined],
+  ] as const)("%s: one notification, nothing written, and the daily release leaves it from then on", async (refusal, remote, baseline) => {
+    cms.baseline = baseline ? { ...baseline } : undefined;
+    const s = await dueAgain();
+    cms.remote = { ...remote };
+    // What this is about: without a refusal it IS due.
+    expect(await dailyReleaseSends(s)).toHaveLength(1);
+
+    await expect(run(s, replayingSteps(), "automatic")).resolves.toEqual({ held: refusal });
+    expectRefused(refusal);
+    const attempts = (await dispatches(s.post.id)).length;
+
+    cms.calls.length = 0;
+    for (let day = 0; day < 3; day++) expect(await dailyReleaseSends(s)).toEqual([]);
+    expect(cms.calls).toEqual([]);
+    expect(await dispatches(s.post.id)).toHaveLength(attempts);
+    expect(bell.sent.filter((n) => n.type === "article.failed")).toHaveLength(1);
+  });
+
+  it("an edit in RepGet does not start it again; a person's press does, and then it is ordinary", async () => {
+    const s = await dueAgain();
+    cms.remote = { modifiedAt: "2026-01-05T10:00:00", hash: "somebody's", status: "publish", rawContent: null };
+    await run(s, replayingSteps(), "automatic");
+
+    await edit(s.post.id, "Edited again.");
+    expect(await dailyReleaseSends(s)).toEqual([]);
+
+    // The customer put it back on the website: pressing asks the site again, and it goes.
+    cms.remote = { modifiedAt: "2026-01-06T10:00:00", hash: "first", status: "publish", rawContent: null };
+    await run(s);
+    expect(cms.calls.at(-1)).toBe("update:7");
+    await test.db.update(articles).set({ status: "draft" }).where(eq(articles.id, s.post.id));
+    await edit(s.post.id, "Edited once more.");
+    expect(await dailyReleaseSends(s)).toHaveLength(1);
+  });
+
+  it("nothing an event can carry makes the job write over a refusal", async () => {
+    const s = await delivered();
+    cms.remote = { modifiedAt: "2026-01-05T10:00:00", hash: "somebody's", status: "publish", rawContent: null };
+    const result = await (publishArticleJob as unknown as Job).handler({
+      event: {
+        id: `evt-${randomUUID()}`,
+        data: { articleId: s.post.id, websiteId: s.websiteId, organizationId: s.orgId, status: "publish", trigger: "manual", force: true, overwrite: true, skipGuard: true, expectedModifiedAt: "2026-01-05T10:00:00" },
+      },
+      step: replayingSteps(),
+      logger,
+    });
+    expect(result).toEqual({ held: "post_changed" });
+    expect(cms.calls.some((call) => call.startsWith("update"))).toBe(false);
   });
 });
 

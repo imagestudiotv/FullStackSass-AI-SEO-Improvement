@@ -2169,6 +2169,25 @@ describe("review of the combined diff: what stays true on the edges", () => {
       expect((await dispatches(s.post.id)).find((dispatch) => dispatch.id === again.dispatch.id)?.requestSnapshot).toMatchObject({ publishedInWordPress: true });
     });
 
+    it.each(["draft_changed", "post_changed", "post_unverified"] as const)("%s on the plugin: said once, offered to nobody again, and the daily release leaves it", async (refusal) => {
+      const s = await heldDraft();
+      await publishArticle(s.websiteId, s.post.id);
+      const [handed] = await handOver();
+      const before = bell.sent.length;
+      const body = { articleId: s.post.id, dispatchId: handed.dispatch.id, url: null, remoteId: 7, error: refusal, status: "draft", outcome: refusal };
+      expect(await (await report(body)).json()).toEqual({ ok: true, recorded: refusal });
+      expect(await row(s.post.id)).toMatchObject({ publishRequested: null, error: DRAFT_REFUSALS[refusal] });
+      const attempts = (await dispatches(s.post.id)).length;
+
+      for (let day = 0; day < 3; day++) {
+        expect(await dailyReleaseSends(s.post.id)).toEqual([]);
+        expect(await handOver()).toEqual([]);
+      }
+      expect(await dispatches(s.post.id)).toHaveLength(attempts);
+      expect(bell.sent.length).toBe(before + 1);
+      expect(vi.mocked(emailArticleFailed)).not.toHaveBeenCalled();
+    });
+
     it.each(["draft_unverified", "post_trashed", "post_deleted"] as const)("%s: answered, nothing live, and its own text in all five languages", async (refusal) => {
       const s = await heldDraft();
       await publishArticle(s.websiteId, s.post.id);

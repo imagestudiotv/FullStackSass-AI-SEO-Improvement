@@ -3,9 +3,11 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   adminAuditLog,
+  articles,
   competitors,
   organization,
   payments,
+  publicationDispatches,
   subscriptions,
   websites,
 } from "@/lib/db/schema";
@@ -63,6 +65,8 @@ import {
   deleteOrganization,
   deleteWebsite as adminDeleteWebsite,
 } from "@/lib/admin/operations";
+import { acknowledgePluginDispatch } from "@/lib/publishing/acknowledge";
+import { IN_FLIGHT_TIMEOUT_MS } from "@/lib/publishing/dispatch";
 import { deleteWebsite } from "@/lib/websites/actions";
 import {
   billingBlockReason,
@@ -422,6 +426,82 @@ describe("admin deleteWebsite", () => {
       .from(subscriptions)
       .where(eq(subscriptions.id, sub.id));
     expect(kept).toMatchObject({ websiteId: null, stripeSubscriptionId: "sub_done" });
+  });
+});
+
+describe("a delivery in flight", () => {
+  async function delivering(channel: "direct" | "plugin", claimedAt = new Date()) {
+    const site = await addSite();
+    const [article] = await test.db
+      .insert(articles)
+      .values({ websiteId: site.id, title: "T", status: "draft", bodyHtml: "<p>x</p>" })
+      .returning();
+    const [dispatch] = await test.db
+      .insert(publicationDispatches)
+      .values({ articleId: article.id, websiteId: site.id, channel, trigger: "manual", revisionHash: "h", requestedStatus: "publish", protocol: channel === "plugin" ? "plugin_v2" : "direct", claimedAt })
+      .returning();
+    return { site, article, dispatch };
+  }
+  const stale = () => new Date(Date.now() - IN_FLIGHT_TIMEOUT_MS - 1000);
+
+  it.each(["direct", "plugin"] as const)("%s: the customer's deletion is refused, and the delivery keeps its record", async (channel) => {
+    const { site, dispatch } = await delivering(channel);
+    actAs(site, "owner");
+
+    const result = await deleteWebsite(site.id);
+
+    expect(!result.ok && result.error).toMatch(/being delivered to its site right now/);
+    expect(await siteExists(site.id)).toBe(true);
+    const rows = await test.db.select().from(publicationDispatches).where(eq(publicationDispatches.id, dispatch.id));
+    expect(rows).toMatchObject([{ status: "in_flight" }]);
+  });
+
+  it("the plugin's report still has somewhere to go after a refused deletion", async () => {
+    const { site, article, dispatch } = await delivering("plugin");
+    await deleteWebsiteIfBillingResolved(test.db, { websiteId: site.id, organizationId: "org_a" });
+
+    const ack = await acknowledgePluginDispatch({
+      websiteId: site.id,
+      articleId: article.id,
+      dispatchId: dispatch.id,
+      report: { kind: "sent", remoteId: "7", remoteUrl: "https://acme.test/p", remoteStatus: "publish" },
+    });
+
+    expect(ack).toMatchObject({ result: "applied", live: true });
+  });
+
+  it("the administrator's deletions are refused too, with nothing written to the audit log", async () => {
+    const { site } = await delivering("direct");
+
+    const website = await adminDeleteWebsite(site.id, "support request", "DELETE");
+    expect(!website.ok && website.error).toMatch(/An article from this website is being delivered/);
+
+    const workspace = await deleteOrganization("org_a", "erasure request", "DELETE");
+    expect(!workspace.ok && workspace.error).toMatch(/An article from this workspace is being delivered/);
+
+    expect(await siteExists(site.id)).toBe(true);
+    expect(await test.db.select().from(adminAuditLog)).toEqual([]);
+  });
+
+  it("a claim past its lease no longer stops it: the rule the rest of delivery goes by", async () => {
+    const { site } = await delivering("direct", stale());
+    actAs(site, "owner");
+    expect(await deleteWebsite(site.id)).toMatchObject({ ok: true });
+    expect(await siteExists(site.id)).toBe(false);
+  });
+
+  it("another website's delivery does not stop it", async () => {
+    await delivering("direct");
+    const other = await addSite("org_b", "other.test");
+    actAs(other, "owner");
+    expect(await deleteWebsite(other.id)).toMatchObject({ ok: true });
+  });
+
+  it.each(["sent", "failed", "uncertain", "expired"])("a delivery already %s does not stop it", async (status) => {
+    const { site, dispatch } = await delivering("direct");
+    await test.db.update(publicationDispatches).set({ status }).where(eq(publicationDispatches.id, dispatch.id));
+    actAs(site, "owner");
+    expect(await deleteWebsite(site.id)).toMatchObject({ ok: true });
   });
 });
 
