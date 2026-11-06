@@ -405,6 +405,16 @@ describe("the two-step flow (docs/two-step-articles.md)", () => {
     expect(button(html, en.app.editor.sendAsDraft)).toBeNull();
   });
 
+  it("published by a person in WordPress: live, with no claim that this exact version is what is there, and nothing to overwrite it with", () => {
+    const html = render({
+      article: { ...ARTICLE, status: "published", publishedUrl: "https://example.com/a" },
+      facts: { ...READY, destination: { kind: "plugin" }, pluginPublishesDrafts: true, liveOnSite: true, alreadySent: { publish: true, draft: false }, publishedInWordPress: true, lastOutcome: { kind: "live", when: "1 Oct" } },
+    });
+    expect(html).toContain(d.publishedInWordPress);
+    expect(html).not.toContain(en.app.editor.alreadySentLive);
+    expect(button(html, en.app.editor.updatePost)).toContain('disabled=""');
+  });
+
   it("the draft was not published: the reason is said plainly, in place of a failure, and Publish can ask the site again", () => {
     const refusals = [
       ["draft_changed", d.refusedChanged],

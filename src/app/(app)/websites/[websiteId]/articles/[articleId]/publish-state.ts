@@ -61,6 +61,8 @@ export type PublishFacts = {
   liveOnSite: boolean;
   /** The saved revision already reached the site with this status (the claim's already_sent rule). */
   alreadySent: { publish: boolean; draft: boolean };
+  /** Somebody published the post in WordPress, so nothing says it holds this version. Publish stays off: it would overwrite them. */
+  publishedInWordPress?: boolean;
   lastOutcome: LastOutcome;
   /** Identities of the newest dispatch and log, to notice a press's result arriving. */
   latestDispatchId: string | null;

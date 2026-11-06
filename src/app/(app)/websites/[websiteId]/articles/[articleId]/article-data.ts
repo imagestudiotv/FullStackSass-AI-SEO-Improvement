@@ -154,6 +154,7 @@ export async function loadPublishing(input: {
         revisionHash: publicationDispatches.revisionHash,
         requestedStatus: publicationDispatches.requestedStatus,
         remoteStatus: publicationDispatches.remoteStatus,
+        publishedInWordPress: sql<boolean>`coalesce((${publicationDispatches.requestSnapshot} ->> 'publishedInWordPress')::boolean, false)`,
       })
       .from(publicationDispatches)
       .where(
@@ -235,6 +236,7 @@ export async function loadPublishing(input: {
         Boolean(twoStep && extra?.storedSource === "published" && extra.storedHash === revision && article.status === "published"),
       draft: sameRevision && lastSent?.requestedStatus === "draft",
     },
+    publishedInWordPress: Boolean(sameRevision && lastSent?.publishedInWordPress),
     lastOutcome: outcomeOf(logs[0], latest, locale),
     latestDispatchId: latest?.id ?? null,
     latestLogId: logs[0]?.id ?? null,

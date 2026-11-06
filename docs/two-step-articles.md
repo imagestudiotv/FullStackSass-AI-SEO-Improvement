@@ -80,7 +80,7 @@ Plugin 1.10.0 records, after every write, a fingerprint of the post as WordPress
 | A draft that was changed | Nothing | The draft was changed in WordPress and must be published there |
 | A draft written by plugin 1.9.0 or older | Publishes it only if it holds exactly what RepGet sends now. Otherwise nothing, because nothing proves it is unchanged | The same result, or RepGet cannot confirm it is unchanged and it must be published there |
 | Pending, scheduled or private | Nothing | The draft was changed in WordPress |
-| Already published | Nothing is written. Recorded as live with its real address, marked `publishedInWordPress` on the delivery | Live on your website |
+| Already published | Nothing is written. Recorded as live with its real address, marked `publishedInWordPress` on the delivery | Live on your website, and that what is live may differ from this version. Update stays off until the team approves a newer one |
 | In the trash | Nothing, and it stays there | Restore it, then press Publish again |
 | Deleted | Nothing, and no new post | It was deleted. Contact the team |
 

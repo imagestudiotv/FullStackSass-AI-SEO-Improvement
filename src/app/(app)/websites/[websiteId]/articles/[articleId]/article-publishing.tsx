@@ -284,7 +284,7 @@ export function ArticlePublishing({
           ) : null}
           {liveSent ? (
             <p id={liveSentId} className="text-xs leading-5 text-muted-foreground">
-              {t.alreadySentLive}
+              {facts.publishedInWordPress ? delivery.publishedInWordPress : t.alreadySentLive}
             </p>
           ) : null}
           {draftSent && !facts.twoStep ? (

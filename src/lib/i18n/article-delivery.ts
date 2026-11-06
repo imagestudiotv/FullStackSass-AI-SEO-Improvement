@@ -52,6 +52,8 @@ export type ArticleDeliveryCopy = {
   refusedUnverified: string;
   refusedTrashed: string;
   refusedDeleted: string;
+  /** Somebody published the post in WordPress: live, but not known to hold this version. */
+  publishedInWordPress: string;
   /** The plan step's note, and the manual mode's label on the Publishing page. */
   onboardingNote: string;
   finishedManual: string;
@@ -150,6 +152,7 @@ export const ARTICLE_DELIVERY: Record<Locale, ArticleDeliveryCopy> = {
     refusedUnverified: "This draft was saved by an earlier version of the plugin and RepGet cannot confirm it is unchanged, so it was neither published nor overwritten. Please publish it from WordPress.",
     refusedTrashed: "This draft is in the WordPress trash, so nothing was published. Restore it there, then press Publish again.",
     refusedDeleted: "This draft was deleted from WordPress, so nothing was published and no new post was made. Contact the RepGet team to have it sent again.",
+    publishedInWordPress: "This post was published in WordPress, so what is live may differ from this version.",
     notifyNotPublished: "Your article was not published",
     onboardingNote: "We research your keywords, build a content calendar sized to your plan, and start writing. The RepGet team prepares your first article, and you will be told when it is ready to publish.",
     finishedManual: "Keep it in RepGet until I press Publish",
@@ -197,6 +200,7 @@ export const ARTICLE_DELIVERY: Record<Locale, ArticleDeliveryCopy> = {
     refusedUnverified: "Este borrador lo guardó una versión anterior del plugin y RepGet no puede confirmar que no haya cambiado, por lo que no se ha publicado ni sobrescrito. Publíquelo desde WordPress.",
     refusedTrashed: "Este borrador está en la papelera de WordPress, por lo que no se ha publicado nada. Restáurelo allí y pulse Publicar de nuevo.",
     refusedDeleted: "Este borrador se eliminó de WordPress, por lo que no se ha publicado nada ni se ha creado una entrada nueva. Póngase en contacto con el equipo de RepGet para que se lo envíen de nuevo.",
+    publishedInWordPress: "Esta entrada se publicó desde WordPress, por lo que lo que está en línea puede diferir de esta versión.",
     notifyNotPublished: "Su artículo no se ha publicado",
     onboardingNote: "Investigamos sus palabras clave, creamos un calendario de contenidos a la medida de su plan y empezamos a escribir. El equipo de RepGet prepara su primer artículo, y le avisaremos cuando esté listo para publicar.",
     finishedManual: "Guardarlo en RepGet hasta que pulse Publicar",
@@ -244,6 +248,7 @@ export const ARTICLE_DELIVERY: Record<Locale, ArticleDeliveryCopy> = {
     refusedUnverified: "Ce brouillon a été enregistré par une version antérieure du plugin et RepGet ne peut pas confirmer qu'il est inchangé : il n'a donc été ni publié ni écrasé. Publiez-le depuis WordPress.",
     refusedTrashed: "Ce brouillon est dans la corbeille de WordPress : rien n'a donc été publié. Restaurez-le, puis appuyez de nouveau sur Publier.",
     refusedDeleted: "Ce brouillon a été supprimé de WordPress : rien n'a donc été publié et aucun nouvel article n'a été créé. Contactez l'équipe RepGet pour qu'il vous soit renvoyé.",
+    publishedInWordPress: "Cet article a été publié depuis WordPress : ce qui est en ligne peut donc différer de cette version.",
     notifyNotPublished: "Votre article n'a pas été publié",
     onboardingNote: "Nous recherchons vos mots-clés, construisons un calendrier de contenu adapté à votre forfait et commençons à rédiger. L’équipe RepGet prépare votre premier article, et vous serez averti lorsqu’il sera prêt à publier.",
     finishedManual: "Le garder dans RepGet jusqu’à ce que je clique sur Publier",
@@ -291,6 +296,7 @@ export const ARTICLE_DELIVERY: Record<Locale, ArticleDeliveryCopy> = {
     refusedUnverified: "Questa bozza è stata salvata da una versione precedente del plugin e RepGet non può confermare che sia rimasta invariata, quindi non è stata né pubblicata né sovrascritta. La pubblichi da WordPress.",
     refusedTrashed: "Questa bozza è nel cestino di WordPress, quindi non è stato pubblicato nulla. La ripristini, poi prema di nuovo Pubblica.",
     refusedDeleted: "Questa bozza è stata eliminata da WordPress, quindi non è stato pubblicato nulla e non è stato creato un nuovo articolo. Contatti il team di RepGet per riceverla di nuovo.",
+    publishedInWordPress: "Questo articolo è stato pubblicato da WordPress, quindi ciò che è online può differire da questa versione.",
     notifyNotPublished: "Il suo articolo non è stato pubblicato",
     onboardingNote: "Studiamo le sue parole chiave, costruiamo un calendario di contenuti su misura per il suo piano e iniziamo a scrivere. Il team di RepGet prepara il suo primo articolo, e la avviseremo quando sarà pronto per la pubblicazione.",
     finishedManual: "Tenerlo in RepGet finché non premo Pubblica",
@@ -338,6 +344,7 @@ export const ARTICLE_DELIVERY: Record<Locale, ArticleDeliveryCopy> = {
     refusedUnverified: "Dieser Entwurf wurde von einer älteren Plugin-Version gespeichert, und RepGet kann nicht bestätigen, dass er unverändert ist. Er wurde daher weder veröffentlicht noch überschrieben. Bitte veröffentlichen Sie ihn in WordPress.",
     refusedTrashed: "Dieser Entwurf liegt im WordPress-Papierkorb, daher wurde nichts veröffentlicht. Stellen Sie ihn dort wieder her und klicken Sie erneut auf Veröffentlichen.",
     refusedDeleted: "Dieser Entwurf wurde aus WordPress gelöscht, daher wurde nichts veröffentlicht und kein neuer Beitrag erstellt. Wenden Sie sich an das RepGet-Team, um ihn erneut zu erhalten.",
+    publishedInWordPress: "Dieser Beitrag wurde in WordPress veröffentlicht. Was live ist, kann daher von dieser Version abweichen.",
     notifyNotPublished: "Ihr Artikel wurde nicht veröffentlicht",
     onboardingNote: "Wir recherchieren Ihre Suchbegriffe, bauen einen auf Ihren Tarif zugeschnittenen Contentplan und fangen an zu schreiben. Das RepGet-Team bereitet Ihren ersten Artikel vor, und Sie werden benachrichtigt, sobald er zur Veröffentlichung bereit ist.",
     finishedManual: "In RepGet behalten, bis ich auf Veröffentlichen klicke",
