@@ -1,6 +1,6 @@
 import { and, desc, eq, sql, type SQL } from "drizzle-orm";
 
-import { reviewHash, reviewHashSql, revisionToStore, type StoredRevision } from "@/lib/articles/review";
+import { reviewHash, reviewHashSql, revisionToStore, storedRevision, type StoredRevision } from "@/lib/articles/review";
 import { db } from "@/lib/db";
 import { articles, articleVersions, networkSites, platformControls, publicationDispatches } from "@/lib/db/schema";
 import type { Executor } from "@/lib/db/types";
@@ -150,10 +150,9 @@ export async function switchControl(
  *
  *  - Approved as it stands, or from before the review: stored as approved or
  *    published.
- *  - Delivered with an approval that no longer matches: the old publish job wrote
- *    the CMS's picture address without re-hashing, so this is what the post is,
- *    with no change waiting. Stored as published and left outside the review,
- *    which grants nothing: only a press can resend it. It is not approved.
+ *  - Delivered with an approval that no longer matches: the row is not what was
+ *    approved, and nothing here can say why, so that approval is withdrawn. Back to
+ *    the team, as a change waiting (next line). The post stays on the website.
  *  - Delivered with a change waiting for the team: stays in their queue. The text
  *    last sent is stored as published when it can be proven (recoverSentRevision).
  *    Otherwise nothing is stored: the working copy is not what the post says, so it
@@ -208,10 +207,13 @@ export async function activateTwoStep(tx: Executor): Promise<number> {
     await tx
       .update(articles)
       .set({
-        reviewStatus: null,
+        reviewStatus: "pending",
+        reviewApprovedAt: null,
+        reviewApprovedBy: null,
         reviewApprovedHash: null,
         reviewVersion: sql`${articles.reviewVersion} + 1`,
-        approvedRevision: revisionToStore(row, "published"),
+        // A revision stored earlier is still the last approved one; else the text last sent, if it can be proven.
+        approvedRevision: storedRevision(row.approvedRevision) ?? (await recoverSentRevision(tx, row)),
       })
       .where(eq(articles.id, row.id));
   }
@@ -239,7 +241,7 @@ export async function activateTwoStep(tx: Executor): Promise<number> {
     const sent = await recoverSentRevision(tx, row);
     if (sent) await tx.update(articles).set({ approvedRevision: sent }).where(eq(articles.id, row.id));
   }
-  return waiting.length + stale.length;
+  return waiting.length + stale.length + staleOnSite.length;
 }
 
 /**

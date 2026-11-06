@@ -59,7 +59,7 @@ export const TRANSITION_QUERY = `
         case
           when a.review_status = 'pending' and a.approved_revision is null then
             case when ${SENT_TEXT_PROVEN} then 'on_site_change_waiting_sent_text_recovered' else 'on_site_change_waiting_text_unavailable' end
-          when a.review_status = 'approved' and a.review_approved_hash is distinct from ${REVISION} then 'on_site_approval_stale_stored_as_published'
+          when a.review_status = 'approved' and a.review_approved_hash is distinct from ${REVISION} then 'moves_on_site_approval_no_longer_stands'
           when ${RESEARCH_HELD} then 'delivered_with_held_sources'
           else 'delivered'
         end

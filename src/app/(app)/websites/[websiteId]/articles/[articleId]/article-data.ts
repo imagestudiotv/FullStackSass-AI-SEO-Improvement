@@ -197,8 +197,8 @@ export async function loadPublishing(input: {
 
   let review: ReviewState = "none";
   if (article.withTeam) {
-    // The last approved revision, served and sendable, while the team has a newer copy.
-    review = "approved";
+    // What the customer reads while the team has a newer copy. Sendable only if the team approved it.
+    review = extra?.storedSource === "approved" ? "approved" : "pending";
   } else if (extra && (extra.reviewStatus !== null || (extra.researchReviewRequired && !twoStep))) {
     const check = releaseCheckFor({ ...fields, ...extra });
     review = check.ok ? "approved" : check.reason === "changed_since_approval" ? "changed" : "pending";
@@ -232,7 +232,7 @@ export async function loadPublishing(input: {
       publish:
         // A post the plugin holds as a draft is not there yet, whatever was asked for: the press publishes it (the claim's rule).
         (sameRevision && lastSent?.requestedStatus === "publish" && !(twoStep && input.destination.kind === "plugin" && lastSent.remoteStatus !== "publish")) ||
-        Boolean(twoStep && extra?.storedSource === "published" && extra.storedHash === revision && article.status === "published"),
+        Boolean(twoStep && extra?.storedSource === "published" && extra.storedHash === revision && extra.live),
       draft: sameRevision && lastSent?.requestedStatus === "draft",
     },
     publishedInWordPress: Boolean(sameRevision && lastSent?.publishedInWordPress),

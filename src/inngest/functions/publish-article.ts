@@ -155,7 +155,7 @@ export const publishArticleJob = inngest.createFunction(
       const twoStep = await twoStepArticles();
       // Under the two-step flow, the approved revision to send, which need not be the working copy.
       const gate = (row: typeof article): { ok: true; revision?: ReviewFields } | { ok: false; reason: string } =>
-        twoStep ? sendableRevision(row, { automatic: trigger !== "manual" }) : releaseCheckFor(row);
+        twoStep ? sendableRevision(row) : releaseCheckFor(row);
       const before = gate(article);
       if (!before.ok) {
         logger.info(

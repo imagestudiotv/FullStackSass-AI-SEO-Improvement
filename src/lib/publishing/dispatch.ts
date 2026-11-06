@@ -389,16 +389,13 @@ export async function claimDispatch(input: {
 
     /*
       Which revision goes out. With the two-step flow off, the row as it is.
-      With it on, the approved working copy or the stored revision, and only
-      that: everything below, and what the caller sends, is this revision. Only
-      a person's press may send a revision nobody approved (what stood on the
-      website when the flow was switched on).
+      With it on, the approved working copy or the last approved revision, and
+      only that: everything below, and what the caller sends, is this revision.
     */
     let revision: ReviewFields = row;
     const twoStep = await isControlEnabled("two_step_articles", tx);
     if (twoStep) {
-      const pressed = input.trigger === "manual" || (input.trigger === "plugin" && row.publishRequested !== null);
-      const sendable = sendableRevision(row, { automatic: !pressed });
+      const sendable = sendableRevision(row);
       if (!sendable.ok) return { ok: false, reason: sendable.reason } as const;
       revision = sendable.revision;
       // A link the team has withdrawn since: its credits are released, so it may not go out with this revision.

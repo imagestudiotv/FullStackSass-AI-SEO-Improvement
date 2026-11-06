@@ -59,8 +59,8 @@ function currentLine(input: {
   const { facts, plan, t, delivery } = input;
   if (input.working) return { icon: Loader2, tone: "progress", text: t.stateWriting };
   if (facts.frozen) return { icon: AlertTriangle, tone: "warning", text: t.stateFrozen };
-  // The two-step flow: the team has a newer copy. Publish stays, and sends what is on this page.
-  if (facts.withTeam && !facts.delivering) {
+  // The two-step flow: the team has a newer copy. Publish stays if what is on this page is approved, and sends it.
+  if (facts.withTeam && !facts.delivering && (facts.liveOnSite || facts.review !== "pending")) {
     return { icon: Info, tone: "info", text: facts.liveOnSite ? delivery.withTeamLive : delivery.withTeam };
   }
   if (facts.review === "pending") return { icon: AlertTriangle, tone: "warning", text: facts.reviewSource === "research" ? t.stateResearchPending : t.stateReviewPending };

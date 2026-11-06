@@ -77,7 +77,7 @@ export const releasableSql: SQL = sql`(case when not exists (
     or (${articles.reviewStatus} = 'approved' and ${articles.reviewApprovedHash} = ${reviewHashSql}))
     and (not ${articles.researchReviewRequired} or ${articles.researchApprovedHash} = ${reviewHashSql})
   ) else (
-    ${articles.approvedRevision} ->> 'source' in ('approved', 'published')
+    ${articles.approvedRevision} ->> 'source' = 'approved'
     or (${articles.reviewStatus} = 'approved' and ${articles.reviewApprovedHash} = ${reviewHashSql}
       and (not ${articles.researchReviewRequired} or ${articles.researchApprovedHash} = ${reviewHashSql}))
   ) end)`;
@@ -147,17 +147,18 @@ export async function checkReleasable(articleId: string, executor: Executor = db
  *
  *   source "approved"  - what the team last approved (approveArticle).
  *   source "published" - what stood on the website when the flow was switched
- *                        on (activateTwoStep). Nobody approved it, so only a
- *                        person's press sends it, as an update of the same post.
+ *                        on (activateTwoStep). Nobody approved it, so it is what
+ *                        the customer reads, and no path sends it: not even a
+ *                        press. The team's approval replaces it.
  *
  * A post on the website with a change waiting for the team at switch-on gets
  * one only when the text last sent can be proven (activateTwoStep). Otherwise it
  * has none: the post stays where it is, the customer is told its text is with the
  * team, and neither the working copy nor anything made up stands in for it.
  *
- * While a working copy waits for the team this is what the customer reads and
- * what every path sends, so their edits stay private until approved. It is
- * replaced only by the next approval.
+ * While a working copy waits for the team this is what the customer reads and,
+ * when approved, what every path sends, so their edits stay private until
+ * approved. It is replaced only by the next approval.
  */
 export type StoredRevision = ReviewFields & {
   wordCount: number | null;
@@ -195,11 +196,10 @@ export function storedRevision(value: unknown): StoredRevision | null {
 
 /**
  * Under the two-step flow: exactly which revision may go out now. The working
- * copy when the team approved it as it stands; otherwise the stored revision;
- * otherwise nothing. Every path sends what this returns and compares its hash
- * at the claim, so no approval can carry a different text.
- *
- * `automatic`: not a person's press. It never sends a revision nobody approved.
+ * copy when the team approved it as it stands; otherwise the revision they last
+ * approved; otherwise nothing. Every path sends what this returns and compares
+ * its hash at the claim, so no approval can carry a different text, and a press
+ * is no exception: only text the team approved goes out.
  */
 export function sendableRevision(
   row: ReviewFields & {
@@ -209,7 +209,6 @@ export function sendableRevision(
     researchApprovedHash?: string | null;
     approvedRevision?: unknown;
   },
-  options: { automatic?: boolean } = {},
 ):
   | { ok: true; revision: ReviewFields; hash: string; from: "working_copy" | "stored" }
   | { ok: false; reason: "pending_review" | "changed_since_approval" } {
@@ -220,7 +219,7 @@ export function sendableRevision(
     (!row.researchReviewRequired || row.researchApprovedHash === hash);
   if (approved) return { ok: true, revision: row, hash, from: "working_copy" };
   const stored = storedRevision(row.approvedRevision);
-  if (stored && !(options.automatic && stored.source !== "approved")) {
+  if (stored?.source === "approved") {
     return { ok: true, revision: stored, hash: stored.hash, from: "stored" };
   }
   return { ok: false, reason: row.reviewStatus === "approved" ? "changed_since_approval" : "pending_review" };

@@ -156,10 +156,10 @@ Turning the switch on then runs `activateTwoStep` once, in the switch's own tran
 | Already in the queue | Stays. Hidden from the customer from now on | `already_in_queue` |
 | Being written | Decided when it is saved: goes to the queue | `being_written` |
 | Being delivered | Skipped, and the delivery finishes | `being_delivered` |
-| Live, or a CMS draft | Never republished. What stands is stored as source `published`: the customer keeps reading it, and only their press can resend it | `delivered` |
+| Live, or a CMS draft | Never republished. What stands is stored as source `published`: the customer keeps reading it, and no path sends it. A later change, or a Publish press on a CMS draft, goes to the team, whose approval is what makes anything sendable | `delivered` |
 | Live, with sources still held | The same | `delivered_with_held_sources` |
-| Live, approved, but its hash no longer matches | The old publish job wrote the CMS's picture address without re-hashing, so this is what the post is. Stored as source `published` and taken out of the review: not approved, not queued, not resent | `on_site_approval_stale_stored_as_published` |
-| Live, with a change waiting for the team, last sent text provable | The latest settled send's hash matches a mix of the working copy, earlier saved bodies and the send's title and slug. That text is stored as source `published`: the customer reads it, only their press can resend it, and the change stays in the queue | `on_site_change_waiting_sent_text_recovered` |
+| Live, approved, but its hash no longer matches | The approval is withdrawn and the article goes back to the queue, so the post may need the team again even when only the old publish job's picture address changed. The post stays online. The customer sees the text last sent if its hash proves it, otherwise the pending state. Nothing goes out until the team approves the exact revision | `moves_on_site_approval_no_longer_stands` |
+| Live, with a change waiting for the team, last sent text provable | The latest settled send's hash matches a mix of the working copy, earlier saved bodies and the send's title and slug. That text is stored as source `published`: the customer reads it, no path sends it, and the change stays in the queue | `on_site_change_waiting_sent_text_recovered` |
 | Live, with a change waiting for the team, no proof | Nothing is stored, and the working copy is not shown. The post stays on the website; the customer sees that it is live, a link to it, and that the text appears once the team finishes. No path sends it and nothing is approved. Public outputs leave it out | `on_site_change_waiting_text_unavailable` |
 | Failed | Untouched | `failed` |
 
