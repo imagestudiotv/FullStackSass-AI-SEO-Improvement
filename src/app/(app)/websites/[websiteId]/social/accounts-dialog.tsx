@@ -44,6 +44,7 @@ export function AccountsDialog({
   websiteId: string;
   accounts: AccountView[];
   platforms: string[];
+  manualOnly?: boolean;
   bundle: boolean;
   boards: string[];
   canEdit: boolean;
@@ -87,6 +88,7 @@ function AccountRow({
   platform,
   account,
   locked,
+  manualOnly,
   bundle,
   boards,
   canEdit,
@@ -99,6 +101,7 @@ function AccountRow({
   platform: SocialPlatform;
   account: AccountView | null;
   locked: boolean;
+  manualOnly?: boolean;
   bundle: boolean;
   boards: string[];
   canEdit: boolean;
@@ -165,7 +168,7 @@ function AccountRow({
                   {format(t.warmup, { date: formatDate(account.warmupEndsAt, locale, { day: "numeric", month: "long" }) })}
                 </p>
               ) : null}
-              {account.connected && spec.ownPosts ? (
+              {account.connected && spec.ownPosts && !manualOnly ? (
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p id={`${id}-auto`} className="font-medium">

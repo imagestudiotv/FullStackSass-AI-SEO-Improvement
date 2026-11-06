@@ -50,7 +50,8 @@ export default async function WebsiteHealthPage({
   // the workspace that pays for this site, exactly as before. A guest is
   // judged on this website alone and, if its owner's plan has lapsed, is
   // sent to the dashboard to be told so - never into the owner's checkout.
-  await requireWebsitePlan(ctx);
+  // A site in internal testing is judged on itself (lib/billing/internal-testing.ts).
+  await requireWebsitePlan(ctx, { internalTesting: true });
 
   const canEdit = access !== "viewer";
   // startAudit refuses a site still being onboarded; say so instead of offering the button.
@@ -61,7 +62,7 @@ export default async function WebsiteHealthPage({
     // Asked per WEBSITE, as startAudit asks it: an owner can open an unpaid
     // second site because the workspace gate passed, and a check would then
     // be refused. A trial may run it (client, 2026-10-27).
-    canEdit && !siteNotReady ? isEntitledToSpend(site.id, { freeArticles: true }) : Promise.resolve(null),
+    canEdit && !siteNotReady ? isEntitledToSpend(site.id, { freeArticles: true, internalTesting: true }) : Promise.resolve(null),
     getAppMessages(userId),
     searchParams,
     readCreditSettings(),

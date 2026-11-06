@@ -133,8 +133,8 @@ export async function startAudit(
     a server action is a public endpoint - the page in front of it redirects
     an unpaid customer, but the action behind it is still POSTable.
   */
-  // Open to a trial too (client, 2026-10-27: "trials can check the website").
-  const entitled = await isEntitledToSpend(site.id, { freeArticles: true });
+  // Open to a trial too (client, 2026-10-27: "trials can check the website"), and to a site in internal testing.
+  const entitled = await isEntitledToSpend(site.id, { freeArticles: true, internalTesting: true });
   if (!entitled.ok) return { ok: false, error: entitled.error };
 
   /*

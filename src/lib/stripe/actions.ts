@@ -36,6 +36,18 @@ function appUrl(): string {
 export type CheckoutResult = { url: string } | { error: string };
 
 /**
+ * STRIPE_PROMO_CODES_MONTHLY_ONLY=1 keeps promotion codes away from annual plans
+ * (the owner's decision on the REPGET code, 2026-11-05: 40% for one month, not on
+ * a full annual payment without confirmation; docs/plan-catalog.md). Monthly and
+ * annual prices share a Stripe product, so the coupon itself cannot say this.
+ * Unset, every checkout offers the code box as it always has. It decides nothing
+ * about which codes exist.
+ */
+function promoCodesMonthlyOnly(): boolean {
+  return process.env.STRIPE_PROMO_CODES_MONTHLY_ONLY === "1";
+}
+
+/**
  * Whether Stripe definitely refused a request (it answered 4xx), as opposed
  * to a timeout or dropped connection after which it may have acted.
  */
@@ -95,6 +107,7 @@ export async function createCheckoutSession(
       id: plans.id,
       name: plans.name,
       stripePriceId: plans.stripePriceId,
+      interval: plans.interval,
       isActive: plans.isActive,
     })
     .from(plans)
@@ -145,6 +158,7 @@ export async function createCheckoutSession(
       organizationId: orgId,
       providerSubscriptionId: begun.current.providerSubscriptionId,
       priceId: plan.stripePriceId,
+      toAnnual: plan.interval === "year",
       returnUrl: `${base}${checkoutReturnPath(origin, "success", websiteId)}`,
     });
   }
@@ -180,7 +194,7 @@ export async function createCheckoutSession(
     */
     success_url: `${base}${checkoutReturnPath(origin, "success", websiteId)}`,
     cancel_url: `${base}${checkoutReturnPath(origin, "cancelled", websiteId)}`,
-    allow_promotion_codes: true,
+    allow_promotion_codes: !(promoCodesMonthlyOnly() && plan.interval === "year"),
     // Metadata on the SESSION identifies this checkout...
     metadata,
     // ...and so does this, which is what a lost answer is searched by.
@@ -265,11 +279,17 @@ export async function createCheckoutSession(
  * the customer confirms, and customer.subscription.updated records it. The
  * subscription - its id, invoices and history - stays the same one, where
  * "Switch to this plan" used to open a checkout and create a second one.
+ *
+ * With promoCodesMonthlyOnly, a subscription carrying a discount does not move to
+ * an annual price: a discount not yet used on a trial would otherwise land on the
+ * full annual payment. Stripe removes a one-time discount once it has been used,
+ * and the move is open again from then.
  */
 async function changeStripePlan(input: {
   organizationId: string;
   providerSubscriptionId: string;
   priceId: string;
+  toAnnual: boolean;
   returnUrl: string;
 }): Promise<CheckoutResult> {
   const [customer] = await db
@@ -285,6 +305,13 @@ async function changeStripePlan(input: {
       customer?.id ??
       (typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id);
     if (!item) return { error: "This subscription has nothing to change." };
+    if (
+      input.toAnnual &&
+      promoCodesMonthlyOnly() &&
+      (subscription.discounts.length > 0 || subscription.items.data.some((line) => line.discounts.length > 0))
+    ) {
+      return { error: "This subscription has a discount that does not apply to annual plans. You can move to an annual plan once it has been used." };
+    }
 
     const session = await stripe.billingPortal.sessions.create({
       customer: customerId,

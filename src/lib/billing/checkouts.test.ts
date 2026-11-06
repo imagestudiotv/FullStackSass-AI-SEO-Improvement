@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   adminAuditLog,
@@ -273,6 +273,126 @@ describe("opening a checkout", () => {
       provider: "paypal",
       status: "open",
       providerSubscriptionId: "I-PENDING",
+    });
+  });
+});
+
+describe("promotion codes and annual plans (STRIPE_PROMO_CODES_MONTHLY_ONLY)", () => {
+  async function plan(interval: "month" | "year", stripePriceId: string) {
+    const [row] = await test.db
+      .insert(plans)
+      .values({
+        name: `Plan ${stripePriceId}`,
+        tier: stripePriceId,
+        interval,
+        stripePriceId,
+        priceCents: 9900,
+        articleLimit: 60,
+        keywordLimit: 100,
+        siteLimit: 1,
+        monthlyCredits: 0,
+      })
+      .returning();
+    return row.id;
+  }
+
+  /** Everything sent to Stripe, so a change to anything else fails too: currency, tax and trial settings stay out. */
+  async function paramsFor(interval: "month" | "year") {
+    const stripePriceId = `price_${interval}`;
+    const id = await plan(interval, stripePriceId);
+    const site = await addSite();
+    expect(await createCheckoutSession(id, site.id)).toEqual({ url: "https://checkout.stripe.test/cs_test_1" });
+    const [row] = await checkouts();
+    const metadata = { organizationId: "org_a", planId: id, websiteId: site.id, checkoutId: row.id };
+    const [params] = stripeMock.sessionsCreate.mock.calls[0];
+    return {
+      params,
+      withCodes: (allowed: boolean) => ({
+        mode: "subscription",
+        customer: "cus_test",
+        line_items: [{ price: stripePriceId, quantity: 1 }],
+        success_url: expect.stringContaining("https://app.example.test"),
+        cancel_url: expect.stringContaining("https://app.example.test"),
+        allow_promotion_codes: allowed,
+        metadata,
+        client_reference_id: row.id,
+        subscription_data: { metadata, trial_period_days: FREE_ARTICLES_DAYS },
+      }),
+    };
+  }
+
+  afterEach(() => {
+    vi.stubEnv("STRIPE_PROMO_CODES_MONTHLY_ONLY", undefined);
+  });
+
+  it.each([
+    ["unset", undefined, "month", true],
+    ["unset", undefined, "year", true],
+    ["set to anything but 1", "true", "year", true],
+    ["set to 0", "0", "year", true],
+    ["on", "1", "month", true],
+    ["on", "1", "year", false],
+  ] as const)("%s (%s), a %s checkout: codes allowed is %s, and nothing else moves", async (_label, flag, interval, allowed) => {
+    vi.stubEnv("STRIPE_PROMO_CODES_MONTHLY_ONLY", flag);
+    const { params, withCodes } = await paramsFor(interval);
+    expect(params).toEqual(withCodes(allowed));
+  });
+
+  describe("changing plan", () => {
+    const subscriptionOf = (over: { discounts?: unknown[]; itemDiscounts?: unknown[] } = {}) => ({
+      id: "sub_live",
+      customer: "cus_test",
+      discounts: over.discounts ?? [],
+      items: { data: [{ id: "si_1", quantity: 1, discounts: over.itemDiscounts ?? [] }] },
+    });
+
+    async function subscribedSite() {
+      const site = await addSite();
+      await test.db.insert(subscriptions).values({
+        organizationId: "org_a",
+        websiteId: site.id,
+        provider: "stripe",
+        planId,
+        status: "trialing",
+        stripeSubscriptionId: "sub_live",
+      });
+      return site;
+    }
+
+    const REFUSED = { error: expect.stringMatching(/discount that does not apply to annual plans/) };
+    const CONFIRM = { url: "https://billing.stripe.test/confirm" };
+
+    beforeEach(() => {
+      stripeMock.portalCreate.mockResolvedValue(CONFIRM);
+    });
+
+    it.each([
+      ["on the subscription", { discounts: ["di_1"] }],
+      ["on the subscription, expanded", { discounts: [{ id: "di_1" }] }],
+      ["on its line", { itemDiscounts: ["di_1"] }],
+    ])("refuses a move to annual with a discount %s, opening nothing", async (_where, discount) => {
+      vi.stubEnv("STRIPE_PROMO_CODES_MONTHLY_ONLY", "1");
+      const site = await subscribedSite();
+      stripeMock.subscriptionsRetrieve.mockResolvedValue(subscriptionOf(discount));
+      expect(await createCheckoutSession(await plan("year", "price_year"), site.id)).toEqual(REFUSED);
+      expect(stripeMock.portalCreate).not.toHaveBeenCalled();
+    });
+
+    it("allows a move to annual with no discount, and a move to monthly with one", async () => {
+      vi.stubEnv("STRIPE_PROMO_CODES_MONTHLY_ONLY", "1");
+      const site = await subscribedSite();
+      stripeMock.subscriptionsRetrieve.mockResolvedValue(subscriptionOf());
+      expect(await createCheckoutSession(await plan("year", "price_year"), site.id)).toEqual(CONFIRM);
+      stripeMock.subscriptionsRetrieve.mockResolvedValue(subscriptionOf({ discounts: ["di_1"] }));
+      expect(await createCheckoutSession(await plan("month", "price_month"), site.id)).toEqual(CONFIRM);
+      expect(stripeMock.portalCreate).toHaveBeenCalledTimes(2);
+    });
+
+    it("unset, a discount changes nothing about a move to annual", async () => {
+      vi.stubEnv("STRIPE_PROMO_CODES_MONTHLY_ONLY", undefined);
+      const site = await subscribedSite();
+      stripeMock.subscriptionsRetrieve.mockResolvedValue(subscriptionOf({ discounts: ["di_1"] }));
+      expect(await createCheckoutSession(await plan("year", "price_year"), site.id)).toEqual(CONFIRM);
     });
   });
 });

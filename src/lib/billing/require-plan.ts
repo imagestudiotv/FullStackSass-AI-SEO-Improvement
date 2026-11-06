@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { isEntitledToSpend } from "@/lib/billing/entitled";
+import { isInternalTestingWebsite } from "@/lib/billing/internal-testing";
 import { getOnboardingState } from "@/lib/onboarding/steps";
 import type { WebsiteContext } from "@/lib/tenant";
 
@@ -72,16 +73,25 @@ export async function requirePlan(orgId: string) {
  * Takes the WebsiteContext from requireWebsitePage rather than an org id, so
  * the decision rests on the access the tenant guard actually granted and
  * cannot be asked about a site the caller has not been checked against.
+ *
+ * `{ internalTesting: true }`, on the audit and social pages only. requirePlan
+ * asks about the WORKSPACE, from one of its subscriptions: it lets an owner in
+ * while another site's plan is that one, and sends them to the plan screen when
+ * it is not. A website listed for internal testing has no plan of its own either
+ * way (lib/billing/internal-testing.ts), so these two tools should not open and
+ * close with another site's billing.
  */
 export async function requireWebsitePlan(
   ctx: Pick<WebsiteContext, "access" | "ownerOrgId" | "site">,
+  options: { internalTesting?: boolean } = {},
 ): Promise<void> {
   if (ctx.access === "owner") {
+    if (options.internalTesting && (await isInternalTestingWebsite(ctx.site.id))) return;
     await requirePlan(ctx.ownerOrgId);
     return;
   }
 
-  const entitled = await isEntitledToSpend(ctx.site.id, { freeArticles: true });
+  const entitled = await isEntitledToSpend(ctx.site.id, { freeArticles: true, ...options });
   if (!entitled.ok) {
     redirect(`/dashboard?site=${ctx.site.id}`);
   }

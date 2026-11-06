@@ -22,16 +22,26 @@ export type SocialAccess = {
   /** "paid": every platform; "trial": the free articles, Quora only; "none": no plan. */
   level: "paid" | "trial" | "none";
   platforms: readonly SocialPlatform[];
+  /** RepGet publishes nothing by itself here: every post waits for a person's click. */
+  manualOnly?: true;
 };
 
 /**
  * What a website may use (client, 2026-10-27): a paid plan every platform, a
  * trial Quora only - the others are shown but locked - and nothing without a
  * plan.
+ *
+ * A website in internal testing (lib/billing/internal-testing.ts) gets every
+ * platform, with `manualOnly`. A trial's Quora has no own posts, so it would
+ * test one reply box and call the rest locked; but a paid plan's accounts publish
+ * by themselves once connected (social_accounts.auto_post defaults to on), and
+ * this site must not. So it is suggestions and one-click posts on all six, and
+ * suggest.ts and publish.ts never hand a post to bundle.social.
  */
 export async function socialAccess(websiteId: string): Promise<SocialAccess> {
   if ((await isEntitledToSpend(websiteId)).ok) return { level: "paid", platforms: SOCIAL_PLATFORMS };
   if ((await isEntitledToSpend(websiteId, { freeArticles: true })).ok) return { level: "trial", platforms: TRIAL_PLATFORMS };
+  if ((await isEntitledToSpend(websiteId, { internalTesting: true })).ok) return { level: "paid", platforms: SOCIAL_PLATFORMS, manualOnly: true };
   return { level: "none", platforms: [] };
 }
 

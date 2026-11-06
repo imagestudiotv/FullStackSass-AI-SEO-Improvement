@@ -36,7 +36,7 @@ export default async function WebsiteSocialPage({ params, searchParams }: PagePr
   const { websiteId } = await params;
   const ctx = await requireWebsitePage(websiteId);
   const { site, userId, access } = ctx;
-  await requireWebsitePlan(ctx);
+  await requireWebsitePlan(ctx, { internalTesting: true });
 
   const now = new Date();
   const today = now.toISOString().slice(0, 10);
@@ -116,6 +116,7 @@ export default async function WebsiteSocialPage({ params, searchParams }: PagePr
       canEdit={access !== "viewer"}
       level={plan.level}
       platforms={[...plan.platforms]}
+      manualOnly={plan.manualOnly === true}
       bundle={bundle}
       accounts={accountViews}
       open={open.map(view)}

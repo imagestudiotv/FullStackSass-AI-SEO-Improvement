@@ -210,7 +210,8 @@ export async function suggestForWebsite(websiteId: string, deps: Partial<Suggest
     // Only a post whose slot offered a link may carry one (LINK_EVERY), even to the website itself.
     if (!slot.link && linksIn(`${title ?? ""} ${body}`).length > 0) continue;
     const auto = Boolean(
-      slot.account.bundleAccountId &&
+      !access.manualOnly &&
+        slot.account.bundleAccountId &&
         slot.account.autoPost &&
         !slot.account.pausedAt &&
         // A Pin needs its board; without one it waits for the customer's click.

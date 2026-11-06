@@ -1,7 +1,9 @@
 /**
- * Adds https://www.repget.com as a normal website in its owner's workspace, so
- * it can use audits and social tools, without starting a second blog,
- * publishing anything or swapping links (client, 2026-11-05).
+ * Adds https://www.repget.com as a normal website in the workspace holding
+ * imagestudio.com, without starting a second blog, publishing anything or
+ * swapping links (client, 2026-11-05; docs/social-media.md, "RepGet's own
+ * website"). It grants nothing and no subscription is bought: audits and social
+ * tools open when the id it prints is listed in INTERNAL_TEST_WEBSITE_IDS.
  *
  *   node --env-file=<env file> --import tsx scripts/setup-repget-site.ts --workspace <organization id or slug>
  *       shows what would happen; writes nothing
@@ -10,8 +12,8 @@
  *
  * Safe to run again: it finds the existing record and does not make a second
  * one. It refuses when the workspace is missing, unknown or ambiguous, when it
- * has no owner, and when the domain is already in another workspace. It never
- * picks a workspace by itself.
+ * has no owner or does not hold imagestudio.com, and when the domain is already
+ * in another workspace. It never picks a workspace by itself.
  *
  * Reads and writes the database in DIRECT_URL; the host is printed first.
  * What it does and why: lib/websites/own-site-setup.ts.
@@ -61,12 +63,15 @@ function report(plan: Exclude<OwnSitePlan, { action: "refuse" }>, applied: boole
   line("  CMS connections", plan.cmsConnections);
   console.log("");
 
-  console.log("Still to decide or do (this script does none of it):");
-  if (!plan.plan) {
-    console.log("  - DECISION: audits and social tools ask for a live plan on this website, and it has none, so they answer");
-    console.log('    "Choose a plan for this website first". This script grants nothing and the checks are not weakened.');
-    console.log("    Someone must decide how this site is entitled: a normal subscription on it, or an internal allowance.");
-    console.log("    A new account's free articles cover audits and only the trial's social platforms (lib/social/accounts.ts).");
+  console.log("Next step (this script does none of it; it grants nothing, and no subscription is bought):");
+  if (plan.subscriptionStatus) {
+    console.log(`  - This website has a subscription (${plan.subscriptionStatus}), so INTERNAL_TEST_WEBSITE_IDS does not apply to it: it is treated as that subscription says.`);
+  } else {
+    const id = plan.websiteId ?? "<the website id, printed once this has run with --apply>";
+    console.log("  - On the deployment, set INTERNAL_TEST_WEBSITE_IDS to include this website id, and redeploy:");
+    console.log(`      INTERNAL_TEST_WEBSITE_IDS=${id}`);
+    console.log("    Keep any ids already there (comma-separated). Until then audits and social tools answer");
+    console.log('    "Choose a plan for this website first". It opens those two tools on this website only.');
   }
   console.log("  - Connecting social accounts is a person's choice in the dashboard. Nothing here connects or posts to one.");
 }
