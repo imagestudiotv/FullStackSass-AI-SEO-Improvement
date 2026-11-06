@@ -2,7 +2,7 @@
 Requires at least: 5.6
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.10.0
+Stable tag: 1.9.0
 License: GPLv2 or later
 
 Publishes articles written by RepGet straight to your WordPress site.
@@ -93,29 +93,6 @@ screen, so RepGet can bring you back to it. Nothing else is sent. The plugin
 only fetches articles and reports whether each one published.
 
 == Changelog ==
-
-= 1.10.0 =
-* With Rank Math active, each article's Facebook and Twitter title, description
-  and image are filled in, on publishing and on every update. The image is
-  always the article's featured image. A field you filled in or edited yourself
-  is never overwritten.
-* A picture changed in RepGet now replaces the article's featured image, unless
-  you chose another one on your site. A picture that could not be copied the
-  first time is tried again when the article is next sent.
-* RepGet, on your WordPress screen: "Rank Math: social fields on articles
-  published earlier" fills them for older articles. It previews first and
-  changes nothing until you press Apply. With WP-CLI:
-  wp repget social-backfill (add --apply to write).
-* An article RepGet sends never replaces a change saved on your site. The write
-  goes through only if the post is still exactly what was checked, in one
-  database step. Otherwise nothing is written, and RepGet says so. If somebody has
-  the post open in WordPress, it waits for them. The text replaced is kept as a
-  revision.
-* Pressing Publish in RepGet now works on an article your site holds as a
-  draft: that same post goes live, and no second post is made. If the draft was
-  changed in WordPress, it is neither published nor overwritten, and RepGet says
-  so. A draft written by an earlier version goes live only if it still holds
-  exactly what RepGet would send.
 
 = 1.9.0 =
 * When RepGet uses your website's own photos for an article (Article
