@@ -486,6 +486,7 @@ describe("AddonsPanel", () => {
   });
   const purchase: PurchaseRow = {
     id: "p1",
+    slug: "credits_10",
     name: "10 credits",
     kind: "credits",
     pricePaidCents: 4900,

@@ -24,6 +24,8 @@ export type AddonRow = {
 
 export type PurchaseRow = {
   id: string;
+  /** The add-on's stable key: a website project's name is translated by it. */
+  slug: string;
   name: string;
   kind: string;
   pricePaidCents: number;
