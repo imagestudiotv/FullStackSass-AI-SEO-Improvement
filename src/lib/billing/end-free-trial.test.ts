@@ -65,6 +65,22 @@ async function written(websiteId: string, n: number, body: string | null = "<p>h
 }
 
 describe("starting the plan after the free articles", () => {
+  it("puts a held coupon back in the same update, so the first paid invoice has it", async () => {
+    const { websiteId, subscriptionId } = await onFreeArticles();
+    await written(websiteId, FREE_ARTICLES);
+    stripeMock.retrieve.mockResolvedValue({
+      status: "trialing",
+      metadata: { paid_start_coupon: "GROW40" },
+      items: { data: [{ price: { recurring: { interval: "month" } } }] },
+    });
+    await expect(endFreeTrialIfUsed(websiteId)).resolves.toBe("ended");
+    expect(stripeMock.update).toHaveBeenCalledTimes(1);
+    expect(stripeMock.update.mock.calls[0].slice(0, 2)).toEqual([
+      subscriptionId,
+      { trial_end: "now", discounts: [{ coupon: "GROW40" }], metadata: { paid_start_coupon: "" } },
+    ]);
+  });
+
   it("waits until all of them are written", async () => {
     const { websiteId } = await onFreeArticles();
     await written(websiteId, FREE_ARTICLES - 1);

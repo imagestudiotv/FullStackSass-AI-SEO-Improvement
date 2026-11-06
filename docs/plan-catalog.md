@@ -26,6 +26,8 @@ Until step 6 the site keeps selling catalog 1. Do not merge the code before it: 
 
 The owner's decision (2026-11-05): 40% for one month, starting with the paid plan purchase, not with signup or the free period. Annual handling is still open, so 40% must not reach a full annual payment without confirmation. Stripe's local-currency behaviour stays as it is. None of this activates the coupon, and no code here creates one.
 
+Stripe counts a coupon's "1 month" from when it is first applied, and a code typed at Checkout is applied at once, during the free period. `STRIPE_PAID_START_COUPON=<coupon id>` moves that (`lib/billing/paid-start-coupon.ts`): the coupon is taken off during the free period and put back before the first paid invoice, three days before the period runs out, or in the update that ends it early. Monthly plans only. It needs `customer.subscription.trial_will_end` on the webhook endpoint, and that event must be added before the setting is turned on. Unset, nothing changes.
+
 Monthly and annual prices share a Stripe product, so a coupon cannot be limited to monthly by product. `STRIPE_PROMO_CODES_MONTHLY_ONLY=1` does it in the app, in `lib/stripe/actions.ts`:
 
 - An annual subscription checkout has no code box (`allow_promotion_codes: false`). A monthly one is unchanged.

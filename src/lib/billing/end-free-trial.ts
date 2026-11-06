@@ -4,6 +4,7 @@ import { and, count, eq, gte, isNotNull } from "drizzle-orm";
 
 import { isFreeArticlesTrial } from "@/lib/billing/entitlement-period";
 import { payPalPlanWaits } from "@/lib/billing/free-articles";
+import { paidStartUpdate } from "@/lib/billing/paid-start-coupon";
 import { syncStripeSubscription } from "@/lib/billing/stripe-events";
 import { db } from "@/lib/db";
 import { articles, notifications, subscriptions } from "@/lib/db/schema";
@@ -82,10 +83,12 @@ export async function endFreeTrialIfUsed(websiteId: string): Promise<EndTrialOut
 
     const live = await stripe.subscriptions.retrieve(sub.stripeSubscriptionId);
     if (live.status === "trialing") {
+      // In one update, so the coupon is on the first paid invoice (lib/billing/paid-start-coupon.ts).
+      const coupon = paidStartUpdate(live);
       await stripe.subscriptions.update(
         sub.stripeSubscriptionId,
-        { trial_end: "now" },
-        { idempotencyKey: `free-articles-used:${sub.stripeSubscriptionId}` },
+        { trial_end: "now", ...coupon },
+        { idempotencyKey: `free-articles-used:${sub.stripeSubscriptionId}${coupon ? ":coupon" : ""}` },
       );
     }
     // Recorded now rather than when the webhook lands, so the paid month's allowance is there at once.
