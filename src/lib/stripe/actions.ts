@@ -5,8 +5,8 @@ import type Stripe from "stripe";
 
 import { requireSession } from "@/lib/auth-guard";
 import { checkoutProviderOps } from "@/lib/billing/checkout-providers";
-import { OFFER_UNAVAILABLE, readOfferCode, REPGET_CODE, repgetOfferUsed } from "@/lib/billing/repget-offer";
-import { alertStaffAboutOffer, isCouponRefusal, OFFER_KEY } from "@/lib/billing/repget-subscription";
+import { OFFER_UNAVAILABLE, readOfferCode, REPGET_CODE, type OfferPlan } from "@/lib/billing/repget-offer";
+import { alertStaffAboutOffer, isCouponRefusal, OFFER_KEY, offerForPlanChange } from "@/lib/billing/repget-subscription";
 import {
   beginCheckout,
   isTrialEligible,
@@ -131,9 +131,6 @@ export async function createCheckoutSession(
   const offer = readOfferCode(offerCode, plan);
   if (offer.error !== undefined) return { error: offer.error };
   const offerCoupon = offer.coupon;
-  if (offerCoupon && (await repgetOfferUsed(db, orgId))) {
-    return { error: `This workspace has already used the ${REPGET_CODE} code.` };
-  }
 
   const base = appUrl();
 
@@ -161,6 +158,7 @@ export async function createCheckoutSession(
       organizationId: orgId,
       providerSubscriptionId: begun.current.providerSubscriptionId,
       priceId: plan.stripePriceId,
+      plan,
       returnUrl: `${base}${checkoutReturnPath(origin, "success", websiteId)}`,
     });
   }
@@ -296,6 +294,7 @@ async function changeStripePlan(input: {
   organizationId: string;
   providerSubscriptionId: string;
   priceId: string;
+  plan: OfferPlan;
   returnUrl: string;
 }): Promise<CheckoutResult> {
   const [customer] = await db
@@ -304,8 +303,12 @@ async function changeStripePlan(input: {
     .where(eq(billingCustomers.organizationId, input.organizationId))
     .limit(1);
 
+  let offerCoupon: string | undefined;
   try {
-    const subscription = await stripe.subscriptions.retrieve(input.providerSubscriptionId);
+    const subscription = await stripe.subscriptions.retrieve(input.providerSubscriptionId, { expand: ["discounts"] });
+    const offer = offerForPlanChange(subscription, input.plan);
+    if (offer.refuse) return { error: offer.refuse };
+    offerCoupon = offer.coupon;
     const item = subscription.items.data[0];
     const customerId =
       customer?.id ??
@@ -320,6 +323,8 @@ async function changeStripePlan(input: {
         subscription_update_confirm: {
           subscription: input.providerSubscriptionId,
           items: [{ id: item.id, price: input.priceId, quantity: item.quantity ?? 1 }],
+          // In the same request as the change, which can end a free period and charge at once.
+          ...(offerCoupon ? { discounts: [{ coupon: offerCoupon }] } : {}),
         },
         after_completion: { type: "redirect", redirect: { return_url: input.returnUrl } },
       },
@@ -327,6 +332,11 @@ async function changeStripePlan(input: {
     return { url: session.url };
   } catch (error) {
     console.error("[stripe] plan change failed", error);
+    // Nothing was changed. Better no change than one at full price.
+    if (offerCoupon && isCouponRefusal(error)) {
+      await alertStaffAboutOffer(error instanceof Error ? error.message : String(error), `Stripe refused coupon ${offerCoupon} on a plan change, so the plan was not changed. Stripe subscription: ${input.providerSubscriptionId}.`);
+      return { error: OFFER_UNAVAILABLE };
+    }
     return { error: stripeErrorMessage(error) };
   }
 }

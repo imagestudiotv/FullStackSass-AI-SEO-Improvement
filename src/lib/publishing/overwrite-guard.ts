@@ -31,13 +31,15 @@ import type { CmsProvider, Credentials, RemoteBaseline, RemoteState } from "@/li
  * Nor is anything here aware of somebody with the post open and unsaved, on any
  * platform: they save after this, and theirs replaces this update.
  *
- * WHAT "UNCHANGED" MEANS. What the platform returned when RepGet last sent the
- * post is kept with that send (request_snapshot.remoteBaseline): its last-saved
- * time and a hash of what a reader sees. The post is unchanged if either still
- * matches. The hash alone lets a Save with no change through. The time alone covers
- * a platform whose answer to a write is shaped differently from its answer to a
- * read, where the hash would differ for ever and no update could go out; the cost
- * is that an edit within the same second as the send is not seen.
+ * WHAT "UNCHANGED" MEANS. What a read of the post returned straight after RepGet
+ * last sent it is kept with that send (request_snapshot.remoteBaseline): its
+ * last-saved time and a hash of what a reader sees. With a hash on both sides, the
+ * hash decides, whatever the time says: a Save with no change moved the time only,
+ * and an edit within the same second as the send moved the hash only. The time
+ * decides only where a hash is missing on either side. It is a read on both sides
+ * because a platform can answer a write in a different shape from a read. A send
+ * whose read-back failed keeps the write's answer, and so may be refused: the safe
+ * direction. An edit landing between the send and that read is not seen.
  *
  * A POST SENT BEFORE BASELINES EXISTED has only the time of that send: unchanged
  * if the platform's last-saved time is no later than that, plus
@@ -88,9 +90,9 @@ export function judgeUpdate(input: {
   const expectedModifiedAt = remote.modifiedAt;
   const hasBaseline = Boolean(baseline && (baseline.hash || baseline.modifiedAt));
   if (baseline && hasBaseline) {
-    const sameHash = Boolean(baseline.hash && remote.hash && baseline.hash === remote.hash);
     const before = timeOf(baseline.modifiedAt);
-    if (sameHash || (before !== null && before === modified)) return { ok: true, expectedModifiedAt, because: "unchanged" };
+    const unchanged = baseline.hash && remote.hash ? baseline.hash === remote.hash : before !== null && before === modified;
+    if (unchanged) return { ok: true, expectedModifiedAt, because: "unchanged" };
   }
 
   if (modified !== null) {
@@ -110,6 +112,25 @@ export function judgeUpdate(input: {
 }
 
 type Snapshot = { remoteBaseline?: RemoteBaseline; mayHaveLanded?: boolean; marker?: string } | null;
+
+/**
+ * The baseline a send keeps: a read of the post, so the next check compares a read
+ * with a read. Never fails the send, which is already out: without a read it keeps
+ * what the write answered.
+ */
+export async function baselineAfterSend(
+  provider: Pick<CmsProvider, "readRemote">,
+  credentials: Credentials,
+  sent: { remoteId: string; baseline?: RemoteBaseline },
+): Promise<RemoteBaseline | undefined> {
+  try {
+    const read = await provider.readRemote?.(credentials, sent.remoteId);
+    if (read) return { modifiedAt: read.modifiedAt, hash: read.hash };
+  } catch (error) {
+    console.error("[publishing] could not read a post back after sending it", error);
+  }
+  return sent.baseline;
+}
 
 /** What this site's last send of the post recorded, and any attempt since whose answer never came. */
 async function lastSend(articleId: string, integrationId: string, remoteId: string, dispatchId: string) {

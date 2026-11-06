@@ -3,7 +3,7 @@ import type Stripe from "stripe";
 
 import { addonPaymentFailed, fulfilAddonPurchase } from "@/lib/addons/fulfil";
 import { cancellationOps } from "@/lib/billing/checkout-providers";
-import { matchOfferToPlan } from "@/lib/billing/repget-subscription";
+import { matchOfferToPlan, OFFER_KEY } from "@/lib/billing/repget-subscription";
 import {
   syncProviderSubscription,
   type SubscriptionSnapshot,
@@ -326,6 +326,9 @@ async function processBillingEvent(event: Stripe.Event): Promise<void> {
         );
         return;
       }
+
+      const offerMetadata = invoice.parent?.subscription_details?.metadata;
+      if (offerMetadata?.[OFFER_KEY]) await matchOfferToPlan({ id: subscriptionId, metadata: offerMetadata });
 
       const synced = await syncStripeSubscription(subscriptionId);
       const orgId = synced.organizationId;

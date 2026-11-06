@@ -36,7 +36,7 @@ import {
   isImageGenerationConfigured,
 } from "@/lib/images/generate";
 import { storedImagePrefix } from "@/lib/images/storage";
-import { checkBeforeUpdate, refuseUpdate } from "@/lib/publishing/overwrite-guard";
+import { baselineAfterSend, checkBeforeUpdate, refuseUpdate } from "@/lib/publishing/overwrite-guard";
 import { ProviderError, RemoteChangedError } from "@/lib/publishing/provider";
 import { getProvider } from "@/lib/publishing/registry";
 import { libraryMediaIds, ownCopies, pictureAddresses, sameAddress } from "@/lib/sites/library-media";
@@ -835,7 +835,7 @@ export const publishArticleJob = inngest.createFunction(
         const sent = remoteId
           ? await provider.updatePost(integration.credentials, remoteId, post, guard)
           : await provider.createPost(integration.credentials, post);
-        await settleDispatch(claim.dispatchId, { status: "sent", remoteId: sent.remoteId, remoteUrl: sent.remoteUrl, remoteStatus: sent.status, baseline: sent.baseline });
+        await settleDispatch(claim.dispatchId, { status: "sent", remoteId: sent.remoteId, remoteUrl: sent.remoteUrl, remoteStatus: sent.status, baseline: await baselineAfterSend(provider, integration.credentials, sent) });
         // Never fails the send: the post is out. Without the record, the next send uploads them again.
         await recordSentPictures(claim.dispatchId, pictureCopies).catch((error) =>
           logger.warn(

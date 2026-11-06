@@ -47,6 +47,11 @@ const cms = vi.hoisted(() => ({
   updateLands: false,
   baseline: { modifiedAt: "2026-01-01T10:00:00", hash: "first" } as { modifiedAt: string; hash: string } | undefined,
   calls: [] as string[],
+  /** The read straight after a write, which keeps the baseline. */
+  justWrote: false,
+  readBacks: 0,
+  readBack: null as Remote | null,
+  readBackError: null as Error | null,
   guards: [] as unknown[],
   sent: [] as string[],
 }));
@@ -56,6 +61,7 @@ vi.mock("@/lib/publishing/registry", () => {
     createPost: vi.fn(async (_c: unknown, input: { status: string; contentHtml: string }) => {
       cms.calls.push("create");
       cms.sent.push(input.contentHtml);
+      cms.justWrote = true;
       return { remoteId: "7", remoteUrl: "https://site.test/?p=7", status: input.status, baseline: cms.baseline };
     }),
     updatePost: vi.fn(async (_c: unknown, remoteId: string, input: { status: string; contentHtml: string }, guard: unknown) => {
@@ -69,9 +75,17 @@ vi.mock("@/lib/publishing/registry", () => {
         cms.updateError = null;
         throw error;
       }
+      cms.justWrote = true;
+      cms.remote = { modifiedAt: "2026-02-02T10:00:00", hash: "second", status: "publish", rawContent: null };
       return { remoteId, remoteUrl: "https://site.test/?p=7", status: input.status, baseline: { modifiedAt: "2026-02-02T10:00:00", hash: "second" } };
     }),
     readRemote: vi.fn(async () => {
+      if (cms.justWrote) {
+        cms.justWrote = false;
+        cms.readBacks += 1;
+        if (cms.readBackError) throw cms.readBackError;
+        return cms.readBack ?? cms.remote;
+      }
       cms.calls.push("read");
       if (cms.readError) throw cms.readError;
       return cms.remote;
@@ -96,6 +110,10 @@ beforeAll(async () => {
 beforeEach(() => {
   bell.sent.length = 0;
   cms.calls.length = 0;
+  cms.justWrote = false;
+  cms.readBacks = 0;
+  cms.readBack = null;
+  cms.readBackError = null;
   cms.guards.length = 0;
   cms.sent.length = 0;
   cms.readError = null;
@@ -167,6 +185,34 @@ describe("the baseline", () => {
     expect((await dispatches(s.post.id))[0].requestSnapshot).toMatchObject({ remoteBaseline: { modifiedAt: "2026-01-01T10:00:00", hash: "first" } });
     await run(s);
     expect((await dispatches(s.post.id))[1].requestSnapshot).toMatchObject({ remoteBaseline: { modifiedAt: "2026-02-02T10:00:00", hash: "second" } });
+  });
+});
+
+describe("the baseline is a read, so a read is compared with a read", () => {
+  it("a platform that answers a write in another shape: the next update is not refused for it", async () => {
+    cms.baseline = { modifiedAt: "2026-01-01T10:00:00", hash: "the write's shape" };
+    cms.readBack = { modifiedAt: "2026-01-01T10:00:00", hash: "first", status: "publish", rawContent: null };
+    const s = await delivered();
+    expect(cms.readBacks).toBe(1);
+    expect((await dispatches(s.post.id))[0].requestSnapshot).toMatchObject({ remoteBaseline: { hash: "first" } });
+    await run(s);
+    expect(cms.calls).toEqual(["read", "update:7"]);
+  });
+
+  it("the read-back fails: the send stands, with what the write answered", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    cms.readBackError = new Error("site busy");
+    const s = await delivered();
+    expect(await row(s.post.id)).toMatchObject({ status: "published", error: null });
+    expect((await dispatches(s.post.id))[0].requestSnapshot).toMatchObject({ remoteBaseline: { hash: "first" } });
+    log.mockRestore();
+  });
+
+  it("edited in the same second as the send: refused, with the time unchanged", async () => {
+    const s = await delivered();
+    cms.remote = { modifiedAt: "2026-01-01T10:00:00", hash: "somebody's", status: "publish", rawContent: null };
+    await expect(run(s)).resolves.toEqual({ held: "post_changed" });
+    expectRefused("post_changed");
   });
 });
 
@@ -288,7 +334,11 @@ describe("a refusal is not retried on a schedule", () => {
     ["post_unverified", { modifiedAt: null, hash: null, status: "publish", rawContent: null }, undefined],
   ] as const)("%s: one notification, nothing written, and the daily release leaves it from then on", async (refusal, remote, baseline) => {
     cms.baseline = baseline ? { ...baseline } : undefined;
+    // No baseline at all: the write answered none, and neither did the read straight after it.
+    cms.readBackError = baseline ? null : new Error("site busy");
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
     const s = await dueAgain();
+    log.mockRestore();
     cms.remote = { ...remote };
     // What this is about: without a refusal it IS due.
     expect(await dailyReleaseSends(s)).toHaveLength(1);
@@ -420,9 +470,27 @@ describe("judgeUpdate", () => {
     expect(judgeUpdate({ ...none, sentAt, remote: remote({ modifiedAt: "2026-01-01T10:03:00", hash: null }) })).toEqual({ ok: false, refusal: "post_changed" });
   });
 
-  it("the same second, with a hash that differs: not seen, and that limit is on record here", () => {
+  it("the same second, with a hash that differs: changed, whatever the time says", () => {
     const baseline = { modifiedAt: "2026-01-01T10:00:00", hash: "a" };
-    expect(judgeUpdate({ ...none, baseline, remote: remote({ hash: "b" }) }).ok).toBe(true);
+    expect(judgeUpdate({ ...none, baseline, remote: remote({ hash: "b" }) })).toEqual({ ok: false, refusal: "post_changed" });
+  });
+
+  it("the same hash with a later time: unchanged", () => {
+    const baseline = { modifiedAt: "2026-01-01T10:00:00", hash: "a" };
+    expect(judgeUpdate({ ...none, baseline, remote: remote({ hash: "a", modifiedAt: "2026-01-09T10:00:00" }) }).ok).toBe(true);
+  });
+
+  it("no hash to compare on one side: the time decides, and a different time is a change", () => {
+    const withHash = { modifiedAt: "2026-01-01T10:00:00", hash: "a" };
+    const noHash = { modifiedAt: "2026-01-01T10:00:00", hash: null };
+    expect(judgeUpdate({ ...none, baseline: withHash, remote: remote({ hash: null }) }).ok).toBe(true);
+    expect(judgeUpdate({ ...none, baseline: noHash, remote: remote({ hash: "a" }) }).ok).toBe(true);
+    expect(judgeUpdate({ ...none, baseline: noHash, remote: remote({ hash: "a", modifiedAt: "2026-01-09T10:00:00" }) })).toEqual({ ok: false, refusal: "post_changed" });
+  });
+
+  it("nothing to compare on either side: not called unchanged", () => {
+    const baseline = { modifiedAt: null, hash: "a" };
+    expect(judgeUpdate({ ...none, baseline, remote: remote({ hash: null }) })).toEqual({ ok: false, refusal: "post_changed" });
   });
 
   it("no send on record at all: cannot be shown", () => {
