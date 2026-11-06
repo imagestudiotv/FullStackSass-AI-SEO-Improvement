@@ -47,7 +47,7 @@ export function AuditSampleTabs({
     <div className={styles.reportMain}>
       <div className={styles.reportNav}>
         <p className={styles.reportNavTitle}>{title}</p>
-        <div role="tablist" aria-label={label} aria-orientation="vertical" className={styles.reportTabs}>
+        <div role="tablist" aria-label={label} className={styles.reportTabs}>
           {tabs.map((tab, index) => (
             <button
               key={tab.id}
@@ -73,7 +73,7 @@ export function AuditSampleTabs({
       </div>
       <div className={styles.reportPanels}>
         {tabs.map((tab, index) => (
-          <div key={tab.id} id={`audit-panel-${tab.id}`} role="tabpanel" aria-labelledby={`audit-tab-${tab.id}`} hidden={index !== active}>
+          <div key={tab.id} id={`audit-panel-${tab.id}`} role="tabpanel" aria-labelledby={`audit-tab-${tab.id}`} tabIndex={0} hidden={index !== active}>
             {panels[index]}
           </div>
         ))}

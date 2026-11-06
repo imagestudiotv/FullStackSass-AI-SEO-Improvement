@@ -356,7 +356,7 @@ export const WEBSITE_CREATION_COPY: Record<Locale, WebsiteCreationCopy> = {
     },
   },
   fr: {
-    metaTitle: "Création et refonte de site par de vrais experts",
+    metaTitle: "Création et refonte de site par de vraies personnes",
     metaDescription: "Besoin d'un nouveau site ou d'une refonte ? Envoyez un brief, convenez du périmètre et d'un prix en crédits avec notre équipe, depuis votre compte RepGet.",
     hero: {
       kicker: "SITES SUR MESURE ET REFONTES",

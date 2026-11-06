@@ -172,7 +172,7 @@ export const es: AuditLandingCopy = {
     steps: [
       { title: "Introduzca su web", body: "Empiece con su dominio. La revisión gratuita no requiere cuenta ni método de pago." },
       { title: "Revise los hallazgos", body: "Vea señales de salud de la web, problemas de SEO y qué rastreadores de IA pueden leerla." },
-      { title: "Siga un plan por prioridades", body: "Empiece por los arreglos importantes. Si quiere ayuda para ir más allá, RepGet puede encargarse del trabajo continuo de crecimiento." },
+      { title: "Siga un plan por prioridades", body: "Empiece por los arreglos importantes. Si quiere ayuda para ir más allá, RepGet puede apoyar el trabajo continuo de crecimiento." },
     ],
   },
   faq: {

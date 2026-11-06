@@ -172,7 +172,7 @@ export const fr: AuditLandingCopy = {
     steps: [
       { title: "Saisissez votre site", body: "Commencez par votre domaine. La vérification gratuite ne demande ni compte ni moyen de paiement." },
       { title: "Examinez les constats", body: "Voyez les signaux de santé du site, les problèmes SEO et les robots d’IA qui peuvent le lire." },
-      { title: "Suivez un plan par priorités", body: "Commencez par les corrections importantes. Si vous voulez aller plus loin, RepGet peut prendre en charge le travail de croissance au quotidien." },
+      { title: "Suivez un plan par priorités", body: "Commencez par les corrections importantes. Si vous voulez aller plus loin, RepGet peut accompagner le travail de croissance au quotidien." },
     ],
   },
   faq: {

@@ -64,7 +64,7 @@ export type EarnShareCopy = {
 
 const en: EarnShareCopy = {
   jump: "Start from a ready-made post",
-  artAlt: "Four people connected to RepGet, and a reward of {credits} credits when a friend joins",
+  artAlt: "Four people connected to RepGet, and a reward of {credits} credits when a friend completes their first paid month",
   artFriend: "Friend joined",
   artCredits: "Credits",
 
@@ -123,7 +123,7 @@ const en: EarnShareCopy = {
 
 const es: EarnShareCopy = {
   jump: "Empezar con una publicación ya redactada",
-  artAlt: "Cuatro personas conectadas a RepGet, y una recompensa de {credits} créditos cuando se une alguien",
+  artAlt: "Cuatro personas conectadas a RepGet, y una recompensa de {credits} créditos cuando alguien completa su primer mes pagado",
   artFriend: "Amigo registrado",
   artCredits: "Créditos",
 
@@ -182,7 +182,7 @@ const es: EarnShareCopy = {
 
 const fr: EarnShareCopy = {
   jump: "Partir d’une publication déjà rédigée",
-  artAlt: "Quatre personnes reliées à RepGet, et une récompense de {credits} crédits lorsqu’une personne rejoint",
+  artAlt: "Quatre personnes reliées à RepGet, et une récompense de {credits} crédits lorsqu’une personne termine son premier mois payé",
   artFriend: "Ami inscrit",
   artCredits: "Crédits",
 
@@ -241,7 +241,7 @@ const fr: EarnShareCopy = {
 
 const it: EarnShareCopy = {
   jump: "Parta da un post già scritto",
-  artAlt: "Quattro persone collegate a RepGet, e un premio di {credits} crediti quando qualcuno si iscrive",
+  artAlt: "Quattro persone collegate a RepGet, e un premio di {credits} crediti quando qualcuno completa il primo mese pagato",
   artFriend: "Amico iscritto",
   artCredits: "Crediti",
 
@@ -300,7 +300,7 @@ const it: EarnShareCopy = {
 
 const de: EarnShareCopy = {
   jump: "Mit einem fertigen Beitrag beginnen",
-  artAlt: "Vier Personen, verbunden mit RepGet, und eine Prämie von {credits} Credits, wenn jemand beitritt",
+  artAlt: "Vier Personen, verbunden mit RepGet, und eine Prämie von {credits} Credits, wenn jemand den ersten bezahlten Monat abschließt",
   artFriend: "Freund angemeldet",
   artCredits: "Credits",
 
