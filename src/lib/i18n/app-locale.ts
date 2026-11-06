@@ -5,7 +5,7 @@ import { headers } from "next/headers";
 
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema";
-import { DEFAULT_LOCALE, isLocale, type Locale } from "@/lib/i18n/config";
+import { DEFAULT_LOCALE, isLocale, splitLocale, type Locale } from "@/lib/i18n/config";
 import { getMessages, type Messages } from "@/lib/i18n/messages";
 
 /**
@@ -56,6 +56,49 @@ export async function getPublicMessages(): Promise<{
   t: Messages;
 }> {
   const locale = (await localeFromRequest()) ?? DEFAULT_LOCALE;
+  return { locale, t: getMessages(locale) };
+}
+
+/** Pages whose address says nothing about the language: coming from them, the browser decides. */
+const LANGUAGELESS = ["/sign-in", "/sign-up", "/invite", "/onboarding"];
+
+/**
+ * The language of the site page someone came from: /it/pricing is Italian, and
+ * /pricing is English whatever the browser is set to. Null when they came from
+ * elsewhere, or from a page that says nothing about the language.
+ */
+export function localeFromReferrer(referer: string | null | undefined, host: string | null | undefined): Locale | null {
+  if (!referer || !host) return null;
+  let url: URL;
+  try {
+    url = new URL(referer);
+  } catch {
+    return null;
+  }
+  const bare = (value: string) => value.toLowerCase().replace(/^www\./, "");
+  if (bare(url.host) !== bare(host)) return null;
+  const { locale, path } = splitLocale(url.pathname);
+  return LANGUAGELESS.some((page) => path === page || path.startsWith(`${page}/`)) ? null : locale;
+}
+
+/**
+ * Sign-in and sign-up have one address for every language, so the address cannot
+ * say which. The site page that led here can, and it is what the visitor was just
+ * reading; a browser set to Italian on the English site should stay in English.
+ * Arriving from anywhere else, it is the browser's language, as elsewhere.
+ */
+export async function getAuthMessages(): Promise<{
+  locale: Locale;
+  t: Messages;
+}> {
+  let fromPage: Locale | null = null;
+  try {
+    const list = await headers();
+    fromPage = localeFromReferrer(list.get("referer"), list.get("host"));
+  } catch {
+    // Called outside a request scope. Fall through to the browser's.
+  }
+  const locale = fromPage ?? (await localeFromRequest()) ?? DEFAULT_LOCALE;
   return { locale, t: getMessages(locale) };
 }
 

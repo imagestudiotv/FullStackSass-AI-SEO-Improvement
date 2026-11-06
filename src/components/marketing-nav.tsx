@@ -429,6 +429,7 @@ export function MarketingFooterLinks({ chrome }: { chrome: SiteChrome }) {
     {
       title: t.footer.product,
       items: [
+        { href: href("/website-creation"), label: t.footer.websiteCreation },
         { href: href("/audit"), label: t.footer.freeCheck },
         { href: href("/tools"), label: t.footer.freeTools },
         { href: href("/pricing"), label: t.footer.pricing },
