@@ -5,6 +5,8 @@ import type Stripe from "stripe";
 
 import { requireSession } from "@/lib/auth-guard";
 import { checkoutProviderOps } from "@/lib/billing/checkout-providers";
+import { PAID_START_KEY } from "@/lib/billing/paid-start-coupon";
+import { readOfferCode, REPGET_CODE, repgetOfferUsed } from "@/lib/billing/repget-offer";
 import {
   beginCheckout,
   isTrialEligible,
@@ -34,18 +36,6 @@ function appUrl(): string {
 }
 
 export type CheckoutResult = { url: string } | { error: string };
-
-/**
- * STRIPE_PROMO_CODES_MONTHLY_ONLY=1 keeps promotion codes away from annual plans
- * (the owner's decision on the REPGET code, 2026-11-05: 40% for one month, not on
- * a full annual payment without confirmation; docs/plan-catalog.md). Monthly and
- * annual prices share a Stripe product, so the coupon itself cannot say this.
- * Unset, every checkout offers the code box as it always has. It decides nothing
- * about which codes exist.
- */
-function promoCodesMonthlyOnly(): boolean {
-  return process.env.STRIPE_PROMO_CODES_MONTHLY_ONLY === "1";
-}
 
 /**
  * Whether Stripe definitely refused a request (it answered 4xx), as opposed
@@ -80,6 +70,8 @@ export async function createCheckoutSession(
   websiteId: string,
   /** Where the customer started, so paying returns them there. */
   origin: CheckoutOrigin = "billing",
+  /** A code the customer gave RepGet, not Stripe. Checked below (lib/billing/repget-offer.ts). */
+  offerCode?: string | null,
 ): Promise<CheckoutResult> {
   const { orgId } = await requireOrg();
 
@@ -107,7 +99,10 @@ export async function createCheckoutSession(
       id: plans.id,
       name: plans.name,
       stripePriceId: plans.stripePriceId,
+      tier: plans.tier,
       interval: plans.interval,
+      currency: plans.currency,
+      priceCents: plans.priceCents,
       isActive: plans.isActive,
     })
     .from(plans)
@@ -133,13 +128,20 @@ export async function createCheckoutSession(
     return { error: CONFIRM_EMAIL_FIRST };
   }
 
+  const offer = readOfferCode(offerCode, plan);
+  if (offer.error !== undefined) return { error: offer.error };
+  const offerCoupon = offer.coupon;
+  if (offerCoupon && (await repgetOfferUsed(db, orgId))) {
+    return { error: `This workspace has already used the ${REPGET_CODE} code.` };
+  }
+
   const base = appUrl();
 
   let begun: Awaited<ReturnType<typeof beginCheckout>>;
   try {
     begun = await beginCheckout(
       db,
-      { organizationId: orgId, websiteId, provider: "stripe", planId: plan.id },
+      { organizationId: orgId, websiteId, provider: "stripe", planId: plan.id, offer: offerCoupon ? REPGET_CODE : null },
       checkoutProviderOps,
     );
   } catch (error) {
@@ -154,11 +156,11 @@ export async function createCheckoutSession(
     if (begun.current.planId === plan.id) {
       return { error: `This website is already on ${plan.name}.` };
     }
+    if (offerCoupon) return { error: `The ${REPGET_CODE} code is for starting a first paid plan, not for changing one.` };
     return changeStripePlan({
       organizationId: orgId,
       providerSubscriptionId: begun.current.providerSubscriptionId,
       priceId: plan.stripePriceId,
-      toAnnual: plan.interval === "year",
       returnUrl: `${base}${checkoutReturnPath(origin, "success", websiteId)}`,
     });
   }
@@ -194,7 +196,17 @@ export async function createCheckoutSession(
     */
     success_url: `${base}${checkoutReturnPath(origin, "success", websiteId)}`,
     cancel_url: `${base}${checkoutReturnPath(origin, "cancelled", websiteId)}`,
-    allow_promotion_codes: !(promoCodesMonthlyOnly() && plan.interval === "year"),
+    /*
+      Stripe's code box, for every other code. With the REPGET offer there is none,
+      so a second code cannot replace it. On a free period the coupon waits for the
+      first paid invoice, and is in the subscription's metadata below; without one,
+      this is the first paid invoice (lib/billing/repget-offer.ts).
+    */
+    ...(!offerCoupon
+      ? { allow_promotion_codes: true }
+      : trialDays > 0
+        ? {}
+        : { discounts: [{ coupon: offerCoupon }] }),
     // Metadata on the SESSION identifies this checkout...
     metadata,
     // ...and so does this, which is what a lost answer is searched by.
@@ -202,7 +214,7 @@ export async function createCheckoutSession(
     // ...but session metadata does NOT propagate to the subscription, so it
     // is written there too, for every later subscription event.
     subscription_data: {
-      metadata,
+      metadata: { ...metadata, ...(offerCoupon && trialDays > 0 ? { [PAID_START_KEY]: REPGET_CODE } : {}) },
       /**
        * A trial ONLY for a workspace that has never had a subscription
        * (isTrialEligible: durable history, decided under a lock). It used to
@@ -221,7 +233,7 @@ export async function createCheckoutSession(
     // needed to find the session it made (checkouts.ts findStripeSession).
     await recordCheckoutRequest(db, checkoutId, {
       idempotencyKey,
-      params: { customer: customerId, price: plan.stripePriceId, trialDays },
+      params: { customer: customerId, price: plan.stripePriceId, trialDays, ...(offerCoupon ? { offer: REPGET_CODE } : {}) },
     });
 
     const session = await stripe.checkout.sessions.create(params, { idempotencyKey });
@@ -279,17 +291,11 @@ export async function createCheckoutSession(
  * the customer confirms, and customer.subscription.updated records it. The
  * subscription - its id, invoices and history - stays the same one, where
  * "Switch to this plan" used to open a checkout and create a second one.
- *
- * With promoCodesMonthlyOnly, a subscription carrying a discount does not move to
- * an annual price: a discount not yet used on a trial would otherwise land on the
- * full annual payment. Stripe removes a one-time discount once it has been used,
- * and the move is open again from then.
  */
 async function changeStripePlan(input: {
   organizationId: string;
   providerSubscriptionId: string;
   priceId: string;
-  toAnnual: boolean;
   returnUrl: string;
 }): Promise<CheckoutResult> {
   const [customer] = await db
@@ -305,13 +311,6 @@ async function changeStripePlan(input: {
       customer?.id ??
       (typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id);
     if (!item) return { error: "This subscription has nothing to change." };
-    if (
-      input.toAnnual &&
-      promoCodesMonthlyOnly() &&
-      (subscription.discounts.length > 0 || subscription.items.data.some((line) => line.discounts.length > 0))
-    ) {
-      return { error: "This subscription has a discount that does not apply to annual plans. You can move to an annual plan once it has been used." };
-    }
 
     const session = await stripe.billingPortal.sessions.create({
       customer: customerId,

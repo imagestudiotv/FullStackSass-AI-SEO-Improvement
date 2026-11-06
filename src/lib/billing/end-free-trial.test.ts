@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { articles, notifications, subscriptions } from "@/lib/db/schema";
+import { articles, notifications, plans, subscriptions } from "@/lib/db/schema";
 import { createTestDb, type TestDb } from "@/test/db";
 import { seedWebsite } from "@/test/fixtures";
 
@@ -65,20 +65,47 @@ async function written(websiteId: string, n: number, body: string | null = "<p>h
 }
 
 describe("starting the plan after the free articles", () => {
-  it("puts a held coupon back in the same update, so the first paid invoice has it", async () => {
-    const { websiteId, subscriptionId } = await onFreeArticles();
-    await written(websiteId, FREE_ARTICLES);
-    stripeMock.retrieve.mockResolvedValue({
-      status: "trialing",
-      metadata: { paid_start_coupon: "GROW40" },
-      items: { data: [{ price: { recurring: { interval: "month" } } }] },
+  describe("with the REPGET offer waiting", () => {
+    const planRow = { articleLimit: 1, keywordLimit: 1, siteLimit: 1, monthlyCredits: 1, currency: "eur", name: "T Grow offer", tier: "grow", interval: "month", priceCents: 14900 };
+    let version = 10;
+    const offered = async () => {
+      const site = await onFreeArticles();
+      await written(site.websiteId, FREE_ARTICLES);
+      const price = `price_${site.websiteId.slice(0, 8)}`;
+      version += 1;
+      await test.db.insert(plans).values({ ...planRow, name: `T ${price}`, stripePriceId: price, catalogVersion: version });
+      stripeMock.retrieve.mockResolvedValue({ status: "trialing", metadata: { paid_start_offer: "REPGET" }, items: { data: [{ price: { id: price } }] } });
+      return site;
+    };
+
+    it("puts the plan's coupon on in the same update, so the first paid invoice has it", async () => {
+      const { websiteId, subscriptionId } = await offered();
+      await expect(endFreeTrialIfUsed(websiteId)).resolves.toBe("ended");
+      expect(stripeMock.update).toHaveBeenCalledTimes(1);
+      expect(stripeMock.update.mock.calls[0].slice(0, 2)).toEqual([
+        subscriptionId,
+        { trial_end: "now", discounts: [{ coupon: "GROW40" }], metadata: { paid_start_offer: "" } },
+      ]);
     });
-    await expect(endFreeTrialIfUsed(websiteId)).resolves.toBe("ended");
-    expect(stripeMock.update).toHaveBeenCalledTimes(1);
-    expect(stripeMock.update.mock.calls[0].slice(0, 2)).toEqual([
-      subscriptionId,
-      { trial_end: "now", discounts: [{ coupon: "GROW40" }], metadata: { paid_start_coupon: "" } },
-    ]);
+
+    it("a coupon Stripe refuses does not hold the plan back", async () => {
+      const { websiteId, subscriptionId } = await offered();
+      const log = vi.spyOn(console, "error").mockImplementation(() => {});
+      stripeMock.update.mockRejectedValueOnce(Object.assign(new Error("No such coupon"), { type: "StripeInvalidRequestError" }));
+      await expect(endFreeTrialIfUsed(websiteId)).resolves.toBe("ended");
+      expect(stripeMock.update.mock.calls[1].slice(0, 2)).toEqual([subscriptionId, { trial_end: "now" }]);
+      expect(log).toHaveBeenCalled();
+      log.mockRestore();
+    });
+
+    it("any other Stripe failure is not hidden: it stays failed and is tried again", async () => {
+      const { websiteId } = await offered();
+      const log = vi.spyOn(console, "error").mockImplementation(() => {});
+      stripeMock.update.mockRejectedValueOnce(Object.assign(new Error("down"), { type: "StripeConnectionError" }));
+      await expect(endFreeTrialIfUsed(websiteId)).resolves.toBe("failed");
+      expect(stripeMock.update).toHaveBeenCalledTimes(1);
+      log.mockRestore();
+    });
   });
 
   it("waits until all of them are written", async () => {

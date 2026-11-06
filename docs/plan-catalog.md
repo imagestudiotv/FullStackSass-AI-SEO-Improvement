@@ -22,24 +22,27 @@ Until step 6 the site keeps selling catalog 1. Do not merge the code before it: 
 - **Customer Portal (required):** "Switch to this plan" opens the portal's update flow with the target price, and fails unless that price is in the portal's configuration. In Settings -> Billing -> Customer portal, enable "Customers can switch plans" and add all three products with their new prices. While there, check the proration setting: it decides what an upgrade charges and what a downgrade credits.
 - **Coupons:** a coupon limited to certain products does not apply to a new one. Check that the 40% REPGET code and partner coupons cover Launch.
 
-## The REPGET code and annual plans
+## The REPGET code
 
-The owner's decision (2026-11-05): 40% for one month, starting with the paid plan purchase, not with signup or the free period. Annual handling is still open, so 40% must not reach a full annual payment without confirmation. Stripe's local-currency behaviour stays as it is. None of this activates the coupon, and no code here creates one.
+The owner's decision (2026-11-05): 40% off the first paid month, starting with the paid plan purchase, not with signup or the free period. Annual handling is still open, so no discount reaches a full annual payment. Stripe's local-currency behaviour stays as it is.
 
-Stripe counts a coupon's "1 month" from when it is first applied, and a code typed at Checkout is applied at once, during the free period. `STRIPE_PAID_START_COUPON=<coupon id>` moves that (`lib/billing/paid-start-coupon.ts`): the coupon is taken off during the free period and put back before the first paid invoice, three days before the period runs out, or in the update that ends it early. Monthly plans only. It needs `customer.subscription.trial_will_end` on the webhook endpoint, and that event must be added before the setting is turned on. Unset, nothing changes.
+The discount is three fixed-amount coupons, limited by product, one per plan: `LAUNCH40` €39.60, `GROW40` €59.60, `SCALE40` €139.60, each `once`. A Stripe promotion code points at one coupon and must be unique while active, so **REPGET is not a Stripe promotion code**. The customer gives it to RepGet on a plan screen, and the server picks the coupon (`lib/billing/repget-offer.ts`). Off until `REPGET_OFFER_ENABLED=1`.
 
-Monthly and annual prices share a Stripe product, so a coupon cannot be limited to monthly by product. `STRIPE_PROMO_CODES_MONTHLY_ONLY=1` does it in the app, in `lib/stripe/actions.ts`:
+| Customer | What happens |
+|---|---|
+| On a free period | Checkout carries no coupon, so the free period cannot use it up. The offer is kept in the subscription's metadata. The plan's coupon goes on three days before the period runs out (`customer.subscription.trial_will_end`), or in the update that ends it early (`lib/billing/paid-start-coupon.ts`). The plan at that moment decides |
+| No free period | The plan's coupon is on the Checkout itself |
+| Annual plan, or a price other than the coupon's | Refused at Checkout. Moved to annual during the free period: no discount |
+| Credit packs | Never come here |
+| Any other promotion code | Stripe's code box as before, partner coupons included. The box is off only on a REPGET checkout, so a second code cannot replace it |
 
-- An annual subscription checkout has no code box (`allow_promotion_codes: false`). A monthly one is unchanged.
-- A subscription carrying a discount cannot move to an annual price through **Change plan**. Otherwise a discount not yet used on a trial would land on the full annual payment.
+Before turning it on:
 
-Unset, both behave as before. What it does not cover:
+- **Add `customer.subscription.trial_will_end` to the webhook endpoint.** Without it, a customer on a free period pays full price.
+- **No active Stripe promotion code may be called REPGET.** One typed into Stripe's box would bypass all of this, on annual too.
+- Do not delete the coupons or set an expiry while customers wait on a free period. A coupon Stripe refuses cannot be put on: they would pay full price. When the free period is ended early that is logged and the plan still starts.
 
-- **Every code is affected, not only REPGET.** With it on, partner coupons also cannot be entered on an annual checkout (`docs/partner-program.md`).
-- **Credit packs** still accept codes (`lib/addons/actions.ts`). Limit the coupon to the plans' product in Stripe.
-- **PayPal** has no code field.
-- **The customer portal's** own plan-switching settings live in Stripe's dashboard.
-- **A checkout already open** when it is turned on keeps its code box until it expires, since an open checkout is reused rather than made again.
+One redemption per workspace, counted from completed checkouts. PayPal has no way to take it.
 
 ## What happens to existing subscribers
 

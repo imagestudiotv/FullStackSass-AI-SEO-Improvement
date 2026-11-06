@@ -20,7 +20,9 @@ import {
 import { hasUnfinishedPayPalApproval } from "@/lib/billing/checkouts";
 import { db } from "@/lib/db";
 import { billingCustomers, websites } from "@/lib/db/schema";
+import { repgetOfferEnabled } from "@/lib/billing/repget-offer";
 import { getAppMessages } from "@/lib/i18n/app-locale";
+import { OFFER_CODE } from "@/lib/i18n/offer-code";
 import { PAYPAL_PENDING_COPY } from "@/lib/i18n/paypal-pending";
 import { localisedWebsiteProjectName, WEBSITE_PROJECT_COPY } from "@/lib/i18n/website-projects";
 import { websiteProjectKindOf } from "@/lib/website-projects/shared";
@@ -211,6 +213,7 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
         subscription={current}
         entitled={isEntitled(current?.status)}
         paypalAvailable={paypalAvailable}
+        offerCopy={repgetOfferEnabled() ? OFFER_CODE[locale] : null}
         checkout={checkout}
         addonResult={addonResult}
         paypalResult={paypalResult}

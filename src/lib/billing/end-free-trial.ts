@@ -84,12 +84,21 @@ export async function endFreeTrialIfUsed(websiteId: string): Promise<EndTrialOut
     const live = await stripe.subscriptions.retrieve(sub.stripeSubscriptionId);
     if (live.status === "trialing") {
       // In one update, so the coupon is on the first paid invoice (lib/billing/paid-start-coupon.ts).
-      const coupon = paidStartUpdate(live);
-      await stripe.subscriptions.update(
-        sub.stripeSubscriptionId,
-        { trial_end: "now", ...coupon },
-        { idempotencyKey: `free-articles-used:${sub.stripeSubscriptionId}${coupon ? ":coupon" : ""}` },
-      );
+      const coupon = await paidStartUpdate(live);
+      const end = (extra: typeof coupon, key: string) =>
+        stripe.subscriptions.update(
+          sub.stripeSubscriptionId!,
+          { trial_end: "now", ...extra },
+          { idempotencyKey: `free-articles-used:${sub.stripeSubscriptionId}${key}` },
+        );
+      try {
+        await end(coupon, coupon ? ":coupon" : "");
+      } catch (error) {
+        // A coupon Stripe refuses must not hold the plan back. Loud, because the customer was promised it.
+        if (!coupon || (error as { type?: string }).type !== "StripeInvalidRequestError") throw error;
+        console.error("[billing] REPGET coupon refused: the plan starts at full price", { websiteId, subscription: sub.stripeSubscriptionId, error });
+        await end(null, ":no-coupon");
+      }
     }
     // Recorded now rather than when the webhook lands, so the paid month's allowance is there at once.
     await syncStripeSubscription(sub.stripeSubscriptionId);

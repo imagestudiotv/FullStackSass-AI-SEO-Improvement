@@ -3,7 +3,7 @@ import type Stripe from "stripe";
 
 import { addonPaymentFailed, fulfilAddonPurchase } from "@/lib/addons/fulfil";
 import { cancellationOps } from "@/lib/billing/checkout-providers";
-import { applyPaidStartCoupon, holdPaidStartCoupon } from "@/lib/billing/paid-start-coupon";
+import { applyPaidStartCoupon } from "@/lib/billing/paid-start-coupon";
 import {
   syncProviderSubscription,
   type SubscriptionSnapshot,
@@ -278,7 +278,6 @@ async function processBillingEvent(event: Stripe.Event): Promise<void> {
         typeof session.subscription === "string"
           ? session.subscription
           : session.subscription.id;
-      await holdPaidStartCoupon(subscriptionId);
       await syncStripeSubscription(subscriptionId, session.id);
       return;
     }
@@ -303,7 +302,7 @@ async function processBillingEvent(event: Stripe.Event): Promise<void> {
       return;
     }
 
-    // A coupon whose month starts with the paid service goes back on (lib/billing/paid-start-coupon.ts).
+    // The REPGET discount goes on before the first paid invoice (lib/billing/paid-start-coupon.ts).
     case "customer.subscription.trial_will_end": {
       await applyPaidStartCoupon(event.data.object.id);
       return;
@@ -317,7 +316,6 @@ async function processBillingEvent(event: Stripe.Event): Promise<void> {
         the event was created, and a delayed "updated" carrying an old active
         snapshot after a "deleted" used to bring a cancelled plan back.
       */
-      if (event.type === "customer.subscription.created") await holdPaidStartCoupon(event.data.object.id);
       await syncStripeSubscription(event.data.object.id);
       return;
     }
