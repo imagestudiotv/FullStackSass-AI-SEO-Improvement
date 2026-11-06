@@ -1,5 +1,6 @@
 import { NonRetriableError } from "inngest";
 
+import { isInternalTestingWebsite } from "@/lib/billing/internal-testing";
 import { FREE_ARTICLES_ONLY, FREE_ARTICLES_ONLY_PAYPAL } from "@/lib/plans/features";
 import { checkLimit } from "@/lib/usage";
 
@@ -28,14 +29,19 @@ import { checkLimit } from "@/lib/usage";
  * can check the website"), which those paths ask for with
  * `{ freeArticles: true }`. Everything else (AI visibility, backlinks) waits
  * for the plan to start.
+ *
+ * `{ internalTesting: true }` is the same kind of opt-in: a website listed in
+ * INTERNAL_TEST_WEBSITE_IDS, with no subscription, is entitled to what asks for
+ * it, which is website audits and social tools (lib/billing/internal-testing.ts).
  */
 export async function isEntitledToSpend(
   websiteId: string,
-  options: { freeArticles?: boolean } = {},
+  options: { freeArticles?: boolean; internalTesting?: boolean } = {},
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const limit = await checkLimit(websiteId, "keywords");
 
   if (limit.reason === "no_active_plan") {
+    if (options.internalTesting && (await isInternalTestingWebsite(websiteId))) return { ok: true };
     return {
       ok: false,
       error: "Choose a plan for this website first",
@@ -69,7 +75,7 @@ export async function isEntitledToSpend(
  */
 export async function requireEntitledForSpend(
   websiteId: string,
-  options: { freeArticles?: boolean } = {},
+  options: { freeArticles?: boolean; internalTesting?: boolean } = {},
 ): Promise<void> {
   const entitled = await isEntitledToSpend(websiteId, options);
   if (!entitled.ok) {

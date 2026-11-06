@@ -138,8 +138,8 @@ export const auditWebsite = inngest.createFunction(
               .set({ pagesCrawled: done, pagesFound: found })
               .where(eq(crawls.id, crawlRow.crawlId));
           }),
-        // A trial may check its website too (startAudit).
-        { beforeSpend: () => requireEntitledForSpend(websiteId, { freeArticles: true }) },
+        // A trial, and a site in internal testing, may check its website too (startAudit).
+        { beforeSpend: () => requireEntitledForSpend(websiteId, { freeArticles: true, internalTesting: true }) },
       );
 
       await track(organizationId, {

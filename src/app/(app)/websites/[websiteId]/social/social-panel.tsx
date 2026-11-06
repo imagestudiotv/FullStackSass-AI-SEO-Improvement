@@ -61,6 +61,8 @@ export function SocialPanel(props: {
   canEdit: boolean;
   level: "paid" | "trial" | "none";
   platforms: string[];
+  /** RepGet publishes nothing here (socialAccess): no automatic posting to offer. */
+  manualOnly?: boolean;
   bundle: boolean;
   accounts: AccountView[];
   open: SuggestionView[];
@@ -303,6 +305,7 @@ export function SocialPanel(props: {
         websiteId={websiteId}
         accounts={props.accounts}
         platforms={props.platforms}
+        manualOnly={props.manualOnly}
         bundle={props.bundle}
         boards={props.boards}
         canEdit={canEdit}
