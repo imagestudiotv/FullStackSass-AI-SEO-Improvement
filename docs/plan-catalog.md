@@ -30,18 +30,15 @@ The discount is three fixed-amount coupons, limited by product, one per plan: `L
 
 | Customer | What happens |
 |---|---|
-| On a free period | Checkout carries no coupon, so the free period cannot use it up. The offer is kept in the subscription's metadata. The plan's coupon goes on in the last three days of the period, by the billing-maintenance job (`lib/billing/paid-start-sweep.ts`), or in the update that ends it early (`lib/billing/end-free-trial.ts`). The plan at that moment decides |
-| No free period | The plan's coupon is on the Checkout itself |
-| Annual plan, or a price other than the coupon's | Refused at Checkout. Moved to annual during the free period: no discount |
-| Credit packs | Never come here |
+| With or without a free period | The plan's coupon is on the Checkout. Stripe keeps a `once` coupon through a free period, and uses it on the first paid invoice, including when the period is ended early (checked in Stripe's test mode, in euros) |
+| Plan changed during the free period | Each coupon is limited to its plan's product, so the coupon follows the plan on `customer.subscription.updated` (`lib/billing/repget-subscription.ts`). Moved to annual: it comes off |
+| Annual plan, or a price other than the coupon's | Refused before Stripe. The coupons' product limit does **not** exclude annual, because the prices share a product: Stripe takes the fixed amount off |
+| Credit packs | Never come here, and Stripe refuses the coupons on them |
 | Any other promotion code | Stripe's code box as before, partner coupons included. The box is off only on a REPGET checkout, so a second code cannot replace it |
 
-Before turning it on:
+**If Stripe refuses a coupon at Checkout,** nothing starts and there is no checkout at full price: the customer is told, and the administrators (`ADMIN_EMAILS`) get an email.
 
-- **No active Stripe promotion code may be called REPGET.** One typed into Stripe's box would bypass all of this, on annual too.
-- Do not delete the coupons or set an expiry while customers wait on a free period.
-
-**If Stripe refuses a coupon, the plan does not start at full price.** The offer stays waiting, and the administrators (`ADMIN_EMAILS`) get an email, at most once a day per website. When the free articles ran out, the plan waits and the customer is told. When a free period is within a day of running out, it is moved on three days at a time, because otherwise Stripe would charge full price. The customer keeps the free period's limits and pays nothing meanwhile, for as long as nobody acts. Once the coupon is valid, the next run applies it. A Stripe outage is not a refusal: it is simply tried again.
+Before turning it on: **no active Stripe promotion code may be called REPGET.** One typed into Stripe's box would bypass all of this, on annual too.
 
 One redemption per workspace, counted from completed checkouts. PayPal has no way to take it.
 

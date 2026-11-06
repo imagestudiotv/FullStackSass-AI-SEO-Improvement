@@ -2,7 +2,6 @@ import { inngest } from "@/inngest/client";
 import { processCancellations } from "@/lib/billing/cancellations";
 import { cancellationOps, checkoutProviderOps } from "@/lib/billing/checkout-providers";
 import { reconcileCheckouts } from "@/lib/billing/checkouts";
-import { settlePaidStartOffers } from "@/lib/billing/paid-start-sweep";
 import { endPayPalCancellations } from "@/lib/billing/paypal-events";
 import { isPayPalConfigured } from "@/lib/paypal/client";
 import { sweepAbandonedReservations } from "@/lib/billing/spend-quota";
@@ -60,9 +59,6 @@ export const billingMaintenance = inngest.createFunction(
     */
     const paypalEnded = isPayPalConfigured() ? await step.run("end-paypal-cancellations", () => endPayPalCancellations()) : 0;
 
-    // REPGET discounts due before a first paid invoice, and any Stripe refused (lib/billing/paid-start-sweep.ts).
-    const offers = await step.run("paid-start-offers", () => settlePaidStartOffers());
-
     // Reservations abandoned mid-request (spent ones are consumed, not freed).
     await step.run("sweep-reservations", () => sweepAbandonedReservations());
 
@@ -73,8 +69,6 @@ export const billingMaintenance = inngest.createFunction(
       cancellationsAbandoned: cancellations.abandoned.length,
       checkoutsSettled: checkouts,
       paypalCancellationsEnded: paypalEnded,
-      offersApplied: offers.applied,
-      offersHeld: offers.held,
     };
   },
 );

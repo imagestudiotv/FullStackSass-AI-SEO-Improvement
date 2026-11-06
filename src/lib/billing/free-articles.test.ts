@@ -208,13 +208,6 @@ describe("writing the free articles", () => {
     expect(endTrial.endFreeTrialIfUsed).toHaveBeenCalledWith(websiteId);
   });
 
-  it("a customer's press while the REPGET coupon is refused: told the plan waits and nothing was charged", async () => {
-    const { websiteId } = await onTrial(30);
-    for (let i = 0; i < FREE_ARTICLES; i++) await queueNew(websiteId);
-    endTrial.endFreeTrialIfUsed.mockResolvedValue("offer_held");
-    expect(await queueNew(websiteId)).toEqual({ ok: false, error: expect.stringContaining("You have not been charged") });
-  });
-
   it("through PayPal, says the plan now waits for the customer, and when PayPal starts it anyway", async () => {
     const { websiteId } = await onTrial(30);
     await test.db

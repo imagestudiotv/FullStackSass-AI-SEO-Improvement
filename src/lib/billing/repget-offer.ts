@@ -22,13 +22,16 @@ import type { Executor } from "@/lib/db/types";
  */
 export const REPGET_CODE = "REPGET";
 
-/** To a customer whose plan is waiting on a coupon Stripe refused (lib/billing/paid-start-coupon.ts). */
-export const OFFER_HELD_MESSAGE = `Your plan has not started yet, because we could not apply your ${REPGET_CODE} discount. You have not been charged, and our team has been told.`;
+/** To a customer whose Checkout could not carry the coupon: Stripe refused it, so nothing was started. */
+export const OFFER_UNAVAILABLE = `We could not apply the ${REPGET_CODE} discount just now, so nothing was started and you have not been charged. Our team has been told. Please try again later.`;
 
-const COUPONS: Record<string, { coupon: string; priceCents: number; amountOffCents: number }> = {
-  launch: { coupon: "LAUNCH40", priceCents: 9900, amountOffCents: 3960 },
-  grow: { coupon: "GROW40", priceCents: 14900, amountOffCents: 5960 },
-  scale: { coupon: "SCALE40", priceCents: 34900, amountOffCents: 13960 },
+/** The Stripe coupon for each plan. */
+export const REPGET_COUPONS = { launch: "LAUNCH40", grow: "GROW40", scale: "SCALE40" } as const;
+
+const COUPONS: Record<string, { coupon: string; priceCents: number }> = {
+  launch: { coupon: REPGET_COUPONS.launch, priceCents: 9900 },
+  grow: { coupon: REPGET_COUPONS.grow, priceCents: 14900 },
+  scale: { coupon: REPGET_COUPONS.scale, priceCents: 34900 },
 };
 
 export type OfferPlan = { tier: string; interval: string; currency: string; priceCents: number };

@@ -4,7 +4,6 @@ import { and, count, eq, gte, isNotNull } from "drizzle-orm";
 
 import { isFreeArticlesTrial } from "@/lib/billing/entitlement-period";
 import { payPalPlanWaits } from "@/lib/billing/free-articles";
-import { holdPaidStart, isCouponRefusal, markOfferSettled, paidStartIdempotencyKey, paidStartUpdate } from "@/lib/billing/paid-start-coupon";
 import { syncStripeSubscription } from "@/lib/billing/stripe-events";
 import { db } from "@/lib/db";
 import { articles, notifications, subscriptions } from "@/lib/db/schema";
@@ -40,9 +39,7 @@ export type EndTrialOutcome =
   | "not_yet"
   | "failed"
   /** Through PayPal: all written, and the plan waits for "Start your plan now" or the end of the free days. */
-  | "waits_for_customer"
-  /** Stripe refused the promised REPGET coupon: the plan has not started, the offer still waits, and staff have been told. */
-  | "offer_held";
+  | "waits_for_customer";
 
 /**
  * Starts the plan now if the website's free articles have all been written.
@@ -85,21 +82,11 @@ export async function endFreeTrialIfUsed(websiteId: string): Promise<EndTrialOut
 
     const live = await stripe.subscriptions.retrieve(sub.stripeSubscriptionId);
     if (live.status === "trialing") {
-      // In one update, so the coupon is on the first paid invoice (lib/billing/paid-start-coupon.ts).
-      const coupon = await paidStartUpdate(live);
-      try {
-        await stripe.subscriptions.update(
-          sub.stripeSubscriptionId,
-          { trial_end: "now", ...coupon },
-          { idempotencyKey: coupon ? paidStartIdempotencyKey(sub.stripeSubscriptionId) : `free-articles-used:${sub.stripeSubscriptionId}` },
-        );
-      } catch (error) {
-        // Never full price in place of what was promised: the plan waits, and settlePaidStartOffers tries again.
-        if (!coupon || !isCouponRefusal(error)) throw error;
-        await holdPaidStart({ websiteId, subscriptionId: sub.stripeSubscriptionId, error });
-        return "offer_held";
-      }
-      if (coupon) await markOfferSettled(websiteId);
+      await stripe.subscriptions.update(
+        sub.stripeSubscriptionId,
+        { trial_end: "now" },
+        { idempotencyKey: `free-articles-used:${sub.stripeSubscriptionId}` },
+      );
     }
     // Recorded now rather than when the webhook lands, so the paid month's allowance is there at once.
     await syncStripeSubscription(sub.stripeSubscriptionId);

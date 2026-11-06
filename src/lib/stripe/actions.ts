@@ -5,8 +5,8 @@ import type Stripe from "stripe";
 
 import { requireSession } from "@/lib/auth-guard";
 import { checkoutProviderOps } from "@/lib/billing/checkout-providers";
-import { PAID_START_KEY } from "@/lib/billing/paid-start-coupon";
-import { readOfferCode, REPGET_CODE, repgetOfferUsed } from "@/lib/billing/repget-offer";
+import { OFFER_UNAVAILABLE, readOfferCode, REPGET_CODE, repgetOfferUsed } from "@/lib/billing/repget-offer";
+import { alertStaffAboutOffer, isCouponRefusal, OFFER_KEY } from "@/lib/billing/repget-subscription";
 import {
   beginCheckout,
   isTrialEligible,
@@ -197,16 +197,11 @@ export async function createCheckoutSession(
     success_url: `${base}${checkoutReturnPath(origin, "success", websiteId)}`,
     cancel_url: `${base}${checkoutReturnPath(origin, "cancelled", websiteId)}`,
     /*
-      Stripe's code box, for every other code. With the REPGET offer there is none,
-      so a second code cannot replace it. On a free period the coupon waits for the
-      first paid invoice, and is in the subscription's metadata below; without one,
-      this is the first paid invoice (lib/billing/repget-offer.ts).
+      Stripe's code box, for every other code. With the REPGET offer the plan's
+      coupon is on the Checkout instead, and Stripe keeps it through a free period
+      for the first paid invoice (lib/billing/repget-offer.ts).
     */
-    ...(!offerCoupon
-      ? { allow_promotion_codes: true }
-      : trialDays > 0
-        ? {}
-        : { discounts: [{ coupon: offerCoupon }] }),
+    ...(offerCoupon ? { discounts: [{ coupon: offerCoupon }] } : { allow_promotion_codes: true }),
     // Metadata on the SESSION identifies this checkout...
     metadata,
     // ...and so does this, which is what a lost answer is searched by.
@@ -214,7 +209,7 @@ export async function createCheckoutSession(
     // ...but session metadata does NOT propagate to the subscription, so it
     // is written there too, for every later subscription event.
     subscription_data: {
-      metadata: { ...metadata, ...(offerCoupon && trialDays > 0 ? { [PAID_START_KEY]: REPGET_CODE } : {}) },
+      metadata: { ...metadata, ...(offerCoupon ? { [OFFER_KEY]: REPGET_CODE } : {}) },
       /**
        * A trial ONLY for a workspace that has never had a subscription
        * (isTrialEligible: durable history, decided under a lock). It used to
@@ -261,6 +256,11 @@ export async function createCheckoutSession(
       await markCheckoutFailed(db, checkoutId).catch((markError) =>
         console.error("[stripe] could not mark checkout failed", markError),
       );
+      // Never a checkout without what was promised: nothing was started, and staff are told.
+      if (offerCoupon && isCouponRefusal(error)) {
+        await alertStaffAboutOffer(error instanceof Error ? error.message : String(error), `Stripe refused coupon ${offerCoupon} at Checkout, so the customer could not start. Website: ${websiteId}.`);
+        return { error: OFFER_UNAVAILABLE };
+      }
       return { error: stripeErrorMessage(error) };
     }
     try {

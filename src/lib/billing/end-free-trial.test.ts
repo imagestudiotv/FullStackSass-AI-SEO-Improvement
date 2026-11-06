@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { articles, billingCheckouts, notifications, plans, subscriptions } from "@/lib/db/schema";
+import { articles, notifications, subscriptions } from "@/lib/db/schema";
 import { createTestDb, type TestDb } from "@/test/db";
 import { seedWebsite } from "@/test/fixtures";
 
@@ -21,8 +21,6 @@ vi.mock("@/lib/stripe/client", () => ({
 }));
 const sync = vi.hoisted(() => ({ syncStripeSubscription: vi.fn() }));
 vi.mock("@/lib/billing/stripe-events", () => sync);
-const mail = vi.hoisted(() => ({ sendEmail: vi.fn() }));
-vi.mock("@/lib/email/send", () => mail);
 
 import { endFreeTrialIfUsed } from "@/lib/billing/end-free-trial";
 import { FREE_ARTICLES } from "@/lib/plans/features";
@@ -67,65 +65,6 @@ async function written(websiteId: string, n: number, body: string | null = "<p>h
 }
 
 describe("starting the plan after the free articles", () => {
-  describe("with the REPGET offer waiting", () => {
-    const planRow = { articleLimit: 1, keywordLimit: 1, siteLimit: 1, monthlyCredits: 1, currency: "eur", name: "T Grow offer", tier: "grow", interval: "month", priceCents: 14900 };
-    let version = 10;
-    const offered = async () => {
-      const site = await onFreeArticles();
-      await written(site.websiteId, FREE_ARTICLES);
-      const price = `price_${site.websiteId.slice(0, 8)}`;
-      version += 1;
-      await test.db.insert(plans).values({ ...planRow, name: `T ${price}`, stripePriceId: price, catalogVersion: version });
-      stripeMock.retrieve.mockResolvedValue({ status: "trialing", metadata: { paid_start_offer: "REPGET" }, items: { data: [{ price: { id: price } }] } });
-      return site;
-    };
-
-    it("puts the plan's coupon on in the same update, so the first paid invoice has it", async () => {
-      const { websiteId, subscriptionId } = await offered();
-      await expect(endFreeTrialIfUsed(websiteId)).resolves.toBe("ended");
-      expect(stripeMock.update).toHaveBeenCalledTimes(1);
-      expect(stripeMock.update.mock.calls[0].slice(0, 2)).toEqual([
-        subscriptionId,
-        { trial_end: "now", discounts: [{ coupon: "GROW40" }], metadata: { paid_start_offer: "" } },
-      ]);
-    });
-
-    it("a coupon Stripe refuses never starts the plan at full price: one attempt, the offer waits, staff are told", async () => {
-      const { websiteId, subscriptionId } = await offered();
-      await test.db.insert(billingCheckouts).values({ organizationId: (await test.db.select().from(subscriptions).where(eq(subscriptions.websiteId, websiteId)))[0].organizationId, websiteId, provider: "stripe", status: "completed", trialDays: 30, requestParams: { offer: "REPGET" }, createdAt: new Date() });
-      process.env.ADMIN_EMAILS = "staff@fixture.test";
-      const log = vi.spyOn(console, "error").mockImplementation(() => {});
-      stripeMock.update.mockRejectedValueOnce(Object.assign(new Error("No such coupon"), { type: "StripeInvalidRequestError" }));
-      await expect(endFreeTrialIfUsed(websiteId)).resolves.toBe("offer_held");
-      expect(stripeMock.update).toHaveBeenCalledTimes(1);
-      expect(sync.syncStripeSubscription).not.toHaveBeenCalled();
-      expect(mail.sendEmail.mock.calls[0][0].text).toContain(subscriptionId);
-      const [row] = await test.db.select().from(billingCheckouts).where(eq(billingCheckouts.websiteId, websiteId));
-      expect(row.requestParams).toMatchObject({ offer: "REPGET", offerHeldAt: expect.any(String) });
-      expect((row.requestParams as Record<string, unknown>).offerSettledAt).toBeUndefined();
-      log.mockRestore();
-    });
-
-    it("a press after the free articles ran out is told the same, and resumes once the coupon is put right", async () => {
-      const { websiteId } = await offered();
-      stripeMock.update.mockRejectedValueOnce(Object.assign(new Error("No such coupon"), { type: "StripeInvalidRequestError" }));
-      const log = vi.spyOn(console, "error").mockImplementation(() => {});
-      await expect(endFreeTrialIfUsed(websiteId)).resolves.toBe("offer_held");
-      await expect(endFreeTrialIfUsed(websiteId)).resolves.toBe("ended");
-      expect(stripeMock.update.mock.calls[1][1]).toMatchObject({ trial_end: "now", discounts: [{ coupon: "GROW40" }] });
-      log.mockRestore();
-    });
-
-    it("any other Stripe failure is not hidden: it stays failed and is tried again", async () => {
-      const { websiteId } = await offered();
-      const log = vi.spyOn(console, "error").mockImplementation(() => {});
-      stripeMock.update.mockRejectedValueOnce(Object.assign(new Error("down"), { type: "StripeConnectionError" }));
-      await expect(endFreeTrialIfUsed(websiteId)).resolves.toBe("failed");
-      expect(stripeMock.update).toHaveBeenCalledTimes(1);
-      log.mockRestore();
-    });
-  });
-
   it("waits until all of them are written", async () => {
     const { websiteId } = await onFreeArticles();
     await written(websiteId, FREE_ARTICLES - 1);

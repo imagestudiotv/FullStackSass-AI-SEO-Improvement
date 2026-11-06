@@ -3,6 +3,7 @@ import type Stripe from "stripe";
 
 import { addonPaymentFailed, fulfilAddonPurchase } from "@/lib/addons/fulfil";
 import { cancellationOps } from "@/lib/billing/checkout-providers";
+import { matchOfferToPlan } from "@/lib/billing/repget-subscription";
 import {
   syncProviderSubscription,
   type SubscriptionSnapshot,
@@ -309,6 +310,8 @@ async function processBillingEvent(event: Stripe.Event): Promise<void> {
         the event was created, and a delayed "updated" carrying an old active
         snapshot after a "deleted" used to bring a cancelled plan back.
       */
+      // A plan changed during a free period: its REPGET coupon follows it (lib/billing/repget-subscription.ts).
+      if (event.type === "customer.subscription.updated") await matchOfferToPlan(event.data.object);
       await syncStripeSubscription(event.data.object.id);
       return;
     }
