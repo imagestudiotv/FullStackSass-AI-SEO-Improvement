@@ -1,4 +1,4 @@
-import { and, eq, inArray, ne, or, sql } from "drizzle-orm";
+import { and, eq, ne, or, sql } from "drizzle-orm";
 
 import { DEFAULT_MONTHLY_CAP } from "@/lib/backlinks/network-defaults";
 import { member, organization, user } from "@/lib/db/auth-tables";
@@ -23,13 +23,20 @@ import { normalizeWebsiteUrl } from "@/lib/websites/url";
  *    enrols subscribed websites (activate-exchange) only inserts where there is
  *    no row, so this row is what keeps it out for good.
  *
- * Nothing about entitlement is changed or weakened: audits and social tools
- * still ask for a live plan on this website, and this reports whether there is
- * one. It never creates a subscription, credits or a social or CMS connection.
+ * THE WORKSPACE IS DANIEL'S, the one holding Image Studio (the owner's decision,
+ * 2026-11-05): a workspace without imagestudio.com is refused, whatever is named.
+ *
+ * THIS GRANTS NOTHING and no subscription is bought. It never creates a
+ * subscription, credits or a social or CMS connection. Audits and social tools
+ * open only when someone lists the website id in INTERNAL_TEST_WEBSITE_IDS
+ * (lib/billing/internal-testing.ts), and this reports what it finds.
  */
 
 /** The address the client gave. Normal validation stores it without "www.", like every customer's. */
 export const OWN_SITE_ADDRESS = "https://www.repget.com";
+
+/** A workspace must already hold this website to be given this one. */
+export const OWN_SITE_WORKSPACE_DOMAIN = "imagestudio.com";
 
 /** The settings that keep this site from writing, publishing or swapping links by itself. */
 export const OWN_SITE_SETTINGS = { generationMode: "manual", autoPublish: false, publishAs: "live" } as const;
@@ -51,8 +58,10 @@ export type OwnSitePlan =
       websiteId: string | null;
       /** What writing would change; empty when nothing would. */
       changes: Change[];
-      /** A live plan on this site: audits and social tools ask for it. */
+      /** A live plan on this site. */
       plan: { status: string } | null;
+      /** Its subscription in any state: internal testing is only for a site with none. */
+      subscriptionStatus: string | null;
       calendarItems: number;
       socialAccounts: number;
       cmsConnections: number;
@@ -79,6 +88,9 @@ async function findWorkspace(db: Executor, named: string | undefined) {
   return { workspace: { ...rows[0], owners: owners.map((owner) => owner.email) } };
 }
 
+/** The domain stored as normal validation stores it, with or without "www.". */
+const domainIs = (domain: string) => sql`regexp_replace(lower(${websites.domain}), '^www\\.', '') = ${domain}`;
+
 /** What setting the site up would do. Reads only. */
 export async function planOwnSite(db: Executor, input: { workspace: string | undefined; address?: string }): Promise<OwnSitePlan> {
   const normalized = normalizeWebsiteUrl(input.address ?? OWN_SITE_ADDRESS);
@@ -86,7 +98,14 @@ export async function planOwnSite(db: Executor, input: { workspace: string | und
   if (found.error !== undefined) return refuse(found.error);
   const { workspace } = found;
 
-  const sameDomain = sql`regexp_replace(lower(${websites.domain}), '^www\\.', '') = ${normalized.domain}`;
+  const [holder] = await db
+    .select({ id: websites.id })
+    .from(websites)
+    .where(and(domainIs(OWN_SITE_WORKSPACE_DOMAIN), eq(websites.organizationId, workspace.id)))
+    .limit(1);
+  if (!holder) return refuse(`Workspace ${workspace.id} does not hold ${OWN_SITE_WORKSPACE_DOMAIN}, so it is not the workspace named for this. Nothing was changed.`);
+
+  const sameDomain = domainIs(normalized.domain);
   const elsewhere = await db
     .select({ id: websites.id, organizationId: websites.organizationId })
     .from(websites)
@@ -112,6 +131,7 @@ export async function planOwnSite(db: Executor, input: { workspace: string | und
         { field: "network.acceptingLinks", from: null, to: OWN_SITE_NETWORK.acceptingLinks },
       ],
       plan: null,
+      subscriptionStatus: null,
       calendarItems: 0,
       socialAccounts: 0,
       cmsConnections: 0,
@@ -126,7 +146,7 @@ export async function planOwnSite(db: Executor, input: { workspace: string | und
   const [network] = await db.select({ acceptingLinks: networkSites.acceptingLinks }).from(networkSites).where(eq(networkSites.websiteId, site.id));
   if (network?.acceptingLinks !== false) changes.push({ field: "network.acceptingLinks", from: network?.acceptingLinks ?? null, to: false });
 
-  const [plan] = await db.select({ status: subscriptions.status }).from(subscriptions).where(and(eq(subscriptions.websiteId, site.id), inArray(subscriptions.status, ["active", "trialing", "past_due"]))).limit(1);
+  const [subscription] = await db.select({ status: subscriptions.status }).from(subscriptions).where(eq(subscriptions.websiteId, site.id)).limit(1);
   const count = async (table: typeof calendarItems | typeof socialAccounts | typeof integrations) =>
     (await db.select({ n: sql<number>`count(*)::int` }).from(table).where(eq(table.websiteId, site.id)))[0].n;
   return {
@@ -134,7 +154,8 @@ export async function planOwnSite(db: Executor, input: { workspace: string | und
     ...base,
     websiteId: site.id,
     changes,
-    plan: plan ?? null,
+    plan: subscription && ["active", "trialing", "past_due"].includes(subscription.status) ? subscription : null,
+    subscriptionStatus: subscription?.status ?? null,
     calendarItems: await count(calendarItems),
     socialAccounts: await count(socialAccounts),
     cmsConnections: await count(integrations),
@@ -200,6 +221,7 @@ export const OWN_SITE_TRIGGERS = [
   { what: "renewal-replan, hourly, with a plan: keyword research for a new period", outcome: "May run once the site has a plan (research cost only). It fills the calendar, which is never written by itself on a manual site." },
   { what: "site-inventory, daily: reads a site's public WordPress posts", outcome: "Once the site has a plan: a read-only request to the site. It writes no post; a site without WordPress is recorded as such." },
   { what: "collect-authority, daily: the domain's authority figure", outcome: "Once the site has a plan: one domain in the shared daily bulk request (a data-provider cost). It places nothing." },
-  { what: "social-suggestions-daily and video-ideas-daily", outcome: "Only once a social account is connected or videos are used; this connects nothing and posts nothing." },
+  { what: "social-suggestions-daily and video-ideas-daily", outcome: "Only once a social account is connected or videos are used; this connects nothing and posts nothing. Once a person connects an account on a site listed for internal testing, suggestions are written daily (search and model costs), and every post waits for a click. Videos stay closed to it." },
+  { what: "INTERNAL_TEST_WEBSITE_IDS (lib/billing/internal-testing.ts)", outcome: "Not touched by this setup. Listing the id opens audits and social tools only, on a site with no subscription. It is not a plan: the lines here that say 'with a plan' still do not apply." },
   { what: "check-geo, import-analytics, index-articles, verify-backlinks, article-translations", outcome: "Nothing to act on: they need prompts, a Google connection, articles or placements, and this creates none." },
 ] as const;

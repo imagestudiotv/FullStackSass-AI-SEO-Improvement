@@ -7,17 +7,18 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 import { member, organization, user } from "@/lib/db/auth-tables";
-import { jobOutbox, networkSites, subscriptions, websites } from "@/lib/db/schema";
+import { creditLedger, creditSpends, jobOutbox, networkSites, subscriptions, websites } from "@/lib/db/schema";
 import { settingsForMode } from "@/lib/publishing/policy";
 import { createTestDb, type TestDb } from "@/test/db";
 
 import { NEW_SITE_DEFAULTS } from "./new-site-defaults";
-import { applyOwnSite, OWN_SITE_SETTINGS, OWN_SITE_TRIGGERS, planOwnSite } from "./own-site-setup";
+import { applyOwnSite, OWN_SITE_SETTINGS, OWN_SITE_TRIGGERS, OWN_SITE_WORKSPACE_DOMAIN, planOwnSite } from "./own-site-setup";
 
 /**
  * RepGet's own website in its owner's dashboard (client, 2026-11-05), on a real
  * in-process database: dry by default, one record however often it runs, never a
- * guessed workspace, and settings that start no blog, publishing or link job.
+ * guessed workspace (and only one holding imagestudio.com), and settings that
+ * start no blog, publishing or link job.
  */
 
 let test: TestDb;
@@ -26,9 +27,12 @@ beforeAll(async () => {
   test = await createTestDb();
 });
 
-async function workspace(options: { name?: string; owner?: boolean } = {}) {
+/** Holds imagestudio.com unless told otherwise: the only kind of workspace the setup accepts. */
+async function workspace(options: { name?: string; owner?: boolean; imageStudio?: string | null } = {}) {
   const id = `org_${randomUUID()}`;
   await test.db.insert(organization).values({ id, name: options.name ?? `Workspace ${id}`, slug: id, createdAt: new Date() });
+  const held = options.imageStudio === undefined ? "imagestudio.com" : options.imageStudio;
+  if (held) await test.db.insert(websites).values({ organizationId: id, url: `https://${held}`, domain: held, status: "ready" });
   if (options.owner !== false) {
     const userId = `user_${randomUUID()}`;
     await test.db.insert(user).values({ id: userId, name: "Owner", email: `${userId}@example.test`, createdAt: new Date(), updatedAt: new Date() });
@@ -46,6 +50,7 @@ const everything = async () => ({
   network: (await test.db.select({ id: networkSites.id }).from(networkSites)).length,
   jobs: (await test.db.select({ id: jobOutbox.id }).from(jobOutbox)).length,
   subscriptions: (await test.db.select({ id: subscriptions.id }).from(subscriptions)).length,
+  credits: (await test.db.select({ id: creditLedger.id }).from(creditLedger)).length + (await test.db.select({ id: creditSpends.id }).from(creditSpends)).length,
 });
 
 describe("the setup", () => {
@@ -84,7 +89,7 @@ describe("the setup", () => {
     const plan = await applyOwnSite(test.db, { workspace: id, address: address() });
     if (plan.action === "refuse") throw new Error(plan.reason);
     expect(plan.plan).toBeNull();
-    expect(await everything()).toEqual({ websites: before.websites + 1, network: before.network + 1, jobs: before.jobs + 1, subscriptions: before.subscriptions });
+    expect(await everything()).toEqual({ websites: before.websites + 1, network: before.network + 1, jobs: before.jobs + 1, subscriptions: before.subscriptions, credits: before.credits });
     expect(await test.db.select().from(subscriptions).where(eq(subscriptions.organizationId, id))).toEqual([]);
   });
 
@@ -182,6 +187,50 @@ describe("the setup", () => {
     expect(await applyOwnSite(test.db, { workspace: name, address: address() })).toMatchObject({ action: "refuse", reason: expect.stringContaining("matches 2 workspaces") });
     const ownerless = await workspace({ owner: false });
     expect(await applyOwnSite(test.db, { workspace: ownerless, address: address() })).toMatchObject({ action: "refuse", reason: expect.stringContaining("no owner") });
+  });
+
+  it("refuses a workspace that does not hold imagestudio.com, whatever else it holds, and writes nothing", async () => {
+    const id = await workspace({ imageStudio: "not-imagestudio.com" });
+    const url = address();
+    const before = await everything();
+    for (const run of [planOwnSite(test.db, { workspace: id, address: url }), applyOwnSite(test.db, { workspace: id, address: url })]) {
+      expect(await run).toMatchObject({ action: "refuse", reason: expect.stringContaining(OWN_SITE_WORKSPACE_DOMAIN) });
+    }
+    expect(await everything()).toEqual(before);
+    // Nothing at all in the workspace is refused the same way.
+    expect(await planOwnSite(test.db, { workspace: await workspace({ imageStudio: null }), address: url })).toMatchObject({ action: "refuse" });
+  });
+
+  it("finds imagestudio.com the way the rest of the setup compares domains", async () => {
+    const id = await workspace({ imageStudio: "WWW.ImageStudio.com" });
+    expect(await planOwnSite(test.db, { workspace: id, address: address() })).toMatchObject({ action: "create" });
+  });
+
+  it("leaves Image Studio exactly as it was", async () => {
+    const id = await workspace();
+    const [before] = await test.db.select().from(websites).where(eq(websites.organizationId, id));
+    const plan = await applyOwnSite(test.db, { workspace: id, address: address() });
+    if (plan.action === "refuse") throw new Error(plan.reason);
+    const [after] = await test.db.select().from(websites).where(eq(websites.id, before.id));
+    expect(after).toEqual(before);
+    expect(await test.db.select().from(networkSites).where(eq(networkSites.websiteId, before.id))).toEqual([]);
+  });
+
+  it("reports a subscription in any state: internal testing is only for a site with none", async () => {
+    const id = await workspace();
+    const url = address();
+    const created = await applyOwnSite(test.db, { workspace: id, address: url });
+    if (created.action === "refuse") throw new Error(created.reason);
+    expect(created).toMatchObject({ plan: null, subscriptionStatus: null });
+    await test.db.insert(subscriptions).values({ organizationId: id, websiteId: created.websiteId, provider: "stripe", status: "canceled" });
+    expect(await planOwnSite(test.db, { workspace: id, address: url })).toMatchObject({ plan: null, subscriptionStatus: "canceled" });
+  });
+
+  it("the report names the next step instead of the old open decision", () => {
+    const script = readFileSync("scripts/setup-repget-site.ts", "utf8");
+    expect(script).toContain("INTERNAL_TEST_WEBSITE_IDS=${id}");
+    expect(script).toContain("it grants nothing, and no subscription is bought");
+    expect(script).not.toContain("DECISION:");
   });
 
   it("refuses when the site is already in another workspace, and writes nothing", async () => {
