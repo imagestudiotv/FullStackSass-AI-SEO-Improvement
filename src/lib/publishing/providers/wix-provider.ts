@@ -1,5 +1,8 @@
+import { remoteHash } from "@/lib/publishing/remote-hash";
 import {
   ProviderError,
+  type RemoteBaseline,
+  type RemoteState,
   type CmsProvider,
   type Credentials,
   type PublishInput,
@@ -111,6 +114,36 @@ function ricosFromHtml(html: string) {
 }
 
 type WixPost = { id?: string; url?: { path?: string }; title?: string };
+type WixDraft = { title?: string; excerpt?: string; editedDate?: string; richContent?: unknown };
+
+/**
+ * The draft as Wix holds it; null when it is gone. The hash is of what this read
+ * returns, and the baseline comes from this read too, never from a write's
+ * answer. editedDate is what Wix's reference has listed for the last edit, but it
+ * is not relied on: with no date, only the hash can show a post unchanged.
+ */
+async function readDraft(credentials: Credentials, remoteId: string): Promise<RemoteState | null> {
+  try {
+    const body = await request<{ draftPost?: WixDraft; post?: WixDraft }>(credentials, `/blog/v3/draft-posts/${encodeURIComponent(remoteId)}?fieldsets=RICH_CONTENT`);
+    const draft = body.draftPost ?? body.post;
+    if (!draft) return null;
+    return {
+      modifiedAt: draft.editedDate ?? null,
+      hash: draft.richContent ? remoteHash([draft.title, draft.excerpt, draft.richContent]) : null,
+      status: null,
+      rawContent: null,
+    };
+  } catch (error) {
+    if (error instanceof ProviderError && error.status === 404) return null;
+    throw error;
+  }
+}
+
+/** After a send: never fails it. Without this the next update has only the send's time to go by. */
+async function baselineAfterSend(credentials: Credentials, remoteId: string): Promise<RemoteBaseline | undefined> {
+  const state = await readDraft(credentials, remoteId).catch(() => null);
+  return state ? { modifiedAt: state.modifiedAt, hash: state.hash } : undefined;
+}
 
 export const wixProvider: CmsProvider = {
   id: "wix",
@@ -199,8 +232,16 @@ export const wixProvider: CmsProvider = {
       remoteId: id,
       remoteUrl: created.post?.url?.path ?? "",
       status: input.status,
+      baseline: await baselineAfterSend(credentials, id),
     };
   },
+
+  /**
+   * No precondition that this code can rely on, so this is read before writing,
+   * and the update can still land on a save made in between
+   * (lib/publishing/overwrite-guard.ts).
+   */
+  readRemote: readDraft,
 
   async updatePost(
     credentials: Credentials,
@@ -224,6 +265,6 @@ export const wixProvider: CmsProvider = {
       });
     }
 
-    return { remoteId, remoteUrl: "", status: input.status };
+    return { remoteId, remoteUrl: "", status: input.status, baseline: await baselineAfterSend(credentials, remoteId) };
   },
 };

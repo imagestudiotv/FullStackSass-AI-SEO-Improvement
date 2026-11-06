@@ -1,5 +1,7 @@
+import { remoteHash } from "@/lib/publishing/remote-hash";
 import {
   ProviderError,
+  type RemoteBaseline,
   type CmsProvider,
   type Credentials,
   type PublishInput,
@@ -146,6 +148,18 @@ async function buildFieldData(
   return fieldData;
 }
 
+type WebflowItem = {
+  id: string;
+  lastUpdated?: string;
+  isArchived?: boolean;
+  isDraft?: boolean;
+  fieldData?: Record<string, unknown>;
+};
+
+function baselineOf(item: WebflowItem): RemoteBaseline {
+  return { modifiedAt: item.lastUpdated ?? null, hash: item.fieldData ? remoteHash([item.fieldData]) : null };
+}
+
 export const webflowProvider: CmsProvider = {
   id: "webflow",
   name: "Webflow",
@@ -206,7 +220,7 @@ export const webflowProvider: CmsProvider = {
     const collectionId = credentials.collectionId;
     const fieldData = await buildFieldData(token, collectionId, input);
 
-    const created = await request<{ id: string; fieldData?: { slug?: string } }>(
+    const created = await request<WebflowItem>(
       token,
       `/collections/${collectionId}/items`,
       {
@@ -229,7 +243,24 @@ export const webflowProvider: CmsProvider = {
        */
       remoteUrl: "",
       status: input.status,
+      baseline: baselineOf(created),
     };
+  },
+
+  /**
+   * Webflow's API documents no precondition on an item, so this is read before
+   * writing, and the update can still land on a save made in between
+   * (lib/publishing/overwrite-guard.ts). An archived item counts as thrown away:
+   * the update below would bring it back.
+   */
+  async readRemote(credentials: Credentials, remoteId: string) {
+    try {
+      const item = await request<WebflowItem>(credentials.apiToken, `/collections/${credentials.collectionId}/items/${remoteId}`);
+      return { ...baselineOf(item), status: item.isArchived ? "trash" : item.isDraft ? "draft" : "publish", rawContent: null };
+    } catch (error) {
+      if (error instanceof ProviderError && error.status === 404) return null;
+      throw error;
+    }
   },
 
   async updatePost(
@@ -241,7 +272,7 @@ export const webflowProvider: CmsProvider = {
     const collectionId = credentials.collectionId;
     const fieldData = await buildFieldData(token, collectionId, input);
 
-    await request(token, `/collections/${collectionId}/items/${remoteId}`, {
+    const item = await request<WebflowItem>(token, `/collections/${collectionId}/items/${remoteId}`, {
       method: "PATCH",
       body: JSON.stringify({
         isArchived: false,
@@ -250,6 +281,6 @@ export const webflowProvider: CmsProvider = {
       }),
     });
 
-    return { remoteId, remoteUrl: "", status: input.status };
+    return { remoteId, remoteUrl: "", status: input.status, baseline: baselineOf(item) };
   },
 };

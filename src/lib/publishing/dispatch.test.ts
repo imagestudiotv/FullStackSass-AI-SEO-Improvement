@@ -104,6 +104,8 @@ vi.mock("@/lib/publishing/registry", async () => {
       if (cms.createError) throw cms.createError;
       return { remoteId: id, remoteUrl: `https://site.test/?p=${id}`, status: input.status };
     }),
+    // Not saved on the site since it was sent. See lib/publishing/overwrite-guard.ts.
+    readRemote: vi.fn(async () => ({ modifiedAt: "2020-01-01T00:00:00Z", hash: null, status: "publish", rawContent: null })),
     updatePost: vi.fn(async (_c: unknown, remoteId: string, input: { title: string; contentHtml: string; slug: string | null; status: string }) => {
       cms.calls.push(`update:${remoteId}`);
       cms.posts.set(remoteId, input);

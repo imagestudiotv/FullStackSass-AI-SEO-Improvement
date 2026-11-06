@@ -36,7 +36,8 @@ import {
   isImageGenerationConfigured,
 } from "@/lib/images/generate";
 import { storedImagePrefix } from "@/lib/images/storage";
-import { ProviderError } from "@/lib/publishing/provider";
+import { checkBeforeUpdate, refuseUpdate } from "@/lib/publishing/overwrite-guard";
+import { ProviderError, RemoteChangedError } from "@/lib/publishing/provider";
 import { getProvider } from "@/lib/publishing/registry";
 import { libraryMediaIds, ownCopies, pictureAddresses, sameAddress } from "@/lib/sites/library-media";
 
@@ -651,7 +652,7 @@ export const publishArticleJob = inngest.createFunction(
         another attempt may have created it since.
       */
       const [previous] = await db
-        .select({ remoteId: publishLogs.remoteId })
+        .select({ remoteId: publishLogs.remoteId, createdAt: publishLogs.createdAt })
         .from(publishLogs)
         .where(and(eq(publishLogs.articleId, articleId), eq(publishLogs.status, "published")))
         .orderBy(desc(publishLogs.createdAt))
@@ -793,11 +794,48 @@ export const publishArticleJob = inngest.createFunction(
       };
 
       const startedAt = Date.now();
+      // Whether a request that could change the post has gone out: reading it first changes nothing.
+      let writing = false;
+      const refuse = async (refusal: Parameters<typeof refuseUpdate>[0]["refusal"]) => {
+        logger.warn({ step: "send-to-cms", articleId, websiteId, providerId: prepared.providerId, trigger, refusal }, "Not sent: the post on the website may not be overwritten");
+        await refuseUpdate({
+          refusal,
+          dispatchId: claim.dispatchId,
+          articleId,
+          integrationId: prepared.integrationId,
+          organizationId: event.data.organizationId as string,
+          href: `/websites/${websiteId}/articles/${articleId}`,
+          title: claim.article.title,
+          revisionHash: claim.revisionHash,
+          pressed: trigger === "manual",
+        });
+        return { held: refusal, sent: null, title: null };
+      };
       try {
+        /*
+          An update replaces a post somebody may have changed since RepGet last
+          sent it. Looked at last, right before the request. What this is, and
+          what it is not, on each platform: lib/publishing/overwrite-guard.ts.
+        */
+        let guard: { expectedModifiedAt: string | null } | undefined;
+        if (remoteId) {
+          const verdict = await checkBeforeUpdate({
+            provider,
+            credentials: integration.credentials,
+            articleId,
+            integrationId: prepared.integrationId,
+            remoteId,
+            dispatchId: claim.dispatchId,
+            loggedAt: previous?.createdAt ?? null,
+          });
+          if (!verdict.ok) return await refuse(verdict.refusal);
+          guard = { expectedModifiedAt: verdict.expectedModifiedAt };
+        }
+        writing = true;
         const sent = remoteId
-          ? await provider.updatePost(integration.credentials, remoteId, post)
+          ? await provider.updatePost(integration.credentials, remoteId, post, guard)
           : await provider.createPost(integration.credentials, post);
-        await settleDispatch(claim.dispatchId, { status: "sent", remoteId: sent.remoteId, remoteUrl: sent.remoteUrl, remoteStatus: sent.status });
+        await settleDispatch(claim.dispatchId, { status: "sent", remoteId: sent.remoteId, remoteUrl: sent.remoteUrl, remoteStatus: sent.status, baseline: sent.baseline });
         // Never fails the send: the post is out. Without the record, the next send uploads them again.
         await recordSentPictures(claim.dispatchId, pictureCopies).catch((error) =>
           logger.warn(
@@ -829,18 +867,25 @@ export const publishArticleJob = inngest.createFunction(
         );
         return { held: null, sent, title: claim.article.title, dispatchId: claim.dispatchId as string | null };
       } catch (error) {
+        // The platform's own precondition refused it: somebody saved it after we looked.
+        if (error instanceof RemoteChangedError) return await refuse("post_changed");
         /*
           Did the post get created? A refusal the site answered with a 4xx
           is a clear "no". No answer at all (timeout, connection lost), or a
           5xx on a CREATE, may have created it: recorded as uncertain, and
           the retry reconciles before creating anything. An UPDATE is safe
-          to repeat, so its failures are plain failures.
+          to repeat, so its failures are plain failures - marked if the write
+          may have landed, or the retry would take it for somebody's edit.
         */
         const httpStatus = error instanceof ProviderError ? error.status : undefined;
         const refused = typeof httpStatus === "number" && httpStatus < 500;
         const uncertain = !remoteId && !refused;
         const message = error instanceof Error ? error.message : "unknown";
-        await settleDispatch(claim.dispatchId, { status: uncertain ? "uncertain" : "failed", error: message });
+        await settleDispatch(claim.dispatchId, {
+          status: uncertain ? "uncertain" : "failed",
+          error: message,
+          mayHaveLanded: Boolean(remoteId) && writing && !refused,
+        });
 
         if (error instanceof ProviderError) {
           /*

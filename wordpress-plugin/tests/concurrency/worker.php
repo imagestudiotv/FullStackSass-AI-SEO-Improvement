@@ -79,6 +79,8 @@ add_filter('pre_http_request', function ($pre, $args, $url) {
                 'article' => $sent['articleId'],
                 'post' => $sent['remoteId'],
                 'failed' => $remaining > 0,
+                'status' => isset($sent['status']) ? $sent['status'] : null,
+                'outcome' => isset($sent['outcome']) ? $sent['outcome'] : null,
             )) . PHP_EOL, FILE_APPEND);
             if ($remaining > 0) {
                 file_put_contents($failFile, (string) ($remaining - 1));
@@ -105,6 +107,11 @@ if ($slow > 0) {
     add_filter('wp_insert_post_data', function ($data) use ($slow) {
         usleep($slow * 1000);
         return $data;
+    });
+    // The other way into a guarded write: making a draft live works out its address, and no post data.
+    add_filter('wp_unique_post_slug', function ($slug) use ($slow) {
+        usleep($slow * 1000);
+        return $slug;
     });
 }
 
@@ -178,6 +185,47 @@ switch ($scenario) {
             sleep(120);
         });
         repget_sync_locked();
+        break;
+
+    case 'sync-paused':
+        // Held between the plugin's check and its write, until another process has saved.
+        $at = getenv('REPGET_TEST_PAUSE_AT');
+        $times = array();
+        add_filter($at, function ($value = null) use (&$times) {
+            if (!$times) {
+                $times['window'] = microtime(true);
+                touch(state_path('at-window'));
+                wait_for('editor-saved');
+                $times['resumed'] = microtime(true);
+            }
+            return $value;
+        });
+        barrier();
+        $r = repget_sync_locked();
+        $times['end'] = microtime(true);
+        $times['error'] = is_wp_error($r) ? $r->get_error_code() : null;
+        result($times);
+        break;
+
+    case 'sync-race':
+        barrier();
+        $start = microtime(true);
+        $r = repget_sync_locked();
+        result(array('start' => $start, 'end' => microtime(true), 'error' => is_wp_error($r) ? $r->get_error_code() : null));
+        break;
+
+    case 'editor':
+        // Somebody pressing Save in WordPress: wp_update_post, in its own process.
+        if (getenv('REPGET_TEST_AFTER')) {
+            wait_for(getenv('REPGET_TEST_AFTER'));
+        } else {
+            barrier();
+        }
+        $start = microtime(true);
+        $saved = wp_update_post(array('ID' => (int) getenv('REPGET_TEST_POST'), 'post_content' => getenv('REPGET_TEST_TEXT')), true);
+        $end = microtime(true);
+        touch(state_path('editor-saved'));
+        result(array('start' => $start, 'saved' => $end, 'error' => is_wp_error($saved) ? $saved->get_error_code() : null));
         break;
 
     case 'legacy-150':

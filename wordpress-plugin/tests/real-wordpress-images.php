@@ -106,7 +106,7 @@ function downloads($url) {
 function article($id, $html, $extra = array()) {
     return array_merge(array(
         'id' => $id, 'title' => 'Building a Music Video Production Crew: Key Roles', 'slug' => 'music-video-crew',
-        'html' => $html, 'status' => 'publish', 'dispatch' => array('id' => wp_generate_uuid4(), 'revision' => 'r'),
+        'html' => $html, 'status' => 'publish', 'dispatch' => array('id' => wp_generate_uuid4(), 'revision' => md5($html . wp_json_encode($extra))),
     ), $extra);
 }
 function post_for($article_id) {

@@ -1,6 +1,7 @@
 import {
   findMedia as findWordPressMedia,
   publishPost,
+  readPost,
   searchPostsByMarker as searchWordPressPosts,
   testConnection as testWordPress,
   updatePost,
@@ -105,6 +106,19 @@ export const wordpressProvider: CmsProvider = {
           ? Number(input.featuredMediaId)
           : null,
       });
+    } catch (error) {
+      rethrow(error);
+    }
+  },
+
+  /**
+   * No If-Match here: the REST API has no precondition on a post. So this is
+   * read before writing, and the update can still land on a save made in between
+   * (lib/publishing/overwrite-guard.ts).
+   */
+  async readRemote(credentials, remoteId) {
+    try {
+      return await readPost(toWordPress(credentials), remoteId);
     } catch (error) {
       rethrow(error);
     }

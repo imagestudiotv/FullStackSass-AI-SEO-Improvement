@@ -164,6 +164,7 @@ export async function GET(request: NextRequest) {
       dispatch: { id: claim.dispatchId, revision: claim.revisionHash },
       // Only a plugin that knows what it means: see PLUGIN_UPDATES_MIN.
       existingDraft: pluginUpdates(pluginVersion) ? claim.existingDraft : null,
+      existingPost: pluginUpdates(pluginVersion) ? claim.existingPost : null,
       title: claim.article.title,
       slug: claim.article.slug,
       metaDescription: claim.article.metaDescription,
@@ -229,6 +230,8 @@ export async function GET(request: NextRequest) {
           dispatch: row.dispatch,
           // A person's Publish press on a post this site may hold as a draft: the plugin decides from the post (1.10.0+).
           ...(row.existingDraft ? { existingDraft: row.existingDraft } : {}),
+          // A person's press updating a post live on this site: the plugin refuses, rather than reports, if it may not write.
+          ...(row.existingPost ? { existingPost: row.existingPost } : {}),
           /*
             A translation (lib/articles/translations.ts): the original's id and
             the language, as WPML names it. Sent only to 1.9.0+ (see the due

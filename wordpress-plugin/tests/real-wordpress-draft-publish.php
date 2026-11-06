@@ -19,7 +19,10 @@
  *  - trashed, deleted, published and otherwise-decided posts are reported as
  *    they are and never written to;
  *  - a draft from before this plugin kept a record goes live only if it holds
- *    exactly what RepGet sends.
+ *    exactly what RepGet sends;
+ *  - a real save fired between the check and the write survives, on every path
+ *    that writes over a post, and the outcome says so. That proves the order, in
+ *    one process: real-wordpress-concurrency.php proves it across processes.
  */
 
 if ($argc < 3) {
@@ -404,6 +407,227 @@ clear_state();
 sync(press('c2', 'r1', array(), false));
 $made = repget_find_post('c2');
 check('a press on an article never delivered creates its one post, live', $made > 0 && get_post_status($made) === 'publish' && posts_of('c2') === array($made));
+
+// ------------------------------------------------- writing over a post (1.10.0) --
+/** Runs $save once, the first time $hook fires for this post itself: never for a revision. */
+function save_at($hook, $save) {
+    $fired = false;
+    $callback = function ($value = null, $second = null) use (&$fired, &$callback, $hook, $save) {
+        $type = is_array($value) && isset($value['post_type']) ? $value['post_type'] : (is_array($second) && isset($second['post_type']) ? $second['post_type'] : 'post');
+        if (!$fired && $type !== 'revision') {
+            $fired = true;
+            $save();
+        }
+        return $value;
+    };
+    add_filter($hook, $callback, 10, 2);
+    return $callback;
+}
+function live_press($id, $revision, $extra = array()) {
+    return handover($id, $revision, array_merge(array('status' => 'publish', 'existingPost' => array('delivered' => true), 'title' => 'The approved title', 'html' => '<p>The approved text.</p>'), $extra));
+}
+function live_post($id, $revision = 'r1', $extra = array()) {
+    sync(handover($id, $revision, array_merge(array('status' => 'publish'), $extra)));
+    $found = repget_find_post($id);
+    check("  (setup) {$id} is live", get_post_status($found) === 'publish');
+    return $found;
+}
+$saves = array();
+add_action('save_post', function ($id) use (&$saves) { $saves[] = (int) $id; });
+$updated = array();
+add_action('post_updated', function ($id) use (&$updated) { $updated[] = (int) $id; });
+
+echo "\nA SAVE LANDING BETWEEN THE CHECK AND THE WRITE survives, on every path that writes\n";
+// wp_insert_post_data: while the columns are worked out. pre_post_update: the last thing before the UPDATE.
+foreach (array('wp_insert_post_data', 'pre_post_update') as $hook) {
+    $paths = array(
+        'a newer revision on a press on a draft' => array(function ($id) { return delivered_draft($id, 'r1'); }, function ($id) { return press($id, 'r2', array('title' => 'The approved title', 'html' => '<p>The approved text.</p>')); }, 'draft_changed'),
+        'a press on a live post' => array(function ($id) { return live_post($id); }, function ($id) { return live_press($id, 'r2'); }, 'post_changed'),
+        'a hand-over nobody pressed' => array(function ($id) { return live_post($id); }, function ($id) { return handover($id, 'r2', array('status' => 'publish', 'title' => 'The approved title', 'html' => '<p>The approved text.</p>')); }, 'published_in_wordpress'),
+    );
+    foreach ($paths as $what => list($make, $hand, $outcome)) {
+        foreach (array('the text' => array('post_content' => '<p>Saved this very moment.</p>'), 'the letter case of the title' => array('post_title' => 'A TITLE: WITH PUNCTUATION'), 'the excerpt' => array('post_excerpt' => 'Saved this very moment'), 'the address' => array('post_name' => 'saved-this-very-moment'), 'the password' => array('post_password' => 'saved')) as $column => $change) {
+            clear_state();
+            $post = $make('x1');
+            $status = get_post_status($post);
+            $written_before = get_post_meta($post, REPGET_META_WRITTEN, true);
+            $callback = save_at($hook, function () use ($post, $change) { wp_update_post(array_merge(array('ID' => $post), $change)); });
+            $transitions = array();
+            sync($hand('x1'));
+            remove_filter($hook, $callback, 10);
+            $after = row($post);
+            $key = array_keys($change)[0];
+            check("{$hook}, {$what}, {$column}: the save stands", $after->$key === $change[$key] && strpos($after->post_content, 'The approved text') === false, wp_json_encode($after));
+            check("{$hook}, {$what}, {$column}: outcome {$outcome}", last_report()['outcome'] === $outcome, wp_json_encode(last_report()));
+            check("{$hook}, {$what}, {$column}: its status as it was, one post", get_post_status($post) === $status && $transitions === array() && posts_of('x1') === array($post));
+            check("{$hook}, {$what}, {$column}: the record does not take it for this plugin's own", get_post_meta($post, REPGET_META_WRITTEN, true) === $written_before);
+        }
+    }
+}
+
+echo "\nA SAVE LANDING WHILE A DRAFT IS MADE LIVE: not published with it unseen\n";
+foreach (array('the text' => array('post_content' => '<p>Saved this very moment.</p>'), 'the excerpt' => array('post_excerpt' => 'Saved this very moment'), 'the password' => array('post_password' => 'saved')) as $column => $change) {
+    clear_state();
+    $post = delivered_draft('x2');
+    $callback = save_at('wp_unique_post_slug', function () use ($post, $change) { wp_update_post(array_merge(array('ID' => $post), $change)); });
+    $transitions = array();
+    sync(press('x2', 'r1'));
+    remove_filter('wp_unique_post_slug', $callback, 10);
+    $key = array_keys($change)[0];
+    check("{$column}: refused, still a draft, the save stands", last_report()['outcome'] === 'draft_changed' && get_post_status($post) === 'draft' && $transitions === array() && row($post)->$key === $change[$key], wp_json_encode(last_report()));
+}
+
+echo "\nA FEATURED IMAGE: outside the row, so outside the swap\n";
+$attachment = wp_insert_attachment(array('post_title' => 'mine', 'post_status' => 'inherit', 'post_mime_type' => 'image/jpeg'), 'mine.jpg');
+clear_state();
+$post = live_post('x3');
+$callback = save_at('wp_insert_post_data', function () use ($post, $attachment) { set_post_thumbnail($post, $attachment); });
+sync(live_press('x3', 'r2'));
+remove_filter('wp_insert_post_data', $callback, 10);
+check('chosen before the last look at it: refused, and it stays', last_report()['outcome'] === 'post_changed' && (int) get_post_thumbnail_id($post) === $attachment && strpos(row($post)->post_content, 'The approved text') === false, wp_json_encode(last_report()));
+clear_state();
+$post = live_post('x4');
+$callback = save_at('pre_post_update', function () use ($post, $attachment) { set_post_thumbnail($post, $attachment); });
+sync(live_press('x4', 'r2'));
+remove_filter('pre_post_update', $callback, 10);
+check('chosen in the instant after it: NOT seen by the swap, the text goes in, the picture is kept', (int) get_post_thumbnail_id($post) === $attachment && strpos(row($post)->post_content, 'The approved text') !== false);
+wp_delete_attachment($attachment, true);
+
+echo "\nA PRESS ON A LIVE POST, UNCHANGED: written as WordPress would write it\n";
+clear_state();
+$tricky = array('title' => 'Quotes "and" an emoji \u{1F600} &amp; more', 'html' => '<h2 id="a">Heading</h2><p>"Quoted" &amp; 100% <em>done</em>\u{1F600}</p><script>alert(1)</script>', 'excerpt' => 'An <b>excerpt</b> & more', 'slug' => 'The Approved Address');
+$post = live_post('w1');
+$old = row($post);
+$saves = array();
+$updated = array();
+$transitions = array();
+sync(live_press('w1', 'r2', $tricky));
+$after = row($post);
+$fields = array('post_title' => sanitize_text_field($tricky['title']), 'post_content' => wp_kses_post($tricky['html']), 'post_excerpt' => sanitize_text_field($tricky['excerpt']), 'post_name' => sanitize_title($tricky['slug']));
+$control = wp_insert_post(array('post_title' => 'x', 'post_status' => 'publish', 'post_content' => 'y'));
+wp_update_post($fields + array('ID' => $control));
+$same = row($control);
+check('the same post, and only one', posts_of('w1') === array($post));
+check('the stored bytes are what wp_update_post stores', $after->post_title === $same->post_title && $after->post_content === $same->post_content && $after->post_excerpt === $same->post_excerpt, wp_json_encode(array($after, $same)));
+check('...and the address the same way', strpos($after->post_name, 'the-approved-address') === 0, $after->post_name);
+wp_delete_post($control, true);
+check('it stays live, reported live', $after->post_status === 'publish' && last_report()['status'] === 'publish' && !isset(last_report()['outcome']), wp_json_encode(last_report()));
+check('its modified time moved', $after->post_modified_gmt !== '0000-00-00 00:00:00');
+check('save_post and post_updated ran once for it', count(array_keys($saves, $post, true)) === 1 && count(array_keys($updated, $post, true)) === 1, wp_json_encode(array($saves, $updated)));
+check('on record as that revision, as it stands', get_post_meta($post, REPGET_META_WRITTEN, true)['revision'] === 'r2' && repget_written_current($post) !== null);
+$kept = array_map(function ($revision) { return $revision->post_content; }, wp_get_post_revisions($post));
+check('what it replaced is kept as a revision', in_array($old->post_content, $kept, true), wp_json_encode($kept));
+check('...and so is what it wrote, once', count(array_keys($kept, $after->post_content, true)) === 1, wp_json_encode($kept));
+check('the old address still leads here', in_array($old->post_name, get_post_meta($post, '_wp_old_slug'), true), wp_json_encode(get_post_meta($post, '_wp_old_slug')));
+
+echo "\nTHE SAME REVISION AGAIN, ITS REPORT LOST: nothing written twice\n";
+clear_state();
+$post = live_post('w2');
+$GLOBALS['report_works'] = false;
+sync(live_press('w2', 'r2'));
+check('written, the report parked', strpos(row($post)->post_content, 'The approved text') !== false && count(repget_pending_acks()) === 1);
+$GLOBALS['report_works'] = true;
+$GLOBALS['reports'] = array();
+$snap = snapshot($post);
+$versions = count(wp_get_post_revisions($post));
+$saves = array();
+sync(live_press('w2', 'r2'));
+check('the parked report goes first, and RepGet then has nothing to send', count($GLOBALS['reports']) === 1 && count(repget_pending_acks()) === 0, wp_json_encode($GLOBALS['reports']));
+// The process died before it could park anything: RepGet hands the same revision over again.
+sync(live_press('w2', 'r2'));
+check('handed over again all the same: reported live', count($GLOBALS['reports']) === 2 && last_report()['status'] === 'publish' && !isset(last_report()['outcome']), wp_json_encode($GLOBALS['reports']));
+check('not written again: every column as it was, no revision, no save', snapshot($post) === $snap && count(wp_get_post_revisions($post)) === $versions && !in_array($post, $saves, true));
+check('one post', posts_of('w2') === array($post));
+
+echo "\nA LIVE POST EDITED IN WORDPRESS: refused, not overwritten\n";
+clear_state();
+$post = live_post('w3');
+wp_update_post(array('ID' => $post, 'post_content' => '<p>An editor wrote this.</p>'));
+$snap = snapshot($post);
+sync(live_press('w3', 'r2'));
+refused_as('post_changed', 'refused');
+check('left exactly as it was', snapshot($post) === $snap && count(repget_pending_acks()) === 0);
+sync(live_press('w3', 'r1'));
+check('the revision it was sent as: reported as somebody\'s, not written', last_report()['outcome'] === 'published_in_wordpress' && snapshot($post) === $snap, wp_json_encode(last_report()));
+clear_state();
+$post = live_post('w4');
+sleep(1);
+wp_update_post(array('ID' => $post));
+sync(live_press('w4', 'r2'));
+check('pressing Save with no change is not an edit', strpos(row($post)->post_content, 'The approved text') !== false && !isset(last_report()['outcome']), wp_json_encode(last_report()));
+
+echo "\nA LIVE POST FROM BEFORE THE RECORD: proved, or refused\n";
+clear_state();
+$post = live_post('w5');
+delete_post_meta($post, REPGET_META_WRITTEN);
+$snap = snapshot($post);
+sync(live_press('w5', 'r2'));
+refused_as('post_unverified', 'a newer revision cannot be proved: refused');
+check('left as it was', snapshot($post) === $snap);
+sync(handover('w5', 'r1', array('status' => 'publish', 'existingPost' => array('delivered' => true))));
+check('holding exactly what RepGet sends: reported, not written, on record from now', !isset(last_report()['outcome']) && last_report()['status'] === 'publish' && snapshot($post) === $snap && get_post_meta($post, REPGET_META_WRITTEN, true)['revision'] === 'r1', wp_json_encode(last_report()));
+
+echo "\nSOMEBODY HAS IT OPEN IN WORDPRESS: an advisory lock, respected\n";
+clear_state();
+$post = delivered_draft('w6');
+$editor = get_users(array('number' => 1, 'fields' => 'ID'))[0];
+update_post_meta($post, '_edit_lock', time() . ':' . $editor);
+$snap = snapshot($post);
+sync(press('w6', 'r1'));
+refused_as('post_locked', 'a draft open: not published');
+check('left as it was', get_post_status($post) === 'draft' && snapshot($post) === $snap);
+clear_state();
+$post = live_post('w7');
+update_post_meta($post, '_edit_lock', time() . ':' . $editor);
+$snap = snapshot($post);
+sync(live_press('w7', 'r2'));
+refused_as('post_locked', 'a live post open: not written');
+check('left as it was', snapshot($post) === $snap);
+update_post_meta($post, '_edit_lock', (time() - 300) . ':' . $editor);
+sync(live_press('w7', 'r2'));
+check('a lock gone stale is no lock', strpos(row($post)->post_content, 'The approved text') !== false, wp_json_encode(last_report()));
+
+echo "\nA LIVE POST TRASHED OR DELETED: nothing brought back\n";
+clear_state();
+$post = live_post('w8');
+wp_trash_post($post);
+$snap = snapshot($post);
+sync(live_press('w8', 'r2'));
+refused_as('update_trashed', 'in the trash');
+check('still there, untouched', get_post_status($post) === 'trash' && snapshot($post) === $snap);
+wp_delete_post($post, true);
+sync(live_press('w8', 'r2'));
+refused_as('update_deleted', 'deleted');
+check('no new post', posts_of('w8') === array());
+
+echo "\nA HAND-OVER NOBODY PRESSED, ITS LAST REPORT LOST\n";
+clear_state();
+$post = live_post('w9');
+$snap = snapshot($post);
+sync(handover('w9', 'r1', array('status' => 'publish')));
+check('the same revision: reported, not written', snapshot($post) === $snap && last_report()['status'] === 'publish' && !isset(last_report()['outcome']), wp_json_encode(last_report()));
+wp_update_post(array('ID' => $post, 'post_content' => '<p>An editor wrote this.</p>'));
+$snap = snapshot($post);
+sync(handover('w9', 'r2', array('status' => 'publish', 'html' => '<p>Newer.</p>')));
+check('edited, a newer revision: not written, reported so it is not offered again', snapshot($post) === $snap && last_report()['outcome'] === 'published_in_wordpress' && last_report()['url'] === get_permalink($post), wp_json_encode(last_report()));
+clear_state();
+$post = delivered_draft('w10');
+wp_update_post(array('ID' => $post, 'post_content' => '<p>An editor wrote this.</p>'));
+$snap = snapshot($post);
+sync(handover('w10', 'r2', array('status' => 'publish', 'html' => '<p>Newer.</p>')));
+check('an edited draft: not written, still a draft, reported as one', snapshot($post) === $snap && last_report()['status'] === 'draft' && !isset(last_report()['outcome']), wp_json_encode(last_report()));
+clear_state();
+$post = live_post('w11');
+delete_post_meta($post, REPGET_META_WRITTEN);
+$snap = snapshot($post);
+sync(handover('w11', 'r2', array('status' => 'publish', 'html' => '<p>Newer.</p>')));
+check('no record, and not what RepGet sends: not written', snapshot($post) === $snap && last_report()['outcome'] === 'published_in_wordpress', wp_json_encode(last_report()));
+clear_state();
+$post = live_post('w12');
+wp_trash_post($post);
+$snap = snapshot($post);
+sync(handover('w12', 'r2', array('status' => 'publish', 'html' => '<p>Newer.</p>')));
+check('in the trash: not written, nothing brought back, reported as it stands', snapshot($post) === $snap && last_report()['status'] === 'trash' && posts_of('w12') === array($post), wp_json_encode(last_report()));
 
 clear_state();
 echo "\n" . ($failures === 0 ? "ALL PASSED" : "{$failures} FAILURE(S)") . "\n";
