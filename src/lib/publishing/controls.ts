@@ -1,8 +1,8 @@
-import { eq, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, sql, type SQL } from "drizzle-orm";
 
-import { revisionToStore, reviewHashSql } from "@/lib/articles/review";
+import { reviewHash, reviewHashSql, revisionToStore, type StoredRevision } from "@/lib/articles/review";
 import { db } from "@/lib/db";
-import { articles, networkSites, platformControls } from "@/lib/db/schema";
+import { articles, articleVersions, networkSites, platformControls, publicationDispatches } from "@/lib/db/schema";
 import type { Executor } from "@/lib/db/types";
 
 /**
@@ -154,8 +154,11 @@ export async function switchControl(
  *    the CMS's picture address without re-hashing, so this is what the post is,
  *    with no change waiting. Stored as published and left outside the review,
  *    which grants nothing: only a press can resend it. It is not approved.
- *  - Delivered with a change waiting for the team: stored as unreviewed. It stays
- *    in their queue, and no path sends it.
+ *  - Delivered with a change waiting for the team: stays in their queue. The text
+ *    last sent is stored as published when it can be proven (recoverSentRevision).
+ *    Otherwise nothing is stored: the working copy is not what the post says, so it
+ *    is neither shown to the customer nor stored under any label. The post stays on
+ *    the website, and nothing is approved or sent.
  *
  * A press still recorded on a delivered article is cleared.
  *
@@ -233,12 +236,39 @@ export async function activateTwoStep(tx: Executor): Promise<number> {
     .from(articles)
     .where(sql`${delivered} and ${articles.reviewStatus} = 'pending' and ${articles.approvedRevision} is null`);
   for (const row of waitingOnSite) {
-    await tx
-      .update(articles)
-      .set({ approvedRevision: revisionToStore(row, "unreviewed") })
-      .where(eq(articles.id, row.id));
+    const sent = await recoverSentRevision(tx, row);
+    if (sent) await tx.update(articles).set({ approvedRevision: sent }).where(eq(articles.id, row.id));
   }
   return waiting.length + stale.length;
+}
+
+/**
+ * The text last sent to the website, for a post whose working copy has moved on.
+ * A send keeps the hash of its revision but not its text, so this rebuilds it from
+ * what RepGet still holds - the working copy, the earlier bodies kept on each edit,
+ * the title and slug kept with the send - and accepts it only if the hash is the
+ * send's own. Anything else returns null, however close: only proof counts.
+ */
+async function recoverSentRevision(tx: Executor, row: typeof articles.$inferSelect): Promise<StoredRevision | null> {
+  const [sent] = await tx
+    .select({ hash: publicationDispatches.revisionHash, snapshot: publicationDispatches.requestSnapshot })
+    .from(publicationDispatches)
+    .where(and(eq(publicationDispatches.articleId, row.id), eq(publicationDispatches.status, "sent"), eq(publicationDispatches.late, false)))
+    .orderBy(desc(publicationDispatches.claimedAt))
+    .limit(1);
+  if (!sent) return null;
+  const snapshot = (sent.snapshot ?? {}) as { title?: string; slug?: string | null };
+  const versions = await tx.select({ bodyHtml: articleVersions.bodyHtml }).from(articleVersions).where(eq(articleVersions.articleId, row.id));
+  for (const title of new Set([row.title, snapshot.title ?? row.title])) {
+    for (const slug of new Set([row.slug, snapshot.slug === undefined ? row.slug : snapshot.slug])) {
+      for (const bodyHtml of new Set([row.bodyHtml, ...versions.map((version) => version.bodyHtml)])) {
+        const candidate = { ...row, title, slug, bodyHtml };
+        if (reviewHash(candidate) !== sent.hash) continue;
+        return revisionToStore({ ...candidate, wordCount: bodyHtml === row.bodyHtml ? row.wordCount : null }, "published");
+      }
+    }
+  }
+  return null;
 }
 
 /**

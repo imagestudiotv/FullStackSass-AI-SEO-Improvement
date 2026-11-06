@@ -127,7 +127,7 @@ export async function translateLiveArticle(due: TranslationDue): Promise<Transla
   */
   const held = heldFromCustomer(row) && (await twoStepArticles());
   const stored = held ? storedRevision(row.approvedRevision) : null;
-  if (held && (!stored?.bodyHtml || stored.source === "unreviewed")) return { status: "skipped", reason: "the team is working on this article" };
+  if (held && !stored?.bodyHtml) return { status: "skipped", reason: "the team is working on this article" };
   const source = stored ?? row;
 
   // The try counts before anything is spent: a job that dies mid-call still used one.

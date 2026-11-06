@@ -37,7 +37,7 @@ export type ArticleDeliveryCopy = {
   withTeam: string;
   withTeamLive: string;
   lockedWithTeam: string;
-  /** A change that was waiting at switch-on: nothing approved to send meanwhile. */
+  /** A post on the website whose text RepGet cannot show until the team approves its change. */
   withTeamChange: string;
   /** The Publishing page's note about a website's first article. */
   firstArticleTwoStep: string;
@@ -118,7 +118,7 @@ export const ARTICLE_DELIVERY: Record<Locale, ArticleDeliveryCopy> = {
     notifyUpdate: "Your article's update is ready to publish",
     notifyConnect: "{title}. Connect your website to publish it.",
     notifyDay: "{title}. It goes out by itself on its planned day, or you can publish it now.",
-    withTeamChange: "The RepGet team is checking this change. The post on your website stays as it is. You will be told when the change is ready.",
+    withTeamChange: "The RepGet team is checking a change to this post. The post on your website stays as it is. Its text will appear here when they have finished, and you will be told.",
     firstArticleTwoStep: "Your first article goes to the RepGet team first. Once they have finished, your choice here applies.",
     errPluginUpdate: "To send this update, first update the RepGet plugin on your website to version 1.10 or later.",
     pluginDraftNote: "This article is on your website as a draft. Publish it from WordPress.",
@@ -159,7 +159,7 @@ export const ARTICLE_DELIVERY: Record<Locale, ArticleDeliveryCopy> = {
     notifyUpdate: "La actualización de su artículo está lista para publicar",
     notifyConnect: "{title}. Conecte su sitio web para publicarlo.",
     notifyDay: "{title}. Se publicará solo en la fecha prevista, o puede publicarlo ya.",
-    withTeamChange: "El equipo de RepGet está revisando este cambio. La publicación de su sitio web no cambia. Le avisaremos cuando el cambio esté listo.",
+    withTeamChange: "El equipo de RepGet está revisando un cambio en esta publicación. La publicación de su sitio web no cambia. El texto aparecerá aquí cuando terminen y le avisaremos.",
     firstArticleTwoStep: "Su primer artículo pasa primero por el equipo de RepGet. Cuando terminen, se aplicará su elección.",
     errPluginUpdate: "Para enviar esta actualización, actualice primero el plugin de RepGet de su sitio web a la versión 1.10 o posterior.",
     pluginDraftNote: "Este artículo está en su sitio web como borrador. Publíquelo desde WordPress.",
@@ -200,7 +200,7 @@ export const ARTICLE_DELIVERY: Record<Locale, ArticleDeliveryCopy> = {
     notifyUpdate: "La mise à jour de votre article est prête à publier",
     notifyConnect: "{title}. Connectez votre site pour le publier.",
     notifyDay: "{title}. Il sera publié de lui-même à la date prévue, ou vous pouvez le publier dès maintenant.",
-    withTeamChange: "L’équipe RepGet vérifie cette modification. L’article en ligne reste inchangé. Vous serez averti lorsque la modification sera prête.",
+    withTeamChange: "L’équipe RepGet vérifie une modification de cet article. L’article sur votre site reste inchangé. Le texte apparaîtra ici une fois la vérification terminée, et vous en serez averti.",
     firstArticleTwoStep: "Votre premier article passe d’abord par l’équipe RepGet. Ensuite, votre choix s’applique.",
     errPluginUpdate: "Pour envoyer cette mise à jour, mettez d’abord à jour l’extension RepGet de votre site vers la version 1.10 ou ultérieure.",
     pluginDraftNote: "Cet article est sur votre site en brouillon. Publiez-le depuis WordPress.",
@@ -241,7 +241,7 @@ export const ARTICLE_DELIVERY: Record<Locale, ArticleDeliveryCopy> = {
     notifyUpdate: "L’aggiornamento del suo articolo è pronto per la pubblicazione",
     notifyConnect: "{title}. Colleghi il suo sito per pubblicarlo.",
     notifyDay: "{title}. Verrà pubblicato da solo nella data prevista, oppure può pubblicarlo subito.",
-    withTeamChange: "Il team di RepGet sta controllando questa modifica. L’articolo sul suo sito resta invariato. La avviseremo quando la modifica sarà pronta.",
+    withTeamChange: "Il team di RepGet sta controllando una modifica a questo articolo. L’articolo sul suo sito resta invariato. Il testo comparirà qui al termine del controllo e la avviseremo.",
     firstArticleTwoStep: "Il suo primo articolo passa prima dal team di RepGet. Poi vale la sua scelta.",
     errPluginUpdate: "Per inviare questo aggiornamento, aggiorni prima il plugin RepGet del suo sito alla versione 1.10 o successiva.",
     pluginDraftNote: "Questo articolo è sul suo sito come bozza. Lo pubblichi da WordPress.",
@@ -282,7 +282,7 @@ export const ARTICLE_DELIVERY: Record<Locale, ArticleDeliveryCopy> = {
     notifyUpdate: "Die Aktualisierung Ihres Artikels ist zur Veröffentlichung bereit",
     notifyConnect: "{title}. Verbinden Sie Ihre Website, um ihn zu veröffentlichen.",
     notifyDay: "{title}. Er wird am geplanten Tag von selbst veröffentlicht, oder Sie veröffentlichen ihn jetzt.",
-    withTeamChange: "Das RepGet-Team prüft diese Änderung. Der Beitrag auf Ihrer Website bleibt unverändert. Sie werden benachrichtigt, sobald die Änderung fertig ist.",
+    withTeamChange: "Das RepGet-Team prüft eine Änderung an diesem Beitrag. Der Beitrag auf Ihrer Website bleibt unverändert. Der Text erscheint hier, sobald die Prüfung abgeschlossen ist, und Sie werden benachrichtigt.",
     firstArticleTwoStep: "Ihr erster Artikel geht zuerst an das RepGet-Team. Danach gilt Ihre Auswahl.",
     errPluginUpdate: "Um diese Aktualisierung zu senden, aktualisieren Sie zuerst das RepGet-Plugin auf Ihrer Website auf Version 1.10 oder neuer.",
     pluginDraftNote: "Dieser Artikel ist als Entwurf auf Ihrer Website. Veröffentlichen Sie ihn in WordPress.",

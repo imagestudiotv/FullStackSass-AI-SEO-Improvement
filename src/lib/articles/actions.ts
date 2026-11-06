@@ -102,6 +102,7 @@ export async function listArticles(websiteId: string): Promise<ArticleRow[]> {
       };
     }
     if (held) {
+      const live = servedStatus({ publishedUrl, firstLiveAt, status: row.status }) === "published";
       return {
         ...row,
         // Never the stored title: it is generation's and the team's. This one is the customer's own plan row.
@@ -109,7 +110,7 @@ export async function listArticles(websiteId: string): Promise<ArticleRow[]> {
         slug: null,
         wordCount: null,
         error: null,
-        status: WORKING.includes(row.status) || row.status === "failed" ? row.status : "preparing",
+        status: WORKING.includes(row.status) || row.status === "failed" ? row.status : live ? "published" : "preparing",
       };
     }
     return twoStep && reviewStatus === "approved" && row.status === "draft" && !publishedUrl ? { ...row, status: "ready" } : row;
@@ -205,7 +206,8 @@ export async function getArticle(
       slug: null,
       targetKeyword: row.targetKeyword,
       wordCount: null,
-      status: row.status,
+      // A post on the website with no text RepGet can show stays what it is there.
+      status: working || row.status === "failed" ? row.status : servedStatus(row),
       generationStep: working ? row.generationStep : null,
       error: row.status === "failed" ? row.error : null,
       updatedAt: row.updatedAt,
@@ -214,7 +216,7 @@ export async function getArticle(
       imageUrl: null,
       imageAlt: null,
       imageAttempts: 0,
-      publishedUrl: null,
+      publishedUrl: row.publishedUrl,
       publishRequested: null,
       preparing: row.status === "failed" ? null : working ? "writing" : "team",
       withTeam: false,

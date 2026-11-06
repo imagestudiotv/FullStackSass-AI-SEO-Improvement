@@ -372,16 +372,6 @@ describe("the two-step flow (docs/two-step-articles.md)", () => {
     expect(html).toContain(d.lockedWithTeam);
   });
 
-  it("a change that was waiting at switch-on: nothing to send, and the panel says so", () => {
-    const html = render({
-      article: { ...ARTICLE, status: "published", publishedUrl: "https://example.com/a", withTeam: true },
-      facts: { ...READY, withTeam: true, review: "pending", liveOnSite: true, lastOutcome: { kind: "live", when: "1 Oct" } },
-    });
-    expect(html).toContain(d.withTeamChange);
-    expect(html).not.toContain(d.withTeamLive);
-    expect(button(html, en.app.editor.updatePost)).toContain('disabled=""');
-  });
-
   it("a WordPress draft on a plugin site: says so, in place of any Publish button", () => {
     const html = render({
       article: { ...ARTICLE, status: "draft", publishedUrl: "https://example.com/a" },

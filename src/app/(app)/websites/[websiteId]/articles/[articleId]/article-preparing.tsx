@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, Loader2, Upload } from "lucide-react";
+import { ChevronRight, ExternalLink, Info, Loader2, Upload } from "lucide-react";
 import Link from "next/link";
 
 import { useRefreshWhile } from "@/components/refresh-while";
@@ -19,11 +19,18 @@ import { useSlowRefresh } from "./use-slow-refresh";
  * under the two-step flow (docs/two-step-articles.md): where it stands, what
  * happens next, and that nothing is asked of them. Nothing of the article
  * reaches this page: getArticle returned it empty.
+ *
+ * A post already on their website (postUrl), whose last sent text RepGet could not
+ * prove at switch-on, stays there: it says so and links to it, the only copy of its
+ * text the customer can rely on, instead of showing the team's working copy.
  */
 export function ArticlePreparing({
   websiteId,
   title,
   stage,
+  postUrl,
+  status,
+  viewOnSiteLabel,
   destination,
   autoPublish,
   canEdit,
@@ -35,6 +42,9 @@ export function ArticlePreparing({
   websiteId: string;
   title: string;
   stage: "writing" | "team";
+  postUrl: string | null;
+  status: string;
+  viewOnSiteLabel: string;
   destination: Destination;
   autoPublish: "off" | "live" | "draft";
   canEdit: boolean;
@@ -73,42 +83,55 @@ export function ArticlePreparing({
           </ol>
         </nav>
         <h1 className="text-xl font-semibold tracking-tight text-foreground wrap-anywhere sm:text-2xl">{title}</h1>
-        <StatusBadge status={stage === "writing" ? "generating" : "preparing"} t={tStatus} size="lg" />
+        <StatusBadge status={stage === "writing" ? "generating" : postUrl && status === "published" ? "published" : "preparing"} t={tStatus} size="lg" />
       </div>
 
       <section className="max-w-2xl space-y-5 rounded-xl border bg-card p-5 text-card-foreground sm:p-6" aria-labelledby="article-preparing-title">
         <div role="status" className="flex items-start gap-3">
-          <Loader2 className="mt-0.5 size-5 shrink-0 animate-spin text-primary motion-reduce:animate-none" aria-hidden="true" />
+          {postUrl ? (
+            <Info className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
+          ) : (
+            <Loader2 className="mt-0.5 size-5 shrink-0 animate-spin text-primary motion-reduce:animate-none" aria-hidden="true" />
+          )}
           <div className="min-w-0 space-y-1">
             <h2 id="article-preparing-title" className="font-semibold">
               {stage === "writing" ? t.writingTitle : t.teamTitle}
             </h2>
-            <p className="text-sm leading-6 text-muted-foreground">{stage === "writing" ? t.writingBody : t.teamBody}</p>
+            <p className="text-sm leading-6 text-muted-foreground">{postUrl ? t.withTeamChange : stage === "writing" ? t.writingBody : t.teamBody}</p>
           </div>
         </div>
 
-        <ol aria-label={t.stepsLabel} className="space-y-2 border-t pt-4 text-sm">
-          {steps.map((step, index) => (
-            <li key={step.label} className="flex items-center gap-2.5" aria-current={step.current ? "step" : undefined}>
-              <span
-                className={cn(
-                  "flex size-6 shrink-0 items-center justify-center rounded-full border text-xs font-medium",
-                  step.current ? "border-primary text-primary" : "text-muted-foreground",
-                )}
-              >
-                {index + 1}
-              </span>
-              <span className={cn("min-w-0", step.current ? "font-medium text-foreground" : "text-muted-foreground")}>{step.label}</span>
-              {step.current ? <span className="sr-only">({t.currentStep})</span> : null}
-            </li>
-          ))}
-        </ol>
+        {postUrl ? (
+          <Button asChild variant="outline" className="h-auto min-h-8 whitespace-normal text-left">
+            <a href={postUrl} target="_blank" rel="noopener noreferrer">
+              <ExternalLink aria-hidden="true" />
+              {viewOnSiteLabel}
+            </a>
+          </Button>
+        ) : (
+          <ol aria-label={t.stepsLabel} className="space-y-2 border-t pt-4 text-sm">
+            {steps.map((step, index) => (
+              <li key={step.label} className="flex items-center gap-2.5" aria-current={step.current ? "step" : undefined}>
+                <span
+                  className={cn(
+                    "flex size-6 shrink-0 items-center justify-center rounded-full border text-xs font-medium",
+                    step.current ? "border-primary text-primary" : "text-muted-foreground",
+                  )}
+                >
+                  {index + 1}
+                </span>
+                <span className={cn("min-w-0", step.current ? "font-medium text-foreground" : "text-muted-foreground")}>{step.label}</span>
+                {step.current ? <span className="sr-only">({t.currentStep})</span> : null}
+              </li>
+            ))}
+          </ol>
+        )}
 
-        {autoPublish !== "off" ? (
+        {autoPublish !== "off" && !postUrl ? (
           <p className="text-sm leading-6 text-muted-foreground">{autoPublish === "live" ? t.autoNoteLive : t.autoNoteDraft}</p>
         ) : null}
 
-        {destination.kind === "none" && canEdit ? (
+        {destination.kind === "none" && canEdit && !postUrl ? (
           <div className="space-y-3 border-t pt-4">
             <p className="text-sm leading-6 text-muted-foreground">{t.connectNote}</p>
             <Button asChild variant="outline" className="h-auto min-h-8 whitespace-normal text-left">

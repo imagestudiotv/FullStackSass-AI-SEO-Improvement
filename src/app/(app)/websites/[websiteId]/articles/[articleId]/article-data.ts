@@ -191,8 +191,7 @@ export async function loadPublishing(input: {
   let review: ReviewState = "none";
   if (article.withTeam) {
     // The last approved revision, served and sendable, while the team has a newer copy.
-    // A change that was waiting at switch-on has none: it is readable, and only their approval sends it.
-    review = extra?.storedSource === "unreviewed" ? "pending" : "approved";
+    review = "approved";
   } else if (extra && (extra.reviewStatus !== null || (extra.researchReviewRequired && !twoStep))) {
     const check = releaseCheckFor({ ...fields, ...extra });
     review = check.ok ? "approved" : check.reason === "changed_since_approval" ? "changed" : "pending";

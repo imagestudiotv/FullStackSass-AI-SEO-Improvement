@@ -20,6 +20,7 @@ import {
   publicationDispatches,
   publishLogs,
   websites,
+  articleVersions,
 } from "@/lib/db/schema";
 import { member, user } from "@/lib/db/auth-tables";
 import { createTestDb, type TestDb } from "@/test/db";
@@ -1647,31 +1648,148 @@ describe("review of the combined diff: what stays true on the edges", () => {
     expect(inngestMock.send).not.toHaveBeenCalled();
   });
 
-  it("switch-on, a live post with a change waiting: the customer keeps it, no path sends it, and it is in the team's queue until approved", async () => {
-    await twoStep(false);
-    const s = await scene({ fields: { status: "published", publishedUrl: "https://site.test/wait", reviewStatus: "pending", researchReviewRequired: false, bodyHtml: "<p>Their change</p>", title: "Their title" } });
+  const inClass = async (name: string) => {
     const { TRANSITION_QUERY } = await import("../../../scripts/two-step-transition-dry-run.mjs");
-    const classes = (await test.client.query<{ class: string; articles: number }>(TRANSITION_QUERY)).rows.map((row) => row.class);
-    expect(classes).toContain("on_site_change_waiting_view_kept_not_sendable");
+    return (await test.client.query<{ class: string; articles: number }>(TRANSITION_QUERY)).rows.find((row) => row.class === name)?.articles ?? 0;
+  };
+  /** A delivery of exactly these fields, as the dispatch claim records it. */
+  const recordSend = (post: typeof articles.$inferSelect, sent: Partial<typeof articles.$inferSelect>, fields: Partial<typeof publicationDispatches.$inferInsert> = {}) =>
+    test.db.insert(publicationDispatches).values({
+      articleId: post.id,
+      websiteId: post.websiteId,
+      channel: "direct",
+      trigger: "manual",
+      revisionHash: reviewHash({ ...post, ...sent }),
+      requestedStatus: "publish",
+      status: "sent",
+      remoteStatus: "publish",
+      requestSnapshot: { title: sent.title ?? post.title, slug: sent.slug === undefined ? post.slug : sent.slug },
+      ...fields,
+    });
+  const WAITING = { status: "published", publishedUrl: "https://site.test/wait", firstLiveAt: new Date("2026-10-01T10:00:00Z"), reviewStatus: "pending", researchReviewRequired: false, bodyHtml: `<p>${BODY} pending</p>`, title: STAFF_TITLE } as const;
+
+  it("switch-on, a live post with a pending change and no proof of what was sent: no working copy, the post stays, and nothing is approved or sent", async () => {
+    await twoStep(false);
+    const before = await inClass("on_site_change_waiting_text_unavailable");
+    const s = await scene({ fields: WAITING });
+    expect(await inClass("on_site_change_waiting_text_unavailable")).toBe(before + 1);
     await on();
 
-    expect(await getArticle(s.websiteId, s.post.id)).toMatchObject({ preparing: null, withTeam: true, status: "published", title: "Their title", bodyHtml: "<p>Their change</p>" });
-    expect(storedRevision((await row(s.post.id)).approvedRevision)).toMatchObject({ source: "unreviewed" });
-    expect(sendableRevision(await row(s.post.id))).toEqual({ ok: false, reason: "pending_review" });
+    // Nothing was stored or made up, and the review stays open.
+    const after = await row(s.post.id);
+    expect(after).toMatchObject({ approvedRevision: null, reviewStatus: "pending", reviewApprovedHash: null, status: "published", publishedUrl: WAITING.publishedUrl });
+
+    // The customer sees that it stands on their website, and not one word of the working copy.
+    const article = await getArticle(s.websiteId, s.post.id);
+    expect(article).toMatchObject({ preparing: "team", withTeam: false, status: "published", publishedUrl: WAITING.publishedUrl, title: PLANNED, bodyHtml: null, metaDescription: null, imageUrl: null, imageAlt: null, slug: null });
+    const listed = (await listArticles(s.websiteId)).find((item) => item.id === s.post.id);
+    expect(listed).toMatchObject({ title: PLANNED, status: "published", slug: null, wordCount: null });
+    for (const read of [article, listed, await getDashboardOverview({ websiteId: s.websiteId, ownerOrgId: s.orgId, showCredits: false }), await getTasks(s.websiteId)]) {
+      const seen = JSON.stringify(read);
+      for (const secret of [BODY, STAFF_TITLE, "SECRETEXCERPT", IMAGE, "SECRETALT", LINK]) expect(seen).not.toContain(secret);
+    }
+
+    // No path sends it.
+    expect(sendableRevision(after)).toEqual({ ok: false, reason: "pending_review" });
     expect(await publishArticle(s.websiteId, s.post.id)).toEqual({ ok: false, error: PREPARING_MESSAGE });
     expect(await runJob(s)).toEqual({ held: "pending_review" });
+    expect(await claimDispatch({ articleId: s.post.id, websiteId: s.websiteId, channel: "direct", trigger: "automatic" })).toEqual({ ok: false, reason: "pending_review" });
     expect(cms.posts).toEqual([]);
+    expect(inngestMock.send).not.toHaveBeenCalled();
+    // The customer can change nothing in it.
+    expect(await updateArticle(s.websiteId, s.post.id, { title: "Mine" })).toEqual({ ok: false, error: PREPARING_MESSAGE });
+
     // Not for public outputs, and not translated.
     const [{ ok }] = await test.db.select({ ok: publicRevisionSql }).from(articles).where(eq(articles.id, s.post.id));
     expect(ok).toBe(false);
     expect(await translateLiveArticle({ articleId: s.post.id, websiteId: s.websiteId, organizationId: s.orgId, language: "it" })).toMatchObject({ status: "skipped" });
 
+    // It stays in the team's queue; their approval is what makes it readable, and tells the customer.
     const queue = await asAdmin(s.orgId, () => getReviewQueue());
-    expect(queue.articles.map((article) => article.id)).toContain(s.post.id);
-
-    await approve(s.post.id);
+    expect(queue.articles.map((item) => item.id)).toContain(s.post.id);
+    expect(await approveAndRelease(s.post.id)).toBe("customer_publishes");
     expect(storedRevision((await row(s.post.id)).approvedRevision)).toMatchObject({ source: "approved" });
     expect(sendableRevision(await row(s.post.id))).toMatchObject({ ok: true });
+    expect(await getArticle(s.websiteId, s.post.id)).toMatchObject({ preparing: null, bodyHtml: WAITING.bodyHtml });
+    // Approval tells the customer once, and never republishes the post by itself.
+    expect(bell.sent).toHaveLength(1);
+    expect(cms.posts).toEqual([]);
+  });
+
+  it("switch-on recovers the text last sent when its hash proves it: a saved earlier body, with the send's title and slug", async () => {
+    await twoStep(false);
+    const s = await scene({ fields: WAITING });
+    const sentBody = "<p>As it stands on the website</p>";
+    await test.db.insert(articleVersions).values([{ articleId: s.post.id, bodyHtml: "<p>Older still</p>" }, { articleId: s.post.id, bodyHtml: sentBody }]);
+    await recordSend(s.post, { title: "As sent", slug: "as-sent", bodyHtml: sentBody });
+    expect(await inClass("on_site_change_waiting_sent_text_recovered")).toBe(1);
+    await on();
+    expect(await inClass("on_site_change_waiting_sent_text_recovered")).toBe(0);
+
+    const after = await row(s.post.id);
+    expect(storedRevision(after.approvedRevision)).toMatchObject({ source: "published", title: "As sent", slug: "as-sent", bodyHtml: sentBody });
+    // Still the team's: nothing was approved, and the working copy stays where it was.
+    expect(after).toMatchObject({ reviewStatus: "pending", reviewApprovedHash: null, title: STAFF_TITLE, bodyHtml: WAITING.bodyHtml });
+    const article = await getArticle(s.websiteId, s.post.id);
+    expect(article).toMatchObject({ preparing: null, withTeam: true, status: "published", title: "As sent", bodyHtml: sentBody });
+    expect(JSON.stringify(article)).not.toContain(BODY);
+    // Nobody approved it, so nothing automatic sends it.
+    expect(await claimDispatch({ articleId: s.post.id, websiteId: s.websiteId, channel: "direct", trigger: "automatic" })).toEqual({ ok: false, reason: "pending_review" });
+    expect(cms.posts).toEqual([]);
+  });
+
+  it("switch-on recovers a working copy that still is what was sent", async () => {
+    await twoStep(false);
+    const s = await scene({ fields: WAITING });
+    await recordSend(s.post, {});
+    await on();
+    expect(storedRevision((await row(s.post.id)).approvedRevision)).toMatchObject({ source: "published", hash: reviewHash(s.post) });
+    expect(await row(s.post.id)).toMatchObject({ reviewStatus: "pending", reviewApprovedHash: null });
+  });
+
+  it.each([
+    ["a send that does not match anything RepGet holds", { status: "sent" }, { bodyHtml: "<p>Gone for good</p>" }],
+    ["a send that failed, though the text matches", { status: "failed" }, {}],
+    ["a late send, though the text matches", { status: "sent", late: true }, {}],
+  ] as const)("switch-on recovers nothing from %s", async (_name, dispatch, sent) => {
+    await twoStep(false);
+    const before = await inClass("on_site_change_waiting_text_unavailable");
+    const s = await scene({ fields: WAITING });
+    await recordSend(s.post, sent, dispatch);
+    expect(await inClass("on_site_change_waiting_text_unavailable")).toBe(before + 1);
+    await on();
+    expect((await row(s.post.id)).approvedRevision).toBeNull();
+    expect(await getArticle(s.websiteId, s.post.id)).toMatchObject({ preparing: "team", bodyHtml: null, publishedUrl: WAITING.publishedUrl });
+  });
+
+  it("only the latest send counts: an older match does not stand for a newer send", async () => {
+    await twoStep(false);
+    const s = await scene({ fields: WAITING });
+    await recordSend(s.post, {}, { claimedAt: new Date("2026-10-01T10:00:00Z") });
+    await recordSend(s.post, { bodyHtml: "<p>Newer, gone</p>" }, { claimedAt: new Date("2026-10-02T10:00:00Z") });
+    await on();
+    expect((await row(s.post.id)).approvedRevision).toBeNull();
+  });
+
+  it("a WordPress draft with a pending change and no proof: stays a draft there, and shows no working copy", async () => {
+    await twoStep(false);
+    const s = await scene({ fields: { ...WAITING, status: "draft", firstLiveAt: null } });
+    await on();
+    expect(await getArticle(s.websiteId, s.post.id)).toMatchObject({ preparing: "team", status: "draft", publishedUrl: WAITING.publishedUrl, bodyHtml: null });
+    expect((await listArticles(s.websiteId)).find((item) => item.id === s.post.id)).toMatchObject({ status: "preparing", title: PLANNED });
+  });
+
+  it("switching on a second time keeps a post with no proof as it is, and picks up one that has proof by then", async () => {
+    await twoStep(false);
+    const s = await scene({ fields: WAITING });
+    await on();
+    await twoStep(false);
+    await on();
+    expect((await row(s.post.id)).approvedRevision).toBeNull();
+    await twoStep(false);
+    await recordSend(s.post, {});
+    await on();
+    expect(storedRevision((await row(s.post.id)).approvedRevision)).toMatchObject({ source: "published" });
   });
 
   it("switch-on keeps a revision stored earlier, rather than storing a working copy over it", async () => {

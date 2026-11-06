@@ -101,6 +101,9 @@ export default async function ArticlePage({
         websiteId={websiteId}
         title={articleTitleText(article.title, locale)}
         stage={article.preparing}
+        postUrl={article.publishedUrl}
+        status={article.status}
+        viewOnSiteLabel={t.app.editor.viewOnSite}
         destination={pickDestination(integrations, connectedPlugin.length > 0)}
         autoPublish={gate.site.autoPublish ? (gate.site.publishAs === "draft" ? "draft" : "live") : "off"}
         canEdit={gate.access !== "viewer"}

@@ -132,7 +132,8 @@ Turning the switch on then runs `activateTwoStep` once, in the switch's own tran
 | Live, or a CMS draft | Never republished. What stands is stored as source `published`: the customer keeps reading it, and only their press can resend it | `delivered` |
 | Live, with sources still held | The same | `delivered_with_held_sources` |
 | Live, approved, but its hash no longer matches | The old publish job wrote the CMS's picture address without re-hashing, so this is what the post is. Stored as source `published` and taken out of the review: not approved, not queued, not resent | `on_site_approval_stale_stored_as_published` |
-| Live, with a change waiting for the team | RepGet holds no earlier text, so what the customer already reads is stored as source `unreviewed`: they keep reading it, no path sends it, and it stays in the queue until approved | `on_site_change_waiting_view_kept_not_sendable` |
+| Live, with a change waiting for the team, last sent text provable | The latest settled send's hash matches a mix of the working copy, earlier saved bodies and the send's title and slug. That text is stored as source `published`: the customer reads it, only their press can resend it, and the change stays in the queue | `on_site_change_waiting_sent_text_recovered` |
+| Live, with a change waiting for the team, no proof | Nothing is stored, and the working copy is not shown. The post stays on the website; the customer sees that it is live, a link to it, and that the text appears once the team finishes. No path sends it and nothing is approved. Public outputs leave it out | `on_site_change_waiting_text_unavailable` |
 | Failed | Untouched | `failed` |
 
 A press still recorded on a delivered article is cleared at switch-on, unsent. The dry run counts them.

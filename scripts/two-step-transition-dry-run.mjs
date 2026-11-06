@@ -26,6 +26,27 @@ const NOT_DELIVERING = `not exists (select 1 from publication_dispatches pd wher
 const RESEARCH_HELD = `(a.research_review_required and a.research_approved_hash is distinct from ${REVISION})`;
 
 /**
+ * The text last sent can be proven, as recoverSentRevision in
+ * src/lib/publishing/controls.ts does: a mix of what RepGet still holds hashes to
+ * the latest settled send's own hash.
+ */
+const SENT_TEXT_PROVEN = `exists (
+  select 1 from (
+    select pd.revision_hash, pd.request_snapshot from publication_dispatches pd
+    where pd.article_id = a.id and pd.status = 'sent' and not pd.late
+    order by pd.claimed_at desc limit 1
+  ) sent
+  cross join lateral (values (a.title), (coalesce(sent.request_snapshot ->> 'title', a.title))) t(title)
+  cross join lateral (values (a.slug), (case when sent.request_snapshot ? 'slug' then sent.request_snapshot ->> 'slug' else a.slug end)) s(slug)
+  cross join lateral (select a.body_html as body union all select v.body_html from article_versions v where v.article_id = a.id) b
+  where encode(sha256(convert_to(
+    coalesce(t.title, '') || chr(31) || coalesce(s.slug, '') || chr(31) ||
+    coalesce(a.meta_description, '') || chr(31) || coalesce(b.body, '') || chr(31) ||
+    coalesce(a.image_url, '') || chr(31) || coalesce(a.image_alt, ''),
+    'UTF8')), 'hex') = sent.revision_hash
+)`;
+
+/**
  * One row per class, each article in exactly one. "moves" says whether the
  * switch hands it to the team; `current` is the article's state before it.
  */
@@ -36,7 +57,8 @@ export const TRANSITION_QUERY = `
       when a.status = 'failed' then 'failed'
       when a.status = 'published' or a.published_url is not null then
         case
-          when a.review_status = 'pending' and a.approved_revision is null then 'on_site_change_waiting_view_kept_not_sendable'
+          when a.review_status = 'pending' and a.approved_revision is null then
+            case when ${SENT_TEXT_PROVEN} then 'on_site_change_waiting_sent_text_recovered' else 'on_site_change_waiting_text_unavailable' end
           when a.review_status = 'approved' and a.review_approved_hash is distinct from ${REVISION} then 'on_site_approval_stale_stored_as_published'
           when ${RESEARCH_HELD} then 'delivered_with_held_sources'
           else 'delivered'
