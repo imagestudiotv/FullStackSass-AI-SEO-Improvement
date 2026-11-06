@@ -12,6 +12,7 @@ import {
 import { requireWebsite } from "@/lib/tenant";
 import { requireEditor } from "@/lib/websites/require-editor";
 import { sanitizeHtml, countWords, normaliseSlug } from "@/lib/articles/generate";
+import { deleteArticleAndSettleLinks } from "@/lib/articles/deletion";
 import { siteScope } from "@/lib/articles/link-guard";
 import { PREPARING_TITLE } from "@/lib/i18n/article-delivery";
 import type { ActionResult } from "@/lib/websites/actions";
@@ -381,9 +382,13 @@ export async function deleteArticle(
   if (!guard.ok) return { ok: false, error: guard.error };
   const { site } = guard.context;
 
-  await db
-    .delete(articles)
-    .where(and(eq(articles.id, articleId), eq(articles.websiteId, site.id)));
+  // With what the article's backlinks held, in one transaction (lib/articles/deletion.ts).
+  try {
+    await deleteArticleAndSettleLinks(site.id, articleId);
+  } catch (error) {
+    if (error instanceof ArticleInFlightError) return { ok: false, error: error.message };
+    throw error;
+  }
 
   revalidatePath(`/websites/${site.id}/content`);
   return { ok: true, data: null };

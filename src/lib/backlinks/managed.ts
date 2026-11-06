@@ -12,6 +12,7 @@ import { effectiveMinSourceRank, minRankCapFor } from "@/lib/backlinks/authority
 import { ArticleInFlightError, lockForEdit } from "@/lib/publishing/dispatch";
 import { ensureMonthlyCredits } from "@/lib/backlinks/credits";
 import { isRelevantPair } from "@/lib/backlinks/matching";
+import { withdrawPlacement } from "@/lib/backlinks/placements";
 import { db } from "@/lib/db";
 import {
   articles,
@@ -428,17 +429,10 @@ export async function removeManagedPlacement(input: {
     if (!row?.articleId) throw new PlacementError("Placement not found");
     const article = await lockArticle(tx, row.articleId, input.expectedVersion);
 
-    const cancelled = await tx
-      .update(placements)
-      .set({ status: "cancelled", updatedAt: new Date() })
-      // Compare-and-set: only a placement still in the draft stage.
-      .where(and(eq(placements.id, row.id), inArray(placements.status, ["pending", "drafted"])))
-      .returning({ id: placements.id });
-    if (cancelled.length === 0) throw new PlacementError("That link is already published; it can no longer be withdrawn here");
-    await tx
-      .update(backlinkRequests)
-      .set({ status: "cancelled", creditsReserved: 0, updatedAt: new Date() })
-      .where(eq(backlinkRequests.id, row.requestId));
+    // Compare-and-set: only a placement still in the draft stage.
+    if (!(await withdrawPlacement(tx, row, ["pending", "drafted"]))) {
+      throw new PlacementError("That link is already published; it can no longer be withdrawn here");
+    }
 
     const [host] = await tx
       .select({ url: websites.url, domain: websites.domain })
