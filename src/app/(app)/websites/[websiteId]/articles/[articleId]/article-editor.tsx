@@ -745,7 +745,7 @@ export function ArticleEditor({
               </div>
             </WorkspaceSection>
 
-            <PublishHistory rows={history} limit={historyLimit} t={t} />
+            <PublishHistory rows={history} limit={historyLimit} t={t} delivery={delivery} />
 
             {canEdit ? (
               <WorkspaceSection

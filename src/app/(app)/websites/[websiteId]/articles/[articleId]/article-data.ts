@@ -4,7 +4,7 @@ import { and, desc, eq, sql } from "drizzle-orm";
 
 import type { ArticleDetail } from "@/lib/articles/actions";
 import { linksTo } from "@/lib/articles/link-guard";
-import { liveOnSiteSql, releaseCheckFor, reviewHash } from "@/lib/articles/review";
+import { draftRefusalOf, liveOnSiteSql, releaseCheckFor, reviewHash, type DraftRefusal } from "@/lib/articles/review";
 import { db } from "@/lib/db";
 import { articles, calendarItems, publicationDispatches, publishLogs } from "@/lib/db/schema";
 import type { Locale } from "@/lib/i18n/config";
@@ -34,6 +34,8 @@ export type HistoryRow = {
   remoteStatus: string | null;
   remoteUrl: string | null;
   errorKind: ProviderErrorKind | null;
+  /** A press on a draft the plugin would not publish; said instead of errorKind. */
+  refusal: DraftRefusal | null;
   /** ISO, for <time dateTime>. */
   at: string;
   /** Formatted on the server in the reader's language (UTC), so the browser renders the same text. */
@@ -93,6 +95,8 @@ function outcomeOf(
   }
   if (!log) return { kind: "none" };
   const when = formatWhen(log.createdAt, locale);
+  const refusal = draftRefusalOf(log.error);
+  if (log.status === "failed" && refusal) return { kind: "refused", when, refusal };
   if (log.status === "failed") return { kind: "failed", when, errorKind: publishFailureKind(log.error) };
   // "published" means delivered; what the CMS stored is remoteStatus (null: unknown, never assumed live).
   if (log.remoteStatus === "publish") return { kind: "live", when };
@@ -107,6 +111,8 @@ export async function loadPublishing(input: {
   autoPublish: boolean;
   publishAs: string;
   destination: Destination;
+  /** The site's plugin can act on a Publish press on a post it holds as a draft (lib/plugin/protocol.ts). */
+  pluginPublishesDrafts?: boolean;
   /** The latest direct dispatch is uncertain (lib/publishing/dispatch.ts latestUncertain). */
   uncertain: boolean;
   locale: Locale;
@@ -148,6 +154,7 @@ export async function loadPublishing(input: {
         revisionHash: publicationDispatches.revisionHash,
         requestedStatus: publicationDispatches.requestedStatus,
         remoteStatus: publicationDispatches.remoteStatus,
+        publishedInWordPress: sql<boolean>`coalesce((${publicationDispatches.requestSnapshot} ->> 'publishedInWordPress')::boolean, false)`,
       })
       .from(publicationDispatches)
       .where(
@@ -212,6 +219,7 @@ export async function loadPublishing(input: {
     // Under the two-step flow every review is the team's: the customer approves nothing.
     reviewSource: !twoStep && extra?.researchReviewRequired && (extra.researchApprovedHash !== revision || extra.reviewStatus === null) ? "research" : "team",
     twoStep,
+    pluginPublishesDrafts: input.pluginPublishesDrafts,
     withTeam: article.withTeam,
     frozen,
     uncertain: input.uncertain,
@@ -222,10 +230,12 @@ export async function loadPublishing(input: {
     alreadySent: {
       // What stood on the website at switch-on is already there, with or without a recorded send.
       publish:
-        (sameRevision && lastSent?.requestedStatus === "publish") ||
+        // A post the plugin holds as a draft is not there yet, whatever was asked for: the press publishes it (the claim's rule).
+        (sameRevision && lastSent?.requestedStatus === "publish" && !(twoStep && input.destination.kind === "plugin" && lastSent.remoteStatus !== "publish")) ||
         Boolean(twoStep && extra?.storedSource === "published" && extra.storedHash === revision && article.status === "published"),
       draft: sameRevision && lastSent?.requestedStatus === "draft",
     },
+    publishedInWordPress: Boolean(sameRevision && lastSent?.publishedInWordPress),
     lastOutcome: outcomeOf(logs[0], latest, locale),
     latestDispatchId: latest?.id ?? null,
     latestLogId: logs[0]?.id ?? null,
@@ -239,7 +249,8 @@ export async function loadPublishing(input: {
     status: log.status,
     remoteStatus: log.remoteStatus,
     remoteUrl: log.remoteUrl,
-    errorKind: log.status === "failed" || log.error ? publishFailureKind(log.error) : null,
+    refusal: log.status === "failed" ? draftRefusalOf(log.error) : null,
+    errorKind: (log.status === "failed" || log.error) && !draftRefusalOf(log.error) ? publishFailureKind(log.error) : null,
     at: log.createdAt.toISOString(),
     when: formatWhen(log.createdAt, locale),
   }));

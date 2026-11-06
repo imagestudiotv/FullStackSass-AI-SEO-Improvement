@@ -187,6 +187,11 @@ jobs:
       - name: Plugin translations against real WordPress + MySQL
         run: php wordpress-plugin/tests/real-wordpress-translations.php "$RUNNER_TEMP/wordpress" wordpress-plugin/repget-connector/repget-connector.php
 
+      # 1.10.0: a Publish press on a draft goes live as the same post, an edit
+      # in WordPress is never published or overwritten, nothing is recreated.
+      - name: Plugin Publish press on a draft against real WordPress + MySQL
+        run: php wordpress-plugin/tests/real-wordpress-draft-publish.php "$RUNNER_TEMP/wordpress" wordpress-plugin/repget-connector/repget-connector.php
+
       # The free Rank Math, at a fixed version: the tags it prints itself.
       - name: Plugin Rank Math social fields against real WordPress + MySQL
         run: |

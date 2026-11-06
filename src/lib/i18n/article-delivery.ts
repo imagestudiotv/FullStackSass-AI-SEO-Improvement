@@ -1,3 +1,4 @@
+import type { DraftRefusal } from "@/lib/articles/review";
 import type { Locale } from "@/lib/i18n/config";
 
 /**
@@ -42,8 +43,17 @@ export type ArticleDeliveryCopy = {
   /** The Publishing page's note about a website's first article. */
   firstArticleTwoStep: string;
   errPluginUpdate: string;
-  /** A post the plugin holds as a WordPress draft: no Publish here. */
+  /** A post held as a WordPress draft, on a plugin too old to publish it from here: no Publish button. */
   pluginDraftNote: string;
+  /** A post held as a WordPress draft: Publish makes that post live. */
+  pluginDraftReady: string;
+  /** What the plugin found instead of publishing that draft (DRAFT_REFUSALS in lib/articles/review.ts). */
+  refusedChanged: string;
+  refusedUnverified: string;
+  refusedTrashed: string;
+  refusedDeleted: string;
+  /** Somebody published the post in WordPress: live, but not known to hold this version. */
+  publishedInWordPress: string;
   /** The plan step's note, and the manual mode's label on the Publishing page. */
   onboardingNote: string;
   finishedManual: string;
@@ -63,6 +73,7 @@ export type ArticleDeliveryCopy = {
   notifyUpdate: string;
   notifyConnect: string;
   notifyDay: string;
+  notifyNotPublished: string;
 
   /** The dashboard's card. */
   dashboardPreparingHelp: string;
@@ -77,6 +88,20 @@ export type ArticleDeliveryCopy = {
  * title (lib/articles/review.ts).
  */
 export const PREPARING_TITLE = "\u001fpreparing";
+
+/** What the plugin found instead of publishing a draft, in the reader's language. */
+export function draftRefusalText(refusal: DraftRefusal, copy: ArticleDeliveryCopy): string {
+  switch (refusal) {
+    case "draft_changed":
+      return copy.refusedChanged;
+    case "draft_unverified":
+      return copy.refusedUnverified;
+    case "post_trashed":
+      return copy.refusedTrashed;
+    case "post_deleted":
+      return copy.refusedDeleted;
+  }
+}
 
 /** An article title from a customer's read, ready to show. */
 export function articleTitleText(title: string, locale: Locale): string {
@@ -121,7 +146,14 @@ export const ARTICLE_DELIVERY: Record<Locale, ArticleDeliveryCopy> = {
     withTeamChange: "The RepGet team is checking a change to this post. The post on your website stays as it is. Its text will appear here when they have finished, and you will be told.",
     firstArticleTwoStep: "Your first article goes to the RepGet team first. Once they have finished, your choice here applies.",
     errPluginUpdate: "To send this update, first update the RepGet plugin on your website to version 1.10 or later.",
-    pluginDraftNote: "This article is on your website as a draft. Publish it from WordPress.",
+    pluginDraftNote: "This article is on your website as a draft. To publish it from here, update the RepGet plugin on your website to version 1.10 or later, or publish it from WordPress.",
+    pluginDraftReady: "Ready to publish. This article is on your website as a draft, and Publish makes that same draft live.",
+    refusedChanged: "This draft was changed in WordPress, so it was neither published nor overwritten. Please publish it from WordPress.",
+    refusedUnverified: "This draft was saved by an earlier version of the plugin and RepGet cannot confirm it is unchanged, so it was neither published nor overwritten. Please publish it from WordPress.",
+    refusedTrashed: "This draft is in the WordPress trash, so nothing was published. Restore it there, then press Publish again.",
+    refusedDeleted: "This draft was deleted from WordPress, so nothing was published and no new post was made. Contact the RepGet team to have it sent again.",
+    publishedInWordPress: "This post was published in WordPress, so what is live may differ from this version.",
+    notifyNotPublished: "Your article was not published",
     onboardingNote: "We research your keywords, build a content calendar sized to your plan, and start writing. The RepGet team prepares your first article, and you will be told when it is ready to publish.",
     finishedManual: "Keep it in RepGet until I press Publish",
   },
@@ -162,7 +194,14 @@ export const ARTICLE_DELIVERY: Record<Locale, ArticleDeliveryCopy> = {
     withTeamChange: "El equipo de RepGet está revisando un cambio en esta publicación. La publicación de su sitio web no cambia. El texto aparecerá aquí cuando terminen y le avisaremos.",
     firstArticleTwoStep: "Su primer artículo pasa primero por el equipo de RepGet. Cuando terminen, se aplicará su elección.",
     errPluginUpdate: "Para enviar esta actualización, actualice primero el plugin de RepGet de su sitio web a la versión 1.10 o posterior.",
-    pluginDraftNote: "Este artículo está en su sitio web como borrador. Publíquelo desde WordPress.",
+    pluginDraftNote: "Este artículo está en su sitio web como borrador. Para publicarlo desde aquí, actualice el plugin de RepGet de su sitio web a la versión 1.10 o posterior, o publíquelo desde WordPress.",
+    pluginDraftReady: "Listo para publicar. Este artículo está en su sitio web como borrador, y Publicar hace público ese mismo borrador.",
+    refusedChanged: "Este borrador se modificó en WordPress, por lo que no se ha publicado ni sobrescrito. Publíquelo desde WordPress.",
+    refusedUnverified: "Este borrador lo guardó una versión anterior del plugin y RepGet no puede confirmar que no haya cambiado, por lo que no se ha publicado ni sobrescrito. Publíquelo desde WordPress.",
+    refusedTrashed: "Este borrador está en la papelera de WordPress, por lo que no se ha publicado nada. Restáurelo allí y pulse Publicar de nuevo.",
+    refusedDeleted: "Este borrador se eliminó de WordPress, por lo que no se ha publicado nada ni se ha creado una entrada nueva. Póngase en contacto con el equipo de RepGet para que se lo envíen de nuevo.",
+    publishedInWordPress: "Esta entrada se publicó desde WordPress, por lo que lo que está en línea puede diferir de esta versión.",
+    notifyNotPublished: "Su artículo no se ha publicado",
     onboardingNote: "Investigamos sus palabras clave, creamos un calendario de contenidos a la medida de su plan y empezamos a escribir. El equipo de RepGet prepara su primer artículo, y le avisaremos cuando esté listo para publicar.",
     finishedManual: "Guardarlo en RepGet hasta que pulse Publicar",
   },
@@ -203,7 +242,14 @@ export const ARTICLE_DELIVERY: Record<Locale, ArticleDeliveryCopy> = {
     withTeamChange: "L’équipe RepGet vérifie une modification de cet article. L’article sur votre site reste inchangé. Le texte apparaîtra ici une fois la vérification terminée, et vous en serez averti.",
     firstArticleTwoStep: "Votre premier article passe d’abord par l’équipe RepGet. Ensuite, votre choix s’applique.",
     errPluginUpdate: "Pour envoyer cette mise à jour, mettez d’abord à jour l’extension RepGet de votre site vers la version 1.10 ou ultérieure.",
-    pluginDraftNote: "Cet article est sur votre site en brouillon. Publiez-le depuis WordPress.",
+    pluginDraftNote: "Cet article est sur votre site en brouillon. Pour le publier d'ici, mettez à jour le plugin RepGet de votre site vers la version 1.10 ou ultérieure, ou publiez-le depuis WordPress.",
+    pluginDraftReady: "Prêt à publier. Cet article est sur votre site en brouillon, et Publier met ce même brouillon en ligne.",
+    refusedChanged: "Ce brouillon a été modifié dans WordPress : il n'a donc été ni publié ni écrasé. Publiez-le depuis WordPress.",
+    refusedUnverified: "Ce brouillon a été enregistré par une version antérieure du plugin et RepGet ne peut pas confirmer qu'il est inchangé : il n'a donc été ni publié ni écrasé. Publiez-le depuis WordPress.",
+    refusedTrashed: "Ce brouillon est dans la corbeille de WordPress : rien n'a donc été publié. Restaurez-le, puis appuyez de nouveau sur Publier.",
+    refusedDeleted: "Ce brouillon a été supprimé de WordPress : rien n'a donc été publié et aucun nouvel article n'a été créé. Contactez l'équipe RepGet pour qu'il vous soit renvoyé.",
+    publishedInWordPress: "Cet article a été publié depuis WordPress : ce qui est en ligne peut donc différer de cette version.",
+    notifyNotPublished: "Votre article n'a pas été publié",
     onboardingNote: "Nous recherchons vos mots-clés, construisons un calendrier de contenu adapté à votre forfait et commençons à rédiger. L’équipe RepGet prépare votre premier article, et vous serez averti lorsqu’il sera prêt à publier.",
     finishedManual: "Le garder dans RepGet jusqu’à ce que je clique sur Publier",
   },
@@ -244,7 +290,14 @@ export const ARTICLE_DELIVERY: Record<Locale, ArticleDeliveryCopy> = {
     withTeamChange: "Il team di RepGet sta controllando una modifica a questo articolo. L’articolo sul suo sito resta invariato. Il testo comparirà qui al termine del controllo e la avviseremo.",
     firstArticleTwoStep: "Il suo primo articolo passa prima dal team di RepGet. Poi vale la sua scelta.",
     errPluginUpdate: "Per inviare questo aggiornamento, aggiorni prima il plugin RepGet del suo sito alla versione 1.10 o successiva.",
-    pluginDraftNote: "Questo articolo è sul suo sito come bozza. Lo pubblichi da WordPress.",
+    pluginDraftNote: "Questo articolo è sul suo sito come bozza. Per pubblicarlo da qui, aggiorni il plugin RepGet del suo sito alla versione 1.10 o successiva, oppure lo pubblichi da WordPress.",
+    pluginDraftReady: "Pronto per la pubblicazione. Questo articolo è sul suo sito come bozza, e Pubblica mette online quella stessa bozza.",
+    refusedChanged: "Questa bozza è stata modificata in WordPress, quindi non è stata né pubblicata né sovrascritta. La pubblichi da WordPress.",
+    refusedUnverified: "Questa bozza è stata salvata da una versione precedente del plugin e RepGet non può confermare che sia rimasta invariata, quindi non è stata né pubblicata né sovrascritta. La pubblichi da WordPress.",
+    refusedTrashed: "Questa bozza è nel cestino di WordPress, quindi non è stato pubblicato nulla. La ripristini, poi prema di nuovo Pubblica.",
+    refusedDeleted: "Questa bozza è stata eliminata da WordPress, quindi non è stato pubblicato nulla e non è stato creato un nuovo articolo. Contatti il team di RepGet per riceverla di nuovo.",
+    publishedInWordPress: "Questo articolo è stato pubblicato da WordPress, quindi ciò che è online può differire da questa versione.",
+    notifyNotPublished: "Il suo articolo non è stato pubblicato",
     onboardingNote: "Studiamo le sue parole chiave, costruiamo un calendario di contenuti su misura per il suo piano e iniziamo a scrivere. Il team di RepGet prepara il suo primo articolo, e la avviseremo quando sarà pronto per la pubblicazione.",
     finishedManual: "Tenerlo in RepGet finché non premo Pubblica",
   },
@@ -285,7 +338,14 @@ export const ARTICLE_DELIVERY: Record<Locale, ArticleDeliveryCopy> = {
     withTeamChange: "Das RepGet-Team prüft eine Änderung an diesem Beitrag. Der Beitrag auf Ihrer Website bleibt unverändert. Der Text erscheint hier, sobald die Prüfung abgeschlossen ist, und Sie werden benachrichtigt.",
     firstArticleTwoStep: "Ihr erster Artikel geht zuerst an das RepGet-Team. Danach gilt Ihre Auswahl.",
     errPluginUpdate: "Um diese Aktualisierung zu senden, aktualisieren Sie zuerst das RepGet-Plugin auf Ihrer Website auf Version 1.10 oder neuer.",
-    pluginDraftNote: "Dieser Artikel ist als Entwurf auf Ihrer Website. Veröffentlichen Sie ihn in WordPress.",
+    pluginDraftNote: "Dieser Artikel ist als Entwurf auf Ihrer Website. Um ihn von hier aus zu veröffentlichen, aktualisieren Sie das RepGet-Plugin Ihrer Website auf Version 1.10 oder neuer, oder veröffentlichen Sie ihn in WordPress.",
+    pluginDraftReady: "Bereit zur Veröffentlichung. Dieser Artikel ist als Entwurf auf Ihrer Website, und Veröffentlichen schaltet genau diesen Entwurf live.",
+    refusedChanged: "Dieser Entwurf wurde in WordPress geändert und wurde daher weder veröffentlicht noch überschrieben. Bitte veröffentlichen Sie ihn in WordPress.",
+    refusedUnverified: "Dieser Entwurf wurde von einer älteren Plugin-Version gespeichert, und RepGet kann nicht bestätigen, dass er unverändert ist. Er wurde daher weder veröffentlicht noch überschrieben. Bitte veröffentlichen Sie ihn in WordPress.",
+    refusedTrashed: "Dieser Entwurf liegt im WordPress-Papierkorb, daher wurde nichts veröffentlicht. Stellen Sie ihn dort wieder her und klicken Sie erneut auf Veröffentlichen.",
+    refusedDeleted: "Dieser Entwurf wurde aus WordPress gelöscht, daher wurde nichts veröffentlicht und kein neuer Beitrag erstellt. Wenden Sie sich an das RepGet-Team, um ihn erneut zu erhalten.",
+    publishedInWordPress: "Dieser Beitrag wurde in WordPress veröffentlicht. Was live ist, kann daher von dieser Version abweichen.",
+    notifyNotPublished: "Ihr Artikel wurde nicht veröffentlicht",
     onboardingNote: "Wir recherchieren Ihre Suchbegriffe, bauen einen auf Ihren Tarif zugeschnittenen Contentplan und fangen an zu schreiben. Das RepGet-Team bereitet Ihren ersten Artikel vor, und Sie werden benachrichtigt, sobald er zur Veröffentlichung bereit ist.",
     finishedManual: "In RepGet behalten, bis ich auf Veröffentlichen klicke",
   },

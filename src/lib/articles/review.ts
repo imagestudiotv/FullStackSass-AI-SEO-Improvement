@@ -383,8 +383,32 @@ export const PREPARING_MESSAGE = "This article is being prepared by the RepGet t
 /** The refusal for an update of a post on a site whose plugin is too old to make one. */
 export const PLUGIN_UPDATE_NEEDED = "To send this update, first update the RepGet plugin on your website to version 1.10 or later.";
 
-/** The refusal for a press on a post the plugin holds as a WordPress draft: an update would overwrite an editor's work. */
-export const PLUGIN_DRAFT_MESSAGE = "This article is on your website as a draft. Publish it from WordPress.";
+/** The refusal for a press on a post held as a WordPress draft, by a plugin too old to act on it: it would overwrite an editor's work. */
+export const PLUGIN_DRAFT_MESSAGE = "This article is on your website as a draft. To publish it from here, update the RepGet plugin on your website to version 1.10 or later, or publish it from WordPress.";
+
+/**
+ * What a plugin can report instead of publishing the draft a person pressed
+ * Publish on (`outcome`, POST /api/plugin/published). Nothing was written on the
+ * site, nothing here retries it, and it is the customer's to resolve. Stored as
+ * the delivery's error, so the page can say it in the reader's language.
+ */
+export const DRAFT_REFUSALS = {
+  draft_changed: "This draft was changed in WordPress, so it was neither published nor overwritten. Publish it from WordPress.",
+  draft_unverified: "This draft was saved by an earlier version of the plugin and RepGet cannot confirm it is unchanged, so it was neither published nor overwritten. Publish it from WordPress.",
+  post_trashed: "This draft is in the WordPress trash, so nothing was published. Restore it there, then press Publish again.",
+  post_deleted: "This draft was deleted from WordPress, so nothing was published and no new post was made. Contact the RepGet team to have it sent again.",
+} as const;
+
+export type DraftRefusal = keyof typeof DRAFT_REFUSALS;
+
+export function isDraftRefusal(value: unknown): value is DraftRefusal {
+  return typeof value === "string" && Object.prototype.hasOwnProperty.call(DRAFT_REFUSALS, value);
+}
+
+/** The refusal a stored error is, if it is one. */
+export function draftRefusalOf(stored: string | null | undefined): DraftRefusal | null {
+  return (Object.keys(DRAFT_REFUSALS) as DraftRefusal[]).find((key) => DRAFT_REFUSALS[key] === stored) ?? null;
+}
 
 /**
  * The post is actually live on the website: the article says so, or (a rewrite

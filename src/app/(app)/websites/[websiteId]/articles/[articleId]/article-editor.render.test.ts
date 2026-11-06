@@ -217,13 +217,15 @@ describe("the article workspace", () => {
   it("lists the publishing history with what the website stored and a link to the real post", () => {
     const html = render({
       history: [
-        { id: "a", status: "published", remoteStatus: "draft", remoteUrl: "https://example.com/?p=1", errorKind: null, at: "2026-10-02T09:00:00.000Z", when: "2 Oct 2026, 09:00 UTC" },
-        { id: "b", status: "failed", remoteStatus: null, remoteUrl: null, errorKind: "unreachable", at: "2026-10-01T09:00:00.000Z", when: "1 Oct 2026, 09:00 UTC" },
-        { id: "c", status: "published", remoteStatus: "publish", remoteUrl: "/relative-path", errorKind: null, at: "2026-09-30T09:00:00.000Z", when: "30 Sept 2026, 09:00 UTC" },
+        { id: "a", status: "published", remoteStatus: "draft", remoteUrl: "https://example.com/?p=1", errorKind: null, refusal: null, at: "2026-10-02T09:00:00.000Z", when: "2 Oct 2026, 09:00 UTC" },
+        { id: "b", status: "failed", remoteStatus: null, remoteUrl: null, errorKind: "unreachable", refusal: null, at: "2026-10-01T09:00:00.000Z", when: "1 Oct 2026, 09:00 UTC" },
+        { id: "c", status: "published", remoteStatus: "publish", remoteUrl: "/relative-path", errorKind: null, refusal: null, at: "2026-09-30T09:00:00.000Z", when: "30 Sept 2026, 09:00 UTC" },
+        { id: "d", status: "failed", remoteStatus: null, remoteUrl: null, errorKind: null, refusal: "draft_changed", at: "2026-09-29T09:00:00.000Z", when: "29 Sept 2026, 09:00 UTC" },
       ],
     });
     expect(html).toContain(en.app.editor.logDraft);
     expect(html).toContain(en.app.editor.pubErrUnreachable);
+    expect(html).toContain(ARTICLE_DELIVERY.en.refusedChanged);
     expect(html).toContain('href="https://example.com/?p=1"');
     // A bare path would link into this app: not offered.
     expect(html).not.toContain('href="/relative-path"');
@@ -372,14 +374,54 @@ describe("the two-step flow (docs/two-step-articles.md)", () => {
     expect(html).toContain(d.lockedWithTeam);
   });
 
-  it("a WordPress draft on a plugin site: says so, in place of any Publish button", () => {
+  it("a WordPress draft, on a plugin too old to publish it: says to update, with no Publish button pretending to work", () => {
     const html = render({
       article: { ...ARTICLE, status: "draft", publishedUrl: "https://example.com/a" },
       facts: { ...READY, destination: { kind: "plugin" }, liveOnSite: false, lastOutcome: { kind: "draft", when: "1 Oct" } },
     });
     expect(html).toContain(d.pluginDraftNote);
+    expect(d.pluginDraftNote).toContain("1.10");
     expect(button(html, en.app.editor.publish)).toBeNull();
     expect(button(html, en.app.editor.updatePost)).toBeNull();
+  });
+
+  it("a WordPress draft, on a plugin that can publish it: one working Publish button, and what it does", () => {
+    const facts = { ...READY, destination: { kind: "plugin" as const }, pluginPublishesDrafts: true, liveOnSite: false, lastOutcome: { kind: "draft" as const, when: "1 Oct" } };
+    const html = render({ article: { ...ARTICLE, status: "draft", publishedUrl: "https://example.com/a" }, facts });
+    expect(html).toContain(d.pluginDraftReady);
+    expect(html).not.toContain(d.pluginDraftNote);
+    expect(button(html, en.app.editor.publish)).not.toContain('disabled=""');
+    expect(button(html, en.app.editor.updatePost)).toBeNull();
+    expect(button(html, en.app.editor.sendAsDraft)).toBeNull();
+  });
+
+  it("published by a person in WordPress: live, with no claim that this exact version is what is there, and nothing to overwrite it with", () => {
+    const html = render({
+      article: { ...ARTICLE, status: "published", publishedUrl: "https://example.com/a" },
+      facts: { ...READY, destination: { kind: "plugin" }, pluginPublishesDrafts: true, liveOnSite: true, alreadySent: { publish: true, draft: false }, publishedInWordPress: true, lastOutcome: { kind: "live", when: "1 Oct" } },
+    });
+    expect(html).toContain(d.publishedInWordPress);
+    expect(html).not.toContain(en.app.editor.alreadySentLive);
+    expect(button(html, en.app.editor.updatePost)).toContain('disabled=""');
+  });
+
+  it("the draft was not published: the reason is said plainly, in place of a failure, and Publish can ask the site again", () => {
+    const refusals = [
+      ["draft_changed", d.refusedChanged],
+      ["draft_unverified", d.refusedUnverified],
+      ["post_trashed", d.refusedTrashed],
+      ["post_deleted", d.refusedDeleted],
+    ] as const;
+    for (const [refusal, text] of refusals) {
+      const html = render({
+        article: { ...ARTICLE, status: "draft", publishedUrl: "https://example.com/a" },
+        facts: { ...READY, destination: { kind: "plugin" }, pluginPublishesDrafts: true, liveOnSite: false, lastOutcome: { kind: "refused", when: "1 Oct", refusal } },
+      });
+      expect(html).toContain(text.replaceAll("'", "&#x27;"));
+      expect(html).not.toContain(d.pluginDraftReady);
+      expect(html).not.toContain(en.app.editor.pubErrUnknown);
+      expect(button(html, en.app.editor.publish)).not.toContain('disabled=""');
+    }
   });
 
   it("an approved update on a plugin site has its Update button, where the plugin path used to end", () => {

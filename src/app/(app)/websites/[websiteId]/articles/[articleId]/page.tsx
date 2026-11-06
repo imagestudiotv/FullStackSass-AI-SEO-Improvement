@@ -1,4 +1,4 @@
-import { and, eq, isNotNull, isNull } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull } from "drizzle-orm";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache } from "react";
@@ -13,6 +13,7 @@ import { integrationKeys } from "@/lib/db/schema";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { articleTitleText, PREPARING_TITLE } from "@/lib/i18n/article-delivery";
 import { MAX_IMAGE_BYTES } from "@/lib/images/storage";
+import { pluginUpdates, siteInfoPluginVersion } from "@/lib/plugin/protocol";
 import { listIntegrations } from "@/lib/publishing/actions";
 import { latestUncertain } from "@/lib/publishing/dispatch";
 import { requireWebsitePage, WebsiteNotFoundError } from "@/lib/tenant";
@@ -126,7 +127,7 @@ export default async function ArticlePage({
       its own: a key that has checked in at least once and is not revoked.
     */
     db
-      .select({ id: integrationKeys.id })
+      .select({ id: integrationKeys.id, siteInfo: integrationKeys.siteInfo })
       .from(integrationKeys)
       .where(
         and(
@@ -135,6 +136,7 @@ export default async function ArticlePage({
           isNotNull(integrationKeys.lastUsedAt),
         ),
       )
+      .orderBy(desc(integrationKeys.lastUsedAt))
       .limit(1),
     getAppMessages(gate.userId),
   ]);
@@ -145,6 +147,7 @@ export default async function ArticlePage({
   const { facts, history } = await loadPublishing({
     siteId: gate.site.id,
     article,
+    pluginPublishesDrafts: pluginUpdates(siteInfoPluginVersion(plugin[0]?.siteInfo)),
     autoPublish: gate.site.autoPublish,
     publishAs: gate.site.publishAs,
     destination,

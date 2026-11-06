@@ -1,9 +1,9 @@
 {
   "version": "1.10.0",
   "package": "/repget-connector.zip",
-  "sha256": "3d795b1afbbc8a5534bf5da92afd593f7eff7a6ae0c367ca42e7e6ce8434f395",
+  "sha256": "ac5385d7625c3f572be1f31884863534a109c2f3545e0e564926e90ea55461d9",
   "requires": "5.6",
   "requires_php": "7.4",
   "tested": "6.8",
-  "changelog": "* With Rank Math active, each article's Facebook and Twitter title, description\n  and image are filled in, on publishing and on every update. The image is\n  always the article's featured image. A field you filled in or edited yourself\n  is never overwritten.\n* A picture changed in RepGet now replaces the article's featured image, unless\n  you chose another one on your site. A picture that could not be copied the\n  first time is tried again when the article is next sent.\n* RepGet, on your WordPress screen: \"Rank Math: social fields on articles\n  published earlier\" fills them for older articles. It previews first and\n  changes nothing until you press Apply. With WP-CLI:\n  wp repget social-backfill (add --apply to write)."
+  "changelog": "* With Rank Math active, each article's Facebook and Twitter title, description\n  and image are filled in, on publishing and on every update. The image is\n  always the article's featured image. A field you filled in or edited yourself\n  is never overwritten.\n* A picture changed in RepGet now replaces the article's featured image, unless\n  you chose another one on your site. A picture that could not be copied the\n  first time is tried again when the article is next sent.\n* RepGet, on your WordPress screen: \"Rank Math: social fields on articles\n  published earlier\" fills them for older articles. It previews first and\n  changes nothing until you press Apply. With WP-CLI:\n  wp repget social-backfill (add --apply to write).\n* Pressing Publish in RepGet now works on an article your site holds as a\n  draft: that same post goes live, and no second post is made. If the draft was\n  changed in WordPress, it is neither published nor overwritten, and RepGet says\n  so. A draft written by an earlier version goes live only if it still holds\n  exactly what RepGet would send."
 }

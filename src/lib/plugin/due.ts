@@ -73,15 +73,23 @@ export function dueArticlesForPlugin(
         eq(articles.websiteId, websiteId),
         /*
           Written but not yet live. A published row already has its post - except
-          under the two-step flow, where a person's press sends an approved
-          update of a LIVE post to a plugin that can make one (pluginUpdates): it
-          updates the post it already has for this article. Never a post held as
-          a WordPress draft: the update would overwrite an editor's work there
-          and leave it a draft.
+          under the two-step flow, where a person's press goes to a plugin that
+          can act on it (pluginUpdates): an approved update of a LIVE post
+          updates the post it already has for this article, and a Publish press
+          on a post held as a WordPress DRAFT publishes that post. The plugin
+          decides that one on its own site, from the draft as it is by then, and
+          overwrites nobody's work: the hand-over carries existingDraft
+          (claimDispatch). Automatic sends never come through here.
         */
         or(
           and(eq(articles.status, "draft"), isNull(articles.publishedUrl)),
-          options.updates ? and(isNotNull(articles.publishRequested), raw`not ${twoStepOffSql}`, liveOnSiteSql) : undefined,
+          options.updates
+            ? and(
+                isNotNull(articles.publishRequested),
+                raw`not ${twoStepOffSql}`,
+                or(liveOnSiteSql, and(eq(articles.publishRequested, "publish"), isNotNull(articles.publishedUrl))),
+              )
+            : undefined,
         ),
         // Never an article held for, or changed since, the RepGet team's
         // review - whatever else makes it due. See lib/articles/review.ts.
