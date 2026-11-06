@@ -319,8 +319,9 @@ function Launcher({
           </p>
         </div>
         <div className="relative flex shrink-0 items-center gap-4">
-          <span className={cn(styles.coin, styles.bannerCoin, "hidden lg:grid")} aria-hidden="true">
-            R
+          {/* On its own element: .coin sets a display of its own, which would beat `hidden` on the same one. */}
+          <span className="hidden lg:block" aria-hidden="true">
+            <span className={cn(styles.coin, styles.bannerCoin)}>R</span>
           </span>
           {/*
             The same button in both states, so the focus can return to it when the
