@@ -87,6 +87,7 @@ Every spend takes the workspace's credit lock (`pg_advisory_xact_lock(hashtext('
 1. Apply the migrations before deploying the code: `0075_credit_spends` (the `credit_settings` and `credit_spends` tables, `addons.credit_price`, `addon_purchases.credits_paid`) and `0076_credit_scale` (plans 250 / 700, packs 100 / 250 / 500, the services' credit prices).
 2. Run `npm run stripe:setup` so the packs' Stripe products are renamed to "100 credits" etc. (their prices do not change).
 3. In Admin → Credits set the daily credits (3), the trial daily credits (15) and the price of running the check again (5). Until then they are off.
+4. **Before deploying the delayed-payment change:** add `checkout.session.async_payment_succeeded` and `checkout.session.async_payment_failed` to the `/api/stripe/webhook` endpoint in Stripe. A pack paid by a delayed method (SEPA, for one) grants its credits only on the first event, so without it that customer pays and gets nothing. `npm run doctor` reports a missing event.
 
 ## Waiting for the client
 
