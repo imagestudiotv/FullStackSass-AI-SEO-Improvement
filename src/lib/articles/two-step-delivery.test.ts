@@ -1405,8 +1405,8 @@ describe("the whole flow, on each mode: team, then finished article, then one ac
   });
 });
 
-describe("what deleting a held article does today (left as it is, for Daniel to decide)", () => {
-  it("the plan's article slot is not returned, and a partner's reserved credits stay reserved with no placement page to release them", async () => {
+describe("deleting a held article", () => {
+  it("the plan's article slot is not returned (left as it is, for Daniel to decide), and a partner's reserved credits are released with it (lib/articles/deletion.test.ts)", async () => {
     const s = await scene();
     const [item] = await test.db.insert(calendarItems).values({ websiteId: s.websiteId, title: "Another topic" }).returning();
     const queued = await queueArticleForCalendarItem(s.websiteId, item.id);
@@ -1429,10 +1429,10 @@ describe("what deleting a held article does today (left as it is, for Daniel to 
     expect((await test.db.select().from(spendReservations).where(eq(spendReservations.subjectId, queued.articleId)))[0].state).toBe(slot[0].state);
 
     const [after] = await test.db.select().from(placements).where(eq(placements.id, placement.id));
-    expect(after).toMatchObject({ articleId: null, status: "drafted" });
-    const [stillMatched] = await test.db.select().from(backlinkRequests).where(eq(backlinkRequests.id, request.id));
-    expect(stillMatched).toMatchObject({ status: "matched", creditsReserved: 40 });
-    expect(await reserved()).toBe(40);
+    expect(after).toMatchObject({ articleId: null, status: "cancelled" });
+    const [closed] = await test.db.select().from(backlinkRequests).where(eq(backlinkRequests.id, request.id));
+    expect(closed).toMatchObject({ status: "cancelled", creditsReserved: 0 });
+    expect(await reserved()).toBe(0);
     await expect(removeManagedPlacement({ placementId: placement.id, expectedVersion: 0, actorEmail: ADMIN })).rejects.toThrow("Placement not found");
 
     // Writing the topic again takes a new slot.

@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNotNull, isNull, lt, notInArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull, lt, ne, notInArray, or, sql } from "drizzle-orm";
 
 import { linksTo } from "@/lib/articles/link-guard";
 import { storedRevision, twoStepArticles } from "@/lib/articles/review";
@@ -52,6 +52,12 @@ import type { Executor } from "@/lib/db/types";
  * A check that could not REACH the page (timeout, 5xx, DNS) is an "error",
  * not a "missing": it neither counts toward the missing streak nor resets it.
  *
+ * RESERVED IS NOT THE LEDGER. From drafted until the verifier's verdict the
+ * requester's credits are only HELD: the request's credits_reserved, counted
+ * while it is pending or matched. Giving up a link that never went live
+ * (withdrawPlacement) ends that hold and writes no ledger row, because nothing
+ * was ever charged. Only "live" and "removed" move credits.
+ *
  * MISSING LINKS ARE NOT REFUNDED AUTOMATICALLY (client, 2026-10-01). A live
  * link missing on FAILURES_BEFORE_REMOVED consecutive checks used to be
  * removed and refunded by the verifier. But a host site in maintenance mode,
@@ -76,6 +82,58 @@ export function classifyCheck(result: LinkCheckResult): CheckOutcome {
     return result.error ? "error" : "missing";
   }
   return "error";
+}
+
+/** Placements still on their way to being, or being, the link a request paid for. */
+const ACTIVE_PLACEMENT = ["pending", "drafted", "published", "live"];
+
+/**
+ * Gives up a placement that never went live, inside the caller's transaction
+ * and with its row already locked: the placement ends "cancelled", and its
+ * request is closed with the hold released. Used by an administrator's
+ * withdrawal (lib/backlinks/managed.ts) and by deleting the host article
+ * (lib/articles/deletion.ts).
+ *
+ * The request is closed rather than sent back to "pending". A pending request
+ * still counts its credits_reserved as held, and nothing matches a request again
+ * while the network is managed, so the credits would stay locked up for good.
+ * This writes no ledger row: nothing was charged (see "RESERVED IS NOT THE
+ * LEDGER" above). A second call is a no-op, by the compare-and-set on `from`.
+ *
+ * A request another placement has since taken over is left alone: its hold
+ * belongs to that placement now.
+ */
+export async function withdrawPlacement(
+  tx: Executor,
+  placement: { id: string; requestId: string },
+  from: string[],
+  now: Date = new Date(),
+): Promise<boolean> {
+  const withdrawn = await tx
+    .update(placements)
+    .set({ status: "cancelled", updatedAt: now })
+    .where(and(eq(placements.id, placement.id), inArray(placements.status, from)))
+    .returning({ id: placements.id });
+  if (withdrawn.length === 0) return false;
+
+  const [other] = await tx
+    .select({ id: placements.id })
+    .from(placements)
+    .where(
+      and(
+        eq(placements.requestId, placement.requestId),
+        ne(placements.id, placement.id),
+        inArray(placements.status, ACTIVE_PLACEMENT),
+      ),
+    )
+    .limit(1);
+  if (!other) {
+    await tx
+      .update(backlinkRequests)
+      .set({ status: "cancelled", creditsReserved: 0, updatedAt: now })
+      .where(and(eq(backlinkRequests.id, placement.requestId), inArray(backlinkRequests.status, ["pending", "matched"])));
+  }
+  return true;
 }
 
 /** The link is in a generated article. Called from the generation job. */
@@ -293,6 +351,7 @@ export async function applyCheck(
         credits: placements.credits,
         requestId: placements.requestId,
         hostWebsiteId: placements.hostWebsiteId,
+        articleId: placements.articleId,
         managed: placements.managed,
       })
       .from(placements)
@@ -385,6 +444,17 @@ export async function applyCheck(
     }
 
     // Published, never seen, never charged: the request goes back to matching.
+
+    /*
+      Unless its article has since been deleted from RepGet (lib/articles/
+      deletion.ts). The verifier was the last thing that could settle this link:
+      nobody can correct or send that article again, so a kept hold would never
+      be released. Nothing was charged, so nothing is refunded.
+    */
+    if (!placement.articleId) {
+      await withdrawPlacement(tx, placement, ["published"], now);
+      return "unverified";
+    }
 
     /*
       The request goes back to matching: the customer still wants a link.
