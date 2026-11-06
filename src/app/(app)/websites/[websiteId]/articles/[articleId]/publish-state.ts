@@ -95,6 +95,8 @@ export type PublishPlan =
   | { mode: "pluginWaiting"; as: "publish" | "draft" }
   /** Created by the plugin, which cannot update a post it created. */
   | { mode: "pluginPublished" }
+  /** The two-step flow: the plugin holds it as a WordPress draft, and it is published there. */
+  | { mode: "pluginDraft" }
   | {
       mode: "actions";
       /** Why both buttons wait, or null. */
@@ -135,6 +137,7 @@ export function planPublishing(input: {
     // The plugin's feed offers only articles it has not created yet (lib/plugin/due.ts),
     // except an approved update a person presses for under the two-step flow.
     if (input.publishedUrl && !facts.twoStep) return { mode: "pluginPublished" };
+    if (input.publishedUrl && !facts.liveOnSite) return { mode: "pluginDraft" };
   }
 
   let blocked: Blocker | null = null;

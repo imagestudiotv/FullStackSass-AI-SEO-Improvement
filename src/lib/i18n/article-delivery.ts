@@ -42,6 +42,11 @@ export type ArticleDeliveryCopy = {
   /** The Publishing page's note about a website's first article. */
   firstArticleTwoStep: string;
   errPluginUpdate: string;
+  /** A post the plugin holds as a WordPress draft: no Publish here. */
+  pluginDraftNote: string;
+  /** The plan step's note, and the manual mode's label on the Publishing page. */
+  onboardingNote: string;
+  finishedManual: string;
 
   /** Beside Save, on an article the team approved. */
   saveNote: string;
@@ -115,7 +120,10 @@ export const ARTICLE_DELIVERY: Record<Locale, ArticleDeliveryCopy> = {
     notifyDay: "{title}. It goes out by itself on its planned day, or you can publish it now.",
     withTeamChange: "The RepGet team is checking this change. The post on your website stays as it is. You will be told when the change is ready.",
     firstArticleTwoStep: "Your first article goes to the RepGet team first. Once they have finished, your choice here applies.",
-    errPluginUpdate: "To send this update, first update the RepGet plugin on your website to version 1.6 or later.",
+    errPluginUpdate: "To send this update, first update the RepGet plugin on your website to version 1.10 or later.",
+    pluginDraftNote: "This article is on your website as a draft. Publish it from WordPress.",
+    onboardingNote: "We research your keywords, build a content calendar sized to your plan, and start writing. The RepGet team prepares your first article, and you will be told when it is ready to publish.",
+    finishedManual: "Keep it in RepGet until I press Publish",
   },
   es: {
     preparingTitle: "Artículo en preparación",
@@ -153,7 +161,10 @@ export const ARTICLE_DELIVERY: Record<Locale, ArticleDeliveryCopy> = {
     notifyDay: "{title}. Se publicará solo en la fecha prevista, o puede publicarlo ya.",
     withTeamChange: "El equipo de RepGet está revisando este cambio. La publicación de su sitio web no cambia. Le avisaremos cuando el cambio esté listo.",
     firstArticleTwoStep: "Su primer artículo pasa primero por el equipo de RepGet. Cuando terminen, se aplicará su elección.",
-    errPluginUpdate: "Para enviar esta actualización, actualice primero el plugin de RepGet de su sitio web a la versión 1.6 o posterior.",
+    errPluginUpdate: "Para enviar esta actualización, actualice primero el plugin de RepGet de su sitio web a la versión 1.10 o posterior.",
+    pluginDraftNote: "Este artículo está en su sitio web como borrador. Publíquelo desde WordPress.",
+    onboardingNote: "Investigamos sus palabras clave, creamos un calendario de contenidos a la medida de su plan y empezamos a escribir. El equipo de RepGet prepara su primer artículo, y le avisaremos cuando esté listo para publicar.",
+    finishedManual: "Guardarlo en RepGet hasta que pulse Publicar",
   },
   fr: {
     preparingTitle: "Article en préparation",
@@ -191,7 +202,10 @@ export const ARTICLE_DELIVERY: Record<Locale, ArticleDeliveryCopy> = {
     notifyDay: "{title}. Il sera publié de lui-même à la date prévue, ou vous pouvez le publier dès maintenant.",
     withTeamChange: "L’équipe RepGet vérifie cette modification. L’article en ligne reste inchangé. Vous serez averti lorsque la modification sera prête.",
     firstArticleTwoStep: "Votre premier article passe d’abord par l’équipe RepGet. Ensuite, votre choix s’applique.",
-    errPluginUpdate: "Pour envoyer cette mise à jour, mettez d’abord à jour l’extension RepGet de votre site vers la version 1.6 ou ultérieure.",
+    errPluginUpdate: "Pour envoyer cette mise à jour, mettez d’abord à jour l’extension RepGet de votre site vers la version 1.10 ou ultérieure.",
+    pluginDraftNote: "Cet article est sur votre site en brouillon. Publiez-le depuis WordPress.",
+    onboardingNote: "Nous recherchons vos mots-clés, construisons un calendrier de contenu adapté à votre forfait et commençons à rédiger. L’équipe RepGet prépare votre premier article, et vous serez averti lorsqu’il sera prêt à publier.",
+    finishedManual: "Le garder dans RepGet jusqu’à ce que je clique sur Publier",
   },
   it: {
     preparingTitle: "Articolo in preparazione",
@@ -229,7 +243,10 @@ export const ARTICLE_DELIVERY: Record<Locale, ArticleDeliveryCopy> = {
     notifyDay: "{title}. Verrà pubblicato da solo nella data prevista, oppure può pubblicarlo subito.",
     withTeamChange: "Il team di RepGet sta controllando questa modifica. L’articolo sul suo sito resta invariato. La avviseremo quando la modifica sarà pronta.",
     firstArticleTwoStep: "Il suo primo articolo passa prima dal team di RepGet. Poi vale la sua scelta.",
-    errPluginUpdate: "Per inviare questo aggiornamento, aggiorni prima il plugin RepGet del suo sito alla versione 1.6 o successiva.",
+    errPluginUpdate: "Per inviare questo aggiornamento, aggiorni prima il plugin RepGet del suo sito alla versione 1.10 o successiva.",
+    pluginDraftNote: "Questo articolo è sul suo sito come bozza. Lo pubblichi da WordPress.",
+    onboardingNote: "Studiamo le sue parole chiave, costruiamo un calendario di contenuti su misura per il suo piano e iniziamo a scrivere. Il team di RepGet prepara il suo primo articolo, e la avviseremo quando sarà pronto per la pubblicazione.",
+    finishedManual: "Tenerlo in RepGet finché non premo Pubblica",
   },
   de: {
     preparingTitle: "Artikel in Vorbereitung",
@@ -267,6 +284,9 @@ export const ARTICLE_DELIVERY: Record<Locale, ArticleDeliveryCopy> = {
     notifyDay: "{title}. Er wird am geplanten Tag von selbst veröffentlicht, oder Sie veröffentlichen ihn jetzt.",
     withTeamChange: "Das RepGet-Team prüft diese Änderung. Der Beitrag auf Ihrer Website bleibt unverändert. Sie werden benachrichtigt, sobald die Änderung fertig ist.",
     firstArticleTwoStep: "Ihr erster Artikel geht zuerst an das RepGet-Team. Danach gilt Ihre Auswahl.",
-    errPluginUpdate: "Um diese Aktualisierung zu senden, aktualisieren Sie zuerst das RepGet-Plugin auf Ihrer Website auf Version 1.6 oder neuer.",
+    errPluginUpdate: "Um diese Aktualisierung zu senden, aktualisieren Sie zuerst das RepGet-Plugin auf Ihrer Website auf Version 1.10 oder neuer.",
+    pluginDraftNote: "Dieser Artikel ist als Entwurf auf Ihrer Website. Veröffentlichen Sie ihn in WordPress.",
+    onboardingNote: "Wir recherchieren Ihre Suchbegriffe, bauen einen auf Ihren Tarif zugeschnittenen Contentplan und fangen an zu schreiben. Das RepGet-Team bereitet Ihren ersten Artikel vor, und Sie werden benachrichtigt, sobald er zur Veröffentlichung bereit ist.",
+    finishedManual: "In RepGet behalten, bis ich auf Veröffentlichen klicke",
   },
 };

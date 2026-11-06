@@ -75,6 +75,11 @@ export const MODES_QUERY = `
     count(*) filter (where auto_publish and publish_as <> 'draft')::int as automatic_live
   from websites`;
 
+/** Presses still recorded on delivered articles: switching on clears them, unsent. */
+export const STALE_PRESS_QUERY = `
+  select count(*)::int as articles from articles
+  where publish_requested is not null and (status = 'published' or published_url is not null)`;
+
 export function moving(rows) {
   return rows.filter((row) => row.class.startsWith("moves_")).reduce((sum, row) => sum + Number(row.articles), 0);
 }
@@ -92,9 +97,11 @@ export async function dryRun(url, report = (line) => console.log(line)) {
       for (const row of rows) report(`${String(row.articles).padStart(7)}  ${row.class}`);
       report(`${String(moving(rows)).padStart(7)}  would move to the team's queue if switched on now`);
       report(`${String(first.websites).padStart(7)}  websites with no first article sent yet`);
+      const [stale] = await tx.unsafe(STALE_PRESS_QUERY);
+      report(`${String(stale.articles).padStart(7)}  stale presses on delivered articles, cleared if switched on now`);
       const [modes] = await tx.unsafe(MODES_QUERY);
       for (const [mode, count] of Object.entries(modes)) report(`${String(count).padStart(7)}  websites on ${mode} publishing`);
-      return { enabled: Boolean(control?.enabled), rows, moving: moving(rows), websitesAwaitingFirst: Number(first.websites), modes };
+      return { enabled: Boolean(control?.enabled), rows, moving: moving(rows), websitesAwaitingFirst: Number(first.websites), stalePresses: Number(stale.articles), modes };
     });
   } finally {
     await client.end({ timeout: 5 });

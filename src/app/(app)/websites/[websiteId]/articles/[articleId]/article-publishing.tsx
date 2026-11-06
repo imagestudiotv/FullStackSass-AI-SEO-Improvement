@@ -354,6 +354,7 @@ export function ArticlePublishing({
       </dl>
 
       {plan.mode === "pluginPublished" ? <Notice tone="info">{t.statePluginPublished}</Notice> : null}
+      {plan.mode === "pluginDraft" ? <Notice tone="info">{delivery.pluginDraftNote}</Notice> : null}
 
       {facts.twoStep ? null : connectBlock}
       {facts.twoStep ? null : actionsBlock}

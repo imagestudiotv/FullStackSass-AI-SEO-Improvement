@@ -14,7 +14,7 @@ import {
   publishLogs,
 } from "@/lib/db/schema";
 import { pluginUpdates } from "@/lib/plugin/protocol";
-import { checkReleasable, HELD_MESSAGE, PLUGIN_UPDATE_NEEDED, PREPARING_MESSAGE, sendableRevision, sendToTeam, twoStepArticles } from "@/lib/articles/review";
+import { checkReleasable, HELD_MESSAGE, liveOnSiteSql, PLUGIN_DRAFT_MESSAGE, PLUGIN_UPDATE_NEEDED, PREPARING_MESSAGE, sendableRevision, sendToTeam, twoStepArticles } from "@/lib/articles/review";
 import {
   ProviderError,
   type Credentials,
@@ -467,6 +467,8 @@ export async function publishArticle(
       (lib/plugin/protocol.ts). An older one would wait for ever, so say so now.
     */
     if (twoStep && article.publishedUrl) {
+      const [{ live }] = await db.select({ live: liveOnSiteSql }).from(articles).where(eq(articles.id, article.id));
+      if (!live) return { ok: false, error: PLUGIN_DRAFT_MESSAGE };
       const [key] = await db
         .select({ siteInfo: integrationKeys.siteInfo })
         .from(integrationKeys)

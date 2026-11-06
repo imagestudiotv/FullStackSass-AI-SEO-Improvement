@@ -219,6 +219,7 @@ export default async function WebsitePublishingPage({
             canEdit={canEdit}
             firstArticleSent={site.firstArticleSentAt !== null}
             firstArticleNote={(await twoStepArticles()) ? ARTICLE_DELIVERY[locale].firstArticleTwoStep : undefined}
+            finishedManualLabel={(await twoStepArticles()) ? ARTICLE_DELIVERY[locale].finishedManual : undefined}
             inPartnerNetwork={managedNetwork}
             t={t.app.common}
             tArticle={t.app.article}

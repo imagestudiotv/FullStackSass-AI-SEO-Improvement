@@ -247,6 +247,13 @@ describe("publishing notices", () => {
     expect(panel({ firstArticleSent: true, firstArticleNote: note })).not.toContain(note);
   });
 
+  it("names the manual mode for what it is under the two-step flow", () => {
+    const html = panel({ finishedManualLabel: ARTICLE_DELIVERY.en.finishedManual });
+    expect(html).toContain(ARTICLE_DELIVERY.en.finishedManual);
+    expect(html).not.toContain(t.common.finishedReview);
+    expect(panel()).toContain(t.common.finishedReview);
+  });
+
   it("mentions the Partner Network review only for a website in it", () => {
     expect(panel({ inPartnerNetwork: true })).toContain(t.article.networkReview);
     expect(panel({ inPartnerNetwork: false })).not.toContain(t.article.networkReview);

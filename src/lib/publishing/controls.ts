@@ -157,6 +157,8 @@ export async function switchControl(
  *  - Delivered with a change waiting for the team: stored as unreviewed. It stays
  *    in their queue, and no path sends it.
  *
+ * A press still recorded on a delivered article is cleared.
+ *
  * The same sorting is counted, read-only, by scripts/two-step-transition-dry-run.mjs.
  */
 export async function activateTwoStep(tx: Executor): Promise<number> {
@@ -193,6 +195,8 @@ export async function activateTwoStep(tx: Executor): Promise<number> {
     .returning({ id: articles.id });
 
   const delivered = sql`(${articles.status} = 'published' or ${articles.publishedUrl} is not null)`;
+  // A press left over from before the flow is not a press for what is approved now: the feed would act on it.
+  await tx.update(articles).set({ publishRequested: null }).where(sql`${delivered} and ${articles.publishRequested} is not null`);
   const staleOnSite = await tx
     .select()
     .from(articles)
