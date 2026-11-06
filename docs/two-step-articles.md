@@ -37,7 +37,7 @@ Not connected: the page says the article is ready but not on their website, and 
 | Manual (auto-publish off) | Nothing can send it | Goes out only when the customer presses Publish |
 | Automatic, live | Nothing can send it | Goes live by itself on its planned day. Already due: at approval. Publish is still there to send it sooner |
 | Automatic, drafts | Nothing can send it | Sent to the CMS as a draft on its planned day. Publish makes it live. On a plugin site: see "Publish on a post held as a WordPress draft" |
-| Scheduled release (daily job) | Skips it | Sends approved revisions on their day, for automatic sites only |
+| Scheduled release (daily job) | Skips it | Sends approved revisions on their day, for automatic sites only. Leaves an article whose latest delivery was refused, until a person presses Publish or a new approval makes one more attempt |
 | First article | Nothing can send it | **Changed:** no longer goes out before approval. It follows the three modes above, so on a new website it goes live by itself, on its planned day |
 | Connecting a CMS | Sends nothing | **Changed:** no longer sends the first article. A due article on an automatic site goes at the next daily release |
 | WordPress plugin | Not in its feed | The same rules as a direct connection |
