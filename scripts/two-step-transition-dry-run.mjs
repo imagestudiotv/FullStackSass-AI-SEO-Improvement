@@ -86,9 +86,10 @@ export const FIRST_ARTICLE_QUERY = `
     and exists (select 1 from articles a where a.website_id = w.id)`;
 
 /**
- * Websites by publishing mode. Automatic websites keep publishing approved
- * articles by themselves. New websites got automatic publishing as a default
- * until the flow, so this cannot say which customers chose it.
+ * Websites by publishing mode. Automatic websites publish approved articles by
+ * themselves, and new websites start that way. Nothing moves a website between
+ * modes (decision of 2026-11-06), so a manual website stays manual until its
+ * customer changes it on the Publishing page.
  */
 export const MODES_QUERY = `
   select
@@ -96,6 +97,22 @@ export const MODES_QUERY = `
     count(*) filter (where auto_publish and publish_as = 'draft')::int as automatic_drafts,
     count(*) filter (where auto_publish and publish_as <> 'draft')::int as automatic_live
   from websites`;
+
+/**
+ * Rollout: written articles not yet on a website, by what will send them.
+ * manual_press: only the customer's press sends these, since a manual website is
+ * not moved. automatic_due: an automatic website's, planned day already come, so
+ * each goes out as soon as it stands approved.
+ */
+export const ROLLOUT_QUERY = `
+  select
+    count(*) filter (where not w.auto_publish)::int as manual_press,
+    count(distinct w.id) filter (where not w.auto_publish)::int as manual_press_websites,
+    count(*) filter (where w.auto_publish and (c.scheduled_for is null or c.scheduled_for <= now()))::int as automatic_due
+  from articles a
+  join websites w on w.id = a.website_id
+  left join calendar_items c on c.id = a.calendar_item_id
+  where a.status = 'draft' and a.published_url is null and a.body_html is not null`;
 
 /** Presses still recorded on delivered articles: switching on clears them, unsent. */
 export const STALE_PRESS_QUERY = `
@@ -123,7 +140,10 @@ export async function dryRun(url, report = (line) => console.log(line)) {
       report(`${String(stale.articles).padStart(7)}  stale presses on delivered articles, cleared if switched on now`);
       const [modes] = await tx.unsafe(MODES_QUERY);
       for (const [mode, count] of Object.entries(modes)) report(`${String(count).padStart(7)}  websites on ${mode} publishing`);
-      return { enabled: Boolean(control?.enabled), rows, moving: moving(rows), websitesAwaitingFirst: Number(first.websites), stalePresses: Number(stale.articles), modes };
+      const [rollout] = await tx.unsafe(ROLLOUT_QUERY);
+      report(`${String(rollout.manual_press).padStart(7)}  unsent articles on ${rollout.manual_press_websites} manual websites: wait for the customer's press, mode not changed`);
+      report(`${String(rollout.automatic_due).padStart(7)}  unsent articles on automatic websites, planned day come: go out once approved`);
+      return { enabled: Boolean(control?.enabled), rows, moving: moving(rows), websitesAwaitingFirst: Number(first.websites), stalePresses: Number(stale.articles), modes, rollout };
     });
   } finally {
     await client.end({ timeout: 5 });

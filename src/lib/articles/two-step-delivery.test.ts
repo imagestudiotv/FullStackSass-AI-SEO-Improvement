@@ -197,7 +197,7 @@ import { pendingFirstArticle } from "@/lib/publishing/policy";
 import { ProviderError } from "@/lib/publishing/provider";
 import { listLinks } from "@/lib/reporting/backlinks";
 import { getTasks } from "@/lib/tasks/tasks";
-import { NEW_SITE_DEFAULTS, newSiteDefaults } from "@/lib/websites/new-site-defaults";
+import { NEW_SITE_DEFAULTS } from "@/lib/websites/new-site-defaults";
 
 const BODY = "SECRETBODY";
 const NOTE = "SECRETNOTE";
@@ -777,10 +777,53 @@ describe("publishing the customer chose: automatic and scheduled", () => {
     expect(cms.posts.map((post) => post.status)).toEqual(["draft", "publish"]);
   });
 
-  it("a new website starts on the customer's own press under the flow; the default is unchanged with it off", () => {
-    expect(newSiteDefaults(true)).toMatchObject({ autoPublish: false, publishAs: "live", tableOfContents: true });
-    expect(newSiteDefaults(false)).toBe(NEW_SITE_DEFAULTS);
-    expect(NEW_SITE_DEFAULTS.autoPublish).toBe(true);
+  it("a new website starts automatic and live, with the switch on or off", () => {
+    expect(NEW_SITE_DEFAULTS).toMatchObject({ autoPublish: true, publishAs: "live" });
+  });
+
+  it("a new website's first article needs no press: approved and due, the exact revision goes live by itself", async () => {
+    const s = await scene({ firstArticlePending: true, autoPublish: true, plannedInDays: 0 });
+    expect(await approveAndRelease(s.post.id)).toBe("queued");
+    expect(jobs.queued).toHaveLength(1);
+    expect(jobs.queued[0].data).toMatchObject({ articleId: s.post.id, status: "publish", trigger: "approval" });
+    await expect(runJob(s, "approval")).resolves.toMatchObject({ status: "publish" });
+    expect(cms.posts).toHaveLength(1);
+    const [row] = await test.db.select().from(articles).where(eq(articles.id, s.post.id));
+    const [dispatch] = await test.db.select().from(publicationDispatches).where(eq(publicationDispatches.articleId, s.post.id));
+    expect(dispatch.revisionHash).toBe(row.reviewApprovedHash);
+    const [site] = await test.db.select().from(websites).where(eq(websites.id, s.websiteId));
+    expect(site.firstArticleSentAt).not.toBeNull();
+  });
+
+  it("a new website's article planned for later waits for its day, then the daily release sends it, with no press", async () => {
+    const s = await scene({ firstArticlePending: true, autoPublish: true, plannedInDays: 3 });
+    expect(await approveAndRelease(s.post.id)).toBe("waiting_for_day");
+    expect(jobs.queued).toEqual([]);
+    expect(await dailyReleaseSends(s.post.id)).toEqual([]);
+    const past = new Date(Date.now() - 86_400_000);
+    await test.db.update(calendarItems).set({ scheduledFor: past }).where(eq(calendarItems.id, s.post.calendarItemId!));
+    expect(await dailyReleaseSends(s.post.id)).toHaveLength(1);
+  });
+
+  it("an automatic website sends nothing the team has not approved, however due", async () => {
+    const s = await scene({ firstArticlePending: true, autoPublish: true, plannedInDays: 0 });
+    expect(await dailyReleaseSends(s.post.id)).toEqual([]);
+    await expect(runJob(s, "automatic")).resolves.toHaveProperty("held");
+    expect(cms.posts).toEqual([]);
+  });
+
+  it("an edit after approval on an automatic website does not reach the site: the approved revision does, or nothing", async () => {
+    const s = await scene({ firstArticlePending: true, autoPublish: true, plannedInDays: 3 });
+    expect(await approveAndRelease(s.post.id)).toBe("waiting_for_day");
+    const [approved] = await test.db.select().from(articles).where(eq(articles.id, s.post.id));
+    await test.db.update(articles).set({ bodyHtml: "<p>NOT APPROVED</p>", reviewStatus: "pending" }).where(eq(articles.id, s.post.id));
+    const past = new Date(Date.now() - 86_400_000);
+    await test.db.update(calendarItems).set({ scheduledFor: past }).where(eq(calendarItems.id, s.post.calendarItemId!));
+    await runJob(s, "automatic");
+    expect(cms.posts).toHaveLength(1);
+    expect(JSON.stringify(cms.posts[0])).not.toContain("NOT APPROVED");
+    const [dispatch] = await test.db.select().from(publicationDispatches).where(eq(publicationDispatches.articleId, s.post.id));
+    expect(dispatch.revisionHash).toBe(approved.reviewApprovedHash);
   });
 
   it("automatic, not connected: ready, and told to connect; nothing pretends", async () => {
@@ -1451,6 +1494,34 @@ describe("deleting a held article", () => {
 
 describe("switching it on", () => {
   const on = () => test.db.transaction((tx) => switchControl(tx, "two_step_articles", true, { reason: "test", actor: "test" }));
+
+  it("changes no website's publishing mode, and the dry run counts what waits on each", async () => {
+    await twoStep(false);
+    const { ROLLOUT_QUERY } = await import("../../../scripts/two-step-transition-dry-run.mjs");
+    const rollout = async () => (await test.client.query<{ manual_press: number; manual_press_websites: number; automatic_due: number }>(ROLLOUT_QUERY)).rows[0];
+    const before = await rollout();
+
+    const manual = (await seedWebsite(test)).websiteId;
+    const auto = (await seedWebsite(test)).websiteId;
+    const drafts = (await seedWebsite(test)).websiteId;
+    await test.db.update(websites).set({ autoPublish: false, publishAs: "live" }).where(eq(websites.id, manual));
+    await test.db.update(websites).set({ autoPublish: true, publishAs: "live" }).where(eq(websites.id, auto));
+    await test.db.update(websites).set({ autoPublish: true, publishAs: "draft" }).where(eq(websites.id, drafts));
+    const written = { title: "T", bodyHtml: "<p>B</p>", status: "draft" as const };
+    await test.db.insert(articles).values([{ websiteId: manual, ...written }, { websiteId: manual, ...written }, { websiteId: auto, ...written }]);
+    const [later] = await test.db.insert(calendarItems).values({ websiteId: auto, title: "Later", scheduledFor: new Date(Date.now() + 5 * 86_400_000) }).returning();
+    await test.db.insert(articles).values({ websiteId: auto, calendarItemId: later.id, ...written });
+
+    const modes = () => test.db.select({ id: websites.id, autoPublish: websites.autoPublish, publishAs: websites.publishAs }).from(websites).orderBy(websites.id);
+    const modesBefore = await modes();
+    const after = await rollout();
+    expect(Number(after.manual_press) - Number(before.manual_press)).toBe(2);
+    expect(Number(after.manual_press_websites) - Number(before.manual_press_websites)).toBe(1);
+    expect(Number(after.automatic_due) - Number(before.automatic_due)).toBe(1);
+
+    await on();
+    expect(await modes()).toEqual(modesBefore);
+  });
 
   it("sorts drafts without approving or sending anything, and the dry run agrees", async () => {
     await twoStep(false);

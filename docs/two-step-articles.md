@@ -30,7 +30,7 @@ Not connected: the page says the article is ready but not on their website, and 
 
 ### How "one Publish action" fits with automatic publishing
 
-Publishing modes a customer explicitly chose stay in force, and only ever send an approved revision.
+**Decision of 2026-11-06:** publishing is automatic after the team's approval, on the intended schedule. There is no preliminary customer approval and no repeated approval loop, and the approval covers the exact revision published. New websites start automatic, and no existing website's mode is changed. The publishing modes below only ever send an approved revision.
 
 | Mode, or path | Before approval | After approval |
 | --- | --- | --- |
@@ -38,14 +38,16 @@ Publishing modes a customer explicitly chose stay in force, and only ever send a
 | Automatic, live | Nothing can send it | Goes live by itself on its planned day. Already due: at approval. Publish is still there to send it sooner |
 | Automatic, drafts | Nothing can send it | Sent to the CMS as a draft on its planned day. Publish makes it live. On a plugin site: see "Publish on a post held as a WordPress draft" |
 | Scheduled release (daily job) | Skips it | Sends approved revisions on their day, for automatic sites only |
-| First article | Nothing can send it | **Changed:** no longer goes live by itself. It follows the three modes above |
+| First article | Nothing can send it | **Changed:** no longer goes out before approval. It follows the three modes above, so on a new website it goes live by itself, on its planned day |
 | Connecting a CMS | Sends nothing | **Changed:** no longer sends the first article. A due article on an automatic site goes at the next daily release |
 | WordPress plugin | Not in its feed | The same rules as a direct connection |
-| New website | Starts on manual | **Changed:** automatic publishing is the customer's choice on the Publishing page, not a default |
+| New website | Starts automatic, live | The same default as with the switch off. A customer can choose otherwise on the Publishing page |
 
-On manual sites, the customer's Publish is the only way out. On automatic sites the customer chose in advance not to press anything, so Publish is an option to go sooner. A site's "Publish as: draft" setting still governs its automatic sends. A press is always Publish.
+On manual sites, the customer's Publish is the only way out. On automatic sites nothing has to be pressed, so Publish is an option to go sooner. A site's "Publish as: draft" setting still governs its automatic sends. A press is always Publish.
 
-**Open point.** Until this flow, every new website was created with automatic publishing on, as an agreed default. Nothing records which existing customers chose it and which simply kept it, so all of them keep it. Their approved articles go out by themselves. The dry run counts these websites. Whether to move any of them to manual is a business decision and is not done here.
+**Existing websites.** Nothing changes a website's mode: not the deploy, not the switch, not the dry run. Automatic websites keep publishing approved articles by themselves. Manual websites keep waiting for the customer's press until that customer changes the mode on the Publishing page. The dry run counts both, and the articles waiting on each. There is no bulk update, and any move of existing customers would be a separate, approved step.
+
+**An update to a post already live** is not part of this. An approval never republishes a live post by itself, so a change the team approves still waits for the customer's Update, even on an automatic website (see below).
 
 ### Editing after approval: working copy and stored revision
 
@@ -93,7 +95,7 @@ A refusal ends that delivery as failed and answers the press, so nothing retries
 
 ### Updating a post that is already on the website
 
-Plugin and direct connections alike, with the switch on or off: an update is sent only if the post can be shown unchanged since RepGet last sent it. Otherwise it is refused, with a translated reason on the panel and one notification, nothing is retried, and pressing again asks the site again. There is no override.
+Plugin and direct connections alike, with the switch on or off: an update is sent only if the post can be shown unchanged since RepGet last sent it. Otherwise RepGet stops, with a translated reason on the panel and one notification telling the customer to resolve it in WordPress, or in their site's own editor on another platform. Nothing is retried, and pressing again asks the site again. **There is no force-overwrite and none is planned** (decision of 2026-11-06).
 
 | The site | What protects the post | Refused when |
 | --- | --- | --- |
@@ -203,7 +205,7 @@ Assumptions:
 
 - The queue can grow at switch-on by the `moves_` counts. Plan the team's time from the dry run.
 - A website still waiting for a first article stops getting the first-article release. The dry run counts these websites.
-- Automatic websites stay automatic (see the open point above). The dry run counts them by mode.
+- No website changes mode (see "Existing websites" above). The dry run counts them by mode, plus the unsent articles waiting for a press on manual websites and those on automatic websites that go out as soon as they stand approved. Plan the first approvals from that second count: approving a due article on an automatic website sends it.
 
 To turn the switch off again: new drafts follow the earlier rules, and first articles go out by themselves again. Articles in the queue stay there and their customers can read their working copies again, so the team should finish the queue first.
 

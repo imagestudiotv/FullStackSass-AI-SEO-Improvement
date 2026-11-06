@@ -28,10 +28,10 @@ import { notBeforePlannedSql, releasableSql, twoStepOffSql } from "@/lib/article
  * ALWAYS published live - in "draft" mode too, by the client's decision: the
  * point is to see a real post on the real site.
  *
- * NOT UNDER THE TWO-STEP FLOW (lib/publishing/controls.ts). There the client's
- * rule is that the team prepares the first article and the customer publishes
- * it, so it is an article like any other: it goes out by the customer's press,
- * or by the automatic mode they chose, and never before the team's approval.
+ * NOT UNDER THE TWO-STEP FLOW (lib/publishing/controls.ts). There the team
+ * prepares the first article, so it is an article like any other: never before
+ * the team's approval, then on its schedule by the website's mode (automatic
+ * unless the customer chose otherwise, decision of 2026-11-06).
  */
 
 /** How the first article goes out, in every mode. See above. */

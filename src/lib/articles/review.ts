@@ -397,8 +397,8 @@ export const DRAFT_REFUSALS = {
   post_trashed: "This draft is in the WordPress trash, so nothing was published. Restore it there, then press Publish again.",
   post_deleted: "This draft was deleted from WordPress, so nothing was published and no new post was made. Contact the RepGet team to have it sent again.",
   // An update of a post already on the website (plugin and direct: lib/publishing/overwrite-guard.ts).
-  post_changed: "This post was changed on your website after RepGet last sent it, so it was not overwritten and nothing was sent. To use this version, make the change in the post on your website.",
-  post_unverified: "RepGet cannot confirm this post is unchanged since it was last sent, so it was not overwritten and nothing was sent. To use this version, make the change in the post on your website.",
+  post_changed: "This post was changed on your website after RepGet last sent it, so RepGet stopped and overwrote nothing. You need to resolve this in WordPress, or in your site's own editor on another platform, by making the change in the post there. RepGet cannot overwrite it for you.",
+  post_unverified: "RepGet cannot confirm this post is unchanged since it was last sent, so RepGet stopped and overwrote nothing. You need to resolve this in WordPress, or in your site's own editor on another platform, by making the change in the post there. RepGet cannot overwrite it for you.",
   post_locked: "Someone has this post open in WordPress, so nothing was changed. Ask them to finish and close it, then try again.",
   update_trashed: "This post is in the trash on your website, so nothing was sent. Restore it there, then try again.",
   update_deleted: "This post no longer exists on your website, so nothing was sent and no new post was made. Contact the RepGet team to have it sent again.",

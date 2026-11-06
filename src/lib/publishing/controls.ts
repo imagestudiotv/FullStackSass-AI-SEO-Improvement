@@ -35,10 +35,11 @@ import type { Executor } from "@/lib/db/types";
  *        has one Publish action and approves nothing, and a later change to
  *        the revision goes back to the team (afterArticleEdit).
  *        The first-article exception does not apply while it is on
- *        (isFirstArticle in lib/publishing/policy.ts). Automatic publishing
- *        the customer chose still runs, for approved articles only, on their
- *        day. Same lock as managed review; switching it on sorts what was
- *        written under the old rules (activateTwoStep).
+ *        (isFirstArticle in lib/publishing/policy.ts). Automatic publishing,
+ *        the default for a new website (decision of 2026-11-06), runs for
+ *        approved articles only, on their day. A website's mode is never
+ *        changed from here. Same lock as managed review; switching it on sorts
+ *        what was written under the old rules (activateTwoStep).
  *
  * A missing row means disabled: a fresh database, or one a previous build
  * migrated, behaves exactly as before until an operator acts.
