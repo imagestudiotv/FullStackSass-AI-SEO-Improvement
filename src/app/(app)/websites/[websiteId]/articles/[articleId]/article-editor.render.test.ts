@@ -382,6 +382,16 @@ describe("the two-step flow (docs/two-step-articles.md)", () => {
     expect(button(html, en.app.editor.updatePost)).toContain('disabled=""');
   });
 
+  it("a WordPress draft on a plugin site: says so, in place of any Publish button", () => {
+    const html = render({
+      article: { ...ARTICLE, status: "draft", publishedUrl: "https://example.com/a" },
+      facts: { ...READY, destination: { kind: "plugin" }, liveOnSite: false, lastOutcome: { kind: "draft", when: "1 Oct" } },
+    });
+    expect(html).toContain(d.pluginDraftNote);
+    expect(button(html, en.app.editor.publish)).toBeNull();
+    expect(button(html, en.app.editor.updatePost)).toBeNull();
+  });
+
   it("an approved update on a plugin site has its Update button, where the plugin path used to end", () => {
     const facts = { ...READY, destination: { kind: "plugin" as const }, liveOnSite: true, lastOutcome: { kind: "live" as const, when: "1 Oct" } };
     const html = render({ article: { ...ARTICLE, status: "published", publishedUrl: "https://example.com/a" }, facts });

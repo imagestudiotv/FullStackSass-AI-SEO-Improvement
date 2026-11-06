@@ -177,7 +177,7 @@ import { listReusableImages, removeArticleImage, updateArticleImageAlt } from "@
 import { prepareStoredArticle } from "@/lib/articles/internal-links";
 import { notifyReady, releaseAfterApproval } from "@/lib/articles/release";
 import { approveArticleResearch } from "@/lib/articles/research-actions";
-import { checkReleasable, customerTitleSql, PLUGIN_UPDATE_NEEDED, PREPARING_MESSAGE, publicFieldSql, publicRevisionSql, revisionToStore, reviewHash, sendableRevision, storedRevision, type StoredRevision } from "@/lib/articles/review";
+import { checkReleasable, customerTitleSql, PLUGIN_DRAFT_MESSAGE, PLUGIN_UPDATE_NEEDED, PREPARING_MESSAGE, publicFieldSql, publicRevisionSql, revisionToStore, reviewHash, sendableRevision, storedRevision, type StoredRevision } from "@/lib/articles/review";
 import { listGiven } from "@/lib/backlinks/actions";
 import { approveArticle, editReviewedArticle, removeManagedPlacement, reopenArticle } from "@/lib/backlinks/managed";
 import { setParticipation } from "@/lib/backlinks/network-settings";
@@ -342,7 +342,7 @@ async function dailyReleaseSends(articleId: string) {
     .map(([event]) => event.data)
     .filter((data) => data.articleId === articleId);
 }
-const pluginPull = () => pluginArticles(new NextRequest("https://app.test/api/plugin/articles", { headers: { "x-integration-key": "k", "x-repget-plugin-version": "1.9.0" } }));
+const pluginPull = (version = "1.10.0") => pluginArticles(new NextRequest("https://app.test/api/plugin/articles", { headers: { "x-integration-key": "k", "x-repget-plugin-version": version } }));
 const leakIn = (value: unknown) => {
   const text = JSON.stringify(value);
   return ["SECRET", LINK, "secret anchor"].filter((marker) => text.includes(marker));
@@ -1736,7 +1736,7 @@ describe("review of the combined diff: what stays true on the edges", () => {
 
   it("an approved update on a plugin site: one press, through the plugin's real protocol, to the post it already has", async () => {
     const s = await scene({ plugin: true, fields: { status: "published", publishedUrl: "https://site.test/p", firstLiveAt: new Date(), reviewStatus: "pending", researchReviewRequired: false, bodyHtml: "<p>Update</p>", title: "Updated title" } });
-    await test.db.update(integrationKeys).set({ siteInfo: "6.4.3 / plugin 1.9.0" }).where(eq(integrationKeys.websiteId, s.websiteId));
+    await test.db.update(integrationKeys).set({ siteInfo: "6.4.3 / plugin 1.10.0" }).where(eq(integrationKeys.websiteId, s.websiteId));
     expect(await approveAndRelease(s.post.id)).toBe("customer_publishes");
     expect(bell.sent[0].title).toMatch(/update is ready/);
     // Offered only once pressed.
@@ -1761,7 +1761,7 @@ describe("review of the combined diff: what stays true on the edges", () => {
 
   it("an update is not offered to a plugin too old to make one, and the customer is told why", async () => {
     const s = await scene({ plugin: true, fields: { status: "published", publishedUrl: "https://site.test/q", reviewStatus: "pending", researchReviewRequired: false } });
-    await test.db.update(integrationKeys).set({ siteInfo: "6.4.3 / plugin 1.5.0" }).where(eq(integrationKeys.websiteId, s.websiteId));
+    await test.db.update(integrationKeys).set({ siteInfo: "6.4.3 / plugin 1.9.0" }).where(eq(integrationKeys.websiteId, s.websiteId));
     await approve(s.post.id);
     expect(await publishArticle(s.websiteId, s.post.id)).toEqual({ ok: false, error: PLUGIN_UPDATE_NEEDED });
     expect((await row(s.post.id)).publishRequested).toBeNull();
@@ -1769,10 +1769,47 @@ describe("review of the combined diff: what stays true on the edges", () => {
     await test.db.update(articles).set({ publishRequested: "publish" }).where(eq(articles.id, s.post.id));
     expect(await dueArticlesForPlugin(s.websiteId, 5, new Date(), { updates: false })).toEqual([]);
     expect(await dueArticlesForPlugin(s.websiteId, 5, new Date(), { updates: true })).toHaveLength(1);
-    expect(pluginUpdates("1.5.2")).toBe(false);
-    expect(pluginUpdates("1.6.0")).toBe(true);
+    expect(pluginUpdates("1.9.9")).toBe(false);
+    expect(pluginUpdates("1.10.0")).toBe(true);
+    expect((await (await pluginPull("1.9.0")).json()).articles).toEqual([]);
     const t = getMessages("de").app;
     expect(actionErrorText(PLUGIN_UPDATE_NEEDED, { t: t.editor, tWorkspace: t.workspace, tImage: t.image, delivery: ARTICLE_DELIVERY.de })).toBe(ARTICLE_DELIVERY.de.errPluginUpdate);
+  });
+
+  it("a post held as a WordPress draft is never updated from RepGet: refused, not in the feed, and an editor's work is safe", async () => {
+    const s = await scene({ plugin: true, fields: { status: "draft", publishedUrl: "https://site.test/draft", reviewStatus: "pending", researchReviewRequired: false } });
+    await test.db.update(integrationKeys).set({ siteInfo: "6.4.3 / plugin 1.10.0" }).where(eq(integrationKeys.websiteId, s.websiteId));
+    await approve(s.post.id);
+    expect(await publishArticle(s.websiteId, s.post.id)).toEqual({ ok: false, error: PLUGIN_DRAFT_MESSAGE });
+    expect((await row(s.post.id)).publishRequested).toBeNull();
+    await test.db.update(articles).set({ publishRequested: "publish" }).where(eq(articles.id, s.post.id));
+    expect(await dueArticlesForPlugin(s.websiteId, 5, new Date(), { updates: true })).toEqual([]);
+    expect((await (await pluginPull()).json()).articles).toEqual([]);
+    expect(await test.db.select().from(publicationDispatches).where(eq(publicationDispatches.articleId, s.post.id))).toEqual([]);
+    const t = getMessages("it").app;
+    expect(actionErrorText(PLUGIN_DRAFT_MESSAGE, { t: t.editor, tWorkspace: t.workspace, tImage: t.image, delivery: ARTICLE_DELIVERY.it })).toBe(ARTICLE_DELIVERY.it.pluginDraftNote);
+  });
+
+  it("a rewrite of a post that is live (the row reads draft) can still be updated: the last delivery says it is live", async () => {
+    const s = await scene({ plugin: true, fields: { status: "draft", publishedUrl: "https://site.test/live-rewrite", reviewStatus: "pending", researchReviewRequired: false } });
+    await test.db.update(integrationKeys).set({ siteInfo: "6.4.3 / plugin 1.10.0" }).where(eq(integrationKeys.websiteId, s.websiteId));
+    await test.db.insert(publicationDispatches).values({ articleId: s.post.id, websiteId: s.websiteId, channel: "plugin", trigger: "manual", revisionHash: "older", requestedStatus: "publish", status: "sent", remoteStatus: "publish", claimedAt: new Date() });
+    await approve(s.post.id);
+    expect((await publishArticle(s.websiteId, s.post.id)).ok).toBe(true);
+    expect((await (await pluginPull()).json()).articles).toHaveLength(1);
+  });
+
+  it("switch-on clears a press left on a delivered article: the first poll overwrites nothing, and the dry run counts it", async () => {
+    await twoStep(false);
+    const s = await scene({ plugin: true, fields: { status: "published", publishedUrl: "https://site.test/stale", reviewStatus: null, researchReviewRequired: false, publishRequested: "publish" } });
+    const { STALE_PRESS_QUERY } = await import("../../../scripts/two-step-transition-dry-run.mjs");
+    const counted = async () => (await test.client.query<{ articles: number }>(STALE_PRESS_QUERY)).rows[0].articles;
+    expect(await counted()).toBeGreaterThan(0);
+    await on();
+    expect((await row(s.post.id)).publishRequested).toBeNull();
+    expect(await counted()).toBe(0);
+    expect((await (await pluginPull()).json()).articles).toEqual([]);
+    expect(await test.db.select().from(publicationDispatches).where(eq(publicationDispatches.articleId, s.post.id))).toEqual([]);
   });
 
   it("with the switch off, the plugin's feed is as it was: never a live post", async () => {

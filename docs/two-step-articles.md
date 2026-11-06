@@ -65,7 +65,7 @@ While a working copy waits:
 - **Automatic modes and the plugin** also send only the stored revision, on the same schedule rules.
 - **Public outputs** (translations, social suggestions, video ideas, internal-link suggestions) read the stored revision.
 
-An approval replaces the stored revision. An approval never republishes a live post by itself: the customer's Update does. On a plugin site that needs plugin 1.6.0 or later, which updates the post it already has for the article and keeps its status in WordPress. An older plugin is refused with a message to update it.
+An approval replaces the stored revision. An approval never republishes a live post by itself: the customer's Update does. On a plugin site that needs plugin 1.10.0 or later, which updates the post it already has for the article, featured image included. An older plugin is refused with a message to update it. A post held as a WordPress draft is not updated from RepGet, because that would overwrite an editor's work: the page says it is on the site as a draft and is published from WordPress, with no Publish button.
 
 **Reopening does not recall.** Reopening or editing an approved article leaves its stored revision in force. So on an automatic site the daily release can still send the old text on its day, and a customer's press still can.
 
@@ -134,6 +134,9 @@ Turning the switch on then runs `activateTwoStep` once, in the switch's own tran
 | Live, approved, but its hash no longer matches | The old publish job wrote the CMS's picture address without re-hashing, so this is what the post is. Stored as source `published` and taken out of the review: not approved, not queued, not resent | `on_site_approval_stale_stored_as_published` |
 | Live, with a change waiting for the team | RepGet holds no earlier text, so what the customer already reads is stored as source `unreviewed`: they keep reading it, no path sends it, and it stays in the queue until approved | `on_site_change_waiting_view_kept_not_sendable` |
 | Failed | Untouched | `failed` |
+
+A press still recorded on a delivered article is cleared at switch-on, unsent. The dry run counts them.
+
 
 Assumptions:
 
