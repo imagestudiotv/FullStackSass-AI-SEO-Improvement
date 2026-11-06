@@ -1,7 +1,7 @@
 import { eq, ne } from "drizzle-orm";
 import type Stripe from "stripe";
 
-import { fulfilAddonPurchase } from "@/lib/addons/fulfil";
+import { addonPaymentFailed, fulfilAddonPurchase } from "@/lib/addons/fulfil";
 import { cancellationOps } from "@/lib/billing/checkout-providers";
 import {
   syncProviderSubscription,
@@ -203,6 +203,34 @@ function invoiceSubscriptionId(invoice: Stripe.Invoice): string | null {
 }
 
 /**
+ * An add-on's money has arrived, or there was none to take (a 100% discount).
+ *
+ * Completing a checkout does not say that. A delayed method (SEPA, for one)
+ * completes the checkout with payment_status "unpaid" and settles days later, or
+ * never: its credits wait for checkout.session.async_payment_succeeded, and a
+ * failure grants nothing. Read from the session, so it holds for a stored event
+ * the recovery job replays, in whatever order the events came.
+ */
+async function fulfilSettledAddon(session: Stripe.Checkout.Session): Promise<void> {
+  const organizationId = session.metadata?.organizationId;
+  const addonId = session.metadata?.addonId;
+  if (!organizationId || !addonId) {
+    console.error(
+      `[stripe-webhook] payment session ${session.id} has no addon metadata`,
+    );
+    return;
+  }
+  if (session.payment_status !== "paid" && session.payment_status !== "no_payment_required") return;
+  await fulfilAddonPurchase({
+    organizationId,
+    addonId,
+    stripeSessionId: session.id,
+    amountTotal: session.amount_total,
+    currency: session.currency,
+  });
+}
+
+/**
  * Handles one verified Stripe event. Throws when it should be retried.
  *
  * Billing first; then the cash partner program records the affiliate work
@@ -240,21 +268,7 @@ async function processBillingEvent(event: Stripe.Event): Promise<void> {
        * recorded — the success redirect cannot be trusted.
        */
       if (session.mode === "payment") {
-        const organizationId = session.metadata?.organizationId;
-        const addonId = session.metadata?.addonId;
-        if (!organizationId || !addonId) {
-          console.error(
-            `[stripe-webhook] payment session ${session.id} has no addon metadata`,
-          );
-          return;
-        }
-        await fulfilAddonPurchase({
-          organizationId,
-          addonId,
-          stripeSessionId: session.id,
-          amountTotal: session.amount_total,
-          currency: session.currency,
-        });
+        await fulfilSettledAddon(session);
         return;
       }
 
@@ -264,6 +278,26 @@ async function processBillingEvent(event: Stripe.Event): Promise<void> {
           ? session.subscription
           : session.subscription.id;
       await syncStripeSubscription(subscriptionId, session.id);
+      return;
+    }
+
+    /*
+      Add-ons only. A subscription's money is read from its invoices, and a
+      "Get Featured" request is confirmed from checkout.session.completed and
+      its thanks page (lib/blog/sponsorship.ts).
+    */
+    case "checkout.session.async_payment_succeeded": {
+      const session = event.data.object;
+      if (session.mode === "payment" && !isSponsorshipSession(session)) await fulfilSettledAddon(session);
+      return;
+    }
+
+    case "checkout.session.async_payment_failed": {
+      const session = event.data.object;
+      if (session.mode !== "payment" || isSponsorshipSession(session)) return;
+      const organizationId = session.metadata?.organizationId;
+      const addonId = session.metadata?.addonId;
+      if (organizationId && addonId) await addonPaymentFailed({ organizationId, addonId, stripeSessionId: session.id });
       return;
     }
 

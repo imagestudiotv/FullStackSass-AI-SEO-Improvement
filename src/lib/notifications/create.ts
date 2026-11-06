@@ -39,6 +39,8 @@ export type NotificationType =
   | "earn.approved"
   | "earn.declined"
   | "addon.purchased"
+  /** A delayed payment for credits failed: nothing was added. */
+  | "addon.payment_failed"
   /** A website project moving along (lib/website-projects). */
   | "website.quote_requested"
   | "website.quote_ready"

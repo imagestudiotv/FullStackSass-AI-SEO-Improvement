@@ -172,3 +172,32 @@ export async function fulfilAddonPurchase(
 
   return true;
 }
+
+/**
+ * A delayed payment failed: nothing was recorded for it, so nothing is taken
+ * back, and the customer hears that no credits are coming.
+ *
+ * Only a session an earlier build fulfilled on completion has a purchase here. Its
+ * credits stay, and the unpaid grant is logged: they may already be spent, so
+ * taking them back is a person's decision.
+ */
+export async function addonPaymentFailed(input: Pick<FulfilInput, "organizationId" | "addonId" | "stripeSessionId">): Promise<void> {
+  const [purchase] = await db
+    .select({ id: addonPurchases.id })
+    .from(addonPurchases)
+    .where(eq(addonPurchases.stripeSessionId, input.stripeSessionId))
+    .limit(1);
+  if (purchase) {
+    console.error(`[addons] purchase ${purchase.id} was fulfilled, but its delayed payment ${input.stripeSessionId} failed`);
+    return;
+  }
+  const [addon] = await db.select({ name: addons.name }).from(addons).where(eq(addons.id, input.addonId)).limit(1);
+  if (!addon) return;
+  await notify({
+    organizationId: input.organizationId,
+    type: "addon.payment_failed",
+    title: `${addon.name} - payment failed`,
+    body: "No credits were added. You can buy them again from Billing.",
+    href: "/billing",
+  });
+}
