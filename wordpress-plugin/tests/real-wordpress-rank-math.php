@@ -12,7 +12,8 @@
  * pre_http_request filter here.
  *
  * What it shows, reading the result through Rank Math's own code, and from the
- * tags Rank Math itself prints in wp_head for a custom post type:
+ * tags Rank Math itself prints on its rank_math/head hook for a custom post type
+ * (the hook it runs from wp_head; wp_head itself is not fired here):
  *  - create, update and a retried hand-over leave Facebook and Twitter on the
  *    same attachment as the featured image, with the article's words;
  *  - a picture changed in RepGet, or a featured image changed in WordPress
@@ -189,9 +190,12 @@ check('the page: twitter:title and description', tag($tags, 'twitter:title') ===
 check('the page: twitter:image is the featured image', tag($tags, 'twitter:image') === wp_get_attachment_url($thumb), tag($tags, 'twitter:image'));
 
 echo "\nRETRY AND UPDATE\n";
-$attachments = (int) array_sum((array) wp_count_posts('attachment'));
+// Counted in the table: wp_count_posts is cached, and adding an attachment does not clear that.
+$count_attachments = function () use ($wpdb) { return (int) $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'attachment'"); };
+$attachments = $count_attachments();
+check('(the featured image is counted)', $attachments >= 1);
 send('rm1', 'Rainy Wedding Photography Italy', 'Worried about rain on your wedding day?', 'rainy-a.jpg');
-check('a retried hand-over adds no attachment', (int) array_sum((array) wp_count_posts('attachment')) === $attachments);
+check('a retried hand-over adds no attachment', $count_attachments() === $attachments, (string) $count_attachments());
 check('...and the image is the same', (int) get_post_thumbnail_id($p) === $thumb && (int) m($p, 'rank_math_twitter_image_id') === $thumb);
 send('rm1', 'Rainy Weddings in Italy', 'New words.', 'rainy-a.jpg');
 $tags = tags_of($p);
@@ -241,7 +245,7 @@ $old_edited = wp_insert_post(array('post_type' => 'custom_post', 'post_title' =>
 $not_ours = wp_insert_post(array('post_type' => 'custom_post', 'post_title' => 'Not RepGet', 'post_status' => 'publish'));
 set_post_thumbnail($old, $own);
 set_post_thumbnail($not_ours, $own);
-check('(a post from before 1.10.0: nothing yet, as the thumbnail hook only follows what exists)', true);
+// A post from before 1.10.0: nothing yet, as the thumbnail hook only follows what exists.
 delete_post_meta($old, 'rank_math_facebook_image');
 delete_post_meta($old, 'rank_math_facebook_image_id');
 delete_post_meta($old, 'rank_math_twitter_image');

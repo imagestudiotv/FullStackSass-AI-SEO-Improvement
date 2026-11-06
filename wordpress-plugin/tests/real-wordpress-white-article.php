@@ -30,7 +30,13 @@ require $argv[2];
 if (isset($argv[3]) && $argv[3] === '--page') {
     wp(array('p' => (int) $argv[4], 'post_type' => get_post_type((int) $argv[4])));
     do_action('wp_enqueue_scripts');
-    echo "\n@@" . json_encode(array('class' => in_array('isb-white-article', get_body_class(), true), 'style' => wp_style_is('isb-white-article', 'enqueued')));
+    // What the page prints, and whether that file exists: an enqueued handle alone could print nothing.
+    ob_start();
+    wp_print_styles();
+    $printed = ob_get_clean();
+    $link = (bool) preg_match('/<link[^>]+isb-white-article[^>]+href=["\']([^"\']+)/', $printed, $href);
+    $file = $link ? ABSPATH . ltrim(parse_url($href[1], PHP_URL_PATH), '/') : '';
+    echo "\n@@" . json_encode(array('class' => in_array('isb-white-article', get_body_class(), true), 'style' => $link && is_file($file)));
     exit(0);
 }
 
