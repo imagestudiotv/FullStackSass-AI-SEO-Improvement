@@ -4,7 +4,10 @@ import { eq } from "drizzle-orm";
 import type Stripe from "stripe";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { member, user } from "@/lib/db/auth-tables";
 import { addonPurchases, addons, blogSponsorships, creditLedger, organization } from "@/lib/db/schema";
+import { ADDON_PAYMENT_FAILED } from "@/lib/i18n/addon-payment";
+import { LOCALES } from "@/lib/i18n/config";
 import { createTestDb, type TestDb } from "@/test/db";
 
 /**
@@ -170,6 +173,16 @@ describe("a delayed payment", () => {
     expect(notifyMock.mock.calls[0][0].body).toContain("No credits were added");
     // A replay of the completion after the failure changes nothing.
     await processStripeEvent(event("checkout.session.completed", s, "unpaid"));
+    await expectNothingGranted(s);
+  });
+
+  it.each(LOCALES)("failing tells the customer in the workspace owner's language: %s", async (locale) => {
+    const s = await seed();
+    const id = `u_${randomUUID()}`;
+    await test.db.insert(user).values({ id, name: "O", email: `${id}@e.test`, emailVerified: true, locale, createdAt: new Date(), updatedAt: new Date() });
+    await test.db.insert(member).values({ id: `m_${randomUUID()}`, organizationId: s.organizationId, userId: id, role: "owner", createdAt: new Date() });
+    await processStripeEvent(event("checkout.session.async_payment_failed", s, "unpaid"));
+    expect(notifyMock.mock.calls[0][0]).toMatchObject({ title: ADDON_PAYMENT_FAILED[locale].title.replace("{name}", "50 credits"), body: ADDON_PAYMENT_FAILED[locale].body });
     await expectNothingGranted(s);
   });
 

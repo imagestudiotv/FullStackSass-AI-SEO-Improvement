@@ -2,7 +2,11 @@ import { and, eq } from "drizzle-orm";
 
 import { recordCredit } from "@/lib/backlinks/credits";
 import { db } from "@/lib/db";
+import { member, user } from "@/lib/db/auth-tables";
 import { addonPurchases, addons, creditLedger } from "@/lib/db/schema";
+import { ADDON_PAYMENT_FAILED } from "@/lib/i18n/addon-payment";
+import { DEFAULT_LOCALE, isLocale } from "@/lib/i18n/config";
+import { format } from "@/lib/i18n/format";
 import { notify } from "@/lib/notifications/create";
 
 /**
@@ -193,11 +197,19 @@ export async function addonPaymentFailed(input: Pick<FulfilInput, "organizationI
   }
   const [addon] = await db.select({ name: addons.name }).from(addons).where(eq(addons.id, input.addonId)).limit(1);
   if (!addon) return;
+  // Stored once, for everyone in the workspace, in its owner's language.
+  const [owner] = await db
+    .select({ locale: user.locale })
+    .from(member)
+    .innerJoin(user, eq(user.id, member.userId))
+    .where(and(eq(member.organizationId, input.organizationId), eq(member.role, "owner")))
+    .limit(1);
+  const copy = ADDON_PAYMENT_FAILED[owner?.locale && isLocale(owner.locale) ? owner.locale : DEFAULT_LOCALE];
   await notify({
     organizationId: input.organizationId,
     type: "addon.payment_failed",
-    title: `${addon.name} - payment failed`,
-    body: "No credits were added. You can buy them again from Billing.",
+    title: format(copy.title, { name: addon.name }),
+    body: copy.body,
     href: "/billing",
   });
 }

@@ -133,6 +133,8 @@ describe("starting a placement payment", () => {
     const [params, options] = state.create.mock.calls[0];
     expect(params).toMatchObject({
       mode: "payment",
+      // Cards only: paid when the checkout completes, so no delayed payment events to handle.
+      payment_method_types: ["card"],
       customer_email: data.email,
       metadata: { blogSponsorshipId: data.id, articleSlug: "live-article" },
       line_items: [{ quantity: 1, price_data: { currency: "eur", unit_amount: 9900 } }],

@@ -283,8 +283,8 @@ async function processBillingEvent(event: Stripe.Event): Promise<void> {
 
     /*
       Add-ons only. A subscription's money is read from its invoices, and a
-      "Get Featured" request is confirmed from checkout.session.completed and
-      its thanks page (lib/blog/sponsorship.ts).
+      "Get Featured" checkout takes cards only (lib/blog/sponsorship-actions.ts),
+      so it is paid when it completes and never comes through here.
     */
     case "checkout.session.async_payment_succeeded": {
       const session = event.data.object;
