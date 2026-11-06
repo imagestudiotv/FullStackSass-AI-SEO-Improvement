@@ -19,11 +19,12 @@ export const PLUGIN_V2_MIN = [1, 6, 0] as const;
 export const PLUGIN_TRANSLATIONS_MIN = [1, 9, 0] as const;
 
 /**
- * Handed an article it already published, 1.5.1+ updates that post instead of
- * creating a second one (repget_sync, "idempotent by article id"), and 1.6.0+
- * reports exactly that hand-over. Below that, an update is not offered.
+ * Handed an article it already published, the plugin updates that post rather
+ * than creating a second one. Only from 1.10.0 does the featured image follow:
+ * 1.6 to 1.9 set it on creation only, so an update with a new picture would be
+ * recorded as sent with the old one. Below that, an update is not offered.
  */
-export const PLUGIN_UPDATES_MIN = [1, 6, 0] as const;
+export const PLUGIN_UPDATES_MIN = [1, 10, 0] as const;
 
 /** True for a version string at or above `min`; false for anything unreadable. */
 function atLeast(version: string | null | undefined, min: readonly [number, number, number]): boolean {
