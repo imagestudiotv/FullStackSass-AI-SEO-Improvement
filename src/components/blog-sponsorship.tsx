@@ -20,6 +20,27 @@ const BLACK = "bg-foreground text-background hover:bg-foreground/90 dark:bg-fore
 const WIDE = "h-auto min-h-12 w-full rounded-full py-2 text-center text-base leading-snug font-semibold whitespace-normal";
 
 /**
+ * Calls `onRestore` when the browser brings this page back from its
+ * back/forward cache, exactly as it was left: for Back from Stripe, where it was
+ * left going to Stripe. A normal load is not a restore.
+ */
+export function watchPageRestore(page: Pick<EventTarget, "addEventListener" | "removeEventListener">, onRestore: () => void): () => void {
+  const onPageShow = (event: Event) => {
+    if ((event as PageTransitionEvent).persisted) onRestore();
+  };
+  page.addEventListener("pageshow", onPageShow);
+  return () => page.removeEventListener("pageshow", onPageShow);
+}
+
+/**
+ * Calls `onClosed` when the dialog really is closed. A close event comes after
+ * the fact, and the dialog may have been opened again by then.
+ */
+export function afterNativeClose(dialog: Pick<HTMLDialogElement, "open">, onClosed: () => void): void {
+  if (!dialog.open) onClosed();
+}
+
+/**
  * "Get Featured in This Article" (client, 2026-10-08, after babylovegrowth's
  * article pages; design okPInmTvoyUs.jpg): a pill on the right of the
  * article's author row opens a panel with the offer, word for word as the
@@ -80,12 +101,23 @@ export function BlogSponsorship({
   const formId = useId();
   const busy = pending || redirecting;
 
-  function close() {
-    if (busy) return;
+  function reset() {
     setOpen(false);
     setStep("offer");
     setError(null);
   }
+
+  function close() {
+    if (!busy) reset();
+  }
+
+  /*
+    Back from Stripe through the back/forward cache: the page returns as it was
+    left, still "going to Stripe", which would keep the panel from closing and
+    the page from scrolling until a reload. The request id stays, so the same
+    details still reuse it.
+  */
+  useEffect(() => watchPageRestore(window, () => setRedirecting(false)), []);
 
   /* The dialog follows `open`. While it is open the page behind it does not scroll or shift. */
   useEffect(() => {
@@ -169,6 +201,8 @@ export function BlogSponsorship({
           event.preventDefault();
           close();
         }}
+        // Closed by the browser rather than through the state (a second Escape can force it): the state follows.
+        onClose={(event) => afterNativeClose(event.currentTarget, reset)}
         onClick={(event) => {
           // The panel's contents cover the whole box, so only the backdrop is the dialog itself.
           if (event.target === event.currentTarget) close();

@@ -219,6 +219,26 @@ describe("a comparison topic (client, 2026-11-05)", () => {
     expect(await addBlogAutopilotTopics({ topics: [compare("Beta versus Acme", "Beta", "Acme")] })).toMatchObject({ data: { added: 1 } });
   });
 
+  it("is not tried again when the same comparison has been added since it failed, whatever its state: that would pay twice", async () => {
+    await addBlogAutopilotTopics({ topics: [compare("Acme or Beta for a small shop", "Acme", "Beta")] });
+    const id = await topicId("Acme or Beta for a small shop");
+    await test.db.update(blogAutopilotTopics).set({ status: "failed", error: "No sources" }).where(eq(blogAutopilotTopics.id, id));
+    await addBlogAutopilotTopics({ topics: [compare("Beta versus Acme", "Beta", "Acme")] });
+    const other = await topicId("Beta versus Acme");
+
+    for (const status of ["queued", "writing", "written"]) {
+      await test.db.update(blogAutopilotTopics).set({ status }).where(eq(blogAutopilotTopics.id, other));
+      expect(await retryBlogAutopilotTopic(id)).toEqual({ ok: false, error: expect.stringContaining("Another topic already compares those") });
+    }
+    const [row] = await test.db.select().from(blogAutopilotTopics).where(eq(blogAutopilotTopics.id, id));
+    expect(row.status).toBe("failed");
+
+    // Once the other one is gone or failed too, it can be tried again.
+    await test.db.update(blogAutopilotTopics).set({ status: "failed" }).where(eq(blogAutopilotTopics.id, other));
+    expect(await retryBlogAutopilotTopic(id)).toEqual({ ok: true, data: null });
+    expect((await test.db.select().from(blogAutopilotTopics).where(eq(blogAutopilotTopics.id, id)))[0].status).toBe("queued");
+  });
+
   it("can be edited into another comparison and back to an ordinary topic, but not into one already waiting", async () => {
     await addBlogAutopilotTopics({ topics: [compare("Acme or Beta for a small shop", "Acme", "Beta"), compare("Gamma or Delta for a small shop", "Gamma", "Delta")] });
     const id = await topicId("Gamma or Delta for a small shop");
