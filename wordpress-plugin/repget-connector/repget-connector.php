@@ -1949,6 +1949,9 @@ function repget_sync($token = null) {
         */
         if (!empty($article['image']['url'])) {
             repget_sync_header($post_id, $article['image'], $slug, $article['title'], $existing === 0);
+        } elseif ($existing === 0) {
+            // Created without a picture: the record says so, so a later one is applied.
+            repget_remember_header($post_id, '', 0, true);
         }
 
         /*
@@ -2338,7 +2341,7 @@ function repget_attach_image($post_id, $url, $alt, $slug = '', $title = '', $att
  * What was set is now remembered on the post (REPGET_META_HEADER), which is what
  * tells "RepGet's picture changed" from "somebody chose another one here":
  *
- *  - a new post gets the picture;
+ *  - a new post gets the picture, or, sent without one, the first one sent later;
  *  - the same picture again (a retried hand-over) changes nothing;
  *  - a different picture replaces the one RepGet set, if that one is still the
  *    featured image. If it is not, it was replaced or removed on this site, and

@@ -728,6 +728,25 @@ $GLOBALS['image_fails'] = false;
 send_article(social_article('s7', 'T1', 'D1', 'https://store.test/b.jpg'));
 check('...and is tried again at the next hand-over', get_post_thumbnail_id($p) !== $first && m($p, 'rank_math_facebook_image_id') === (string) get_post_thumbnail_id($p));
 
+echo "\nRANK MATH: an article first sent without a picture\n";
+reset_all();
+$p = send_article(social_article('s8', 'T1', 'D1', null));
+check('no featured image, no social image yet', get_post_thumbnail_id($p) === 0 && m($p, 'rank_math_facebook_image') === '');
+send_article(social_article('s8', 'T1', 'D1', null));
+check('sent again without one: still nothing', get_post_thumbnail_id($p) === 0);
+send_article(social_article('s8', 'T1', 'D1', 'https://store.test/late.jpg'));
+$late = get_post_thumbnail_id($p);
+check('a later picture becomes the featured image', $late > 0);
+check('...and both social images', m($p, 'rank_math_facebook_image_id') === (string) $late && m($p, 'rank_math_twitter_image_id') === (string) $late);
+send_article(social_article('s8', 'T1', 'D1', 'https://store.test/later.jpg'));
+check('...and a picture changed after that replaces it', get_post_thumbnail_id($p) !== $late && m($p, 'rank_math_twitter_image_id') === (string) get_post_thumbnail_id($p));
+reset_all();
+$p = send_article(social_article('s9', 'T1', 'D1', null));
+$GLOBALS['attachments'][888] = 'https://site.test/wp-content/uploads/mine.jpg';
+update_post_meta($p, '_thumbnail_id', '888');
+send_article(social_article('s9', 'T1', 'D1', 'https://store.test/late.jpg'));
+check('a picture chosen on the site meanwhile is not replaced', get_post_thumbnail_id($p) === 888 && $GLOBALS['images'] === array());
+
 echo "\nRANK MATH: the backfill\n";
 reset_all();
 $GLOBALS['attachments'][900] = 'https://site.test/wp-content/uploads/old.jpg';
