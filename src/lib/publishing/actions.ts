@@ -13,7 +13,8 @@ import {
   publicationDispatches,
   publishLogs,
 } from "@/lib/db/schema";
-import { checkReleasable, HELD_MESSAGE, PREPARING_MESSAGE, sendableRevision, sendToTeam, twoStepArticles } from "@/lib/articles/review";
+import { pluginUpdates } from "@/lib/plugin/protocol";
+import { checkReleasable, HELD_MESSAGE, PLUGIN_UPDATE_NEEDED, PREPARING_MESSAGE, sendableRevision, sendToTeam, twoStepArticles } from "@/lib/articles/review";
 import {
   ProviderError,
   type Credentials,
@@ -461,6 +462,19 @@ export async function publishArticle(
       return { ok: false, error: article.translationOf ? HOLD_MESSAGES.translation_needs_plugin : "Connect somewhere to publish to first" };
     }
 
+    /*
+      An update of a post already on the site needs a plugin that can make one
+      (lib/plugin/protocol.ts). An older one would wait for ever, so say so now.
+    */
+    if (twoStep && article.publishedUrl) {
+      const [key] = await db
+        .select({ siteInfo: integrationKeys.siteInfo })
+        .from(integrationKeys)
+        .where(eq(integrationKeys.id, plugin.id))
+        .limit(1);
+      if (!pluginUpdates(key?.siteInfo?.match(/plugin (\d+\.\d+\.\d+)/)?.[1])) return { ok: false, error: PLUGIN_UPDATE_NEEDED };
+    }
+
     await db
       .update(articles)
       .set({ publishRequested: status, updatedAt: new Date() })
@@ -476,17 +490,19 @@ export async function publishArticle(
     await triggerPluginSync(site.id);
 
     const [after] = await db
-      .select({ publishedUrl: articles.publishedUrl })
+      .select({ publishedUrl: articles.publishedUrl, publishRequested: articles.publishRequested })
       .from(articles)
       .where(eq(articles.id, articleId))
       .limit(1);
+    // The press is answered when the plugin has reported. An older address alone says nothing about this update.
+    const answered = twoStep ? after?.publishRequested === null : Boolean(after?.publishedUrl);
 
     revalidatePath(`/websites/${site.id}/articles/${articleId}`);
     return {
       ok: true,
       data: {
-        publishedUrl: after?.publishedUrl ?? null,
-        queued: !after?.publishedUrl,
+        publishedUrl: answered ? (after?.publishedUrl ?? null) : null,
+        queued: !answered,
       },
     };
   }

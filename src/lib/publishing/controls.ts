@@ -144,10 +144,20 @@ export async function switchControl(
  *    waiting for the customer's source approval: back to the team.
  *
  * Staying as they are: articles the team approved as they stand (they keep their
- * date), and everything delivered or live. Those two get their stored revision
- * here, from the row as it stands, so a later working copy stays private (see
- * StoredRevision). The same sorting is counted, read-only, by
- * scripts/two-step-transition-dry-run.mjs.
+ * date), and everything delivered or live. Those get their stored revision here
+ * (see StoredRevision), from the row as it stands, so a later working copy stays
+ * private and a post on a website always has a customer view:
+ *
+ *  - Approved as it stands, or from before the review: stored as approved or
+ *    published.
+ *  - Delivered with an approval that no longer matches: the old publish job wrote
+ *    the CMS's picture address without re-hashing, so this is what the post is,
+ *    with no change waiting. Stored as published and left outside the review,
+ *    which grants nothing: only a press can resend it. It is not approved.
+ *  - Delivered with a change waiting for the team: stored as unreviewed. It stays
+ *    in their queue, and no path sends it.
+ *
+ * The same sorting is counted, read-only, by scripts/two-step-transition-dry-run.mjs.
  */
 export async function activateTwoStep(tx: Executor): Promise<number> {
   const notDelivering = sql`not exists (select 1 from publication_dispatches pd where pd.article_id = ${articles.id} and pd.status = 'in_flight')`;
@@ -182,17 +192,46 @@ export async function activateTwoStep(tx: Executor): Promise<number> {
     )
     .returning({ id: articles.id });
 
+  const delivered = sql`(${articles.status} = 'published' or ${articles.publishedUrl} is not null)`;
+  const staleOnSite = await tx
+    .select()
+    .from(articles)
+    .where(sql`${delivered} and ${articles.reviewStatus} = 'approved' and ${articles.reviewApprovedHash} is distinct from ${reviewHashSql}`);
+  for (const row of staleOnSite) {
+    await tx
+      .update(articles)
+      .set({
+        reviewStatus: null,
+        reviewApprovedHash: null,
+        reviewVersion: sql`${articles.reviewVersion} + 1`,
+        approvedRevision: revisionToStore(row, "published"),
+      })
+      .where(eq(articles.id, row.id));
+  }
+
   const standing = await tx
     .select()
     .from(articles)
     .where(
       sql`(${articles.reviewStatus} = 'approved' and ${articles.reviewApprovedHash} = ${reviewHashSql})
-        or (${articles.reviewStatus} is null and (${articles.status} = 'published' or ${articles.publishedUrl} is not null))`,
+        or (${articles.reviewStatus} is null and ${delivered})`,
     );
   for (const row of standing) {
     await tx
       .update(articles)
       .set({ approvedRevision: revisionToStore(row, row.reviewStatus === "approved" ? "approved" : "published") })
+      .where(eq(articles.id, row.id));
+  }
+
+  // A stored revision from an earlier time with the flow on is kept: it is still the last approved one.
+  const waitingOnSite = await tx
+    .select()
+    .from(articles)
+    .where(sql`${delivered} and ${articles.reviewStatus} = 'pending' and ${articles.approvedRevision} is null`);
+  for (const row of waitingOnSite) {
+    await tx
+      .update(articles)
+      .set({ approvedRevision: revisionToStore(row, "unreviewed") })
       .where(eq(articles.id, row.id));
   }
   return waiting.length + stale.length;

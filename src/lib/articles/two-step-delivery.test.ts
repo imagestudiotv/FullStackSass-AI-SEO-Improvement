@@ -92,6 +92,16 @@ vi.mock("@/lib/images/storage", async (importOriginal) => ({
   storeArticleImage: vi.fn(async () => "https://storage.test/new.jpg"),
   deleteArticleImage: vi.fn(),
 }));
+const images = vi.hoisted(() => ({ configured: false, generated: [] as string[] }));
+vi.mock("@/lib/images/generate", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/images/generate")>()),
+  isImageGenerationConfigured: () => images.configured,
+  generateArticleImage: vi.fn(async (title: string) => {
+    images.generated.push(title);
+    return { data: Buffer.from([1, 2, 3]), contentType: "image/jpeg", alt: "made", costUsd: 0.04 };
+  }),
+}));
+vi.mock("@/lib/images/scene", () => ({ describeArticleScene: vi.fn(async () => null) }));
 const emails = vi.hoisted(() => ({ built: [] as unknown[] }));
 vi.mock("@/lib/email/lifecycle", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/email/lifecycle")>()),
@@ -111,7 +121,7 @@ vi.mock("@/lib/articles/translate-article", async (importOriginal) => ({
 const library = vi.hoisted(() => ({ images: [] as { url: string; name: string }[] }));
 const cms = vi.hoisted(() => ({
   integrationId: "",
-  posts: [] as { title: string; contentHtml: string; status: string }[],
+  posts: [] as { title: string; contentHtml: string; status: string; featuredMediaId?: string | null; featuredImageUrl?: string | null }[],
   error: null as null | Error,
 }));
 vi.mock("@/lib/publishing/registry", () => {
@@ -141,6 +151,10 @@ vi.mock("@/lib/plugin/keys", async (importOriginal) => ({
 }));
 
 import { GET as pluginArticles } from "@/app/api/plugin/articles/route";
+import { POST as pluginPublished } from "@/app/api/plugin/published/route";
+import { getReviewQueue } from "@/lib/admin/network";
+import { discoverPublishedPlacements } from "@/lib/backlinks/placements";
+import { pluginUpdates } from "@/lib/plugin/protocol";
 import { updateAnyArticle } from "@/lib/admin/actions";
 import { partnerLinksInText } from "@/app/(app)/websites/[websiteId]/articles/[articleId]/article-data";
 import { actionErrorText } from "@/app/(app)/websites/[websiteId]/articles/[articleId]/failure-copy";
@@ -163,7 +177,7 @@ import { listReusableImages, removeArticleImage, updateArticleImageAlt } from "@
 import { prepareStoredArticle } from "@/lib/articles/internal-links";
 import { notifyReady, releaseAfterApproval } from "@/lib/articles/release";
 import { approveArticleResearch } from "@/lib/articles/research-actions";
-import { checkReleasable, customerTitleSql, PREPARING_MESSAGE, publicFieldSql, revisionToStore, reviewHash, sendableRevision, storedRevision, type StoredRevision } from "@/lib/articles/review";
+import { checkReleasable, customerTitleSql, PLUGIN_UPDATE_NEEDED, PREPARING_MESSAGE, publicFieldSql, publicRevisionSql, revisionToStore, reviewHash, sendableRevision, storedRevision, type StoredRevision } from "@/lib/articles/review";
 import { listGiven } from "@/lib/backlinks/actions";
 import { approveArticle, editReviewedArticle, removeManagedPlacement, reopenArticle } from "@/lib/backlinks/managed";
 import { setParticipation } from "@/lib/backlinks/network-settings";
@@ -1596,5 +1610,183 @@ describe("with the switch off, nothing changes", () => {
     await updateArticle(s.websiteId, s.post.id, { bodyHtml: "<p>Newer</p>" });
     expect(await runJob(s, "manual", using)).toEqual({ held: "revision_changed" });
     expect(inngestMock.send).toHaveBeenCalledTimes(1);
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+
+describe("review of the combined diff: what stays true on the edges", () => {
+  const on = () => test.db.transaction((tx) => switchControl(tx, "two_step_articles", true, { reason: "test", actor: "test" }));
+  const asAdmin = async <T,>(orgId: string, fn: () => Promise<T>) => {
+    vi.stubEnv("ADMIN_EMAILS", ADMIN);
+    const customerSession = state.session;
+    state.session = { user: { id: "u_admin", email: ADMIN, emailVerified: true }, session: { id: "s_admin", activeOrganizationId: orgId } };
+    try {
+      return await fn();
+    } finally {
+      state.session = customerSession;
+      vi.unstubAllEnvs();
+    }
+  };
+
+  it("switch-on, a live post approved with a stale hash (the old job's picture address): customer view kept, not approved, not queued, not sent", async () => {
+    await twoStep(false);
+    const s = await scene({ plannedInDays: 0, fields: { status: "published", publishedUrl: "https://site.test/old", firstLiveAt: new Date(), reviewStatus: "approved", reviewApprovedHash: "stale", researchReviewRequired: false, bodyHtml: "<p>On the site</p>" } });
+    const { TRANSITION_QUERY } = await import("../../../scripts/two-step-transition-dry-run.mjs");
+    const classes = (await test.client.query<{ class: string; articles: number }>(TRANSITION_QUERY)).rows.map((row) => row.class);
+    expect(classes).toContain("on_site_approval_stale_stored_as_published");
+    await on();
+
+    expect(await row(s.post.id)).toMatchObject({ reviewStatus: null, reviewApprovedHash: null, status: "published" });
+    expect(await getArticle(s.websiteId, s.post.id)).toMatchObject({ preparing: null, withTeam: false, bodyHtml: "<p>On the site</p>", status: "published" });
+    expect(storedRevision((await row(s.post.id)).approvedRevision)).toMatchObject({ source: "published" });
+    const overview = await getDashboardOverview({ websiteId: s.websiteId, ownerOrgId: s.orgId, showCredits: false });
+    expect(JSON.stringify(overview?.wins)).toContain(STAFF_TITLE);
+    expect(await claimDispatch({ articleId: s.post.id, websiteId: s.websiteId, channel: "direct", trigger: "automatic" })).toEqual({ ok: false, reason: "pending_review" });
+    expect(jobs.queued).toEqual([]);
+    expect(inngestMock.send).not.toHaveBeenCalled();
+  });
+
+  it("switch-on, a live post with a change waiting: the customer keeps it, no path sends it, and it is in the team's queue until approved", async () => {
+    await twoStep(false);
+    const s = await scene({ fields: { status: "published", publishedUrl: "https://site.test/wait", reviewStatus: "pending", researchReviewRequired: false, bodyHtml: "<p>Their change</p>", title: "Their title" } });
+    const { TRANSITION_QUERY } = await import("../../../scripts/two-step-transition-dry-run.mjs");
+    const classes = (await test.client.query<{ class: string; articles: number }>(TRANSITION_QUERY)).rows.map((row) => row.class);
+    expect(classes).toContain("on_site_change_waiting_view_kept_not_sendable");
+    await on();
+
+    expect(await getArticle(s.websiteId, s.post.id)).toMatchObject({ preparing: null, withTeam: true, status: "published", title: "Their title", bodyHtml: "<p>Their change</p>" });
+    expect(storedRevision((await row(s.post.id)).approvedRevision)).toMatchObject({ source: "unreviewed" });
+    expect(sendableRevision(await row(s.post.id))).toEqual({ ok: false, reason: "pending_review" });
+    expect(await publishArticle(s.websiteId, s.post.id)).toEqual({ ok: false, error: PREPARING_MESSAGE });
+    expect(await runJob(s)).toEqual({ held: "pending_review" });
+    expect(cms.posts).toEqual([]);
+    // Not for public outputs, and not translated.
+    const [{ ok }] = await test.db.select({ ok: publicRevisionSql }).from(articles).where(eq(articles.id, s.post.id));
+    expect(ok).toBe(false);
+    expect(await translateLiveArticle({ articleId: s.post.id, websiteId: s.websiteId, organizationId: s.orgId, language: "it" })).toMatchObject({ status: "skipped" });
+
+    const queue = await asAdmin(s.orgId, () => getReviewQueue());
+    expect(queue.articles.map((article) => article.id)).toContain(s.post.id);
+
+    await approve(s.post.id);
+    expect(storedRevision((await row(s.post.id)).approvedRevision)).toMatchObject({ source: "approved" });
+    expect(sendableRevision(await row(s.post.id))).toMatchObject({ ok: true });
+  });
+
+  it("switch-on keeps a revision stored earlier, rather than storing a working copy over it", async () => {
+    const s = await scene({ fields: { status: "published", publishedUrl: "https://site.test/x", bodyHtml: "<p>Approved</p>", researchReviewRequired: false } });
+    await approve(s.post.id);
+    await test.db.update(articles).set({ bodyHtml: "<p>Later</p>", reviewStatus: "pending", reviewApprovedHash: null }).where(eq(articles.id, s.post.id));
+    await twoStep(false);
+    await on();
+    expect(await getArticle(s.websiteId, s.post.id)).toMatchObject({ bodyHtml: "<p>Approved</p>" });
+    expect(storedRevision((await row(s.post.id)).approvedRevision)).toMatchObject({ source: "approved" });
+  });
+
+  it("an approved revision with no picture goes out with none: nothing is generated at send time", async () => {
+    images.configured = true;
+    images.generated.length = 0;
+    const s = await scene({ fields: { imageUrl: null, imageAlt: null } });
+    await approve(s.post.id);
+    const approved = await row(s.post.id);
+    await expect(runJob(s)).resolves.toMatchObject({ status: "publish" });
+    expect(images.generated).toEqual([]);
+    expect(cms.posts[0]).toMatchObject({ featuredMediaId: null, featuredImageUrl: null });
+    const [sent] = await test.db.select().from(publicationDispatches).where(eq(publicationDispatches.articleId, s.post.id));
+    expect(sent.revisionHash).toBe(reviewHash(approved));
+    expect(reviewHash(await row(s.post.id))).toBe(reviewHash(approved));
+
+    // With the switch off it is as it was.
+    const off = await scene({ fields: { imageUrl: null, imageAlt: null, reviewStatus: null, researchReviewRequired: false } });
+    await twoStep(false);
+    await expect(runJob(off)).resolves.toMatchObject({ status: "publish" });
+    expect(images.generated).toHaveLength(1);
+    images.configured = false;
+  });
+
+  it("a placement counts as published only if it is in what was actually sent", async () => {
+    const partner = await seedWebsite(test);
+    const link = `https://${LINK}/discover`;
+    const addPlacement = async (websiteId: string, articleId: string) => {
+      const [request] = await test.db.insert(backlinkRequests).values({ websiteId: partner.websiteId, targetUrl: link, status: "matched", creditsReserved: 10 }).returning();
+      const [placement] = await test.db.insert(placements).values({ requestId: request.id, hostWebsiteId: websiteId, articleId, anchor: "a", status: "drafted", managed: true, credits: 10 }).returning();
+      return placement.id;
+    };
+    const statusOf = async (id: string) => (await test.db.select().from(placements).where(eq(placements.id, id)))[0].status;
+
+    // On the site is the first text; the team has approved a second, with the link, that has not gone out.
+    const s = await scene({ fields: { bodyHtml: "<p>First text</p>", researchReviewRequired: false } });
+    await approve(s.post.id);
+    await runJob(s);
+    await test.db.update(articles).set({ bodyHtml: `<p>Second text with <a href="${link}">a</a></p>`, reviewStatus: "pending", reviewApprovedHash: null }).where(eq(articles.id, s.post.id));
+    const placementId = await addPlacement(s.websiteId, s.post.id);
+    await approve(s.post.id);
+    expect(await row(s.post.id)).toMatchObject({ status: "published", reviewStatus: "approved" });
+
+    await discoverPublishedPlacements();
+    expect(await statusOf(placementId)).toBe("drafted");
+
+    // Once it goes out, it counts.
+    await runJob(s);
+    expect(cms.posts.at(-1)?.contentHtml).toContain(LINK);
+    await discoverPublishedPlacements();
+    expect(await statusOf(placementId)).toBe("published");
+  });
+
+  it("an approved update on a plugin site: one press, through the plugin's real protocol, to the post it already has", async () => {
+    const s = await scene({ plugin: true, fields: { status: "published", publishedUrl: "https://site.test/p", firstLiveAt: new Date(), reviewStatus: "pending", researchReviewRequired: false, bodyHtml: "<p>Update</p>", title: "Updated title" } });
+    await test.db.update(integrationKeys).set({ siteInfo: "6.4.3 / plugin 1.9.0" }).where(eq(integrationKeys.websiteId, s.websiteId));
+    expect(await approveAndRelease(s.post.id)).toBe("customer_publishes");
+    expect(bell.sent[0].title).toMatch(/update is ready/);
+    // Offered only once pressed.
+    expect((await (await pluginPull()).json()).articles).toEqual([]);
+
+    const pressed = await publishArticle(s.websiteId, s.post.id);
+    expect(pressed).toEqual({ ok: true, data: { publishedUrl: null, queued: true } });
+    const handed = (await (await pluginPull()).json()).articles;
+    expect(handed).toHaveLength(1);
+    expect(handed[0]).toMatchObject({ id: s.post.id, title: "Updated title", status: "publish" });
+
+    const report = await pluginPublished(new NextRequest("https://app.test/api/plugin/published", {
+      method: "POST",
+      headers: { "x-integration-key": "k", "content-type": "application/json" },
+      body: JSON.stringify({ articleId: s.post.id, dispatchId: handed[0].dispatch.id, url: "https://site.test/p", remoteId: 7, status: "publish" }),
+    }));
+    expect(report.status).toBe(200);
+    expect(await row(s.post.id)).toMatchObject({ publishRequested: null, status: "published" });
+    expect((await (await pluginPull()).json()).articles).toEqual([]);
+    expect(await publishArticle(s.websiteId, s.post.id)).toEqual({ ok: false, error: "This exact version is already on the website." });
+  });
+
+  it("an update is not offered to a plugin too old to make one, and the customer is told why", async () => {
+    const s = await scene({ plugin: true, fields: { status: "published", publishedUrl: "https://site.test/q", reviewStatus: "pending", researchReviewRequired: false } });
+    await test.db.update(integrationKeys).set({ siteInfo: "6.4.3 / plugin 1.5.0" }).where(eq(integrationKeys.websiteId, s.websiteId));
+    await approve(s.post.id);
+    expect(await publishArticle(s.websiteId, s.post.id)).toEqual({ ok: false, error: PLUGIN_UPDATE_NEEDED });
+    expect((await row(s.post.id)).publishRequested).toBeNull();
+    // And the feed for such a plugin leaves a recorded press alone.
+    await test.db.update(articles).set({ publishRequested: "publish" }).where(eq(articles.id, s.post.id));
+    expect(await dueArticlesForPlugin(s.websiteId, 5, new Date(), { updates: false })).toEqual([]);
+    expect(await dueArticlesForPlugin(s.websiteId, 5, new Date(), { updates: true })).toHaveLength(1);
+    expect(pluginUpdates("1.5.2")).toBe(false);
+    expect(pluginUpdates("1.6.0")).toBe(true);
+    const t = getMessages("de").app;
+    expect(actionErrorText(PLUGIN_UPDATE_NEEDED, { t: t.editor, tWorkspace: t.workspace, tImage: t.image, delivery: ARTICLE_DELIVERY.de })).toBe(ARTICLE_DELIVERY.de.errPluginUpdate);
+  });
+
+  it("with the switch off, the plugin's feed is as it was: never a live post", async () => {
+    const s = await scene({ plugin: true, fields: { status: "published", publishedUrl: "https://site.test/r", reviewStatus: null, researchReviewRequired: false, publishRequested: "publish" } });
+    await twoStep(false);
+    expect(await dueArticlesForPlugin(s.websiteId, 5, new Date(), { updates: true })).toEqual([]);
+  });
+
+  it("the reopening rule, as stated: a stored revision stays in force, so an automatic site still sends the old text on its day", async () => {
+    const s = await scene({ autoPublish: true, plannedInDays: -1 });
+    await approve(s.post.id);
+    const approved = await row(s.post.id);
+    await reopenArticle({ articleId: s.post.id, expectedVersion: approved.reviewVersion, actorEmail: ADMIN });
+    expect(await dailyReleaseSends(s.post.id)).toHaveLength(1);
+    expect(sendableRevision(await row(s.post.id))).toMatchObject({ ok: true, from: "stored", hash: reviewHash(approved) });
   });
 });

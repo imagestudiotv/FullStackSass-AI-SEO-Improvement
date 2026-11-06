@@ -3,7 +3,7 @@ import { and, asc, eq, isNotNull, isNull, lte, or, sql as raw } from "drizzle-or
 import { db } from "@/lib/db";
 import { articles, calendarItems, publishLogs, websites } from "@/lib/db/schema";
 import { isFirstArticle } from "@/lib/publishing/policy";
-import { notBeforePlannedSql, releasableSql } from "@/lib/articles/review";
+import { notBeforePlannedSql, releasableSql, twoStepOffSql } from "@/lib/articles/review";
 import { notFrozenSql } from "@/lib/publishing/controls";
 import { notInFlightSql } from "@/lib/publishing/dispatch";
 
@@ -46,7 +46,7 @@ export function dueArticlesForPlugin(
   websiteId: string,
   limit: number,
   now: Date = new Date(),
-  options: { translations?: boolean } = {},
+  options: { translations?: boolean; updates?: boolean } = {},
 ) {
   return db
     .select({
@@ -71,9 +71,16 @@ export function dueArticlesForPlugin(
     .where(
       and(
         eq(articles.websiteId, websiteId),
-        // Written but not yet live. A published row already has its post.
-        eq(articles.status, "draft"),
-        isNull(articles.publishedUrl),
+        /*
+          Written but not yet live. A published row already has its post - except
+          under the two-step flow, where a person's press sends an approved
+          update of that post to a plugin that can make one (pluginUpdates): it
+          updates the post it already has for this article, and never its status.
+        */
+        or(
+          and(eq(articles.status, "draft"), isNull(articles.publishedUrl)),
+          options.updates ? and(isNotNull(articles.publishRequested), raw`not ${twoStepOffSql}`) : undefined,
+        ),
         // Never an article held for, or changed since, the RepGet team's
         // review - whatever else makes it due. See lib/articles/review.ts.
         releasableSql,

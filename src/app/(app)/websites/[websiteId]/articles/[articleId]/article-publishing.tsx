@@ -61,6 +61,7 @@ function currentLine(input: {
   if (facts.frozen) return { icon: AlertTriangle, tone: "warning", text: t.stateFrozen };
   // The two-step flow: the team has a newer copy. Publish stays, and sends what is on this page.
   if (facts.withTeam && !facts.delivering) {
+    if (facts.review === "pending") return { icon: Info, tone: "info", text: delivery.withTeamChange };
     return { icon: Info, tone: "info", text: facts.liveOnSite ? delivery.withTeamLive : delivery.withTeam };
   }
   if (facts.review === "pending") return { icon: AlertTriangle, tone: "warning", text: facts.reviewSource === "research" ? t.stateResearchPending : t.stateReviewPending };

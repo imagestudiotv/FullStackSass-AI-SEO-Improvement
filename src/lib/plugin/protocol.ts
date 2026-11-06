@@ -18,6 +18,13 @@ export const PLUGIN_V2_MIN = [1, 6, 0] as const;
  */
 export const PLUGIN_TRANSLATIONS_MIN = [1, 9, 0] as const;
 
+/**
+ * Handed an article it already published, 1.5.1+ updates that post instead of
+ * creating a second one (repget_sync, "idempotent by article id"), and 1.6.0+
+ * reports exactly that hand-over. Below that, an update is not offered.
+ */
+export const PLUGIN_UPDATES_MIN = [1, 6, 0] as const;
+
 /** True for a version string at or above `min`; false for anything unreadable. */
 function atLeast(version: string | null | undefined, min: readonly [number, number, number]): boolean {
   const match = /^(\d+)\.(\d+)\.(\d+)/.exec((version ?? "").trim());
@@ -32,6 +39,10 @@ function atLeast(version: string | null | undefined, min: readonly [number, numb
 
 export function pluginProtocol(version: string | null | undefined): Extract<DispatchProtocol, "plugin_v2" | "plugin_legacy"> {
   return atLeast(version, PLUGIN_V2_MIN) ? "plugin_v2" : "plugin_legacy";
+}
+
+export function pluginUpdates(version: string | null | undefined): boolean {
+  return atLeast(version, PLUGIN_UPDATES_MIN);
 }
 
 export function pluginTranslates(version: string | null | undefined): boolean {

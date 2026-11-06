@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray, isNotNull, isNull, lt, notInArray, or, sql } from "drizzle-orm";
 
 import { linksTo } from "@/lib/articles/link-guard";
-import { storedRevision, twoStepArticles, twoStepOffSql } from "@/lib/articles/review";
+import { storedRevision, twoStepArticles } from "@/lib/articles/review";
 import { recordCredit } from "@/lib/backlinks/credits";
 import type { LinkCheckResult } from "@/lib/backlinks/verify";
 import { db } from "@/lib/db";
@@ -10,6 +10,7 @@ import {
   backlinkRequests,
   linkChecks,
   placements,
+  publicationDispatches,
   websites,
 } from "@/lib/db/schema";
 import type { Executor } from "@/lib/db/types";
@@ -126,17 +127,34 @@ export async function recordArticlePublication(
   return promoted.length;
 }
 
+/**
+ * Under the two-step flow, the text actually on the website: the stored revision
+ * if the latest delivery was that revision, or if it is what stood there at
+ * switch-on. Null when that is not known: an approved revision may not be sent yet.
+ */
+async function sentText(articleId: string): Promise<string | null> {
+  const [article] = await db.select({ approvedRevision: articles.approvedRevision }).from(articles).where(eq(articles.id, articleId)).limit(1);
+  const stored = storedRevision(article?.approvedRevision);
+  if (!stored?.bodyHtml) return null;
+  const [last] = await db
+    .select({ revisionHash: publicationDispatches.revisionHash })
+    .from(publicationDispatches)
+    .where(and(eq(publicationDispatches.articleId, articleId), eq(publicationDispatches.status, "sent"), eq(publicationDispatches.late, false)))
+    .orderBy(desc(publicationDispatches.claimedAt))
+    .limit(1);
+  if (last) return last.revisionHash === stored.hash ? stored.bodyHtml : null;
+  return stored.source === "published" ? stored.bodyHtml : null;
+}
+
 async function placementsOutsideSentText(articleId: string): Promise<string[]> {
   if (!(await twoStepArticles())) return [];
-  const [article] = await db.select({ approvedRevision: articles.approvedRevision }).from(articles).where(eq(articles.id, articleId)).limit(1);
-  const sent = storedRevision(article?.approvedRevision);
-  if (!sent?.bodyHtml) return [];
+  const sent = await sentText(articleId);
   const rows = await db
     .select({ id: placements.id, url: backlinkRequests.targetUrl })
     .from(placements)
     .innerJoin(backlinkRequests, eq(backlinkRequests.id, placements.requestId))
     .where(and(eq(placements.articleId, articleId), inArray(placements.status, ["drafted", "unverified"])));
-  return rows.filter((row) => !linksTo(sent.bodyHtml ?? "", row.url)).map((row) => row.id);
+  return rows.filter((row) => !sent || !linksTo(sent, row.url)).map((row) => row.id);
 }
 
 /**
@@ -145,7 +163,7 @@ async function placementsOutsideSentText(articleId: string): Promise<string[]> {
  */
 export async function discoverPublishedPlacements(): Promise<number> {
   const found = await db
-    .select({ id: placements.id, status: placements.status, url: articles.publishedUrl })
+    .select({ id: placements.id, status: placements.status, url: articles.publishedUrl, articleId: articles.id })
     .from(placements)
     .innerJoin(articles, eq(articles.id, placements.articleId))
     .where(
@@ -154,12 +172,12 @@ export async function discoverPublishedPlacements(): Promise<number> {
         inArray(placements.status, ["drafted", "live"]),
         eq(articles.status, "published"),
         isNotNull(articles.publishedUrl),
-        // A team's new link in a working copy on a live article is not on the page yet.
-        sql`(${twoStepOffSql} or ${articles.reviewStatus} is distinct from 'pending')`,
       ),
     )
     .limit(200);
   for (const row of found) {
+    // Under the two-step flow a link counts only if it is in what actually went out.
+    if (row.status === "drafted" && (await placementsOutsideSentText(row.articleId)).includes(row.id)) continue;
     await db
       .update(placements)
       .set({

@@ -372,6 +372,25 @@ describe("the two-step flow (docs/two-step-articles.md)", () => {
     expect(html).toContain(d.lockedWithTeam);
   });
 
+  it("a change that was waiting at switch-on: nothing to send, and the panel says so", () => {
+    const html = render({
+      article: { ...ARTICLE, status: "published", publishedUrl: "https://example.com/a", withTeam: true },
+      facts: { ...READY, withTeam: true, review: "pending", liveOnSite: true, lastOutcome: { kind: "live", when: "1 Oct" } },
+    });
+    expect(html).toContain(d.withTeamChange);
+    expect(html).not.toContain(d.withTeamLive);
+    expect(button(html, en.app.editor.updatePost)).toContain('disabled=""');
+  });
+
+  it("an approved update on a plugin site has its Update button, where the plugin path used to end", () => {
+    const facts = { ...READY, destination: { kind: "plugin" as const }, liveOnSite: true, lastOutcome: { kind: "live" as const, when: "1 Oct" } };
+    const html = render({ article: { ...ARTICLE, status: "published", publishedUrl: "https://example.com/a" }, facts });
+    expect(button(html, en.app.editor.updatePost)).not.toContain('disabled=""');
+    expect(html).not.toContain(en.app.editor.statePluginPublished);
+    const off = render({ article: { ...ARTICLE, status: "published", publishedUrl: "https://example.com/a" }, facts: { ...facts, twoStep: false } });
+    expect(off).toContain(en.app.editor.statePluginPublished);
+  });
+
   it("re-editing an approved article: the last approved version stays, with Publish working and the text locked", () => {
     const html = render({ article: { ...ARTICLE, withTeam: true }, facts: { ...READY, withTeam: true } });
     expect(html).toContain("Some words here.");

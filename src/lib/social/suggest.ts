@@ -3,7 +3,7 @@ import "server-only";
 import { and, desc, eq, inArray, isNotNull, notInArray, sql } from "drizzle-orm";
 
 import { isAiConfigured } from "@/lib/ai/client";
-import { customerTitleSql, nothingToShowSql, publicFieldSql } from "@/lib/articles/review";
+import { customerTitleSql, publicRevisionSql, publicFieldSql } from "@/lib/articles/review";
 import { mainLanguageCode } from "@/lib/articles/translation-languages";
 import { db } from "@/lib/db";
 import { articles, brandVoice, keywords, socialSuggestions, websites } from "@/lib/db/schema";
@@ -102,7 +102,7 @@ export async function suggestForWebsite(websiteId: string, deps: Partial<Suggest
   const live = await db
     .select({ title: customerTitleSql, url: articles.publishedUrl, imageUrl: publicFieldSql(articles.imageUrl, "imageUrl") })
     .from(articles)
-    .where(and(eq(articles.websiteId, websiteId), isNotNull(articles.publishedUrl), isNotNull(articles.firstLiveAt), sql`not ${nothingToShowSql}`))
+    .where(and(eq(articles.websiteId, websiteId), isNotNull(articles.publishedUrl), isNotNull(articles.firstLiveAt), sql`${publicRevisionSql}`))
     .orderBy(desc(articles.firstLiveAt))
     .limit(10);
 
@@ -290,7 +290,7 @@ async function nextPinImage(websiteId: string): Promise<{ title: string; url: st
         isNotNull(articles.publishedUrl),
         isNotNull(articles.firstLiveAt),
         isNotNull(articles.imageUrl),
-        sql`not ${nothingToShowSql}`,
+        sql`${publicRevisionSql}`,
       ),
     )
     .orderBy(desc(articles.firstLiveAt))

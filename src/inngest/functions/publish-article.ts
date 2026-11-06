@@ -354,6 +354,13 @@ export const publishArticleJob = inngest.createFunction(
       if (!provider?.uploadMedia) return null;
 
       /*
+        The two-step flow sends exactly the approved revision: with no picture
+        in it, the post goes out with none. Nobody approved one made now, and
+        each later send would make and pay for another.
+      */
+      if (!prepared.image && (await twoStepArticles())) return null;
+
+      /*
         One of the site's own photographs ("Use photos from my website"): it
         is already in this site's media library, so the post is pointed at it
         rather than given a second copy. Asked of the connected site first - a
