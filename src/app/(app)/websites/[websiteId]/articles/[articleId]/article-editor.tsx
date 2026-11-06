@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useDeferredValue, useEffect, useState, useTransition } from "react";
+import { useCallback, useDeferredValue, useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { PARTNER_LINK_SCOPE, PartnerLinkStyles } from "@/components/partner-link-styles";
@@ -175,6 +175,7 @@ export function ArticleEditor({
   const [saving, startSave] = useTransition();
   const [saveError, setSaveError] = useState<string | null>(null);
   const [lastSaveOk, setLastSaveOk] = useState(false);
+  const savedHere = useRef(false);
   /** A featured-image description typed and not saved yet (it saves when its field is left). */
   const [altUnsaved, setAltUnsaved] = useState(false);
   // One guard for the page: the article's fields and that description.
@@ -206,9 +207,22 @@ export function ArticleEditor({
       }
       draft.saveSucceeded();
       setLastSaveOk(true);
+      savedHere.current = true;
       router.refresh();
     });
   }
+
+  /*
+    A save that hands the article back to the team replaces this editor, and the
+    Save button with it, with the "preparing" panel. Its heading takes the focus
+    that went with the button, or a keyboard user is back at the top of the page.
+  */
+  useEffect(() => {
+    return () => {
+      if (!savedHere.current || document.activeElement !== document.body) return;
+      document.getElementById("article-preparing-title")?.focus({ preventScroll: true });
+    };
+  }, []);
 
   function handleDiscard() {
     draft.discard();

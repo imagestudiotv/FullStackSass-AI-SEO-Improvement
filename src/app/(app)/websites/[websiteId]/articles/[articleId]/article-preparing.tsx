@@ -94,7 +94,8 @@ export function ArticlePreparing({
             <Loader2 className="mt-0.5 size-5 shrink-0 animate-spin text-primary motion-reduce:animate-none" aria-hidden="true" />
           )}
           <div className="min-w-0 space-y-1">
-            <h2 id="article-preparing-title" className="font-semibold">
+            {/* Focusable: a Save that hands the article back to the team replaces the editor with this (article-editor.tsx). */}
+            <h2 id="article-preparing-title" tabIndex={-1} className="font-semibold outline-none">
               {stage === "writing" ? t.writingTitle : t.teamTitle}
             </h2>
             <p className="text-sm leading-6 text-muted-foreground">{postUrl ? t.withTeamChange : stage === "writing" ? t.writingBody : t.teamBody}</p>
