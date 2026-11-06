@@ -2132,6 +2132,7 @@ function repget_confirm($article_id, $dispatch_id, $post_id, $status, $outcome =
     in the trash                 post_trashed: left there.
     published                    reported as it stands, never overwritten.
     pending, scheduled, private  draft_changed: somebody decided that here.
+    open in WordPress elsewhere  post_locked: not published, not overwritten.
     draft, differs from record   draft_changed: not published, not overwritten.
     draft, as recorded, same revision    status change only (repget_publish_draft).
     draft, as recorded, newer revision   that revision written to this post, then published.
