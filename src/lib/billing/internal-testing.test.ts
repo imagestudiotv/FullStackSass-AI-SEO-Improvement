@@ -277,8 +277,7 @@ describe("the scope", () => {
 
   it.each([[undefined], [""], [" , "]])("with the variable %j, it refuses everything", async (value) => {
     const { listed } = await workspace();
-    if (value === undefined) vi.stubEnv("INTERNAL_TEST_WEBSITE_IDS", undefined as unknown as string);
-    else vi.stubEnv("INTERNAL_TEST_WEBSITE_IDS", value);
+    vi.stubEnv("INTERNAL_TEST_WEBSITE_IDS", value);
     expect(await startAudit(listed.id)).toEqual({ ok: false, error: "Choose a plan for this website first" });
     expect(await isEntitledToSpend(listed.id, AUDIT_AND_SOCIAL)).toMatchObject({ ok: false });
     expect(await socialAccess(listed.id)).toEqual({ level: "none", platforms: [] });
