@@ -62,6 +62,7 @@ import {
 } from "@/lib/billing/spend-quota";
 import { requireEntitledForSpend } from "@/lib/billing/entitled";
 import { endFreeTrialIfUsed } from "@/lib/billing/end-free-trial";
+import { OFFER_HELD_MESSAGE } from "@/lib/billing/repget-offer";
 import { freeArticlesDailyRule, freeArticlesUsedMessage } from "@/lib/billing/free-articles";
 import { FREE_ARTICLES_ONLY, FREE_ARTICLES_ONLY_PAYPAL } from "@/lib/plans/features";
 import { deliverNow, enqueueJob } from "@/lib/jobs/outbox";
@@ -1510,7 +1511,9 @@ export async function queueArticleForCalendarItem(
     */
     if ("freeArticlesUsed" in created && created.freeArticlesUsed) {
       // Through PayPal the plan waits for the customer: what starts it, and when it starts anyway.
-      if ((await endFreeTrialIfUsed(websiteId)) === "waits_for_customer") {
+      const started = await endFreeTrialIfUsed(websiteId);
+      if (started === "offer_held") return { ok: false, error: OFFER_HELD_MESSAGE };
+      if (started === "waits_for_customer") {
         const [sub] = await db
           .select({ end: subscriptions.currentPeriodEnd })
           .from(subscriptions)

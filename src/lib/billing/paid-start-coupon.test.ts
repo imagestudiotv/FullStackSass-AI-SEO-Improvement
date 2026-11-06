@@ -18,16 +18,13 @@ vi.mock("@/lib/stripe/client", () => ({
   stripe: { subscriptions: { retrieve: stripeMock.retrieve, update: stripeMock.update } },
 }));
 
-import { applyPaidStartCoupon, paidStartUpdate } from "@/lib/billing/paid-start-coupon";
+import { isCouponRefusal, paidStartIdempotencyKey, paidStartUpdate } from "@/lib/billing/paid-start-coupon";
 import { readOfferCode, repgetCouponFor } from "@/lib/billing/repget-offer";
 
 let test: TestDb;
-const SUB = "sub_1";
 const month = (tier: string, priceCents: number) => ({ tier, interval: "month", currency: "eur", priceCents });
 const items = (price: string) => ({ data: [{ price: { id: price } }] });
 const waiting = { paid_start_offer: "REPGET" };
-const live = (fields: Record<string, unknown>) =>
-  stripeMock.retrieve.mockResolvedValue({ id: SUB, status: "trialing", metadata: {}, items: items("price_grow"), ...fields });
 
 beforeAll(async () => {
   test = await createTestDb();
@@ -119,24 +116,20 @@ describe("when the paid service starts", () => {
     await expect(paidStartUpdate({ metadata: {}, items: items("price_grow") } as never)).resolves.toBeNull();
   });
 
-  it("before a free period runs out", async () => {
-    live({ metadata: waiting });
-    await applyPaidStartCoupon(SUB);
-    expect(stripeMock.update.mock.calls[0].slice(0, 2)).toEqual([SUB, { discounts: [{ coupon: "GROW40" }], metadata: { paid_start_offer: "" } }]);
+
+});
+
+describe("the helpers", () => {
+  it("only Stripe saying no counts as a refusal", () => {
+    expect(isCouponRefusal(Object.assign(new Error("x"), { type: "StripeInvalidRequestError" }))).toBe(true);
+    expect(isCouponRefusal(Object.assign(new Error("x"), { type: "StripeConnectionError" }))).toBe(false);
+    expect(isCouponRefusal(new Error("x"))).toBe(false);
+    expect(isCouponRefusal(null)).toBe(false);
   });
 
-  it("still if the offer was switched off meanwhile: a customer who was told keeps it", async () => {
-    delete process.env.REPGET_OFFER_ENABLED;
-    live({ metadata: waiting });
-    await applyPaidStartCoupon(SUB);
-    expect(stripeMock.update).toHaveBeenCalledTimes(1);
-  });
-
-  it("not once the free period is over, and not a second time", async () => {
-    live({ status: "active", metadata: waiting });
-    await applyPaidStartCoupon(SUB);
-    live({ metadata: {} });
-    await applyPaidStartCoupon(SUB);
-    expect(stripeMock.update).not.toHaveBeenCalled();
+  it("the key changes by the hour", () => {
+    const at = (time: string) => paidStartIdempotencyKey("sub_1", new Date(time));
+    expect(at("2027-03-10T12:05:00Z")).toBe(at("2027-03-10T12:55:00Z"));
+    expect(at("2027-03-10T12:05:00Z")).not.toBe(at("2027-03-10T13:05:00Z"));
   });
 });

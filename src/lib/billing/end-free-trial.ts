@@ -4,7 +4,7 @@ import { and, count, eq, gte, isNotNull } from "drizzle-orm";
 
 import { isFreeArticlesTrial } from "@/lib/billing/entitlement-period";
 import { payPalPlanWaits } from "@/lib/billing/free-articles";
-import { paidStartUpdate } from "@/lib/billing/paid-start-coupon";
+import { holdPaidStart, isCouponRefusal, markOfferSettled, paidStartIdempotencyKey, paidStartUpdate } from "@/lib/billing/paid-start-coupon";
 import { syncStripeSubscription } from "@/lib/billing/stripe-events";
 import { db } from "@/lib/db";
 import { articles, notifications, subscriptions } from "@/lib/db/schema";
@@ -40,7 +40,9 @@ export type EndTrialOutcome =
   | "not_yet"
   | "failed"
   /** Through PayPal: all written, and the plan waits for "Start your plan now" or the end of the free days. */
-  | "waits_for_customer";
+  | "waits_for_customer"
+  /** Stripe refused the promised REPGET coupon: the plan has not started, the offer still waits, and staff have been told. */
+  | "offer_held";
 
 /**
  * Starts the plan now if the website's free articles have all been written.
@@ -85,20 +87,19 @@ export async function endFreeTrialIfUsed(websiteId: string): Promise<EndTrialOut
     if (live.status === "trialing") {
       // In one update, so the coupon is on the first paid invoice (lib/billing/paid-start-coupon.ts).
       const coupon = await paidStartUpdate(live);
-      const end = (extra: typeof coupon, key: string) =>
-        stripe.subscriptions.update(
-          sub.stripeSubscriptionId!,
-          { trial_end: "now", ...extra },
-          { idempotencyKey: `free-articles-used:${sub.stripeSubscriptionId}${key}` },
-        );
       try {
-        await end(coupon, coupon ? ":coupon" : "");
+        await stripe.subscriptions.update(
+          sub.stripeSubscriptionId,
+          { trial_end: "now", ...coupon },
+          { idempotencyKey: coupon ? paidStartIdempotencyKey(sub.stripeSubscriptionId) : `free-articles-used:${sub.stripeSubscriptionId}` },
+        );
       } catch (error) {
-        // A coupon Stripe refuses must not hold the plan back. Loud, because the customer was promised it.
-        if (!coupon || (error as { type?: string }).type !== "StripeInvalidRequestError") throw error;
-        console.error("[billing] REPGET coupon refused: the plan starts at full price", { websiteId, subscription: sub.stripeSubscriptionId, error });
-        await end(null, ":no-coupon");
+        // Never full price in place of what was promised: the plan waits, and settlePaidStartOffers tries again.
+        if (!coupon || !isCouponRefusal(error)) throw error;
+        await holdPaidStart({ websiteId, subscriptionId: sub.stripeSubscriptionId, error });
+        return "offer_held";
       }
+      if (coupon) await markOfferSettled(websiteId);
     }
     // Recorded now rather than when the webhook lands, so the paid month's allowance is there at once.
     await syncStripeSubscription(sub.stripeSubscriptionId);

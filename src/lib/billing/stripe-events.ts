@@ -3,7 +3,6 @@ import type Stripe from "stripe";
 
 import { addonPaymentFailed, fulfilAddonPurchase } from "@/lib/addons/fulfil";
 import { cancellationOps } from "@/lib/billing/checkout-providers";
-import { applyPaidStartCoupon } from "@/lib/billing/paid-start-coupon";
 import {
   syncProviderSubscription,
   type SubscriptionSnapshot,
@@ -299,12 +298,6 @@ async function processBillingEvent(event: Stripe.Event): Promise<void> {
       const organizationId = session.metadata?.organizationId;
       const addonId = session.metadata?.addonId;
       if (organizationId && addonId) await addonPaymentFailed({ organizationId, addonId, stripeSessionId: session.id });
-      return;
-    }
-
-    // The REPGET discount goes on before the first paid invoice (lib/billing/paid-start-coupon.ts).
-    case "customer.subscription.trial_will_end": {
-      await applyPaidStartCoupon(event.data.object.id);
       return;
     }
 

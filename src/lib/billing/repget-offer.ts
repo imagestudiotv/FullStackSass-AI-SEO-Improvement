@@ -22,6 +22,9 @@ import type { Executor } from "@/lib/db/types";
  */
 export const REPGET_CODE = "REPGET";
 
+/** To a customer whose plan is waiting on a coupon Stripe refused (lib/billing/paid-start-coupon.ts). */
+export const OFFER_HELD_MESSAGE = `Your plan has not started yet, because we could not apply your ${REPGET_CODE} discount. You have not been charged, and our team has been told.`;
+
 const COUPONS: Record<string, { coupon: string; priceCents: number; amountOffCents: number }> = {
   launch: { coupon: "LAUNCH40", priceCents: 9900, amountOffCents: 3960 },
   grow: { coupon: "GROW40", priceCents: 14900, amountOffCents: 5960 },

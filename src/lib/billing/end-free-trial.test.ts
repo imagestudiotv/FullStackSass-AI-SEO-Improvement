@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { articles, notifications, plans, subscriptions } from "@/lib/db/schema";
+import { articles, billingCheckouts, notifications, plans, subscriptions } from "@/lib/db/schema";
 import { createTestDb, type TestDb } from "@/test/db";
 import { seedWebsite } from "@/test/fixtures";
 
@@ -21,6 +21,8 @@ vi.mock("@/lib/stripe/client", () => ({
 }));
 const sync = vi.hoisted(() => ({ syncStripeSubscription: vi.fn() }));
 vi.mock("@/lib/billing/stripe-events", () => sync);
+const mail = vi.hoisted(() => ({ sendEmail: vi.fn() }));
+vi.mock("@/lib/email/send", () => mail);
 
 import { endFreeTrialIfUsed } from "@/lib/billing/end-free-trial";
 import { FREE_ARTICLES } from "@/lib/plans/features";
@@ -88,13 +90,29 @@ describe("starting the plan after the free articles", () => {
       ]);
     });
 
-    it("a coupon Stripe refuses does not hold the plan back", async () => {
+    it("a coupon Stripe refuses never starts the plan at full price: one attempt, the offer waits, staff are told", async () => {
       const { websiteId, subscriptionId } = await offered();
+      await test.db.insert(billingCheckouts).values({ organizationId: (await test.db.select().from(subscriptions).where(eq(subscriptions.websiteId, websiteId)))[0].organizationId, websiteId, provider: "stripe", status: "completed", trialDays: 30, requestParams: { offer: "REPGET" }, createdAt: new Date() });
+      process.env.ADMIN_EMAILS = "staff@fixture.test";
       const log = vi.spyOn(console, "error").mockImplementation(() => {});
       stripeMock.update.mockRejectedValueOnce(Object.assign(new Error("No such coupon"), { type: "StripeInvalidRequestError" }));
+      await expect(endFreeTrialIfUsed(websiteId)).resolves.toBe("offer_held");
+      expect(stripeMock.update).toHaveBeenCalledTimes(1);
+      expect(sync.syncStripeSubscription).not.toHaveBeenCalled();
+      expect(mail.sendEmail.mock.calls[0][0].text).toContain(subscriptionId);
+      const [row] = await test.db.select().from(billingCheckouts).where(eq(billingCheckouts.websiteId, websiteId));
+      expect(row.requestParams).toMatchObject({ offer: "REPGET", offerHeldAt: expect.any(String) });
+      expect((row.requestParams as Record<string, unknown>).offerSettledAt).toBeUndefined();
+      log.mockRestore();
+    });
+
+    it("a press after the free articles ran out is told the same, and resumes once the coupon is put right", async () => {
+      const { websiteId } = await offered();
+      stripeMock.update.mockRejectedValueOnce(Object.assign(new Error("No such coupon"), { type: "StripeInvalidRequestError" }));
+      const log = vi.spyOn(console, "error").mockImplementation(() => {});
+      await expect(endFreeTrialIfUsed(websiteId)).resolves.toBe("offer_held");
       await expect(endFreeTrialIfUsed(websiteId)).resolves.toBe("ended");
-      expect(stripeMock.update.mock.calls[1].slice(0, 2)).toEqual([subscriptionId, { trial_end: "now" }]);
-      expect(log).toHaveBeenCalled();
+      expect(stripeMock.update.mock.calls[1][1]).toMatchObject({ trial_end: "now", discounts: [{ coupon: "GROW40" }] });
       log.mockRestore();
     });
 
