@@ -106,6 +106,18 @@ describe("/go/<code>", () => {
     expect(click.landingPath).toBe("/sign-up");
   });
 
+  it("arriving from ?ref= on the website creation page, in Spanish: same page, type and address; the click stores only the path", async () => {
+    const env = partnerTestDeps(test.db);
+    state.deps = env.deps;
+    const partner = await seedPartner(test.db, { code: "website-link" });
+    const response = await openLink("website-link", "?to=/es/website-creation&ref=website-link&type=redesign&email=a%40b.com&next=%2Fdashboard");
+    const location = new URL(response.headers.get("location")!);
+    expect(location.origin + location.pathname).toBe("https://repget.test/es/website-creation");
+    expect(Object.fromEntries(location.searchParams)).toEqual({ type: "redesign", email: "a@b.com" });
+    const [click] = await test.db.select().from(partnerClicks).where(eq(partnerClicks.partnerId, partner.partnerId));
+    expect(click.landingPath).toBe("/es/website-creation");
+  });
+
   it("an unknown code keeps them too, with no cookie: the visitor did not choose the code", async () => {
     const env = partnerTestDeps(test.db);
     state.deps = env.deps;

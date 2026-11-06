@@ -63,6 +63,7 @@ const LANDING_PATHS = [
   "/faq",
   "/docs",
   "/contact",
+  "/website-creation",
 ];
 const LOCALE_PREFIX = new RegExp(`^/(?:${PREFIXED_LOCALES.join("|")})(?=/|$)`);
 
@@ -92,8 +93,10 @@ const EMAIL_SHAPE = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
 /**
  * What the page itself would have read, had ?ref= not sent the visitor through
  * /go/<code>: sign-up's destination and pre-filled address (app/(auth)/sign-up/
- * page.tsx), and the website the free audit is asked to check (audit-page.tsx).
- * Only for those pages, so an address never reaches any other page's URL.
+ * page.tsx), the website the free audit is asked to check (audit-page.tsx), and
+ * the project type and address the website creation page reads, in any language
+ * (website-start.tsx). Only for those pages, so an address never reaches any
+ * other page's URL.
  *
  * `landing` is landingPath's answer, a path on this site, so none of this can
  * leave it. `next` must pass safeNext unchanged: a rejected value is dropped,
@@ -114,5 +117,11 @@ export function landingParams(landing: string, query: URLSearchParams): [string,
     carried.push(["email", email && EMAIL_SHAPE.test(email) ? email : null]);
   }
   if (rest === "/audit") carried.push(["domain", value("domain")]);
+  if (rest === "/website-creation") {
+    const type = value("type");
+    const email = value("email");
+    carried.push(["type", type === "new" || type === "redesign" ? type : null]);
+    carried.push(["email", email && EMAIL_SHAPE.test(email) ? email : null]);
+  }
   return carried.flatMap(([key, kept]) => (kept ? [[key, kept] as [string, string]] : []));
 }

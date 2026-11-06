@@ -155,31 +155,35 @@ function RequestForm({
     });
   }
 
-  function field(name: WebsiteProjectField, control: (props: { id: string; name: string; "aria-invalid"?: true; "aria-describedby": string; disabled: boolean }) => React.ReactNode, optional = false) {
+  function field(name: WebsiteProjectField, control: (props: { id: string; name: string; "aria-invalid"?: true; "aria-describedby"?: string; disabled: boolean }) => React.ReactNode, optional = false) {
     const id = `${baseId}-${name}`;
     const words = copy.fields[name];
     const error = errors[name];
+    const note = error ?? words.hint;
     return (
       <div className="grid gap-1.5">
         <Label htmlFor={id}>
           {words.label}
           {optional ? <span className="font-normal text-muted-foreground"> ({copy.optional})</span> : null}
         </Label>
-        {control({ id, name, "aria-invalid": error ? true : undefined, "aria-describedby": `${id}-note`, disabled: pending })}
-        <p id={`${id}-note`} className={cn("text-xs", error ? "text-destructive" : "text-muted-foreground")}>
-          {error ?? words.hint}
-        </p>
+        {control({ id, name, "aria-invalid": error ? true : undefined, "aria-describedby": note ? `${id}-note` : undefined, disabled: pending })}
+        {note ? (
+          <p id={`${id}-note`} className={cn("text-xs", error ? "text-destructive" : "text-muted-foreground")}>
+            {note}
+          </p>
+        ) : null}
       </div>
     );
   }
 
   return (
     <WorkspaceSection title={copy.formTitle[kind]} description={copy.formHelp}>
-      <form onSubmit={submit} noValidate className="grid gap-4">
+      {/* method="post": a submit before the page has hydrated must not put a brief and contact details in the address. */}
+      <form method="post" onSubmit={submit} noValidate className="grid gap-4">
         {field("brief", (props) => <Textarea {...props} rows={5} maxLength={4000} />)}
         {kind === "redesign" ? field("existingUrl", (props) => <Input {...props} inputMode="url" autoCapitalize="none" spellCheck={false} placeholder="example.com" />, true) : null}
         {field("requirements", (props) => <Textarea {...props} rows={3} maxLength={4000} />, true)}
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid items-start gap-4 md:grid-cols-3">
           {field("contactName", (props) => <Input {...props} autoComplete="name" defaultValue={defaultName} maxLength={120} />)}
           {field("contactEmail", (props) => <Input {...props} type="email" autoComplete="email" defaultValue={defaultEmail} maxLength={254} />)}
           {field("contactPhone", (props) => <Input {...props} type="tel" autoComplete="tel" maxLength={40} />, true)}

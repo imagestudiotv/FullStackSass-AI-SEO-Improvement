@@ -1,5 +1,5 @@
 import type { Locale } from "@/lib/i18n/config";
-import type { WebsiteProjectField, WebsiteProjectKind, WebsiteProjectStatus } from "@/lib/website-projects/shared";
+import { websiteProjectKindOf, type WebsiteProjectField, type WebsiteProjectKind, type WebsiteProjectStatus } from "@/lib/website-projects/shared";
 
 /**
  * The signed-in screen for website projects, and what the sidebar, Billing and
@@ -81,6 +81,12 @@ export type WebsiteProjectCopy = {
   };
   addons: Record<WebsiteProjectKind, { name: string; description: string }>;
 };
+
+/** An add-on or purchase row with a website project's name in the reader's language; any other row as it is. */
+export function localisedWebsiteProjectName<T extends { slug: string; name: string }>(row: T, locale: Locale): T {
+  const kind = websiteProjectKindOf(row.slug);
+  return kind ? { ...row, name: WEBSITE_PROJECT_COPY[locale].addons[kind].name } : row;
+}
 
 export const WEBSITE_PROJECT_COPY: Record<Locale, WebsiteProjectCopy> = {
   en: {

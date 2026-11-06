@@ -164,6 +164,28 @@ describe("what ?ref= must not lose (landingParams)", () => {
     expect(landingParams(landing, query({ next, email: "me@acme.com", domain: "acme.com", plan: "grow" }))).toEqual([]);
   });
 
+  it("keeps the website creation page and its project type and address, in any language", () => {
+    expect(landingPath("/website-creation")).toBe("/website-creation");
+    expect(landingPath("/es/website-creation")).toBe("/es/website-creation");
+    const carried = query({ type: "redesign", email: "a@b.com", ref: "dami", next, domain: "acme.com", other: "x" });
+    expect(landingParams("/website-creation", carried)).toEqual([["type", "redesign"], ["email", "a@b.com"]]);
+    expect(landingParams("/es/website-creation", carried)).toEqual([["type", "redesign"], ["email", "a@b.com"]]);
+    expect(landingParams("/es/website-creation", query({ type: "new" }))).toEqual([["type", "new"]]);
+  });
+
+  it.each(["other", "NEW", "<script>"])("drops a project type that is not one: %j", (bad) => {
+    expect(landingParams("/website-creation", query({ type: bad }))).toEqual([]);
+  });
+
+  it.each(["<script>", "not an email", "a@b"])("drops an address on the website creation page that is not one: %j", (bad) => {
+    expect(landingParams("/es/website-creation", query({ email: bad }))).toEqual([]);
+  });
+
+  it("puts no project type on any other page", () => {
+    expect(landingParams("/pricing", query({ type: "redesign" }))).toEqual([]);
+    expect(landingParams("/sign-up", query({ type: "redesign" }))).toEqual([]);
+  });
+
   it("is not read for a language prefix sign-up does not have", () => {
     expect(landingParams("/es/sign-up", query({ next, email: "me@acme.com" }))).toEqual([]);
   });
