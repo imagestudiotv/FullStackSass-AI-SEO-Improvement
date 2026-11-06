@@ -23,8 +23,9 @@ import { askClaude, SpentError, type CallUsage } from "./model";
  *     with any source means there is nothing to compare, and the run fails
  *     honestly, saying which, instead of writing from memory.
  *  2. A FACT SHEET. The plan picks the facts, each with a quotation from a
- *     source. A quotation that is not really in the page is thrown out, here,
- *     in code. The body is written from what survives, never from the pages or
+ *     source. A quotation that is not really in the page, or that comes from
+ *     a page about another of the things compared without naming this one, is
+ *     thrown out, here, in code. The body is written from what survives, never from the pages or
  *     from what the model remembers. What could not be confirmed is listed, and
  *     the article says so rather than guessing.
  *  3. CHECKS AFTER. Code looks for the structure, for prices and percentages
@@ -265,7 +266,7 @@ const oneLine = (value: unknown) => String(value ?? "").replace(/\s+/g, " ").tri
 export function readComparisonPlan(value: Record<string, unknown>, brief: ComparisonBrief, research: ComparisonResearch): { comparison: PlannedComparison; warnings: string[] } {
   const entities = brief.entities.map((entity) => entity.name);
   const named = new Map(entities.map((name) => [folded(name), name]));
-  const pages = new Map(research.sources.map((source) => [source.id, folded(source.excerpt)]));
+  const pages = new Map(research.sources.map((source) => [source.id, { entity: folded(source.entity), text: folded(source.excerpt) }]));
   const raw = Array.isArray(value.facts) ? value.facts : [];
   const facts: ComparisonFact[] = [];
   for (const item of raw) {
@@ -275,7 +276,10 @@ export function readComparisonPlan(value: Record<string, unknown>, brief: Compar
     const sourceId = oneLine(fact.sourceId);
     const quote = oneLine(fact.quote);
     if (!entity || !claim || quote.length < 15) continue;
-    if (!pages.get(sourceId)?.includes(folded(quote))) continue;
+    const page = pages.get(sourceId);
+    if (!page?.text.includes(folded(quote))) continue;
+    // A page about another of the things compared supports this one only where the quotation names it: another's price is not its price.
+    if (page.entity !== folded(entity) && !folded(quote).includes(folded(entity))) continue;
     facts.push({ entity, claim, sourceId, quote });
   }
   const withFacts = entities.filter((name) => facts.some((fact) => fact.entity === name));
@@ -289,7 +293,7 @@ export function readComparisonPlan(value: Record<string, unknown>, brief: Compar
     ...(Array.isArray(value.unverified) ? value.unverified.map(oneLine).filter(Boolean) : []),
   ];
   const warnings: string[] = [];
-  if (facts.length < raw.length) warnings.push(`${raw.length - facts.length} of the plan's ${raw.length} facts were thrown out: their quotation is not in the source they name, or they are not about what is being compared.`);
+  if (facts.length < raw.length) warnings.push(`${raw.length - facts.length} of the plan's ${raw.length} facts were thrown out: their quotation is not in the source they name, is about something else, or they are not about what is being compared.`);
   if (without.length > 0) warnings.push(`Nothing could be confirmed about ${without.join(", ")}; the article should say so. Check it does.`);
   for (const entity of research.entities) for (const note of entity.notes) warnings.push(`Research on ${entity.name}: ${note}`);
 

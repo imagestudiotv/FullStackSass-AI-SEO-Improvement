@@ -162,9 +162,35 @@ describe("the plan's facts", () => {
     ]);
     expect(comparison.criteria).toEqual(["Price", "Tracking"]);
     expect(comparison.unverified).toEqual(["Gamma Audit: nothing could be confirmed from the sources", "Beta Rank: current price"]);
-    expect(warnings[0]).toBe("4 of the plan's 6 facts were thrown out: their quotation is not in the source they name, or they are not about what is being compared.");
+    expect(warnings[0]).toBe("4 of the plan's 6 facts were thrown out: their quotation is not in the source they name, is about something else, or they are not about what is being compared.");
     expect(warnings.join(" ")).toContain("Nothing could be confirmed about Gamma Audit");
     expect(warnings.join(" ")).toContain("Research on Beta Rank");
+  });
+
+  describe("from a page about another of the things compared", () => {
+    const CROSS: ComparisonResearch = {
+      ...RESEARCH,
+      sources: [
+        { ...RESEARCH.sources[0], excerpt: "Acme SEO costs $129 per month. It compares well: Beta Rank starts at $49 per month on its basic plan." },
+        RESEARCH.sources[1],
+      ],
+    };
+    const beta = fact("Beta Rank", "S2", "includes rank tracking for 100 keywords");
+
+    it("are thrown out when the quotation does not name the thing: another's price is not its price", () => {
+      const { comparison, warnings } = readComparisonPlan({ facts: [fact("Acme SEO", "S1", "Acme SEO costs $129 per month"), beta, fact("Beta Rank", "S1", "costs $129 per month. It compares well")] }, BRIEF, CROSS);
+      expect(comparison.facts.map((item) => item.quote)).toEqual(["Acme SEO costs $129 per month", "includes rank tracking for 100 keywords"]);
+      expect(warnings[0]).toContain("1 of the plan's 3 facts were thrown out");
+    });
+
+    it("are kept when the quotation names it, in any letter case", () => {
+      const { comparison } = readComparisonPlan({ facts: [fact("Acme SEO", "S1", "Acme SEO costs $129 per month"), beta, fact("Beta Rank", "S1", "beta rank starts at $49 per month")] }, BRIEF, CROSS);
+      expect(comparison.facts.filter((item) => item.sourceId === "S1").map((item) => item.entity)).toEqual(["Acme SEO", "Beta Rank"]);
+    });
+
+    it("count for nothing towards the two things a comparison needs", () => {
+      expect(() => readComparisonPlan({ facts: [fact("Acme SEO", "S1", "Acme SEO costs $129 per month"), fact("Beta Rank", "S1", "costs $129 per month. It compares well")] }, BRIEF, CROSS)).toThrow(/only 1 of the 3/);
+    });
   });
 
   it("are refused when fewer than two things are left with one: the sources do not support a comparison", () => {
