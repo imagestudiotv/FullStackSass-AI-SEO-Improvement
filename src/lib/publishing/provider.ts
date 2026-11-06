@@ -71,6 +71,25 @@ export type PublishResult = {
   remoteUrl: string;
   /** Echoed back: a platform may downgrade a publish to a draft. */
   status: string;
+  /** What the platform says it now holds: what the next update compares with (lib/publishing/overwrite-guard.ts). */
+  baseline?: RemoteBaseline;
+};
+
+/**
+ * A post as the platform holds it, to tell whether somebody changed it since
+ * RepGet last sent it. modifiedAt: the platform's own last-saved time, null when
+ * it gives none. hash: of the fields a reader sees, as the platform returned
+ * them, null when it did not return them.
+ */
+export type RemoteBaseline = {
+  modifiedAt: string | null;
+  hash: string | null;
+};
+
+export type RemoteState = RemoteBaseline & {
+  status: string | null;
+  /** The stored content, for a platform that keeps RepGet's ownership marker in it. */
+  rawContent: string | null;
 };
 
 /** An uploaded image, as the platform refers to it afterwards. */
@@ -112,6 +131,14 @@ export class ProviderError extends Error {
   }
 }
 
+/** The platform itself refused an update because the post changed: its own precondition failed. */
+export class RemoteChangedError extends ProviderError {
+  constructor(message: string, status?: number) {
+    super(message, "unknown", status);
+    this.name = "RemoteChangedError";
+  }
+}
+
 /** Decrypted credentials, keyed by the provider's own field names. */
 export type Credentials = Record<string, string>;
 
@@ -139,11 +166,25 @@ export type CmsProvider = {
     input: PublishInput,
   ): Promise<PublishResult>;
 
+  /**
+   * `guard.expectedModifiedAt`: the last-saved time just read and accepted. A
+   * platform with a precondition of its own sends it, and raises
+   * RemoteChangedError when the platform refuses. The others ignore it.
+   */
   updatePost(
     credentials: Credentials,
     remoteId: string,
     input: PublishInput,
+    guard?: { expectedModifiedAt: string | null },
   ): Promise<PublishResult>;
+
+  /**
+   * The post as the platform holds it now; null when it no longer exists.
+   * Throws when the platform cannot be asked. A provider without this cannot
+   * show a post is unchanged, so its posts are not updated at all
+   * (lib/publishing/overwrite-guard.ts).
+   */
+  readRemote?(credentials: Credentials, remoteId: string): Promise<RemoteState | null>;
 
   /**
    * Uploads an image, when the platform supports it.

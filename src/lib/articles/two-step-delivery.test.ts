@@ -137,6 +137,8 @@ vi.mock("@/lib/publishing/registry", () => {
       cms.posts.push(input);
       return { remoteId: String(cms.posts.length), remoteUrl: `https://site.test/?p=${cms.posts.length}`, status: input.status };
     }),
+    // Not saved on the site since it was sent. See lib/publishing/overwrite-guard.ts.
+    readRemote: vi.fn(async () => ({ modifiedAt: "2020-01-01T00:00:00Z", hash: null, status: "publish", rawContent: null })),
     updatePost: vi.fn(async (_c: unknown, remoteId: string, input: { title: string; contentHtml: string; status: string }) => {
       cms.posts.push(input);
       return { remoteId, remoteUrl: `https://site.test/?p=${remoteId}`, status: input.status };
@@ -1953,6 +1955,44 @@ describe("review of the combined diff: what stays true on the edges", () => {
         return "synced";
       });
       expect(await publishArticle(refused.websiteId, refused.post.id)).toEqual({ ok: true, data: { publishedUrl: null, queued: false } });
+    });
+
+    it("a press updating a live post says so to the plugin; a refusal leaves it live, answered and said once", async () => {
+      const s = await heldDraft();
+      await publishArticle(s.websiteId, s.post.id);
+      await live(s.post.id, (await handOver())[0].dispatch.id);
+      await test.db.update(articles).set({ bodyHtml: "<p>A newer approved text</p>", reviewStatus: "pending" }).where(eq(articles.id, s.post.id));
+      await approve(s.post.id);
+      await publishArticle(s.websiteId, s.post.id);
+
+      const [handed, ...others] = await handOver();
+      expect(others).toEqual([]);
+      expect(handed).toMatchObject({ id: s.post.id, status: "publish", existingPost: { delivered: true } });
+      expect(handed).not.toHaveProperty("existingDraft");
+
+      const before = bell.sent.length;
+      const body = { articleId: s.post.id, dispatchId: handed.dispatch.id, url: null, remoteId: 7, error: "post_changed", status: "draft", outcome: "post_changed" };
+      expect(await (await report(body)).json()).toEqual({ ok: true, recorded: "post_changed" });
+      expect(await row(s.post.id)).toMatchObject({ status: "published", publishedUrl: LIVE_URL, publishRequested: null, error: DRAFT_REFUSALS.post_changed });
+      expect(await handOver()).toEqual([]);
+      expect(bell.sent.length).toBe(before + 1);
+      expect(bell.sent.at(-1)).toMatchObject({ type: "article.failed", body: `Approved title. ${ARTICLE_DELIVERY.en.refusedPostChanged}` });
+      expect(await (await report(body)).json()).toEqual({ ok: true, recorded: "duplicate" });
+      expect(bell.sent.length).toBe(before + 1);
+    });
+
+    it("a post reported in the trash is not recorded as live", async () => {
+      const s = await heldDraft();
+      await publishArticle(s.websiteId, s.post.id);
+      const [handed] = await handOver();
+      await report({ articleId: s.post.id, dispatchId: handed.dispatch.id, url: DRAFT_URL, remoteId: 7, status: "trash" });
+      expect(await row(s.post.id)).toMatchObject({ status: "draft", firstLiveAt: null });
+    });
+
+    it("a hand-over nobody pressed carries no such instruction", async () => {
+      const s = await heldDraft();
+      const claim = await claimDispatch({ articleId: s.post.id, websiteId: s.websiteId, channel: "plugin", trigger: "plugin" });
+      expect(claim).toMatchObject({ ok: true, existingPost: null });
     });
 
     it("changed in WordPress: a distinct outcome, the press answered, nothing live and no address changed", async () => {

@@ -1,3 +1,5 @@
+import { remoteHash } from "@/lib/publishing/remote-hash";
+import type { RemoteBaseline } from "@/lib/publishing/provider";
 import { isPublicWebsiteUrl } from "@/lib/websites/url";
 import { InsecureTransportError, safeFetch } from "@/lib/net/safe-fetch";
 import { insecureConnectionMessage } from "@/lib/publishing/https";
@@ -238,17 +240,36 @@ export type PublishResult = {
   remoteId: string;
   remoteUrl: string;
   status: string;
+  baseline: RemoteBaseline;
 };
+
+/** A post as the REST API returns it with context=edit, which a create and an update also answer with. */
+type EditedPost = {
+  id: number;
+  link: string;
+  status: string;
+  modified_gmt?: string;
+  slug?: string;
+  password?: string;
+  featured_media?: number;
+  title?: { raw?: string };
+  content?: { raw?: string };
+  excerpt?: { raw?: string };
+};
+
+function baselineOf(post: EditedPost): RemoteBaseline {
+  const raw = [post.title?.raw, post.content?.raw, post.excerpt?.raw];
+  return {
+    modifiedAt: post.modified_gmt ?? null,
+    hash: raw.every((part) => typeof part === "string") ? remoteHash([...raw, post.slug, post.password, post.featured_media]) : null,
+  };
+}
 
 export async function publishPost(
   credentials: WordPressCredentials,
   input: PublishInput,
 ): Promise<PublishResult> {
-  const post = await request<{
-    id: number;
-    link: string;
-    status: string;
-  }>(credentials, "/posts", {
+  const post = await request<EditedPost>(credentials, "/posts", {
     method: "POST",
     body: JSON.stringify({
       title: input.title,
@@ -268,7 +289,31 @@ export async function publishPost(
     remoteId: String(post.id),
     remoteUrl: post.link,
     status: post.status,
+    baseline: baselineOf(post),
   };
+}
+
+/**
+ * The post as WordPress holds it, for lib/publishing/overwrite-guard.ts; null
+ * when it no longer exists. A 404 is also what a site with the REST API switched
+ * off answers, so that is asked before saying the post is gone: a failure of the
+ * second request throws, as every request here does.
+ */
+export async function readPost(
+  credentials: WordPressCredentials,
+  remoteId: string,
+): Promise<(RemoteBaseline & { status: string; rawContent: string | null }) | null> {
+  try {
+    const post = await request<EditedPost>(
+      credentials,
+      `/posts/${encodeURIComponent(remoteId)}?context=edit&_fields=id,status,modified_gmt,slug,password,featured_media,title,content,excerpt`,
+    );
+    return { ...baselineOf(post), status: post.status, rawContent: post.content?.raw ?? null };
+  } catch (error) {
+    if (!(error instanceof WordPressError) || error.status !== 404) throw error;
+    await request(credentials, "/posts?per_page=1&_fields=id");
+    return null;
+  }
 }
 
 /**
@@ -303,7 +348,7 @@ export async function updatePost(
   remoteId: string,
   input: PublishInput,
 ): Promise<PublishResult> {
-  const post = await request<{ id: number; link: string; status: string }>(
+  const post = await request<EditedPost>(
     credentials,
     `/posts/${encodeURIComponent(remoteId)}`,
     {
@@ -324,6 +369,7 @@ export async function updatePost(
     remoteId: String(post.id),
     remoteUrl: post.link,
     status: post.status,
+    baseline: baselineOf(post),
   };
 }
 

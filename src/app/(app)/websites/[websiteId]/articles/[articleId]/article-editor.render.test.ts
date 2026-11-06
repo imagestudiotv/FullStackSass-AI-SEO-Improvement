@@ -411,6 +411,12 @@ describe("the two-step flow (docs/two-step-articles.md)", () => {
       ["draft_unverified", d.refusedUnverified],
       ["post_trashed", d.refusedTrashed],
       ["post_deleted", d.refusedDeleted],
+      ["post_changed", d.refusedPostChanged],
+      ["post_unverified", d.refusedPostUnverified],
+      ["post_locked", d.refusedPostLocked],
+      ["update_trashed", d.refusedUpdateTrashed],
+      ["update_deleted", d.refusedUpdateDeleted],
+      ["update_unavailable", d.refusedUpdateUnavailable],
     ] as const;
     for (const [refusal, text] of refusals) {
       const html = render({

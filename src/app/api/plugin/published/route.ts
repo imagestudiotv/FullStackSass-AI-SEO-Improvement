@@ -33,7 +33,8 @@ const CORS = {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** WordPress post statuses a report may carry. */
-const POST_STATUSES = new Set(["publish", "future", "draft", "pending", "private"]);
+// "trash": a hand-over that found the post thrown away (1.10.0). Anything unknown reads as live, so it must be known.
+const POST_STATUSES = new Set(["publish", "future", "draft", "pending", "private", "trash"]);
 
 export function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS });
@@ -88,8 +89,8 @@ export async function POST(request: NextRequest) {
   */
   const reported = typeof body.status === "string" && POST_STATUSES.has(body.status) ? body.status : "publish";
   /*
-    1.10.0: what a Publish press on a draft found on the site. A refusal says
-    nothing was written; published_in_wordpress, that somebody else put it live.
+    1.10.0: what a Publish press found on the site. A refusal says nothing was
+    written; published_in_wordpress, that what is live is not known to be this revision.
   */
   const report: PluginReport = isDraftRefusal(body.outcome)
     ? { kind: "refused", refusal: body.outcome }

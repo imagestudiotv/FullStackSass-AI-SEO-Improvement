@@ -76,10 +76,11 @@ Plugin 1.10.0 records, after every write, a fingerprint of the post as WordPress
 | The plugin finds | What it does | What the customer sees |
 | --- | --- | --- |
 | A draft, unchanged, holding this revision | Publishes that post, changing its status and giving it a date and a unique address | Live on your website, with the real address |
-| A draft, unchanged, holding an older approved revision | Writes exactly the sent revision to that post, then publishes it | The same |
+| A draft, unchanged, holding an older approved revision | Writes exactly the sent revision to that post, then publishes it. A save landing first refuses it (see "Updating a post" below) | The same |
 | A draft that was changed | Nothing | The draft was changed in WordPress and must be published there |
 | A draft written by plugin 1.9.0 or older | Publishes it only if it holds exactly what RepGet sends now. Otherwise nothing, because nothing proves it is unchanged | The same result, or RepGet cannot confirm it is unchanged and it must be published there |
 | Pending, scheduled or private | Nothing | The draft was changed in WordPress |
+| Open in WordPress by somebody else | Nothing | Somebody has it open: ask them to close it, then try again |
 | Already published | Nothing is written. Recorded as live with its real address, marked `publishedInWordPress` on the delivery | Live on your website, and that what is live may differ from this version. Update stays off until the team approves a newer one |
 | In the trash | Nothing, and it stays there | Restore it, then press Publish again |
 | Deleted | Nothing, and no new post | It was deleted. Contact the team |
@@ -90,9 +91,41 @@ A refusal ends that delivery as failed and answers the press, so nothing retries
 
 **With the flow off** nothing changes: a delivered draft is not offered to the plugin, and the page shows what it showed before.
 
-**Direct WordPress connections** have the button already: a press updates the remote post with the revision and status, and that update does overwrite edits made in WordPress. This section's check applies to the plugin only.
+### Updating a post that is already on the website
 
-**What is not proved.** The plugin's check and its write are not one database transaction. Going live, the status change cannot overwrite text, and the write is guarded on the text being what was checked. Writing a newer revision, a save landing in the instant between the check and `wp_update_post` would be replaced; WordPress keeps it as a revision where revisions are on. A process killed between writing a newer revision and recording it reads as "changed", the safe direction. A person with the draft open in the editor is not detected until they save.
+Plugin and direct connections alike, with the switch on or off: an update is sent only if the post can be shown unchanged since RepGet last sent it. Otherwise it is refused, with a translated reason on the panel and one notification, nothing is retried, and pressing again asks the site again. There is no override.
+
+| The site | What protects the post | Refused when |
+| --- | --- | --- |
+| WordPress, plugin 1.10.0 | **Compare-and-swap in the database.** One `UPDATE` whose `WHERE` holds the exact bytes (MD5) of the title, text, excerpt, address and password, plus status and date. A save reaching the row first makes it match nothing. See "What is not atomic" below | Changed, no record and not proved, somebody has it open, trashed, deleted |
+| Ghost | **Ghost's own optimistic lock.** The post is read and compared, and the update carries the `updated_at` read; Ghost refuses it if that is not what it holds. Its timestamps have a resolution of a second. Not exercised against a real Ghost here | Changed, or refused by Ghost (409), deleted |
+| WordPress, direct | **Check, then write: not atomic.** The REST API has no `If-Match`. A save landing between the read and the write, a window of one request, is replaced; WordPress keeps it as a revision where revisions are on | Changed, trashed, deleted, cannot be shown |
+| Shopify, Webflow, Wix | **Check, then write: not atomic**, the same window, and no revision to fall back on. Written from their documentation with stubbed requests, not against real stores. Wix's last-edit field could not be confirmed from its reference, so Wix leans on the hash | Changed, deleted, archived (Webflow), cannot be shown |
+| Webhook | Nothing can be read, so **no update is sent at all** | Every update |
+
+**How a direct connection tells.** Each send keeps what the platform answered, its last-saved time and a hash of what a reader sees (`request_snapshot.remoteBaseline`), with no migration. The post counts as unchanged if either still matches: the hash lets a Save with no change through, the time allows for a platform that answers a write and a read differently. An edit within the same second as the send is not seen. Re-reading after the write to report a later change is left out: it would narrow nothing, and could not tell our write from the next save.
+
+**Posts sent before this existed** (`SEND_TIME_TOLERANCE_MS`, 2 minutes): sent directly, they count as unchanged only if the platform's last-saved time is no later than the send, plus the tolerance. An edit within the tolerance is not seen. Anything else that moves the time is refused, including a plugin touching the post or a Save with no change: the safe direction. Through the plugin, they have no record: an update is refused unless the post already holds exactly what RepGet sends.
+
+**The switch off is not exempt**, so this is a change for existing customers even with the flow off: pressing Update on a direct connection is now refused where it used to overwrite, and every update over a webhook is refused. Nothing changes for a first send.
+
+**A retry after a lost answer.** The send itself changes the post, so a retry finds it different. An attempt that got no answer is recorded as possibly landed (`mayHaveLanded`), and covers the change if the post's last-saved time falls within that attempt, plus the tolerance, and, on WordPress, the post carries that attempt's ownership marker. A refused attempt, or one the site answered with a 4xx, covers nothing. On a platform without a marker, an edit in that same stretch is not seen.
+
+**Through the plugin, a hand-over nobody pressed** (a repeat after a lost report, an automatic release, the flow off) uses the same comparison, but one it may not write is reported as it stands, marked `publishedInWordPress` when live. A refusal would bring it back at every check, with nobody to tell. The same revision again writes nothing. An automatic direct release of the same revision is refused once out loud, and quietly on later days.
+
+**What is not atomic through the plugin.**
+
+- The featured image and post meta are not in the row. The image is read once more just before the `UPDATE`, so a change before that refuses. One made in that instant is not seen by the swap: the text goes in, and the picture stays, because nothing here replaces a featured image somebody chose. The record then includes it.
+- The record of what was written is its own query, just after the swap. A process killed in between leaves a post that reads as changed: refused, never overwritten.
+- Pictures, SEO fields and save hooks follow the swap and can stop part way. The same revision again does not rewrite the text.
+- The edit lock (`wp_check_post_lock`) is **advisory**: a time and a user in post meta, good for 150 seconds. A closed tab can hold it that long, and REST clients and other editors do not take or respect it. Somebody with unsaved work who opens the post just after the check, and then saves, replaces this write, as any later save does.
+- A table not in a UTF-8 character set hashes other bytes than PHP does: every write there is refused, none overwrites.
+
+`repget_localize_older_posts` (a post's pictures, copied later) was already a guarded `UPDATE`, of the text only. It now compares every fingerprinted column, and writes nothing else. It does not respect the edit lock, because it replaces no words: a person saving over it brings RepGet's picture addresses back, and the next check copies them again.
+
+The hooks a guarded write fires, in `wp_insert_post`'s order: `wp_transition_post_status`, `edit_post`, `post_updated` (revisions, the redirect from a changed address), `save_post`, `wp_insert_post`, `wp_after_insert_post`. The columns go through `sanitize_post` and the `wp_insert_post_data` filter first, so they hold what `wp_update_post` would have stored. What was replaced is kept as a revision where revisions are on.
+
+Concurrency across real processes is in `wordpress-plugin/tests/real-wordpress-concurrency.php`, cases 8 and 9, which CI runs on MySQL and which fail if the writer and the editor did not overlap.
 
 **Reopening does not recall.** Reopening or editing an approved article leaves its stored revision in force. So on an automatic site the daily release can still send the old text on its day, and a customer's press still can.
 
@@ -183,6 +216,7 @@ Rollback of the column: `ALTER TABLE "articles" DROP COLUMN "approved_revision";
 - `lib/articles/review.ts`: `sendableRevision`, `StoredRevision`, `heldFromCustomer`, `customerTitleSql`, `afterArticleEdit`.
 - `lib/publishing/policy.ts`: `isFirstArticle`, where the first-article exception ends.
 - `lib/publishing/dispatch.ts`: `claimDispatch`, the last check on every path and attempt; `carriesWithdrawnLink`, `recordLinkFindings`.
+- `lib/publishing/overwrite-guard.ts`: `checkBeforeUpdate`, `judgeUpdate`, `refuseUpdate`. The plugin's side: `repget_overwrite_post`, `repget_swap_row`, `repget_press_step`.
 - `lib/articles/release.ts`: `releaseAfterApproval`, `notifyReady`.
 - `lib/backlinks/managed.ts`: `approveArticle`, which stores the revision, stamps the sources and clears an older press.
 - `lib/articles/actions.ts`: `getArticle`, `listArticles`.

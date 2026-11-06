@@ -2,6 +2,8 @@ import crypto from "node:crypto";
 
 import {
   ProviderError,
+  RemoteChangedError,
+  type RemoteBaseline,
   type CmsProvider,
   type Credentials,
   type PublishInput,
@@ -9,6 +11,7 @@ import {
 import { isPublicWebsiteUrl } from "@/lib/websites/url";
 import { InsecureTransportError, safeFetch } from "@/lib/net/safe-fetch";
 import { insecureConnectionMessage } from "@/lib/publishing/https";
+import { remoteHash } from "@/lib/publishing/remote-hash";
 
 /**
  * Ghost.
@@ -183,7 +186,19 @@ type GhostPost = {
   url?: string;
   status?: string;
   updated_at?: string;
+  title?: string;
+  html?: string | null;
+  custom_excerpt?: string | null;
+  slug?: string;
+  feature_image?: string | null;
 };
+
+function baselineOf(post: GhostPost): RemoteBaseline {
+  return {
+    modifiedAt: post.updated_at ?? null,
+    hash: typeof post.html === "string" ? remoteHash([post.title, post.html, post.custom_excerpt, post.slug, post.feature_image]) : null,
+  };
+}
 
 /**
  * Ghost stores posts as Lexical documents, but accepts HTML when asked to
@@ -256,7 +271,7 @@ export const ghostProvider: CmsProvider = {
   async createPost(credentials, input) {
     const body = await request<{ posts?: GhostPost[] }>(
       credentials,
-      "/posts/?source=html",
+      "/posts/?source=html&formats=html",
       { method: "POST", body: JSON.stringify(postBody(input)) },
     );
 
@@ -269,32 +284,62 @@ export const ghostProvider: CmsProvider = {
       remoteId: post.id,
       remoteUrl: post.url ?? "",
       status: post.status === "published" ? "publish" : "draft",
+      baseline: baselineOf(post),
     };
   },
 
-  async updatePost(credentials, remoteId, input) {
+  /**
+   * Null when the post is gone. A 404 is also what an address with no Ghost
+   * behind it answers, so the site is asked before saying so.
+   */
+  async readRemote(credentials, remoteId) {
+    let post: GhostPost | undefined;
+    try {
+      const body = await request<{ posts?: GhostPost[] }>(credentials, `/posts/${encodeURIComponent(remoteId)}/?formats=html`);
+      post = body.posts?.[0];
+    } catch (error) {
+      if (!(error instanceof ProviderError) || error.status !== 404) throw error;
+      await request(credentials, "/site/");
+      return null;
+    }
+    return post ? { ...baselineOf(post), status: post.status ?? null, rawContent: null } : null;
+  },
+
+  async updatePost(credentials, remoteId, input, guard) {
     /**
-     * Read first for updated_at. Ghost refuses an edit without it, and
-     * fetching it here means an article edited in Ghost since we published is
-     * detected rather than silently overwritten.
+     * Ghost's own optimistic lock: it refuses an edit whose updated_at is not the
+     * one it holds. So what goes in the request is the time read and checked
+     * before this (lib/publishing/overwrite-guard.ts). Read here only for a caller
+     * that checked nothing, which then detects nothing older than this read.
      */
-    const current = await request<{ posts?: GhostPost[] }>(
-      credentials,
-      `/posts/${encodeURIComponent(remoteId)}/`,
-    );
-    const existing = current.posts?.[0];
-    if (!existing) {
-      throw new ProviderError("That post no longer exists in Ghost", "not_found");
+    let expected = guard?.expectedModifiedAt ?? null;
+    if (!expected) {
+      const current = await request<{ posts?: GhostPost[] }>(
+        credentials,
+        `/posts/${encodeURIComponent(remoteId)}/`,
+      );
+      const existing = current.posts?.[0];
+      if (!existing) {
+        throw new ProviderError("That post no longer exists in Ghost", "not_found");
+      }
+      expected = existing.updated_at ?? null;
     }
 
-    const body = await request<{ posts?: GhostPost[] }>(
-      credentials,
-      `/posts/${encodeURIComponent(remoteId)}/?source=html`,
-      {
-        method: "PUT",
-        body: JSON.stringify(postBody(input, existing.updated_at)),
-      },
-    );
+    let body: { posts?: GhostPost[] };
+    try {
+      body = await request<{ posts?: GhostPost[] }>(
+        credentials,
+        `/posts/${encodeURIComponent(remoteId)}/?source=html&formats=html`,
+        {
+          method: "PUT",
+          body: JSON.stringify(postBody(input, expected ?? undefined)),
+        },
+      );
+    } catch (error) {
+      // UpdateCollisionError: somebody saved it after the time we sent.
+      if (error instanceof ProviderError && error.status === 409) throw new RemoteChangedError(error.message, 409);
+      throw error;
+    }
 
     const post = body.posts?.[0];
     if (!post) {
@@ -305,6 +350,7 @@ export const ghostProvider: CmsProvider = {
       remoteId: post.id,
       remoteUrl: post.url ?? "",
       status: post.status === "published" ? "publish" : "draft",
+      baseline: baselineOf(post),
     };
   },
 

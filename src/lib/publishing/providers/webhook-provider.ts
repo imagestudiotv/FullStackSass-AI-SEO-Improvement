@@ -258,5 +258,9 @@ export const webhookProvider: CmsProvider = {
   /**
    * No uploadMedia. The payload carries an image URL when one exists, which is
    * simpler for a receiver than handling a multipart upload.
+   *
+   * No readRemote either: RepGet can only post to this endpoint, never read
+   * from it. So nothing can show a post there is unchanged, and an update is
+   * refused before it gets here (lib/publishing/overwrite-guard.ts).
    */
 };

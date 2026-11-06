@@ -47,11 +47,17 @@ export type ArticleDeliveryCopy = {
   pluginDraftNote: string;
   /** A post held as a WordPress draft: Publish makes that post live. */
   pluginDraftReady: string;
-  /** What the plugin found instead of publishing that draft (DRAFT_REFUSALS in lib/articles/review.ts). */
+  /** What the site held instead of what a press could safely change (DRAFT_REFUSALS in lib/articles/review.ts). */
   refusedChanged: string;
   refusedUnverified: string;
   refusedTrashed: string;
   refusedDeleted: string;
+  refusedPostChanged: string;
+  refusedPostUnverified: string;
+  refusedPostLocked: string;
+  refusedUpdateTrashed: string;
+  refusedUpdateDeleted: string;
+  refusedUpdateUnavailable: string;
   /** Somebody published the post in WordPress: live, but not known to hold this version. */
   publishedInWordPress: string;
   /** The plan step's note, and the manual mode's label on the Publishing page. */
@@ -100,6 +106,18 @@ export function draftRefusalText(refusal: DraftRefusal, copy: ArticleDeliveryCop
       return copy.refusedTrashed;
     case "post_deleted":
       return copy.refusedDeleted;
+    case "post_changed":
+      return copy.refusedPostChanged;
+    case "post_unverified":
+      return copy.refusedPostUnverified;
+    case "post_locked":
+      return copy.refusedPostLocked;
+    case "update_trashed":
+      return copy.refusedUpdateTrashed;
+    case "update_deleted":
+      return copy.refusedUpdateDeleted;
+    case "update_unavailable":
+      return copy.refusedUpdateUnavailable;
   }
 }
 
@@ -152,6 +170,12 @@ export const ARTICLE_DELIVERY: Record<Locale, ArticleDeliveryCopy> = {
     refusedUnverified: "This draft was saved by an earlier version of the plugin and RepGet cannot confirm it is unchanged, so it was neither published nor overwritten. Please publish it from WordPress.",
     refusedTrashed: "This draft is in the WordPress trash, so nothing was published. Restore it there, then press Publish again.",
     refusedDeleted: "This draft was deleted from WordPress, so nothing was published and no new post was made. Contact the RepGet team to have it sent again.",
+    refusedPostChanged: "This post was changed on your website after RepGet last sent it, so it was not overwritten and nothing was sent. To use this version, make the change in the post on your website.",
+    refusedPostUnverified: "RepGet cannot confirm this post is unchanged since it was last sent, so it was not overwritten and nothing was sent. To use this version, make the change in the post on your website.",
+    refusedPostLocked: "Someone has this post open in WordPress, so nothing was changed. Ask them to finish and close it, then try again.",
+    refusedUpdateTrashed: "This post is in the trash on your website, so nothing was sent. Restore it there, then try again.",
+    refusedUpdateDeleted: "This post no longer exists on your website, so nothing was sent and no new post was made. Contact the RepGet team to have it sent again.",
+    refusedUpdateUnavailable: "This connection cannot check the post on your website before changing it, so it was not overwritten and nothing was sent. To use this version, make the change in the post on your website.",
     publishedInWordPress: "This post was published in WordPress, so what is live may differ from this version.",
     notifyNotPublished: "Your article was not published",
     onboardingNote: "We research your keywords, build a content calendar sized to your plan, and start writing. The RepGet team prepares your first article, and you will be told when it is ready to publish.",
@@ -200,6 +224,12 @@ export const ARTICLE_DELIVERY: Record<Locale, ArticleDeliveryCopy> = {
     refusedUnverified: "Este borrador lo guardó una versión anterior del plugin y RepGet no puede confirmar que no haya cambiado, por lo que no se ha publicado ni sobrescrito. Publíquelo desde WordPress.",
     refusedTrashed: "Este borrador está en la papelera de WordPress, por lo que no se ha publicado nada. Restáurelo allí y pulse Publicar de nuevo.",
     refusedDeleted: "Este borrador se eliminó de WordPress, por lo que no se ha publicado nada ni se ha creado una entrada nueva. Póngase en contacto con el equipo de RepGet para que se lo envíen de nuevo.",
+    refusedPostChanged: "Esta publicación se modificó en su sitio web después del último envío de RepGet, por lo que no se ha sobrescrito ni se ha enviado nada. Para usar esta versión, haga el cambio en la publicación de su sitio web.",
+    refusedPostUnverified: "RepGet no puede confirmar que esta publicación no haya cambiado desde el último envío, por lo que no se ha sobrescrito ni se ha enviado nada. Para usar esta versión, haga el cambio en la publicación de su sitio web.",
+    refusedPostLocked: "Alguien tiene esta publicación abierta en WordPress, por lo que no se ha cambiado nada. Pídale que termine y la cierre, y vuelva a intentarlo.",
+    refusedUpdateTrashed: "Esta publicación está en la papelera de su sitio web, por lo que no se ha enviado nada. Restáurela allí y vuelva a intentarlo.",
+    refusedUpdateDeleted: "Esta publicación ya no existe en su sitio web, por lo que no se ha enviado nada ni se ha creado una nueva. Póngase en contacto con el equipo de RepGet para que la envíe de nuevo.",
+    refusedUpdateUnavailable: "Esta conexión no puede comprobar la publicación de su sitio web antes de cambiarla, por lo que no se ha sobrescrito ni se ha enviado nada. Para usar esta versión, haga el cambio en la publicación de su sitio web.",
     publishedInWordPress: "Esta entrada se publicó desde WordPress, por lo que lo que está en línea puede diferir de esta versión.",
     notifyNotPublished: "Su artículo no se ha publicado",
     onboardingNote: "Investigamos sus palabras clave, creamos un calendario de contenidos a la medida de su plan y empezamos a escribir. El equipo de RepGet prepara su primer artículo, y le avisaremos cuando esté listo para publicar.",
@@ -248,6 +278,12 @@ export const ARTICLE_DELIVERY: Record<Locale, ArticleDeliveryCopy> = {
     refusedUnverified: "Ce brouillon a été enregistré par une version antérieure du plugin et RepGet ne peut pas confirmer qu'il est inchangé : il n'a donc été ni publié ni écrasé. Publiez-le depuis WordPress.",
     refusedTrashed: "Ce brouillon est dans la corbeille de WordPress : rien n'a donc été publié. Restaurez-le, puis appuyez de nouveau sur Publier.",
     refusedDeleted: "Ce brouillon a été supprimé de WordPress : rien n'a donc été publié et aucun nouvel article n'a été créé. Contactez l'équipe RepGet pour qu'il vous soit renvoyé.",
+    refusedPostChanged: "Cet article a été modifié sur votre site après le dernier envoi de RepGet : il n'a donc pas été écrasé et rien n'a été envoyé. Pour utiliser cette version, faites la modification dans l'article sur votre site.",
+    refusedPostUnverified: "RepGet ne peut pas confirmer que cet article n'a pas changé depuis le dernier envoi : il n'a donc pas été écrasé et rien n'a été envoyé. Pour utiliser cette version, faites la modification dans l'article sur votre site.",
+    refusedPostLocked: "Quelqu'un a ouvert cet article dans WordPress : rien n'a donc été modifié. Demandez-lui de terminer et de le fermer, puis réessayez.",
+    refusedUpdateTrashed: "Cet article est dans la corbeille de votre site : rien n'a donc été envoyé. Restaurez-le, puis réessayez.",
+    refusedUpdateDeleted: "Cet article n'existe plus sur votre site : rien n'a donc été envoyé et aucun nouvel article n'a été créé. Contactez l'équipe RepGet pour qu'il soit renvoyé.",
+    refusedUpdateUnavailable: "Cette connexion ne permet pas de vérifier l'article sur votre site avant de le modifier : il n'a donc pas été écrasé et rien n'a été envoyé. Pour utiliser cette version, faites la modification dans l'article sur votre site.",
     publishedInWordPress: "Cet article a été publié depuis WordPress : ce qui est en ligne peut donc différer de cette version.",
     notifyNotPublished: "Votre article n'a pas été publié",
     onboardingNote: "Nous recherchons vos mots-clés, construisons un calendrier de contenu adapté à votre forfait et commençons à rédiger. L’équipe RepGet prépare votre premier article, et vous serez averti lorsqu’il sera prêt à publier.",
@@ -296,6 +332,12 @@ export const ARTICLE_DELIVERY: Record<Locale, ArticleDeliveryCopy> = {
     refusedUnverified: "Questa bozza è stata salvata da una versione precedente del plugin e RepGet non può confermare che sia rimasta invariata, quindi non è stata né pubblicata né sovrascritta. La pubblichi da WordPress.",
     refusedTrashed: "Questa bozza è nel cestino di WordPress, quindi non è stato pubblicato nulla. La ripristini, poi prema di nuovo Pubblica.",
     refusedDeleted: "Questa bozza è stata eliminata da WordPress, quindi non è stato pubblicato nulla e non è stato creato un nuovo articolo. Contatti il team di RepGet per riceverla di nuovo.",
+    refusedPostChanged: "Questo articolo è stato modificato sul suo sito dopo l'ultimo invio di RepGet, quindi non è stato sovrascritto e non è stato inviato nulla. Per usare questa versione, apporti la modifica nell'articolo sul suo sito.",
+    refusedPostUnverified: "RepGet non può confermare che questo articolo sia rimasto invariato dall'ultimo invio, quindi non è stato sovrascritto e non è stato inviato nulla. Per usare questa versione, apporti la modifica nell'articolo sul suo sito.",
+    refusedPostLocked: "Qualcuno ha questo articolo aperto in WordPress, quindi non è stato modificato nulla. Gli chieda di terminare e chiuderlo, poi riprovi.",
+    refusedUpdateTrashed: "Questo articolo è nel cestino del suo sito, quindi non è stato inviato nulla. Lo ripristini e poi riprovi.",
+    refusedUpdateDeleted: "Questo articolo non esiste più sul suo sito, quindi non è stato inviato nulla e non è stato creato un nuovo articolo. Contatti il team RepGet per farlo inviare di nuovo.",
+    refusedUpdateUnavailable: "Questa connessione non può controllare l'articolo sul suo sito prima di modificarlo, quindi non è stato sovrascritto e non è stato inviato nulla. Per usare questa versione, apporti la modifica nell'articolo sul suo sito.",
     publishedInWordPress: "Questo articolo è stato pubblicato da WordPress, quindi ciò che è online può differire da questa versione.",
     notifyNotPublished: "Il suo articolo non è stato pubblicato",
     onboardingNote: "Studiamo le sue parole chiave, costruiamo un calendario di contenuti su misura per il suo piano e iniziamo a scrivere. Il team di RepGet prepara il suo primo articolo, e la avviseremo quando sarà pronto per la pubblicazione.",
@@ -344,6 +386,12 @@ export const ARTICLE_DELIVERY: Record<Locale, ArticleDeliveryCopy> = {
     refusedUnverified: "Dieser Entwurf wurde von einer älteren Plugin-Version gespeichert, und RepGet kann nicht bestätigen, dass er unverändert ist. Er wurde daher weder veröffentlicht noch überschrieben. Bitte veröffentlichen Sie ihn in WordPress.",
     refusedTrashed: "Dieser Entwurf liegt im WordPress-Papierkorb, daher wurde nichts veröffentlicht. Stellen Sie ihn dort wieder her und klicken Sie erneut auf Veröffentlichen.",
     refusedDeleted: "Dieser Entwurf wurde aus WordPress gelöscht, daher wurde nichts veröffentlicht und kein neuer Beitrag erstellt. Wenden Sie sich an das RepGet-Team, um ihn erneut zu erhalten.",
+    refusedPostChanged: "Dieser Beitrag wurde auf Ihrer Website geändert, nachdem RepGet ihn zuletzt gesendet hat. Er wurde daher nicht überschrieben, und es wurde nichts gesendet. Um diese Version zu verwenden, nehmen Sie die Änderung im Beitrag auf Ihrer Website vor.",
+    refusedPostUnverified: "RepGet kann nicht bestätigen, dass dieser Beitrag seit dem letzten Senden unverändert ist. Er wurde daher nicht überschrieben, und es wurde nichts gesendet. Um diese Version zu verwenden, nehmen Sie die Änderung im Beitrag auf Ihrer Website vor.",
+    refusedPostLocked: "Jemand hat diesen Beitrag in WordPress geöffnet, daher wurde nichts geändert. Bitten Sie die Person, ihn fertig zu bearbeiten und zu schließen, und versuchen Sie es dann erneut.",
+    refusedUpdateTrashed: "Dieser Beitrag liegt im Papierkorb Ihrer Website, daher wurde nichts gesendet. Stellen Sie ihn dort wieder her und versuchen Sie es dann erneut.",
+    refusedUpdateDeleted: "Dieser Beitrag existiert auf Ihrer Website nicht mehr, daher wurde nichts gesendet und kein neuer Beitrag erstellt. Wenden Sie sich an das RepGet-Team, damit er erneut gesendet wird.",
+    refusedUpdateUnavailable: "Diese Verbindung kann den Beitrag auf Ihrer Website nicht prüfen, bevor er geändert wird. Er wurde daher nicht überschrieben, und es wurde nichts gesendet. Um diese Version zu verwenden, nehmen Sie die Änderung im Beitrag auf Ihrer Website vor.",
     publishedInWordPress: "Dieser Beitrag wurde in WordPress veröffentlicht. Was live ist, kann daher von dieser Version abweichen.",
     notifyNotPublished: "Ihr Artikel wurde nicht veröffentlicht",
     onboardingNote: "Wir recherchieren Ihre Suchbegriffe, bauen einen auf Ihren Tarif zugeschnittenen Contentplan und fangen an zu schreiben. Das RepGet-Team bereitet Ihren ersten Artikel vor, und Sie werden benachrichtigt, sobald er zur Veröffentlichung bereit ist.",

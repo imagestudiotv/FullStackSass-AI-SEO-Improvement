@@ -397,6 +397,13 @@ export const DRAFT_REFUSALS = {
   draft_unverified: "This draft was saved by an earlier version of the plugin and RepGet cannot confirm it is unchanged, so it was neither published nor overwritten. Publish it from WordPress.",
   post_trashed: "This draft is in the WordPress trash, so nothing was published. Restore it there, then press Publish again.",
   post_deleted: "This draft was deleted from WordPress, so nothing was published and no new post was made. Contact the RepGet team to have it sent again.",
+  // An update of a post already on the website (plugin and direct: lib/publishing/overwrite-guard.ts).
+  post_changed: "This post was changed on your website after RepGet last sent it, so it was not overwritten and nothing was sent. To use this version, make the change in the post on your website.",
+  post_unverified: "RepGet cannot confirm this post is unchanged since it was last sent, so it was not overwritten and nothing was sent. To use this version, make the change in the post on your website.",
+  post_locked: "Someone has this post open in WordPress, so nothing was changed. Ask them to finish and close it, then try again.",
+  update_trashed: "This post is in the trash on your website, so nothing was sent. Restore it there, then try again.",
+  update_deleted: "This post no longer exists on your website, so nothing was sent and no new post was made. Contact the RepGet team to have it sent again.",
+  update_unavailable: "This connection cannot check the post on your website before changing it, so it was not overwritten and nothing was sent. To use this version, make the change in the post on your website.",
 } as const;
 
 export type DraftRefusal = keyof typeof DRAFT_REFUSALS;

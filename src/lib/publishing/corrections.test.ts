@@ -104,6 +104,8 @@ vi.mock("@/lib/publishing/registry", async () => {
         if (wp.createMode === "lost_after_create") throw new ProviderError("connection reset", "unreachable");
         return { remoteId: post.id, remoteUrl: `https://site.test/${post.slug}/`, status: post.status };
       }),
+      // Not saved on the site since it was sent. See lib/publishing/overwrite-guard.ts.
+      readRemote: vi.fn(async () => ({ modifiedAt: "2020-01-01T00:00:00Z", hash: null, status: "publish", rawContent: null })),
       updatePost: vi.fn(async (_c: unknown, remoteId: string, input: { title: string; contentHtml: string; status: string }) => {
         wp.calls.push(`update:${remoteId}`);
         const post = wp.posts.find((p) => p.id === remoteId);

@@ -10,6 +10,7 @@ import type { Executor } from "@/lib/db/types";
 import { FREEZE_LOCK, isControlEnabled } from "@/lib/publishing/controls";
 import { ownershipMarker } from "@/lib/publishing/ownership";
 import { readPictureCopies, type PictureCopies } from "@/lib/publishing/picture-copies";
+import type { RemoteBaseline } from "@/lib/publishing/provider";
 import { automaticStatus, FIRST_ARTICLE_STATUS, isFirstArticle } from "@/lib/publishing/policy";
 
 /**
@@ -150,6 +151,12 @@ export type Claim =
        * finding none means it was deleted there, and nothing is created.
        */
       existingDraft: { delivered: boolean } | null;
+      /**
+       * A person's press updating a post live on a plugin site. The plugin treats
+       * it as a press: it refuses and says why, where a hand-over nobody pressed
+       * reports the post as it stands (repget_press_step).
+       */
+      existingPost: { delivered: true } | null;
       /** The revision as locked and checked: exactly what may be sent. */
       article: ClaimedArticle;
     }
@@ -426,6 +433,8 @@ export async function claimDispatch(input: {
       twoStep && input.channel === "plugin" && row.publishRequested === "publish" && status === "publish" && !row.live
         ? { delivered: Boolean(row.publishedUrl) }
         : null;
+    const existingPost =
+      twoStep && input.channel === "plugin" && row.publishRequested !== null && row.live ? ({ delivered: true } as const) : null;
 
     /*
       The same revision, with the same status, already reached the site: a
@@ -508,6 +517,7 @@ export async function claimDispatch(input: {
           marker: ownershipMarker({ articleId: row.id, websiteId: input.websiteId, dispatchId: outstanding.id }),
           reused: true,
           existingDraft,
+          existingPost,
           article,
         } as const;
       }
@@ -539,16 +549,21 @@ export async function claimDispatch(input: {
       claimedAt: now,
     });
 
-    return { ok: true, dispatchId, revisionHash, status, marker, reused: false, existingDraft, article } as const;
+    return { ok: true, dispatchId, revisionHash, status, marker, reused: false, existingDraft, existingPost, article } as const;
   });
+}
+
+function mergeSnapshot(fields: Record<string, unknown>) {
+  return sql`coalesce(${publicationDispatches.requestSnapshot}, '{}'::jsonb) || ${JSON.stringify(fields)}::jsonb`;
 }
 
 /** Records the outcome. Only an in-flight row moves; a second call is a no-op. */
 export async function settleDispatch(
   dispatchId: string,
   outcome:
-    | { status: "sent"; remoteId?: string | null; remoteUrl?: string | null; remoteStatus?: string | null }
-    | { status: "failed" | "uncertain"; error: string },
+    | { status: "sent"; remoteId?: string | null; remoteUrl?: string | null; remoteStatus?: string | null; baseline?: RemoteBaseline }
+    /** mayHaveLanded: an update with no clear answer. A retry must not take its own write for somebody's edit. */
+    | { status: "failed" | "uncertain"; error: string; mayHaveLanded?: boolean },
   executor: Executor = db,
 ): Promise<boolean> {
   const rows = await executor
@@ -561,8 +576,15 @@ export async function settleDispatch(
             remoteUrl: outcome.remoteUrl ?? null,
             remoteStatus: outcome.remoteStatus ?? null,
             completedAt: new Date(),
+            // In the row that says it was sent: there is no moment with one and not the other.
+            ...(outcome.baseline ? { requestSnapshot: mergeSnapshot({ remoteBaseline: outcome.baseline }) } : {}),
           }
-        : { status: outcome.status, error: outcome.error.slice(0, 500), completedAt: new Date() },
+        : {
+            status: outcome.status,
+            error: outcome.error.slice(0, 500),
+            completedAt: new Date(),
+            ...(outcome.mayHaveLanded ? { requestSnapshot: mergeSnapshot({ mayHaveLanded: true }) } : {}),
+          },
     )
     .where(and(eq(publicationDispatches.id, dispatchId), eq(publicationDispatches.status, "in_flight")))
     .returning({ id: publicationDispatches.id });
