@@ -1991,8 +1991,13 @@ describe("review of the combined diff: what stays true on the edges", () => {
 
     it("a hand-over nobody pressed carries no such instruction", async () => {
       const s = await heldDraft();
+      await publishArticle(s.websiteId, s.post.id);
+      await live(s.post.id, (await handOver())[0].dispatch.id);
+      await test.db.update(articles).set({ bodyHtml: "<p>A newer approved text</p>", reviewStatus: "pending" }).where(eq(articles.id, s.post.id));
+      await approve(s.post.id);
+      await test.db.update(websites).set({ autoPublish: true }).where(eq(websites.id, s.websiteId));
       const claim = await claimDispatch({ articleId: s.post.id, websiteId: s.websiteId, channel: "plugin", trigger: "plugin" });
-      expect(claim).toMatchObject({ ok: true, existingPost: null });
+      expect(claim).toMatchObject({ ok: true, existingPost: null, existingDraft: null });
     });
 
     it("changed in WordPress: a distinct outcome, the press answered, nothing live and no address changed", async () => {
