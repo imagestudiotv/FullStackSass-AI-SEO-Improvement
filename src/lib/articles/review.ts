@@ -77,7 +77,7 @@ export const releasableSql: SQL = sql`(case when not exists (
     or (${articles.reviewStatus} = 'approved' and ${articles.reviewApprovedHash} = ${reviewHashSql}))
     and (not ${articles.researchReviewRequired} or ${articles.researchApprovedHash} = ${reviewHashSql})
   ) else (
-    ${articles.approvedRevision} is not null
+    ${articles.approvedRevision} ->> 'source' in ('approved', 'published')
     or (${articles.reviewStatus} = 'approved' and ${articles.reviewApprovedHash} = ${reviewHashSql}
       and (not ${articles.researchReviewRequired} or ${articles.researchApprovedHash} = ${reviewHashSql}))
   ) end)`;
@@ -149,6 +149,11 @@ export async function checkReleasable(articleId: string, executor: Executor = db
  *   source "published" - what stood on the website when the flow was switched
  *                        on (activateTwoStep). Nobody approved it, so only a
  *                        person's press sends it, as an update of the same post.
+ *   source "unreviewed" - a post on the website that already had a change waiting
+ *                        for the team at switch-on. RepGet holds no earlier text,
+ *                        so this is what the customer was already reading: they
+ *                        keep it, and no path sends it. The team's approval
+ *                        replaces it.
  *
  * While a working copy waits for the team this is what the customer reads and
  * what every path sends, so their edits stay private until approved. It is
@@ -157,7 +162,7 @@ export async function checkReleasable(articleId: string, executor: Executor = db
 export type StoredRevision = ReviewFields & {
   wordCount: number | null;
   hash: string;
-  source: "approved" | "published";
+  source: "approved" | "published" | "unreviewed";
   at: string;
 };
 
@@ -215,7 +220,7 @@ export function sendableRevision(
     (!row.researchReviewRequired || row.researchApprovedHash === hash);
   if (approved) return { ok: true, revision: row, hash, from: "working_copy" };
   const stored = storedRevision(row.approvedRevision);
-  if (stored && !(options.automatic && stored.source !== "approved")) {
+  if (stored && stored.source !== "unreviewed" && !(options.automatic && stored.source !== "approved")) {
     return { ok: true, revision: stored, hash: stored.hash, from: "stored" };
   }
   return { ok: false, reason: row.reviewStatus === "approved" ? "changed_since_approval" : "pending_review" };
@@ -351,6 +356,12 @@ export function publicFieldSql(column: typeof articles.metaDescription | typeof 
 /** Held with nothing stored to show: public outputs leave such an article out. */
 export const nothingToShowSql: SQL<boolean> = sql<boolean>`(${heldFromCustomerSql} and ${articles.approvedRevision} is null)`;
 
+/**
+ * May public outputs (social, video, internal links) use this article? Not while
+ * it is held with no revision anyone approved or published.
+ */
+export const publicRevisionSql: SQL<boolean> = sql<boolean>`not (${heldFromCustomerSql} and (${articles.approvedRevision} is null or ${articles.approvedRevision} ->> 'source' = 'unreviewed'))`;
+
 /** customerTitleSql for an article named by id, in raw queries that alias articles. */
 export function customerTitleOf(id: SQL): SQL<string> {
   return sql<string>`(select ${customerTitleSql} from articles where articles.id = ${id})`;
@@ -368,6 +379,9 @@ export function servedStatus(row: { publishedUrl: string | null; firstLiveAt: Da
 
 /** The refusal for anything a customer tries on an article the team has. */
 export const PREPARING_MESSAGE = "This article is being prepared by the RepGet team. You will be told when it is ready to publish.";
+
+/** The refusal for an update of a post on a site whose plugin is too old to make one. */
+export const PLUGIN_UPDATE_NEEDED = "To send this update, first update the RepGet plugin on your website to version 1.6 or later.";
 
 /**
  * The review state a freshly written draft is saved with, decided INSIDE the

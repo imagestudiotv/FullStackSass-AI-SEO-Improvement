@@ -35,7 +35,12 @@ export const TRANSITION_QUERY = `
       when a.status in ('queued', 'generating') then 'being_written'
       when a.status = 'failed' then 'failed'
       when a.status = 'published' or a.published_url is not null then
-        case when ${RESEARCH_HELD} then 'delivered_with_held_sources' else 'delivered' end
+        case
+          when a.review_status = 'pending' and a.approved_revision is null then 'on_site_change_waiting_view_kept_not_sendable'
+          when a.review_status = 'approved' and a.review_approved_hash is distinct from ${REVISION} then 'on_site_approval_stale_stored_as_published'
+          when ${RESEARCH_HELD} then 'delivered_with_held_sources'
+          else 'delivered'
+        end
       when a.status <> 'draft' then 'other'
       when not (${NOT_DELIVERING}) then 'being_delivered'
       when a.review_status = 'pending' then 'already_in_queue'
