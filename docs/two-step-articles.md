@@ -65,7 +65,11 @@ While a working copy waits:
 - **Automatic modes and the plugin** also send only the stored revision, on the same schedule rules.
 - **Public outputs** (translations, social suggestions, video ideas, internal-link suggestions) read the stored revision.
 
-An approval replaces the stored revision. An approval never republishes a live post by itself: the customer's Update does.
+An approval replaces the stored revision. An approval never republishes a live post by itself: the customer's Update does. On a plugin site that needs plugin 1.6.0 or later, which updates the post it already has for the article and keeps its status in WordPress. An older plugin is refused with a message to update it.
+
+**Reopening does not recall.** Reopening or editing an approved article leaves its stored revision in force. So on an automatic site the daily release can still send the old text on its day, and a customer's press still can.
+
+A post with a change waiting at switch-on has no approved revision, so nothing can send it until the team approves one.
 
 **One hold:** if the team withdraws a placed link, the stored revision still carries a link whose credits were released, so it does not go out until the team approves a new revision. The customer still reads it, and a press tells them the team is preparing it.
 
@@ -78,7 +82,8 @@ Every path ends at `claimDispatch`, in one transaction under the article's row l
 A send changes nothing in the revision:
 
 - **Dead links** are not repaired at send time, because a repair would publish different text under the old approval. They go out as approved, and the defect is recorded on the dispatch (`request_snapshot.linkDefects`) and in the job's log. Returning the article to the team instead would turn the customer's press into a silent hold.
-- **The header picture** stays the approved one on the article. The CMS's copy is used for that post but is not written back, so the hash never moves.
+- **The header picture** stays the approved one on the article. The CMS's copy is used for that post but is not written back, so the hash never moves. A revision with no picture goes out with none: nothing is generated at send time.
+- **Placements** count as published only if their link is in the text that actually went out.
 - **Delivery-only changes** (the "Powered by" line, responsive images, section-link repair, link follow attributes) are computed from the claimed text at each send, are not stored, and are not part of the hash. This was already the case.
 
 ### What is held
@@ -124,8 +129,10 @@ Turning the switch on then runs `activateTwoStep` once, in the switch's own tran
 | Already in the queue | Stays. Hidden from the customer from now on | `already_in_queue` |
 | Being written | Decided when it is saved: goes to the queue | `being_written` |
 | Being delivered | Skipped, and the delivery finishes | `being_delivered` |
-| Live, or a CMS draft | Untouched and never republished. What stands is stored as source `published` | `delivered` |
+| Live, or a CMS draft | Never republished. What stands is stored as source `published`: the customer keeps reading it, and only their press can resend it | `delivered` |
 | Live, with sources still held | The same | `delivered_with_held_sources` |
+| Live, approved, but its hash no longer matches | The old publish job wrote the CMS's picture address without re-hashing, so this is what the post is. Stored as source `published` and taken out of the review: not approved, not queued, not resent | `on_site_approval_stale_stored_as_published` |
+| Live, with a change waiting for the team | RepGet holds no earlier text, so what the customer already reads is stored as source `unreviewed`: they keep reading it, no path sends it, and it stays in the queue until approved | `on_site_change_waiting_view_kept_not_sendable` |
 | Failed | Untouched | `failed` |
 
 Assumptions:
