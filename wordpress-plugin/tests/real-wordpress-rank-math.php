@@ -140,7 +140,7 @@ function send($id, $title, $excerpt, $picture) {
     $GLOBALS['queue'][$id] = array(
         'id' => $id, 'title' => $title, 'slug' => sanitize_title($title), 'html' => '<p>Words.</p>', 'excerpt' => $excerpt, 'status' => 'publish',
         'image' => $picture ? array('url' => STORE . $picture, 'alt' => 'The picture') : null,
-        'dispatch' => array('id' => wp_generate_uuid4(), 'revision' => 'r'),
+        'dispatch' => array('id' => wp_generate_uuid4(), 'revision' => md5($title . $excerpt . $picture)),
     );
     $result = repget_sync_locked();
     if (is_wp_error($result)) {

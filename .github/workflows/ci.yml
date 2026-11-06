@@ -188,7 +188,8 @@ jobs:
         run: php wordpress-plugin/tests/real-wordpress-translations.php "$RUNNER_TEMP/wordpress" wordpress-plugin/repget-connector/repget-connector.php
 
       # 1.10.0: a Publish press on a draft goes live as the same post, an edit
-      # in WordPress is never published or overwritten, nothing is recreated.
+      # in WordPress is never published or overwritten, nothing is recreated, and
+      # a save fired between the check and the write survives on every path.
       - name: Plugin Publish press on a draft against real WordPress + MySQL
         run: php wordpress-plugin/tests/real-wordpress-draft-publish.php "$RUNNER_TEMP/wordpress" wordpress-plugin/repget-connector/repget-connector.php
 
@@ -201,7 +202,9 @@ jobs:
 
       # Separate PHP processes released together at a barrier: lock races,
       # lease takeover, a process killed mid-insert, failed acknowledgements,
-      # overlapping entry points, and the upgrade from 1.5.0.
+      # overlapping entry points, the upgrade from 1.5.0, and (1.10.0) a save in
+      # WordPress against a write over the same post: held in the window, and
+      # raced, failing if the two did not overlap. Only MySQL shows this for real.
       - name: Plugin under concurrent processes
         run: |
           git show a02ac24db2e0ae2a88f831899c88654615eb9827:wordpress-plugin/repget-connector/repget-connector.php > "$RUNNER_TEMP/plugin-1.5.0.php"

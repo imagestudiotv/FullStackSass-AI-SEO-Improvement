@@ -46,6 +46,7 @@ $GLOBALS['before_row'] = null;
 $GLOBALS['between_check_and_insert'] = null;
 $GLOBALS['db_fail'] = null;
 $GLOBALS['before_publish'] = null;
+$GLOBALS['before_swap'] = null;
 $GLOBALS['publish_calls'] = 0;
 
 function get_option($k, $d = false) {
@@ -164,7 +165,9 @@ class wpdb_stub {
         return true;
     }
     public function esc_like($t) { return addcslashes($t, '_%\\'); }
+    public function get_col_charset($table, $column) { return 'utf8mb4'; }
     public function prepare($q, ...$args) {
+        if (count($args) === 1 && is_array($args[0])) $args = $args[0]; // As wpdb: the values as one array.
         $i = 0;
         return preg_replace_callback('/%[sd]/', function ($m) use (&$i, $args) {
             $v = $args[$i++];
@@ -202,18 +205,25 @@ class wpdb_stub {
             }
             return 0;
         }
-        // repget_publish_draft: dates and address, only if the text is still what was checked.
-        if (preg_match("/^UPDATE wp_posts SET post_date = '([^']*)', post_date_gmt = '([^']*)', post_modified = '[^']*', post_modified_gmt = '[^']*', post_name = '((?:[^']|'')*)' WHERE ID = (\\d+) AND post_status = 'draft' AND MD5\\(post_content\\) = '([0-9a-f]{32})' AND MD5\\(post_title\\) = '([0-9a-f]{32})'$/", $q, $m)) {
-            if (is_callable($GLOBALS['before_publish'])) {
-                $hook = $GLOBALS['before_publish'];
-                $GLOBALS['before_publish'] = null;
-                $hook((int) $m[4]);
+        // The compare-and-swap: the row changes only if every guarded column is still what was checked.
+        if (preg_match("/^UPDATE wp_posts SET (.+) WHERE ID = (\\d+) AND post_status = '([^']*)' AND post_date_gmt = '([^']*)' AND MD5\\(post_title\\) = '([0-9a-f]{32})' AND MD5\\(post_content\\) = '([0-9a-f]{32})' AND MD5\\(post_excerpt\\) = '([0-9a-f]{32})' AND MD5\\(post_name\\) = '([0-9a-f]{32})' AND MD5\\(post_password\\) = '([0-9a-f]{32})'$/s", $q, $m)) {
+            preg_match_all("/`(\\w+)` = '((?:[^']|'')*)'/s", $m[1], $sets, PREG_SET_ORDER);
+            $columns = array();
+            foreach ($sets as $set) $columns[$set[1]] = self::unquote($set[2]);
+            $id = (int) $m[2];
+            $publishing = isset($columns['post_status']) && $columns['post_status'] === 'publish';
+            // The instant before the database compares: a save reaching the row now loses this write.
+            $slot = $publishing ? 'before_publish' : 'before_swap';
+            if (is_callable($GLOBALS[$slot])) {
+                $hook = $GLOBALS[$slot];
+                $GLOBALS[$slot] = null;
+                $hook($id);
             }
-            $row = get_post((int) $m[4]);
-            if (!$row || $row->post_status !== 'draft' || md5($row->post_content) !== $m[5] || md5($row->post_title) !== $m[6]) return 0;
-            $GLOBALS['posts'][(int) $m[4]]['post_date'] = $m[1];
-            $GLOBALS['posts'][(int) $m[4]]['post_date_gmt'] = $m[2];
-            $GLOBALS['posts'][(int) $m[4]]['post_name'] = self::unquote($m[3]);
+            $row = get_post($id);
+            if (!$row || $row->post_status !== $m[3] || $row->post_date_gmt !== $m[4] || md5($row->post_title) !== $m[5] || md5($row->post_content) !== $m[6]
+                || md5($row->post_excerpt) !== $m[7] || md5($row->post_name) !== $m[8] || md5($row->post_password) !== $m[9]) return 0;
+            $GLOBALS['posts'][$id] = array_merge($GLOBALS['posts'][$id], $columns);
+            $GLOBALS[$publishing ? 'publish_calls' : 'update_calls']++;
             return 1;
         }
         throw new Exception("unmodelled query: {$q}");
@@ -282,17 +292,26 @@ function get_post($id) {
     if (!isset($GLOBALS['posts'][$id])) return null;
     return (object) array_merge(array(
         'ID' => $id, 'post_title' => '', 'post_excerpt' => '', 'post_content' => '', 'post_name' => '', 'post_password' => '',
-        'post_status' => 'publish', 'post_type' => 'post', 'post_parent' => 0, 'post_date' => '2026-01-01 00:00:00', 'post_date_gmt' => '0000-00-00 00:00:00',
+        'post_status' => 'publish', 'post_type' => 'post', 'post_parent' => 0, 'post_date' => '2026-01-01 00:00:00', 'post_date_gmt' => '0000-00-00 00:00:00', 'post_modified' => '2026-01-01 00:00:00',
     ), $GLOBALS['posts'][$id]);
 }
 function clean_post_cache($id) {}
 function current_time($type, $gmt = 0) { return gmdate('Y-m-d H:i:s'); }
 function wp_unique_post_slug($slug, $id, $status, $type, $parent) { return $slug; }
 function sanitize_post_field($field, $value, $id, $context) { return $value; }
-/** Core's own: flips the status and nothing else. */
-function wp_publish_post($id) {
-    $GLOBALS['publish_calls']++;
-    $GLOBALS['posts'][$id]['post_status'] = 'publish';
+function sanitize_post($post, $context = 'display') { return $post; }
+function wp_encode_emoji($v) { return $v; }
+function wp_transition_post_status($new, $old, $post) {}
+function wp_after_insert_post($post, $update, $before) {}
+function get_object_taxonomies($type) { return array(); }
+function wp_revisions_enabled($post) { return true; }
+function wp_get_post_revisions($id, $args = array()) { return array(); }
+/** A revision of what was replaced, as core keeps it. */
+function _wp_put_post_revision($post) { $GLOBALS['revisions'][] = $post->post_content; return 1; }
+/** Modelled on core: another user's lock, younger than its window. */
+function wp_check_post_lock($id) {
+    $lock = explode(':', (string) get_post_meta($id, '_edit_lock', true));
+    return count($lock) === 2 && (int) $lock[0] > time() - 150 ? (int) $lock[1] : false;
 }
 
 function repget_request($path, $args = array()) {
@@ -313,7 +332,10 @@ function repget_request($path, $args = array()) {
 }
 
 function add_action() {}
+function remove_action() {}
 function add_filter() {}
+function apply_filters($hook, $value) { return $value; }
+function do_action() {}
 // No WPML on this stubbed site: nothing hooks its filters.
 function has_filter() { return false; }
 function has_action() { return false; }
@@ -464,7 +486,7 @@ $GLOBALS['posts'][500] = array('post_title' => 'Old', 'guid' => get_permalink(50
 update_post_meta(500, REPGET_META_ARTICLE, 'old1');
 $GLOBALS['queue']['old1'] = article('old1', 'Old, edited');
 repget_sync_locked();
-check('pre-1.5.2 post updated, not duplicated', $GLOBALS['posts'][500]['post_title'] === 'Old, edited' && post_count() === 2);
+check('pre-1.5.2 post, no record of what it held: found, not duplicated, not overwritten (1.10.0)', $GLOBALS['posts'][500]['post_title'] === 'Old' && post_count() === 2);
 
 echo "\nadd_option IS NOT A LOCK (why 1.5.2 does not use it)\n";
 reset_all();
@@ -648,6 +670,13 @@ $hand = function ($item) {
     repget_sync_locked();
     return end($GLOBALS['ack_bodies']);
 };
+function send_handover($id, $n) {
+    $a = article($id, 'One', 'publish', dispatch_uuid($n));
+    $a['dispatch']['revision'] = 'r';
+    $GLOBALS['queue'][$id] = $a;
+    repget_sync_locked();
+    return repget_find_post($id);
+}
 
 reset_all();
 $post = held_draft('d1', 30);
@@ -725,6 +754,118 @@ check('no record, and not what RepGet sends: cannot be confirmed', $last['outcom
 reset_all();
 $last = $hand(pressed('d11', 52, 'r', false));
 check('a press on an article never delivered creates its one post', post_count() === 1 && $GLOBALS['insert_calls'] === 1 && $last['status'] === 'publish' && !isset($last['outcome']), json_encode($last));
+
+echo "\nWRITING OVER A POST (1.10.0)\n";
+function live_update($id, $n, $revision) {
+    $a = article($id, 'Newer', 'publish', dispatch_uuid($n));
+    $a['dispatch']['revision'] = $revision;
+    $a['existingPost'] = array('delivered' => true);
+    return $a;
+}
+function handed($id, $n, $revision, $title = 'One', $status = 'publish') {
+    $a = article($id, $title, $status, dispatch_uuid($n));
+    $a['dispatch']['revision'] = $revision;
+    return $a;
+}
+
+reset_all();
+$post = send_handover('w1', 60);
+$updates = $GLOBALS['update_calls'];
+$GLOBALS['revisions'] = array();
+$last = $hand(live_update('w1', 61, 'r2'));
+check('a press on a live post, unchanged: written to the same post', $GLOBALS['update_calls'] === $updates + 1 && $GLOBALS['posts'][$post]['post_title'] === 'Newer' && post_count() === 1 && $last['status'] === 'publish' && !isset($last['outcome']), json_encode($last));
+check('...keeping what it replaced as a revision', $GLOBALS['revisions'] === array('<p>x</p>'), json_encode($GLOBALS['revisions']));
+check('...on record as that revision', get_post_meta($post, REPGET_META_WRITTEN, true)['revision'] === 'r2');
+$updates = $GLOBALS['update_calls'];
+$last = $hand(live_update('w1', 62, 'r2'));
+check('the same revision again, its report lost: nothing written, reported live', $GLOBALS['update_calls'] === $updates && post_count() === 1 && $last['status'] === 'publish' && !isset($last['outcome']), json_encode($last));
+
+reset_all();
+$post = send_handover('w2', 63);
+$GLOBALS['posts'][$post]['post_content'] = '<p>An editor wrote this.</p>';
+$updates = $GLOBALS['update_calls'];
+$last = $hand(live_update('w2', 64, 'r2'));
+check('a press on a live post edited in WordPress: refused, not written', $last['outcome'] === 'post_changed' && $last['url'] === null && $GLOBALS['update_calls'] === $updates && $GLOBALS['posts'][$post]['post_content'] === '<p>An editor wrote this.</p>', json_encode($last));
+check('...and not parked to be retried', count(repget_pending_acks()) === 0);
+$last = $hand(live_update('w2', 65, 'r'));
+check('the revision already written, edited since: reported as somebody\'s, not written', $last['outcome'] === 'published_in_wordpress' && $last['url'] === get_permalink($post) && $GLOBALS['update_calls'] === $updates, json_encode($last));
+
+reset_all();
+$post = send_handover('w3', 66);
+$GLOBALS['before_swap'] = function ($id) { $GLOBALS['posts'][$id]['post_title'] = 'Saved this very moment'; };
+$updates = $GLOBALS['update_calls'];
+$last = $hand(live_update('w3', 67, 'r2'));
+check('a save landing at the moment of the write: refused, and it stands', $last['outcome'] === 'post_changed' && $GLOBALS['update_calls'] === $updates && $GLOBALS['posts'][$post]['post_title'] === 'Saved this very moment', json_encode($last));
+
+reset_all();
+$post = send_handover('w4', 68);
+delete_post_meta($post, REPGET_META_WRITTEN);
+$updates = $GLOBALS['update_calls'];
+$last = $hand(live_update('w4', 69, 'r2'));
+check('a live post with no record, and not what RepGet sends: refused', $last['outcome'] === 'post_unverified' && $GLOBALS['update_calls'] === $updates && $GLOBALS['posts'][$post]['post_title'] === 'One', json_encode($last));
+
+reset_all();
+$post = send_handover('w5', 70);
+update_post_meta($post, '_edit_lock', time() . ':7');
+$updates = $GLOBALS['update_calls'];
+$last = $hand(live_update('w5', 71, 'r2'));
+check('somebody has it open in WordPress: refused as that', $last['outcome'] === 'post_locked' && $GLOBALS['update_calls'] === $updates, json_encode($last));
+update_post_meta($post, '_edit_lock', (time() - 200) . ':7');
+$last = $hand(live_update('w5', 72, 'r2'));
+check('...a lock gone stale is no lock', !isset($last['outcome']) && $GLOBALS['posts'][$post]['post_title'] === 'Newer', json_encode($last));
+
+reset_all();
+$post = held_draft('w6', 73);
+update_post_meta($post, '_edit_lock', time() . ':7');
+$last = $hand(pressed('w6', 74));
+check('a draft somebody has open: not published, refused as that', $last['outcome'] === 'post_locked' && get_post_status($post) === 'draft' && $GLOBALS['publish_calls'] === 0, json_encode($last));
+
+reset_all();
+$post = held_draft('w7', 75);
+$GLOBALS['before_swap'] = function ($id) { $GLOBALS['posts'][$id]['post_excerpt'] = 'Saved this very moment'; };
+$updates = $GLOBALS['update_calls'];
+$last = $hand(pressed('w7', 76, 'r2'));
+check('a draft saved at the moment a newer revision is written: refused, and it stands', $last['outcome'] === 'draft_changed' && $GLOBALS['update_calls'] === $updates && $GLOBALS['publish_calls'] === 0 && $GLOBALS['posts'][$post]['post_excerpt'] === 'Saved this very moment', json_encode($last));
+
+reset_all();
+$post = send_handover('w8', 77);
+$GLOBALS['posts'][$post]['post_status'] = 'trash';
+$last = $hand(live_update('w8', 78, 'r2'));
+check('a live post moved to the trash: refused, left there', $last['outcome'] === 'update_trashed' && get_post_status($post) === 'trash', json_encode($last));
+wp_delete_post($post, true);
+$inserts = $GLOBALS['insert_calls'];
+$last = $hand(live_update('w8', 79, 'r2'));
+check('deleted: refused, and no new post', $last['outcome'] === 'update_deleted' && post_count() === 0 && $GLOBALS['insert_calls'] === $inserts, json_encode($last));
+
+echo "\nA HAND-OVER NOBODY PRESSED, AFTER A LOST REPORT\n";
+reset_all();
+$post = send_handover('h1', 80);
+$updates = $GLOBALS['update_calls'];
+$last = $hand(handed('h1', 81, 'r'));
+check('the same revision: nothing written, reported, one post', $GLOBALS['update_calls'] === $updates && post_count() === 1 && $last['status'] === 'publish' && !isset($last['outcome']), json_encode($last));
+$last = $hand(handed('h1', 82, 'r2', 'Newer'));
+check('a newer revision, unchanged: written to the same post', $GLOBALS['update_calls'] === $updates + 1 && $GLOBALS['posts'][$post]['post_title'] === 'Newer' && post_count() === 1, json_encode($last));
+
+reset_all();
+$post = send_handover('h2', 83);
+$GLOBALS['posts'][$post]['post_content'] = '<p>An editor wrote this.</p>';
+$updates = $GLOBALS['update_calls'];
+$last = $hand(handed('h2', 84, 'r2', 'Newer'));
+check('edited: not written, and reported as somebody\'s so it is not offered again', $last['outcome'] === 'published_in_wordpress' && $last['status'] === 'publish' && $GLOBALS['update_calls'] === $updates && $GLOBALS['posts'][$post]['post_content'] === '<p>An editor wrote this.</p>', json_encode($last));
+
+reset_all();
+$post = send_handover('h3', 85);
+delete_post_meta($post, REPGET_META_WRITTEN);
+$updates = $GLOBALS['update_calls'];
+$last = $hand(handed('h3', 86, 'r'));
+check('no record, and it holds what RepGet sends: nothing written, on record from now', $GLOBALS['update_calls'] === $updates && !isset($last['outcome']) && get_post_meta($post, REPGET_META_WRITTEN, true)['revision'] === 'r', json_encode($last));
+
+reset_all();
+$post = send_handover('h4', 87);
+delete_post_meta($post, REPGET_META_WRITTEN);
+$updates = $GLOBALS['update_calls'];
+$last = $hand(handed('h4', 88, 'r2', 'Newer'));
+check('no record, and not what RepGet sends: not written, not refused', $last['outcome'] === 'published_in_wordpress' && $GLOBALS['update_calls'] === $updates && $GLOBALS['posts'][$post]['post_title'] === 'One', json_encode($last));
 
 echo "\nA MALFORMED dispatch id is not echoed\n";
 reset_all();
@@ -810,9 +951,10 @@ send_article(social_article('s4', 'T2', 'D1', 'https://store.test/a.jpg'));
 check('the same words stored with an entity are not an edit', m($p, 'rank_math_facebook_title') === 'T2');
 
 reset_all();
-$p = wp_insert_post(array('post_title' => 'Before', 'guid' => repget_identity_guid('s5'), 'meta_input' => array(REPGET_META_ARTICLE => 's5', '_thumbnail_id' => '555', 'rank_math_facebook_title' => 'Filled in before 1.10.0')));
+$p = wp_insert_post(array('post_title' => 'Before', 'post_content' => '<p>x</p>', 'post_excerpt' => 'D1', 'guid' => repget_identity_guid('s5'), 'meta_input' => array(REPGET_META_ARTICLE => 's5', '_thumbnail_id' => '555', 'rank_math_facebook_title' => 'Filled in before 1.10.0')));
 $GLOBALS['attachments'][555] = 'https://site.test/wp-content/uploads/own.jpg';
-send_article(social_article('s5', 'T1', 'D1', 'https://store.test/a.jpg'));
+// Holding what RepGet sends: with no record, the only way a hand-over goes on past the text (1.10.0).
+send_article(social_article('s5', 'Before', 'D1', 'https://store.test/a.jpg'));
 check('a value there before this plugin wrote anything is kept', m($p, 'rank_math_facebook_title') === 'Filled in before 1.10.0');
 check('a post from before 1.10.0 keeps its featured image', get_post_thumbnail_id($p) === 555 && $GLOBALS['images'] === array());
 check('...and its social images are that image', m($p, 'rank_math_twitter_image_id') === '555');
