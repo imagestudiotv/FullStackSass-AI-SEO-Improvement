@@ -257,6 +257,11 @@ export default function PrivacyPage() {
         starting with <code>_gcl_</code>).
       </p>
       <p>
+        One called <code>repget_site_language</code> remembers which language
+        you were reading the site in for a year, so the sign-in and sign-up
+        pages can use it. It holds only the language&apos;s code.
+      </p>
+      <p>
         Two cookies remember which link brought you here, so the right person
         is credited if you open an account: <code>ref</code> for a customer&apos;s
         referral link (30 days) and <code>repget_partner</code> for a partner&apos;s
