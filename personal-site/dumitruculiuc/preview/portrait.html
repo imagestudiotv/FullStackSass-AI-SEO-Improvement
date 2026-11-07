@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Portrait prototype</title>
+<!-- Local prototype of the grabbable portrait only. Open over http (e.g. `npx http-server personal-site/dumitruculiuc`), not file://, so WebGL may load the texture. -->
+<link rel="stylesheet" href="../theme/dumitru/assets/css/portrait.css">
+<style>
+  body { margin: 0; font: 16px/1.5 system-ui, sans-serif; background: #f3f2ef; color: #111; }
+  main { max-width: 64rem; margin: 0 auto; padding: 7rem 1.5rem 4rem; display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: center; }
+  .wrap { width: min(100%, 24rem); justify-self: center; }
+  p { max-width: 28rem; }
+  .filler { height: 140vh; max-width: 64rem; margin: 0 auto; padding: 0 1.5rem; color: #666; }
+  @media (max-width: 720px) { main { grid-template-columns: 1fr; padding-top: 5rem; } .wrap { order: -1; width: min(78vw, 20rem); } }
+</style>
+</head>
+<body>
+<main>
+  <div>
+    <h1>Portrait prototype</h1>
+    <p>Grab the face and pull in any direction; let go and it springs back. On a phone, swipe up or down over it to scroll the page, and pull sideways (or press and hold) to grab.</p>
+    <p>Keyboard: Tab to "Poke Dumitru" and press Enter.</p>
+  </div>
+  <div class="wrap">
+    <div class="dc-portrait" data-dc-portrait data-texture="../theme/dumitru/assets/images/portrait/cutout-640.webp">
+      <span class="dc-portrait__disc"></span>
+      <div class="dc-portrait__stage">
+        <img class="dc-portrait__img" src="../theme/dumitru/assets/images/portrait/cutout-480.webp" srcset="../theme/dumitru/assets/images/portrait/cutout-480.webp 480w, ../theme/dumitru/assets/images/portrait/cutout-640.webp 640w" sizes="(max-width: 720px) 80vw, 30rem" width="480" height="480" alt="Dumitru Culiuc">
+      </div>
+      <button class="dc-portrait__poke" type="button">Poke Dumitru</button>
+    </div>
+  </div>
+</main>
+<div class="filler">Scroll test: this space lets a phone check that swiping over the portrait still scrolls the page.</div>
+<script src="../theme/dumitru/assets/js/portrait.js" defer></script>
+</body>
+</html>

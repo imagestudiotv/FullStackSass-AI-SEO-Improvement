@@ -1,0 +1,17 @@
+/* Block editor: posts look as they will on the site (see .prose in site.css). */
+body {
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 1.125rem;
+  line-height: 1.75;
+  color: #1b1b1c;
+}
+h1, h2, h3, h4,
+.editor-post-title__input {
+  font-family: "Zalando Sans Expanded", "Inter", sans-serif;
+  font-weight: 900;
+  letter-spacing: -0.025em;
+  line-height: 1.12;
+  color: #0b0b0c;
+}
+a { color: #0b0b0c; text-decoration-color: #f45b07; text-decoration-thickness: 2px; }
+blockquote { border-left: 3px solid #f45b07; padding-left: 1.2em; font-style: italic; }
