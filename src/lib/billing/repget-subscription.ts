@@ -77,8 +77,10 @@ export function offerForPlanChange(
   subscription: Pick<Stripe.Subscription, "status" | "metadata" | "discounts">,
   plan: OfferPlan,
 ): { coupon?: string; refuse?: string } {
+  // Only a subscription that took the offer through RepGet's field. The same coupons reached by a Stripe promotion code are Stripe's to handle, as before.
+  if (!subscription.metadata?.[OFFER_KEY]) return {};
   const onIt = subscription.discounts.some((discount) => OURS.includes(couponIdOf(discount)));
-  const waiting = subscription.status === "trialing" && Boolean(subscription.metadata?.[OFFER_KEY]);
+  const waiting = subscription.status === "trialing";
   if (!onIt && !waiting) return {};
   const coupon = repgetCouponFor(plan);
   if (coupon) return { coupon };

@@ -209,6 +209,11 @@ describe("what a plan change owes", () => {
     expect(offerForPlanChange({ status: "active", metadata: { repget_offer: "REPGET" }, discounts: [] } as never, growAnnual)).toEqual({});
   });
 
+  it("the same coupon reached by a Stripe promotion code, not RepGet's field: left as it is, annual included", () => {
+    expect(offerForPlanChange({ status: "trialing", metadata: {}, discounts: [discount("di_1", "GROW40")] } as never, growAnnual)).toEqual({});
+    expect(offerForPlanChange({ status: "trialing", metadata: {}, discounts: [discount("di_1", "GROW40")] } as never, scale)).toEqual({});
+  });
+
   it("a partner coupon, and no offer: nothing, annual included", () => {
     expect(offerForPlanChange({ status: "trialing", metadata: {}, discounts: [discount("di_2", "PARTNER10")] } as never, growAnnual)).toEqual({});
   });
