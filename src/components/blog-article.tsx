@@ -2,7 +2,7 @@ import { ArrowRight, CalendarDays, Clock } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { PostCover } from "@/components/post-cover";
+import { BlogCover } from "@/components/blog-cover";
 import { ARTICLE_TABLE_CLASSES } from "@/lib/articles/table-styles";
 import { sanitizeHtml } from "@/lib/articles/sanitize";
 import { BLOG_CHROME, blogDate, fill } from "@/lib/blog/locale";
@@ -77,10 +77,11 @@ export function BlogArticle({
           {sponsorship ? <div className="w-full pt-1 sm:ml-auto sm:w-auto sm:pt-0">{sponsorship}</div> : null}
         </div>
 
-        <PostCover
-          slug={post.slug}
-          title={post.title}
-          category={post.category}
+        {/* Its featured image, or the drawn cover. The article column is max-w-3xl less its padding. */}
+        <BlogCover
+          post={post}
+          sizes="(min-width: 800px) 736px, 100vw"
+          preload
           className="mt-8 aspect-[100/56] w-full overflow-hidden rounded-xl border"
         />
       </header>
