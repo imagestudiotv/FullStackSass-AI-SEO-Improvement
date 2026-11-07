@@ -14,7 +14,7 @@ export const metadata: Metadata = sponsorshipThanksMetadata("en");
 export default async function SponsorshipThanksPage({
   searchParams,
 }: {
-  searchParams: Promise<{ session_id?: string | string[] }>;
+  searchParams: Promise<{ session_id?: string | string[]; paypal_row?: string | string[] }>;
 }) {
-  return sponsorshipThanksPage({ locale: "en", sessionId: (await searchParams).session_id });
+  return sponsorshipThanksPage({ locale: "en", sessionId: (await searchParams).session_id, paypalRow: (await searchParams).paypal_row });
 }

@@ -6,6 +6,8 @@ import { drizzle } from "drizzle-orm/pglite";
 
 import * as schema from "@/lib/db/schema";
 
+import { draftStatements } from "./drafts";
+
 /**
  * A disposable Postgres for tests: PGlite, in-process, built by replaying the
  * real migrations in drizzle/ in journal order. Nothing here can reach the
@@ -53,6 +55,8 @@ export async function createTestDb(
     }
     if (options.through === tag) break;
   }
+  // Schema drafts awaiting a canonical migration (src/test/drafts.ts); full replays only.
+  if (!options.through) for (const statement of draftStatements(root)) await client.exec(statement);
 
   const db = drizzle(client, { schema });
   return { client, db };

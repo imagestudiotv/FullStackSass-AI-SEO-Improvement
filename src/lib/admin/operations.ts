@@ -9,15 +9,20 @@ import { recordCredit, getBalance } from "@/lib/backlinks/credits";
 import { checkLimit } from "@/lib/usage";
 import { UNLIMITED } from "@/lib/usage-shared";
 import { db } from "@/lib/db";
+import { syncPayPalSubscription } from "@/lib/billing/paypal-events";
+import { refundProviderOps } from "@/lib/billing/refund-providers";
+import { executeRefund, reserveRefund, resolveRefund } from "@/lib/billing/refunds";
 import {
   agencyWorkspaces,
   member,
   organization,
+  paymentRefunds,
   payments,
   subscriptions,
   user,
   websites,
 } from "@/lib/db/schema";
+import { cancelSubscription as cancelPayPalSubscriptionById } from "@/lib/paypal/subscriptions";
 import { reverseReferralReward } from "@/lib/referrals/core";
 import { isStripeConfigured, stripe } from "@/lib/stripe/client";
 import type { ActionResult } from "@/lib/websites/actions";
@@ -58,7 +63,9 @@ type TargetSubscription = {
   websiteId: string | null;
   claimedWebsiteId: string | null;
   status: string;
+  provider: string;
   stripeSubscriptionId: string | null;
+  paypalSubscriptionId: string | null;
 };
 
 /**
@@ -111,7 +118,9 @@ async function subscriptionForPayment(
       websiteId: subscriptions.websiteId,
       claimedWebsiteId: subscriptions.claimedWebsiteId,
       status: subscriptions.status,
+      provider: subscriptions.provider,
       stripeSubscriptionId: subscriptions.stripeSubscriptionId,
+      paypalSubscriptionId: subscriptions.paypalSubscriptionId,
     })
     .from(subscriptions)
     .where(condition)
@@ -125,7 +134,9 @@ async function subscriptionForPayment(
     websiteId: found.websiteId,
     claimedWebsiteId: found.claimedWebsiteId,
     status: found.status,
+    provider: found.provider,
     stripeSubscriptionId: found.stripeSubscriptionId,
+    paypalSubscriptionId: found.paypalSubscriptionId,
   };
 }
 
@@ -213,27 +224,43 @@ export async function quoteRefund(
 
 
 /**
- * Refunds a payment through the processor that took it.
+ * Refunds a payment through the processor that took it: Stripe, or PayPal
+ * (a subscription sale or an Orders capture - lib/billing/refund-providers.ts).
  *
- * Stripe only. PayPal refunds need the order id and a different capture flow,
- * and issuing one incorrectly is worse than sending the operator to PayPal's
- * own dashboard, so those are refused with a message that says where to go.
+ * The money rules live in lib/billing/refunds.ts: the refund is reserved under
+ * the payment's lock before money moves, so a double press or two admins can
+ * never send back more than was paid; a partial refund leaves the rest
+ * refundable; an unanswered provider call is "unknown", resolved with
+ * checkRefundAgain rather than retried blindly.
  *
- * The subscription is deliberately NOT cancelled. A refund and a cancellation
- * are different decisions — a goodwill refund on a customer who is staying is
- * the common case — and bundling them would take that choice away. Cancel
- * separately when that is what is wanted.
+ * The subscription is deliberately NOT cancelled unless asked. A refund and a
+ * cancellation are different decisions - a goodwill refund on a customer who
+ * is staying is the common case - and bundling them would take that choice
+ * away. Asked for, it happens AFTER the money is back.
+ *
+ * Credits or a placement the payment bought are not taken back automatically:
+ * the Terms say unused credits are not refunded for cash, and what to do with
+ * them stays the operator's call (Credits, in the same admin).
  */
 export async function refundPayment(
   paymentId: string,
   reason: string,
   options: {
-    /** Amount to send back. Omit to refund the whole payment. */
+    /** Amount to send back. Omit to refund all that remains. */
     amountCents?: number;
     /** Also end the subscription, for a customer who is leaving. */
     cancelSubscription?: boolean;
   } = {},
-): Promise<ActionResult<{ refunded: number; cancelled: boolean; referralReversalFailed: boolean }>> {
+): Promise<
+  ActionResult<{
+    refunded: number;
+    cancelled: boolean;
+    referralReversalFailed: boolean;
+    /** completed: money sent back. pending: the provider will send it. unknown: see checkRefundAgain. */
+    state: "completed" | "pending" | "unknown";
+    refundId: string;
+  }>
+> {
   const admin = await requireAdmin();
 
   const note = reason.trim();
@@ -251,47 +278,12 @@ export async function refundPayment(
       providerSubscriptionId: payments.providerSubscriptionId,
       amountCents: payments.amountCents,
       currency: payments.currency,
-      status: payments.status,
       description: payments.description,
     })
     .from(payments)
     .where(eq(payments.id, paymentId))
     .limit(1);
-
   if (!row) return { ok: false, error: "Payment not found." };
-  if (row.status === "refunded") {
-    return { ok: false, error: "This payment has already been refunded." };
-  }
-  if (row.status !== "paid") {
-    return {
-      ok: false,
-      error: `Only a paid payment can be refunded; this one is "${row.status}".`,
-    };
-  }
-  if (row.provider !== "stripe") {
-    return {
-      ok: false,
-      error:
-        "Only Stripe payments can be refunded here. Refund PayPal payments in the PayPal dashboard.",
-    };
-  }
-  if (!isStripeConfigured()) {
-    return { ok: false, error: "Stripe is not configured on this deployment." };
-  }
-
-  /**
-   * Default to the whole payment. A partial amount is validated here as well
-   * as in the dialog, because a server action is a public endpoint and the
-   * caller chooses the number.
-   */
-  const amountCents = options.amountCents ?? row.amountCents;
-  if (!Number.isInteger(amountCents) || amountCents <= 0) {
-    return { ok: false, error: "Enter an amount greater than zero." };
-  }
-  if (amountCents > row.amountCents) {
-    return { ok: false, error: "That is more than the customer paid." };
-  }
-  const partial = amountCents < row.amountCents;
 
   /**
    * The subscription to cancel is resolved BEFORE any money moves. When it
@@ -306,119 +298,109 @@ export async function refundPayment(
     } catch (error) {
       console.error("[admin] could not resolve the payment's subscription", error);
     }
-    if (!target?.stripeSubscriptionId) {
+    const providerId = target?.provider === "paypal" ? target.paypalSubscriptionId : target?.stripeSubscriptionId;
+    if (!target || !providerId || target.provider !== row.provider) {
       return {
         ok: false,
-        error:
-          "Could not tell which subscription this payment belongs to, so nothing was refunded. Refund without cancelling, or cancel the subscription in Stripe.",
+        error: `Could not tell which subscription this payment belongs to, so nothing was refunded. Refund without cancelling, or cancel the subscription in ${row.provider === "paypal" ? "PayPal" : "Stripe"}.`,
       };
     }
   }
 
-  /**
-   * Logged BEFORE the money moves. A Stripe refund cannot be undone, so the
-   * ordering matters: if the log write fails nothing has happened yet, but if
-   * the refund succeeded and the log then failed there would be money out the
-   * door with no record of who sent it.
-   */
-  await recordAdminAction({
-    actorEmail: admin.email,
-    action: "payment.refunded",
-    targetType: "payment",
-    targetId: row.id,
-    organizationId: row.organizationId,
-    summary: `Refunded ${(amountCents / 100).toFixed(2)} ${row.currency.toUpperCase()}${
-      partial ? ` of ${(row.amountCents / 100).toFixed(2)}` : ""
-    }${target ? `, cancelling ${target.stripeSubscriptionId}` : ""} - ${note}`,
-    detail: {
-      provider: row.provider,
-      externalId: row.externalId,
-      amountCents,
-      originalAmountCents: row.amountCents,
-      partial,
-      cancelSubscription: Boolean(options.cancelSubscription),
-      cancelTarget: target?.stripeSubscriptionId ?? null,
-      cancelTargetWebsiteId: target?.websiteId ?? target?.claimedWebsiteId ?? null,
-      description: row.description,
-      reason: note,
-    },
+  const reserved = await reserveRefund(db, {
+    paymentId: row.id,
+    amountCents: options.amountCents,
+    reason: note,
+    actor: admin.email,
+    cancelRequested: Boolean(options.cancelSubscription),
   });
+  if (reserved.kind === "refused") return { ok: false, error: reserved.error };
+  const amountCents = reserved.amountCents;
+  const cancelTarget = target ? (target.provider === "paypal" ? target.paypalSubscriptionId : target.stripeSubscriptionId) : null;
 
+  /**
+   * Logged BEFORE the money moves. A refund cannot be undone, so the
+   * ordering matters: if the log write fails nothing has happened yet - the
+   * reserved row is released as failed - but if the refund succeeded and the
+   * log then failed there would be money out the door with no record of who
+   * sent it.
+   */
   try {
-    /**
-     * What the stored id actually is decides how the refund is addressed.
-     *
-     * Subscription payments are recorded under the INVOICE id (in_...), which
-     * Stripe cannot refund: refunds take a charge or a payment intent, and
-     * passing an invoice id returned "No such payment_intent". The invoice
-     * carries neither field any more either — Stripe moved the link to
-     * `payments.data[].payment.payment_intent`, and that is only present when
-     * expanded, so it has to be fetched rather than read from the webhook
-     * payload we already have.
-     *
-     * One-off add-ons store a payment intent directly, and older rows may
-     * hold a charge, so both are still handled by prefix.
-     */
-    let target: { charge: string } | { payment_intent: string };
-
-    if (row.externalId.startsWith("in_")) {
-      const invoice = await stripe.invoices.retrieve(row.externalId, {
-        expand: ["payments"],
-      });
-      const payment = invoice.payments?.data?.[0]?.payment;
-      const intent =
-        payment?.type === "payment_intent" ? payment.payment_intent : null;
-      const intentId = typeof intent === "string" ? intent : (intent?.id ?? null);
-
-      if (!intentId) {
-        return {
-          ok: false,
-          error:
-            "This invoice has no refundable payment on Stripe. Refund it in the Stripe dashboard.",
-        };
-      }
-      target = { payment_intent: intentId };
-    } else if (row.externalId.startsWith("ch_")) {
-      target = { charge: row.externalId };
-    } else {
-      target = { payment_intent: row.externalId };
-    }
-
-    // Omitting amount would refund the whole charge, so it is always sent.
-    await stripe.refunds.create({ ...target, amount: amountCents });
+    await recordAdminAction({
+      actorEmail: admin.email,
+      action: "payment.refunded",
+      targetType: "payment",
+      targetId: row.id,
+      organizationId: row.organizationId,
+      summary: `Refunded ${(amountCents / 100).toFixed(2)} ${row.currency.toUpperCase()}${
+        reserved.partial ? ` of ${(row.amountCents / 100).toFixed(2)}` : ""
+      } via ${row.provider}${cancelTarget ? `, cancelling ${cancelTarget}` : ""} - ${note}`,
+      detail: {
+        provider: row.provider,
+        externalId: row.externalId,
+        refundId: reserved.refundId,
+        amountCents,
+        originalAmountCents: row.amountCents,
+        partial: reserved.partial,
+        cancelSubscription: Boolean(options.cancelSubscription),
+        cancelTarget,
+        cancelTargetWebsiteId: target?.websiteId ?? target?.claimedWebsiteId ?? null,
+        description: row.description,
+        reason: note,
+      },
+    });
   } catch (error) {
-    /**
-     * The audit row stays. It records an attempt, which is the honest
-     * account: someone tried to refund this and it failed.
-     */
-    const message =
-      error instanceof Error ? error.message : "Stripe rejected the refund";
-    return { ok: false, error: message.slice(0, 200) };
+    await db
+      .update(paymentRefunds)
+      .set({ status: "failed", error: "The audit entry could not be written; nothing was sent", updatedAt: new Date() })
+      .where(eq(paymentRefunds.id, reserved.refundId));
+    throw error;
   }
 
-  /**
-   * Marked refunded even on a partial. The status answers "was money sent
-   * back", which is what stops it being refunded twice; the exact amount
-   * lives on the audit entry.
-   */
-  await db
-    .update(payments)
-    .set({ status: "refunded", updatedAt: new Date() })
-    .where(eq(payments.id, row.id));
+  const outcome = await executeRefund(db, reserved.refundId, refundProviderOps);
+  revalidatePath("/admin/payments");
+  if (outcome.kind === "failed") {
+    // The audit row stays: it records an attempt, which is the honest account.
+    return { ok: false, error: outcome.error.slice(0, 200) };
+  }
+  if (outcome.kind === "unknown") {
+    return {
+      ok: true,
+      data: { refunded: 0, cancelled: false, referralReversalFailed: false, state: "unknown", refundId: reserved.refundId },
+    };
+  }
 
+  const effects = await afterRefund(row.id, row.organizationId, outcome.becameFull, target);
+  revalidatePath("/admin/organizations");
+  return {
+    ok: true,
+    data: { refunded: amountCents, ...effects, state: outcome.kind, refundId: reserved.refundId },
+  };
+}
+
+/**
+ * What follows money sent back: the referral reward, once the payment is
+ * refunded in full; and the cancellation the admin asked for, AFTER the
+ * money (a stopped account with no refund is the worse half to be stuck
+ * with). Neither failure undoes the refund: each is reported instead.
+ */
+async function afterRefund(
+  paymentId: string,
+  organizationId: string,
+  becameFull: boolean,
+  target: TargetSubscription | null,
+): Promise<{ cancelled: boolean; referralReversalFailed: boolean }> {
   /*
     A FULL refund can leave a referred workspace having paid nothing, and
     then the referral that this payment converted no longer stands: its
     reward is taken back (lib/referrals/core.ts decides, and does nothing
-    while real money remains). A partial refund leaves it. The money is
-    already back, so a failure here does not fail the refund - it is
-    reported instead (referralReversalFailed), because a second press is
-    refused as "already refunded" and nothing else would retry it.
+    while real money remains). The money is already back, so a failure here
+    does not fail the refund - it is reported instead.
   */
   let referralReversalFailed = false;
-  if (!partial) {
+  if (becameFull) {
     try {
-      await reverseReferralReward(row.organizationId);
+      await reverseReferralReward(organizationId);
     } catch (error) {
       referralReversalFailed = true;
       console.error("[admin] refund succeeded but reversing the referral reward failed", error);
@@ -426,25 +408,17 @@ export async function refundPayment(
   }
 
   let cancelled = false;
-  if (target?.stripeSubscriptionId) {
+  if (target?.provider === "stripe" && target.stripeSubscriptionId) {
     /**
-     * Cancelled AFTER the money is back. If cancelling failed first, the
-     * operator would be left with a stopped account and no refund — the worse
-     * of the two halves to get stuck with.
-     *
-     * Exactly the payment's own subscription (resolved above), with an
-     * idempotency key so a repeated press cancels once. The local row is
-     * changed ONLY to what Stripe answers: it used to be set to "canceled"
-     * even when no Stripe call was made or the call failed, so the customer
-     * lost access while Stripe kept billing. A failure does not fail the
-     * action - the refund went through and is recorded - and `cancelled:
-     * false` tells the operator to cancel by hand.
+     * Exactly the payment's own subscription, with an idempotency key so a
+     * repeated press cancels once. The local row changes ONLY to what Stripe
+     * answers. A failure leaves `cancelled: false`: cancel by hand.
      */
     try {
       const result = await stripe.subscriptions.cancel(
         target.stripeSubscriptionId,
         {},
-        { idempotencyKey: `refund-cancel:${row.id}` },
+        { idempotencyKey: `refund-cancel:${paymentId}` },
       );
       await db
         .update(subscriptions)
@@ -452,16 +426,65 @@ export async function refundPayment(
         .where(eq(subscriptions.id, target.id));
       cancelled = result.status === "canceled";
     } catch (error) {
-      console.error(
-        "[admin] refund succeeded but cancelling the subscription failed",
-        error,
-      );
+      console.error("[admin] refund succeeded but cancelling the subscription failed", error);
+    }
+  } else if (target?.provider === "paypal" && target.paypalSubscriptionId) {
+    // The local row changes only to what PayPal says, read back through the webhook's own sync.
+    try {
+      await cancelPayPalSubscriptionById(target.paypalSubscriptionId, "Refunded and cancelled by RepGet support");
+      const synced = await syncPayPalSubscription(target.paypalSubscriptionId);
+      cancelled = synced.outcome !== "ignored_no_owner";
+    } catch (error) {
+      console.error("[admin] refund succeeded but cancelling the PayPal subscription failed", error);
     }
   }
+  return { cancelled, referralReversalFailed };
+}
 
+/**
+ * A refund whose provider call had no clear answer ("unknown"), or one left
+ * "requested" by a crash: the SAME request is repeated with the SAME
+ * idempotency key, so the provider returns what it did the first time - or
+ * does it now, once. Never a second refund.
+ */
+export async function checkRefundAgain(
+  refundId: string,
+): Promise<ActionResult<{ state: "completed" | "pending" | "failed" | "unknown"; error?: string }>> {
+  const admin = await requireAdmin();
+  const [refund] = await db
+    .select({ id: paymentRefunds.id, status: paymentRefunds.status, paymentId: paymentRefunds.paymentId, organizationId: paymentRefunds.organizationId, updatedAt: paymentRefunds.updatedAt })
+    .from(paymentRefunds)
+    .where(eq(paymentRefunds.id, refundId))
+    .limit(1);
+  if (!refund) return { ok: false, error: "Refund not found." };
+  if (refund.status !== "unknown" && refund.status !== "requested") {
+    return { ok: true, data: { state: refund.status as "completed" | "pending" | "failed" } };
+  }
+  // A "requested" row younger than a minute may be the first press still in flight.
+  if (refund.status === "requested" && Date.now() - refund.updatedAt.getTime() < 60_000) {
+    return { ok: false, error: "This refund is still being sent. Check again in a minute." };
+  }
+  await recordAdminAction({
+    actorEmail: admin.email,
+    action: "payment.refund_checked",
+    targetType: "payment",
+    targetId: refund.paymentId,
+    organizationId: refund.organizationId,
+    summary: `Checked refund ${refund.id} again (was ${refund.status})`,
+    detail: { refundId: refund.id, previous: refund.status },
+  });
+  const outcome = await resolveRefund(db, refund.id, refundProviderOps);
   revalidatePath("/admin/payments");
-  revalidatePath("/admin/organizations");
-  return { ok: true, data: { refunded: amountCents, cancelled, referralReversalFailed } };
+  if (outcome.kind === "failed" || outcome.kind === "unknown") {
+    return { ok: true, data: { state: outcome.kind, error: outcome.error } };
+  }
+  // The cancellation asked with it is not repeated here: the operator cancels by hand if it is still wanted.
+  if (outcome.becameFull) {
+    await reverseReferralReward(refund.organizationId).catch((error) =>
+      console.error("[admin] refund confirmed but reversing the referral reward failed", error),
+    );
+  }
+  return { ok: true, data: { state: outcome.kind } };
 }
 
 /* ------------------------------------------------------------------------- */

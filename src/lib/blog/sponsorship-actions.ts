@@ -12,7 +12,7 @@ import { getPost } from "@/lib/blog/posts";
 import { SPONSORSHIP_CENTS, SPONSORSHIP_CURRENCY, SPONSORSHIP_LIMITS, sponsorshipConfigured, sponsorshipThanksPath } from "@/lib/blog/sponsorship";
 import { SPONSORSHIP_COPY } from "@/lib/blog/sponsorship-copy";
 import { db } from "@/lib/db";
-import { blogSponsorships } from "@/lib/db/schema";
+import { blogSponsorships, paypalOrders } from "@/lib/db/schema";
 import { LOCALES } from "@/lib/i18n/config";
 import { siteUrl } from "@/lib/site-url";
 import { stripe } from "@/lib/stripe/client";
@@ -90,26 +90,27 @@ function wordsFor(input: unknown) {
   return SPONSORSHIP_COPY[LOCALES.find((candidate) => candidate === sent) ?? "en"];
 }
 
-export async function startBlogSponsorship(input: SponsorshipInput): Promise<Result> {
+type OpenRequest =
+  | { kind: "open"; copy: ReturnType<typeof wordsFor>; data: z.output<typeof inputSchema> & { website: string }; post: NonNullable<Awaited<ReturnType<typeof getPost>>>; order: typeof blogSponsorships.$inferSelect }
+  | { kind: "error"; error: string };
+
+/**
+ * The checks every payment method shares: the input, the article in the
+ * page's language, the caps on new requests, and that a repeated press is
+ * the same request with the same details, still unpaid.
+ */
+async function openRequest(input: SponsorshipInput): Promise<OpenRequest> {
   const copy = wordsFor(input);
   const errors = copy.errors;
-  if (!sponsorshipConfigured()) {
-    return { error: errors.notConfigured };
-  }
-
   const parsed = inputSchema.safeParse(input);
-  if (!parsed.success) {
-    return { error: errors.invalid };
-  }
+  if (!parsed.success) return { kind: "error", error: errors.invalid };
   const website = websiteAddress(parsed.data.website);
-  if (!website) return { error: errors.website };
+  if (!website) return { kind: "error", error: errors.website };
   const data = { ...parsed.data, website };
 
-  // The article in the page's language: /it/blog/<slug> for an Italian one.
   const post = await getPost(data.slug, data.locale);
-  if (!post) return { error: errors.gone };
+  if (!post) return { kind: "error", error: errors.gone };
 
-  // The same request again (a double click, a retry) is not a new one: no new slot, no new checkout.
   const [existing] = await db.select().from(blogSponsorships).where(eq(blogSponsorships.id, data.id));
   if (!existing) {
     const admitted = await reserveAll(limits(data.email, visitorKey(await headers())), {
@@ -117,27 +118,110 @@ export async function startBlogSponsorship(input: SponsorshipInput): Promise<Res
       metadata: { articleSlug: data.slug },
     });
     if (!admitted.ok) {
-      return { error: admitted.rule.key === "blog-featured:global" ? errors.busy : errors.tooMany };
+      return { kind: "error", error: admitted.rule.key === "blog-featured:global" ? errors.busy : errors.tooMany };
     }
     await db
       .insert(blogSponsorships)
       .values({ id: data.id, postSlug: data.slug, email: data.email, websiteUrl: data.website, message: data.message })
       .onConflictDoNothing();
   }
-
   const [order] = await db.select().from(blogSponsorships).where(eq(blogSponsorships.id, data.id));
-  if (
-    !order ||
-    order.email !== data.email ||
-    order.postSlug !== data.slug ||
-    order.websiteUrl !== data.website ||
-    order.message !== data.message
-  ) {
-    return { error: errors.changed };
+  if (!order || order.email !== data.email || order.postSlug !== data.slug || order.websiteUrl !== data.website || order.message !== data.message) {
+    return { kind: "error", error: errors.changed };
   }
-  if (order.status !== "pending") {
-    return { error: errors.alreadyPaid };
+  if (order.status !== "pending") return { kind: "error", error: errors.alreadyPaid };
+  return { kind: "open", copy, data, post, order };
+}
+
+/** Whether a request has a PayPal payment still open (lib/paypal/orders.ts). */
+async function openPayPalPayment(order: typeof blogSponsorships.$inferSelect) {
+  if (!order.paypalOrderId) return null;
+  const [row] = await db
+    .select({ id: paypalOrders.id, status: paypalOrders.status, approveUrl: paypalOrders.approveUrl })
+    .from(paypalOrders)
+    .where(eq(paypalOrders.id, order.paypalOrderId))
+    .limit(1);
+  return row && ["creating", "created", "pending", "unknown"].includes(row.status) ? row : null;
+}
+
+/**
+ * Starts a "Get Featured" payment with PayPal (review P8): the same request,
+ * the same checks and the same €99 as by card, through a PayPal order the
+ * server prices (lib/paypal/orders.ts). Paid means RepGet captured it and
+ * PayPal reported it complete for exactly that amount
+ * (confirmSponsorshipPayPal); the thanks page shows it, never grants it.
+ *
+ * One way of paying at a time: an open card checkout is closed at Stripe
+ * first (one that turns out to be paid answers "already paid"), and a PayPal
+ * payment already open for the request is reused, not doubled.
+ */
+export async function startBlogSponsorshipPayPal(input: SponsorshipInput): Promise<Result> {
+  const copy = wordsFor(input);
+  const errors = copy.errors;
+  const { isPayPalConfigured, payPalCheckoutPaused } = await import("@/lib/paypal/client");
+  if (!isPayPalConfigured() || payPalCheckoutPaused()) return { error: errors.notConfigured };
+
+  const opened = await openRequest(input);
+  if (opened.kind === "error") return { error: opened.error };
+  const { data, post, order } = opened;
+
+  const open = await openPayPalPayment(order);
+  if (open?.approveUrl && open.status === "created") return { url: open.approveUrl };
+  if (open) return { error: errors.failed };
+
+  if (order.checkoutId) {
+    try {
+      const session = await stripe.checkout.sessions.retrieve(order.checkoutId);
+      if (session.status === "complete") return { error: errors.alreadyPaid };
+      if (session.status === "open") {
+        const closed = await stripe.checkout.sessions.expire(order.checkoutId);
+        if (closed.status === "complete") return { error: errors.alreadyPaid };
+      }
+    } catch (error) {
+      // Not knowing whether the card checkout can still be paid: no second way to pay.
+      console.error("[blog-sponsorship] could not close the card checkout before PayPal", error);
+      return { error: errors.failed };
+    }
   }
+
+  const { startOrder } = await import("@/lib/paypal/orders");
+  const base = siteUrl();
+  try {
+    const started = await startOrder({
+      purpose: "blog_sponsorship",
+      organizationId: null,
+      referenceId: order.id,
+      amountCents: SPONSORSHIP_CENTS,
+      currency: SPONSORSHIP_CURRENCY,
+      description: `Featured placement: ${post.title}`.slice(0, 127),
+      returnUrl: (rowId) => `${base}/api/paypal/orders/return?row=${rowId}&outcome=success&lang=${data.locale}`,
+      cancelUrl: (rowId) => `${base}/api/paypal/orders/return?row=${rowId}&outcome=cancelled&lang=${data.locale}`,
+    });
+    if (started.rowId) {
+      await db.update(blogSponsorships).set({ paypalOrderId: started.rowId, updatedAt: new Date() }).where(eq(blogSponsorships.id, order.id));
+    }
+    return started.kind === "started" ? { url: started.url } : { error: errors.failed };
+  } catch (error) {
+    // The open-order index refused a second one racing this: the request already has one.
+    console.error("[blog-sponsorship] PayPal payment could not start", error);
+    return { error: errors.failed };
+  }
+}
+
+export async function startBlogSponsorship(input: SponsorshipInput): Promise<Result> {
+  const copy = wordsFor(input);
+  const errors = copy.errors;
+  if (!sponsorshipConfigured()) {
+    return { error: errors.notConfigured };
+  }
+
+  // The same request again (a double click, a retry) is not a new one: no new slot, no new checkout.
+  const opened = await openRequest(input);
+  if (opened.kind === "error") return { error: opened.error };
+  const { data, post, order } = opened;
+
+  // One way of paying at a time: a PayPal payment still open for this request is finished or cancelled first.
+  if (await openPayPalPayment(order)) return { error: errors.failed };
 
   try {
     if (order.checkoutId) {

@@ -59,6 +59,18 @@ export const billingMaintenance = inngest.createFunction(
     */
     const paypalEnded = isPayPalConfigured() ? await step.run("end-paypal-cancellations", () => endPayPalCancellations()) : 0;
 
+    /*
+      PayPal one-off purchases (lib/paypal/orders.ts): an approval whose
+      webhook never came is captured and granted; a capture PayPal was still
+      clearing is granted once it completes; one never approved is voided.
+    */
+    const paypalOrders = isPayPalConfigured()
+      ? await step.run("reconcile-paypal-orders", async () => {
+          const { reconcilePayPalOrders } = await import("@/lib/paypal/order-fulfilment");
+          return reconcilePayPalOrders();
+        })
+      : 0;
+
     // Reservations abandoned mid-request (spent ones are consumed, not freed).
     await step.run("sweep-reservations", () => sweepAbandonedReservations());
 
@@ -69,6 +81,7 @@ export const billingMaintenance = inngest.createFunction(
       cancellationsAbandoned: cancellations.abandoned.length,
       checkoutsSettled: checkouts,
       paypalCancellationsEnded: paypalEnded,
+      paypalOrdersReconciled: paypalOrders,
     };
   },
 );

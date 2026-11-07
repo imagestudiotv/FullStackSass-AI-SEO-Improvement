@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNotNull, lte, ne, or } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull, lte, ne, or } from "drizzle-orm";
 
 import { cancellationOps } from "@/lib/billing/checkout-providers";
 import { addMonthsClamped } from "@/lib/billing/entitlement-period";
@@ -10,8 +10,10 @@ import {
 } from "@/lib/billing/subscription-sync";
 import { db } from "@/lib/db";
 import type { Executor } from "@/lib/db/types";
-import { billingCheckouts, organization, payments, plans, subscriptions } from "@/lib/db/schema";
-import { PayPalError } from "@/lib/paypal/client";
+import { billingCheckouts, organization, payments, paypalPlanVersions, plans, subscriptions } from "@/lib/db/schema";
+import { recordProviderRefund } from "@/lib/billing/refunds";
+import { PayPalError, payPalMode } from "@/lib/paypal/client";
+import { fromPayPalAmount } from "@/lib/paypal/payments";
 import { convertReferral, reverseReferralReward } from "@/lib/referrals/core";
 import {
   getSubscription,
@@ -42,11 +44,36 @@ export type PayPalEvent = {
     status?: string;
     custom_id?: string;
     billing_agreement_id?: string;
-    amount?: { total?: string; currency?: string };
+    /** v1 (sales): total + currency. v2 (captures, refunds): value + currency_code. */
+    amount?: { total?: string; currency?: string; value?: string; currency_code?: string };
     /** On a refund or reversal: the sale it returns money from. */
     sale_id?: string;
+    /** v1 refund: our payment_refunds id, sent with the refund (lib/paypal/payments.ts). */
+    invoice_number?: string;
+    /** v1 refund state ("completed", "pending", "failed"). */
+    state?: string;
+    /** v2 refund or capture: the id we put on it (our refund row, or "<kind>:<id>" on a capture). */
+    invoice_id?: string;
+    links?: { href?: string; rel?: string }[];
+    /** An Orders v2 order (CHECKOUT.ORDER.*): our custom_id is on its purchase unit. */
+    purchase_units?: { custom_id?: string }[];
   };
 };
+
+/** The capture a v2 refund returns money from: its "up" link names it. */
+function refundedCaptureId(resource: NonNullable<PayPalEvent["resource"]>): string | null {
+  const up = resource.links?.find((link) => link.rel === "up")?.href ?? "";
+  const match = /\/v2\/payments\/captures\/([^/?#]+)/.exec(up);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+/** A refund status PayPal reports, in payment_refunds' words. */
+function settledOfRefund(status: string | undefined): "completed" | "pending" | "failed" {
+  const value = (status ?? "completed").toUpperCase();
+  if (value === "PENDING") return "pending";
+  if (value === "FAILED" || value === "CANCELLED") return "failed";
+  return "completed";
+}
 
 /**
  * The workspace custom_id names, if it still exists. custom_id is fixed at
@@ -151,6 +178,7 @@ async function paidThrough(
     .where(and(eq(payments.provider, "paypal"), eq(payments.providerSubscriptionId, subscriptionId)))
     .orderBy(desc(payments.createdAt))
     .limit(1);
+  // "refunded" means ALL of it (lib/billing/refunds.ts): a partial refund keeps the paid time.
   if (latest?.status === "refunded") return null;
   if (interval === "month" || interval === "year") {
     return addMonthsClamped(new Date(lastPaid), interval === "year" ? 12 : 1);
@@ -179,9 +207,34 @@ async function snapshotOf(
       .from(plans)
       .where(or(eq(plans.paypalPlanId, live.plan_id), eq(plans.paypalTrialPlanId, live.plan_id)))
       .limit(1);
-    planId = plan?.id ?? null;
-    interval = plan?.interval ?? null;
-    freeArticlesPlan = plan?.paypalTrialPlanId === live.plan_id;
+    if (plan) {
+      planId = plan.id;
+      interval = plan.interval;
+      freeArticlesPlan = plan.paypalTrialPlanId === live.plan_id;
+    } else {
+      /*
+        A PayPal plan the row no longer names (recreated since): its history
+        (paypal_plan_versions, review P3) still maps it to the row the
+        subscriber bought - and says whether it was the free-articles kind,
+        so its free days stay "trialing" rather than full paid access. An id
+        recorded under the other PayPal mode is not ours here.
+      */
+      const mode = payPalMode();
+      const [old] = await reader
+        .select({ planId: paypalPlanVersions.planId, kind: paypalPlanVersions.kind, interval: plans.interval })
+        .from(paypalPlanVersions)
+        .innerJoin(plans, eq(plans.id, paypalPlanVersions.planId))
+        .where(
+          and(
+            eq(paypalPlanVersions.paypalPlanId, live.plan_id),
+            mode ? or(isNull(paypalPlanVersions.environment), eq(paypalPlanVersions.environment, mode)) : isNull(paypalPlanVersions.environment),
+          ),
+        )
+        .limit(1);
+      planId = old?.planId ?? null;
+      interval = old?.interval ?? null;
+      freeArticlesPlan = old?.kind === "trial";
+    }
   }
 
   const custom = await ownIds(reader, subscriptionId, live, planId !== null);
@@ -374,6 +427,8 @@ export async function processPayPalEvent(event: PayPalEvent): Promise<void> {
             currency: (resource.amount?.currency ?? "EUR").toLowerCase(),
             status,
             description: "Subscription payment",
+            // A v1 sale: refunded at /v1/payments/sale (lib/paypal/payments.ts).
+            providerObject: "paypal_sale",
             // The subscription this sale belongs to (issue 6).
             providerSubscriptionId: billingId,
             subscriptionId: synced.subscriptionRowId,
@@ -422,37 +477,76 @@ export async function processPayPalEvent(event: PayPalEvent): Promise<void> {
     }
 
     /*
-      Money returned outside RepGet: a refund made in PayPal's dashboard, or a
-      reversal (chargeback). There is no PayPal refund in the admin, so these
-      are the only way RepGet learns of it. The sale is marked refunded only
-      when ALL of it went back - a partial refund leaves money paid - and a
-      referral resting on it is then reversed (lib/referrals/core.ts decides,
-      and does nothing while real money remains). Thrown on failure, so the
-      event is retried. Needs these events enabled on the PayPal webhook.
+      Money returned: a refund made in RepGet's admin (lib/billing/refunds.ts)
+      or in PayPal's dashboard, or a reversal (chargeback). Each is one
+      payment_refunds row, matched to our own when we made it, so a partial
+      refund is recorded too - it used to be dropped, leaving no trace and
+      the full amount still shown as kept. The referral resting on the
+      payment is reversed once it is refunded IN FULL (lib/referrals/core.ts
+      decides, and does nothing while real money remains). Thrown on
+      failure, so the event is retried. Needs these events on the webhook.
+
+      v1 events carry the sale; v2 (Orders) the capture, named by the refund's
+      "up" link. A reversal without its own amount returns the whole payment.
     */
     case "PAYMENT.SALE.REFUNDED":
-    case "PAYMENT.SALE.REVERSED": {
-      const saleIds = [resource.sale_id, resource.id].filter((id): id is string => Boolean(id));
-      if (saleIds.length === 0) return;
-      const [sale] = await db
-        .select({ id: payments.id, organizationId: payments.organizationId, amountCents: payments.amountCents })
+    case "PAYMENT.SALE.REVERSED":
+    case "PAYMENT.CAPTURE.REFUNDED":
+    case "PAYMENT.CAPTURE.REVERSED": {
+      const v2 = event.event_type.startsWith("PAYMENT.CAPTURE.");
+      const reversal = event.event_type.endsWith(".REVERSED");
+      const paymentIds = v2
+        ? [refundedCaptureId(resource)].filter((id): id is string => Boolean(id))
+        : [resource.sale_id, resource.id].filter((id): id is string => Boolean(id));
+      if (paymentIds.length === 0 || !resource.id) return;
+
+      const [paid] = await db
+        .select({ amountCents: payments.amountCents, refundedCents: payments.refundedCents })
         .from(payments)
-        .where(and(eq(payments.provider, "paypal"), inArray(payments.externalId, saleIds)))
+        .where(and(eq(payments.provider, "paypal"), inArray(payments.externalId, paymentIds)))
         .limit(1);
-      if (!sale) {
-        console.error(`[paypal-webhook] ${event.event_type} for an unknown sale - nothing recorded`);
+      if (!paid) {
+        console.error(`[paypal-webhook] ${event.event_type} for an unknown payment - nothing recorded`);
         return;
       }
-      const returned = Number.parseFloat(resource.amount?.total ?? "");
-      const returnedCents = Number.isFinite(returned) ? Math.round(Math.abs(returned) * 100) : null;
-      const full = event.event_type === "PAYMENT.SALE.REVERSED" || (returnedCents !== null && returnedCents >= sale.amountCents);
-      if (!full) return;
+      const stated = fromPayPalAmount(v2 ? resource.amount?.value : resource.amount?.total);
+      // A reversal that states no amount takes back all that is left.
+      const amountCents = stated ?? (reversal ? Math.max(paid.amountCents - paid.refundedCents, 0) : 0);
+      const recorded = await recordProviderRefund(db, {
+        provider: "paypal",
+        paymentExternalIds: paymentIds,
+        providerRefundId: resource.id,
+        amountCents,
+        currency: (v2 ? resource.amount?.currency_code : resource.amount?.currency) ?? "EUR",
+        settled: settledOfRefund(v2 ? resource.status : resource.state),
+        ourRefundId: v2 ? resource.custom_id : resource.invoice_number,
+        reason: reversal ? "Reversed by PayPal (dispute or chargeback)" : "Refunded in PayPal",
+      });
+      if (recorded.kind === "recorded" && recorded.becameFull) await reverseReferralReward(recorded.organizationId);
+      return;
+    }
 
-      await db
-        .update(payments)
-        .set({ status: "refunded", updatedAt: new Date() })
-        .where(eq(payments.id, sale.id));
-      if (sale.organizationId) await reverseReferralReward(sale.organizationId);
+    /*
+      One-off purchases (lib/paypal/orders.ts, reviews P4 and P8). The event
+      only says WHICH of our orders moved (custom_id "<purpose>:<row id>"):
+      the order is read from PayPal and captured or granted from what PayPal
+      says now, exactly as the return page does, so a buyer who closed the
+      tab after approving still gets what they paid for, and a repeated or
+      early event changes nothing. Another integration's order is left alone.
+    */
+    case "CHECKOUT.ORDER.APPROVED":
+    case "CHECKOUT.ORDER.COMPLETED":
+    case "PAYMENT.CAPTURE.COMPLETED":
+    case "PAYMENT.CAPTURE.PENDING":
+    case "PAYMENT.CAPTURE.DENIED":
+    case "PAYMENT.CAPTURE.DECLINED": {
+      const customId = event.event_type.startsWith("CHECKOUT.ORDER.")
+        ? resource.purchase_units?.[0]?.custom_id
+        : resource.custom_id;
+      const { settleFromWebhook } = await import("@/lib/paypal/order-fulfilment");
+      const settled = await settleFromWebhook(customId);
+      // A PayPal answer missing now: thrown, so the event is retried.
+      if (settled?.kind === "unknown") throw new Error(`[paypal-webhook] ${event.event_type}: ${settled.reason}`);
       return;
     }
 

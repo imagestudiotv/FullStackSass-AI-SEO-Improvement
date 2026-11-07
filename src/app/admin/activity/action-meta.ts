@@ -40,6 +40,7 @@ export type ActionMeta = {
 /** In the order the filter lists them: grouped by the area they belong to. */
 export const ACTION_META: Record<AdminAction, ActionMeta> = {
   "payment.refunded": { label: "Payment refunded", icon: Receipt },
+  "payment.refund_checked": { label: "Refund checked again", icon: Receipt },
   "credits.adjusted": { label: "Credits adjusted", icon: Coins },
   "credits.settings_saved": { label: "Credit prices changed", icon: Coins },
   "earn.approved": { label: "Earn Credits claim approved", icon: Coins },
