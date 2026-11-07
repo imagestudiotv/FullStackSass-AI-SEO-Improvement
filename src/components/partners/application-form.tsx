@@ -133,9 +133,10 @@ export function ApplicationForm({
           </h2>
           <p className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground">{copy.cardIntro}</p>
         </div>
-        <p className="inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[11px] font-bold whitespace-nowrap text-muted-foreground">
-          <span className="size-1.5 rounded-full bg-primary" aria-hidden="true" />
-          {copy.chip}
+        {/* On a phone only the dot shows, as designed; the words stay for screen readers. */}
+        <p className="inline-flex shrink-0 items-center gap-1.5 rounded-full border p-[7px] text-[11px] font-bold whitespace-nowrap text-muted-foreground sm:px-2.5 sm:py-1.5" title={copy.chip}>
+          <span className="size-[7px] rounded-full bg-primary sm:size-1.5" aria-hidden="true" />
+          <span className="max-sm:sr-only">{copy.chip}</span>
         </p>
       </div>
 

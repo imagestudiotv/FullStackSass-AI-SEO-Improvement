@@ -1074,6 +1074,7 @@
   color: #fcb689;
 }
 .btNum {
+  margin: 0;
   font-size: 74px;
   letter-spacing: -5.5px;
   line-height: 1.1;
@@ -1088,13 +1089,13 @@
   letter-spacing: -0.55px;
   margin: 0 0 8px;
 }
-.bigTier p {
+.tierBody {
   color: var(--pp-muted);
   font-size: 12px;
   line-height: 1.7;
   margin: 0;
 }
-.featured p {
+.featured .tierBody {
   color: #c6c0b7;
 }
 .cornerCirc {

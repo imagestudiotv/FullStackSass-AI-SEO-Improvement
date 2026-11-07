@@ -197,7 +197,7 @@ export function PartnersContent({
                   <p className={styles.btLevel}>{fill(copy.tierLevel, { n: String(index + 1).padStart(2, "0"), name: tier.name })}</p>
                   <p className={styles.btNum}>{rateLabel(tier.rateBasisPoints)}</p>
                   <h3>{tier.minCustomers === 0 ? copy.tierStartTitle : fill(copy.tierFromTitle, { count: tier.minCustomers })}</h3>
-                  <p>{tier.minCustomers === 0 ? copy.tierStartBody : top ? copy.tierTopBody : fill(copy.tierNextBody, { count: tier.minCustomers })}</p>
+                  <p className={styles.tierBody}>{tier.minCustomers === 0 ? copy.tierStartBody : top ? copy.tierTopBody : fill(copy.tierNextBody, { count: tier.minCustomers })}</p>
                 </li>
               );
             })}

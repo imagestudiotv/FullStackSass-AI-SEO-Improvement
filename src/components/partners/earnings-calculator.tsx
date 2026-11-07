@@ -124,6 +124,12 @@ export function EarningsCalculator({
   // The design opens on the middle plan (Grow).
   const [planId, setPlanId] = useState(plans[Math.min(1, plans.length - 1)]?.id ?? "");
   const [count, setCount] = useState(10);
+  /**
+   * The dots drawn with the page, which are there from the start: only a dot
+   * added afterwards pops in. A dot that appeared only by its animation would
+   * be missing wherever animations do not run.
+   */
+  const [firstDrawn] = useState(() => Math.min(count, MAX_DOTS));
   /** What the number field shows while it is being typed in; null shows the count. */
   const [typed, setTyped] = useState<string | null>(null);
   const [selected, setSelected] = useState(6);
@@ -282,8 +288,8 @@ export function EarningsCalculator({
                 {points.map((point, index) => (
                   <g
                     key={index}
-                    className={`${styles.netNode} ${styles.nodeIn}${index === shown ? ` ${styles.nodeSelected}` : ""}`}
-                    style={{ animationDelay: `${Math.min((index % 16) * 12, 200)}ms` }}
+                    className={`${styles.netNode}${index >= firstDrawn ? ` ${styles.nodeIn}` : ""}${index === shown ? ` ${styles.nodeSelected}` : ""}`}
+                    style={index >= firstDrawn ? { animationDelay: `${Math.min((index % 16) * 12, 200)}ms` } : undefined}
                     role="button"
                     tabIndex={index === Math.min(selected, points.length - 1) ? 0 : -1}
                     aria-label={fill(copy.nodeLabel, { n: index + 1 })}
@@ -394,7 +400,7 @@ export function EarningsCalculator({
               value={count}
               aria-label={copy.customers}
               onChange={(event) => choose(Number(event.target.value))}
-              style={{ background: `linear-gradient(to right, #fa762e 0%, #fa762e ${filled}%, #50564e ${filled}%, #50564e 100%)` }}
+              style={{ backgroundImage: `linear-gradient(to right, #fa762e 0%, #fa762e ${filled}%, #50564e ${filled}%, #50564e 100%)` }}
             />
             <div className={styles.ticks} aria-hidden="true">
               <span>1</span>
