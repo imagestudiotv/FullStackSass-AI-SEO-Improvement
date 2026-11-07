@@ -375,6 +375,15 @@ export const partnerPaymentFacts = pgTable(
     chargeId: text("charge_id"),
     stripeSubscriptionId: text("stripe_subscription_id"),
     stripeCustomerId: text("stripe_customer_id"),
+    /**
+     * Who collected it: "stripe", or "paypal" (review P7). A PayPal fact is
+     * one completed subscription SALE: invoice_payment_id, invoice_id and
+     * charge_id all hold "paypal_sale:<sale id>" (PayPal has no invoice), so
+     * the uniqueness and the cumulative-refund logic keyed on them apply
+     * unchanged.
+     */
+    provider: text("provider").default("stripe").notNull(),
+    paypalSubscriptionId: text("paypal_subscription_id"),
     organizationId: text("organization_id").notNull(),
     attributionId: uuid("attribution_id").references(() => partnerAttributions.id, { onDelete: "restrict" }),
     /** The existing payments row for the invoice, when there is one. */

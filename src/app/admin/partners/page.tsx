@@ -160,7 +160,10 @@ export default async function AffiliateProgramPage() {
           />
           <Fact label="Payout countries" value={readiness.payoutCountries.join(", ")} />
           <Fact label="Connect webhook" value="/api/stripe/connect-webhook (STRIPE_CONNECT_WEBHOOK_SECRET)" />
-          <Fact label="Supported payments" value="Stripe-paid subscriptions only. PayPal payments earn no commission." />
+          <Fact
+            label="Supported payments"
+            value="Subscriptions paid by card (Stripe) or with PayPal, where PayPal's mode matches this environment. PayPal customers are attributed by referral link only (no coupons)."
+          />
         </dl>
         <p className="mt-4 text-sm text-muted-foreground">
           Rules, rollout and support procedures: <code>docs/partner-program.md</code>. Partners and applications:{" "}

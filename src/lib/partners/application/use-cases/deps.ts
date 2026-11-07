@@ -1,4 +1,4 @@
-import type { BillingSource, CouponGateway } from "../ports/billing-source";
+import type { BillingSource, CouponGateway, PayPalSaleSource } from "../ports/billing-source";
 import type { Clock } from "../ports/clock";
 import type { Hasher, Mailer, RateLimiter, SecureRandom, UserDirectory } from "../ports/directory";
 import type { ConnectAccountGateway, StripePayoutGateway } from "../ports/payout-gateway";
@@ -32,4 +32,6 @@ export type PartnerDeps = {
   payouts: StripePayoutGateway | null;
   billing: BillingSource | null;
   couponGateway: CouponGateway | null;
+  /** PayPal subscription sales (review P7); null where PayPal is not configured. Optional for older test fakes. */
+  paypalSales?: PayPalSaleSource | null;
 };

@@ -452,6 +452,14 @@ export async function processPayPalEvent(event: PayPalEvent): Promise<void> {
           is retried; nothing for a zero sale.
         */
         if (status === "paid") {
+          /*
+            The cash partner program (review P7): the commission this sale may
+            earn, recorded as durable work in this same attempt (thrown on
+            failure, so the event is retried). Imported on demand, as on
+            Stripe's side: billing does not depend on the partner module graph.
+          */
+          const { recordPartnerPayPalWork } = await import("@/lib/partners/presentation/webhooks");
+          await recordPartnerPayPalWork({ id: event.id, eventType: event.event_type, saleId: resource.id });
           await convertReferral(synced.organizationId, Number.isFinite(total) ? Math.round(total * 100) : 0);
           // The first real payment, to Google Analytics, as on Stripe's (lib/conversions/conversions.ts).
           await reportFirstPayment(db, {
@@ -523,6 +531,11 @@ export async function processPayPalEvent(event: PayPalEvent): Promise<void> {
         reason: reversal ? "Reversed by PayPal (dispute or chargeback)" : "Refunded in PayPal",
       });
       if (recorded.kind === "recorded" && recorded.becameFull) await reverseReferralReward(recorded.organizationId);
+      // A subscription sale's commission follows the money back (review P7); one-off captures earn none.
+      if (!v2 && recorded.kind === "recorded") {
+        const { recordPartnerPayPalWork } = await import("@/lib/partners/presentation/webhooks");
+        await recordPartnerPayPalWork({ id: event.id, eventType: event.event_type, saleId: paymentIds[0] });
+      }
       return;
     }
 

@@ -1,8 +1,17 @@
 # Partner program (cash affiliates)
 
-RepGet's native affiliate program: partners apply with their existing RepGet login, share a referral link or an assigned coupon, earn a recurring cash commission on the Stripe subscription revenue their referred customers actually pay, and are paid through Stripe Connect.
+RepGet's native affiliate program: partners apply with their existing RepGet login, share a referral link or an assigned coupon, earn a recurring cash commission on the subscription revenue their referred customers actually pay, by card (Stripe) or with PayPal, and are paid through Stripe Connect.
 
-**This release supports Stripe-paid subscriptions only.** PayPal payments earn no partner commission and are never shown as processed. PayPal itself, its history and the legacy account-credit referral program are unchanged.
+**PayPal subscription payments earn commission (review P7, branch `feature/payment-s1-p11`, not yet released).** The rules are the same as for card: cash collected, tax excluded, fees not subtracted, the 12-month window, the tier at the payment's own time, Net 30, and refunds and reversals reversed cumulatively.
+- **Each completed PayPal sale is one payment fact.** `provider = 'paypal'`; `invoice_payment_id`, `invoice_id` and `charge_id` are all `paypal_sale:<sale id>`.
+- **It is processed by the same job** (`process-provider-events.ts`, kind `paypal_sale`) from PayPal's `PAYMENT.SALE.COMPLETED`, `.REFUNDED` and `.REVERSED`.
+- **It counts only where PayPal's mode is the program's environment** (sandbox = test, live = live).
+- **Differences from card:**
+  - A partner coupon cannot be used with PayPal (PayPal has no promotion codes), so only the referral link attributes a PayPal customer.
+  - PayPal disputes are not read while open: a reversal counts as a lost dispute, and an open dispute does not hold the commission.
+- **Not covered by this:** one-off PayPal purchases (credit packs, "Get Featured") earn no commission, as one-off card purchases earn none either.
+
+Partners receiving their money through PayPal is a separate matter, see "Payouts". The legacy account-credit referral program is unchanged.
 
 Progress against the requirements, phase by phase: [partner-program-progress.md](partner-program-progress.md).
 

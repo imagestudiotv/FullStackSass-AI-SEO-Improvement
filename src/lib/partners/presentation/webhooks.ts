@@ -94,6 +94,41 @@ export async function processPartnerConnectEvent(event: Stripe.Event): Promise<v
  * off (it waits). An event for another environment than this deployment's
  * key is ignored and logged: test and live never mix.
  */
+/**
+ * Affiliate work owed for a verified PayPal event about a subscription SALE
+ * (review P7): completed, refunded or reversed. Recorded in the same webhook
+ * attempt, before the event is marked complete, as Stripe's is; worked off by
+ * the same job (process-provider-events.ts, kind "paypal_sale"), which reads
+ * the sale from PayPal again. Keyed by PayPal's event id, so a redelivery is
+ * the same work. PayPal's mode must be the program's environment (sandbox =
+ * test, live = live): test and live never mix.
+ */
+export async function recordPartnerPayPalWork(event: { id: string; eventType: string; saleId: string; createdAt?: Date }): Promise<void> {
+  const deps = partnerDeps();
+  const environment = deps.settings.environment();
+  const paypal = deps.paypalSales?.environment() ?? null;
+  if (!environment || !paypal) return;
+  if (paypal !== environment) {
+    console.warn(`[partners] PayPal ${event.eventType} ${event.id} is ${paypal} but the partner program is ${environment}; ignored`);
+    return;
+  }
+  const now = deps.clock.now();
+  const repos = deps.uow.repositories;
+  const { id, created } = await repos.providerEvents.record({
+    environment,
+    // The column predates PayPal: any provider's unique event key ("paypal:<event id>").
+    stripeEventId: `paypal:${event.id}`,
+    eventType: `paypal_sale:${event.eventType}`,
+    objectId: event.saleId,
+    connectedAccountId: null,
+    eventCreatedAt: event.createdAt ?? now,
+    now,
+  });
+  if (created) {
+    await repos.outbox.enqueue({ name: "partners/provider-event.process", id: `partners/provider-event:${id}`, data: { providerEventId: id } });
+  }
+}
+
 export async function recordPartnerPlatformWork(event: Stripe.Event): Promise<void> {
   const work = partnerWorkFor(event);
   if (!work) return;

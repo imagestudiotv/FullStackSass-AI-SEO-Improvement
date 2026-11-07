@@ -280,6 +280,9 @@ export type NewPaymentFact = Omit<PaymentFactRecord, "id" | "refundedAmount" | "
   evidence: Record<string, unknown>;
   evidenceVersion: number;
   syncedAt: Date;
+  /** "stripe" when omitted; "paypal" for a PayPal subscription sale (review P7). */
+  provider?: "stripe" | "paypal";
+  paypalSubscriptionId?: string | null;
 };
 
 export type CommissionRecord = {

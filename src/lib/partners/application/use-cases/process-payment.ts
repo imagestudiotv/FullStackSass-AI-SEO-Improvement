@@ -174,7 +174,7 @@ export async function processInvoice(
 }
 
 /** Attributed, or still attributable (signup eligibility recorded for this workspace or its owner). */
-async function isRelevant(deps: PartnerDeps, organizationId: string): Promise<boolean> {
+export async function isRelevant(deps: PartnerDeps, organizationId: string): Promise<boolean> {
   const repos = deps.uow.repositories;
   if (await repos.attributions.findByOrganization(organizationId)) return true;
   if (await repos.tracking.findEligibilityByOrganization(organizationId)) return true;
@@ -197,7 +197,7 @@ async function couponFor(repos: PartnerRepositories, environment: Environment, i
  * The commission for one new payment fact, or why there is none. Runs under
  * the attribution's row lock.
  */
-async function commissionFor_(
+export async function commissionFor_(
   tx: PartnerRepositories,
   attribution: AttributionRecord,
   factId: string,
