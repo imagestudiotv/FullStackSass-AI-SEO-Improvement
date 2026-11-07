@@ -138,6 +138,13 @@ export const partnerProfiles = pgTable(
      * monthly run pays the method chosen when it runs.
      */
     payoutMethod: text("payout_method").default("stripe").notNull(),
+    /**
+     * Where the partner's earnings go as RepGet CREDITS (owner's decision,
+     * 2026-11-07: partners paid in credits for now): a workspace the partner
+     * owns, chosen by the partner. Text id, no foreign key, like every
+     * financial row here. Null: nothing is converted until they choose.
+     */
+    creditOrganizationId: text("credit_organization_id"),
     ...timestamps,
   },
   (table) => [
@@ -621,7 +628,7 @@ export const partnerSettlements = pgTable(
     // Each method names its own destination, and only that.
     check(
       "partner_settlements_destination_check",
-      sql`(${table.payoutMethod} = 'stripe' and ${table.stripeAccountId} is not null) or (${table.payoutMethod} = 'paypal' and ${table.paypalAccountId} is not null)`,
+      sql`(${table.payoutMethod} = 'stripe' and ${table.stripeAccountId} is not null) or (${table.payoutMethod} = 'paypal' and ${table.paypalAccountId} is not null) or (${table.payoutMethod} = 'credits' and ${table.stripeAccountId} is null and ${table.paypalAccountId} is null)`,
     ),
   ],
 );
@@ -684,6 +691,47 @@ export const partnerStripeAccounts = pgTable(
   (table) => [
     uniqueIndex("partner_stripe_accounts_partner_uidx").on(table.partnerId, table.environment),
     uniqueIndex("partner_stripe_accounts_account_uidx").on(table.stripeAccountId),
+  ],
+);
+
+/**
+ * Earnings paid as RepGet credits (owner's decision, 2026-11-07): one row per
+ * credit settlement, saying how many credits went to which workspace, at
+ * which rate. The rate is the smallest credit pack's price at the time
+ * (EUR 79.00 for 100 credits), recorded here, so a later price change never
+ * re-prices what was granted. Fractions are never lost: the credits for a
+ * conversion are the whole credits of everything converted so far at that
+ * rate, minus those already granted at it.
+ */
+export const partnerCreditGrants = pgTable(
+  "partner_credit_grants",
+  {
+    id: pk(),
+    settlementId: uuid("settlement_id")
+      .notNull()
+      .references(() => partnerSettlements.id, { onDelete: "restrict" }),
+    partnerId: uuid("partner_id")
+      .notNull()
+      .references(() => partnerProfiles.id, { onDelete: "restrict" }),
+    environment: text("environment").notNull(),
+    /** The workspace credited (text id, as elsewhere in financial history). */
+    organizationId: text("organization_id").notNull(),
+    currency: text("currency").notNull(),
+    /** Commission converted, in minor units: the settlement's transfer amount. */
+    amount: money("amount").notNull(),
+    credits: integer("credits").notNull(),
+    /** The rate: pack_credits for pack_cents. */
+    packCents: integer("pack_cents").notNull(),
+    packCredits: integer("pack_credits").notNull(),
+    /** credit_ledger's idempotency key for the grant. */
+    ledgerKey: text("ledger_key").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("partner_credit_grants_settlement_uidx").on(table.settlementId),
+    uniqueIndex("partner_credit_grants_ledger_uidx").on(table.ledgerKey),
+    index("partner_credit_grants_partner_idx").on(table.partnerId, table.environment, table.currency),
+    check("partner_credit_grants_amounts_check", sql`${table.amount} > 0 and ${table.credits} >= 0 and ${table.packCents} > 0 and ${table.packCredits} > 0`),
   ],
 );
 

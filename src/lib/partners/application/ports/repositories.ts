@@ -375,8 +375,8 @@ export type SettlementRecord = {
   grossAmount: bigint;
   offsetAmount: bigint;
   transferAmount: bigint;
-  /** "stripe" (transfer, then bank payout) or "paypal" (one PayPal payout). */
-  payoutMethod: "stripe" | "paypal";
+  /** "stripe" (transfer, then bank payout), "paypal" (one PayPal payout) or "credits" (RepGet credits, partner-credits.ts). */
+  payoutMethod: "stripe" | "paypal" | "credits";
   /** Set for "stripe" only. */
   stripeAccountId: string | null;
   /** Set for "paypal" only: partner_paypal_accounts.id. */
@@ -391,6 +391,38 @@ export type SettlementRecord = {
   /** Set when a person resumed it after review. */
   resumedAt: Date | null;
 };
+
+/* --------------------------------------------------------- credit payouts */
+
+/** The rate: the smallest active credit pack (owner's decision: EUR 79.00 for 100 credits today). */
+export type CreditPack = { priceCents: number; credits: number; currency: string };
+
+export type CreditGrantRecord = {
+  id: string;
+  settlementId: string;
+  organizationId: string;
+  currency: string;
+  amount: bigint;
+  credits: number;
+  packCents: number;
+  packCredits: number;
+  createdAt: Date;
+};
+
+/** Partners paid in RepGet credits (use-cases/partner-credits.ts). */
+export interface PartnerCreditRepository {
+  creditWorkspaceOf(partnerId: string): Promise<string | null>;
+  setCreditWorkspace(partnerId: string, organizationId: string | null, now: Date): Promise<void>;
+  /** The workspaces this user OWNS (member role owner), with their names. */
+  ownedWorkspaces(userId: string): Promise<{ id: string; name: string }[]>;
+  smallestPack(): Promise<CreditPack | null>;
+  /** What was converted and granted so far at this rate, for the exact running total. */
+  grantedAtRate(partnerId: string, environment: Environment, currency: string, packCents: number, packCredits: number): Promise<{ amount: bigint; credits: number }>;
+  recordGrant(input: Omit<CreditGrantRecord, "id" | "createdAt"> & { partnerId: string; environment: Environment; ledgerKey: string; now: Date }): Promise<boolean>;
+  /** Adds the credits to the workspace's credit ledger, once (keyed). */
+  grantCredits(input: { organizationId: string; credits: number; ledgerKey: string; settlementId: string; note: string }): Promise<boolean>;
+  grants(partnerId: string, environment: Environment, limit: number): Promise<CreditGrantRecord[]>;
+}
 
 /* --------------------------------------------------------- PayPal payouts */
 
@@ -517,7 +549,7 @@ export interface SettlementRepository {
   /** Null when this run already has a settlement, or another is still pre-transfer (unique indexes). */
   create(input: Omit<SettlementRecord, "id" | "state" | "attempts" | "nextAttemptAt" | "lastError" | "createdAt" | "transferredAt" | "paidAt" | "resumedAt" | "payoutMethod" | "paypalAccountId"> & {
     /** "stripe" when omitted. */
-    payoutMethod?: "stripe" | "paypal";
+    payoutMethod?: "stripe" | "paypal" | "credits";
     paypalAccountId?: string | null;
     createdBy: string;
     items: { commissionId: string; amount: bigint }[];

@@ -43,4 +43,11 @@ export interface ProgramSettings {
   paypalFeeBearer?(): "repget" | "partner" | null;
   /** Countries partners may be paid in through PayPal. Empty until configured. */
   paypalPayoutCountries?(): string[];
+  /**
+   * What partners are paid in (owner's decision, 2026-11-07: "credits now,
+   * cash later"): "credits" - RepGet credits, each commission 30 days after
+   * the customer's payment - or "cash" (Stripe Connect / PayPal, as built).
+   * Missing means cash, for older test fakes; the deployment default is credits.
+   */
+  payoutForm?(): "credits" | "cash";
 }

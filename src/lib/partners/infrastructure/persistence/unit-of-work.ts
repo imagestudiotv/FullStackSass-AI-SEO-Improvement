@@ -16,6 +16,7 @@ import { reconciliationRepository } from "./repositories/reconciliation";
 import { reportingRepository } from "./repositories/reporting";
 import { settlementRepository } from "./repositories/settlements";
 import { payPalPayoutRepository } from "./repositories/paypal-payouts";
+import { partnerCreditRepository } from "./repositories/partner-credits";
 
 /**
  * Every repository bound to one executor. `onJob` records the id of each
@@ -38,6 +39,7 @@ export function repositoriesFor(
     settlements: settlementRepository(executor),
     stripeAccounts: stripeAccountRepository(executor),
     paypalPayouts: payPalPayoutRepository(executor),
+    credits: partnerCreditRepository(executor),
     coupons: couponRepository(executor),
     reviews: reviewCaseRepository(executor),
     providerEvents: providerEventRepository(executor),

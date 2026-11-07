@@ -9,6 +9,7 @@ import {
   startPayoutSetup,
   syncPayoutAccount,
 } from "../application/use-cases/manage-payout-account";
+import { chooseCreditWorkspace } from "../application/use-cases/partner-credits";
 import { choosePayoutMethod, setPayPalRecipient, verifyPayPalRecipient } from "../application/use-cases/paypal-payouts";
 import { partnerDeps } from "../server";
 import { PartnerGuardError, requireActivePartner, requirePartnerAccess, requirePartnerApplicant } from "./guards";
@@ -104,6 +105,20 @@ export async function choosePayoutMethodAction(method: unknown): Promise<ActionA
     const result = await choosePayoutMethod(partnerDeps(), { partnerId: access.partner.id, method });
     if (!result.ok) return { ok: false, error: result.reason, detail: result.detail };
     revalidatePath("/partner/payouts");
+    return { ok: true, data: null };
+  } catch (error) {
+    return refused(error);
+  }
+}
+
+/** Partners paid in credits: the workspace that receives them, one the partner owns (checked on the server). */
+export async function chooseCreditWorkspaceAction(organizationId: unknown): Promise<ActionAnswer> {
+  try {
+    const access = await requireActivePartner();
+    if (typeof organizationId !== "string" || organizationId.length === 0 || organizationId.length > 200) return { ok: false, error: "invalid", detail: "workspace" };
+    const result = await chooseCreditWorkspace(partnerDeps(), { partnerId: access.partner.id, organizationId });
+    if (!result.ok) return { ok: false, error: result.reason, detail: result.detail };
+    revalidatePath("/partner/settings");
     return { ok: true, data: null };
   } catch (error) {
     return refused(error);

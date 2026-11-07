@@ -183,7 +183,7 @@ export function reportingRepository(db: Executor): ReportingRepository {
           grossAmount: row.grossAmount,
           offsetAmount: row.offsetAmount,
           transferAmount: row.transferAmount,
-          payoutMethod: row.payoutMethod as "stripe" | "paypal",
+          payoutMethod: row.payoutMethod as "stripe" | "paypal" | "credits",
         stripeAccountId: row.stripeAccountId,
         paypalAccountId: row.paypalAccountId,
           transferGroup: row.transferGroup,

@@ -35,7 +35,19 @@ export function settlementJobId(settlementId: string): string {
   return `partners/settlement:${settlementId}`;
 }
 
-async function plan(repos: PartnerRepositories, deps: PartnerDeps, partnerId: string, environment: Environment, currency: string) {
+/**
+ * The plan for one partner and currency, from the immutable ledger. `threshold`
+ * overrides the policy's minimum: credits are paid with none (partner-credits.ts,
+ * the owner's choice "each commission after 30 days").
+ */
+export async function plan(
+  repos: PartnerRepositories,
+  deps: PartnerDeps,
+  partnerId: string,
+  environment: Environment,
+  currency: string,
+  options: { threshold?: Money } = {},
+) {
   const now = deps.clock.now();
   const version = await repos.programs.versionAt(now);
   const candidates = await repos.commissions.lockPayableCandidates(partnerId, environment, currency);
@@ -52,7 +64,7 @@ async function plan(repos: PartnerRepositories, deps: PartnerDeps, partnerId: st
       liability: Money.of(ledger.liability, currency),
       notYetPayable,
       reservedInFlight: Money.of(reserved, currency),
-      threshold: payoutThreshold(version.policy, currency),
+      threshold: options.threshold ?? payoutThreshold(version.policy, currency),
       now,
     }),
     ledger,
@@ -73,6 +85,8 @@ export async function prepareSettlement(
 ): Promise<SettlementOutcome> {
   const environment = deps.settings.environment();
   if (!environment) return { kind: "skipped", reason: "stripe_not_configured" };
+  // Partners are paid in credits (owner's decision 2026-11-07): no cash settlement while so (partner-credits.ts).
+  if ((deps.settings.payoutForm?.() ?? "cash") === "credits") return { kind: "skipped", reason: "cash_payouts_off" };
   const repos = deps.uow.repositories;
   if (!(await repos.controls.isEnabled("partner_payouts"))) return { kind: "skipped", reason: "payouts_disabled" };
   if (!deps.settings.moneyMovementAllowed(environment)) return { kind: "skipped", reason: "money_movement_blocked" };

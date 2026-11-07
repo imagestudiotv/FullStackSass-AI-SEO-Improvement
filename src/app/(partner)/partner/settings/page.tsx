@@ -1,5 +1,7 @@
 import { PayoutSetup, type SetupState } from "@/components/partners/payout-setup";
+import { CreditPayoutSetup } from "@/components/partners/credit-payout-setup";
 import { PayPalPayoutSetup } from "@/components/partners/paypal-payout-setup";
+import { PARTNER_CREDITS_COPY } from "@/lib/partners/presentation/credits-copy";
 import { payPalPayoutAvailability } from "@/lib/partners/application/use-cases/paypal-payouts";
 import { PARTNER_PAYPAL_COPY } from "@/lib/partners/presentation/paypal-copy";
 import { payoutSetupStatus, syncPayoutAccount } from "@/lib/partners/application/use-cases/manage-payout-account";
@@ -45,21 +47,53 @@ export default async function PartnerSettingsPage({ searchParams }: PageProps<"/
   const method = await deps.uow.repositories.paypalPayouts.payoutMethodOf(access.partner.id);
   const showPayPal = access.partner.status === "active" && (paypal.available || paypalAccount !== null || method === "paypal");
 
+  // Partners paid in RepGet credits (owner's decision 2026-11-07): the cash setup is hidden while so.
+  const credits = (deps.settings.payoutForm?.() ?? "cash") === "credits";
+  const repos = deps.uow.repositories;
+  const creditView = credits
+    ? await (async () => {
+        const [workspaces, current, pack, grants] = await Promise.all([
+          access.partner.userId ? repos.credits.ownedWorkspaces(access.partner.userId) : Promise.resolve([]),
+          repos.credits.creditWorkspaceOf(access.partner.id),
+          repos.credits.smallestPack(),
+          environment ? repos.credits.grants(access.partner.id, environment, 12) : Promise.resolve([]),
+        ]);
+        const money = (minor: number | bigint, currency: string) =>
+          new Intl.NumberFormat(locale, { style: "currency", currency: currency.toUpperCase() }).format(Number(minor) / 100);
+        return {
+          workspaces,
+          current,
+          rate: pack ? { credits: String(pack.credits), price: money(pack.priceCents, pack.currency) } : null,
+          grants: grants.map((grant) => ({
+            id: grant.id,
+            date: new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(grant.createdAt),
+            commission: money(grant.amount, grant.currency),
+            credits: grant.credits,
+          })),
+        };
+      })()
+    : null;
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold tracking-tight">{t.settings.title}</h1>
-      <div>
-        <h2 className="text-lg font-semibold">{t.setup.title}</h2>
-        <p className="mt-1 max-w-xl text-sm text-muted-foreground">{t.setup.intro}</p>
-      </div>
-      <PayoutSetup
-        state={state}
-        copy={t.setup}
-        canAct={access.partner.status === "active" && supported}
-        countryLine={supported ? fill(t.setup.country, { country: countryName }) : fill(t.setup.countryUnsupported, { country: countryName })}
-        requirements={requirements}
-      />
-      {showPayPal ? (
+      {creditView ? <CreditPayoutSetup copy={PARTNER_CREDITS_COPY[locale]} {...creditView} /> : null}
+      {credits ? null : (
+        <>
+          <div>
+            <h2 className="text-lg font-semibold">{t.setup.title}</h2>
+            <p className="mt-1 max-w-xl text-sm text-muted-foreground">{t.setup.intro}</p>
+          </div>
+          <PayoutSetup
+            state={state}
+            copy={t.setup}
+            canAct={access.partner.status === "active" && supported}
+            countryLine={supported ? fill(t.setup.country, { country: countryName }) : fill(t.setup.countryUnsupported, { country: countryName })}
+            requirements={requirements}
+          />
+        </>
+      )}
+      {showPayPal && !credits ? (
         <PayPalPayoutSetup
           copy={PARTNER_PAYPAL_COPY[locale]}
           account={paypalAccount ? { receiver: paypalAccount.receiver, status: paypalAccount.status } : null}

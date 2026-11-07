@@ -120,6 +120,8 @@ function world(mode: "automated" | "manual" = "automated", extra: Record<string,
     PARTNER_PAYPAL_PAYOUTS: mode,
     PARTNER_PAYPAL_FEE_BEARER: "repget",
     PARTNER_PAYPAL_PAYOUT_COUNTRIES: "IT,FR",
+    // Cash payouts (these tests): the deployment default is credits.
+    PARTNER_PAYOUT_FORM: "cash",
     ...extra,
   } as unknown as NodeJS.ProcessEnv);
   const env = partnerTestDeps(test.db, { billing: billing.source, settings, paypalPayouts: paypal.gateway });

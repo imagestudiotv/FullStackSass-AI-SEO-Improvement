@@ -146,10 +146,20 @@ export default async function PartnerPayoutPage({ params }: PageProps<"/admin/pa
             { label: "Gross (reserved commissions)", value: money(settlement.grossAmount, settlement.currency) },
             { label: "Deducted (corrections)", value: money(settlement.offsetAmount, settlement.currency) },
             { label: "Transfer amount", value: money(settlement.transferAmount, settlement.currency) },
-            { label: "Paid through", value: settlement.payoutMethod === "paypal" ? `PayPal (${detail.paypalMode === "manual" ? "manual" : detail.paypalMode})` : "Stripe" },
+            {
+              label: "Paid through",
+              value:
+                settlement.payoutMethod === "paypal"
+                  ? `PayPal (${detail.paypalMode === "manual" ? "manual" : detail.paypalMode})`
+                  : settlement.payoutMethod === "credits"
+                    ? "RepGet credits (see the ledger entry for the credits granted)"
+                    : "Stripe",
+            },
             settlement.payoutMethod === "paypal"
               ? { label: "PayPal address", value: <span className="font-mono">{detail.paypalAccount?.receiver ?? "-"} ({detail.paypalAccount?.status ?? "missing"})</span> }
-              : { label: "Connected account", value: <span className="font-mono">{settlement.stripeAccountId}</span> },
+              : settlement.payoutMethod === "credits"
+                ? { label: "Destination", value: "The partner's chosen workspace (credit ledger, type partner_commission)" }
+                : { label: "Connected account", value: <span className="font-mono">{settlement.stripeAccountId}</span> },
             { label: "Transfer group", value: <span className="font-mono break-all">{settlement.transferGroup}</span> },
             { label: "Created", value: when(settlement.createdAt) },
             { label: "Transferred", value: when(settlement.transferredAt) },

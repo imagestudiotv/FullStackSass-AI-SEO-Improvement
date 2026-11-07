@@ -60,6 +60,8 @@ export function settingsFromEnv(env: NodeJS.ProcessEnv = process.env): ProgramSe
       const value = env.PARTNER_PAYPAL_FEE_BEARER?.trim().toLowerCase();
       return value === "repget" || value === "partner" ? value : null;
     },
+    // Credits unless PARTNER_PAYOUT_FORM=cash (owner's decision 2026-11-07: credits now, cash later).
+    payoutForm: () => (env.PARTNER_PAYOUT_FORM?.trim().toLowerCase() === "cash" ? "cash" : "credits"),
     paypalPayoutCountries: () =>
       [
         ...new Set(

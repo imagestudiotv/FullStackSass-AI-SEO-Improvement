@@ -408,6 +408,25 @@ Before that transaction: the `partner_payouts` switch, the live-money key for li
 
 Lock order everywhere: partner, balance projection, attribution, payment fact, commission, settlement. Every row lock is `FOR NO KEY UPDATE`: it excludes other lockers exactly as `FOR UPDATE` does, but not the `FOR KEY SHARE` lock a foreign-key check takes. With `FOR UPDATE`, a refund (holding a commission, writing a ledger row that references the partner) and the monthly run (holding the partner, waiting for that commission) deadlocked. The real-Postgres race tests found it, and `settlements.postgres.test.ts` reproduces the exact interleaving. Keys are never changed and these rows are never deleted, so nothing needs the stronger lock.
 
+### Partners paid in RepGet credits (the default)
+
+Owner's decisions, 2026-11-07: **"credits now, cash later"**. Partners' earnings become RepGet credits, not money. Code: `use-cases/partner-credits.ts`.
+
+- **Form.** `PARTNER_PAYOUT_FORM`: unset or `credits` means credits; `cash` turns the cash methods back on (Stripe Connect, and PayPal below). While on credits, no cash settlement is prepared, and the monthly cash run skips every partner (`cash_payouts_off`). Settlements already sent in cash keep being tracked.
+- **Rate.** The smallest active credit pack's price, today EUR 79.00 for 100 credits, so 79 cents of commission is one credit.
+  - It is read when converting and recorded on each grant (`partner_credit_grants`), so a later price change never re-prices what was granted.
+  - A fraction of a credit is never lost: each conversion grants the whole credits of everything converted so far at that rate, less those already granted at it. Four EUR 24.75 conversions give 31, 31, 31, then 32.
+  - A commission in a currency other than the pack's is not converted; there is no guessed exchange rate.
+- **Where.** A workspace the partner owns, chosen in portal Settings, and re-checked as owned at every conversion. Without one, commissions wait.
+- **When.** Each commission once it is 30 days old (its normal maturity), with no minimum. The 5-minute partner commissions sweep converts whatever has matured.
+- **The same safeguards as cash:**
+  - the same plan and ledger;
+  - one settlement (`payout_method = 'credits'`) with one `transfer_confirmed` entry;
+  - the same commission is never converted twice or also paid in cash.
+- **Refund after conversion.** The commission is reversed in the ledger, which is then deducted from FUTURE conversions. Credits already granted, and perhaps spent, are not taken back.
+- **All in one transaction.** The settlement, the ledger entry, the commissions marked paid, the grant row and the credit ledger entry (type `partner_commission`, keyed `partner-credits:<settlement>`) commit together.
+- **Switch:** the `partner_payouts` control gates conversions, as it gates cash payouts.
+
 ### Partners paid through PayPal
 
 Branch `feature/payment-s1-p11`, not released. Code: `use-cases/paypal-payouts.ts`, `infrastructure/paypal/payout-gateway.ts`.
