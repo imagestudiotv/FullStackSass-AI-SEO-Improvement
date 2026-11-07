@@ -136,6 +136,18 @@ describe("portal components", () => {
       expect(html).toContain(`aria-describedby="${id}-hint"`);
     }
     expect(html).toContain('name="terms"');
+    // Daniel's centred form: the review chip, counters at the server's limits, the PayPal payout hint, the terms link.
+    expect(html).toContain(copy.chip);
+    expect(html.match(/maxLength="1200"|maxlength="1200"/gi)).toHaveLength(2);
+    expect(html.match(/minLength="15"|minlength="15"/gi)).toHaveLength(2);
+    expect(html).toContain("0 / 1200");
+    expect(text(html)).toContain(copy.countryHint);
+    expect(html).toContain('href="/partners"');
+    expect(text(html)).not.toMatch(/\{\w+\}|no data is submitted|preview/i);
+  });
+
+  it("puts Daniel's PayPal wording under the payout country", () => {
+    expect(partnerCopy("en").portal.apply.countryHint).toBe("Payout availability varies by country. Bank payouts and PayPal are available to eligible partners.");
   });
 
   it("offers only what each payout setup state allows", () => {

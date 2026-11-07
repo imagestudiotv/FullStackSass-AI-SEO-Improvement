@@ -73,6 +73,20 @@ describe("applying", () => {
     expect(await submitApplication(deps, me, { ...answers, audience: "short" })).toMatchObject({ detail: "audience" });
   });
 
+  it("takes 15 to 1,200 characters of audience and promotion, trimmed - the form's own limits", async () => {
+    const { deps } = partnerTestDeps(test.db);
+    const me = await applicant();
+    // 14 characters, even with spaces around them, is one short.
+    expect(await submitApplication(deps, me, { ...answers, audience: `  ${"a".repeat(14)}  ` })).toMatchObject({ detail: "audience" });
+    expect(await submitApplication(deps, me, { ...answers, promotion: "p".repeat(1201) })).toMatchObject({ detail: "promotion" });
+    // Exactly at both ends is an application, which the admin review lists.
+    const sent = await submitApplication(deps, me, { ...answers, audience: "a".repeat(15), promotion: "p".repeat(1200) });
+    expect(sent.ok).toBe(true);
+    const [row] = await test.db.select().from(partnerApplications).where(eq(partnerApplications.userId, me.userId));
+    expect(row).toMatchObject({ status: "submitted" });
+    expect((row.answers as { promotion: string }).promotion).toHaveLength(1200);
+  });
+
   it("is rate limited, and closed while the program switch is off", async () => {
     const env = partnerTestDeps(test.db);
     env.admitted.quota = false;
