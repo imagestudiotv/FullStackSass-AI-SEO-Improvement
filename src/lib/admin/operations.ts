@@ -161,6 +161,8 @@ export async function quoteRefund(
 ): Promise<
   ActionResult<{
     fullCents: number;
+    /** What is still refundable: the payment less what was already sent back (lib/billing/refunds.ts). */
+    remainingCents: number;
     suggestedCents: number;
     articlesUsed: number;
     articleLimit: number;
@@ -179,11 +181,13 @@ export async function quoteRefund(
       providerSubscriptionId: payments.providerSubscriptionId,
       amountCents: payments.amountCents,
       currency: payments.currency,
+      refundedCents: payments.refundedCents,
     })
     .from(payments)
     .where(eq(payments.id, paymentId))
     .limit(1);
   if (!row) return { ok: false, error: "Payment not found." };
+  const remainingCents = Math.max(row.amountCents - row.refundedCents, 0);
 
   /**
    * Usage for the website THIS payment subscribed (subscriptionForPayment),
@@ -214,7 +218,9 @@ export async function quoteRefund(
     ok: true,
     data: {
       fullCents: row.amountCents,
-      suggestedCents: prorated,
+      remainingCents,
+      // Never more than is left to send back.
+      suggestedCents: Math.min(prorated, remainingCents),
       articlesUsed: usage.used,
       articleLimit: usage.limit,
       currency: row.currency,

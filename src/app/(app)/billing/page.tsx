@@ -24,6 +24,7 @@ import { repgetOfferEnabled } from "@/lib/billing/repget-offer";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { OFFER_CODE } from "@/lib/i18n/offer-code";
 import { PAYPAL_PENDING_COPY } from "@/lib/i18n/paypal-pending";
+import { PAYPAL_PURCHASE_COPY } from "@/lib/i18n/paypal-purchase";
 import { localisedWebsiteProjectName, WEBSITE_PROJECT_COPY } from "@/lib/i18n/website-projects";
 import { websiteProjectKindOf } from "@/lib/website-projects/shared";
 import { isPayPalAvailable } from "@/lib/paypal/actions";
@@ -216,6 +217,7 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
         offerCopy={repgetOfferEnabled() ? OFFER_CODE[locale] : null}
         checkout={checkout}
         addonResult={addonResult}
+        addonPayPalCopy={PAYPAL_PURCHASE_COPY[locale]}
         paypalResult={paypalResult}
         websiteId={websiteId}
         websiteSubscriptions={websiteSubscriptions}
@@ -242,6 +244,7 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
         t={t.app.addons}
         tCredits={t.app.credits}
         tCommon={t.app.common}
+        paypal={paypalAvailable ? PAYPAL_PURCHASE_COPY[locale] : null}
       />
 
       <PaymentsPanel

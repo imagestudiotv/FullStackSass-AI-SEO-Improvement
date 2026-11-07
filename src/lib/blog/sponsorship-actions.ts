@@ -208,6 +208,16 @@ export async function startBlogSponsorshipPayPal(input: SponsorshipInput): Promi
   }
 }
 
+/**
+ * Whether the "Get Featured" form may offer PayPal: asked by the form when it
+ * opens, so the article pages need no change. True only where a PayPal
+ * payment can complete (lib/paypal/client.ts) and is not paused.
+ */
+export async function sponsorshipPayPalAvailable(): Promise<boolean> {
+  const { isPayPalConfigured, payPalCheckoutPaused } = await import("@/lib/paypal/client");
+  return isPayPalConfigured() && !payPalCheckoutPaused();
+}
+
 export async function startBlogSponsorship(input: SponsorshipInput): Promise<Result> {
   const copy = wordsFor(input);
   const errors = copy.errors;

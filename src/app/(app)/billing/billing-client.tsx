@@ -42,6 +42,7 @@ import { createPayPalCheckout } from "@/lib/paypal/actions";
 import { CONFIRM_EMAIL_FIRST, STARTER_TIER } from "@/lib/plans/features";
 import { OfferCodeField } from "@/components/billing/offer-code-field";
 import type { OfferCodeCopy } from "@/lib/i18n/offer-code";
+import type { PayPalPurchaseCopy } from "@/lib/i18n/paypal-purchase";
 import { createCheckoutSession } from "@/lib/stripe/actions";
 import { createPortalSession, type PortalFlow } from "@/lib/stripe/portal";
 import { cn } from "@/lib/utils";
@@ -70,8 +71,10 @@ type BillingClientProps = {
   paypalAvailable: boolean;
   /** "success" | "cancelled" after a card checkout. */
   checkout?: string;
-  /** "success" | "cancelled" after an add-on checkout. */
+  /** "success" | "cancelled" after an add-on checkout; also "pending" | "failed" after a PayPal one. */
   addonResult?: string;
+  /** What a PayPal credit-pack purchase still pending or not completed says (lib/i18n/paypal-purchase.ts). */
+  addonPayPalCopy?: Pick<PayPalPurchaseCopy, "pending" | "failed">;
   /** "success" | "cancelled" after a PayPal approval. */
   paypalResult?: string;
   /**
@@ -116,6 +119,7 @@ export function BillingClient({
   paypalAvailable,
   checkout,
   addonResult,
+  addonPayPalCopy,
   paypalResult,
   websiteId,
   websiteSubscriptions,
@@ -152,10 +156,15 @@ export function BillingClient({
 
   const purchaseReceived = t.purchaseReceived;
   const purchaseCancelled = t.purchaseCancelled;
+  const purchasePending = addonPayPalCopy?.pending;
+  const purchaseFailed = addonPayPalCopy?.failed;
   useEffect(() => {
     if (addonResult === "success") toast.success(purchaseReceived);
     else if (addonResult === "cancelled") toast(purchaseCancelled);
-  }, [addonResult, purchaseReceived, purchaseCancelled]);
+    // PayPal only: captured but still clearing, or not completed. Never "received" before it is.
+    else if (addonResult === "pending" && purchasePending) toast(purchasePending, { duration: 15_000 });
+    else if (addonResult === "failed" && purchaseFailed) toast.error(purchaseFailed, { duration: 15_000 });
+  }, [addonResult, purchaseReceived, purchaseCancelled, purchasePending, purchaseFailed]);
 
   /*
     PayPal returns with its own parameter. A PayPal subscription is APPROVED

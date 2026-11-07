@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { quoteRefund, refundPayment } from "@/lib/admin/operations";
+import { checkRefundAgain, quoteRefund, refundPayment } from "@/lib/admin/operations";
 import { cn } from "@/lib/utils";
 
 import { formatMoney } from "./money";
@@ -51,6 +51,7 @@ import { formatMoney } from "./money";
 
 type Quote = {
   fullCents: number;
+  remainingCents: number;
   suggestedCents: number;
   articlesUsed: number;
   articleLimit: number;
@@ -77,6 +78,9 @@ export function PaymentActions({
   paidLabel,
   description,
   refundBlockedReason,
+  processor,
+  refundedCents,
+  unresolvedRefundId,
 }: {
   paymentId: string;
   organizationName: string;
@@ -94,11 +98,33 @@ export function PaymentActions({
    * the server would refuse for that reason.
    */
   refundBlockedReason: string | null;
+  /** "Stripe" or "PayPal": who sends the money back. */
+  processor: string;
+  /** Sent back already: a partly refunded payment can be refunded up to the rest. */
+  refundedCents: number;
+  /** A refund of it with no confirmed outcome: it is checked again before anything else. */
+  unresolvedRefundId: string | null;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const triggerRef = useRef<HTMLButtonElement>(null);
+
+  function checkAgain(refundId: string) {
+    startTransition(async () => {
+      const result = await checkRefundAgain(refundId);
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      const { state } = result.data;
+      if (state === "completed") toast.success(`${processor} confirms the refund.`);
+      else if (state === "pending") toast.success(`${processor} accepted the refund; it is still being sent.`);
+      else if (state === "failed") toast.error(`${processor} did not make the refund${result.data.error ? `: ${result.data.error}` : ""}. Nothing was sent; it can be refunded again.`);
+      else toast.warning(`Still no answer from ${processor}. Check again later, or look the payment up in ${processor}.`, { duration: 15_000 });
+      router.refresh();
+    });
+  }
 
   function refund(input: RefundInput) {
     startTransition(async () => {
@@ -110,15 +136,25 @@ export function PaymentActions({
         toast.error(result.error);
         return;
       }
+      if (result.data.state === "unknown") {
+        // The provider may or may not have sent it: never pressed again, only checked.
+        toast.warning(
+          `${processor} did not answer, so it is not known whether the money was sent. Nothing more will be sent from here until it is checked: use "Check the unconfirmed refund" in this payment's menu.`,
+          { duration: 20_000 },
+        );
+        setOpen(false);
+        router.refresh();
+        return;
+      }
       toast.success(
-        `Refunded ${formatMoney(result.data.refunded, currency)}${
+        `${result.data.state === "pending" ? `${processor} accepted a refund of` : "Refunded"} ${formatMoney(result.data.refunded, currency)}${
           result.data.cancelled ? " and cancelled the subscription" : ""
         }`,
       );
       if (input.cancelSubscription && !result.data.cancelled) {
-        // The money is back, but Stripe did not confirm the cancellation: it must be done by hand.
+        // The money is back, but the processor did not confirm the cancellation: it must be done by hand.
         toast.warning(
-          "The refund went through, but the subscription was not cancelled. Cancel it in the Stripe dashboard.",
+          `The refund went through, but the subscription was not cancelled. Cancel it in ${processor}.`,
           { duration: 15_000 },
         );
       }
@@ -148,7 +184,12 @@ export function PaymentActions({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-64">
-          {refundBlockedReason ? (
+          {unresolvedRefundId ? (
+            <DropdownMenuItem onSelect={() => checkAgain(unresolvedRefundId)} disabled={pending}>
+              <RotateCw className="size-4" aria-hidden="true" />
+              Check the unconfirmed refund
+            </DropdownMenuItem>
+          ) : refundBlockedReason ? (
             /*
               Reachable, not disabled: a disabled menu item is skipped by the
               arrow keys, so its reason was never heard. It carries the reason
@@ -199,6 +240,8 @@ export function PaymentActions({
             amountLabel={amountLabel}
             paidLabel={paidLabel}
             description={description}
+            processor={processor}
+            refundedCents={refundedCents}
             pending={pending}
             onCancel={() => setOpen(false)}
             onSubmit={refund}
@@ -217,6 +260,8 @@ function RefundForm({
   amountLabel,
   paidLabel,
   description,
+  processor,
+  refundedCents,
   pending,
   onCancel,
   onSubmit,
@@ -228,6 +273,8 @@ function RefundForm({
   amountLabel: string;
   paidLabel: string;
   description: string | null;
+  processor: string;
+  refundedCents: number;
   pending: boolean;
   onCancel: () => void;
   onSubmit: (input: RefundInput) => void;
@@ -271,7 +318,8 @@ function RefundForm({
   }, [paymentId, attempt]);
 
   const money = (cents: number) => formatMoney(cents, currency);
-  const fullCents = quote.status === "ready" ? quote.quote.fullCents : amountCents;
+  // What can still be sent back: the payment less earlier refunds. The server checks it again under a lock.
+  const fullCents = quote.status === "ready" ? quote.quote.remainingCents : Math.max(amountCents - refundedCents, 0);
 
   const cents = Math.round(Number(amount) * 100);
   const amountValid = Number.isFinite(cents) && cents > 0 && cents <= fullCents;
@@ -279,7 +327,9 @@ function RefundForm({
     amount.trim() === "" || amountValid
       ? null
       : Number.isFinite(cents) && cents > fullCents
-        ? `That is more than the customer paid (${money(fullCents)}).`
+        ? refundedCents > 0
+          ? `That is more than remains refundable (${money(fullCents)}).`
+          : `That is more than the customer paid (${money(fullCents)}).`
         : "Enter an amount greater than zero.";
   const partial = amountValid && cents < fullCents;
   const reasonValid = reason.trim().length >= 3;
@@ -302,13 +352,21 @@ function RefundForm({
       <DialogHeader>
         <DialogTitle className="pr-8 leading-snug wrap-anywhere">Refund {organizationName}</DialogTitle>
         <DialogDescription>
-          Sends money back to the customer through Stripe. A refund cannot be undone.
+          Sends money back to the customer through {processor}. A refund cannot be undone.
         </DialogDescription>
       </DialogHeader>
 
       <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1.5 rounded-lg border bg-muted/30 px-3 py-2.5 text-sm">
         <dt className="text-muted-foreground">Paid</dt>
         <dd className="font-medium tabular-nums">{amountLabel}</dd>
+        {refundedCents > 0 ? (
+          <>
+            <dt className="text-muted-foreground">Refunded</dt>
+            <dd className="tabular-nums">
+              {money(refundedCents)}, {money(Math.max(amountCents - refundedCents, 0))} left
+            </dd>
+          </>
+        ) : null}
         <dt className="text-muted-foreground">Date</dt>
         <dd className="tabular-nums">{paidLabel}</dd>
         <dt className="text-muted-foreground">For</dt>
@@ -399,8 +457,8 @@ function RefundForm({
             {amountError ? <p className="text-danger">{amountError}</p> : null}
             {partial ? (
               <p className="text-muted-foreground">
-                Partial refund. The payment is still marked refunded, so it cannot be refunded again
-                here; the amount is kept in the admin log.
+                Partial refund. The payment stays paid, and the rest ({money(fullCents - cents)}) can be
+                refunded later.
               </p>
             ) : null}
           </div>
@@ -425,7 +483,7 @@ function RefundForm({
               onClick={() => setAmount((fullCents / 100).toFixed(2))}
               className="tabular-nums"
             >
-              Full amount ({money(fullCents)})
+              {refundedCents > 0 ? "All that remains" : "Full amount"} ({money(fullCents)})
             </Button>
           </div>
         </div>
@@ -447,7 +505,7 @@ function RefundForm({
               checked={subscription === "cancel"}
               onChange={() => setSubscription("cancel")}
               title="Cancel it too"
-              detail="Cancelled in Stripe after the refund; stops article generation and publishing. If this payment's subscription cannot be identified (a one-off add-on has none), nothing is refunded."
+              detail={`Cancelled in ${processor} after the refund; stops article generation and publishing. If this payment's subscription cannot be identified (a one-off purchase has none), nothing is refunded.`}
             />
           </div>
         </fieldset>
