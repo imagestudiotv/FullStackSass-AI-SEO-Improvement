@@ -2747,6 +2747,14 @@ export const blogPosts = pgTable(
       .$type<{ label: string; url: string }[]>()
       .default([])
       .notNull(),
+    /**
+     * The post's own cover (client, 2026-11-07): one of the blog's pictures
+     * (Admin -> Blog -> Images), shown on its cards, at the top of the post
+     * and in shared links. Null shows the drawn cover (components/post-cover.tsx).
+     */
+    featuredImageUrl: text("featured_image_url"),
+    /** Its description (alt text); null or empty when it has none. */
+    featuredImageAlt: text("featured_image_alt"),
     /** "draft" | "published". */
     status: text("status").default("draft").notNull(),
     /**
