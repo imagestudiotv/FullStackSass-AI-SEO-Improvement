@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { blogPath } from "@/lib/blog/locale";
 import { sponsorshipThanksPath } from "@/lib/blog/sponsorship";
 import { db } from "@/lib/db";
-import { blogSponsorships, paypalOrders } from "@/lib/db/schema";
+import { blogSponsorships, paypalOrders, paypalPlanChanges } from "@/lib/db/schema";
 import { isLocale, type Locale } from "@/lib/i18n/config";
 import { settlePayPalOrder } from "@/lib/paypal/order-fulfilment";
 
@@ -55,6 +55,24 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error(`[paypal-orders] return for ${row.id} could not settle; the webhook and the sweep will`, error);
     state = "unknown";
+  }
+
+  if (row.purpose === "plan_upgrade") {
+    /*
+      The difference of an upgrade (lib/paypal/plan-changes.ts). Paid: on to
+      PayPal again, to approve the revision itself - the second approval.
+    */
+    if (state === "completed") {
+      const [change] = await db
+        .select({ status: paypalPlanChanges.status, approveUrl: paypalPlanChanges.approveUrl })
+        .from(paypalPlanChanges)
+        .where(eq(paypalPlanChanges.id, row.referenceId))
+        .limit(1);
+      if (change?.status === "awaiting_approval" && change.approveUrl?.startsWith("https://")) return to(change.approveUrl);
+      return to(`/billing?plan_change=${change?.status === "completed" ? "completed" : change?.status === "refunding" || change?.status === "refunded" ? "refunded" : "pending"}&via=paypal`);
+    }
+    const planChange = state === "voided" ? "cancelled" : state === "failed" ? "failed" : "pending";
+    return to(`/billing?plan_change=${planChange}&via=paypal`);
   }
 
   if (row.purpose === "addon_credits") {

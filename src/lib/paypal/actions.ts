@@ -20,11 +20,8 @@ import { db } from "@/lib/db";
 import { plans, subscriptions, websites } from "@/lib/db/schema";
 import { isPayPalConfigured, PayPalError, payPalCheckoutPaused } from "@/lib/paypal/client";
 import { CONFIRM_EMAIL_FIRST } from "@/lib/plans/features";
-import {
-  cancelSubscription,
-  createSubscription,
-  reviseSubscription,
-} from "@/lib/paypal/subscriptions";
+import { startPlanChange } from "@/lib/paypal/plan-changes";
+import { cancelSubscription, createSubscription } from "@/lib/paypal/subscriptions";
 import { requireOrg } from "@/lib/tenant";
 import {
   checkoutReturnPath,
@@ -216,22 +213,23 @@ export async function createPayPalCheckout(
       return { error: `This website is already on ${plan.name}.` };
     }
     /*
-      The same subscription, revised: PayPal asks the buyer to approve the
-      new price and the UPDATED webhook records it. Never a second one.
+      The same subscription, revised - never a second one. An upgrade pays
+      the prorated difference first, then the buyer approves the revision;
+      a downgrade is revised and applies from the next billing date
+      (lib/paypal/plan-changes.ts, review P1).
     */
+    const session = await requireSession();
     try {
-      const revised = await reviseSubscription({
-        subscriptionId: begun.current.providerSubscriptionId,
-        planId: plan.paypalPlanId,
-        returnUrl,
-        cancelUrl,
+      const changed = await startPlanChange({
+        organizationId: orgId,
+        subscriptionId: begun.current.subscriptionId,
+        toPlanId: plan.id,
+        userId: session.user.id,
       });
-      return { url: revised.approveUrl ?? returnUrl };
+      return changed.kind === "redirect" ? { url: changed.url } : { error: changed.error };
     } catch (error) {
-      if (error instanceof PayPalError) {
-        return { error: "PayPal could not change the plan." };
-      }
-      throw error;
+      console.error("[paypal] could not change the plan", error);
+      return { error: "PayPal could not change the plan." };
     }
   }
 

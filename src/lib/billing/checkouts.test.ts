@@ -935,20 +935,22 @@ describe("duplicate checkouts and subscriptions", () => {
 
   it("revises an existing PayPal subscription instead of creating another", async () => {
     const site = await addSite();
+    // A downgrade (an upgrade pays the difference first: lib/paypal/plan-changes.test.ts).
+    const higher = await addPlan("scale", "price_scale", "P-SCALE");
     await test.db.insert(subscriptions).values({
       organizationId: "org_a",
       websiteId: site.id,
       provider: "paypal",
-      planId,
+      planId: higher,
       status: "active",
       paypalSubscriptionId: "I-LIVE",
     });
-    const other = await addPlan("scale", "price_scale", "P-SCALE");
+    paypalMock.getSubscription.mockResolvedValueOnce({ id: "I-LIVE", status: "ACTIVE", plan_id: "P-SCALE", billing_info: { next_billing_time: "2099-01-01T00:00:00Z" } });
     paypalMock.reviseSubscription.mockResolvedValueOnce({ approveUrl: "https://paypal.test/revise" });
 
-    expect(await createPayPalCheckout(other, site.id)).toEqual({ url: "https://paypal.test/revise" });
+    expect(await createPayPalCheckout(planId, site.id)).toEqual({ url: "https://paypal.test/revise" });
     expect(paypalMock.reviseSubscription).toHaveBeenCalledWith(
-      expect.objectContaining({ subscriptionId: "I-LIVE", planId: "P-SCALE" }),
+      expect.objectContaining({ subscriptionId: "I-LIVE", idempotencyKey: expect.stringMatching(/^plan-change:/) }),
     );
     expect(paypalMock.createSubscription).not.toHaveBeenCalled();
   });

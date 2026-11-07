@@ -271,12 +271,14 @@ export async function reviseSubscription(input: {
   planId: string;
   returnUrl: string;
   cancelUrl: string;
+  /** Per plan change (paypal_plan_changes): a later change back to the same plan is a new request. */
+  idempotencyKey?: string;
 }): Promise<{ approveUrl: string | null }> {
   const revised = await payPalRequest<{ links?: { href: string; rel: string }[] }>(
     `/v1/billing/subscriptions/${encodeURIComponent(input.subscriptionId)}/revise`,
     {
       method: "POST",
-      idempotencyKey: `revise:${input.subscriptionId}:${input.planId}`,
+      idempotencyKey: input.idempotencyKey ?? `revise:${input.subscriptionId}:${input.planId}`,
       body: JSON.stringify({
         plan_id: input.planId,
         application_context: {

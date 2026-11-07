@@ -10,7 +10,7 @@ import {
 } from "@/lib/billing/subscription-sync";
 import { db } from "@/lib/db";
 import type { Executor } from "@/lib/db/types";
-import { billingCheckouts, organization, payments, paypalPlanVersions, plans, subscriptions } from "@/lib/db/schema";
+import { billingCheckouts, organization, payments, paypalPlanChanges, paypalPlanVersions, plans, subscriptions } from "@/lib/db/schema";
 import { recordProviderRefund } from "@/lib/billing/refunds";
 import { PayPalError, payPalMode } from "@/lib/paypal/client";
 import { fromPayPalAmount } from "@/lib/paypal/payments";
@@ -193,6 +193,33 @@ async function paidThrough(
   return recorded?.currentPeriodEnd ?? null;
 }
 
+/** The plan a downgrade to `planId` keeps until its date, if one is waiting for it. */
+async function heldPlan(
+  reader: Pick<Executor, "select">,
+  subscriptionId: string,
+  planId: string,
+  live: PayPalSubscription,
+  now: Date,
+): Promise<string | null> {
+  const [change] = await reader
+    .select({ fromPlanId: paypalPlanChanges.fromPlanId, effectiveAt: paypalPlanChanges.effectiveAt })
+    .from(paypalPlanChanges)
+    .where(
+      and(
+        eq(paypalPlanChanges.paypalSubscriptionId, subscriptionId),
+        eq(paypalPlanChanges.kind, "downgrade"),
+        eq(paypalPlanChanges.toPlanId, planId),
+        inArray(paypalPlanChanges.status, ["awaiting_approval", "completed"]),
+      ),
+    )
+    .orderBy(desc(paypalPlanChanges.createdAt))
+    .limit(1);
+  if (!change) return null;
+  const next = live.billing_info?.next_billing_time ? new Date(live.billing_info.next_billing_time) : null;
+  const effective = change.effectiveAt ?? next;
+  return effective && effective.getTime() > now.getTime() ? change.fromPlanId : null;
+}
+
 async function snapshotOf(
   reader: Pick<Executor, "select">,
   subscriptionId: string,
@@ -240,6 +267,12 @@ async function snapshotOf(
   }
 
   const custom = await ownIds(reader, subscriptionId, live, planId !== null);
+  /*
+    A downgrade (lib/paypal/plan-changes.ts): PayPal may report the lower
+    plan as soon as the buyer approves, but the paid plan stays until the
+    next billing date, as by card. Held here, so every sync agrees.
+  */
+  if (planId && custom) planId = (await heldPlan(reader, subscriptionId, planId, live, now)) ?? planId;
   /*
     In its free days, a free-articles plan is "trialing", as a card trial is
     (2026-10-22): the free articles, the features that wait for the plan and
@@ -395,6 +428,9 @@ export async function processPayPalEvent(event: PayPalEvent): Promise<void> {
     case "BILLING.SUBSCRIPTION.PAYMENT.FAILED": {
       if (!resource.id) return;
       await syncPayPalSubscription(resource.id);
+      // An open plan change on it (review P1): approved, ended, or still waiting.
+      const { onSubscriptionEvent } = await import("@/lib/paypal/plan-changes");
+      await onSubscriptionEvent(resource.id, event.event_type);
       return;
     }
 

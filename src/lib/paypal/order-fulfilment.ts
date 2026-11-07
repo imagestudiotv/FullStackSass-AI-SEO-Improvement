@@ -3,6 +3,7 @@ import "server-only";
 import { confirmSponsorshipPayPal } from "@/lib/blog/sponsorship";
 import { db } from "@/lib/db";
 import { paypalOrders } from "@/lib/db/schema";
+import { fulfilPlanUpgrade } from "@/lib/paypal/plan-changes";
 import { fulfilCreditPack, ordersToReconcile, parseOrderCustomId, settleOrder, type Fulfilment, type OrderPurpose, type SettleResult } from "@/lib/paypal/orders";
 import { eq } from "drizzle-orm";
 
@@ -13,6 +14,7 @@ import { eq } from "drizzle-orm";
 export const FULFILMENTS: Record<OrderPurpose, Fulfilment> = {
   addon_credits: fulfilCreditPack,
   blog_sponsorship: (row) => confirmSponsorshipPayPal(row),
+  plan_upgrade: fulfilPlanUpgrade,
 };
 
 /** Settles our order row, whatever it is for. */

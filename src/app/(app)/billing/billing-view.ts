@@ -277,7 +277,7 @@ export function planGridClass(count: number): string {
  * settled from our own records - lib/paypal/actions.ts confirmPayPalReturn)
  * and which have no business staying in the address bar or its history.
  */
-export const RETURN_PARAMS = ["checkout", "addon", "paypal", "subscription_id", "ba_token", "token"] as const;
+export const RETURN_PARAMS = ["checkout", "addon", "paypal", "plan_change", "subscription_id", "ba_token", "token"] as const;
 
 /**
  * The address without the return parameters, keeping ?site= and the hash.

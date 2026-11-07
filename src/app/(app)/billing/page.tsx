@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { cache } from "react";
 
 import { PayPalPendingNotice } from "@/components/paypal-pending-notice";
+import { PayPalPlanChangeNotice } from "@/components/paypal-plan-change-notice";
 import { SettingsNav } from "@/components/settings-nav";
 import { PageHeader, PageShell } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/states";
@@ -24,6 +25,8 @@ import { repgetOfferEnabled } from "@/lib/billing/repget-offer";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { OFFER_CODE } from "@/lib/i18n/offer-code";
 import { PAYPAL_PENDING_COPY } from "@/lib/i18n/paypal-pending";
+import { PAYPAL_PLAN_CHANGE_COPY } from "@/lib/i18n/paypal-plan-change";
+import { planChangeNoticeForWebsite } from "@/lib/paypal/plan-changes";
 import { PAYPAL_PURCHASE_COPY } from "@/lib/i18n/paypal-purchase";
 import { localisedWebsiteProjectName, WEBSITE_PROJECT_COPY } from "@/lib/i18n/website-projects";
 import { websiteProjectKindOf } from "@/lib/website-projects/shared";
@@ -165,7 +168,8 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
     );
   }
 
-  const [plans, subscription, paypalAvailable, addons, purchases, paymentRows, unfinishedPayPal] = await Promise.all([
+  const planChangeResult = typeof params.plan_change === "string" ? params.plan_change : undefined;
+  const [plans, subscription, paypalAvailable, addons, purchases, paymentRows, unfinishedPayPal, planChange] = await Promise.all([
     listPlans(),
     getSubscription(orgId),
     isPayPalAvailable(),
@@ -174,6 +178,8 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
     listPayments(orgId),
     // A PayPal payment started and never finished blocks this website (review H1): offer to cancel it.
     websiteId ? hasUnfinishedPayPalApproval(db, { organizationId: orgId, websiteId }) : false,
+    // A PayPal plan change under way (review P1): a payment or an approval still to give, or a downgrade's date.
+    websiteId ? planChangeNoticeForWebsite(orgId, websiteId) : null,
   ]);
 
   /*
@@ -208,6 +214,8 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
       {websiteId ? <SettingsNav websiteId={websiteId} t={t.app.nav} /> : null}
 
       {websiteId && unfinishedPayPal ? <PayPalPendingNotice websiteId={websiteId} copy={PAYPAL_PENDING_COPY[locale]} /> : null}
+
+      <PayPalPlanChangeNotice notice={planChange} result={planChangeResult} copy={PAYPAL_PLAN_CHANGE_COPY[locale]} locale={locale} />
 
       <BillingClient
         plans={plans}

@@ -3025,12 +3025,83 @@ export const paypalOrders = pgTable(
       .where(sql`${table.purpose} = 'blog_sponsorship' and ${table.status} in ('creating', 'created', 'pending', 'unknown')`),
     index("paypal_orders_status_idx").on(table.status, table.updatedAt),
     index("paypal_orders_org_idx").on(table.organizationId),
-    check("paypal_orders_purpose_check", sql`${table.purpose} in ('addon_credits', 'blog_sponsorship')`),
+    check("paypal_orders_purpose_check", sql`${table.purpose} in ('addon_credits', 'blog_sponsorship', 'plan_upgrade')`),
     check(
       "paypal_orders_status_check",
       sql`${table.status} in ('creating', 'created', 'pending', 'completed', 'failed', 'voided', 'unknown')`,
     ),
     check("paypal_orders_amount_check", sql`${table.amountCents} > 0`),
+  ],
+);
+
+/**
+ * A plan change on a PayPal subscription (review P1; owner's decision
+ * 2026-11-07: an UPGRADE charges the prorated difference NOW). PayPal's
+ * revision only changes the price from the next billing date and needs the
+ * buyer's approval, so an upgrade is two approved steps, recorded here so
+ * either can resume after a crash, a timeout or an abandoned approval:
+ *
+ *   awaiting_payment    the difference is a one-off PayPal order (paypal_orders, purpose plan_upgrade)
+ *   awaiting_approval   paid; the revision is asked of PayPal, the buyer approves it
+ *   completed           PayPal reports the subscription on the new plan: new allowances from then
+ *   refunding/refunded  paid but never revised (abandoned 72 hours, or PayPal refused): the difference goes back
+ *   cancelled           abandoned before paying: nothing moved
+ *   failed              needs a person (staff are told)
+ *
+ * A DOWNGRADE charges nothing: it is revised (buyer approves) and the current
+ * paid access stays until effective_at, the next billing date, as by card.
+ * One open change (awaiting payment or approval) per subscription; a refund
+ * in progress never blocks the next one.
+ */
+export const paypalPlanChanges = pgTable(
+  "paypal_plan_changes",
+  {
+    id: pk(),
+    organizationId: text("organization_id").notNull(),
+    subscriptionId: uuid("subscription_id")
+      .notNull()
+      .references(() => subscriptions.id, { onDelete: "cascade" }),
+    paypalSubscriptionId: text("paypal_subscription_id").notNull(),
+    fromPlanId: uuid("from_plan_id").notNull(),
+    toPlanId: uuid("to_plan_id").notNull(),
+    /** upgrade | downgrade */
+    kind: text("kind").notNull(),
+    status: text("status").notNull(),
+    /** The prorated difference charged now (upgrade); 0 for a downgrade. */
+    differenceCents: integer("difference_cents").default(0).notNull(),
+    currency: text("currency").notNull(),
+    /** The paypal_orders row that charged the difference. */
+    orderRowId: uuid("order_row_id"),
+    /** PayPal's approval link for the revision, while awaiting it. */
+    approveUrl: text("approve_url"),
+    /** When the revision was asked of PayPal: the 72-hour approval window runs from here. */
+    revisionRequestedAt: timestamp("revision_requested_at"),
+    /**
+     * A sign the buyer MAY have approved the revision (they came back through
+     * the success link, or PayPal sent BILLING.SUBSCRIPTION.UPDATED since the
+     * request). With it, an unconfirmed upgrade goes to staff, never to an
+     * automatic refund: PayPal does not document when its subscription starts
+     * reporting the new plan_id.
+     */
+    approvalSignalAt: timestamp("approval_signal_at"),
+    /** Downgrade: when the new plan's allowances start (the next billing date). */
+    effectiveAt: timestamp("effective_at"),
+    /** The refund of an incomplete upgrade's difference (payment_refunds). */
+    refundId: uuid("refund_id"),
+    error: text("error"),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("paypal_plan_changes_open_uidx")
+      .on(table.subscriptionId)
+      .where(sql`${table.status} in ('awaiting_payment', 'awaiting_approval')`),
+    index("paypal_plan_changes_paypal_subscription_idx").on(table.paypalSubscriptionId),
+    index("paypal_plan_changes_status_idx").on(table.status, table.updatedAt),
+    check("paypal_plan_changes_kind_check", sql`${table.kind} in ('upgrade', 'downgrade')`),
+    check(
+      "paypal_plan_changes_status_check",
+      sql`${table.status} in ('awaiting_payment', 'awaiting_approval', 'completed', 'refunding', 'refunded', 'cancelled', 'failed')`,
+    ),
   ],
 );
 

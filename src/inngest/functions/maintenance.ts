@@ -71,6 +71,18 @@ export const billingMaintenance = inngest.createFunction(
         })
       : 0;
 
+    /*
+      PayPal plan changes (review P1): an upgrade's difference paid but its
+      revision not approved within 72 hours is refunded; a downgrade whose
+      date has come is recorded.
+    */
+    const paypalPlanChanges = isPayPalConfigured()
+      ? await step.run("reconcile-paypal-plan-changes", async () => {
+          const { reconcilePlanChanges } = await import("@/lib/paypal/plan-changes");
+          return reconcilePlanChanges();
+        })
+      : 0;
+
     // Reservations abandoned mid-request (spent ones are consumed, not freed).
     await step.run("sweep-reservations", () => sweepAbandonedReservations());
 
@@ -82,6 +94,7 @@ export const billingMaintenance = inngest.createFunction(
       checkoutsSettled: checkouts,
       paypalCancellationsEnded: paypalEnded,
       paypalOrdersReconciled: paypalOrders,
+      paypalPlanChangesSettled: paypalPlanChanges,
     };
   },
 );

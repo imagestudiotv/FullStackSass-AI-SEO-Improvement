@@ -37,7 +37,8 @@ import {
  * payment per capture), so a crash between them is finished by the next call.
  */
 
-export type OrderPurpose = "addon_credits" | "blog_sponsorship";
+/** plan_upgrade: the difference of a PayPal upgrade, paid now (lib/paypal/plan-changes.ts). */
+export type OrderPurpose = "addon_credits" | "blog_sponsorship" | "plan_upgrade";
 
 export type OrderOps = {
   createOrder: typeof createOrder;
@@ -55,7 +56,7 @@ export const customIdFor = (purpose: OrderPurpose, rowId: string) => `${purpose}
 
 /** Our row named by a PayPal custom_id, if it is one of ours. */
 export function parseOrderCustomId(value: string | undefined | null): { purpose: OrderPurpose; rowId: string } | null {
-  const match = /^(addon_credits|blog_sponsorship):([0-9a-f-]{36})$/i.exec(value ?? "");
+  const match = /^(addon_credits|blog_sponsorship|plan_upgrade):([0-9a-f-]{36})$/i.exec(value ?? "");
   return match ? { purpose: match[1] as OrderPurpose, rowId: match[2] } : null;
 }
 
