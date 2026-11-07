@@ -38,6 +38,13 @@ export const PREFIXED_LOCALES = LOCALES.filter(
   (locale) => locale !== DEFAULT_LOCALE,
 );
 
+/**
+ * The language of the site page last read, for the pages whose address cannot say
+ * (sign-in and sign-up, lib/i18n/app-locale.ts). A preference, holding only the
+ * language's code, and it measures nothing, so it does not wait for the cookie banner.
+ */
+export const SITE_LANGUAGE_COOKIE = "repget_site_language";
+
 export function isLocale(value: string): value is Locale {
   return (LOCALES as readonly string[]).includes(value);
 }

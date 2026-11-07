@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { AuthForm } from "@/components/auth-form";
 import { safeNext } from "@/lib/auth/next";
 import { getSession } from "@/lib/auth-guard";
-import { getPublicMessages } from "@/lib/i18n/app-locale";
+import { getAuthMessages } from "@/lib/i18n/app-locale";
 
 export const metadata = { title: "Sign in" };
 
@@ -30,7 +30,7 @@ export default async function SignInPage({
   if (await getSession()) {
     redirect(safe);
   }
-  const { t } = await getPublicMessages();
+  const { t } = await getAuthMessages();
   return (
     <AuthForm
       mode="sign-in"

@@ -71,6 +71,7 @@ export type Messages = {
     /** The footer's middle group: about, stories, blog, FAQ, contact. */
     company: string;
     legal: string;
+    websiteCreation: string;
     freeCheck: string;
     freeTools: string;
     pricing: string;
@@ -3418,6 +3419,7 @@ const en: Messages = {
     product: "Product",
     company: "Company",
     legal: "Legal",
+    websiteCreation: "Website creation",
     freeCheck: "Free website check",
     freeTools: "Free tools",
     pricing: "Pricing",
@@ -6677,6 +6679,7 @@ const es: Messages = {
     product: "Producto",
     company: "Empresa",
     legal: "Legal",
+    websiteCreation: "Creación de sitios web",
     freeCheck: "Análisis gratuito de su web",
     freeTools: "Herramientas gratuitas",
     pricing: "Precios",
@@ -9954,6 +9957,7 @@ const fr: Messages = {
     product: "Produit",
     company: "Entreprise",
     legal: "Mentions légales",
+    websiteCreation: "Création de sites web",
     freeCheck: "Analyse gratuite de votre site",
     freeTools: "Outils gratuits",
     pricing: "Tarifs",
@@ -13231,6 +13235,7 @@ const it: Messages = {
     product: "Prodotto",
     company: "Azienda",
     legal: "Note legali",
+    websiteCreation: "Creazione di siti web",
     freeCheck: "Analisi gratuita del suo sito",
     freeTools: "Strumenti gratuiti",
     pricing: "Prezzi",
@@ -16508,6 +16513,7 @@ const de: Messages = {
     product: "Produkt",
     company: "Unternehmen",
     legal: "Rechtliches",
+    websiteCreation: "Website-Erstellung",
     freeCheck: "Kostenlose Website-Analyse",
     freeTools: "Kostenlose Werkzeuge",
     pricing: "Preise",

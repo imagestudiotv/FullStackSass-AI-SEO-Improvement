@@ -6,7 +6,7 @@ import { AuthAside } from "@/components/auth-aside";
 import { AuthShowcase } from "@/components/auth-showcase";
 import { ConsentBanner } from "@/components/consent-banner";
 import { SignUpShowcase } from "@/components/signup-showcase";
-import { getPublicMessages } from "@/lib/i18n/app-locale";
+import { getAuthMessages } from "@/lib/i18n/app-locale";
 
 /**
  * Sign-in and sign-up, following the reference design: the form on the left,
@@ -33,8 +33,8 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = { robots: { index: false, follow: true } };
 
 export default async function AuthLayout({ children }: LayoutProps<"/">) {
-  // The language the sign-in page itself uses (the browser's), for the cookie banner.
-  const { locale, t } = await getPublicMessages();
+  // The language these pages use: the site page they came from, or the browser's.
+  const { locale, t } = await getAuthMessages();
   return (
     // That language declared for the page (the root layout's <html> says "en" for every route).
     <div lang={locale} className="grid min-h-svh lg:grid-cols-2">
