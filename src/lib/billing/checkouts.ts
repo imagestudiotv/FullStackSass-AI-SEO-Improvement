@@ -2,6 +2,7 @@ import { and, eq, inArray, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
 
 import {
   billingCheckouts,
+  member,
   organization,
   plans,
   subscriptions,
@@ -804,26 +805,59 @@ export async function beginCheckout(
       sql`select pg_advisory_xact_lock(hashtextextended(${`trial:${org.id}`}, 0))`,
     );
     /*
-      One redemption per workspace, decided under the lock above, across its
-      websites. Completed used it. Open, or not yet known, holds it. Expired or
-      failed gives it back, so opening a checkout does not spend it.
+      One redemption per USER ACCOUNT (owner's decision, 2026-11-07): the
+      account that owns this workspace, across EVERY workspace it owns, so a
+      second workspace cannot take the offer again. Decided under a lock per
+      owner (taken in a fixed order, after the workspace lock above, so two
+      checkouts in two of the account's workspaces wait for each other and
+      never deadlock). Completed used it. Open, or not yet known, holds it.
+      Expired or failed gives it back, so opening a checkout does not spend
+      it. Any provider: a PayPal checkout carrying the offer counts too. A
+      workspace with no recorded owner falls back to itself.
     */
     if (input.offer) {
+      const owners = [
+        ...new Set(
+          (
+            await tx
+              .select({ userId: member.userId })
+              .from(member)
+              .where(and(eq(member.organizationId, org.id), eq(member.role, "owner")))
+          ).map((row) => row.userId),
+        ),
+      ].sort();
+      for (const owner of owners) {
+        await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`offer:${input.offer}:user:${owner}`}, 0))`);
+      }
+      const workspaces =
+        owners.length === 0
+          ? [org.id]
+          : [
+              ...new Set([
+                org.id,
+                ...(
+                  await tx
+                    .select({ organizationId: member.organizationId })
+                    .from(member)
+                    .where(and(inArray(member.userId, owners), eq(member.role, "owner")))
+                ).map((row) => row.organizationId),
+              ]),
+            ];
       const taken = await tx
         .select({ status: billingCheckouts.status })
         .from(billingCheckouts)
         .where(
           and(
-            eq(billingCheckouts.organizationId, org.id),
+            inArray(billingCheckouts.organizationId, workspaces),
             inArray(billingCheckouts.status, [...BLOCKING_DELETION, "completed"]),
             sql`${billingCheckouts.requestParams} ->> 'offer' = ${input.offer}`,
           ),
         );
       if (taken.some((row) => row.status === "completed")) {
-        return { kind: "refuse", error: `This workspace has already used the ${input.offer} code.` };
+        return { kind: "refuse", error: `Your account has already used the ${input.offer} code.` };
       }
       if (taken.length > 0) {
-        return { kind: "refuse", error: `The ${input.offer} code is on another checkout in this workspace. Finish that one, or try again once it has expired.` };
+        return { kind: "refuse", error: `The ${input.offer} code is on another checkout of your account. Finish that one, or try again once it has expired.` };
       }
     }
 

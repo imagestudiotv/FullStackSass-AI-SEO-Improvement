@@ -84,7 +84,7 @@ export function offerForPlanChange(
   if (!onIt && !waiting) return {};
   const coupon = repgetCouponFor(plan);
   if (coupon) return { coupon };
-  return { refuse: `Your ${REPGET_CODE} discount is for a monthly plan. You can move to this plan after your first paid month.` };
+  return { refuse: `Your ${REPGET_CODE} discount does not cover this plan. You can move to it after your first paid payment.` };
 }
 
 /** A website of this workspace is on its free period with a REPGET discount waiting. */

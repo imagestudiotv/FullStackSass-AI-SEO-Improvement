@@ -294,13 +294,13 @@ describe("the REPGET offer", () => {
     expect(params().discounts).toEqual([{ coupon: "SCALE40" }]);
   });
 
-  it("an annual plan, or an older price, is refused before Stripe", async () => {
+  it("an annual plan gets the same plan coupon (the fixed first-month amount); an older price is refused before Stripe", async () => {
     const site = await addSite();
-    const annual = await createCheckoutSession(await growPlan({ interval: "year", priceCents: 149000, stripePriceId: "price_year" }), site.id, "billing", "REPGET");
-    expect(annual).toEqual({ error: expect.stringContaining("monthly") });
     const older = await createCheckoutSession(await growPlan({ name: "Old Grow", priceCents: 9900, stripePriceId: "price_old" }), site.id, "billing", "REPGET");
-    expect(older).toEqual({ error: expect.stringContaining("monthly") });
+    expect(older).toEqual({ error: expect.stringContaining("Launch, Grow and Scale") });
     expect(stripeMock.sessionsCreate).not.toHaveBeenCalled();
+    await createCheckoutSession(await growPlan({ interval: "year", priceCents: 149000, stripePriceId: "price_year" }), site.id, "billing", "REPGET");
+    expect(params().discounts).toEqual([{ coupon: "GROW40" }]);
   });
 
   it("another code is pointed at Stripe's box; switched off, so is REPGET", async () => {
@@ -900,10 +900,21 @@ describe("duplicate checkouts and subscriptions", () => {
       log.mockRestore();
     });
 
-    it("to annual: refused before Stripe is asked to change anything", async () => {
+    it("to annual: the annual price keeps the plan's coupon in the same Stripe request (the fixed first-month amount off the first annual payment)", async () => {
       const site = await onGrow();
       const annual = await test.db.insert(plans).values({ name: "Grow (Annual)", tier: "grow", interval: "year", currency: "eur", priceCents: 149000, stripePriceId: "price_grow_year", articleLimit: 30, keywordLimit: 100, siteLimit: 1, monthlyCredits: 0, catalogVersion: 41 }).returning().then(([row]) => row.id);
-      expect(await createCheckoutSession(annual, site.id)).toEqual({ error: expect.stringContaining("monthly plan") });
+      stripeMock.portalCreate.mockResolvedValueOnce({ url: "https://billing.stripe.test/confirm" });
+      expect(await createCheckoutSession(annual, site.id)).toEqual({ url: "https://billing.stripe.test/confirm" });
+      expect(stripeMock.portalCreate.mock.calls[0][0].flow_data.subscription_update_confirm).toMatchObject({
+        items: [{ id: "si_1", price: "price_grow_year" }],
+        discounts: [{ coupon: "GROW40" }],
+      });
+    });
+
+    it("to a price the offer does not cover: refused before Stripe is asked to change anything", async () => {
+      const site = await onGrow();
+      const older = await test.db.insert(plans).values({ name: "Old Grow", tier: "grow", interval: "month", currency: "eur", priceCents: 9900, stripePriceId: "price_grow_old", articleLimit: 30, keywordLimit: 100, siteLimit: 1, monthlyCredits: 0, catalogVersion: 39 }).returning().then(([row]) => row.id);
+      expect(await createCheckoutSession(older, site.id)).toEqual({ error: expect.stringContaining("does not cover") });
       expect(stripeMock.portalCreate).not.toHaveBeenCalled();
     });
   });

@@ -240,7 +240,7 @@ export function BillingClient({
         setPending(null);
         return;
       }
-      const result = await createCheckoutSession(planId, websiteId, "billing", interval === "month" ? offerCode : "");
+      const result = await createCheckoutSession(planId, websiteId, "billing", offerCode);
       /*
         A new workspace confirms its email before the free articles, and
         the code box is on the onboarding plan screen - which also states
@@ -769,7 +769,7 @@ export function BillingClient({
             tCommon={tCommon}
             options={options}
             processorNote={processorNote}
-            offerField={interval === "month" ? offerField : null}
+            offerField={offerField}
             actions={
               <TabsList aria-label={t.billingPeriod}>
                 <TabsTrigger value="month">{t.monthly}</TabsTrigger>

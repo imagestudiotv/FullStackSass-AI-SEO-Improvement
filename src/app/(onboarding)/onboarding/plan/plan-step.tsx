@@ -229,8 +229,8 @@ export function PlanStep({
 
   async function handleCheckout(provider: "stripe" | "paypal") {
     if (!plan) return;
-    // The field only shows on a monthly plan: a value left from before switching to annual does not count.
-    const offer = offerCopy && !annual ? offerCode : "";
+    // Monthly or annual (annual gets the same fixed first-month amount off, owner's decision 2026-11-07).
+    const offer = offerCopy ? offerCode : "";
     if (provider === "paypal" && offer.trim() && offerCopy) {
       toast.error(offerCopy.cardOnly);
       return;
@@ -513,7 +513,7 @@ export function PlanStep({
           </div>
         ) : null}
 
-        {offerCopy && !annual ? <OfferCodeField copy={offerCopy} value={offerCode} onChange={setOfferCode} className="mt-4" /> : null}
+        {offerCopy ? <OfferCodeField copy={offerCopy} value={offerCode} onChange={setOfferCode} className="mt-4" /> : null}
 
         <Button
           onClick={() => handleCheckout("stripe")}

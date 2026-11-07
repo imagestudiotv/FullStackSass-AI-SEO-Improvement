@@ -5,7 +5,7 @@ const inngestMock = vi.hoisted(() => ({ send: vi.fn() }));
 vi.mock("@/inngest/client", () => ({ inngest: inngestMock }));
 
 import { beginCheckout, type CheckoutProviderOps } from "@/lib/billing/checkouts";
-import { billingCheckouts, organization, plans, websites } from "@/lib/db/schema";
+import { billingCheckouts, member, organization, plans, user, websites } from "@/lib/db/schema";
 import type { Database } from "@/lib/db/types";
 import { createPostgresTestDb, testPostgresUrl } from "@/test/postgres";
 
@@ -112,6 +112,41 @@ describe.skipIf(!available)("one REPGET redemption per workspace", () => {
     await earlier("expired", sites[0]);
     await earlier("failed", sites[0]);
     expect(await begin(a, sites[1])).toMatchObject({ kind: "create" });
+  });
+
+  /*
+    One use per USER ACCOUNT (owner's decision, 2026-11-07): the same owner's
+    second workspace cannot take it again, even at the same instant on two
+    connections; another owner's workspace is unaffected.
+  */
+  async function owners(map: Record<string, string>) {
+    await a.delete(member);
+    await a.delete(user);
+    const ids = [...new Set(Object.values(map))];
+    await a.insert(user).values(ids.map((id) => ({ id, name: id, email: `${id}@example.test`, emailVerified: true, createdAt: new Date(), updatedAt: new Date() })));
+    await a.insert(member).values(Object.entries(map).map(([organizationId, userId]) => ({ id: `${organizationId}-${userId}`, organizationId, userId, role: "owner", createdAt: new Date() })));
+  }
+
+  it("one account, two of its workspaces, at once on two connections: exactly one gets it (five rounds)", async () => {
+    await owners({ org_a: "user_1", org_b: "user_1" });
+    for (let round = 0; round < 5; round++) {
+      await a.delete(billingCheckouts);
+      const results = await Promise.all([begin(a, sites[0], "org_a"), begin(b, sites[2], "org_b")]);
+      expect(results.map((result) => result.kind).sort()).toEqual(["create", "refuse"]);
+      expect(await a.select().from(billingCheckouts)).toHaveLength(1);
+    }
+  });
+
+  it("used in one of the account's workspaces: refused in its other one", async () => {
+    await owners({ org_a: "user_1", org_b: "user_1" });
+    await earlier("completed", sites[0]);
+    expect(await begin(b, sites[2], "org_b")).toMatchObject({ kind: "refuse", error: expect.stringContaining("Your account has already used") });
+  });
+
+  it("another account's workspace is not affected", async () => {
+    await owners({ org_a: "user_1", org_b: "user_2" });
+    await earlier("completed", sites[0]);
+    expect(await begin(b, sites[2], "org_b")).toMatchObject({ kind: "create" });
   });
 
   it("a checkout without the offer neither holds it nor is held by it", async () => {
