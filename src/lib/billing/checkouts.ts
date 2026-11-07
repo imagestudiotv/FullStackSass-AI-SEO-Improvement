@@ -4,6 +4,7 @@ import {
   billingCheckouts,
   member,
   organization,
+  paypalPlanChanges,
   plans,
   subscriptions,
   websites,
@@ -492,7 +493,32 @@ export async function checkoutsBlockDeletion(
       .filter((c) => c.status === "completed" && c.providerSubscriptionId)
       .map((c) => c.providerSubscriptionId as string),
   );
-  return checkoutBlockReason(locked, recorded, subject);
+  return checkoutBlockReason(locked, recorded, subject) ?? (await planChangeBlocksDeletion(tx, scope, subject));
+}
+
+/**
+ * A PayPal upgrade's difference paid and not yet settled (lib/paypal/
+ * plan-changes.ts): still waiting for the revision's approval, or being
+ * refunded. Deleting now would delete the record that refunds it.
+ */
+async function planChangeBlocksDeletion(tx: Transaction, scope: CheckoutScope, subject: "website" | "workspace"): Promise<string | null> {
+  const [held] = await tx
+    .select({ id: paypalPlanChanges.id })
+    .from(paypalPlanChanges)
+    .innerJoin(subscriptions, eq(subscriptions.id, paypalPlanChanges.subscriptionId))
+    .where(
+      and(
+        "websiteId" in scope ? eq(subscriptions.websiteId, scope.websiteId) : eq(paypalPlanChanges.organizationId, scope.organizationId),
+        or(
+          eq(paypalPlanChanges.status, "refunding"),
+          and(eq(paypalPlanChanges.status, "awaiting_approval"), sql`${paypalPlanChanges.differenceCents} > 0`),
+        ),
+      ),
+    )
+    .limit(1);
+  return held
+    ? `A PayPal plan change for this ${subject} has been paid and is still waiting for approval or for its refund. The ${subject} can be deleted once that is settled (within 72 hours); contact support if this does not clear.`
+    : null;
 }
 
 /* ------------------------------------------------------------------------- */

@@ -64,7 +64,7 @@ Steps 2 and 3 can come in either order. Before the script, PayPal simply charges
 
 ## Decisions still open
 
-1. Still open from the review: price changes do not reach PayPal (M3), plan changes through PayPal are unverified and do not charge the difference on an upgrade (M5), and old PayPal plan ids are forgotten (M8). (M1, cancelling keeps the time paid for, and L9, a pause switch, were done on 2026-10-20: see above. The free articles with PayPal were done on 2026-10-22. Their "Start my plan now" does not use PayPal's plan change: it is a new subscription, charged in full on approval.)
+1. Still open from the review: price changes do not reach PayPal (M3), plan changes through PayPal are unverified (M5), and old PayPal plan ids are forgotten (M8). On the 2026-11-07 branch: an upgrade charges the difference (see "Plan changes and REPGET with PayPal" below), old ids are kept in paypal_plan_versions, and a reprice is the deliberate scripts/paypal-pricing.mjs step; all stub-tested, not sandbox-verified. (M1, cancelling keeps the time paid for, and L9, a pause switch, were done on 2026-10-20: see above. The free articles with PayPal were done on 2026-10-22. Their "Start my plan now" does not use PayPal's plan change: it is a new subscription, charged in full on approval.)
 
 ## 1. Check the PayPal business account
 

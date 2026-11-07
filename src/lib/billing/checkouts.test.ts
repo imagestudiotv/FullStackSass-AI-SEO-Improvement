@@ -5,6 +5,7 @@ import {
   adminAuditLog,
   billingCheckouts,
   organization,
+  paypalPlanChanges,
   plans,
   subscriptions,
   websites,
@@ -481,6 +482,30 @@ describe("opening a checkout", () => {
 });
 
 describe("deleting a website with a checkout open", () => {
+  it("refuses while a paid PayPal upgrade waits for approval or its refund (review P1)", async () => {
+    const site = await addSite();
+    const [sub] = await test.db
+      .insert(subscriptions)
+      // Ended (an active one refuses deletion already); its upgrade's difference not yet refunded.
+      .values({ organizationId: "org_a", websiteId: site.id, provider: "paypal", planId, status: "canceled", paypalSubscriptionId: "I-UP" })
+      .returning();
+    const [change] = await test.db
+      .insert(paypalPlanChanges)
+      .values({ organizationId: "org_a", subscriptionId: sub.id, paypalSubscriptionId: "I-UP", fromPlanId: planId, toPlanId: planId, kind: "upgrade", status: "refunding", differenceCents: 5000, currency: "eur" })
+      .returning();
+    actAsOwner(site);
+    const website = await deleteWebsite(site.id);
+    expect(!website.ok && website.error).toMatch(/plan change/);
+    const workspace = await deleteOrganization("org_a", "erasure request", "DELETE");
+    expect(!workspace.ok && workspace.error).toMatch(/plan change/);
+    expect(await siteExists(site.id)).toBe(true);
+
+    // Nothing paid (a downgrade) holds nothing.
+    await test.db.update(paypalPlanChanges).set({ status: "refunded" }).where(eq(paypalPlanChanges.id, change.id));
+    const after = await deleteOrganization("org_a", "erasure request", "DELETE");
+    expect(!after.ok && after.error ? after.error : "").not.toMatch(/plan change/);
+  });
+
   it("expires the Stripe session, then deletes", async () => {
     const site = await addSite();
     await createCheckoutSession(planId, site.id);
