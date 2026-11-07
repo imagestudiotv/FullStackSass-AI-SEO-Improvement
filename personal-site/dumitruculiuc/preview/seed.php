@@ -25,8 +25,19 @@ update_option( 'page_on_front', $home );
 update_option( 'page_for_posts', $blog );
 update_option( 'blogname', 'Dumitru Culiuc' );
 update_option( 'blogdescription', 'DRAFT tagline: to be written by Daniel.' );
-update_option( 'permalink_structure', '/%postname%/' );
-flush_rewrite_rules();
+// Pretty addresses: the rules must be rebuilt with the new structure loaded
+// (saving Settings → Permalinks does the same on a real site).
+global $wp_rewrite;
+$wp_rewrite->set_permalink_structure( '/%postname%/' );
+$wp_rewrite->flush_rules( true );
+
+// WordPress's own sample post and page.
+foreach ( array( 'post' => 'hello-world', 'page' => 'sample-page' ) as $type => $slug ) {
+	$sample = get_page_by_path( $slug, OBJECT, $type );
+	if ( $sample ) {
+		wp_delete_post( $sample->ID, true );
+	}
+}
 
 // A cover picture for the test post: the theme's sharing image.
 require_once ABSPATH . 'wp-admin/includes/image.php';
@@ -48,6 +59,7 @@ $category = wp_insert_term( 'Test category', 'category' );
 $post_id  = wp_insert_post(
 	array(
 		'post_type'     => 'post',
+		'post_author'   => 1,
 		'post_status'   => 'publish',
 		'post_title'    => 'TEST POST: checking the blog layout (not real content)',
 		'post_excerpt'  => 'A test post that exists only to check the listing and the reading layout. Delete it before launch.',
@@ -73,6 +85,7 @@ foreach ( array( 'TEST POST: second entry', 'TEST POST: third entry' ) as $i => 
 	wp_insert_post(
 		array(
 			'post_type'    => 'post',
+			'post_author'  => 1,
 			'post_status'  => 'publish',
 			'post_title'   => $title,
 			'post_excerpt' => 'Short test post. Delete before launch.',

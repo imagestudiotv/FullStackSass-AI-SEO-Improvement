@@ -30,7 +30,10 @@ function dumitru_seo_plugin_active() {
  * @return string
  */
 function dumitru_meta_description() {
-	if ( is_singular() ) {
+	if ( is_front_page() ) {
+		// The home page is described by the tagline (Settings → General).
+		$text = get_bloginfo( 'description' );
+	} elseif ( is_singular() ) {
 		$post = get_queried_object();
 		$text = has_excerpt( $post ) ? get_the_excerpt( $post ) : wp_trim_words( wp_strip_all_tags( strip_shortcodes( $post->post_content ) ), 30, '…' );
 	} elseif ( is_category() || is_tag() ) {
