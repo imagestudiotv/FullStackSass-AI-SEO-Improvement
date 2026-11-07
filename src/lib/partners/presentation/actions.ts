@@ -9,6 +9,7 @@ import {
   startPayoutSetup,
   syncPayoutAccount,
 } from "../application/use-cases/manage-payout-account";
+import { choosePayoutMethod, setPayPalRecipient, verifyPayPalRecipient } from "../application/use-cases/paypal-payouts";
 import { partnerDeps } from "../server";
 import { PartnerGuardError, requireActivePartner, requirePartnerAccess, requirePartnerApplicant } from "./guards";
 import { applicationSchema } from "./validation";
@@ -59,6 +60,51 @@ export async function openPayoutDashboardAction(): Promise<ActionAnswer<{ url: s
     const result = await openPayoutDashboard(partnerDeps(), access);
     if (!result.ok) return { ok: false, error: result.reason, detail: result.detail };
     return { ok: true, data: result.value };
+  } catch (error) {
+    return refused(error);
+  }
+}
+
+/*
+  Partners paid through PayPal (application/use-cases/paypal-payouts.ts). The
+  partner is the session's; the address is the only thing the browser sends,
+  and it is paid only after the code sent TO it is entered here.
+*/
+
+export async function setPayPalRecipientAction(email: unknown): Promise<ActionAnswer<{ receiver: string }>> {
+  try {
+    const access = await requireActivePartner();
+    if (typeof email !== "string") return { ok: false, error: "invalid", detail: "email" };
+    const result = await setPayPalRecipient(partnerDeps(), { partnerId: access.partner.id, email });
+    if (!result.ok) return { ok: false, error: result.reason, detail: result.detail };
+    revalidatePath("/partner/payouts");
+    return { ok: true, data: result.value };
+  } catch (error) {
+    return refused(error);
+  }
+}
+
+export async function verifyPayPalRecipientAction(code: unknown): Promise<ActionAnswer<{ receiver: string }>> {
+  try {
+    const access = await requireActivePartner();
+    if (typeof code !== "string") return { ok: false, error: "invalid", detail: "code" };
+    const result = await verifyPayPalRecipient(partnerDeps(), { partnerId: access.partner.id, code });
+    if (!result.ok) return { ok: false, error: result.reason, detail: result.detail };
+    revalidatePath("/partner/payouts");
+    return { ok: true, data: result.value };
+  } catch (error) {
+    return refused(error);
+  }
+}
+
+export async function choosePayoutMethodAction(method: unknown): Promise<ActionAnswer> {
+  try {
+    const access = await requireActivePartner();
+    if (method !== "stripe" && method !== "paypal") return { ok: false, error: "invalid", detail: "method" };
+    const result = await choosePayoutMethod(partnerDeps(), { partnerId: access.partner.id, method });
+    if (!result.ok) return { ok: false, error: result.reason, detail: result.detail };
+    revalidatePath("/partner/payouts");
+    return { ok: true, data: null };
   } catch (error) {
     return refused(error);
   }

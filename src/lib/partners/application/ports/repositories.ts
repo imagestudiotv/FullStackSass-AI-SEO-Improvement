@@ -375,7 +375,12 @@ export type SettlementRecord = {
   grossAmount: bigint;
   offsetAmount: bigint;
   transferAmount: bigint;
-  stripeAccountId: string;
+  /** "stripe" (transfer, then bank payout) or "paypal" (one PayPal payout). */
+  payoutMethod: "stripe" | "paypal";
+  /** Set for "stripe" only. */
+  stripeAccountId: string | null;
+  /** Set for "paypal" only: partner_paypal_accounts.id. */
+  paypalAccountId: string | null;
   transferGroup: string;
   attempts: number;
   nextAttemptAt: Date;
@@ -385,6 +390,71 @@ export type SettlementRecord = {
   paidAt: Date | null;
   /** Set when a person resumed it after review. */
   resumedAt: Date | null;
+};
+
+/* --------------------------------------------------------- PayPal payouts */
+
+export type PayPalAccountStatus = "pending_verification" | "verified" | "disabled";
+
+export type PayPalAccountRecord = {
+  id: string;
+  partnerId: string;
+  environment: Environment;
+  recipientType: "EMAIL";
+  receiver: string;
+  status: PayPalAccountStatus;
+  verificationCodeHash: string | null;
+  verificationExpiresAt: Date | null;
+  verificationAttempts: number;
+  verifiedAt: Date | null;
+};
+
+export type PayPalPayoutStatus = "processing" | "unknown" | "pending" | "succeeded" | "failed" | "reversed";
+
+export type PayPalPayoutRecord = {
+  id: string;
+  settlementId: string;
+  attemptNumber: number;
+  environment: Environment;
+  mode: "automated" | "manual";
+  paypalAccountId: string;
+  receiver: string;
+  currency: string;
+  amount: bigint;
+  senderBatchId: string;
+  payoutBatchId: string | null;
+  payoutItemId: string | null;
+  transactionId: string | null;
+  status: PayPalPayoutStatus;
+  providerStatus: string | null;
+  fee: bigint | null;
+  error: string | null;
+  recordedBy: string | null;
+  note: string | null;
+  submittedAt: Date;
+  completedAt: Date | null;
+};
+
+export interface PayPalPayoutRepository {
+  findAccount(partnerId: string, environment: Environment): Promise<PayPalAccountRecord | null>;
+  findAccountById(id: string): Promise<PayPalAccountRecord | null>;
+  /** Sets (or changes) the address: back to pending_verification with a new code. */
+  setAccount(input: { partnerId: string; environment: Environment; receiver: string; codeHash: string; expiresAt: Date; now: Date }): Promise<PayPalAccountRecord>;
+  /** Counts a verification attempt; returns the new count. */
+  countVerificationAttempt(id: string, now: Date): Promise<number>;
+  markVerified(id: string, now: Date): Promise<void>;
+  setPayoutMethod(partnerId: string, method: "stripe" | "paypal", now: Date): Promise<void>;
+  payoutMethodOf(partnerId: string): Promise<"stripe" | "paypal">;
+  attempts(settlementId: string): Promise<PayPalPayoutRecord[]>;
+  /** Null when another live attempt exists (the unique index). */
+  createAttempt(input: Omit<PayPalPayoutRecord, "id" | "status" | "payoutBatchId" | "payoutItemId" | "transactionId" | "providerStatus" | "fee" | "error" | "completedAt"> & {
+    status?: PayPalPayoutStatus;
+    transactionId?: string | null;
+  }): Promise<PayPalPayoutRecord | null>;
+  updateAttempt(id: string, from: PayPalPayoutStatus[], values: Partial<Pick<PayPalPayoutRecord, "status" | "payoutBatchId" | "payoutItemId" | "transactionId" | "providerStatus" | "fee" | "error" | "completedAt">> & { now: Date }): Promise<boolean>;
+  findAttemptByItem(payoutItemId: string): Promise<PayPalPayoutRecord | null>;
+  /** Automated attempts still to be read from PayPal (pending, unknown). */
+  openAttempts(limit: number): Promise<PayPalPayoutRecord[]>;
 };
 
 export type TransferAttemptRecord = {
@@ -445,7 +515,10 @@ export interface SettlementRepository {
   reservedInFlight(partnerId: string, environment: Environment, currency: string): Promise<bigint>;
   bankPaidTotal(partnerId: string, environment: Environment, currency: string): Promise<bigint>;
   /** Null when this run already has a settlement, or another is still pre-transfer (unique indexes). */
-  create(input: Omit<SettlementRecord, "id" | "state" | "attempts" | "nextAttemptAt" | "lastError" | "createdAt" | "transferredAt" | "paidAt" | "resumedAt"> & {
+  create(input: Omit<SettlementRecord, "id" | "state" | "attempts" | "nextAttemptAt" | "lastError" | "createdAt" | "transferredAt" | "paidAt" | "resumedAt" | "payoutMethod" | "paypalAccountId"> & {
+    /** "stripe" when omitted. */
+    payoutMethod?: "stripe" | "paypal";
+    paypalAccountId?: string | null;
     createdBy: string;
     items: { commissionId: string; amount: bigint }[];
     now: Date;

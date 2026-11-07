@@ -57,6 +57,8 @@ export type PayPalEvent = {
     links?: { href?: string; rel?: string }[];
     /** An Orders v2 order (CHECKOUT.ORDER.*): our custom_id is on its purchase unit. */
     purchase_units?: { custom_id?: string }[];
+    /** A payout item (PAYMENT.PAYOUTS-ITEM.*): partners paid through PayPal. */
+    payout_item_id?: string;
   };
 };
 
@@ -547,6 +549,29 @@ export async function processPayPalEvent(event: PayPalEvent): Promise<void> {
       tab after approving still gets what they paid for, and a repeated or
       early event changes nothing. Another integration's order is left alone.
     */
+    /*
+      A PayPal payout to a PARTNER (partners paid through PayPal,
+      lib/partners/application/use-cases/paypal-payouts.ts): recorded as the
+      partner program's durable work in this attempt; the item is read from
+      PayPal again there. A payout someone else made from this account is
+      found to be nobody's and left alone.
+    */
+    case "PAYMENT.PAYOUTS-ITEM.SUCCEEDED":
+    case "PAYMENT.PAYOUTS-ITEM.UNCLAIMED":
+    case "PAYMENT.PAYOUTS-ITEM.HELD":
+    case "PAYMENT.PAYOUTS-ITEM.FAILED":
+    case "PAYMENT.PAYOUTS-ITEM.RETURNED":
+    case "PAYMENT.PAYOUTS-ITEM.BLOCKED":
+    case "PAYMENT.PAYOUTS-ITEM.CANCELED":
+    case "PAYMENT.PAYOUTS-ITEM.DENIED":
+    case "PAYMENT.PAYOUTS-ITEM.REFUNDED": {
+      const itemId = resource.payout_item_id;
+      if (!itemId) return;
+      const { recordPartnerPayPalWork } = await import("@/lib/partners/presentation/webhooks");
+      await recordPartnerPayPalWork({ id: event.id, eventType: event.event_type, saleId: itemId, kind: "paypal_payout_item" });
+      return;
+    }
+
     case "CHECKOUT.ORDER.APPROVED":
     case "CHECKOUT.ORDER.COMPLETED":
     case "PAYMENT.CAPTURE.COMPLETED":

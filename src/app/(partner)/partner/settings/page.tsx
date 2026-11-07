@@ -1,4 +1,7 @@
 import { PayoutSetup, type SetupState } from "@/components/partners/payout-setup";
+import { PayPalPayoutSetup } from "@/components/partners/paypal-payout-setup";
+import { payPalPayoutAvailability } from "@/lib/partners/application/use-cases/paypal-payouts";
+import { PARTNER_PAYPAL_COPY } from "@/lib/partners/presentation/paypal-copy";
 import { payoutSetupStatus, syncPayoutAccount } from "@/lib/partners/application/use-cases/manage-payout-account";
 import { fill } from "@/lib/partners/presentation/copy";
 import { partnerDeps } from "@/lib/partners/server";
@@ -35,6 +38,12 @@ export default async function PartnerSettingsPage({ searchParams }: PageProps<"/
   const countryName = countryNames([country], locale)[0]?.name ?? country;
   const supported = deps.settings.payoutCountries().includes(country);
   const requirements = status.configured && status.account ? [...status.account.requirementsPastDue, ...status.account.requirementsCurrentlyDue] : [];
+  // Partners paid through PayPal (paypal-payouts.ts): offered only where the server says it can run.
+  const paypal = payPalPayoutAvailability(deps, access.partner);
+  const environment = deps.settings.environment();
+  const paypalAccount = environment ? await deps.uow.repositories.paypalPayouts.findAccount(access.partner.id, environment) : null;
+  const method = await deps.uow.repositories.paypalPayouts.payoutMethodOf(access.partner.id);
+  const showPayPal = access.partner.status === "active" && (paypal.available || paypalAccount !== null || method === "paypal");
 
   return (
     <div className="space-y-6">
@@ -50,6 +59,15 @@ export default async function PartnerSettingsPage({ searchParams }: PageProps<"/
         countryLine={supported ? fill(t.setup.country, { country: countryName }) : fill(t.setup.countryUnsupported, { country: countryName })}
         requirements={requirements}
       />
+      {showPayPal ? (
+        <PayPalPayoutSetup
+          copy={PARTNER_PAYPAL_COPY[locale]}
+          account={paypalAccount ? { receiver: paypalAccount.receiver, status: paypalAccount.status } : null}
+          method={method}
+          manual={paypal.available && paypal.mode === "manual"}
+          canChooseStripe={state === "ready"}
+        />
+      ) : null}
       <section className="rounded-xl border bg-card p-6" aria-labelledby="profile-title">
         <h2 id="profile-title" className="font-semibold">{t.settings.profile}</h2>
         <dl className="mt-4 grid gap-4 text-sm sm:grid-cols-2">

@@ -45,5 +45,29 @@ export function settingsFromEnv(env: NodeJS.ProcessEnv = process.env): ProgramSe
         .filter((code) => /^[A-Z]{2}$/.test(code));
       return configured.length > 0 ? [...new Set(configured)].sort() : DEFAULT_PAYOUT_COUNTRIES;
     },
+    /*
+      Partners paid through PayPal. All three unset by default, which means
+      no PayPal payouts at all: PARTNER_PAYPAL_PAYOUTS = automated | manual,
+      PARTNER_PAYPAL_FEE_BEARER = repget, PARTNER_PAYPAL_PAYOUT_COUNTRIES =
+      comma-separated ISO countries. Live PayPal money also needs
+      PARTNER_LIVE_PAYOUTS=enabled, as live Stripe money does.
+    */
+    paypalPayoutMode: () => {
+      const value = env.PARTNER_PAYPAL_PAYOUTS?.trim().toLowerCase();
+      return value === "automated" || value === "manual" ? value : "off";
+    },
+    paypalFeeBearer: () => {
+      const value = env.PARTNER_PAYPAL_FEE_BEARER?.trim().toLowerCase();
+      return value === "repget" || value === "partner" ? value : null;
+    },
+    paypalPayoutCountries: () =>
+      [
+        ...new Set(
+          (env.PARTNER_PAYPAL_PAYOUT_COUNTRIES ?? "")
+            .split(",")
+            .map((code) => code.trim().toUpperCase())
+            .filter((code) => /^[A-Z]{2}$/.test(code)),
+        ),
+      ].sort(),
   };
 }

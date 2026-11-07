@@ -12,6 +12,7 @@ import { createPartnerCoupon, deactivatePartnerCoupon } from "../application/use
 import { confirmAttribution, disqualifyAttribution, resolveReviewCase } from "../application/use-cases/manage-fraud-case";
 import { setProgramControl } from "../application/use-cases/manage-program";
 import { prepareSettlementNow, reconcileNow, resumeSettlement, retrySettlement, runMonthlySettlementsNow } from "../application/use-cases/manage-settlement";
+import { confirmManualPayPalPayout, recordManualPayPalPayout, voidManualPayPalPayout } from "../application/use-cases/paypal-payouts";
 import { cancelSettlement } from "../application/use-cases/prepare-settlement";
 import { retryFailedProviderEvents } from "../application/use-cases/process-provider-events";
 import { requestTransferReversal } from "../application/use-cases/reconcile-settlement";
@@ -66,6 +67,16 @@ const MESSAGES: Record<string, string> = {
   status_paid: "This commission is paid. Correct it with a balance adjustment instead.",
   disqualified: "This referral was disqualified.",
   transfer_may_exist: "A transfer may already exist at Stripe. Retry to reconcile it instead of cancelling.",
+  paypal_payout_may_exist: "A PayPal payout may already exist for this. Retry to reconcile it, or void the recorded manual payment first.",
+  not_manual_mode: "PayPal payouts are not in manual mode on this deployment (PARTNER_PAYPAL_PAYOUTS).",
+  transaction_id: "Enter PayPal's 17-character transaction id, from the payment in PayPal's activity.",
+  transaction_id_mismatch: "That is not the transaction id that was recorded. Check the payment in PayPal.",
+  same_person: "The person who recorded a manual payment cannot also confirm it. Ask another administrator.",
+  nothing_recorded: "No manual PayPal payment is recorded for this payout.",
+  attempt_exists: "A PayPal payment is already recorded for this payout.",
+  allocations_changed: "A commission in this payout changed (refund, hold or review). Cancel it; the next run pays what is due.",
+  paypal_account_not_verified: "The partner's PayPal address changed or is not confirmed: this payout cannot be sent to it.",
+  fee_policy_undecided: "Who pays PayPal's payout fee is not set (PARTNER_PAYPAL_FEE_BEARER).",
   no_confirmed_transfer: "No confirmed transfer to reverse.",
   more_than_owed: "That is more than the partner owes back.",
   more_than_transfer: "That is more than what remains of the transfer.",
@@ -245,6 +256,40 @@ export async function cancelSettlementAction(settlementId: string, reason: strin
   if (!idSchema.safeParse(settlementId).success) return invalid();
   if (!reasonSchema.safeParse(reason).success) return invalid("reason");
   const result = await cancelSettlement(partnerDeps(), who, settlementId, reason.trim());
+  refresh();
+  return answer(result);
+}
+
+/*
+  Partners paid through PayPal, MANUAL mode (use-cases/paypal-payouts.ts): a
+  person sends the money in PayPal and records PayPal's transaction id; a
+  second person confirms it in PayPal before anything is settled; a recorded
+  payment that did not go through is voided so it can be sent again.
+*/
+
+export async function recordManualPayPalPayoutAction(settlementId: string, reason: string, transactionId: string): Promise<AdminAnswer> {
+  const who = await admin();
+  if (!idSchema.safeParse(settlementId).success) return invalid();
+  if (!reasonSchema.safeParse(reason).success) return invalid("reason");
+  const result = await recordManualPayPalPayout(partnerDeps(), who, { settlementId, transactionId, note: reason });
+  refresh();
+  return result.ok ? { ok: true, data: null } : answer(result);
+}
+
+export async function confirmManualPayPalPayoutAction(settlementId: string, reason: string, confirmation: string): Promise<AdminAnswer> {
+  const who = await admin();
+  if (!idSchema.safeParse(settlementId).success) return invalid();
+  if (!reasonSchema.safeParse(reason).success) return invalid("reason");
+  const result = await confirmManualPayPalPayout(partnerDeps(), who, { settlementId, confirmation });
+  refresh();
+  return answer(result);
+}
+
+export async function voidManualPayPalPayoutAction(settlementId: string, reason: string): Promise<AdminAnswer> {
+  const who = await admin();
+  if (!idSchema.safeParse(settlementId).success) return invalid();
+  if (!reasonSchema.safeParse(reason).success) return invalid("reason");
+  const result = await voidManualPayPalPayout(partnerDeps(), who, { settlementId, reason });
   refresh();
   return answer(result);
 }

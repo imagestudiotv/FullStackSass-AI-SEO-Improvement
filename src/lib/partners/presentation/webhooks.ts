@@ -103,7 +103,14 @@ export async function processPartnerConnectEvent(event: Stripe.Event): Promise<v
  * the same work. PayPal's mode must be the program's environment (sandbox =
  * test, live = live): test and live never mix.
  */
-export async function recordPartnerPayPalWork(event: { id: string; eventType: string; saleId: string; createdAt?: Date }): Promise<void> {
+export async function recordPartnerPayPalWork(event: {
+  id: string;
+  eventType: string;
+  /** The sale, or - kind "paypal_payout_item" - the payout item (partners paid through PayPal). */
+  saleId: string;
+  kind?: "paypal_sale" | "paypal_payout_item";
+  createdAt?: Date;
+}): Promise<void> {
   const deps = partnerDeps();
   const environment = deps.settings.environment();
   const paypal = deps.paypalSales?.environment() ?? null;
@@ -118,7 +125,7 @@ export async function recordPartnerPayPalWork(event: { id: string; eventType: st
     environment,
     // The column predates PayPal: any provider's unique event key ("paypal:<event id>").
     stripeEventId: `paypal:${event.id}`,
-    eventType: `paypal_sale:${event.eventType}`,
+    eventType: `${event.kind ?? "paypal_sale"}:${event.eventType}`,
     objectId: event.saleId,
     connectedAccountId: null,
     eventCreatedAt: event.createdAt ?? now,

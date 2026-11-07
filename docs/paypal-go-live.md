@@ -25,6 +25,20 @@ Added on 2026-10-22 (the client: PayPal "as same as the case of Stripe"):
 - **Cancelling during the free days** ends it at once. Nothing was paid, so there is no time left to keep.
 - During the free days the website cannot switch to card. The customer cancels the PayPal free subscription first; the workspace has then had its free articles, so card charges at once.
 
+Added on 2026-11-07, branch `feature/payment-s1-p11`: **not released. Every PayPal call below is checked only against stubbed answers, not the sandbox.**
+- **Refunds from the admin** (review P6). Admin, Payments refunds PayPal payments as it does card payments:
+  - a subscription payment through PayPal's sale refund, a one-off purchase through its capture refund;
+  - partial amounts allowed, up to what remains;
+  - a payment is marked refunded once all of it went back;
+  - a refund with no answer shows "Refund unconfirmed", and is checked again with the same request, never sent twice;
+  - refunds made in PayPal's dashboard, partial ones too, are recorded from the webhook.
+  - "Also cancel the subscription" is a separate choice, made after the money.
+- **Credit packs and "Get Featured" with PayPal** (P4, P8). The server sets the price. RepGet captures the approved order itself, and grants the credits or the placement only when PayPal reports that capture COMPLETED for exactly that amount. This happens on return, by webhook, or by the 5-minute maintenance job. An order never approved is dropped after 6 hours.
+- **PayPal payments earn partner commission** (P7), as card payments do.
+- **Old PayPal plan ids are kept** (P3), in `paypal_plan_versions`. A subscriber on a plan recreated since keeps their plan and their free articles.
+- **PayPal prices are NOT immutable** (P2). This file and `paypal-setup.mjs` used to say they were. PayPal's price update applies to EXISTING subscribers too, except payments within 10 days. `scripts/paypal-pricing.mjs` reports prices read-only, and changes one plan only with `--apply --confirm <id>`. Do not use it to change prices for new customers: that is a new catalog row (docs/plan-catalog.md).
+- **Partners paid through PayPal:** see docs/partner-program.md, "Partners paid through PayPal". Off unless `PARTNER_PAYPAL_PAYOUTS` is set.
+
 ## Releasing the free articles with PayPal (owner steps, in order)
 
 Steps 1 to 7 below were done before this. These four steps add the free articles:
@@ -81,6 +95,18 @@ Steps 2 and 3 can come in either order. Before the script, PayPal simply charges
    - `PAYMENT.SALE.DENIED`
    - `PAYMENT.SALE.REFUNDED`
    - `PAYMENT.SALE.REVERSED`
+
+   **And, for the 2026-11-07 branch** (one-off purchases, their refunds, and partner payouts):
+   - `CHECKOUT.ORDER.APPROVED`
+   - `PAYMENT.CAPTURE.COMPLETED`
+   - `PAYMENT.CAPTURE.PENDING`
+   - `PAYMENT.CAPTURE.DENIED`
+   - `PAYMENT.CAPTURE.DECLINED`
+   - `PAYMENT.CAPTURE.REFUNDED`
+   - `PAYMENT.CAPTURE.REVERSED`
+   - `PAYMENT.PAYOUTS-ITEM.SUCCEEDED`, `.UNCLAIMED`, `.HELD`, `.FAILED`, `.RETURNED`, `.BLOCKED`, `.CANCELED`, `.DENIED`, `.REFUNDED` (only if partners are paid through PayPal in automated mode)
+
+   A missing event is not lost money: the maintenance job reads open orders, and the partner payout sweep reads open payouts. But the customer then waits up to its next run.
 4. Save. Copy the **Webhook ID**.
 
 ## 4. Set the Vercel variables (Production only)
@@ -199,7 +225,7 @@ Every day:
 The same goes for `replacedFreeArticlesToRefund`, which should stay empty. It lists a payment PayPal took on a free-articles subscription that "Start my plan now" replaced. That happens only if the customer starts the plan at the very end of the 30 days, and PayPal bills the free subscription before the new one is active. The customer then paid twice: refund the sale listed there, in full, in PayPal.
 
 Other rules:
-- PayPal refunds are made in PayPal, not in the RepGet admin. Cancel the subscription separately if the customer is leaving.
+- PayPal refunds: before the 2026-11-07 branch, they are made in PayPal, not in the RepGet admin. With it, use Admin, Payments; a refund made in PayPal is still recorded. Either way, cancel the subscription separately if the customer is leaving.
 - To stop PayPal for new customers, set `PAYPAL_CHECKOUT` = `off` in Vercel (Production) and redeploy. Existing PayPal customers are not affected: their webhooks keep working. Remove it and redeploy to offer PayPal again. Never remove the PayPal credentials for this: that would also refuse every webhook for existing PayPal customers.
 
 ## Not verified without a sandbox test

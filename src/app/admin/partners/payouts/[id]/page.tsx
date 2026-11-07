@@ -3,7 +3,15 @@ import { notFound } from "next/navigation";
 
 import { requireAdmin } from "@/lib/admin/guard";
 import { adminSettlementDetail } from "@/lib/partners/application/queries/admin-reports";
-import { cancelSettlementAction, requestTransferReversalAction, resumeSettlementAction, retrySettlementAction } from "@/lib/partners/presentation/admin-actions";
+import {
+  cancelSettlementAction,
+  confirmManualPayPalPayoutAction,
+  recordManualPayPalPayoutAction,
+  requestTransferReversalAction,
+  resumeSettlementAction,
+  retrySettlementAction,
+  voidManualPayPalPayoutAction,
+} from "@/lib/partners/presentation/admin-actions";
 import { idSchema } from "@/lib/partners/presentation/validation";
 import { partnerDeps } from "@/lib/partners/server";
 
@@ -51,6 +59,39 @@ export default async function PartnerPayoutPage({ params }: PageProps<"/admin/pa
         }
         actions={
           <div className="flex flex-wrap gap-2">
+            {detail.canRecordManualPayPal ? (
+              <ReasonAction
+                action={recordManualPayPalPayoutAction.bind(null, settlement.id)}
+                label="Record manual PayPal payment…"
+                title="Record the PayPal payment you sent?"
+                description={`MANUAL payout. First send exactly ${money(settlement.transferAmount, settlement.currency)} in PayPal to ${detail.paypalAccount?.receiver ?? "the partner's confirmed PayPal address"}. Then enter PayPal's transaction id. Nothing is settled until another administrator confirms it.`}
+                confirmLabel="Record payment"
+                success="Manual payment recorded"
+                field={{ label: "PayPal transaction id", hint: "17 characters, from the payment in PayPal's activity.", initial: "", required: true, maxLength: 17 }}
+              />
+            ) : null}
+            {detail.manualPending ? (
+              <>
+                <ReasonAction
+                  action={confirmManualPayPalPayoutAction.bind(null, settlement.id)}
+                  label="Confirm manual PayPal payment…"
+                  title="Confirm this payment in PayPal?"
+                  description={`MANUAL payout recorded by ${detail.manualPending.recordedBy ?? "someone"}. Open PayPal's activity, find ${detail.manualPending.transactionId}, check it is completed, for ${money(settlement.transferAmount, settlement.currency)}, to ${detail.manualPending.receiver}. Type the transaction id again to confirm. This settles the payout.`}
+                  confirmLabel="Confirm and settle"
+                  success="Payout settled"
+                  field={{ label: "Transaction id, as shown in PayPal", hint: "Must match what was recorded.", initial: "", required: true, maxLength: 17 }}
+                />
+                <ReasonAction
+                  action={voidManualPayPalPayoutAction.bind(null, settlement.id)}
+                  label="Void recorded payment…"
+                  title="Void the recorded PayPal payment?"
+                  description="Only if the payment did NOT go through in PayPal (cancelled, reversed or never sent). The payout goes back to waiting, so it can be sent again."
+                  confirmLabel="Void"
+                  success="Recorded payment voided"
+                  tone="danger"
+                />
+              </>
+            ) : null}
             {detail.retryable ? (
               <ReasonAction
                 action={retrySettlementAction.bind(null, settlement.id)}
@@ -105,7 +146,10 @@ export default async function PartnerPayoutPage({ params }: PageProps<"/admin/pa
             { label: "Gross (reserved commissions)", value: money(settlement.grossAmount, settlement.currency) },
             { label: "Deducted (corrections)", value: money(settlement.offsetAmount, settlement.currency) },
             { label: "Transfer amount", value: money(settlement.transferAmount, settlement.currency) },
-            { label: "Connected account", value: <span className="font-mono">{settlement.stripeAccountId}</span> },
+            { label: "Paid through", value: settlement.payoutMethod === "paypal" ? `PayPal (${detail.paypalMode === "manual" ? "manual" : detail.paypalMode})` : "Stripe" },
+            settlement.payoutMethod === "paypal"
+              ? { label: "PayPal address", value: <span className="font-mono">{detail.paypalAccount?.receiver ?? "-"} ({detail.paypalAccount?.status ?? "missing"})</span> }
+              : { label: "Connected account", value: <span className="font-mono">{settlement.stripeAccountId}</span> },
             { label: "Transfer group", value: <span className="font-mono break-all">{settlement.transferGroup}</span> },
             { label: "Created", value: when(settlement.createdAt) },
             { label: "Transferred", value: when(settlement.transferredAt) },
@@ -116,6 +160,40 @@ export default async function PartnerPayoutPage({ params }: PageProps<"/admin/pa
           ]}
         />
       </AdminSection>
+
+      {settlement.payoutMethod === "paypal" ? (
+        <AdminSection title="PayPal payments" description="One per sender batch id (PayPal's idempotency key). At most one may have moved money. Manual ones were sent by a person and recorded here.">
+          {detail.paypalAttempts.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nothing sent to PayPal yet.</p>
+          ) : (
+            <ul className="space-y-3 text-sm">
+              {detail.paypalAttempts.map((attempt) => (
+                <li key={attempt.id} className="rounded-lg border p-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium">#{attempt.attemptNumber}</span>
+                    <AdminStatus
+                      tone={attempt.status === "succeeded" ? "success" : attempt.status === "failed" || attempt.status === "reversed" ? "danger" : "warning"}
+                      label={`${attempt.mode} · ${attempt.status}${attempt.providerStatus ? ` (${attempt.providerStatus})` : ""}`}
+                    />
+                    <span className="tabular-nums">{money(attempt.amount, attempt.currency)}</span>
+                    <span className="font-mono">{attempt.receiver}</span>
+                  </div>
+                  <dl className="mt-2 grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
+                    <div>Sender batch: <span className="font-mono break-all">{attempt.senderBatchId}</span></div>
+                    <div>Transaction: <span className="font-mono">{attempt.transactionId ?? "-"}</span></div>
+                    <div>Fee (paid by RepGet): {attempt.fee !== null ? money(attempt.fee, attempt.currency) : "-"}</div>
+                    <div>Recorded by: {attempt.recordedBy ?? "system"}</div>
+                    <div>Sent: {when(attempt.submittedAt)}</div>
+                    <div>Completed: {when(attempt.completedAt)}</div>
+                    {attempt.error ? <div className="sm:col-span-2">Error: {attempt.error}</div> : null}
+                    {attempt.note ? <div className="sm:col-span-2">Note: {attempt.note}</div> : null}
+                  </dl>
+                </li>
+              ))}
+            </ul>
+          )}
+        </AdminSection>
+      ) : null}
 
       <AdminSection title="Transfer attempts" description="One per idempotency key. At most one may have moved money.">
         {detail.transfers.length === 0 ? (

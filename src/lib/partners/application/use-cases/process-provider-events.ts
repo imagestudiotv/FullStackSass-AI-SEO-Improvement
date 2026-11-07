@@ -6,6 +6,7 @@ import { rebuildPartnerProjections } from "./mature-commissions";
 import { processChargeAdjustments } from "./process-adjustment";
 import { processInvoice } from "./process-payment";
 import { processPayPalSale } from "./process-paypal-sale";
+import { syncPayPalPayoutItem } from "./paypal-payouts";
 import { syncTransferReversals } from "./reconcile-settlement";
 import { refreshPartnerTier } from "./refresh-partner-tier";
 
@@ -116,6 +117,9 @@ async function dispatch(deps: PartnerDeps, event: ProviderEventRecord): Promise<
     case "paypal_sale":
       // A PayPal subscription sale completed, refunded or reversed (review P7): read again from PayPal.
       return processPayPalSale(deps, { saleId: event.objectId, environment: event.environment });
+    case "paypal_payout_item":
+      // A PayPal payout to a partner moved (paypal-payouts.ts): the item is read again from PayPal.
+      return syncPayPalPayoutItem(deps, event.objectId);
     default:
       return { outcome: "not_relevant", partnerIds: [] };
   }

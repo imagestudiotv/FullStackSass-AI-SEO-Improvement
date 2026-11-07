@@ -37,6 +37,10 @@ export type PartnerAuditAction =
   | "partner.coupon_deactivated"
   | "partner.review_resolved"
   | "partner.settlement_created"
+  /** Manual PayPal payouts: recorded after sending in PayPal, confirmed by a second person, or voided. */
+  | "partner.paypal_payout_recorded"
+  | "partner.paypal_payout_confirmed"
+  | "partner.paypal_payout_voided"
   | "partner.settlement_retried"
   | "partner.settlement_canceled"
   | "partner.transfer_reversal_requested"
@@ -63,6 +67,9 @@ export const PARTNER_AUDIT_ACTIONS: readonly PartnerAuditAction[] = [
   "partner.coupon_deactivated",
   "partner.review_resolved",
   "partner.settlement_created",
+  "partner.paypal_payout_recorded",
+  "partner.paypal_payout_confirmed",
+  "partner.paypal_payout_voided",
   "partner.settlement_retried",
   "partner.settlement_canceled",
   "partner.transfer_reversal_requested",
