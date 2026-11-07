@@ -51,3 +51,24 @@ describe("the PayPal plans RepGet creates", () => {
     expect(body.payment_preferences).toEqual(planBody(GROW, "PROD-1").payment_preferences);
   });
 });
+
+describe("the REPGET offer plans (review P5)", () => {
+  it("one intro cycle priced like the regular one, then the regular price", () => {
+    const body = planBody(GROW, "PROD-1", { offer: true });
+    expect(body.name).toBe("Grow - REPGET offer");
+    expect(body.billing_cycles.map((cycle) => [cycle.tenure_type, cycle.sequence, cycle.total_cycles, cycle.pricing_scheme.fixed_price.value])).toEqual([
+      ["TRIAL", 1, 1, "99.00"],
+      ["REGULAR", 2, 0, "99.00"],
+    ]);
+  });
+
+  it("with the free articles: the free days, then the intro cycle, then the regular price", () => {
+    const body = planBody(GROW_ANNUAL, "PROD-1", { freeArticles: true, offer: true });
+    expect(body.name).toBe("Grow (Annual) - free articles first, REPGET offer");
+    expect(body.billing_cycles.map((cycle) => [cycle.tenure_type, cycle.sequence, cycle.frequency.interval_unit, cycle.pricing_scheme.fixed_price.value])).toEqual([
+      ["TRIAL", 1, "DAY", "0"],
+      ["TRIAL", 2, "YEAR", "990.00"],
+      ["REGULAR", 3, "YEAR", "990.00"],
+    ]);
+  });
+});

@@ -161,18 +161,33 @@ async function api(path, init = {}) {
 
 const sql = postgres(DIRECT_URL, { connect_timeout: 30 });
 
+/** The REPGET offer plans' columns (draft 0008); before that migration only the first two kinds are made. */
+const [{ count: offerColumns }] = await sql`
+  select count(*)::int as count from information_schema.columns
+  where table_schema = 'public' and table_name = 'plans' and column_name in ('paypal_offer_plan_id', 'paypal_trial_offer_plan_id')`;
+const HAS_OFFER_COLUMNS = offerColumns === 2;
+if (!HAS_OFFER_COLUMNS) console.warn("plans.paypal_offer_plan_id does not exist yet (migration pending): the REPGET offer plans are NOT made on this run.\n");
+
 const rows = await sql`
-  select id, name, tier, interval, currency, price_cents, paypal_plan_id, paypal_trial_plan_id
+  select id, name, tier, interval, currency, price_cents, paypal_plan_id, paypal_trial_plan_id${HAS_OFFER_COLUMNS ? sql`, paypal_offer_plan_id, paypal_trial_offer_plan_id` : sql``}
   from plans where catalog_version = ${CATALOG_VERSION} order by sort_order, price_cents
 `;
 
 /*
-  Two PayPal plans per RepGet plan (scripts/paypal-plans.mjs): the plan
-  itself, and the same plan with the free articles first (2026-10-22).
+  PayPal plans per RepGet plan (scripts/paypal-plans.mjs): the plan itself,
+  the same plan with the free articles first (2026-10-22), and both again
+  with the REPGET offer's intro cycle (review P5) - those two only once the
+  offer's columns exist (draft 0008).
 */
 const KINDS = [
-  { key: "regular", column: "paypal_plan_id", label: "plan", freeArticles: false },
-  { key: "trial", column: "paypal_trial_plan_id", label: "free-articles plan", freeArticles: true },
+  { key: "regular", column: "paypal_plan_id", label: "plan", freeArticles: false, offer: false },
+  { key: "trial", column: "paypal_trial_plan_id", label: "free-articles plan", freeArticles: true, offer: false },
+  ...(HAS_OFFER_COLUMNS
+    ? [
+        { key: "offer", column: "paypal_offer_plan_id", label: "REPGET offer plan", freeArticles: false, offer: true },
+        { key: "trial_offer", column: "paypal_trial_offer_plan_id", label: "free-articles REPGET offer plan", freeArticles: true, offer: true },
+      ]
+    : []),
 ];
 
 if (rows.length === 0) {
@@ -294,15 +309,11 @@ for (const plan of rows) {
     const product = await productFor(plan.tier, plan.name);
     const created = await api("/v1/billing/plans", {
       method: "POST",
-      body: JSON.stringify(planBody(plan, product.id, { freeArticles: kind.freeArticles })),
+      body: JSON.stringify(planBody(plan, product.id, { freeArticles: kind.freeArticles, offer: kind.offer })),
     });
 
     // The replaced id stays mapped for the subscribers still on it; the new one is current.
-    if (kind.key === "trial") {
-      await sql`update plans set paypal_trial_plan_id = ${created.id}, updated_at = now() where id = ${plan.id}`;
-    } else {
-      await sql`update plans set paypal_plan_id = ${created.id}, updated_at = now() where id = ${plan.id}`;
-    }
+    await sql`update plans set ${sql(kind.column)} = ${created.id}, updated_at = now() where id = ${plan.id}`;
     await retire(plan[kind.column]);
     await remember(plan, kind, created.id);
     console.log(`  ${kind.label} created: ${created.id}${plan[kind.column] ? ` (replaces ${plan[kind.column]}, kept in history)` : ""}`);
@@ -311,7 +322,7 @@ for (const plan of rows) {
 }
 
 const final = await sql`
-  select name, interval, currency, price_cents, paypal_plan_id, paypal_trial_plan_id
+  select name, interval, currency, price_cents, paypal_plan_id, paypal_trial_plan_id${HAS_OFFER_COLUMNS ? sql`, paypal_offer_plan_id, paypal_trial_offer_plan_id` : sql``}
   from plans where catalog_version = ${CATALOG_VERSION} order by sort_order, price_cents
 `;
 console.table(final.map((r) => ({ ...r })));
@@ -322,5 +333,13 @@ console.log(
     ? "\nAll plans have a PayPal plan and a free-articles plan. PayPal checkout is ready."
     : `\n${missing.length} plan(s) still missing a PayPal plan or free-articles plan id.`,
 );
+if (HAS_OFFER_COLUMNS) {
+  const noOffer = final.filter((r) => !r.paypal_offer_plan_id || !r.paypal_trial_offer_plan_id);
+  console.log(
+    noOffer.length === 0
+      ? "All plans have their REPGET offer plans: REPGET can be used with PayPal."
+      : `${noOffer.length} plan(s) without REPGET offer plans: REPGET is card-only for them.`,
+  );
+}
 
 await sql.end();

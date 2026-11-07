@@ -82,6 +82,17 @@ export const plans = pgTable(
      * by scripts/paypal-setup.mjs.
      */
     paypalTrialPlanId: text("paypal_trial_plan_id"),
+    /**
+     * The REPGET offer through PayPal (review P5): the same plan with one
+     * intro cycle before the regular ones, priced like them by default. Only
+     * a checkout carrying REPGET subscribes to it, and overrides that one
+     * cycle's price on its own subscription (the fixed first-month
+     * discount); renewals are the regular price. The trial variant has the
+     * free days first, so they never use the discount up. Created by
+     * scripts/paypal-setup.mjs.
+     */
+    paypalOfferPlanId: text("paypal_offer_plan_id"),
+    paypalTrialOfferPlanId: text("paypal_trial_offer_plan_id"),
     priceCents: integer("price_cents").notNull(),
     articleLimit: integer("article_limit").notNull(),
     /**
@@ -153,7 +164,7 @@ export const paypalPlanVersions = pgTable(
   (table) => [
     uniqueIndex("paypal_plan_versions_paypal_uidx").on(table.paypalPlanId),
     index("paypal_plan_versions_plan_idx").on(table.planId),
-    check("paypal_plan_versions_kind_check", sql`${table.kind} in ('regular', 'trial')`),
+    check("paypal_plan_versions_kind_check", sql`${table.kind} in ('regular', 'trial', 'offer', 'trial_offer')`),
     check(
       "paypal_plan_versions_environment_check",
       sql`${table.environment} is null or ${table.environment} in ('live', 'sandbox')`,

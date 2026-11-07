@@ -241,3 +241,29 @@ These come from PayPal's documentation, not a test. The code takes the safe path
 
   The free-articles test in step 8 is the first real check: Billing must say "Free articles" on day 1.
 - How long PayPal takes from approving "Start my plan now" to activating it. RepGet waits for activation, keeps asking, and the free articles carry on meanwhile.
+
+## Plan changes and REPGET with PayPal (2026-11-07 branch)
+
+**Plan changes (review P1; the owner's decision, "charge the difference now"):**
+- **Upgrade:** two approvals on PayPal.
+  - First, a one-off payment for the prorated difference over the rest of the current period.
+  - Then the plan revision. The new price applies from the next billing date.
+  - The upgrade's allowances start when PayPal reports the subscription on the new plan.
+- **Paid but never revised:** the difference is refunded automatically and staff are emailed. This covers not approved within 72 hours, the buyer declined, PayPal refused, or the subscription ended.
+- **Exception:** if the buyer may have approved (they came back through PayPal's success link, or PayPal sent `BILLING.SUBSCRIPTION.UPDATED`), nothing is refunded automatically. The change shows as "needs a person": check the subscription in PayPal, then refund from Admin, Payments if the plan did not change.
+- **Downgrade:** nothing is charged. The paid plan stays until the next billing date.
+- **Not possible through PayPal:** monthly↔yearly switches, and changes while a payment is failing.
+
+**REPGET (review P5):**
+- PayPal takes the code only on plans that have their REPGET offer plans. Run `npm run paypal:setup` (sandbox first) after the 0008 migration; it makes them. Until then, REPGET is card-only and the customer is told so.
+- An offer plan is the regular plan with ONE intro cycle in front of it, after the free days if there are any.
+- The intro cycle is priced like the regular cycle. Only a REPGET checkout overrides its price, on that one subscription: the regular price less the fixed first-month amount (Launch EUR 39.60, Grow EUR 59.60, Scale EUR 139.60).
+- Renewals are the regular price. It is one use per account across card and PayPal, as by card.
+
+**Sandbox checks (not yet done; the code relies on PayPal's documentation):**
+- Upgrade mid-period: pay the difference, approve, then confirm `GET /v1/billing/subscriptions/{id}` shows the new `plan_id` at once.
+  - If it only changes at the next billing date, upgrades reach staff after 72 hours instead of completing. Report it, and completion moves to the UPDATED webhook.
+- Downgrade: Billing shows the date, and the lower plan applies from that date.
+- REPGET with PayPal, monthly and annual:
+  - the first payment is the reduced amount, and the second is the full price;
+  - with the free articles, the first charge after the free days is the reduced amount.

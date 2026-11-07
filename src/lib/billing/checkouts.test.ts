@@ -342,6 +342,76 @@ describe("the REPGET offer", () => {
     await createCheckoutSession(plan, site.id, "billing", "REPGET");
     expect(stripeMock.sessionsCreate).toHaveBeenCalledTimes(2);
   });
+
+  /*
+    REPGET through PayPal (review P5): the plan's REPGET offer plan, its ONE
+    intro cycle priced lower on this subscription only (createSubscription's
+    override), after any free days. PayPal is stubbed at createSubscription:
+    the override body is plans-body/subscriptions tests; PayPal honouring it
+    is the owner's sandbox flow.
+  */
+  describe("through PayPal (review P5)", () => {
+    const offerPlan = (fields: Partial<typeof plans.$inferInsert> = {}) =>
+      growPlan({ paypalPlanId: "P-GROW", paypalTrialPlanId: "P-GROW-FREE", paypalOfferPlanId: "P-GROW-OFFER", paypalTrialOfferPlanId: "P-GROW-FREE-OFFER", ...fields });
+    const created = () => paypalMock.createSubscription.mock.calls.at(-1)![0];
+
+    it("subscribes to the offer plan, its first payment the same fixed amount less", async () => {
+      await usedTrial();
+      const site = await addSite();
+      expect(await createPayPalCheckout(await offerPlan(), site.id, "billing", "REPGET")).toEqual({ url: expect.any(String) });
+      // 149.00 less 59.60.
+      expect(created()).toMatchObject({ planId: "P-GROW-OFFER", intro: { sequence: 1, priceCents: 8940, currency: "eur" } });
+      const [row] = await checkouts();
+      expect(row.requestParams).toMatchObject({ plan: "P-GROW-OFFER", offer: "REPGET", introCents: 8940 });
+    });
+
+    it("after the free articles: the free days first, then the discounted payment", async () => {
+      const site = await addSite();
+      await createPayPalCheckout(await offerPlan(), site.id, "billing", "REPGET");
+      expect(created()).toMatchObject({ planId: "P-GROW-FREE-OFFER", intro: { sequence: 2, priceCents: 8940 } });
+    });
+
+    it("annual: the same fixed amount off the first annual payment", async () => {
+      await usedTrial();
+      const site = await addSite();
+      await createPayPalCheckout(await offerPlan({ interval: "year", priceCents: 149000, stripePriceId: "price_year_pp" }), site.id, "billing", "REPGET");
+      expect(created()).toMatchObject({ planId: "P-GROW-OFFER", intro: { sequence: 1, priceCents: 143040 } });
+    });
+
+    it("no code: the plan as before, with no override", async () => {
+      await usedTrial();
+      const site = await addSite();
+      await createPayPalCheckout(await offerPlan(), site.id);
+      expect(created()).toMatchObject({ planId: "P-GROW" });
+      expect(created().intro).toBeUndefined();
+    });
+
+    it("a plan without its offer plans takes the code by card only", async () => {
+      const site = await addSite();
+      expect(await createPayPalCheckout(await offerPlan({ paypalTrialOfferPlanId: null }), site.id, "billing", "REPGET")).toEqual({
+        error: expect.stringContaining("not available with PayPal"),
+      });
+      expect(paypalMock.createSubscription).not.toHaveBeenCalled();
+      expect(await checkouts()).toHaveLength(0);
+    });
+
+    it("one use per account, whichever processor used it", async () => {
+      const plan = await offerPlan();
+      const earlier = await addSite("org_a", "used.test");
+      await test.db.insert(billingCheckouts).values({ organizationId: "org_a", websiteId: earlier.id, provider: "stripe", planId: plan, status: "completed", trialDays: 0, requestParams: { offer: "REPGET" }, createdAt: new Date() });
+      const site = await addSite();
+      expect(await createPayPalCheckout(plan, site.id, "billing", "REPGET")).toEqual({ error: expect.stringContaining("already used") });
+      expect(paypalMock.createSubscription).not.toHaveBeenCalled();
+    });
+
+    it("is refused for a plan change, as by card", async () => {
+      const plan = await offerPlan();
+      const site = await addSite();
+      await test.db.insert(subscriptions).values({ organizationId: "org_a", websiteId: site.id, provider: "paypal", planId, status: "active", paypalSubscriptionId: "I-LIVE" });
+      expect(await createPayPalCheckout(plan, site.id, "billing", "REPGET")).toEqual({ error: expect.stringContaining("not for changing") });
+      expect(paypalMock.reviseSubscription).not.toHaveBeenCalled();
+    });
+  });
 });
 
 describe("opening a checkout", () => {

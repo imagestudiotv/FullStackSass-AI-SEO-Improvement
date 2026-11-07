@@ -194,6 +194,12 @@ export async function createSubscription(input: {
   checkoutId: string;
   returnUrl: string;
   cancelUrl: string;
+  /**
+   * The REPGET offer (review P5): the price of the offer plan's ONE intro
+   * cycle on this subscription only - the regular price less the fixed
+   * first-month discount. The cycle is the plan's intro, after any free days.
+   */
+  intro?: { sequence: number; priceCents: number; currency: string };
 }): Promise<CreatedSubscription> {
   const subscription = await payPalRequest<PayPalSubscription>(
     "/v1/billing/subscriptions",
@@ -218,6 +224,29 @@ export async function createSubscription(input: {
          * subscriptions created before this.
          */
         custom_id: `${input.organizationId}:${input.websiteId}:${input.checkoutId}`,
+        /*
+          PayPal's per-subscription plan override: only the intro cycle's
+          price, so the plan (priced like the regular cycle) never sells at a
+          discount to anyone else, and every renewal is the regular price.
+        */
+        ...(input.intro
+          ? {
+              plan: {
+                billing_cycles: [
+                  {
+                    sequence: input.intro.sequence,
+                    total_cycles: 1,
+                    pricing_scheme: {
+                      fixed_price: {
+                        value: (input.intro.priceCents / 100).toFixed(2),
+                        currency_code: input.intro.currency.toUpperCase(),
+                      },
+                    },
+                  },
+                ],
+              },
+            }
+          : {}),
         application_context: {
           brand_name: "RepGet",
           user_action: "SUBSCRIBE_NOW",
@@ -317,8 +346,13 @@ export function inFreeDays(live: PayPalSubscription, now: Date = new Date()): bo
   if ((info?.failed_payments_count ?? 0) > 0) return false;
   const next = info?.next_billing_time ? Date.parse(info.next_billing_time) : Number.NaN;
   if (!Number.isFinite(next) || next <= now.getTime()) return false;
-  const regular = info?.cycle_executions?.find((cycle) => cycle.tenure_type === "REGULAR");
-  if (regular) return (regular.cycles_completed ?? 0) === 0;
+  /*
+    Every PAID cycle - the regular one, and on a REPGET offer plan the paid
+    intro cycle after the free days (review P5) - has not run yet. The free
+    cycle is always sequence 1.
+  */
+  const paid = info?.cycle_executions?.filter((cycle) => cycle.tenure_type === "REGULAR" || (cycle.sequence ?? 1) > 1) ?? [];
+  if (paid.length > 0) return paid.every((cycle) => (cycle.cycles_completed ?? 0) === 0);
   // No cycle report: free while nothing has been paid.
   return !movedMoney(info?.last_payment);
 }

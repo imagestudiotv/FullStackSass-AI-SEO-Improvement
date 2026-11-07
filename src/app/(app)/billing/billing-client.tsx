@@ -225,8 +225,8 @@ export function BillingClient({
             : t.billedByCard
           : null;
 
-  // Monthly on a card only, as the server holds it to (lib/billing/repget-offer.ts).
-  const offerField = offerCopy && options.card ? <OfferCodeField copy={offerCopy} value={offerCode} onChange={setOfferCode} /> : null;
+  // Card or PayPal (review P5); the server decides whether the plan takes it (lib/billing/repget-offer.ts).
+  const offerField = offerCopy && (options.card || options.paypal) ? <OfferCodeField copy={offerCopy} value={offerCode} onChange={setOfferCode} /> : null;
 
   async function handleCard(planId: string) {
     setPending({ planId, provider: "stripe" });
@@ -272,7 +272,7 @@ export function BillingClient({
         setPending(null);
         return;
       }
-      const result = await createPayPalCheckout(planId, websiteId);
+      const result = await createPayPalCheckout(planId, websiteId, "billing", offerCode);
       // PayPal gives the free articles too (2026-10-22): the same confirmed address first, on the same screen as card.
       if ("error" in result && result.error === CONFIRM_EMAIL_FIRST) {
         router.push(`/onboarding/plan?site=${encodeURIComponent(websiteId)}`);

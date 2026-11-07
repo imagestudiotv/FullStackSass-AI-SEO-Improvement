@@ -105,3 +105,44 @@ describe("a subscription on a PayPal plan recreated since", () => {
     expect((await row()).status).toBe("active");
   });
 });
+
+describe("a subscription on a REPGET offer plan (review P5)", () => {
+  beforeEach(async () => {
+    await test.db.update(plans).set({ paypalOfferPlanId: "P-GROW-OFFER", paypalTrialOfferPlanId: "P-GROW-FREE-OFFER" }).where(eq(plans.id, planId));
+  });
+
+  it("in its free days before the discounted payment: the plan, and trialing", async () => {
+    state.paypal = {
+      ...onOldFreeDays(),
+      plan_id: "P-GROW-FREE-OFFER",
+      billing_info: {
+        ...onOldFreeDays().billing_info,
+        cycle_executions: [
+          { tenure_type: "TRIAL", sequence: 1, cycles_completed: 1, total_cycles: 1 },
+          { tenure_type: "TRIAL", sequence: 2, cycles_completed: 0, total_cycles: 1 },
+          { tenure_type: "REGULAR", sequence: 3, cycles_completed: 0, total_cycles: 0 },
+        ],
+      },
+    };
+    await syncPayPalSubscription("I-OLD");
+    expect(await row()).toMatchObject({ planId, status: "trialing" });
+  });
+
+  it("after the discounted payment: the plan, paid access", async () => {
+    state.paypal = {
+      ...onOldFreeDays(),
+      plan_id: "P-GROW-OFFER",
+      billing_info: {
+        next_billing_time: "2026-11-19T10:00:00Z",
+        failed_payments_count: 0,
+        last_payment: { time: "2026-10-20T11:00:00Z", amount: { value: "89.40", currency_code: "EUR" } },
+        cycle_executions: [
+          { tenure_type: "TRIAL", sequence: 1, cycles_completed: 1, total_cycles: 1 },
+          { tenure_type: "REGULAR", sequence: 2, cycles_completed: 0, total_cycles: 0 },
+        ],
+      },
+    };
+    await syncPayPalSubscription("I-OLD");
+    expect(await row()).toMatchObject({ planId, status: "active" });
+  });
+});

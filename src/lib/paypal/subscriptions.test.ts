@@ -16,6 +16,7 @@ vi.mock("@/lib/paypal/client", async (importOriginal) => ({
 
 import {
   createSubscription,
+  inFreeDays,
   mapStatus,
   parseCustomId,
   parseExactCustomId,
@@ -106,5 +107,50 @@ describe("createSubscription", () => {
     expect(body.application_context).toMatchObject({ shipping_preference: "NO_SHIPPING", user_action: "SUBSCRIBE_NOW" });
     expect(body.custom_id).toBe(`org_1:${WEBSITE}:${CHECKOUT}`);
     expect(parseExactCustomId(body.custom_id)).not.toBeNull();
+  });
+});
+
+describe("the REPGET offer through PayPal (review P5)", () => {
+  it("overrides only the intro cycle's price, on this subscription", async () => {
+    paypal.request.mockResolvedValueOnce({ id: "I-NEW", status: "APPROVAL_PENDING", links: [{ rel: "approve", href: "https://paypal.test/approve", method: "GET" }] });
+    await createSubscription({
+      planId: "P-GROW-FREE-OFFER",
+      organizationId: "org_1",
+      websiteId: WEBSITE,
+      checkoutId: CHECKOUT,
+      returnUrl: "https://app.test/r",
+      cancelUrl: "https://app.test/c",
+      intro: { sequence: 2, priceCents: 8940, currency: "eur" },
+    });
+    const body = JSON.parse(paypal.request.mock.calls[0][1].body);
+    expect(body.plan).toEqual({
+      billing_cycles: [{ sequence: 2, total_cycles: 1, pricing_scheme: { fixed_price: { value: "89.40", currency_code: "EUR" } } }],
+    });
+  });
+
+  it("asks no override without the offer", async () => {
+    paypal.request.mockResolvedValueOnce({ id: "I-NEW", status: "APPROVAL_PENDING", links: [{ rel: "approve", href: "https://paypal.test/approve", method: "GET" }] });
+    await createSubscription({ planId: "P-GROW", organizationId: "org_1", websiteId: WEBSITE, checkoutId: CHECKOUT, returnUrl: "https://app.test/r", cancelUrl: "https://app.test/c" });
+    expect(JSON.parse(paypal.request.mock.calls[0][1].body).plan).toBeUndefined();
+  });
+
+  it("the paid intro cycle after the free days is not free days", () => {
+    const at = new Date("2026-11-20T00:00:00Z");
+    const live = (introDone: number) => ({
+      id: "I-1",
+      status: "ACTIVE",
+      billing_info: {
+        next_billing_time: "2026-12-20T00:00:00Z",
+        failed_payments_count: 0,
+        cycle_executions: [
+          { tenure_type: "TRIAL", sequence: 1, cycles_completed: 1, total_cycles: 1 },
+          { tenure_type: "TRIAL", sequence: 2, cycles_completed: introDone, total_cycles: 1 },
+          { tenure_type: "REGULAR", sequence: 3, cycles_completed: 0, total_cycles: 0 },
+        ],
+      },
+    });
+    expect(inFreeDays(live(0), at)).toBe(true);
+    // The discounted month paid: paid access, not the free articles.
+    expect(inFreeDays(live(1), at)).toBe(false);
   });
 });

@@ -230,16 +230,26 @@ async function snapshotOf(
   let interval: string | null = null;
   let freeArticlesPlan = false;
   if (live.plan_id) {
-    // Either of a plan's two PayPal plans: with or without the free articles first.
+    /*
+      Any of a plan's PayPal plans: with or without the free articles first,
+      and either again with the REPGET offer's intro cycle (review P5).
+    */
     const [plan] = await reader
-      .select({ id: plans.id, interval: plans.interval, paypalTrialPlanId: plans.paypalTrialPlanId })
+      .select({ id: plans.id, interval: plans.interval, paypalTrialPlanId: plans.paypalTrialPlanId, paypalTrialOfferPlanId: plans.paypalTrialOfferPlanId })
       .from(plans)
-      .where(or(eq(plans.paypalPlanId, live.plan_id), eq(plans.paypalTrialPlanId, live.plan_id)))
+      .where(
+        or(
+          eq(plans.paypalPlanId, live.plan_id),
+          eq(plans.paypalTrialPlanId, live.plan_id),
+          eq(plans.paypalOfferPlanId, live.plan_id),
+          eq(plans.paypalTrialOfferPlanId, live.plan_id),
+        ),
+      )
       .limit(1);
     if (plan) {
       planId = plan.id;
       interval = plan.interval;
-      freeArticlesPlan = plan.paypalTrialPlanId === live.plan_id;
+      freeArticlesPlan = plan.paypalTrialPlanId === live.plan_id || plan.paypalTrialOfferPlanId === live.plan_id;
     } else {
       /*
         A PayPal plan the row no longer names (recreated since): its history
@@ -262,7 +272,7 @@ async function snapshotOf(
         .limit(1);
       planId = old?.planId ?? null;
       interval = old?.interval ?? null;
-      freeArticlesPlan = old?.kind === "trial";
+      freeArticlesPlan = old?.kind === "trial" || old?.kind === "trial_offer";
     }
   }
 
