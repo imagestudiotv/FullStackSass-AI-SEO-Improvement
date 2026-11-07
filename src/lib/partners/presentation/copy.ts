@@ -13,39 +13,110 @@ import type { Locale } from "@/lib/i18n/config";
  * a number the code does not pay.
  */
 
+/** The earnings explorer on /partners (components/partners/earnings-calculator.tsx). */
+export type CalculatorCopy = {
+  head: string;
+  headSub: string;
+  headBadge: string;
+  network: string;
+  live: string;
+  direct: string;
+  hint: string;
+  hintMany: string;
+  svgLabel: string;
+  nodeLabel: string;
+  you: string;
+  selected: string;
+  referral: string;
+  kind: string;
+  perMonth: string;
+  add: string;
+  explore: string;
+  restart: string;
+  fineprint: string;
+  scenario: string;
+  plan: string;
+  monthlyPrices: string;
+  planPrice: string;
+  customers: string;
+  people: string;
+  rates: string;
+  from: string;
+  level: string;
+  potential: string;
+  perMonthShort: string;
+  projection: string;
+  footStrong: string;
+  footBody: string;
+  footLink: string;
+};
+
 export type PartnerCopy = {
+  /**
+   * The public /partners page (Daniel's design, 2026-11-07). Sentences may use
+   * {rate} (the starting rate), {top} (the highest), {range}, {months}, {days},
+   * {maturity}, {amount} and, in the FAQ, {tiers}. "**...**" is bold; "\n" in a
+   * heading is a line break.
+   */
   page: {
     metaTitle: string;
     metaDescription: string;
     eyebrow: string;
-    title: string;
+    eyebrowOpen: string;
+    eyebrowClosed: string;
+    /** The heading in three parts: "Recommend RepGet." / "Get paid" (in colour) / "as they grow." */
+    titleLead: string;
+    titleEm: string;
+    titleRest: string;
     intro: string;
     ctaApply: string;
-    ctaPortal: string;
-    /** Shown instead of the apply button while applications are closed. */
+    ctaExplore: string;
+    fineLine: string;
+    portalQuestion: string;
+    portalLink: string;
+    /** Shown instead of the apply buttons while applications are closed. */
     closed: string;
-    highlights: { recurring: string; months: string; payout: string };
+    /** The earnings explorer: a simulated network beside the estimate (components/partners/earnings-calculator.tsx). */
+    calculator: CalculatorCopy;
+    disclaimer: string;
+    trust: { start: string; top: string; monthsValue: string; months: string; daysValue: string; days: string };
+    ctaStart: string;
+    stepsKicker: string;
     stepsTitle: string;
+    stepsIntro: string;
+    stepLabel: string;
     steps: { title: string; body: string }[];
+    tiersKicker: string;
     tiersTitle: string;
     tiersIntro: string;
-    tierFrom: string;
-    tierStart: string;
-    termsTitle: string;
-    terms: string[];
-    creditTitle: string;
+    tierLevel: string;
+    tierTop: string;
+    tierStartTitle: string;
+    tierStartBody: string;
+    tierFromTitle: string;
+    tierNextBody: string;
+    tierTopBody: string;
+    audienceKicker: string;
+    audienceTitle: string;
+    audienceIntro: string;
+    audience: { title: string; body: string }[];
+    quoteKicker: string;
+    quoteLead: string;
+    quoteEm: string;
+    quoteFoot: string;
+    quoteFoot2: string;
+    faqKicker: string;
+    faqTitle: string;
+    faqIntro: string;
+    faq: { question: string; answer: string }[];
+    /** One higher level in the earnings answer's {tiers}. */
+    tierPhrase: string;
+    ctaKicker: string;
+    ctaTitle: string;
+    ctaButton: string;
+    ctaSmall: string;
     creditBody: string;
     creditLink: string;
-    /** The earnings estimate: a plan, a number of paying customers, the commission at that level. */
-    calculator: { title: string; intro: string; plan: string; customers: string; level: string; monthly: string; yearly: string; note: string; perMonth: string };
-    audienceTitle: string;
-    audience: { title: string; body: string }[];
-    faqTitle: string;
-    /** Answers may use {rate} {months} {days} {maturity} {amount} and {tiers} (the higher levels, each in tierPhrase). */
-    faq: { question: string; answer: string }[];
-    tierPhrase: string;
-    ctaTitle: string;
-    ctaBody: string;
   };
   portal: {
     title: string;
@@ -165,73 +236,151 @@ const en: PartnerCopy = {
     metaTitle: "Affiliate Program: recurring commission",
     metaDescription:
       "Join the RepGet Affiliate Program: share your link, earn a recurring cash commission on what your referrals pay, paid monthly through Stripe.",
-    eyebrow: "Affiliate Program",
-    title: "Earn a recurring commission for every customer you refer",
-    intro:
-      "Recommend RepGet to the businesses and agencies you work with. When someone you refer opens a new account and pays for a subscription, you earn part of every payment they make.",
-    ctaApply: "Apply with your RepGet account",
-    ctaPortal: "Open the partner portal",
+    eyebrow: "The RepGet Partner Program",
+    eyebrowOpen: "Open for applications",
+    eyebrowClosed: "Applications opening soon",
+    titleLead: "Recommend RepGet.",
+    titleEm: "Get paid",
+    titleRest: "as they grow.",
+    intro: "Help businesses get found on Google, AI search and social. Earn **{range} commission** on subscription payments from customers you refer, for up to {months} months.",
+    ctaApply: "Become a partner",
+    ctaExplore: "Explore earnings",
+    fineLine: "Free to apply. No paid RepGet plan required.",
+    portalQuestion: "Already a partner?",
+    portalLink: "Partner login",
     closed: "Applications are not open yet. Please check back soon.",
-    highlights: {
-      recurring: "{rate} of every payment, to start",
-      months: "{months} months of commission per customer",
-      payout: "Paid monthly once you reach {amount}",
-    },
-    stepsTitle: "How it works",
-    steps: [
-      { title: "Apply with the account you already have", body: "No new login and no paid plan needed. We review every application by hand." },
-      { title: "Share your link", body: "You get a personal link and, sometimes, a coupon for your audience." },
-      { title: "Earn on real payments", body: "Commission is calculated on what your referrals actually pay - after discounts, without tax - and paid out to your bank through Stripe." },
-    ],
-    tiersTitle: "Your rate grows with you",
-    tiersIntro: "Tiers count the paying customer accounts you referred. A higher rate applies to payments made after you reach a tier.",
-    tierFrom: "From {count} paying customers",
-    tierStart: "Starting rate",
-    termsTitle: "The rules, before you share anything",
-    terms: [
-      "Commission is paid only on subscription payments collected through Stripe. Taxes, refunds, chargebacks and credits are excluded.",
-      "Each referred customer earns you commission for {months} months from their first payment.",
-      "Only new RepGet accounts count. Existing accounts, team members invited to someone else's account and your own accounts never do.",
-      "A link counts for {days} days after it is opened. The first partner link a visitor opens is the one that counts.",
-      "Commissions wait {maturity} days before they can be paid. Payouts run on the first day of each month once your balance reaches the threshold.",
-      "Payouts go through Stripe Connect. You set up your payout account with Stripe; RepGet never sees your bank details.",
-      "Refunds and chargebacks reverse the commission earned on them, including after it was paid.",
-    ],
-    creditTitle: "Already a customer?",
-    creditBody: "Customers can also refer other businesses and earn RepGet credit instead of cash. That program is separate and unchanged.",
-    creditLink: "Refer a business for credit",
     calculator: {
-      title: "Estimate your earnings",
-      intro: "Pick a plan and how many paying customers you might refer.",
-      plan: "Plan",
-      customers: "Paying customers",
+      head: "RepGet Partners",
+      headSub: "Earnings explorer",
+      headBadge: "Interactive estimate",
+      network: "Your referral network",
+      live: "Live simulation",
+      direct: "Direct referrals",
+      hint: "Hover or tap a dot",
+      hintMany: "{shown} shown · tap a dot",
+      svgLabel: "Interactive illustration of the customers you refer directly. Select a point to see its illustrative commission.",
+      nodeLabel: "Inspect simulated referral {n}",
+      you: "YOU",
+      selected: "Selected connection",
+      referral: "Referral #{n}",
+      kind: "Direct paying customer · simulated",
+      perMonth: "per month",
+      add: "Add a referral",
+      explore: "Explore {count} referrals",
+      restart: "Restart network",
+      fineprint: "Interactive illustration · Every connection is a **direct** referral, not a downline.",
+      scenario: "Build your income scenario",
+      plan: "Choose a RepGet plan",
+      monthlyPrices: "Monthly prices",
+      planPrice: "{price} / mo",
+      customers: "Paying customers you refer",
+      people: "people",
+      rates: "Commission rates",
+      from: "From {count}",
       level: "At {count} paying customers you are a {tier}: {rate} of every payment.",
-      monthly: "Per month",
-      yearly: "Over {months} months",
-      note: "An estimate on the plan's list price before tax, if every customer pays for {months} months. Commission is calculated on what customers actually pay, after discounts and without tax.",
-      perMonth: "{price}/month",
+      potential: "Potential commission",
+      perMonthShort: " / month",
+      projection: "{months}-month projection",
+      footStrong: "Real recurring commission.",
+      footBody: "Transparent terms. No paid partner subscription.",
+      footLink: "Understand how payouts work",
     },
-    audienceTitle: "Who the program is for",
-    audience: [
-      { title: "Bloggers and creators", body: "You write about marketing, SEO or running a business. Recommend a tool your readers can start using today." },
-      { title: "SEO and marketing agencies", body: "Your clients need steady content and visibility. Recommend RepGet and earn on every payment they make." },
-      { title: "YouTubers and educators", body: "Show RepGet in a tutorial or a course, and put your link in the description." },
-      { title: "Consultants and business owners", body: "Already use RepGet? Recommend it to the businesses you work with." },
+    disclaimer:
+      "Illustrative earnings, not a guarantee. Assumes all referred customers pay the selected plan's list price each month for {months} months. Actual commissions apply to eligible payments received, after discounts and excluding taxes, refunds and other adjustments. Higher tier rates apply to payments made after the tier is reached.",
+    trust: {
+      start: "Starting commission rate",
+      top: "Highest available tier",
+      monthsValue: "{months} months",
+      months: "Commission per referred customer",
+      daysValue: "{days} days",
+      days: "Referral tracking window",
+    },
+    ctaStart: "Start referring",
+    stepsKicker: "Simpler than you think",
+    stepsTitle: "Three steps. A growing reward.",
+    stepsIntro: "Whether you have a large audience or a handful of business contacts, referring RepGet is straightforward.",
+    stepLabel: "Step {n}",
+    steps: [
+      { title: "Join as a partner", body: "Apply with your existing or free RepGet account. Every application is reviewed personally." },
+      { title: "Share your unique link", body: "Recommend a connected growth platform for SEO, AI visibility, content and social. Your link tracks new signups." },
+      { title: "Earn when they subscribe", body: "Receive commission on eligible subscription payments for up to {months} months per new referred customer." },
     ],
-    faqTitle: "Questions partners ask",
+    tiersKicker: "Your income can grow",
+    tiersTitle: "More customers.\nBetter commission.",
+    tiersIntro: "Your commission rate increases as your number of referred paying accounts reaches the next tier.",
+    tierLevel: "{n} / {name}",
+    tierTop: "Highest tier",
+    tierStartTitle: "Start earning immediately",
+    tierStartBody: "Your starting commission on eligible subscription payments from referred customers.",
+    tierFromTitle: "From {count} paying referrals",
+    tierNextBody: "Reach {count} referred paying customers and unlock a higher commission on subsequent eligible payments.",
+    tierTopBody: "Unlock the top rate on subsequent eligible subscription payments. No published total earnings cap.",
+    audienceKicker: "Built for people who recommend good tools",
+    audienceTitle: "Your influence already has value.",
+    audienceIntro: "RepGet helps businesses grow across search and social. When your audience needs that, you have something genuinely useful to share.",
+    audience: [
+      { title: "SEO & marketing agencies", body: "Recommend a growth platform to the clients you already advise." },
+      { title: "Creators & educators", body: "Show RepGet in videos, guides, newsletters and tutorials." },
+      { title: "Bloggers & publishers", body: "Turn helpful recommendations into a partner revenue stream." },
+      { title: "Consultants & founders", body: "Introduce tools that help other businesses find more customers." },
+    ],
+    quoteKicker: "Why partner with RepGet?",
+    quoteLead: "You're not selling another software tool.",
+    quoteEm: "You're introducing a way to grow.",
+    quoteFoot: "Content. SEO. Backlinks. AI visibility. Social distribution.",
+    quoteFoot2: "One connected platform for business growth.",
+    faqKicker: "The details matter",
+    faqTitle: "Good questions.\nClear answers.",
+    faqIntro: "Transparent terms help you decide whether the RepGet Partner Program is right for you.",
     faq: [
-      { question: "How much can I earn?", answer: "{rate} of every subscription payment a customer you referred makes, for {months} months from their first payment. Your rate rises with the number of paying customers you refer: {tiers}. There is no cap." },
-      { question: "When and how am I paid?", answer: "Once a month, on the 1st, for commissions at least {maturity} days old, once your balance reaches {amount}; a smaller balance carries over. Payouts go through Stripe to your bank account. You enter your payout details with Stripe, and RepGet never sees them." },
-      { question: "Do I need a paid RepGet plan?", answer: "No. You apply with a free RepGet account, or with the account you already have. We review every application by hand." },
-      { question: "How long does my link count?", answer: "{days} days. When someone opens your link and creates a new RepGet account within {days} days, they are your referral. The first partner link a visitor opens is the one that counts. Your link also works on any RepGet page: add ?ref= and your link name to the address." },
-      { question: "Who counts as a referral?", answer: "Only new RepGet accounts. Existing accounts, team members invited to someone else's account and your own accounts never count." },
-      { question: "Can I give my audience a discount?", answer: "Partners do not get a coupon automatically. For creators and agencies with an audience, RepGet can assign a personal coupon code. Customers who use it are your referrals too." },
-      { question: "What happens when a customer gets a refund?", answer: "The commission on a refunded or charged-back payment is reversed, even after it was paid: it is deducted from your next payouts." },
-      { question: "Where do I see my results?", answer: "In your partner portal: link clicks, new accounts, paying customers, every commission and every payout, with ready-made banners and texts to share." },
+      {
+        question: "How much can I actually earn?",
+        answer:
+          "You start at {rate} commission on eligible subscription payments made by new customers you refer. The rate rises with the number of paying customers you refer: {tiers}. Each referred customer can generate commission for {months} months from their first payment. There is no published cap on total earnings, but results depend on actual payments and referrals.",
+      },
+      {
+        question: "When and how do I get paid?",
+        answer:
+          "Payouts run on the first of each month once commissions are at least {maturity} days old and your available balance reaches {amount}. Smaller balances carry over to the next payout cycle. Payouts are sent to your bank account through Stripe Connect, or via PayPal where that option is available.",
+      },
+      { question: "Do I need to pay for RepGet to join?", answer: "No. You can apply using a free RepGet account or the account you already have. Applications are reviewed manually." },
+      {
+        question: "What counts as a referral?",
+        answer:
+          "Only new RepGet accounts can qualify. Tracking lasts for {days} days after your partner link is opened, and the first partner link a visitor opens is attributed. Existing accounts, your own accounts and team members invited to another account do not qualify.",
+      },
+      {
+        question: "Do I earn on referrals made by other partners?",
+        answer: "No. RepGet's published partner program currently pays on customers you refer directly. The commission levels are performance tiers, not a multi-level referral network.",
+      },
+      {
+        question: "Are commissions based on the advertised plan price?",
+        answer:
+          "No. Commission is calculated on eligible subscription payments actually collected through Stripe, after discounts and excluding taxes, refunds, chargebacks and credits. Subscriptions paid through PayPal do not earn commission at the moment. New tier rates apply to eligible payments made after you reach the applicable tier.",
+      },
+      {
+        question: "Can I offer my audience a discount?",
+        answer:
+          "Partner coupons are not automatic, but RepGet may provide a personal discount code to eligible creators and agencies. When a new customer uses your assigned code, the referral can be attributed to you.",
+      },
+      {
+        question: "Where can I track my referrals and earnings?",
+        answer:
+          "Your partner portal brings together referral-link clicks, new registrations, paying customers, earned commissions and payout history. You can also access promotional materials to share with your audience.",
+      },
+      {
+        question: "What happens if a customer cancels or receives a refund?",
+        answer:
+          "You earn commission only on eligible payments actually collected. If a customer cancels, there are no commissions on future unpaid periods. Refunds and chargebacks reverse the related commission, including after payout; adjustments are deducted from future payouts.",
+      },
     ],
     tierPhrase: "{rate} from {count} paying customers",
-    ctaTitle: "Ready to recommend RepGet?",
-    ctaBody: "Apply with the account you already have. It takes two minutes, and there is nothing to pay.",
+    ctaKicker: "Your next introduction could pay off",
+    ctaTitle: "Help the right businesses grow. Get rewarded for it.",
+    ctaButton: "Apply to become a partner",
+    ctaSmall: "Free to apply · Reviewed by a real person",
+    creditBody: "Already a RepGet customer? You can also refer businesses for RepGet credit instead of cash.",
+    creditLink: "Refer a business for credit",
   },
   portal: {
     title: "Partner portal",
@@ -430,73 +579,151 @@ const es: PartnerCopy = {
     metaTitle: "Programa de afiliados: comisión recurrente",
     metaDescription:
       "Únase al programa de afiliados de RepGet: comparta su enlace y gane una comisión recurrente sobre lo que pagan sus referidos, abonada cada mes con Stripe.",
-    eyebrow: "Programa de afiliados",
-    title: "Gane una comisión recurrente por cada cliente que recomiende",
-    intro:
-      "Recomiende RepGet a las empresas y agencias con las que trabaja. Cuando alguien que usted recomienda abre una cuenta nueva y paga una suscripción, usted recibe una parte de cada pago.",
-    ctaApply: "Solicitar con su cuenta de RepGet",
-    ctaPortal: "Abrir el portal de socios",
+    eyebrow: "Programa de socios de RepGet",
+    eyebrowOpen: "Solicitudes abiertas",
+    eyebrowClosed: "Solicitudes próximamente",
+    titleLead: "Recomiende RepGet.",
+    titleEm: "Gane dinero",
+    titleRest: "mientras ellos crecen.",
+    intro: "Ayude a las empresas a aparecer en Google, en las búsquedas con IA y en redes sociales. Gane **una comisión del {range}** sobre los pagos de suscripción de los clientes que recomiende, durante un máximo de {months} meses.",
+    ctaApply: "Hacerse socio",
+    ctaExplore: "Ver ganancias",
+    fineLine: "Solicitud gratuita. No necesita un plan de pago de RepGet.",
+    portalQuestion: "¿Ya es socio?",
+    portalLink: "Acceso para socios",
     closed: "Las solicitudes aún no están abiertas. Vuelva pronto.",
-    highlights: {
-      recurring: "{rate} de cada pago, para empezar",
-      months: "{months} meses de comisión por cliente",
-      payout: "Pago mensual a partir de {amount}",
-    },
-    stepsTitle: "Cómo funciona",
-    steps: [
-      { title: "Solicite con la cuenta que ya tiene", body: "Sin nuevo inicio de sesión ni plan de pago. Revisamos cada solicitud personalmente." },
-      { title: "Comparta su enlace", body: "Recibe un enlace personal y, a veces, un cupón para su audiencia." },
-      { title: "Gane con pagos reales", body: "La comisión se calcula sobre lo que sus referidos pagan realmente - tras descuentos y sin impuestos - y se le transfiere a su banco mediante Stripe." },
-    ],
-    tiersTitle: "Su porcentaje crece con usted",
-    tiersIntro: "Los niveles cuentan las cuentas de clientes de pago que usted ha recomendado. El porcentaje superior se aplica a los pagos posteriores a alcanzar el nivel.",
-    tierFrom: "Desde {count} clientes de pago",
-    tierStart: "Porcentaje inicial",
-    termsTitle: "Las reglas, antes de compartir nada",
-    terms: [
-      "La comisión solo se paga sobre pagos de suscripción cobrados mediante Stripe. Se excluyen impuestos, reembolsos, contracargos y créditos.",
-      "Cada cliente recomendado le genera comisión durante {months} meses desde su primer pago.",
-      "Solo cuentan las cuentas nuevas de RepGet. Nunca cuentan las cuentas existentes, los miembros invitados a la cuenta de otra persona ni sus propias cuentas.",
-      "Un enlace cuenta durante {days} días desde que se abre. Cuenta el primer enlace de socio que abre el visitante.",
-      "Las comisiones esperan {maturity} días antes de poder pagarse. Los pagos se realizan el primer día de cada mes cuando su saldo alcanza el mínimo.",
-      "Los pagos se realizan con Stripe Connect. Usted configura su cuenta de cobro con Stripe; RepGet nunca ve sus datos bancarios.",
-      "Los reembolsos y contracargos anulan la comisión obtenida sobre ellos, también después de haberla pagado.",
-    ],
-    creditTitle: "¿Ya es cliente?",
-    creditBody: "Los clientes también pueden recomendar otras empresas y recibir crédito de RepGet en lugar de dinero. Ese programa es distinto y no cambia.",
-    creditLink: "Recomendar una empresa a cambio de crédito",
     calculator: {
-      title: "Calcule sus ganancias",
-      intro: "Elija un plan y cuántos clientes de pago podría recomendar.",
-      plan: "Plan",
-      customers: "Clientes de pago",
-      level: "Con {count} clientes de pago es usted {tier}: {rate} de cada pago.",
-      monthly: "Al mes",
-      yearly: "En {months} meses",
-      note: "Una estimación sobre el precio de lista del plan sin impuestos, si cada cliente paga durante {months} meses. La comisión se calcula sobre lo que los clientes pagan realmente, tras descuentos y sin impuestos.",
-      perMonth: "{price}/mes",
+      head: "Socios de RepGet",
+      headSub: "Explorador de ganancias",
+      headBadge: "Estimación interactiva",
+      network: "Su red de referidos",
+      live: "Simulación en directo",
+      direct: "Referidos directos",
+      hint: "Pase el cursor o toque un punto",
+      hintMany: "{shown} visibles · toque un punto",
+      svgLabel: "Ilustración interactiva de los clientes que usted recomienda directamente. Seleccione un punto para ver su comisión ilustrativa.",
+      nodeLabel: "Ver el referido simulado {n}",
+      you: "USTED",
+      selected: "Conexión seleccionada",
+      referral: "Referido n.º {n}",
+      kind: "Cliente de pago directo · simulado",
+      perMonth: "al mes",
+      add: "Añadir un referido",
+      explore: "Ver {count} referidos",
+      restart: "Reiniciar la red",
+      fineprint: "Ilustración interactiva · Cada conexión es un referido **directo**, no una red multinivel.",
+      scenario: "Cree su escenario de ingresos",
+      plan: "Elija un plan de RepGet",
+      monthlyPrices: "Precios mensuales",
+      planPrice: "{price} / mes",
+      customers: "Clientes de pago que recomienda",
+      people: "personas",
+      rates: "Tasas de comisión",
+      from: "Desde {count}",
+      level: "Con {count} clientes de pago es {tier}: {rate} de cada pago.",
+      potential: "Comisión posible",
+      perMonthShort: " / mes",
+      projection: "Proyección a {months} meses",
+      footStrong: "Comisión recurrente real.",
+      footBody: "Condiciones transparentes. Sin cuota de socio.",
+      footLink: "Cómo funcionan los pagos",
     },
-    audienceTitle: "Para quién es el programa",
-    audience: [
-      { title: "Blogueros y creadores", body: "Escribe sobre marketing, SEO o sobre cómo llevar un negocio. Recomiende una herramienta que sus lectores pueden empezar a usar hoy." },
-      { title: "Agencias de SEO y marketing", body: "Sus clientes necesitan contenido y visibilidad constantes. Recomiende RepGet y gane con cada pago que hagan." },
-      { title: "YouTubers y formadores", body: "Muestre RepGet en un tutorial o un curso y ponga su enlace en la descripción." },
-      { title: "Consultores y empresarios", body: "¿Ya usa RepGet? Recomiéndelo a las empresas con las que trabaja." },
+    disclaimer:
+      "Ganancias ilustrativas, no garantizadas. Supone que todos los clientes recomendados pagan el precio de lista del plan elegido cada mes durante {months} meses. Las comisiones reales se aplican a los pagos válidos recibidos, después de descuentos y sin impuestos, reembolsos ni otros ajustes. Las tasas de un nivel superior se aplican a los pagos realizados después de alcanzarlo.",
+    trust: {
+      start: "Comisión inicial",
+      top: "Nivel más alto disponible",
+      monthsValue: "{months} meses",
+      months: "De comisión por cliente recomendado",
+      daysValue: "{days} días",
+      days: "De seguimiento del referido",
+    },
+    ctaStart: "Empezar a recomendar",
+    stepsKicker: "Más sencillo de lo que cree",
+    stepsTitle: "Tres pasos. Una recompensa que crece.",
+    stepsIntro: "Tanto si tiene una gran audiencia como unos pocos contactos profesionales, recomendar RepGet es sencillo.",
+    stepLabel: "Paso {n}",
+    steps: [
+      { title: "Únase como socio", body: "Solicítelo con su cuenta de RepGet actual o con una gratuita. Revisamos cada solicitud personalmente." },
+      { title: "Comparta su enlace único", body: "Recomiende una plataforma de crecimiento conectada para SEO, visibilidad en IA, contenido y redes sociales. Su enlace registra las nuevas altas." },
+      { title: "Gane cuando se suscriban", body: "Reciba comisión sobre los pagos de suscripción válidos durante un máximo de {months} meses por cada nuevo cliente recomendado." },
     ],
-    faqTitle: "Preguntas de los socios",
+    tiersKicker: "Sus ingresos pueden crecer",
+    tiersTitle: "Más clientes.\nMejor comisión.",
+    tiersIntro: "Su tasa de comisión sube cuando el número de cuentas de pago que ha recomendado alcanza el siguiente nivel.",
+    tierLevel: "{n} / {name}",
+    tierTop: "Nivel más alto",
+    tierStartTitle: "Empiece a ganar desde el primer día",
+    tierStartBody: "Su comisión inicial sobre los pagos de suscripción válidos de los clientes recomendados.",
+    tierFromTitle: "Desde {count} referidos de pago",
+    tierNextBody: "Alcance {count} clientes de pago recomendados y obtenga una comisión más alta en los pagos válidos siguientes.",
+    tierTopBody: "Obtenga la tasa más alta en los pagos de suscripción válidos siguientes. Sin límite publicado de ganancias totales.",
+    audienceKicker: "Para quienes recomiendan buenas herramientas",
+    audienceTitle: "Su influencia ya tiene valor.",
+    audienceIntro: "RepGet ayuda a las empresas a crecer en buscadores y redes sociales. Cuando su audiencia lo necesita, tiene algo realmente útil que compartir.",
+    audience: [
+      { title: "Agencias de SEO y marketing", body: "Recomiende una plataforma de crecimiento a los clientes que ya asesora." },
+      { title: "Creadores y formadores", body: "Muestre RepGet en vídeos, guías, boletines y tutoriales." },
+      { title: "Blogueros y editores", body: "Convierta sus recomendaciones útiles en una fuente de ingresos como socio." },
+      { title: "Consultores y fundadores", body: "Presente herramientas que ayudan a otras empresas a conseguir más clientes." },
+    ],
+    quoteKicker: "¿Por qué ser socio de RepGet?",
+    quoteLead: "No vende otra herramienta de software más.",
+    quoteEm: "Presenta una forma de crecer.",
+    quoteFoot: "Contenido. SEO. Backlinks. Visibilidad en IA. Difusión en redes.",
+    quoteFoot2: "Una plataforma conectada para el crecimiento de las empresas.",
+    faqKicker: "Los detalles importan",
+    faqTitle: "Buenas preguntas.\nRespuestas claras.",
+    faqIntro: "Unas condiciones transparentes le ayudan a decidir si el programa de socios de RepGet es para usted.",
     faq: [
-      { question: "¿Cuánto puedo ganar?", answer: "El {rate} de cada pago de suscripción de un cliente que usted recomendó, durante {months} meses desde su primer pago. Su porcentaje sube con el número de clientes de pago que recomienda: {tiers}. No hay límite." },
-      { question: "¿Cuándo y cómo se me paga?", answer: "Una vez al mes, el día 1, por las comisiones de al menos {maturity} días, cuando su saldo alcanza {amount}; un saldo menor pasa al mes siguiente. Los pagos llegan a su cuenta bancaria mediante Stripe. Usted introduce sus datos de cobro en Stripe y RepGet nunca los ve." },
-      { question: "¿Necesito un plan de pago de RepGet?", answer: "No. Puede solicitarlo con una cuenta gratuita de RepGet o con la cuenta que ya tiene. Revisamos cada solicitud personalmente." },
-      { question: "¿Cuánto tiempo cuenta mi enlace?", answer: "{days} días. Cuando alguien abre su enlace y crea una cuenta nueva de RepGet en {days} días, es su referido. Cuenta el primer enlace de socio que abre el visitante. Su enlace también funciona en cualquier página de RepGet: añada ?ref= y el nombre de su enlace a la dirección." },
-      { question: "¿Quién cuenta como referido?", answer: "Solo las cuentas nuevas de RepGet. Nunca cuentan las cuentas existentes, los miembros invitados a la cuenta de otra persona ni sus propias cuentas." },
-      { question: "¿Puedo ofrecer un descuento a mi audiencia?", answer: "Los socios no reciben un cupón automáticamente. Para creadores y agencias con audiencia, RepGet puede asignar un código de cupón personal. Los clientes que lo usan también son sus referidos." },
-      { question: "¿Qué pasa si un cliente recibe un reembolso?", answer: "La comisión de un pago reembolsado o con contracargo se anula, incluso después de haberse pagado: se descuenta de sus próximos pagos." },
-      { question: "¿Dónde veo mis resultados?", answer: "En su portal de socio: clics en el enlace, cuentas nuevas, clientes de pago, cada comisión y cada pago, con banners y textos listos para compartir." },
+      {
+        question: "¿Cuánto puedo ganar realmente?",
+        answer:
+          "Empieza con una comisión del {rate} sobre los pagos de suscripción válidos de los nuevos clientes que recomiende. La tasa sube con el número de clientes de pago que recomiende: {tiers}. Cada cliente recomendado puede generar comisión durante {months} meses desde su primer pago. No hay un límite publicado de ganancias totales, pero los resultados dependen de los pagos y referidos reales.",
+      },
+      {
+        question: "¿Cuándo y cómo cobro?",
+        answer:
+          "Los pagos se hacen el día 1 de cada mes, cuando las comisiones tienen al menos {maturity} días y su saldo disponible llega a {amount}. Los saldos menores pasan al siguiente ciclo de pago. Los pagos se envían a su cuenta bancaria a través de Stripe Connect, o mediante PayPal donde esa opción esté disponible.",
+      },
+      { question: "¿Tengo que pagar RepGet para unirme?", answer: "No. Puede solicitarlo con una cuenta gratuita de RepGet o con la que ya tiene. Las solicitudes se revisan a mano." },
+      {
+        question: "¿Qué cuenta como referido?",
+        answer:
+          "Solo pueden contar las cuentas nuevas de RepGet. El seguimiento dura {days} días desde que se abre su enlace de socio, y cuenta el primer enlace de socio que abre un visitante. Las cuentas existentes, sus propias cuentas y los miembros de equipo invitados a otra cuenta no cuentan.",
+      },
+      {
+        question: "¿Gano por los referidos de otros socios?",
+        answer: "No. El programa de socios publicado de RepGet paga por los clientes que usted recomienda directamente. Los niveles de comisión son niveles de rendimiento, no una red de referidos multinivel.",
+      },
+      {
+        question: "¿La comisión se basa en el precio anunciado del plan?",
+        answer:
+          "No. La comisión se calcula sobre los pagos de suscripción válidos cobrados realmente a través de Stripe, después de descuentos y sin impuestos, reembolsos, contracargos ni créditos. Las suscripciones pagadas con PayPal no generan comisión por ahora. Las tasas de un nuevo nivel se aplican a los pagos válidos realizados después de alcanzarlo.",
+      },
+      {
+        question: "¿Puedo ofrecer un descuento a mi audiencia?",
+        answer:
+          "Los cupones de socio no son automáticos, pero RepGet puede asignar un código de descuento personal a creadores y agencias que cumplan los requisitos. Cuando un nuevo cliente usa su código, el referido se le puede atribuir.",
+      },
+      {
+        question: "¿Dónde sigo mis referidos y ganancias?",
+        answer:
+          "Su portal de socio reúne los clics en su enlace, los nuevos registros, los clientes de pago, las comisiones obtenidas y el historial de pagos. También tiene materiales promocionales para compartir con su audiencia.",
+      },
+      {
+        question: "¿Qué pasa si un cliente cancela o recibe un reembolso?",
+        answer:
+          "Solo gana comisión sobre los pagos válidos cobrados realmente. Si un cliente cancela, no hay comisiones sobre periodos futuros no pagados. Los reembolsos y contracargos anulan la comisión correspondiente, incluso después del pago; los ajustes se descuentan de los pagos futuros.",
+      },
     ],
     tierPhrase: "{rate} desde {count} clientes de pago",
-    ctaTitle: "¿Listo para recomendar RepGet?",
-    ctaBody: "Solicítelo con la cuenta que ya tiene. Son dos minutos y no hay nada que pagar.",
+    ctaKicker: "Su próxima recomendación puede dar frutos",
+    ctaTitle: "Ayude a crecer a las empresas adecuadas. Y reciba una recompensa.",
+    ctaButton: "Solicitar ser socio",
+    ctaSmall: "Solicitud gratuita · Revisada por una persona",
+    creditBody: "¿Ya es cliente de RepGet? También puede recomendar empresas a cambio de crédito de RepGet en lugar de dinero.",
+    creditLink: "Recomendar una empresa a cambio de crédito",
   },
   portal: {
     title: "Portal de socios",
@@ -695,73 +922,151 @@ const fr: PartnerCopy = {
     metaTitle: "Programme d'affiliation : commission récurrente",
     metaDescription:
       "Rejoignez le programme d'affiliation RepGet : partagez votre lien et touchez une commission récurrente sur les paiements de vos filleuls, versée via Stripe.",
-    eyebrow: "Programme d'affiliation",
-    title: "Touchez une commission récurrente pour chaque client recommandé",
-    intro:
-      "Recommandez RepGet aux entreprises et agences avec lesquelles vous travaillez. Lorsqu'une personne que vous recommandez ouvre un nouveau compte et paie un abonnement, vous touchez une part de chacun de ses paiements.",
-    ctaApply: "Postuler avec votre compte RepGet",
-    ctaPortal: "Ouvrir l'espace partenaire",
+    eyebrow: "Le programme partenaires RepGet",
+    eyebrowOpen: "Candidatures ouvertes",
+    eyebrowClosed: "Candidatures bientôt ouvertes",
+    titleLead: "Recommandez RepGet.",
+    titleEm: "Soyez rémunéré",
+    titleRest: "à mesure qu'ils grandissent.",
+    intro: "Aidez les entreprises à être trouvées sur Google, dans la recherche IA et sur les réseaux sociaux. Touchez **{range} de commission** sur les paiements d'abonnement des clients que vous recommandez, pendant {months} mois maximum.",
+    ctaApply: "Devenir partenaire",
+    ctaExplore: "Voir les gains",
+    fineLine: "Candidature gratuite. Aucun forfait RepGet payant requis.",
+    portalQuestion: "Déjà partenaire ?",
+    portalLink: "Connexion partenaire",
     closed: "Les candidatures ne sont pas encore ouvertes. Revenez bientôt.",
-    highlights: {
-      recurring: "{rate} de chaque paiement, pour commencer",
-      months: "{months} mois de commission par client",
-      payout: "Versement mensuel à partir de {amount}",
-    },
-    stepsTitle: "Comment ça marche",
-    steps: [
-      { title: "Postulez avec le compte que vous avez déjà", body: "Aucun nouvel identifiant ni abonnement payant. Nous examinons chaque candidature nous-mêmes." },
-      { title: "Partagez votre lien", body: "Vous recevez un lien personnel et parfois un code promo pour votre audience." },
-      { title: "Gagnez sur de vrais paiements", body: "La commission est calculée sur ce que vos filleuls paient réellement - après remises, hors taxes - et versée sur votre compte bancaire via Stripe." },
-    ],
-    tiersTitle: "Votre taux évolue avec vous",
-    tiersIntro: "Les paliers comptent les comptes clients payants que vous avez recommandés. Le taux supérieur s'applique aux paiements effectués après l'atteinte du palier.",
-    tierFrom: "À partir de {count} clients payants",
-    tierStart: "Taux de départ",
-    termsTitle: "Les règles, avant de partager quoi que ce soit",
-    terms: [
-      "La commission ne porte que sur les paiements d'abonnement encaissés via Stripe. Taxes, remboursements, rétrofacturations et crédits sont exclus.",
-      "Chaque client recommandé vous rapporte une commission pendant {months} mois à partir de son premier paiement.",
-      "Seuls les nouveaux comptes RepGet comptent. Les comptes existants, les membres invités sur le compte de quelqu'un d'autre et vos propres comptes ne comptent jamais.",
-      "Un lien compte pendant {days} jours après son ouverture. C'est le premier lien partenaire ouvert par le visiteur qui compte.",
-      "Les commissions attendent {maturity} jours avant de pouvoir être versées. Les versements ont lieu le premier jour de chaque mois dès que votre solde atteint le seuil.",
-      "Les versements passent par Stripe Connect. Vous configurez votre compte de versement avec Stripe ; RepGet ne voit jamais vos coordonnées bancaires.",
-      "Les remboursements et rétrofacturations annulent la commission correspondante, y compris après son versement.",
-    ],
-    creditTitle: "Déjà client ?",
-    creditBody: "Les clients peuvent aussi recommander d'autres entreprises et recevoir des crédits RepGet au lieu d'argent. Ce programme est distinct et inchangé.",
-    creditLink: "Recommander une entreprise contre des crédits",
     calculator: {
-      title: "Estimez vos gains",
-      intro: "Choisissez une formule et le nombre de clients payants que vous pourriez recommander.",
-      plan: "Formule",
-      customers: "Clients payants",
+      head: "Partenaires RepGet",
+      headSub: "Explorateur de gains",
+      headBadge: "Estimation interactive",
+      network: "Votre réseau de filleuls",
+      live: "Simulation en direct",
+      direct: "Filleuls directs",
+      hint: "Survolez ou touchez un point",
+      hintMany: "{shown} affichés · touchez un point",
+      svgLabel: "Illustration interactive des clients que vous recommandez directement. Sélectionnez un point pour voir sa commission indicative.",
+      nodeLabel: "Voir le filleul simulé {n}",
+      you: "VOUS",
+      selected: "Connexion sélectionnée",
+      referral: "Filleul n° {n}",
+      kind: "Client payant direct · simulé",
+      perMonth: "par mois",
+      add: "Ajouter un filleul",
+      explore: "Voir {count} filleuls",
+      restart: "Recommencer",
+      fineprint: "Illustration interactive · Chaque connexion est un filleul **direct**, pas un réseau multiniveau.",
+      scenario: "Construisez votre scénario de revenus",
+      plan: "Choisissez un forfait RepGet",
+      monthlyPrices: "Prix mensuels",
+      planPrice: "{price} / mois",
+      customers: "Clients payants recommandés",
+      people: "personnes",
+      rates: "Taux de commission",
+      from: "Dès {count}",
       level: "Avec {count} clients payants, vous êtes {tier} : {rate} de chaque paiement.",
-      monthly: "Par mois",
-      yearly: "Sur {months} mois",
-      note: "Une estimation sur le prix catalogue de la formule hors taxes, si chaque client paie pendant {months} mois. La commission est calculée sur ce que les clients paient réellement, après remises et hors taxes.",
-      perMonth: "{price}/mois",
+      potential: "Commission possible",
+      perMonthShort: " / mois",
+      projection: "Projection sur {months} mois",
+      footStrong: "Une vraie commission récurrente.",
+      footBody: "Des conditions transparentes. Aucun abonnement partenaire payant.",
+      footLink: "Comprendre les versements",
     },
-    audienceTitle: "À qui s'adresse le programme",
-    audience: [
-      { title: "Blogueurs et créateurs", body: "Vous écrivez sur le marketing, le SEO ou la gestion d'entreprise. Recommandez un outil que vos lecteurs peuvent utiliser dès aujourd'hui." },
-      { title: "Agences SEO et marketing", body: "Vos clients ont besoin de contenu et de visibilité en continu. Recommandez RepGet et gagnez sur chacun de leurs paiements." },
-      { title: "YouTubeurs et formateurs", body: "Montrez RepGet dans un tutoriel ou une formation, et mettez votre lien dans la description." },
-      { title: "Consultants et chefs d'entreprise", body: "Vous utilisez déjà RepGet ? Recommandez-le aux entreprises avec lesquelles vous travaillez." },
+    disclaimer:
+      "Gains indicatifs, non garantis. Suppose que tous les clients recommandés paient le prix catalogue du forfait choisi chaque mois pendant {months} mois. Les commissions réelles s'appliquent aux paiements éligibles reçus, après remises et hors taxes, remboursements et autres ajustements. Les taux d'un niveau supérieur s'appliquent aux paiements effectués après l'avoir atteint.",
+    trust: {
+      start: "Taux de commission de départ",
+      top: "Niveau le plus élevé",
+      monthsValue: "{months} mois",
+      months: "De commission par client recommandé",
+      daysValue: "{days} jours",
+      days: "De suivi des recommandations",
+    },
+    ctaStart: "Commencer à recommander",
+    stepsKicker: "Plus simple qu'il n'y paraît",
+    stepsTitle: "Trois étapes. Une récompense qui grandit.",
+    stepsIntro: "Que vous ayez une grande audience ou quelques contacts professionnels, recommander RepGet est simple.",
+    stepLabel: "Étape {n}",
+    steps: [
+      { title: "Devenez partenaire", body: "Postulez avec votre compte RepGet actuel ou un compte gratuit. Chaque candidature est examinée personnellement." },
+      { title: "Partagez votre lien unique", body: "Recommandez une plateforme de croissance connectée pour le SEO, la visibilité IA, le contenu et les réseaux sociaux. Votre lien suit les nouvelles inscriptions." },
+      { title: "Gagnez quand ils s'abonnent", body: "Recevez une commission sur les paiements d'abonnement éligibles pendant {months} mois maximum pour chaque nouveau client recommandé." },
     ],
-    faqTitle: "Les questions des partenaires",
+    tiersKicker: "Vos revenus peuvent grandir",
+    tiersTitle: "Plus de clients.\nUne meilleure commission.",
+    tiersIntro: "Votre taux de commission augmente lorsque le nombre de comptes payants que vous avez recommandés atteint le niveau suivant.",
+    tierLevel: "{n} / {name}",
+    tierTop: "Niveau le plus élevé",
+    tierStartTitle: "Commencez à gagner tout de suite",
+    tierStartBody: "Votre commission de départ sur les paiements d'abonnement éligibles des clients recommandés.",
+    tierFromTitle: "Dès {count} filleuls payants",
+    tierNextBody: "Atteignez {count} clients payants recommandés et débloquez une commission plus élevée sur les paiements éligibles suivants.",
+    tierTopBody: "Débloquez le taux le plus élevé sur les paiements d'abonnement éligibles suivants. Aucun plafond de gains publié.",
+    audienceKicker: "Pour celles et ceux qui recommandent de bons outils",
+    audienceTitle: "Votre influence a déjà de la valeur.",
+    audienceIntro: "RepGet aide les entreprises à grandir dans la recherche et sur les réseaux sociaux. Quand votre audience en a besoin, vous avez quelque chose de vraiment utile à partager.",
+    audience: [
+      { title: "Agences SEO et marketing", body: "Recommandez une plateforme de croissance aux clients que vous conseillez déjà." },
+      { title: "Créateurs et formateurs", body: "Montrez RepGet dans vos vidéos, guides, newsletters et tutoriels." },
+      { title: "Blogueurs et éditeurs", body: "Transformez vos recommandations utiles en source de revenus partenaire." },
+      { title: "Consultants et fondateurs", body: "Présentez des outils qui aident d'autres entreprises à trouver plus de clients." },
+    ],
+    quoteKicker: "Pourquoi devenir partenaire de RepGet ?",
+    quoteLead: "Vous ne vendez pas un logiciel de plus.",
+    quoteEm: "Vous présentez une façon de grandir.",
+    quoteFoot: "Contenu. SEO. Backlinks. Visibilité IA. Diffusion sociale.",
+    quoteFoot2: "Une plateforme connectée pour la croissance des entreprises.",
+    faqKicker: "Les détails comptent",
+    faqTitle: "Bonnes questions.\nRéponses claires.",
+    faqIntro: "Des conditions transparentes vous aident à décider si le programme partenaires RepGet vous convient.",
     faq: [
-      { question: "Combien puis-je gagner ?", answer: "{rate} de chaque paiement d'abonnement d'un client que vous avez recommandé, pendant {months} mois à partir de son premier paiement. Votre taux augmente avec le nombre de clients payants recommandés : {tiers}. Il n'y a pas de plafond." },
-      { question: "Quand et comment suis-je payé ?", answer: "Une fois par mois, le 1er, pour les commissions d'au moins {maturity} jours, dès que votre solde atteint {amount} ; un solde inférieur est reporté. Les versements arrivent sur votre compte bancaire via Stripe. Vous saisissez vos coordonnées de versement chez Stripe et RepGet ne les voit jamais." },
-      { question: "Faut-il une formule payante RepGet ?", answer: "Non. Vous postulez avec un compte RepGet gratuit ou avec le compte que vous avez déjà. Nous examinons chaque candidature nous-mêmes." },
-      { question: "Combien de temps mon lien compte-t-il ?", answer: "{days} jours. Quand quelqu'un ouvre votre lien et crée un nouveau compte RepGet dans les {days} jours, c'est votre filleul. C'est le premier lien partenaire ouvert par le visiteur qui compte. Votre lien fonctionne aussi sur toute page de RepGet : ajoutez ?ref= et le nom de votre lien à l'adresse." },
-      { question: "Qui compte comme filleul ?", answer: "Uniquement les nouveaux comptes RepGet. Les comptes existants, les membres invités sur le compte de quelqu'un d'autre et vos propres comptes ne comptent jamais." },
-      { question: "Puis-je offrir une remise à mon audience ?", answer: "Les partenaires ne reçoivent pas de code promo automatiquement. Pour les créateurs et agences qui ont une audience, RepGet peut attribuer un code promo personnel. Les clients qui l'utilisent sont aussi vos filleuls." },
-      { question: "Que se passe-t-il quand un client est remboursé ?", answer: "La commission sur un paiement remboursé ou contesté est annulée, même après avoir été versée : elle est déduite de vos prochains versements." },
-      { question: "Où voir mes résultats ?", answer: "Dans votre portail partenaire : clics sur le lien, nouveaux comptes, clients payants, chaque commission et chaque versement, avec des bannières et des textes prêts à partager." },
+      {
+        question: "Combien puis-je vraiment gagner ?",
+        answer:
+          "Vous commencez à {rate} de commission sur les paiements d'abonnement éligibles des nouveaux clients que vous recommandez. Le taux augmente avec le nombre de clients payants recommandés : {tiers}. Chaque client recommandé peut générer une commission pendant {months} mois à partir de son premier paiement. Aucun plafond de gains n'est publié, mais les résultats dépendent des paiements et recommandations réels.",
+      },
+      {
+        question: "Quand et comment suis-je payé ?",
+        answer:
+          "Les versements ont lieu le 1er de chaque mois, dès que les commissions ont au moins {maturity} jours et que votre solde disponible atteint {amount}. Les soldes inférieurs sont reportés au cycle suivant. Les versements sont envoyés sur votre compte bancaire via Stripe Connect, ou via PayPal lorsque cette option est disponible.",
+      },
+      { question: "Dois-je payer RepGet pour participer ?", answer: "Non. Vous pouvez postuler avec un compte RepGet gratuit ou le compte que vous avez déjà. Les candidatures sont examinées manuellement." },
+      {
+        question: "Qu'est-ce qui compte comme recommandation ?",
+        answer:
+          "Seuls les nouveaux comptes RepGet peuvent compter. Le suivi dure {days} jours après l'ouverture de votre lien partenaire, et le premier lien partenaire ouvert par un visiteur est retenu. Les comptes existants, vos propres comptes et les membres d'équipe invités sur un autre compte ne comptent pas.",
+      },
+      {
+        question: "Suis-je payé pour les filleuls d'autres partenaires ?",
+        answer: "Non. Le programme partenaires publié de RepGet rémunère les clients que vous recommandez directement. Les niveaux de commission sont des paliers de performance, pas un réseau multiniveau.",
+      },
+      {
+        question: "La commission est-elle calculée sur le prix affiché du forfait ?",
+        answer:
+          "Non. La commission est calculée sur les paiements d'abonnement éligibles réellement encaissés via Stripe, après remises et hors taxes, remboursements, rétrofacturations et crédits. Les abonnements payés via PayPal ne génèrent pas de commission pour le moment. Les taux d'un nouveau niveau s'appliquent aux paiements éligibles effectués après l'avoir atteint.",
+      },
+      {
+        question: "Puis-je offrir une remise à mon audience ?",
+        answer:
+          "Les codes partenaires ne sont pas automatiques, mais RepGet peut attribuer un code de réduction personnel aux créateurs et agences éligibles. Lorsqu'un nouveau client utilise votre code, la recommandation peut vous être attribuée.",
+      },
+      {
+        question: "Où suivre mes filleuls et mes gains ?",
+        answer:
+          "Votre espace partenaire réunit les clics sur votre lien, les nouvelles inscriptions, les clients payants, les commissions gagnées et l'historique des versements. Vous y trouvez aussi des supports promotionnels à partager.",
+      },
+      {
+        question: "Que se passe-t-il si un client résilie ou est remboursé ?",
+        answer:
+          "Vous touchez une commission uniquement sur les paiements éligibles réellement encaissés. Si un client résilie, il n'y a pas de commission sur les périodes futures non payées. Les remboursements et rétrofacturations annulent la commission correspondante, même après versement ; les ajustements sont déduits des versements suivants.",
+      },
     ],
     tierPhrase: "{rate} dès {count} clients payants",
-    ctaTitle: "Prêt à recommander RepGet ?",
-    ctaBody: "Postulez avec le compte que vous avez déjà. Cela prend deux minutes et il n'y a rien à payer.",
+    ctaKicker: "Votre prochaine recommandation peut rapporter",
+    ctaTitle: "Aidez les bonnes entreprises à grandir. Soyez-en récompensé.",
+    ctaButton: "Postuler comme partenaire",
+    ctaSmall: "Candidature gratuite · Examinée par une vraie personne",
+    creditBody: "Déjà client RepGet ? Vous pouvez aussi recommander des entreprises contre des crédits RepGet plutôt que de l'argent.",
+    creditLink: "Recommander une entreprise contre des crédits",
   },
   portal: {
     title: "Espace partenaire",
@@ -960,73 +1265,151 @@ const it: PartnerCopy = {
     metaTitle: "Programma di affiliazione: commissione ricorrente",
     metaDescription:
       "Entri nel programma di affiliazione di RepGet: condivida il suo link e guadagni una commissione ricorrente su quanto pagano i suoi referral, via Stripe.",
-    eyebrow: "Programma di affiliazione",
-    title: "Guadagni una commissione ricorrente per ogni cliente che segnala",
-    intro:
-      "Consigli RepGet alle aziende e alle agenzie con cui lavora. Quando una persona che lei segnala apre un nuovo account e paga un abbonamento, lei riceve una parte di ogni pagamento.",
-    ctaApply: "Candidarsi con il suo account RepGet",
-    ctaPortal: "Apri l'area partner",
+    eyebrow: "Il programma partner di RepGet",
+    eyebrowOpen: "Candidature aperte",
+    eyebrowClosed: "Candidature in arrivo",
+    titleLead: "Consigli RepGet.",
+    titleEm: "Guadagni",
+    titleRest: "mentre loro crescono.",
+    intro: "Aiuti le aziende a farsi trovare su Google, nella ricerca con l'IA e sui social. Guadagni **una commissione del {range}** sui pagamenti degli abbonamenti dei clienti che segnala, fino a {months} mesi.",
+    ctaApply: "Diventi partner",
+    ctaExplore: "Scopra i guadagni",
+    fineLine: "Candidatura gratuita. Nessun piano RepGet a pagamento richiesto.",
+    portalQuestion: "È già partner?",
+    portalLink: "Accesso partner",
     closed: "Le candidature non sono ancora aperte. Torni presto.",
-    highlights: {
-      recurring: "{rate} di ogni pagamento, per iniziare",
-      months: "{months} mesi di commissione per cliente",
-      payout: "Pagamento mensile da {amount}",
-    },
-    stepsTitle: "Come funziona",
-    steps: [
-      { title: "Si candidi con l'account che ha già", body: "Nessun nuovo accesso e nessun piano a pagamento. Esaminiamo ogni candidatura personalmente." },
-      { title: "Condivida il suo link", body: "Riceve un link personale e, a volte, un coupon per il suo pubblico." },
-      { title: "Guadagni su pagamenti reali", body: "La commissione si calcola su quanto i suoi referral pagano davvero - dopo gli sconti, senza imposte - e le viene versata in banca tramite Stripe." },
-    ],
-    tiersTitle: "La sua percentuale cresce con lei",
-    tiersIntro: "I livelli contano gli account cliente paganti che ha segnalato. La percentuale più alta si applica ai pagamenti successivi al raggiungimento del livello.",
-    tierFrom: "Da {count} clienti paganti",
-    tierStart: "Percentuale iniziale",
-    termsTitle: "Le regole, prima di condividere qualsiasi cosa",
-    terms: [
-      "La commissione si paga solo sui pagamenti di abbonamento incassati tramite Stripe. Sono esclusi imposte, rimborsi, chargeback e crediti.",
-      "Ogni cliente segnalato le fa guadagnare commissioni per {months} mesi dal suo primo pagamento.",
-      "Contano solo i nuovi account RepGet. Non contano mai gli account esistenti, i membri invitati sull'account di altri né i suoi account.",
-      "Un link vale per {days} giorni da quando viene aperto. Conta il primo link partner aperto dal visitatore.",
-      "Le commissioni attendono {maturity} giorni prima di poter essere pagate. I pagamenti avvengono il primo giorno di ogni mese quando il saldo raggiunge la soglia.",
-      "I pagamenti passano da Stripe Connect. Lei configura il suo account di pagamento con Stripe; RepGet non vede mai i suoi dati bancari.",
-      "Rimborsi e chargeback annullano la commissione maturata su di essi, anche dopo che è stata pagata.",
-    ],
-    creditTitle: "È già cliente?",
-    creditBody: "I clienti possono anche segnalare altre aziende e ricevere crediti RepGet invece di denaro. Quel programma è separato e resta invariato.",
-    creditLink: "Segnali un'azienda in cambio di crediti",
     calculator: {
-      title: "Stimi i suoi guadagni",
-      intro: "Scelga un piano e quanti clienti paganti potrebbe segnalare.",
-      plan: "Piano",
-      customers: "Clienti paganti",
+      head: "Partner RepGet",
+      headSub: "Simulatore di guadagni",
+      headBadge: "Stima interattiva",
+      network: "La sua rete di referral",
+      live: "Simulazione dal vivo",
+      direct: "Referral diretti",
+      hint: "Passi sopra o tocchi un punto",
+      hintMany: "{shown} visibili · tocchi un punto",
+      svgLabel: "Illustrazione interattiva dei clienti che lei segnala direttamente. Selezioni un punto per vedere la sua commissione indicativa.",
+      nodeLabel: "Vedi il referral simulato {n}",
+      you: "LEI",
+      selected: "Collegamento selezionato",
+      referral: "Referral n. {n}",
+      kind: "Cliente pagante diretto · simulato",
+      perMonth: "al mese",
+      add: "Aggiungi un referral",
+      explore: "Vedi {count} referral",
+      restart: "Ricomincia",
+      fineprint: "Illustrazione interattiva · Ogni collegamento è un referral **diretto**, non una rete multilivello.",
+      scenario: "Costruisca il suo scenario di guadagno",
+      plan: "Scelga un piano RepGet",
+      monthlyPrices: "Prezzi mensili",
+      planPrice: "{price} / mese",
+      customers: "Clienti paganti che segnala",
+      people: "persone",
+      rates: "Percentuali di commissione",
+      from: "Da {count}",
       level: "Con {count} clienti paganti lei è {tier}: {rate} di ogni pagamento.",
-      monthly: "Al mese",
-      yearly: "In {months} mesi",
-      note: "Una stima sul prezzo di listino del piano, tasse escluse, se ogni cliente paga per {months} mesi. La commissione è calcolata su ciò che i clienti pagano davvero, dopo gli sconti e senza tasse.",
-      perMonth: "{price}/mese",
+      potential: "Commissione possibile",
+      perMonthShort: " / mese",
+      projection: "Proiezione su {months} mesi",
+      footStrong: "Una vera commissione ricorrente.",
+      footBody: "Condizioni trasparenti. Nessun abbonamento partner a pagamento.",
+      footLink: "Come funzionano i pagamenti",
     },
-    audienceTitle: "A chi si rivolge il programma",
-    audience: [
-      { title: "Blogger e creator", body: "Scrive di marketing, SEO o di come gestire un'attività. Consigli uno strumento che i suoi lettori possono usare da subito." },
-      { title: "Agenzie SEO e di marketing", body: "I suoi clienti hanno bisogno di contenuti e visibilità costanti. Consigli RepGet e guadagni su ogni loro pagamento." },
-      { title: "YouTuber e formatori", body: "Mostri RepGet in un tutorial o in un corso e metta il suo link nella descrizione." },
-      { title: "Consulenti e imprenditori", body: "Usa già RepGet? Lo consigli alle aziende con cui lavora." },
+    disclaimer:
+      "Guadagni indicativi, non garantiti. Presuppone che tutti i clienti segnalati paghino il prezzo di listino del piano scelto ogni mese per {months} mesi. Le commissioni reali si applicano ai pagamenti idonei ricevuti, al netto di sconti ed esclusi tasse, rimborsi e altre rettifiche. Le percentuali di un livello superiore si applicano ai pagamenti effettuati dopo averlo raggiunto.",
+    trust: {
+      start: "Commissione iniziale",
+      top: "Livello più alto disponibile",
+      monthsValue: "{months} mesi",
+      months: "Di commissione per cliente segnalato",
+      daysValue: "{days} giorni",
+      days: "Di tracciamento del referral",
+    },
+    ctaStart: "Inizi a segnalare",
+    stepsKicker: "Più semplice di quanto pensi",
+    stepsTitle: "Tre passaggi. Una ricompensa che cresce.",
+    stepsIntro: "Che lei abbia un grande pubblico o pochi contatti di lavoro, consigliare RepGet è semplice.",
+    stepLabel: "Passo {n}",
+    steps: [
+      { title: "Diventi partner", body: "Si candidi con il suo account RepGet o con uno gratuito. Ogni candidatura viene esaminata personalmente." },
+      { title: "Condivida il suo link", body: "Consigli una piattaforma di crescita collegata per SEO, visibilità nell'IA, contenuti e social. Il suo link registra le nuove iscrizioni." },
+      { title: "Guadagni quando si abbonano", body: "Riceva una commissione sui pagamenti idonei degli abbonamenti fino a {months} mesi per ogni nuovo cliente segnalato." },
     ],
-    faqTitle: "Le domande dei partner",
+    tiersKicker: "I suoi guadagni possono crescere",
+    tiersTitle: "Più clienti.\nCommissione migliore.",
+    tiersIntro: "La sua percentuale di commissione aumenta quando il numero di account paganti che ha segnalato raggiunge il livello successivo.",
+    tierLevel: "{n} / {name}",
+    tierTop: "Livello più alto",
+    tierStartTitle: "Inizi a guadagnare subito",
+    tierStartBody: "La sua commissione iniziale sui pagamenti idonei degli abbonamenti dei clienti segnalati.",
+    tierFromTitle: "Da {count} referral paganti",
+    tierNextBody: "Raggiunga {count} clienti paganti segnalati e ottenga una commissione più alta sui pagamenti idonei successivi.",
+    tierTopBody: "Ottenga la percentuale più alta sui pagamenti idonei successivi. Nessun tetto pubblicato ai guadagni totali.",
+    audienceKicker: "Per chi consiglia buoni strumenti",
+    audienceTitle: "La sua influenza ha già valore.",
+    audienceIntro: "RepGet aiuta le aziende a crescere nella ricerca e sui social. Quando il suo pubblico ne ha bisogno, lei ha qualcosa di davvero utile da condividere.",
+    audience: [
+      { title: "Agenzie SEO e marketing", body: "Consigli una piattaforma di crescita ai clienti che già segue." },
+      { title: "Creator e formatori", body: "Mostri RepGet in video, guide, newsletter e tutorial." },
+      { title: "Blogger ed editori", body: "Trasformi i suoi consigli utili in una fonte di guadagno come partner." },
+      { title: "Consulenti e fondatori", body: "Presenti strumenti che aiutano altre aziende a trovare più clienti." },
+    ],
+    quoteKicker: "Perché diventare partner di RepGet?",
+    quoteLead: "Non vende l'ennesimo software.",
+    quoteEm: "Presenta un modo per crescere.",
+    quoteFoot: "Contenuti. SEO. Backlink. Visibilità nell'IA. Distribuzione sui social.",
+    quoteFoot2: "Un'unica piattaforma collegata per la crescita delle aziende.",
+    faqKicker: "I dettagli contano",
+    faqTitle: "Buone domande.\nRisposte chiare.",
+    faqIntro: "Condizioni trasparenti la aiutano a capire se il programma partner di RepGet fa per lei.",
     faq: [
-      { question: "Quanto posso guadagnare?", answer: "Il {rate} di ogni pagamento dell'abbonamento di un cliente che lei ha segnalato, per {months} mesi dal suo primo pagamento. La sua percentuale cresce con il numero di clienti paganti segnalati: {tiers}. Non c'è un tetto." },
-      { question: "Quando e come vengo pagato?", answer: "Una volta al mese, il giorno 1, per le commissioni di almeno {maturity} giorni, quando il suo saldo raggiunge {amount}; un saldo inferiore passa al mese successivo. I pagamenti arrivano sul suo conto bancario tramite Stripe. Lei inserisce i dati di pagamento su Stripe e RepGet non li vede mai." },
-      { question: "Mi serve un piano RepGet a pagamento?", answer: "No. Può fare domanda con un account RepGet gratuito o con l'account che ha già. Esaminiamo ogni domanda personalmente." },
-      { question: "Per quanto tempo conta il mio link?", answer: "{days} giorni. Quando qualcuno apre il suo link e crea un nuovo account RepGet entro {days} giorni, è un suo referral. Conta il primo link partner aperto dal visitatore. Il suo link funziona anche su qualsiasi pagina di RepGet: aggiunga ?ref= e il nome del suo link all'indirizzo." },
-      { question: "Chi conta come referral?", answer: "Solo i nuovi account RepGet. Gli account esistenti, i membri invitati nell'account di un'altra persona e i suoi account non contano mai." },
-      { question: "Posso offrire uno sconto al mio pubblico?", answer: "I partner non ricevono un coupon automaticamente. Per creator e agenzie con un pubblico, RepGet può assegnare un codice coupon personale. Anche i clienti che lo usano sono suoi referral." },
-      { question: "Cosa succede se un cliente ottiene un rimborso?", answer: "La commissione su un pagamento rimborsato o contestato viene annullata, anche dopo essere stata pagata: viene detratta dai suoi prossimi pagamenti." },
-      { question: "Dove vedo i miei risultati?", answer: "Nel suo portale partner: clic sul link, nuovi account, clienti paganti, ogni commissione e ogni pagamento, con banner e testi pronti da condividere." },
+      {
+        question: "Quanto posso guadagnare davvero?",
+        answer:
+          "Si parte da una commissione del {rate} sui pagamenti idonei degli abbonamenti dei nuovi clienti che segnala. La percentuale cresce con il numero di clienti paganti segnalati: {tiers}. Ogni cliente segnalato può generare commissioni per {months} mesi dal suo primo pagamento. Non c'è un tetto pubblicato ai guadagni totali, ma i risultati dipendono dai pagamenti e dalle segnalazioni reali.",
+      },
+      {
+        question: "Quando e come vengo pagato?",
+        answer:
+          "I pagamenti avvengono il primo di ogni mese, quando le commissioni hanno almeno {maturity} giorni e il suo saldo disponibile raggiunge {amount}. I saldi inferiori passano al ciclo successivo. I pagamenti vengono inviati sul suo conto bancario tramite Stripe Connect, oppure tramite PayPal dove questa opzione è disponibile.",
+      },
+      { question: "Devo pagare RepGet per partecipare?", answer: "No. Può candidarsi con un account RepGet gratuito o con quello che ha già. Le candidature vengono esaminate a mano." },
+      {
+        question: "Cosa conta come referral?",
+        answer:
+          "Possono contare solo i nuovi account RepGet. Il tracciamento dura {days} giorni dall'apertura del suo link partner, e conta il primo link partner aperto da un visitatore. Gli account esistenti, i suoi account e i membri del team invitati in un altro account non contano.",
+      },
+      {
+        question: "Guadagno sui referral di altri partner?",
+        answer: "No. Il programma partner pubblicato di RepGet paga sui clienti che lei segnala direttamente. I livelli di commissione sono livelli di rendimento, non una rete di referral multilivello.",
+      },
+      {
+        question: "Le commissioni si basano sul prezzo pubblicato del piano?",
+        answer:
+          "No. La commissione si calcola sui pagamenti idonei degli abbonamenti effettivamente incassati tramite Stripe, al netto di sconti ed esclusi tasse, rimborsi, chargeback e crediti. Gli abbonamenti pagati con PayPal per ora non generano commissioni. Le percentuali di un nuovo livello si applicano ai pagamenti idonei effettuati dopo averlo raggiunto.",
+      },
+      {
+        question: "Posso offrire uno sconto al mio pubblico?",
+        answer:
+          "I coupon partner non sono automatici, ma RepGet può assegnare un codice sconto personale a creator e agenzie idonei. Quando un nuovo cliente usa il suo codice, il referral può esserle attribuito.",
+      },
+      {
+        question: "Dove seguo referral e guadagni?",
+        answer:
+          "La sua area partner riunisce i clic sul link, le nuove registrazioni, i clienti paganti, le commissioni maturate e lo storico dei pagamenti. Trova anche materiali promozionali da condividere con il suo pubblico.",
+      },
+      {
+        question: "Cosa succede se un cliente disdice o riceve un rimborso?",
+        answer:
+          "Guadagna commissioni solo sui pagamenti idonei effettivamente incassati. Se un cliente disdice, non ci sono commissioni sui periodi futuri non pagati. Rimborsi e chargeback annullano la commissione relativa, anche dopo il pagamento; le rettifiche vengono detratte dai pagamenti successivi.",
+      },
     ],
     tierPhrase: "{rate} da {count} clienti paganti",
-    ctaTitle: "Pronto a consigliare RepGet?",
-    ctaBody: "Faccia domanda con l'account che ha già. Bastano due minuti e non c'è nulla da pagare.",
+    ctaKicker: "La sua prossima segnalazione può ripagare",
+    ctaTitle: "Aiuti le aziende giuste a crescere. E ne venga ricompensato.",
+    ctaButton: "Si candidi come partner",
+    ctaSmall: "Candidatura gratuita · Esaminata da una persona",
+    creditBody: "È già cliente RepGet? Può anche segnalare aziende in cambio di crediti RepGet invece di denaro.",
+    creditLink: "Segnali un'azienda in cambio di crediti",
   },
   portal: {
     title: "Area partner",
@@ -1225,73 +1608,151 @@ const de: PartnerCopy = {
     metaTitle: "Affiliate-Programm: wiederkehrende Provision",
     metaDescription:
       "Werden Sie RepGet-Partner: Teilen Sie Ihren Link und erhalten Sie eine wiederkehrende Provision auf die Zahlungen Ihrer Empfehlungen, monatlich über Stripe.",
-    eyebrow: "Affiliate-Programm",
-    title: "Erhalten Sie für jeden empfohlenen Kunden eine wiederkehrende Provision",
-    intro:
-      "Empfehlen Sie RepGet den Unternehmen und Agenturen, mit denen Sie arbeiten. Wenn eine von Ihnen empfohlene Person ein neues Konto eröffnet und ein Abonnement bezahlt, erhalten Sie einen Anteil an jeder Zahlung.",
-    ctaApply: "Mit Ihrem RepGet-Konto bewerben",
-    ctaPortal: "Partnerbereich öffnen",
+    eyebrow: "Das RepGet-Partnerprogramm",
+    eyebrowOpen: "Bewerbungen offen",
+    eyebrowClosed: "Bewerbungen bald möglich",
+    titleLead: "Empfehlen Sie RepGet.",
+    titleEm: "Verdienen Sie mit,",
+    titleRest: "während Ihre Kunden wachsen.",
+    intro: "Helfen Sie Unternehmen, bei Google, in der KI-Suche und in sozialen Netzwerken gefunden zu werden. Erhalten Sie **{range} Provision** auf die Abo-Zahlungen der Kunden, die Sie empfehlen – bis zu {months} Monate lang.",
+    ctaApply: "Partner werden",
+    ctaExplore: "Einnahmen ansehen",
+    fineLine: "Kostenlose Bewerbung. Kein kostenpflichtiger RepGet-Tarif nötig.",
+    portalQuestion: "Schon Partner?",
+    portalLink: "Partner-Login",
     closed: "Bewerbungen sind noch nicht geöffnet. Schauen Sie bald wieder vorbei.",
-    highlights: {
-      recurring: "{rate} jeder Zahlung zum Start",
-      months: "{months} Monate Provision pro Kunde",
-      payout: "Monatliche Auszahlung ab {amount}",
-    },
-    stepsTitle: "So funktioniert es",
-    steps: [
-      { title: "Bewerben Sie sich mit Ihrem bestehenden Konto", body: "Kein neues Login und kein kostenpflichtiger Tarif nötig. Wir prüfen jede Bewerbung persönlich." },
-      { title: "Teilen Sie Ihren Link", body: "Sie erhalten einen persönlichen Link und manchmal einen Gutschein für Ihr Publikum." },
-      { title: "Verdienen Sie an echten Zahlungen", body: "Die Provision wird auf das berechnet, was Ihre Empfehlungen tatsächlich zahlen - nach Rabatten, ohne Steuern - und über Stripe auf Ihr Bankkonto ausgezahlt." },
-    ],
-    tiersTitle: "Ihr Satz wächst mit Ihnen",
-    tiersIntro: "Die Stufen zählen die zahlenden Kundenkonten, die Sie empfohlen haben. Der höhere Satz gilt für Zahlungen nach Erreichen der Stufe.",
-    tierFrom: "Ab {count} zahlenden Kunden",
-    tierStart: "Startsatz",
-    termsTitle: "Die Regeln, bevor Sie etwas teilen",
-    terms: [
-      "Provision gibt es nur auf Abonnementzahlungen, die über Stripe eingezogen wurden. Steuern, Erstattungen, Rückbuchungen und Guthaben sind ausgenommen.",
-      "Jeder empfohlene Kunde bringt Ihnen {months} Monate ab seiner ersten Zahlung Provision.",
-      "Es zählen nur neue RepGet-Konten. Bestehende Konten, zum Konto eines anderen eingeladene Teammitglieder und Ihre eigenen Konten zählen nie.",
-      "Ein Link zählt {days} Tage nach dem Öffnen. Es zählt der erste Partnerlink, den ein Besucher öffnet.",
-      "Provisionen warten {maturity} Tage, bevor sie ausgezahlt werden können. Auszahlungen erfolgen am ersten Tag jedes Monats, sobald Ihr Guthaben den Mindestbetrag erreicht.",
-      "Auszahlungen laufen über Stripe Connect. Sie richten Ihr Auszahlungskonto bei Stripe ein; RepGet sieht Ihre Bankdaten nie.",
-      "Erstattungen und Rückbuchungen heben die darauf verdiente Provision auf, auch nach der Auszahlung.",
-    ],
-    creditTitle: "Schon Kunde?",
-    creditBody: "Kunden können auch andere Unternehmen empfehlen und erhalten dafür RepGet-Guthaben statt Geld. Dieses Programm ist getrennt und bleibt unverändert.",
-    creditLink: "Unternehmen gegen Guthaben empfehlen",
     calculator: {
-      title: "Berechnen Sie Ihre Einnahmen",
-      intro: "Wählen Sie einen Tarif und wie viele zahlende Kunden Sie werben könnten.",
-      plan: "Tarif",
-      customers: "Zahlende Kunden",
+      head: "RepGet-Partner",
+      headSub: "Einnahmen-Rechner",
+      headBadge: "Interaktive Schätzung",
+      network: "Ihr Empfehlungsnetzwerk",
+      live: "Live-Simulation",
+      direct: "Direkte Empfehlungen",
+      hint: "Punkt berühren oder darüberfahren",
+      hintMany: "{shown} angezeigt · Punkt berühren",
+      svgLabel: "Interaktive Darstellung der Kunden, die Sie direkt empfehlen. Wählen Sie einen Punkt, um seine beispielhafte Provision zu sehen.",
+      nodeLabel: "Simulierte Empfehlung {n} ansehen",
+      you: "SIE",
+      selected: "Ausgewählte Verbindung",
+      referral: "Empfehlung Nr. {n}",
+      kind: "Direkter zahlender Kunde · simuliert",
+      perMonth: "pro Monat",
+      add: "Empfehlung hinzufügen",
+      explore: "{count} Empfehlungen ansehen",
+      restart: "Netzwerk neu starten",
+      fineprint: "Interaktive Darstellung · Jede Verbindung ist eine **direkte** Empfehlung, kein Strukturvertrieb.",
+      scenario: "Ihr Einnahmen-Szenario",
+      plan: "RepGet-Tarif wählen",
+      monthlyPrices: "Monatspreise",
+      planPrice: "{price} / Monat",
+      customers: "Zahlende Kunden, die Sie empfehlen",
+      people: "Personen",
+      rates: "Provisionssätze",
+      from: "Ab {count}",
       level: "Mit {count} zahlenden Kunden sind Sie {tier}: {rate} jeder Zahlung.",
-      monthly: "Pro Monat",
-      yearly: "In {months} Monaten",
-      note: "Eine Schätzung auf Basis des Listenpreises des Tarifs ohne Steuern, wenn jeder Kunde {months} Monate zahlt. Die Provision wird auf das berechnet, was Kunden tatsächlich zahlen, nach Rabatten und ohne Steuern.",
-      perMonth: "{price}/Monat",
+      potential: "Mögliche Provision",
+      perMonthShort: " / Monat",
+      projection: "Prognose über {months} Monate",
+      footStrong: "Echte wiederkehrende Provision.",
+      footBody: "Transparente Bedingungen. Kein kostenpflichtiges Partner-Abo.",
+      footLink: "So funktionieren Auszahlungen",
     },
-    audienceTitle: "Für wen das Programm ist",
-    audience: [
-      { title: "Blogger und Creator", body: "Sie schreiben über Marketing, SEO oder Unternehmensführung. Empfehlen Sie ein Tool, das Ihre Leser sofort nutzen können." },
-      { title: "SEO- und Marketingagenturen", body: "Ihre Kunden brauchen laufend Inhalte und Sichtbarkeit. Empfehlen Sie RepGet und verdienen Sie an jeder ihrer Zahlungen." },
-      { title: "YouTuber und Kursanbieter", body: "Zeigen Sie RepGet in einem Tutorial oder Kurs und setzen Sie Ihren Link in die Beschreibung." },
-      { title: "Berater und Unternehmer", body: "Sie nutzen RepGet bereits? Empfehlen Sie es den Unternehmen, mit denen Sie arbeiten." },
+    disclaimer:
+      "Beispielhafte Einnahmen, keine Garantie. Angenommen wird, dass alle empfohlenen Kunden {months} Monate lang jeden Monat den Listenpreis des gewählten Tarifs zahlen. Tatsächliche Provisionen gelten für eingegangene berechtigte Zahlungen, nach Rabatten und ohne Steuern, Erstattungen und sonstige Korrekturen. Höhere Stufensätze gelten für Zahlungen, die nach Erreichen der Stufe eingehen.",
+    trust: {
+      start: "Provision zum Start",
+      top: "Höchste verfügbare Stufe",
+      monthsValue: "{months} Monate",
+      months: "Provision pro empfohlenem Kunden",
+      daysValue: "{days} Tage",
+      days: "Zuordnungszeitraum für Empfehlungen",
+    },
+    ctaStart: "Jetzt empfehlen",
+    stepsKicker: "Einfacher als gedacht",
+    stepsTitle: "Drei Schritte. Eine wachsende Belohnung.",
+    stepsIntro: "Ob große Reichweite oder eine Handvoll Geschäftskontakte: RepGet zu empfehlen ist ganz einfach.",
+    stepLabel: "Schritt {n}",
+    steps: [
+      { title: "Partner werden", body: "Bewerben Sie sich mit Ihrem bestehenden oder einem kostenlosen RepGet-Konto. Jede Bewerbung wird persönlich geprüft." },
+      { title: "Ihren Link teilen", body: "Empfehlen Sie eine vernetzte Wachstumsplattform für SEO, KI-Sichtbarkeit, Inhalte und Social Media. Ihr Link erfasst neue Anmeldungen." },
+      { title: "Verdienen, wenn sie abonnieren", body: "Erhalten Sie Provision auf berechtigte Abo-Zahlungen, bis zu {months} Monate lang für jeden neu empfohlenen Kunden." },
     ],
-    faqTitle: "Fragen von Partnern",
+    tiersKicker: "Ihre Einnahmen können wachsen",
+    tiersTitle: "Mehr Kunden.\nBessere Provision.",
+    tiersIntro: "Ihr Provisionssatz steigt, sobald die Zahl der von Ihnen empfohlenen zahlenden Konten die nächste Stufe erreicht.",
+    tierLevel: "{n} / {name}",
+    tierTop: "Höchste Stufe",
+    tierStartTitle: "Sofort verdienen",
+    tierStartBody: "Ihre Start-Provision auf berechtigte Abo-Zahlungen empfohlener Kunden.",
+    tierFromTitle: "Ab {count} zahlenden Empfehlungen",
+    tierNextBody: "Erreichen Sie {count} empfohlene zahlende Kunden und erhalten Sie eine höhere Provision auf die folgenden berechtigten Zahlungen.",
+    tierTopBody: "Erhalten Sie den höchsten Satz auf die folgenden berechtigten Abo-Zahlungen. Keine veröffentlichte Obergrenze für Ihre Einnahmen.",
+    audienceKicker: "Für alle, die gute Werkzeuge empfehlen",
+    audienceTitle: "Ihr Einfluss hat bereits Wert.",
+    audienceIntro: "RepGet hilft Unternehmen, in Suchmaschinen und sozialen Netzwerken zu wachsen. Wenn Ihr Publikum das braucht, haben Sie etwas wirklich Nützliches zu teilen.",
+    audience: [
+      { title: "SEO- und Marketingagenturen", body: "Empfehlen Sie Ihren Kunden, die Sie bereits beraten, eine Wachstumsplattform." },
+      { title: "Creator und Lehrende", body: "Zeigen Sie RepGet in Videos, Leitfäden, Newslettern und Tutorials." },
+      { title: "Blogger und Publisher", body: "Machen Sie aus hilfreichen Empfehlungen eine Einnahmequelle als Partner." },
+      { title: "Berater und Gründer", body: "Stellen Sie Werkzeuge vor, mit denen andere Unternehmen mehr Kunden finden." },
+    ],
+    quoteKicker: "Warum RepGet-Partner werden?",
+    quoteLead: "Sie verkaufen nicht noch ein Software-Tool.",
+    quoteEm: "Sie zeigen einen Weg zu wachsen.",
+    quoteFoot: "Inhalte. SEO. Backlinks. KI-Sichtbarkeit. Social-Media-Verbreitung.",
+    quoteFoot2: "Eine vernetzte Plattform für das Wachstum von Unternehmen.",
+    faqKicker: "Auf die Details kommt es an",
+    faqTitle: "Gute Fragen.\nKlare Antworten.",
+    faqIntro: "Transparente Bedingungen helfen Ihnen zu entscheiden, ob das RepGet-Partnerprogramm zu Ihnen passt.",
     faq: [
-      { question: "Wie viel kann ich verdienen?", answer: "{rate} jeder Abozahlung eines von Ihnen geworbenen Kunden, {months} Monate lang ab seiner ersten Zahlung. Ihr Satz steigt mit der Zahl der zahlenden Kunden, die Sie werben: {tiers}. Es gibt keine Obergrenze." },
-      { question: "Wann und wie werde ich bezahlt?", answer: "Einmal im Monat, am 1., für Provisionen, die mindestens {maturity} Tage alt sind, sobald Ihr Guthaben {amount} erreicht; ein kleineres Guthaben wird übertragen. Auszahlungen gehen über Stripe auf Ihr Bankkonto. Ihre Auszahlungsdaten geben Sie bei Stripe ein, RepGet sieht sie nie." },
-      { question: "Brauche ich einen bezahlten RepGet-Tarif?", answer: "Nein. Sie bewerben sich mit einem kostenlosen RepGet-Konto oder mit Ihrem bestehenden Konto. Wir prüfen jede Bewerbung persönlich." },
-      { question: "Wie lange zählt mein Link?", answer: "{days} Tage. Wenn jemand Ihren Link öffnet und innerhalb von {days} Tagen ein neues RepGet-Konto erstellt, ist er Ihre Empfehlung. Es zählt der erste Partnerlink, den ein Besucher öffnet. Ihr Link funktioniert auch auf jeder RepGet-Seite: Hängen Sie ?ref= und Ihren Linknamen an die Adresse an." },
-      { question: "Wer zählt als Empfehlung?", answer: "Nur neue RepGet-Konten. Bestehende Konten, Teammitglieder, die in das Konto einer anderen Person eingeladen wurden, und Ihre eigenen Konten zählen nie." },
-      { question: "Kann ich meinem Publikum einen Rabatt geben?", answer: "Partner erhalten nicht automatisch einen Gutschein. Für Creator und Agenturen mit Publikum kann RepGet einen persönlichen Gutscheincode vergeben. Kunden, die ihn nutzen, sind ebenfalls Ihre Empfehlungen." },
-      { question: "Was passiert, wenn ein Kunde eine Erstattung erhält?", answer: "Die Provision auf eine erstattete oder zurückgebuchte Zahlung wird storniert, auch nachdem sie ausgezahlt wurde: Sie wird von Ihren nächsten Auszahlungen abgezogen." },
-      { question: "Wo sehe ich meine Ergebnisse?", answer: "In Ihrem Partnerportal: Linkklicks, neue Konten, zahlende Kunden, jede Provision und jede Auszahlung, mit fertigen Bannern und Texten zum Teilen." },
+      {
+        question: "Wie viel kann ich tatsächlich verdienen?",
+        answer:
+          "Sie starten mit {rate} Provision auf berechtigte Abo-Zahlungen der neuen Kunden, die Sie empfehlen. Der Satz steigt mit der Zahl der zahlenden Kunden, die Sie empfehlen: {tiers}. Jeder empfohlene Kunde kann {months} Monate ab seiner ersten Zahlung Provision bringen. Es gibt keine veröffentlichte Obergrenze für Ihre Einnahmen, aber die Ergebnisse hängen von tatsächlichen Zahlungen und Empfehlungen ab.",
+      },
+      {
+        question: "Wann und wie werde ich bezahlt?",
+        answer:
+          "Auszahlungen erfolgen am Ersten jedes Monats, sobald Provisionen mindestens {maturity} Tage alt sind und Ihr verfügbares Guthaben {amount} erreicht. Kleinere Guthaben werden in den nächsten Auszahlungszyklus übertragen. Auszahlungen gehen über Stripe Connect auf Ihr Bankkonto oder über PayPal, wo diese Option verfügbar ist.",
+      },
+      { question: "Muss ich für RepGet bezahlen, um mitzumachen?", answer: "Nein. Sie können sich mit einem kostenlosen RepGet-Konto oder Ihrem bestehenden Konto bewerben. Bewerbungen werden von Hand geprüft." },
+      {
+        question: "Was zählt als Empfehlung?",
+        answer:
+          "Nur neue RepGet-Konten können zählen. Die Zuordnung gilt {days} Tage, nachdem Ihr Partnerlink geöffnet wurde, und es zählt der erste Partnerlink, den ein Besucher öffnet. Bestehende Konten, Ihre eigenen Konten und Teammitglieder, die in ein anderes Konto eingeladen wurden, zählen nicht.",
+      },
+      {
+        question: "Verdiene ich an Empfehlungen anderer Partner?",
+        answer: "Nein. Das veröffentlichte RepGet-Partnerprogramm zahlt für Kunden, die Sie direkt empfehlen. Die Provisionsstufen sind Leistungsstufen, kein mehrstufiges Empfehlungsnetzwerk.",
+      },
+      {
+        question: "Richtet sich die Provision nach dem ausgeschriebenen Tarifpreis?",
+        answer:
+          "Nein. Die Provision wird auf berechtigte Abo-Zahlungen berechnet, die tatsächlich über Stripe eingegangen sind, nach Rabatten und ohne Steuern, Erstattungen, Rückbuchungen und Gutschriften. Über PayPal bezahlte Abos bringen derzeit keine Provision. Neue Stufensätze gelten für berechtigte Zahlungen nach Erreichen der jeweiligen Stufe.",
+      },
+      {
+        question: "Kann ich meinem Publikum einen Rabatt anbieten?",
+        answer:
+          "Partner-Gutscheine gibt es nicht automatisch, aber RepGet kann berechtigten Creatorn und Agenturen einen persönlichen Rabattcode zuweisen. Wenn ein neuer Kunde Ihren Code nutzt, kann die Empfehlung Ihnen zugeordnet werden.",
+      },
+      {
+        question: "Wo sehe ich meine Empfehlungen und Einnahmen?",
+        answer:
+          "Ihr Partnerbereich zeigt Klicks auf Ihren Link, neue Registrierungen, zahlende Kunden, verdiente Provisionen und den Auszahlungsverlauf. Dort finden Sie auch Werbematerial zum Teilen mit Ihrem Publikum.",
+      },
+      {
+        question: "Was passiert, wenn ein Kunde kündigt oder eine Erstattung erhält?",
+        answer:
+          "Sie erhalten Provision nur auf tatsächlich eingegangene berechtigte Zahlungen. Kündigt ein Kunde, gibt es für künftige unbezahlte Zeiträume keine Provision. Erstattungen und Rückbuchungen heben die zugehörige Provision auf, auch nach der Auszahlung; Korrekturen werden von künftigen Auszahlungen abgezogen.",
+      },
     ],
     tierPhrase: "{rate} ab {count} zahlenden Kunden",
-    ctaTitle: "Bereit, RepGet zu empfehlen?",
-    ctaBody: "Bewerben Sie sich mit Ihrem bestehenden Konto. Das dauert zwei Minuten und kostet nichts.",
+    ctaKicker: "Ihre nächste Empfehlung kann sich lohnen",
+    ctaTitle: "Helfen Sie den richtigen Unternehmen zu wachsen. Und werden Sie dafür belohnt.",
+    ctaButton: "Als Partner bewerben",
+    ctaSmall: "Kostenlose Bewerbung · Persönlich geprüft",
+    creditBody: "Schon RepGet-Kunde? Sie können Unternehmen auch gegen RepGet-Guthaben statt Geld empfehlen.",
+    creditLink: "Unternehmen gegen Guthaben empfehlen",
   },
   portal: {
     title: "Partnerbereich",
