@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { organization, payments, subscriptions, websites } from "@/lib/db/schema";
+import { billingCheckouts, billingCustomers, organization, payments, subscriptions, websites } from "@/lib/db/schema";
 import { createTestDb, type TestDb } from "@/test/db";
 
 /**
@@ -283,5 +283,57 @@ describe("the Stripe portal's cancel screen", () => {
     expect(await createPortalSession("cancel")).toHaveProperty("error");
     expect(await createPortalSession("cancel", theirs)).toHaveProperty("error");
     expect(stripeMock.portalCreate).not.toHaveBeenCalled();
+  });
+});
+
+describe("the portal, with a REPGET discount waiting", () => {
+  const CONFIG = "bpc_no_plan_change";
+  const waiting = async (requestParams: Record<string, unknown> = { offer: "REPGET" }, status = "trialing") => {
+    const id = `org_${crypto.randomUUID()}`;
+    await test.db.insert(organization).values({ id, name: "Offer", slug: id, createdAt: new Date() });
+    await test.db.insert(billingCustomers).values({ organizationId: id, stripeCustomerId: `cus_${id}` });
+    const [site] = await test.db.insert(websites).values({ organizationId: id, url: `https://${id}.test`, domain: `${id}.test` }).returning();
+    await test.db.insert(subscriptions).values({ organizationId: id, websiteId: site.id, status, provider: "stripe", stripeSubscriptionId: `sub_${id}` });
+    await test.db.insert(billingCheckouts).values({ organizationId: id, websiteId: site.id, provider: "stripe", status: "completed", trialDays: 30, requestParams, createdAt: new Date() });
+    state.orgId = id;
+    stripeMock.portalCreate.mockResolvedValueOnce({ url: "https://billing.stripe.test/p" });
+    return site;
+  };
+  const sent = () => stripeMock.portalCreate.mock.calls.at(-1)![0];
+
+  afterEach(() => {
+    delete process.env.STRIPE_PORTAL_CONFIG_NO_PLAN_CHANGE;
+  });
+
+  it("uses the configuration without plan changes", async () => {
+    process.env.STRIPE_PORTAL_CONFIG_NO_PLAN_CHANGE = CONFIG;
+    await waiting();
+    await createPortalSession("manage");
+    expect(sent().configuration).toBe(CONFIG);
+    expect(sent().flow_data).toBeUndefined();
+  });
+
+  it("without one, opens on updating the card alone", async () => {
+    await waiting();
+    await createPortalSession("manage");
+    expect(sent().configuration).toBeUndefined();
+    expect(sent().flow_data.type).toBe("payment_method_update");
+  });
+
+  it("cancelling still goes to its own flow", async () => {
+    const site = await waiting();
+    await createPortalSession("cancel", site.id);
+    expect(sent().flow_data.type).toBe("subscription_cancel");
+  });
+
+  it("no offer, or the free period over: the ordinary portal", async () => {
+    process.env.STRIPE_PORTAL_CONFIG_NO_PLAN_CHANGE = CONFIG;
+    await waiting({});
+    await createPortalSession("manage");
+    expect(sent().configuration).toBeUndefined();
+    expect(sent().flow_data).toBeUndefined();
+    await waiting({ offer: "REPGET" }, "active");
+    await createPortalSession("manage");
+    expect(sent().configuration).toBeUndefined();
   });
 });

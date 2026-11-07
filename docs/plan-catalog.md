@@ -31,7 +31,7 @@ The discount is three fixed-amount coupons, limited by product, one per plan: `L
 | Customer | What happens |
 |---|---|
 | With or without a free period | The plan's coupon is on the Checkout. Stripe keeps a `once` coupon through a free period, and uses it on the first paid invoice, including when the period is ended early (checked in Stripe's test mode, in euros) |
-| Plan changed during the free period | Each coupon is limited to its plan's product, so the coupon follows the plan on `customer.subscription.updated` (`lib/billing/repget-subscription.ts`). Moved to annual: it comes off |
+| Plan changed with the discount unused | Each coupon is limited to its plan's product, and a change can end the free period and charge at once. **Change plan** in Billing carries the new plan's coupon in the same Stripe request; a refused coupon stops the change. A move to annual is refused until the discount is used. The portal opened from Billing offers no plan change meanwhile. A change made elsewhere, in Stripe's dashboard, is corrected during the free period by `customer.subscription.updated`; once charged, staff are told (`lib/billing/repget-subscription.ts`) |
 | Annual plan, or a price other than the coupon's | Refused before Stripe. The coupons' product limit does **not** exclude annual, because the prices share a product: Stripe takes the fixed amount off |
 | Credit packs | Never come here, and Stripe refuses the coupons on them |
 | Any other promotion code | Stripe's code box as before, partner coupons included. The box is off only on a REPGET checkout, so a second code cannot replace it |
@@ -40,7 +40,7 @@ The discount is three fixed-amount coupons, limited by product, one per plan: `L
 
 Before turning it on: **no active Stripe promotion code may be called REPGET.** One typed into Stripe's box would bypass all of this, on annual too.
 
-One redemption per workspace, counted from completed checkouts. PayPal has no way to take it.
+One redemption per workspace, across its websites, decided under a lock when the checkout is made (`beginCheckout`). A completed checkout used it, an open or unknown one holds it, and an expired or failed one gives it back. PayPal has no way to take it.
 
 ## What happens to existing subscribers
 

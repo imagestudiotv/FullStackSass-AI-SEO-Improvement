@@ -1,10 +1,10 @@
-import { eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type Stripe from "stripe";
 
 import { adminEmails } from "@/lib/admin/guard";
-import { REPGET_CODE, REPGET_COUPONS, repgetCouponFor } from "@/lib/billing/repget-offer";
+import { REPGET_CODE, REPGET_COUPONS, repgetCouponFor, type OfferPlan } from "@/lib/billing/repget-offer";
 import { db } from "@/lib/db";
-import { plans } from "@/lib/db/schema";
+import { billingCheckouts, plans, subscriptions } from "@/lib/db/schema";
 import { emailLayout, emailText, escapeHtml } from "@/lib/email/layout";
 import { sendEmail } from "@/lib/email/send";
 import { stripe } from "@/lib/stripe/client";
@@ -14,10 +14,18 @@ import { stripe } from "@/lib/stripe/client";
  *
  * The coupon goes on at Checkout, and Stripe keeps it through a free period for the
  * first paid invoice (checked in Stripe's test mode, 2026-11-06). One case needs
- * help: each coupon is limited to its own plan's product, so a plan changed during
- * the free period would lose the discount, and a move to the same plan's annual
- * price would keep it, on a full annual payment. So the subscription carries
- * OFFER_KEY, and while it is on its free period its coupon follows its plan.
+ * help: each coupon is limited to its own plan's product, so a plan changed before
+ * then would lose the discount, and a move to the same plan's annual price would
+ * keep it, on a full annual payment.
+ *
+ * A PLAN CHANGE CAN END THE FREE PERIOD AND CHARGE AT ONCE, so a webhook is too late.
+ *   - Change plan in Billing carries the new plan's coupon in the same Stripe request
+ *     as the change (offerForPlanChange). A coupon Stripe refuses stops the change.
+ *   - The portal opened from Billing offers no plan change while the offer waits
+ *     (hasWaitingOffer, lib/stripe/portal.ts).
+ *   - matchOfferToPlan is what is left: a change made some other way, in Stripe's
+ *     dashboard say. During the free period it corrects the coupon. Once charged, it
+ *     cannot, so staff are told.
  */
 export const OFFER_KEY = "repget_offer";
 
@@ -55,15 +63,60 @@ export async function alertStaffAboutOffer(reason: string, detail: string): Prom
   }
 }
 
+const OURS = Object.values(REPGET_COUPONS) as (string | null)[];
+
 /**
- * Keeps the coupon on a subscription matching its plan during the free period: the
- * new plan's coupon after a change, none on an annual plan. Safe to repeat, and asks
- * Stripe nothing unless the event's subscription carries the offer.
+ * What a plan change owes a subscription whose REPGET discount is not used yet, for
+ * the Stripe request that makes the change. Needs `discounts` expanded.
+ *   coupon  the new plan's, to go in that request.
+ *   refuse  the new plan has none, annual say. Stripe keeps a coupon on a plan's
+ *           annual price, because the prices share a product, so the change waits
+ *           until the discount is used.
+ */
+export function offerForPlanChange(
+  subscription: Pick<Stripe.Subscription, "status" | "metadata" | "discounts">,
+  plan: OfferPlan,
+): { coupon?: string; refuse?: string } {
+  // Only a subscription that took the offer through RepGet's field. The same coupons reached by a Stripe promotion code are Stripe's to handle, as before.
+  if (!subscription.metadata?.[OFFER_KEY]) return {};
+  const onIt = subscription.discounts.some((discount) => OURS.includes(couponIdOf(discount)));
+  const waiting = subscription.status === "trialing";
+  if (!onIt && !waiting) return {};
+  const coupon = repgetCouponFor(plan);
+  if (coupon) return { coupon };
+  return { refuse: `Your ${REPGET_CODE} discount is for a monthly plan. You can move to this plan after your first paid month.` };
+}
+
+/** A website of this workspace is on its free period with a REPGET discount waiting. */
+export async function hasWaitingOffer(organizationId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: subscriptions.id })
+    .from(subscriptions)
+    .innerJoin(billingCheckouts, eq(billingCheckouts.websiteId, subscriptions.websiteId))
+    .where(
+      and(
+        eq(subscriptions.organizationId, organizationId),
+        eq(subscriptions.status, "trialing"),
+        eq(billingCheckouts.status, "completed"),
+        sql`${billingCheckouts.requestParams} ->> 'offer' = ${REPGET_CODE}`,
+      ),
+    )
+    .limit(1);
+  return Boolean(row);
+}
+
+/**
+ * A subscription carrying the offer has changed. During the free period its coupon
+ * follows its plan: the new plan's, or none on an annual one. After it, the first
+ * paid invoice is read once: if the discount was owed and is not on it, staff are
+ * told, because that money is already charged. Reads Stripe afresh, so a late,
+ * repeated or out-of-order event does no harm, and asks nothing unless the event's
+ * subscription carries the offer.
  */
 export async function matchOfferToPlan(event: Pick<Stripe.Subscription, "id" | "metadata">): Promise<void> {
   if (!event.metadata?.[OFFER_KEY]) return;
-  const live = await stripe.subscriptions.retrieve(event.id, { expand: ["discounts"] });
-  if (live.status !== "trialing") return;
+  const live = await stripe.subscriptions.retrieve(event.id, { expand: ["discounts", "latest_invoice"] });
+  if (!live.metadata?.[OFFER_KEY]) return;
   const priceId = live.items.data[0]?.price.id;
   const [plan] = priceId
     ? await db
@@ -73,7 +126,20 @@ export async function matchOfferToPlan(event: Pick<Stripe.Subscription, "id" | "
         .limit(1)
     : [];
   const wanted = plan ? repgetCouponFor(plan) : null;
-  const ours = Object.values(REPGET_COUPONS) as (string | null)[];
+  if (live.status !== "trialing") {
+    const invoice = live.latest_invoice;
+    if (!invoice || typeof invoice === "string" || invoice.subtotal <= 0) return;
+    const discounted = (invoice.total_discount_amounts ?? []).some((row) => row.amount > 0);
+    if (wanted && !discounted) {
+      await alertStaffAboutOffer(
+        "The first paid invoice went out without the discount.",
+        `Stripe subscription: ${live.id}, invoice: ${invoice.id}. The customer was promised it and may be owed a refund of the discount. This is not corrected automatically.`,
+      );
+    }
+    await stripe.subscriptions.update(live.id, { metadata: { [OFFER_KEY]: "" } });
+    return;
+  }
+  const ours = OURS;
   const others = live.discounts.filter((discount) => !ours.includes(couponIdOf(discount)));
   const current = live.discounts.filter((discount) => ours.includes(couponIdOf(discount))).map(couponIdOf);
   if (wanted ? current.length === 1 && current[0] === wanted : current.length === 0) return;

@@ -45,6 +45,9 @@ $GLOBALS['after_row'] = null;
 $GLOBALS['before_row'] = null;
 $GLOBALS['between_check_and_insert'] = null;
 $GLOBALS['db_fail'] = null;
+$GLOBALS['before_publish'] = null;
+$GLOBALS['before_swap'] = null;
+$GLOBALS['publish_calls'] = 0;
 
 function get_option($k, $d = false) {
     if (array_key_exists($k, $GLOBALS['opts_cache'])) return $GLOBALS['opts_cache'][$k];
@@ -136,11 +139,15 @@ function get_post_status($id) {
 function get_posts($args) {
     $out = array();
     foreach ($GLOBALS['meta'] as $id => $m) {
-        if (isset($GLOBALS['posts'][$id]) && isset($m[$args['meta_key']]) && $m[$args['meta_key']] === $args['meta_value']) {
+        // No meta_value: every post carrying the key, as WP_Query does.
+        if (isset($GLOBALS['posts'][$id]) && isset($m[$args['meta_key']]) && (!isset($args['meta_value']) || $m[$args['meta_key']] === $args['meta_value'])) {
             $out[] = $id;
         }
     }
     sort($out);
+    if (isset($args['posts_per_page'])) {
+        $out = array_slice($out, isset($args['offset']) ? $args['offset'] : 0, $args['posts_per_page']);
+    }
     return $out;
 }
 
@@ -158,7 +165,9 @@ class wpdb_stub {
         return true;
     }
     public function esc_like($t) { return addcslashes($t, '_%\\'); }
+    public function get_col_charset($table, $column) { return 'utf8mb4'; }
     public function prepare($q, ...$args) {
+        if (count($args) === 1 && is_array($args[0])) $args = $args[0]; // As wpdb: the values as one array.
         $i = 0;
         return preg_replace_callback('/%[sd]/', function ($m) use (&$i, $args) {
             $v = $args[$i++];
@@ -195,6 +204,27 @@ class wpdb_stub {
                 return 1;
             }
             return 0;
+        }
+        // The compare-and-swap: the row changes only if every guarded column is still what was checked.
+        if (preg_match("/^UPDATE wp_posts SET (.+) WHERE ID = (\\d+) AND post_status = '([^']*)' AND post_date_gmt = '([^']*)' AND MD5\\(post_title\\) = '([0-9a-f]{32})' AND MD5\\(post_content\\) = '([0-9a-f]{32})' AND MD5\\(post_excerpt\\) = '([0-9a-f]{32})' AND MD5\\(post_name\\) = '([0-9a-f]{32})' AND MD5\\(post_password\\) = '([0-9a-f]{32})'$/s", $q, $m)) {
+            preg_match_all("/`(\\w+)` = '((?:[^']|'')*)'/s", $m[1], $sets, PREG_SET_ORDER);
+            $columns = array();
+            foreach ($sets as $set) $columns[$set[1]] = self::unquote($set[2]);
+            $id = (int) $m[2];
+            $publishing = isset($columns['post_status']) && $columns['post_status'] === 'publish';
+            // The instant before the database compares: a save reaching the row now loses this write.
+            $slot = $publishing ? 'before_publish' : 'before_swap';
+            if (is_callable($GLOBALS[$slot])) {
+                $hook = $GLOBALS[$slot];
+                $GLOBALS[$slot] = null;
+                $hook($id);
+            }
+            $row = get_post($id);
+            if (!$row || $row->post_status !== $m[3] || $row->post_date_gmt !== $m[4] || md5($row->post_title) !== $m[5] || md5($row->post_content) !== $m[6]
+                || md5($row->post_excerpt) !== $m[7] || md5($row->post_name) !== $m[8] || md5($row->post_password) !== $m[9]) return 0;
+            $GLOBALS['posts'][$id] = array_merge($GLOBALS['posts'][$id], $columns);
+            $GLOBALS[$publishing ? 'publish_calls' : 'update_calls']++;
+            return 1;
         }
         throw new Exception("unmodelled query: {$q}");
     }
@@ -243,7 +273,46 @@ $GLOBALS['http'] = array();
 
 function repget_key() { return 'test-key'; }
 function repget_post_type() { return 'post'; }
-function repget_attach_image($post_id, $url, $alt) { $GLOBALS['images'][] = $post_id; }
+/** Stands in for the download: a failed one (image_fails) sets nothing, as the real one does. */
+function repget_attach_image($post_id, $url, $alt) {
+    $GLOBALS['images'][] = $post_id;
+    if (!empty($GLOBALS['image_fails'])) return 0;
+    $attachment = 1000 + crc32($url) % 100000;
+    $GLOBALS['attachments'][$attachment] = 'https://site.test/wp-content/uploads/' . basename($url);
+    update_post_meta($post_id, '_thumbnail_id', (string) $attachment);
+    return $attachment;
+}
+function get_post_thumbnail_id($id) { return (int) get_post_meta($id, '_thumbnail_id', true); }
+function wp_get_attachment_url($id) { return isset($GLOBALS['attachments'][$id]) ? $GLOBALS['attachments'][$id] : false; }
+function wp_slash($v) { return $v; }
+function delete_post_meta($id, $k) { unset($GLOBALS['meta'][$id][$k]); return true; }
+function repget_own_attachment($url, $hint) { return 0; }
+function repget_find_image($url) { return 0; }
+function get_post($id) {
+    if (!isset($GLOBALS['posts'][$id])) return null;
+    return (object) array_merge(array(
+        'ID' => $id, 'post_title' => '', 'post_excerpt' => '', 'post_content' => '', 'post_name' => '', 'post_password' => '',
+        'post_status' => 'publish', 'post_type' => 'post', 'post_parent' => 0, 'post_date' => '2026-01-01 00:00:00', 'post_date_gmt' => '0000-00-00 00:00:00', 'post_modified' => '2026-01-01 00:00:00',
+    ), $GLOBALS['posts'][$id]);
+}
+function clean_post_cache($id) {}
+function current_time($type, $gmt = 0) { return gmdate('Y-m-d H:i:s'); }
+function wp_unique_post_slug($slug, $id, $status, $type, $parent) { return $slug; }
+function sanitize_post_field($field, $value, $id, $context) { return $value; }
+function sanitize_post($post, $context = 'display') { return $post; }
+function wp_encode_emoji($v) { return $v; }
+function wp_transition_post_status($new, $old, $post) {}
+function wp_after_insert_post($post, $update, $before) {}
+function get_object_taxonomies($type) { return array(); }
+function wp_revisions_enabled($post) { return true; }
+function wp_get_post_revisions($id, $args = array()) { return array(); }
+/** A revision of what was replaced, as core keeps it. */
+function _wp_put_post_revision($post) { $GLOBALS['revisions'][] = $post->post_content; return 1; }
+/** Modelled on core: another user's lock, younger than its window. */
+function wp_check_post_lock($id) {
+    $lock = explode(':', (string) get_post_meta($id, '_edit_lock', true));
+    return count($lock) === 2 && (int) $lock[0] > time() - 150 ? (int) $lock[1] : false;
+}
 
 function repget_request($path, $args = array()) {
     if ($path === '/api/plugin/articles') {
@@ -263,7 +332,10 @@ function repget_request($path, $args = array()) {
 }
 
 function add_action() {}
+function remove_action() {}
 function add_filter() {}
+function apply_filters($hook, $value) { return $value; }
+function do_action() {}
 // No WPML on this stubbed site: nothing hooks its filters.
 function has_filter() { return false; }
 function has_action() { return false; }
@@ -307,7 +379,7 @@ function wp_count_posts($t) { return (object) array('publish' => 0); }
 $src = file_get_contents($argv[1]);
 $src = preg_replace('/^<\?php/', '', $src, 1);
 $src = str_replace("if (!defined('ABSPATH')) {\n    exit;\n}", '', $src);
-foreach (array('repget_key', 'repget_post_type', 'repget_attach_image', 'repget_request') as $fn) {
+foreach (array('repget_key', 'repget_post_type', 'repget_attach_image', 'repget_own_attachment', 'repget_find_image', 'repget_request') as $fn) {
     $src = preg_replace('/\nfunction ' . $fn . '\(/', "\nfunction __unused_{$fn}(", $src, 1);
 }
 eval($src);
@@ -322,13 +394,15 @@ function check($label, $cond, $detail = '') {
 function reset_all() {
     $GLOBALS['options_table'] = array(); $GLOBALS['opts_cache'] = array();
     $GLOBALS['posts'] = array(); $GLOBALS['meta'] = array();
-    $GLOBALS['next_id'] = 100; $GLOBALS['images'] = array();
+    $GLOBALS['next_id'] = 100; $GLOBALS['images'] = array(); $GLOBALS['image_fails'] = false; $GLOBALS['attachments'] = array();
     $GLOBALS['insert_calls'] = 0; $GLOBALS['update_calls'] = 0;
     $GLOBALS['ack_calls'] = 0; $GLOBALS['ack_works'] = true; $GLOBALS['ack_bodies'] = array(); $GLOBALS['http'] = array();
     $GLOBALS['queue'] = array();
     $GLOBALS['after_row'] = null; $GLOBALS['before_row'] = null;
     $GLOBALS['between_check_and_insert'] = null;
     $GLOBALS['db_fail'] = null;
+    $GLOBALS['before_publish'] = null;
+    $GLOBALS['publish_calls'] = 0;
 }
 function article($id, $title = 'Hello', $status = 'publish', $dispatch = null) {
     $a = array('id' => $id, 'title' => $title, 'html' => '<p>x</p>', 'status' => $status,
@@ -412,7 +486,7 @@ $GLOBALS['posts'][500] = array('post_title' => 'Old', 'guid' => get_permalink(50
 update_post_meta(500, REPGET_META_ARTICLE, 'old1');
 $GLOBALS['queue']['old1'] = article('old1', 'Old, edited');
 repget_sync_locked();
-check('pre-1.5.2 post updated, not duplicated', $GLOBALS['posts'][500]['post_title'] === 'Old, edited' && post_count() === 2);
+check('pre-1.5.2 post, no record of what it held: found, not duplicated, not overwritten (1.10.0)', $GLOBALS['posts'][500]['post_title'] === 'Old' && post_count() === 2);
 
 echo "\nadd_option IS NOT A LOCK (why 1.5.2 does not use it)\n";
 reset_all();
@@ -579,11 +653,395 @@ repget_sync_locked();
 $last = end($GLOBALS['ack_bodies']);
 check('requested publish, WordPress kept draft: reported draft', $last['status'] === 'draft' && $last['dispatchId'] === dispatch_uuid(21), json_encode($last));
 
+echo "\nA PUBLISH PRESS ON A DRAFT (1.10.0)\n";
+function pressed($id, $n, $revision = 'r', $delivered = true) {
+    $a = article($id, 'One', 'publish', dispatch_uuid($n));
+    $a['dispatch']['revision'] = $revision;
+    $a['existingDraft'] = array('delivered' => $delivered);
+    return $a;
+}
+function held_draft($id, $n) {
+    $GLOBALS['queue'][$id] = article($id, 'One', 'draft', dispatch_uuid($n));
+    repget_sync_locked();
+    return repget_find_post($id);
+}
+$hand = function ($item) {
+    $GLOBALS['queue'][$item['id']] = $item;
+    repget_sync_locked();
+    return end($GLOBALS['ack_bodies']);
+};
+function send_handover($id, $n) {
+    $a = article($id, 'One', 'publish', dispatch_uuid($n));
+    $a['dispatch']['revision'] = 'r';
+    $GLOBALS['queue'][$id] = $a;
+    repget_sync_locked();
+    return repget_find_post($id);
+}
+
+reset_all();
+$post = held_draft('d1', 30);
+$updates = $GLOBALS['update_calls'];
+$last = $hand(pressed('d1', 31));
+check('unchanged: live, by a status change alone', get_post_status($post) === 'publish' && $GLOBALS['publish_calls'] === 1 && $GLOBALS['update_calls'] === $updates, json_encode($last));
+check('unchanged: reported live, on this hand-over', $last['status'] === 'publish' && $last['dispatchId'] === dispatch_uuid(31) && !isset($last['outcome']));
+check('unchanged: one post, none inserted', post_count() === 1 && $GLOBALS['insert_calls'] === 1);
+$last = $hand(pressed('d1', 32));
+check('replayed: nothing more, reported as it stands', $GLOBALS['publish_calls'] === 1 && post_count() === 1 && $last['status'] === 'publish' && !isset($last['outcome']), json_encode($last));
+
+reset_all();
+$post = held_draft('d2', 33);
+$GLOBALS['ack_works'] = false;
+$GLOBALS['queue']['d2'] = pressed('d2', 34);
+repget_sync_locked();
+check('report lost: live, and the report parked', get_post_status($post) === 'publish' && count(repget_pending_acks()) === 1);
+$GLOBALS['ack_works'] = true;
+$last = $hand(pressed('d2', 35));
+check('report lost: delivered on the next check, one post, published once', count(repget_pending_acks()) === 0 && post_count() === 1 && $GLOBALS['publish_calls'] === 1 && $GLOBALS['ack_bodies'][1]['dispatchId'] === dispatch_uuid(34), json_encode($GLOBALS['ack_bodies']));
+
+reset_all();
+$post = held_draft('d3', 36);
+$GLOBALS['posts'][$post]['post_content'] = '<p>An editor wrote this.</p>';
+$updates = $GLOBALS['update_calls'];
+$last = $hand(pressed('d3', 37));
+check('edited: refused, unpublished, not written to', $last['outcome'] === 'draft_changed' && $last['url'] === null && get_post_status($post) === 'draft' && $GLOBALS['update_calls'] === $updates && $GLOBALS['posts'][$post]['post_content'] === '<p>An editor wrote this.</p>', json_encode($last));
+check('edited: nothing parked', count(repget_pending_acks()) === 0);
+
+reset_all();
+$post = held_draft('d4', 38);
+$last = $hand(pressed('d4', 39, 'r2'));
+check('newer revision, unchanged: written to the same post, then live', $GLOBALS['update_calls'] === 1 && $GLOBALS['publish_calls'] === 1 && post_count() === 1 && $last['status'] === 'publish' && get_post_meta($post, REPGET_META_WRITTEN, true)['revision'] === 'r2', json_encode($last));
+
+reset_all();
+$post = held_draft('d5', 40);
+$GLOBALS['before_publish'] = function ($id) { $GLOBALS['posts'][$id]['post_content'] = '<p>Saved this very moment.</p>'; };
+$last = $hand(pressed('d5', 41));
+check('an edit landing at the moment of publishing: refused, and it stands', $last['outcome'] === 'draft_changed' && $GLOBALS['publish_calls'] === 0 && get_post_status($post) === 'draft' && $GLOBALS['posts'][$post]['post_content'] === '<p>Saved this very moment.</p>', json_encode($last));
+
+reset_all();
+$post = held_draft('d6', 42);
+$GLOBALS['db_fail'] = function ($q) { return strpos($q, 'UPDATE wp_posts') === 0; };
+$last = $hand(pressed('d6', 43));
+$GLOBALS['db_fail'] = null;
+check('the database refuses: a failure RepGet can retry, not a refusal', !empty($last['error']) && !isset($last['outcome']) && get_post_status($post) === 'draft' && $GLOBALS['publish_calls'] === 0, json_encode($last));
+
+reset_all();
+$post = held_draft('d7', 44);
+$GLOBALS['posts'][$post]['post_status'] = 'trash';
+$last = $hand(pressed('d7', 45));
+check('trashed: reported, left there, nothing made', $last['outcome'] === 'post_trashed' && get_post_status($post) === 'trash' && post_count() === 1 && $GLOBALS['insert_calls'] === 1, json_encode($last));
+
+reset_all();
+$post = held_draft('d8', 46);
+wp_delete_post($post, true);
+$last = $hand(pressed('d8', 47));
+check('deleted: reported, nothing made', $last['outcome'] === 'post_deleted' && post_count() === 0 && $GLOBALS['insert_calls'] === 1, json_encode($last));
+
+reset_all();
+$post = held_draft('d9', 48);
+$GLOBALS['posts'][$post]['post_status'] = 'publish';
+$GLOBALS['posts'][$post]['post_content'] = '<p>Published here, with an edit.</p>';
+$updates = $GLOBALS['update_calls'];
+$last = $hand(pressed('d9', 49, 'r2'));
+check('published in WordPress: recorded as it is, not overwritten', $last['status'] === 'publish' && $last['outcome'] === 'published_in_wordpress' && $last['url'] === get_permalink($post) && $GLOBALS['update_calls'] === $updates && $GLOBALS['posts'][$post]['post_content'] === '<p>Published here, with an edit.</p>', json_encode($last));
+
+reset_all();
+$post = held_draft('d10', 50);
+delete_post_meta($post, REPGET_META_WRITTEN);
+$GLOBALS['posts'][$post]['post_content'] = '<p>Not what RepGet sends.</p>';
+$last = $hand(pressed('d10', 51));
+check('no record, and not what RepGet sends: cannot be confirmed', $last['outcome'] === 'draft_unverified' && get_post_status($post) === 'draft', json_encode($last));
+
+reset_all();
+$last = $hand(pressed('d11', 52, 'r', false));
+check('a press on an article never delivered creates its one post', post_count() === 1 && $GLOBALS['insert_calls'] === 1 && $last['status'] === 'publish' && !isset($last['outcome']), json_encode($last));
+
+echo "\nWRITING OVER A POST (1.10.0)\n";
+function live_update($id, $n, $revision) {
+    $a = article($id, 'Newer', 'publish', dispatch_uuid($n));
+    $a['dispatch']['revision'] = $revision;
+    $a['existingPost'] = array('delivered' => true);
+    return $a;
+}
+function handed($id, $n, $revision, $title = 'One', $status = 'publish') {
+    $a = article($id, $title, $status, dispatch_uuid($n));
+    $a['dispatch']['revision'] = $revision;
+    return $a;
+}
+
+reset_all();
+$post = send_handover('w1', 60);
+$updates = $GLOBALS['update_calls'];
+$GLOBALS['revisions'] = array();
+$last = $hand(live_update('w1', 61, 'r2'));
+check('a press on a live post, unchanged: written to the same post', $GLOBALS['update_calls'] === $updates + 1 && $GLOBALS['posts'][$post]['post_title'] === 'Newer' && post_count() === 1 && $last['status'] === 'publish' && !isset($last['outcome']), json_encode($last));
+check('...keeping what it replaced as a revision', $GLOBALS['revisions'] === array('<p>x</p>'), json_encode($GLOBALS['revisions']));
+check('...on record as that revision', get_post_meta($post, REPGET_META_WRITTEN, true)['revision'] === 'r2');
+$updates = $GLOBALS['update_calls'];
+$last = $hand(live_update('w1', 62, 'r2'));
+check('the same revision again, its report lost: nothing written, reported live', $GLOBALS['update_calls'] === $updates && post_count() === 1 && $last['status'] === 'publish' && !isset($last['outcome']), json_encode($last));
+
+reset_all();
+$post = send_handover('w2', 63);
+$GLOBALS['posts'][$post]['post_content'] = '<p>An editor wrote this.</p>';
+$updates = $GLOBALS['update_calls'];
+$last = $hand(live_update('w2', 64, 'r2'));
+check('a press on a live post edited in WordPress: refused, not written', $last['outcome'] === 'post_changed' && $last['url'] === null && $GLOBALS['update_calls'] === $updates && $GLOBALS['posts'][$post]['post_content'] === '<p>An editor wrote this.</p>', json_encode($last));
+check('...and not parked to be retried', count(repget_pending_acks()) === 0);
+$last = $hand(live_update('w2', 65, 'r'));
+check('the revision already written, edited since: reported as somebody\'s, not written', $last['outcome'] === 'published_in_wordpress' && $last['url'] === get_permalink($post) && $GLOBALS['update_calls'] === $updates, json_encode($last));
+
+reset_all();
+$post = send_handover('w3', 66);
+$GLOBALS['before_swap'] = function ($id) { $GLOBALS['posts'][$id]['post_title'] = 'Saved this very moment'; };
+$updates = $GLOBALS['update_calls'];
+$last = $hand(live_update('w3', 67, 'r2'));
+check('a save landing at the moment of the write: refused, and it stands', $last['outcome'] === 'post_changed' && $GLOBALS['update_calls'] === $updates && $GLOBALS['posts'][$post]['post_title'] === 'Saved this very moment', json_encode($last));
+
+reset_all();
+$post = send_handover('w4', 68);
+delete_post_meta($post, REPGET_META_WRITTEN);
+$updates = $GLOBALS['update_calls'];
+$last = $hand(live_update('w4', 69, 'r2'));
+check('a live post with no record, and not what RepGet sends: refused', $last['outcome'] === 'post_unverified' && $GLOBALS['update_calls'] === $updates && $GLOBALS['posts'][$post]['post_title'] === 'One', json_encode($last));
+
+reset_all();
+$post = send_handover('w5', 70);
+update_post_meta($post, '_edit_lock', time() . ':7');
+$updates = $GLOBALS['update_calls'];
+$last = $hand(live_update('w5', 71, 'r2'));
+check('somebody has it open in WordPress: refused as that', $last['outcome'] === 'post_locked' && $GLOBALS['update_calls'] === $updates, json_encode($last));
+update_post_meta($post, '_edit_lock', (time() - 200) . ':7');
+$last = $hand(live_update('w5', 72, 'r2'));
+check('...a lock gone stale is no lock', !isset($last['outcome']) && $GLOBALS['posts'][$post]['post_title'] === 'Newer', json_encode($last));
+
+reset_all();
+$post = held_draft('w6', 73);
+update_post_meta($post, '_edit_lock', time() . ':7');
+$last = $hand(pressed('w6', 74));
+check('a draft somebody has open: not published, refused as that', $last['outcome'] === 'post_locked' && get_post_status($post) === 'draft' && $GLOBALS['publish_calls'] === 0, json_encode($last));
+
+reset_all();
+$post = held_draft('w7', 75);
+$GLOBALS['before_swap'] = function ($id) { $GLOBALS['posts'][$id]['post_excerpt'] = 'Saved this very moment'; };
+$updates = $GLOBALS['update_calls'];
+$last = $hand(pressed('w7', 76, 'r2'));
+check('a draft saved at the moment a newer revision is written: refused, and it stands', $last['outcome'] === 'draft_changed' && $GLOBALS['update_calls'] === $updates && $GLOBALS['publish_calls'] === 0 && $GLOBALS['posts'][$post]['post_excerpt'] === 'Saved this very moment', json_encode($last));
+
+reset_all();
+$post = send_handover('w8', 77);
+$GLOBALS['posts'][$post]['post_status'] = 'trash';
+$last = $hand(live_update('w8', 78, 'r2'));
+check('a live post moved to the trash: refused, left there', $last['outcome'] === 'update_trashed' && get_post_status($post) === 'trash', json_encode($last));
+wp_delete_post($post, true);
+$inserts = $GLOBALS['insert_calls'];
+$last = $hand(live_update('w8', 79, 'r2'));
+check('deleted: refused, and no new post', $last['outcome'] === 'update_deleted' && post_count() === 0 && $GLOBALS['insert_calls'] === $inserts, json_encode($last));
+
+echo "\nA HAND-OVER NOBODY PRESSED, AFTER A LOST REPORT\n";
+reset_all();
+$post = send_handover('h1', 80);
+$updates = $GLOBALS['update_calls'];
+$last = $hand(handed('h1', 81, 'r'));
+check('the same revision: nothing written, reported, one post', $GLOBALS['update_calls'] === $updates && post_count() === 1 && $last['status'] === 'publish' && !isset($last['outcome']), json_encode($last));
+$last = $hand(handed('h1', 82, 'r2', 'Newer'));
+check('a newer revision, unchanged: written to the same post', $GLOBALS['update_calls'] === $updates + 1 && $GLOBALS['posts'][$post]['post_title'] === 'Newer' && post_count() === 1, json_encode($last));
+
+reset_all();
+$post = send_handover('h2', 83);
+$GLOBALS['posts'][$post]['post_content'] = '<p>An editor wrote this.</p>';
+$updates = $GLOBALS['update_calls'];
+$last = $hand(handed('h2', 84, 'r2', 'Newer'));
+check('edited: not written, and reported as somebody\'s so it is not offered again', $last['outcome'] === 'published_in_wordpress' && $last['status'] === 'publish' && $GLOBALS['update_calls'] === $updates && $GLOBALS['posts'][$post]['post_content'] === '<p>An editor wrote this.</p>', json_encode($last));
+
+reset_all();
+$post = send_handover('h3', 85);
+delete_post_meta($post, REPGET_META_WRITTEN);
+$updates = $GLOBALS['update_calls'];
+$last = $hand(handed('h3', 86, 'r'));
+check('no record, and it holds what RepGet sends: nothing written, on record from now', $GLOBALS['update_calls'] === $updates && !isset($last['outcome']) && get_post_meta($post, REPGET_META_WRITTEN, true)['revision'] === 'r', json_encode($last));
+
+reset_all();
+$post = send_handover('h4', 87);
+delete_post_meta($post, REPGET_META_WRITTEN);
+$updates = $GLOBALS['update_calls'];
+$last = $hand(handed('h4', 88, 'r2', 'Newer'));
+check('no record, and not what RepGet sends: not written, not refused', $last['outcome'] === 'published_in_wordpress' && $GLOBALS['update_calls'] === $updates && $GLOBALS['posts'][$post]['post_title'] === 'One', json_encode($last));
+
 echo "\nA MALFORMED dispatch id is not echoed\n";
 reset_all();
 $GLOBALS['queue']['m1'] = article('m1', 'Hello', 'publish', "x'; DROP");
 repget_sync_locked();
 check('reported without a dispatch id', !isset($GLOBALS['ack_bodies'][0]['dispatchId']));
+
+echo "\nRANK MATH (1.10.0): social fields follow the article and its featured image\n";
+function social_article($id, $title, $excerpt, $image) {
+    $a = article($id, $title);
+    $a['excerpt'] = $excerpt;
+    $a['image'] = $image === null ? null : array('url' => $image, 'alt' => 'alt');
+    return $a;
+}
+function send_article($a) {
+    $GLOBALS['queue'][$a['id']] = $a;
+    repget_sync_locked();
+    return repget_find_post($a['id']);
+}
+function m($post, $key) { return get_post_meta($post, $key, true); }
+function social_keys($post) {
+    return array_values(array_filter(array_keys(isset($GLOBALS['meta'][$post]) ? $GLOBALS['meta'][$post] : array()), function ($k) { return strpos($k, 'rank_math_') === 0; }));
+}
+
+reset_all();
+$p = send_article(social_article('s0', 'Title', 'Desc', 'https://store.test/a.jpg'));
+check('without Rank Math nothing of Rank Math is written', social_keys($p) === array() && m($p, REPGET_META_SOCIAL) === '');
+check('...and the featured image is still set', get_post_thumbnail_id($p) > 0);
+
+define('RANK_MATH_VERSION', '1.0.281');
+
+reset_all();
+$p = send_article(social_article('s1', 'Rainy Wedding', 'Worried about rain?', 'https://store.test/a.jpg'));
+$first = get_post_thumbnail_id($p);
+check('create: Facebook and Twitter titles', m($p, 'rank_math_facebook_title') === 'Rainy Wedding' && m($p, 'rank_math_twitter_title') === 'Rainy Wedding');
+check('create: Facebook and Twitter descriptions', m($p, 'rank_math_facebook_description') === 'Worried about rain?' && m($p, 'rank_math_twitter_description') === 'Worried about rain?');
+check('create: both image ids ARE the featured image', $first > 0 && m($p, 'rank_math_facebook_image_id') === (string) $first && m($p, 'rank_math_twitter_image_id') === (string) $first);
+check('create: both addresses are that attachment\'s, never RepGet\'s', m($p, 'rank_math_facebook_image') === wp_get_attachment_url($first) && m($p, 'rank_math_twitter_image') === wp_get_attachment_url($first));
+check('create: Twitter uses its own fields', m($p, 'rank_math_twitter_use_facebook') === 'off');
+check('only the expected keys are written', count(social_keys($p)) === 9, implode(',', social_keys($p)));
+
+$image_count = count($GLOBALS['images']);
+$marker = m($p, REPGET_META_SOCIAL);
+send_article(social_article('s1', 'Rainy Wedding', 'Worried about rain?', 'https://store.test/a.jpg'));
+check('retried hand-over: the picture is not fetched again', count($GLOBALS['images']) === $image_count);
+check('retried hand-over: nothing changes', m($p, REPGET_META_SOCIAL) === $marker && get_post_thumbnail_id($p) === $first);
+
+send_article(social_article('s1', 'New Title', 'New words', 'https://store.test/a.jpg'));
+check('update: new title and description reach both networks', m($p, 'rank_math_facebook_title') === 'New Title' && m($p, 'rank_math_twitter_title') === 'New Title' && m($p, 'rank_math_twitter_description') === 'New words');
+
+send_article(social_article('s1', 'New Title', 'New words', 'https://store.test/b.jpg'));
+$second = get_post_thumbnail_id($p);
+check('changed picture: a new featured image', $second > 0 && $second !== $first);
+check('changed picture: the social images move with it', m($p, 'rank_math_facebook_image_id') === (string) $second && m($p, 'rank_math_twitter_image_id') === (string) $second && m($p, 'rank_math_twitter_image') === wp_get_attachment_url($second));
+
+echo "\nRANK MATH: a site owner's edit is kept\n";
+reset_all();
+$p = send_article(social_article('s2', 'T1', 'D1', 'https://store.test/a.jpg'));
+update_post_meta($p, 'rank_math_facebook_title', 'My own Facebook title');
+update_post_meta($p, 'rank_math_twitter_description', 'My own Twitter words');
+delete_post_meta($p, 'rank_math_twitter_title');
+send_article(social_article('s2', 'T2', 'D2', 'https://store.test/a.jpg'));
+check('an edited title stays', m($p, 'rank_math_facebook_title') === 'My own Facebook title');
+check('an edited description stays', m($p, 'rank_math_twitter_description') === 'My own Twitter words');
+check('a field emptied by hand stays empty', m($p, 'rank_math_twitter_title') === '');
+check('the fields not edited still follow the article', m($p, 'rank_math_facebook_description') === 'D2');
+
+reset_all();
+$p = send_article(social_article('s3', 'T1', 'D1', 'https://store.test/a.jpg'));
+$first = get_post_thumbnail_id($p);
+update_post_meta($p, 'rank_math_facebook_image', 'https://site.test/mine.jpg');
+update_post_meta($p, 'rank_math_facebook_image_id', '77');
+send_article(social_article('s3', 'T1', 'D1', 'https://store.test/b.jpg'));
+$second = get_post_thumbnail_id($p);
+check('a Facebook image chosen by hand survives a changed picture', m($p, 'rank_math_facebook_image_id') === '77' && m($p, 'rank_math_facebook_image') === 'https://site.test/mine.jpg');
+check('...while Twitter, not edited, moves to the new featured image', $second !== $first && m($p, 'rank_math_twitter_image_id') === (string) $second);
+
+reset_all();
+$p = send_article(social_article('s4', 'T1', 'D1', 'https://store.test/a.jpg'));
+update_post_meta($p, 'rank_math_facebook_title', 'T1 &amp; more');
+update_post_meta($p, REPGET_META_SOCIAL, array('facebook_title' => array('rank_math_facebook_title' => 'T1 & more')) + m($p, REPGET_META_SOCIAL));
+send_article(social_article('s4', 'T2', 'D1', 'https://store.test/a.jpg'));
+check('the same words stored with an entity are not an edit', m($p, 'rank_math_facebook_title') === 'T2');
+
+reset_all();
+$p = wp_insert_post(array('post_title' => 'Before', 'post_content' => '<p>x</p>', 'post_excerpt' => 'D1', 'guid' => repget_identity_guid('s5'), 'meta_input' => array(REPGET_META_ARTICLE => 's5', '_thumbnail_id' => '555', 'rank_math_facebook_title' => 'Filled in before 1.10.0')));
+$GLOBALS['attachments'][555] = 'https://site.test/wp-content/uploads/own.jpg';
+// Holding what RepGet sends: with no record, the only way a hand-over goes on past the text (1.10.0).
+send_article(social_article('s5', 'Before', 'D1', 'https://store.test/a.jpg'));
+check('a value there before this plugin wrote anything is kept', m($p, 'rank_math_facebook_title') === 'Filled in before 1.10.0');
+check('a post from before 1.10.0 keeps its featured image', get_post_thumbnail_id($p) === 555 && $GLOBALS['images'] === array());
+check('...and its social images are that image', m($p, 'rank_math_twitter_image_id') === '555');
+
+echo "\nRANK MATH: the featured image, whoever changes it\n";
+reset_all();
+$p = send_article(social_article('s6', 'T1', 'D1', 'https://store.test/a.jpg'));
+$GLOBALS['attachments'][777] = 'https://site.test/wp-content/uploads/chosen.jpg';
+update_post_meta($p, '_thumbnail_id', '777');
+repget_social_follow_thumbnail(0, $p, '_thumbnail_id');
+check('chosen on this site: the social images follow', m($p, 'rank_math_facebook_image_id') === '777' && m($p, 'rank_math_twitter_image') === 'https://site.test/wp-content/uploads/chosen.jpg');
+send_article(social_article('s6', 'T1', 'D1', 'https://store.test/b.jpg'));
+check('...and a later picture from RepGet does not replace it', get_post_thumbnail_id($p) === 777 && m($p, 'rank_math_facebook_image_id') === '777');
+delete_post_meta($p, '_thumbnail_id');
+repget_social_follow_thumbnail(0, $p, '_thumbnail_id');
+check('removed: the social images RepGet wrote go with it', m($p, 'rank_math_facebook_image_id') === '' && m($p, 'rank_math_twitter_image') === '');
+send_article(social_article('s6', 'T1', 'D1', 'https://store.test/c.jpg'));
+check('...and it is not put back', get_post_thumbnail_id($p) === 0);
+$other = wp_insert_post(array('post_title' => 'Not RepGet\'s', 'guid' => ''));
+update_post_meta($other, '_thumbnail_id', '777');
+repget_social_follow_thumbnail(0, $other, '_thumbnail_id');
+check('a post that is not RepGet\'s is never touched', social_keys($other) === array());
+
+echo "\nRANK MATH: a picture that failed\n";
+reset_all();
+$GLOBALS['image_fails'] = true;
+$p = send_article(social_article('s7', 'T1', 'D1', 'https://store.test/a.jpg'));
+check('no attachment: no social image, and no outside address', m($p, 'rank_math_facebook_image') === '' && m($p, 'rank_math_facebook_image_id') === '');
+check('...but the words are there', m($p, 'rank_math_facebook_title') === 'T1');
+$GLOBALS['image_fails'] = false;
+send_article(social_article('s7', 'T1', 'D1', 'https://store.test/a.jpg'));
+$first = get_post_thumbnail_id($p);
+check('retried publish: the picture comes, and the social images with it', $first > 0 && m($p, 'rank_math_twitter_image_id') === (string) $first);
+$GLOBALS['image_fails'] = true;
+send_article(social_article('s7', 'T1', 'D1', 'https://store.test/b.jpg'));
+check('a failed replacement keeps the old picture everywhere', get_post_thumbnail_id($p) === $first && m($p, 'rank_math_facebook_image_id') === (string) $first);
+$GLOBALS['image_fails'] = false;
+send_article(social_article('s7', 'T1', 'D1', 'https://store.test/b.jpg'));
+check('...and is tried again at the next hand-over', get_post_thumbnail_id($p) !== $first && m($p, 'rank_math_facebook_image_id') === (string) get_post_thumbnail_id($p));
+
+echo "\nRANK MATH: an article first sent without a picture\n";
+reset_all();
+$p = send_article(social_article('s8', 'T1', 'D1', null));
+check('no featured image, no social image yet', get_post_thumbnail_id($p) === 0 && m($p, 'rank_math_facebook_image') === '');
+send_article(social_article('s8', 'T1', 'D1', null));
+check('sent again without one: still nothing', get_post_thumbnail_id($p) === 0);
+send_article(social_article('s8', 'T1', 'D1', 'https://store.test/late.jpg'));
+$late = get_post_thumbnail_id($p);
+check('a later picture becomes the featured image', $late > 0);
+check('...and both social images', m($p, 'rank_math_facebook_image_id') === (string) $late && m($p, 'rank_math_twitter_image_id') === (string) $late);
+send_article(social_article('s8', 'T1', 'D1', 'https://store.test/later.jpg'));
+check('...and a picture changed after that replaces it', get_post_thumbnail_id($p) !== $late && m($p, 'rank_math_twitter_image_id') === (string) get_post_thumbnail_id($p));
+reset_all();
+$p = send_article(social_article('s9', 'T1', 'D1', null));
+$GLOBALS['attachments'][888] = 'https://site.test/wp-content/uploads/mine.jpg';
+update_post_meta($p, '_thumbnail_id', '888');
+send_article(social_article('s9', 'T1', 'D1', 'https://store.test/late.jpg'));
+check('a picture chosen on the site meanwhile is not replaced', get_post_thumbnail_id($p) === 888 && $GLOBALS['images'] === array());
+
+echo "\nRANK MATH: the backfill\n";
+reset_all();
+$GLOBALS['attachments'][900] = 'https://site.test/wp-content/uploads/old.jpg';
+$old = array();
+for ($i = 1; $i <= 4; $i++) {
+    $old[$i] = wp_insert_post(array('post_title' => "Old {$i}", 'post_excerpt' => "Excerpt {$i}", 'guid' => repget_identity_guid("o{$i}"), 'meta_input' => array(REPGET_META_ARTICLE => "o{$i}", '_thumbnail_id' => '900')));
+}
+update_post_meta($old[2], 'rank_math_twitter_title', 'Written by hand');
+update_post_meta($old[3], 'rank_math_title', 'Hand-written SEO title');
+update_post_meta($old[3], 'rank_math_description', '%excerpt% | %sitename%');
+$bystander = wp_insert_post(array('post_title' => 'Not RepGet\'s', 'guid' => '', 'meta_input' => array('_thumbnail_id' => '900')));
+$before = $GLOBALS['meta'];
+$r = repget_social_backfill(2);
+check('a dry run by default: nothing at all is written', $GLOBALS['meta'] === $before);
+check('...it says what it would do', $r['applied'] === false && $r['to_write'] > 0 && count($r['posts']) === 2 && $r['posts'][0]['changes'] === 7);
+check('...it is bounded, and says where to go on', $r['next'] === 2);
+check('...and reports a hand-written field as kept', $r['posts'][1]['kept'] === array('twitter_title'));
+$r = repget_social_backfill(1000);
+check('never more than the maximum a run', $r['offset'] === 0 && count($r['posts']) === 4 && $r['next'] === 0 && REPGET_SOCIAL_BACKFILL_MAX === 50);
+check('the dry run wrote no record either', m($old[1], REPGET_META_SOCIAL) === '');
+$r = repget_social_backfill(2, 0, true);
+check('apply: the batch asked for only', m($old[1], 'rank_math_facebook_title') === 'Old 1' && m($old[2], 'rank_math_facebook_image_id') === '900' && m($old[3], 'rank_math_facebook_title') === '');
+check('apply: a hand-written field stays', m($old[2], 'rank_math_twitter_title') === 'Written by hand');
+$r = repget_social_backfill(2, $r['next'], true);
+check('apply, next batch: plain SEO title used, a template is not', m($old[3], 'rank_math_facebook_title') === 'Hand-written SEO title' && m($old[3], 'rank_math_facebook_description') === 'Excerpt 3');
+check('posts that are not RepGet\'s are never looked at', social_keys($bystander) === array());
+$r = repget_social_backfill(50, 0, false);
+check('a second look finds nothing left to do', $r['to_write'] === 0);
 
 /*
   The 1.7.0 connect flow and updates have their own stubbed-WordPress harness

@@ -24,7 +24,7 @@ vi.mock("@/lib/auth-guard", () => ({
 }));
 vi.mock("@/lib/i18n/app-locale", async () => {
   const { getMessages } = await import("@/lib/i18n/messages");
-  return { getPublicMessages: async () => ({ locale: "en", t: getMessages("en") }) };
+  return { getAuthMessages: async () => ({ locale: "en", t: getMessages("en") }) };
 });
 vi.mock("@/components/auth-form", () => ({ AuthForm: () => null }));
 

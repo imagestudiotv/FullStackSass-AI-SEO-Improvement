@@ -8,8 +8,6 @@ The flow sits behind one switch: **Admin → Network → Operations → Two-step
 
 RepGet's own blog editorial and translation review is a separate pipeline and is not touched by any of this.
 
-**Plugin 1.10.0 is held back from this release (2026-11-06), pending MySQL verification. Sites stay on 1.9.0. Do not turn this switch on until 1.10.0 has shipped:** with the switch on, customers would be told to update to a version nobody can get. Until then, what this document says about plugin 1.10.0 does not apply, including the overwrite protection through the plugin. Direct connections have theirs. 1.10.0 is on `feature/nov5-decisions`.
-
 ## With the switch on
 
 ### 1. The team

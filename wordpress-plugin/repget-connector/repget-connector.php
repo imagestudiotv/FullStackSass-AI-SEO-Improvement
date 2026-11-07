@@ -2,7 +2,7 @@
 /**
  * Plugin Name: RepGet Connector
  * Description: Publishes articles written by RepGet straight to this site. Press Connect to RepGet to connect.
- * Version: 1.9.0
+ * Version: 1.10.0
  * Requires at least: 5.6
  * Requires PHP: 7.4
  * License: GPLv2 or later
@@ -42,7 +42,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('REPGET_VERSION', '1.9.0');
+define('REPGET_VERSION', '1.10.0');
 define('REPGET_OPTION_KEY', 'repget_integration_key');
 define('REPGET_OPTION_STATUS', 'repget_status');
 define('REPGET_OPTION_ENDPOINT', 'repget_endpoint');
@@ -111,6 +111,14 @@ define('REPGET_IMAGE_NAME_MAX', 60);
 define('REPGET_OPTION_IMAGE_FAILURES', 'repget_image_failures');
 /** On a post: the md5 of its content when nothing more could be copied from it. */
 define('REPGET_META_IMAGES_CHECKED', '_repget_images_checked');
+/** On a post: the header picture RepGet last set. See repget_sync_header(). */
+define('REPGET_META_HEADER', '_repget_header_image');
+/** On a post: what this plugin last wrote to its Rank Math social fields. See "Rank Math" below. */
+define('REPGET_META_SOCIAL', '_repget_social_written');
+/** On a post: what this plugin last wrote to it, and which revision that was. See "A Publish press on a draft" below. */
+define('REPGET_META_WRITTEN', '_repget_written');
+/** Posts one run of the social fields backfill looks at, at most. */
+define('REPGET_SOCIAL_BACKFILL_MAX', 50);
 
 /**
  * Default API host. Overridable for self-hosted or staging installs.
@@ -557,6 +565,16 @@ function repget_settings_page() {
         }
     }
 
+    // Rank Math's social fields on articles published earlier: a preview unless Apply was pressed.
+    $social_report = null;
+    if (isset($_POST['repget_social_backfill']) && check_admin_referer('repget_social_backfill')) {
+        $social_report = repget_social_backfill(
+            REPGET_SOCIAL_BACKFILL_MAX,
+            isset($_POST['repget_social_offset']) ? absint($_POST['repget_social_offset']) : 0,
+            isset($_POST['repget_social_apply'])
+        );
+    }
+
     $key = repget_key();
     $status = get_option(REPGET_OPTION_STATUS);
     $stored = repget_stored_connection();
@@ -583,8 +601,8 @@ function repget_settings_page() {
         .repget-actions form { margin: 0; }
         .repget-ok { color: #00a32a; }
         .repget-bad { color: #d63638; }
-        #repget-advanced { margin-top: 2em; }
-        #repget-advanced summary { cursor: pointer; font-weight: 600; }
+        #repget-advanced, #repget-social { margin-top: 2em; }
+        #repget-advanced summary, #repget-social summary { cursor: pointer; font-weight: 600; }
     </style>
     <div class="wrap">
         <h1>RepGet</h1>
@@ -684,6 +702,39 @@ function repget_settings_page() {
                 </button>
             </p>
         </form>
+
+        <?php if (repget_rank_math_active()) : ?>
+            <details id="repget-social"<?php echo $social_report !== null ? ' open' : ''; ?>>
+                <summary><?php esc_html_e('Rank Math: social fields on articles published earlier', 'repget'); ?></summary>
+                <p><?php esc_html_e('New and updated articles get these fields by themselves. This fills the Facebook and Twitter title, description and image of earlier RepGet articles. A field somebody already filled in or edited is kept. Preview changes nothing.', 'repget'); ?></p>
+                <?php if ($social_report !== null) : ?>
+                    <?php repget_social_report_table($social_report); ?>
+                <?php endif; ?>
+                <div class="repget-actions">
+                    <?php
+                    $social_offset = $social_report !== null ? $social_report['offset'] : 0;
+                    $social_buttons = array(
+                        array($social_offset, 'repget_social_preview', __('Preview (changes nothing)', 'repget'), 'button'),
+                    );
+                    if ($social_report !== null && !$social_report['applied'] && $social_report['to_write'] > 0) {
+                        $social_buttons[] = array($social_offset, 'repget_social_apply', __('Apply to the articles listed', 'repget'), 'button button-primary');
+                    }
+                    if ($social_report !== null && $social_report['next'] > 0) {
+                        $social_buttons[] = array($social_report['next'], 'repget_social_preview', __('Preview the next ones', 'repget'), 'button');
+                    }
+                    foreach ($social_buttons as $social_button) : ?>
+                        <form method="post">
+                            <?php wp_nonce_field('repget_social_backfill'); ?>
+                            <input type="hidden" name="repget_social_backfill" value="1" />
+                            <input type="hidden" name="repget_social_offset" value="<?php echo (int) $social_button[0]; ?>" />
+                            <button type="submit" name="<?php echo esc_attr($social_button[1]); ?>" class="<?php echo esc_attr($social_button[3]); ?>">
+                                <?php echo esc_html($social_button[2]); ?>
+                            </button>
+                        </form>
+                    <?php endforeach; ?>
+                </div>
+            </details>
+        <?php endif; ?>
 
         <details id="repget-advanced"<?php echo $advanced_open ? ' open' : ''; ?>>
             <summary><?php esc_html_e('Advanced: use an Integration Key', 'repget'); ?></summary>
@@ -1619,7 +1670,7 @@ function repget_dispatch_id($article) {
  * ordering is the point: the alternative loses the fact of publication and the
  * next poll creates a duplicate.
  */
-function repget_remember_ack($article_id, $dispatch_id, $post_id, $url, $status) {
+function repget_remember_ack($article_id, $dispatch_id, $post_id, $url, $status, $outcome = '') {
     $acks = repget_pending_acks();
     $acks[repget_ack_key($article_id, $dispatch_id)] = array(
         'article_id'  => (string) $article_id,
@@ -1627,6 +1678,7 @@ function repget_remember_ack($article_id, $dispatch_id, $post_id, $url, $status)
         'post_id'     => (int) $post_id,
         'url'         => (string) $url,
         'status'      => (string) $status,
+        'outcome'     => (string) $outcome,
     );
     /*
       Bounded. A site that cannot reach RepGet for a long time should not grow
@@ -1675,7 +1727,8 @@ function repget_flush_acks() {
             isset($ack['url']) ? $ack['url'] : null,
             $post_id > 0 ? $post_id : null,
             null,
-            isset($ack['status']) ? $ack['status'] : 'publish'
+            isset($ack['status']) ? $ack['status'] : 'publish',
+            isset($ack['outcome']) ? (string) $ack['outcome'] : ''
         );
         if (!is_wp_error($reported)) {
             repget_forget_ack($key);
@@ -1764,6 +1817,38 @@ function repget_sync($token = null) {
         $slug = isset($article['slug']) ? sanitize_title($article['slug']) : '';
 
         /*
+          What this hand-over may do with the post it found. Decided from the
+          post as it is now, before anything is copied or written, and that one
+          reading is what a write later compares with, however long the pictures
+          take. See "A Publish press on a draft, and writing over a post" below.
+        */
+        $revision = repget_dispatch_revision($article);
+        $checked = $existing > 0 ? repget_fresh_post($existing) : null;
+        $checked_thumbnail = $checked ? (int) get_post_thumbnail_id($existing) : 0;
+        $press = repget_press_step($article, $existing, $revision, $checked);
+        if (in_array($press, REPGET_PRESS_REFUSALS, true)) {
+            repget_report($article_id, $dispatch_id, null, $existing > 0 ? $existing : null, $press, 'draft', $press);
+            continue;
+        }
+        if ($press === 'on_site' || $press === 'published_in_wordpress') {
+            if ($press === 'on_site') {
+                repget_header_again($checked, $article, $slug, $revision);
+            }
+            repget_confirm($article_id, $dispatch_id, $existing, $status, $press === 'on_site' ? '' : $press);
+            continue;
+        }
+        if ($press === 'leave') {
+            repget_leave_post($article_id, $dispatch_id, $existing, $status);
+            continue;
+        }
+        if ($press === 'publish') {
+            if (repget_finish_press($article_id, $dispatch_id, $existing, $revision, $checked)) {
+                $published++;
+            }
+            continue;
+        }
+
+        /*
           A translation (1.9.0): the article in another of this site's WPML
           languages, linked to the post RepGet published for the original.
           Not written without WPML, or before the original is on this site: a
@@ -1818,6 +1903,38 @@ function repget_sync($token = null) {
             'post_name'    => $slug,
         );
 
+        /*
+          Copying the pictures above can take half a minute, so a post with no
+          record is looked at now. It is proved by holding exactly what RepGet
+          sends, or it is not written to: nothing else says nobody edited it.
+        */
+        $proved = null;
+        if (in_array($press, array('prove', 'prove_update', 'prove_handover'), true)) {
+            $proved = repget_fresh_post($existing);
+            if ($press === 'prove') {
+                if (!repget_draft_holds($proved, $fields, $article)) {
+                    repget_report($article_id, $dispatch_id, null, $existing, 'draft_unverified', 'draft', 'draft_unverified');
+                } elseif (repget_finish_press($article_id, $dispatch_id, $existing, $revision, $proved)) {
+                    $published++;
+                }
+                continue;
+            }
+            if ($press === 'prove_update') {
+                if (!repget_draft_holds($proved, $fields, $article)) {
+                    repget_report($article_id, $dispatch_id, null, $existing, 'post_unverified', 'draft', 'post_unverified');
+                } else {
+                    repget_remember_row($proved, $revision);
+                    repget_confirm($article_id, $dispatch_id, $existing, $status);
+                }
+                continue;
+            }
+            // A hand-over again, nobody pressing: the picture follows repget_sync_header's own rule.
+            if (!repget_draft_holds($proved, $fields, $article, true)) {
+                repget_leave_post($article_id, $dispatch_id, $existing, $status);
+                continue;
+            }
+        }
+
         // WPML files what is saved under the language it is working in.
         $previous_language = null;
         if ($translation !== null) {
@@ -1825,9 +1942,11 @@ function repget_sync($token = null) {
             do_action('wpml_switch_language', $translation['language']);
         }
 
-        if ($existing > 0) {
-            $fields['ID'] = $existing;
-
+        // The row this hand-over left, when it is known to the byte: what its record is taken from.
+        $saved_row = $proved;
+        if ($proved !== null) {
+            $post_id = $existing; // Already holds it: nothing to write.
+        } elseif ($existing > 0) {
             /*
               THE CUSTOMER'S OWN DECISIONS ARE KEPT.
 
@@ -1837,7 +1956,22 @@ function repget_sync($token = null) {
               edited content must not undo it and silently push a draft live.
               The status is set only when the post is first created.
             */
-            $post_id = wp_update_post($fields, true);
+            $saved_row = repget_overwrite_post($checked, $checked_thumbnail, $fields, $revision);
+            $post_id = is_wp_error($saved_row) ? $saved_row : $existing;
+            if ($saved_row === null) {
+                // Saved by somebody between the check and the write: theirs stands.
+                if ($translation !== null) {
+                    do_action('wpml_switch_language', $previous_language);
+                }
+                if ($press === 'write') {
+                    repget_report($article_id, $dispatch_id, null, $existing, 'draft_changed', 'draft', 'draft_changed');
+                } elseif (isset($article['existingPost'])) {
+                    repget_report($article_id, $dispatch_id, null, $existing, 'post_changed', 'draft', 'post_changed');
+                } else {
+                    repget_leave_post($article_id, $dispatch_id, $existing, $status);
+                }
+                continue;
+            }
         } else {
             $fields['post_status'] = $status;
             // A translation is the same content type as its original: WPML links only those.
@@ -1894,41 +2028,48 @@ function repget_sync($token = null) {
 
         /*
           The header image, when one was generated. A failure here is not fatal:
-          the article is still published, just without its image. Only on
-          creation - re-downloading on every update would add a duplicate
-          attachment to the media library each time.
+          the article is still published, just without its image. An update
+          sets it only when RepGet's picture changed (1.10.0), and never over
+          one chosen on this site: see repget_sync_header.
         */
-        if ($existing === 0 && !empty($article['image']['url'])) {
-            repget_attach_image(
-                $post_id,
-                $article['image']['url'],
-                isset($article['image']['alt']) ? $article['image']['alt'] : '',
-                $slug,
-                $article['title'],
-                isset($article['image']['attachmentId']) ? $article['image']['attachmentId'] : 0
-            );
+        if (!empty($article['image']['url'])) {
+            repget_sync_header($post_id, $article['image'], $slug, $article['title'], $existing === 0);
+        } elseif ($existing === 0) {
+            // Created without a picture: the record says so, so a later one is applied.
+            repget_remember_header($post_id, '', 0, true);
         }
 
         /*
-          Recorded before the report goes out, so a failure to reach RepGet - or
-          a process killed mid-request - leaves proof this article was
-          published. repget_flush_acks retries it on the next run.
+          Rank Math's Facebook and Twitter fields (1.10.0), from the article as
+          saved and the attachment that IS its featured image now. Last, so a
+          retried hand-over or a changed picture ends up the same everywhere.
         */
-        $permalink = get_permalink($post_id);
-        /*
-          What WordPress actually holds, not what was asked for: an update
-          keeps the customer's own status (see above), and a site can store a
-          requested "publish" as pending or draft (a workflow plugin, an
-          account without publish rights). RepGet counts only "publish" as live.
-        */
-        $stored = get_post_status($post_id);
-        $actual = is_string($stored) && $stored !== '' ? $stored : $status;
-        repget_remember_ack($article_id, $dispatch_id, $post_id, $permalink, $actual);
+        repget_social_apply($post_id, repget_social_fields(
+            $fields['post_title'],
+            $fields['post_excerpt'],
+            (int) get_post_thumbnail_id($post_id)
+        ));
 
-        $reported = repget_report($article_id, $dispatch_id, $permalink, $post_id, null, $actual);
-        if (!is_wp_error($reported)) {
-            repget_forget_ack(repget_ack_key($article_id, $dispatch_id));
+        /*
+          Last, once the post is as this hand-over leaves it: a later press
+          compares against it. Over an existing post, from the row as this
+          hand-over wrote it and never from a new reading, which would take a
+          save landing now for this plugin's own.
+        */
+        if (is_object($saved_row)) {
+            repget_remember_row($saved_row, $revision);
+        } else {
+            repget_remember_written($post_id, $revision);
         }
+
+        if ($press === 'write') {
+            if (repget_finish_press($article_id, $dispatch_id, $post_id, $revision, $saved_row)) {
+                $published++;
+            }
+            continue;
+        }
+
+        repget_confirm($article_id, $dispatch_id, $post_id, $status);
 
         $published++;
     }
@@ -1937,6 +2078,588 @@ function repget_sync($token = null) {
     repget_localize_older_posts($prefixes, $deadline, $token);
 
     return $published;
+}
+
+/**
+ * Reports a post RepGet may count as delivered.
+ *
+ * Recorded before the report goes out, so a failure to reach RepGet - or a
+ * process killed mid-request - leaves proof this article was published.
+ * repget_flush_acks retries it on the next run.
+ *
+ * The status is what WordPress actually holds, not what was asked for: an
+ * update keeps the customer's own status, and a site can store a requested
+ * "publish" as pending or draft (a workflow plugin, an account without publish
+ * rights). RepGet counts only "publish" as live.
+ */
+function repget_confirm($article_id, $dispatch_id, $post_id, $status, $outcome = '') {
+    $permalink = get_permalink($post_id);
+    $stored = get_post_status($post_id);
+    $actual = is_string($stored) && $stored !== '' ? $stored : $status;
+    repget_remember_ack($article_id, $dispatch_id, $post_id, $permalink, $actual, $outcome);
+
+    $reported = repget_report($article_id, $dispatch_id, $permalink, $post_id, null, $actual, $outcome);
+    if (!is_wp_error($reported)) {
+        repget_forget_ack(repget_ack_key($article_id, $dispatch_id));
+    }
+}
+
+/* -------------------------------------------------------------------------- */
+/* A Publish press on a draft, and writing over a post (1.10.0)               */
+/* -------------------------------------------------------------------------- */
+
+/*
+  RepGet's two-step flow gives the customer one Publish button. On a site that
+  keeps RepGet's articles as WordPress drafts, the article is already here, and
+  somebody may have worked on it since. RepGet cannot see that: only this
+  plugin can, so the decision is made here.
+
+  HOW IT KNOWS. Every write of a post ends with a record of what the row then
+  holds (repget_post_fingerprint), and of the RepGet revision that was. The
+  fingerprint is taken from the row AFTER WordPress saved it, so nothing
+  WordPress or a filter did during that save counts as a change. It covers what
+  a reader would see as the article: title, text, excerpt, address, password
+  and featured image. A date set in the future counts as well. The other dates
+  are deliberately not used: pressing Save with no change moves post_modified,
+  so do other plugins, and WordPress gives a draft a date of its own when it
+  goes through the trash and back. Categories, tags and SEO fields are not part
+  of what RepGet approved, and are not looked at.
+
+  WHAT A PRESS DOES (repget_press_step), and it never creates a post for one
+  that was delivered:
+
+    no post, one was delivered   post_deleted: nothing is created.
+    in the trash                 post_trashed: left there.
+    published                    reported as it stands, never overwritten.
+    pending, scheduled, private  draft_changed: somebody decided that here.
+    open in WordPress elsewhere  post_locked: not published, not overwritten.
+    draft, differs from record   draft_changed: not published, not overwritten.
+    draft, as recorded, same revision    status change only (repget_publish_draft).
+    draft, as recorded, newer revision   that revision written to this post, then published.
+    draft, no record             written before this plugin kept one: published
+                                 only if it holds exactly what RepGet sends
+                                 now (repget_draft_holds), else draft_unverified.
+
+  A refusal is reported and RepGet clears the press: nothing retries it, and
+  nothing here resolves it. Pressing again looks again.
+
+  WRITING OVER A POST. Any other hand-over that finds a post goes by the same
+  record. "existingPost" is a person's press updating a live post; with neither
+  instruction it is RepGet handing an article over again, because the report of
+  the last hand-over never arrived:
+
+                                 a person's press       a hand-over again
+    this revision, as recorded   reported, no write     reported, no write
+    another, as recorded         written (see below)    written (see below)
+    this revision, edited since  published_in_wordpress reported as it stands
+    another, edited since        post_changed           reported as it stands
+    no record                    only if it holds what  the same, else reported
+                                 RepGet sends, else     as it stands
+                                 post_unverified
+    open in WordPress elsewhere  post_locked            reported as it stands
+    in the trash                 update_trashed         reported as it stands
+    no post                      update_deleted         created, as a new article
+
+  A hand-over that nobody pressed is reported as delivered, not refused: it
+  reached a post that exists, there is no person to tell, and a refusal would
+  bring it back at every check. RepGet then offers it only to a press, which
+  looks again.
+
+  THE WRITE IS A COMPARE-AND-SWAP (repget_overwrite_post, repget_publish_draft):
+  one UPDATE whose WHERE holds the exact bytes of every column the check read,
+  so a save reaching the row first makes it match nothing, decided in the
+  database and not in this code. MD5, because a column's collation calls a change
+  of letter case equal. The row is then read to see who won, since MySQL counts
+  changed rows and SQLite matched ones. A loser writes nothing and is a refusal.
+  A save landing after the swap is simply the later save, and stands.
+
+  WHAT IS NOT ATOMIC, and which way each one falls:
+   - The featured image and all post meta are not in that row. The image is read
+     once more just before the UPDATE, so one changed earlier refuses; one changed
+     in that instant is not seen by the swap. It is not lost either: nothing here
+     replaces a featured image somebody chose (repget_sync_header). It goes into
+     the record, so the next press does not count it as a change.
+   - The record is written in its own query, just after the swap. A process
+     killed between the two leaves a post that reads as changed: refused, never
+     overwritten.
+   - The pictures, categories, SEO fields and hooks that follow the swap can each
+     stop part way. The text is already there, and the same revision again does
+     not rewrite it.
+   - A table not in a UTF-8 character set hashes other bytes than PHP does, so
+     nothing would ever match: every write there is refused, none overwrites.
+   - wp_check_post_lock is advisory. It is a time and a user id in post meta,
+     kept fresh by the editor's heartbeat, good for 150 seconds. A closed tab may
+     hold it that long, REST clients and other editors do not take or respect it,
+     and it says nothing about the person this very check runs as. Somebody with
+     unsaved work who opens the post just after this check, and then saves,
+     replaces this write, as any later save does.
+
+  The columns are passed through what wp_insert_post runs them through, so they
+  hold what wp_update_post would have stored. Its query cannot be guarded, so
+  after the swap this does the rest of what it does (repget_after_row_write).
+*/
+define('REPGET_PRESS_REFUSALS', array('draft_changed', 'draft_unverified', 'post_trashed', 'post_deleted', 'post_changed', 'post_unverified', 'post_locked', 'update_trashed', 'update_deleted'));
+
+/** The revision a hand-over carries, '' without one. */
+function repget_dispatch_revision($article) {
+    return isset($article['dispatch']['revision']) && is_string($article['dispatch']['revision']) ? $article['dispatch']['revision'] : '';
+}
+
+/**
+ * The row as it is now, for this plugin's own comparison: straight from the
+ * database, past any object cache another process's save has not cleared.
+ */
+function repget_fresh_post($post_id) {
+    clean_post_cache($post_id);
+    return get_post($post_id);
+}
+
+/** What a row holds as a reader would see it, with its featured image. See above. */
+function repget_row_fingerprint($post, $thumbnail) {
+    return hash('sha256', implode("\0", array(
+        $post->post_title,
+        $post->post_content,
+        $post->post_excerpt,
+        $post->post_name,
+        $post->post_password,
+        (string) (int) $thumbnail,
+    )));
+}
+
+function repget_post_fingerprint($post_id) {
+    $post = repget_fresh_post($post_id);
+    return $post ? repget_row_fingerprint($post, get_post_thumbnail_id($post_id)) : '';
+}
+
+function repget_remember_written($post_id, $revision) {
+    update_post_meta($post_id, REPGET_META_WRITTEN, wp_slash(array(
+        'fingerprint' => repget_post_fingerprint($post_id),
+        'revision'    => (string) $revision,
+    )));
+}
+
+/** The record, from a row this plugin knows to the byte. The featured image is read now: see above. */
+function repget_remember_row($row, $revision) {
+    clean_post_cache($row->ID);
+    update_post_meta($row->ID, REPGET_META_WRITTEN, wp_slash(array(
+        'fingerprint' => repget_row_fingerprint($row, get_post_thumbnail_id($row->ID)),
+        'revision'    => (string) $revision,
+    )));
+}
+
+/** A date somebody set ahead: publishing now would not be what they asked for. */
+function repget_dated_ahead($post) {
+    return $post->post_date_gmt !== '0000-00-00 00:00:00' && strtotime($post->post_date_gmt . ' UTC') > time();
+}
+
+/** The record, when the post still is what it says; null otherwise. */
+function repget_written_current($post_id, $post = null) {
+    $written = get_post_meta($post_id, REPGET_META_WRITTEN, true);
+    if (!is_array($written) || empty($written['fingerprint'])) {
+        return null;
+    }
+    $now = $post ? repget_row_fingerprint($post, get_post_thumbnail_id($post_id)) : repget_post_fingerprint($post_id);
+    return hash_equals((string) $written['fingerprint'], $now) ? $written : null;
+}
+
+/**
+ * Somebody else has this post open in WordPress's editor. Advisory: see above.
+ * The function lives in an admin file, and a check runs from cron and REST too.
+ */
+function repget_open_elsewhere($post_id) {
+    if (!function_exists('wp_check_post_lock')) {
+        require_once ABSPATH . 'wp-admin/includes/post.php';
+    }
+    return (bool) wp_check_post_lock($post_id);
+}
+
+/**
+ * What this hand-over may do with the post it found, from one reading of it,
+ * before anything is written. See the tables above. '' when it takes the
+ * ordinary path: a post to create.
+ */
+function repget_press_step($article, $existing, $revision, $post) {
+    $draft = isset($article['existingDraft']) && is_array($article['existingDraft']);
+    $update = isset($article['existingPost']) && is_array($article['existingPost']);
+    if ($existing === 0) {
+        if ($update) {
+            return 'update_deleted';
+        }
+        return $draft && !empty($article['existingDraft']['delivered']) ? 'post_deleted' : '';
+    }
+    if (!$post) {
+        return $draft ? 'post_deleted' : ($update ? 'update_deleted' : 'leave');
+    }
+
+    $status = $post->post_status;
+    $written = repget_written_current($existing, $post);
+    $record = get_post_meta($existing, REPGET_META_WRITTEN, true);
+    $recorded = is_array($record) && !empty($record['fingerprint']);
+    $same_revision = $recorded && $revision !== '' && hash_equals((string) (isset($record['revision']) ? $record['revision'] : ''), $revision);
+    $as_sent = $written !== null && $same_revision;
+
+    if ($draft) {
+        if ($status === 'trash') {
+            return 'post_trashed';
+        }
+        if ($status === 'publish') {
+            return $as_sent ? 'on_site' : 'published_in_wordpress';
+        }
+        if ($status !== 'draft' || repget_dated_ahead($post)) {
+            return 'draft_changed';
+        }
+        if ($written === null && $recorded) {
+            return 'draft_changed';
+        }
+        if (repget_open_elsewhere($existing)) {
+            return 'post_locked';
+        }
+        if ($written !== null) {
+            return $as_sent ? 'publish' : 'write';
+        }
+        return 'prove';
+    }
+
+    if ($update) {
+        if ($status === 'trash') {
+            return 'update_trashed';
+        }
+        if ($as_sent) {
+            return 'on_site';
+        }
+        if ($same_revision) {
+            return $status === 'publish' ? 'published_in_wordpress' : 'post_changed';
+        }
+        if ($written === null && $recorded) {
+            return 'post_changed';
+        }
+        if (repget_open_elsewhere($existing)) {
+            return 'post_locked';
+        }
+        return $written !== null ? 'overwrite' : 'prove_update';
+    }
+
+    if ($status === 'trash') {
+        return 'leave';
+    }
+    if ($as_sent) {
+        return 'on_site';
+    }
+    if ($written === null && $recorded) {
+        return 'leave';
+    }
+    if (repget_open_elsewhere($existing)) {
+        return 'leave';
+    }
+    return $written !== null ? 'overwrite' : 'prove_handover';
+}
+
+/**
+ * A hand-over nobody pressed reached a post it may not write to. Reported as it
+ * stands, so RepGet knows the post and stops offering it. A post that is live is
+ * said to be somebody's own: what it holds is not known to be this revision.
+ */
+function repget_leave_post($article_id, $dispatch_id, $post_id, $status) {
+    repget_confirm($article_id, $dispatch_id, $post_id, $status, get_post_status($post_id) === 'publish' ? 'published_in_wordpress' : '');
+}
+
+/**
+ * The same revision again writes no text, but a picture that could not be copied
+ * last time is tried again, as repget_sync_header promises. Only then: this is
+ * the one thing a repeated hand-over may still have to do.
+ */
+function repget_header_again($post, $article, $slug, $revision) {
+    if (empty($article['image']['url'])) {
+        return;
+    }
+    $record = get_post_meta($post->ID, REPGET_META_HEADER, true);
+    if (is_array($record) && isset($record['url']) && empty($record['wanted'])) {
+        return;
+    }
+    repget_sync_header($post->ID, $article['image'], $slug, $article['title'], false);
+    repget_social_apply($post->ID, repget_social_fields($post->post_title, $post->post_excerpt, (int) get_post_thumbnail_id($post->ID)));
+    repget_remember_row($post, $revision);
+}
+
+/**
+ * For a post with no record: does it hold exactly what this hand-over would
+ * write? What the row would store is worked out as WordPress would store it, so
+ * its filters are not mistaken for an edit. A featured image that is not this
+ * article's is not what RepGet sent either, unless only the text is in question.
+ */
+function repget_draft_holds($post, $fields, $article, $text_only = false) {
+    if (!$post) {
+        return false;
+    }
+    $post_id = $post->ID;
+    foreach (array('post_title', 'post_content', 'post_excerpt') as $field) {
+        $stored = wp_unslash(sanitize_post_field($field, wp_slash($fields[$field]), $post_id, 'db'));
+        if ($stored !== $post->$field) {
+            return false;
+        }
+    }
+    if ($fields['post_name'] !== '' && $fields['post_name'] !== $post->post_name) {
+        return false;
+    }
+    if ($text_only) {
+        return true;
+    }
+
+    $thumbnail = (int) get_post_thumbnail_id($post_id);
+    if (empty($article['image']['url'])) {
+        return $thumbnail === 0;
+    }
+    $url = (string) $article['image']['url'];
+    $hint = isset($article['image']['attachmentId']) ? $article['image']['attachmentId'] : 0;
+    return $thumbnail > 0 && ($thumbnail === repget_own_attachment($url, $hint) || $thumbnail === repget_find_image($url));
+}
+
+/**
+ * The WHERE of a compare-and-swap: this row still holds, to the byte, what the
+ * check read. Every posts column of the fingerprint, and the status and date a
+ * press decides on. See above.
+ */
+function repget_row_guard($post) {
+    global $wpdb;
+    return $wpdb->prepare(
+        'ID = %d AND post_status = %s AND post_date_gmt = %s AND MD5(post_title) = %s AND MD5(post_content) = %s AND MD5(post_excerpt) = %s AND MD5(post_name) = %s AND MD5(post_password) = %s',
+        $post->ID,
+        $post->post_status,
+        $post->post_date_gmt,
+        md5($post->post_title),
+        md5($post->post_content),
+        md5($post->post_excerpt),
+        md5($post->post_name),
+        md5($post->post_password)
+    );
+}
+
+/**
+ * What wp_update_post would store over this row, as wp_insert_post works it out:
+ * every column through sanitize_post, the address its way, emoji for a database
+ * that cannot hold them, and the wp_insert_post_data filter other plugins use.
+ * Unslashed columns, ready for the database.
+ *
+ * $fields go in as this plugin always passed them to wp_update_post, so they are
+ * stored as they always were.
+ */
+function repget_row_for_update($post, $fields) {
+    global $wpdb;
+    $row = wp_slash(get_object_vars($post));
+    unset($row['filter']);
+    $unsanitized = array_merge($row, $fields);
+    $merged = sanitize_post($unsanitized, 'db');
+
+    $status = $merged['post_status'];
+    $name = $merged['post_name'];
+    if ($name === '') {
+        $name = in_array($status, array('draft', 'pending', 'auto-draft'), true) ? '' : sanitize_title($merged['post_title']);
+    } else {
+        $old = sanitize_title($name, '', 'old-save');
+        $name = strtolower(urlencode($name)) === $old && $post->post_name === $old ? $old : sanitize_title($name);
+    }
+    $merged['post_name'] = wp_unique_post_slug($name, $post->ID, $status, $post->post_type, $post->post_parent);
+    $merged['post_modified'] = current_time('mysql');
+    $merged['post_modified_gmt'] = current_time('mysql', true);
+
+    $data = array();
+    foreach (array('post_author', 'post_date', 'post_date_gmt', 'post_content', 'post_content_filtered', 'post_title', 'post_excerpt', 'post_status', 'post_type', 'comment_status', 'ping_status', 'post_password', 'post_name', 'to_ping', 'pinged', 'post_modified', 'post_modified_gmt', 'post_parent', 'menu_order', 'post_mime_type', 'guid') as $column) {
+        if (isset($merged[$column])) {
+            $data[$column] = $merged[$column];
+        }
+    }
+    foreach (array('post_title', 'post_content', 'post_excerpt') as $column) {
+        if (isset($data[$column]) && $wpdb->get_col_charset($wpdb->posts, $column) === 'utf8') {
+            $data[$column] = wp_encode_emoji($data[$column]);
+        }
+    }
+    return wp_unslash(apply_filters('wp_insert_post_data', $data, $merged, $unsanitized, true));
+}
+
+/**
+ * Sets columns on a row only if it still is what was checked. Returns the row
+ * as it now stands when this write won, null when it did not, and a WP_Error when
+ * the database would not answer. The row decides, not the count of changed rows.
+ */
+function repget_swap_row($post, $data) {
+    global $wpdb;
+    $set = array();
+    $values = array();
+    foreach ($data as $column => $value) {
+        if (property_exists($post, $column) && (string) $value !== (string) $post->$column) {
+            $set[] = "`{$column}` = %s";
+            $values[] = (string) $value;
+        }
+    }
+    if ($set) {
+        $written = $wpdb->query($wpdb->prepare("UPDATE {$wpdb->posts} SET " . implode(', ', $set) . ' WHERE ', $values) . repget_row_guard($post));
+        if ($written === false) {
+            return new WP_Error('repget_write', __('The site database refused the change, so this post was not changed.', 'repget'));
+        }
+    }
+    $now = repget_fresh_post($post->ID);
+    if (!$now) {
+        return null;
+    }
+    foreach ($data as $column => $value) {
+        if (property_exists($now, $column) && (string) $value !== (string) $now->$column) {
+            return null;
+        }
+    }
+    return $now;
+}
+
+/**
+ * The rest of what a save does, once this plugin's own UPDATE has won: the order
+ * and hooks wp_insert_post uses for an update.
+ *
+ *   wp_transition_post_status   sitemaps, feeds, notifications, translation plugins
+ *   edit_post_{type}, edit_post comment and term caches, cache-purging plugins
+ *   post_updated                WordPress's own revision, and the redirect from a changed address
+ *   save_post_{type}, save_post what SEO and most other plugins listen to
+ *   wp_insert_post, wp_after_insert_post   the same, later, and revisions since 6.0
+ *
+ * Left out, because this write does not touch what they keep: terms, meta_input
+ * and attachment handling.
+ *
+ * Returns the row a record should be taken from: $row, unless one of these hooks
+ * saved the post itself in this process, which is no edit by anybody. A save from
+ * another process is not counted, so it is never taken for this plugin's own.
+ */
+function repget_after_row_write($row, $before) {
+    $resaved = false;
+    $seen = function ($id) use (&$resaved, $row) {
+        if ((int) $id === (int) $row->ID) {
+            $resaved = true;
+        }
+    };
+    add_action('pre_post_update', $seen);
+
+    $post_id = $row->ID;
+    wp_transition_post_status($row->post_status, $before->post_status, $row);
+    do_action("edit_post_{$row->post_type}", $post_id, $row);
+    do_action('edit_post', $post_id, $row);
+    do_action('post_updated', $post_id, repget_fresh_post($post_id), $before);
+    do_action("save_post_{$row->post_type}", $post_id, $row, true);
+    do_action('save_post', $post_id, $row, true);
+    do_action('wp_insert_post', $post_id, $row, true);
+    wp_after_insert_post($row, true, $before);
+
+    remove_action('pre_post_update', $seen);
+    return $resaved ? repget_fresh_post($post_id) : $row;
+}
+
+/** The text being replaced, as a revision, where revisions are on and it is not the latest already. */
+function repget_keep_revision($before) {
+    if (!wp_revisions_enabled($before)) {
+        return;
+    }
+    foreach (wp_get_post_revisions($before->ID, array('posts_per_page' => 1)) as $latest) {
+        if ($latest->post_title === $before->post_title && $latest->post_content === $before->post_content && $latest->post_excerpt === $before->post_excerpt) {
+            return;
+        }
+    }
+    _wp_put_post_revision($before);
+}
+
+/**
+ * Writes a revision over a post, only if the post still is what was checked.
+ * Returns the row as written, null when somebody got there first (nothing was
+ * written), a WP_Error when the database would not answer. See above.
+ */
+function repget_overwrite_post($post, $thumbnail, $fields, $revision) {
+    $data = repget_row_for_update($post, $fields);
+    if ($data['post_title'] === '' && $data['post_content'] === '' && $data['post_excerpt'] === '') {
+        return new WP_Error('repget_write', __('This article arrived with nothing in it, so the post was not changed.', 'repget'));
+    }
+
+    // Outside the row, so outside the swap. As late as it can be read.
+    clean_post_cache($post->ID);
+    if ((int) get_post_thumbnail_id($post->ID) !== (int) $thumbnail) {
+        return null;
+    }
+
+    do_action('pre_post_update', $post->ID, $data);
+    $row = repget_swap_row($post, $data);
+    if (!is_object($row) || is_wp_error($row)) {
+        return $row;
+    }
+
+    // At once, so a process killed further on leaves a post that is on record.
+    repget_remember_row($row, $revision);
+    repget_keep_revision($post);
+    return repget_after_row_write($row, $post);
+}
+
+/**
+ * Makes a draft live, changing nothing a person wrote.
+ *
+ * wp_publish_post sets the status with an UPDATE no check can be part of, so a
+ * save just before it would go live unseen. Its status change goes into this
+ * compare-and-swap instead, with what a draft lacks: its date (a draft has no
+ * GMT date, and goes live dated now, as the Publish button in WordPress does)
+ * and a unique address (drafts may share one). The rest of wp_publish_post
+ * follows, so sitemaps, caches and translation plugins all see a publish.
+ *
+ * $post is the row that was checked, not a new reading of it. Returns the row
+ * as it then stands, null when it stopped being that draft, a WP_Error when the
+ * database would not answer.
+ */
+function repget_publish_draft($post) {
+    if (!$post || $post->post_status !== 'draft') {
+        return null;
+    }
+
+    // A featured image changed since it was recorded: not the draft that was checked. Outside the swap.
+    clean_post_cache($post->ID);
+    $record = get_post_meta($post->ID, REPGET_META_WRITTEN, true);
+    if (is_array($record) && !empty($record['fingerprint']) && !hash_equals((string) $record['fingerprint'], repget_row_fingerprint($post, get_post_thumbnail_id($post->ID)))) {
+        return null;
+    }
+
+    $undated = $post->post_date_gmt === '0000-00-00 00:00:00';
+    $row = repget_swap_row($post, array(
+        'post_status'       => 'publish',
+        'post_date'         => $undated ? current_time('mysql') : $post->post_date,
+        'post_date_gmt'     => $undated ? current_time('mysql', true) : $post->post_date_gmt,
+        'post_modified'     => current_time('mysql'),
+        'post_modified_gmt' => current_time('mysql', true),
+        'post_name'         => wp_unique_post_slug(
+            $post->post_name !== '' ? $post->post_name : sanitize_title($post->post_title),
+            $post->ID,
+            'publish',
+            $post->post_type,
+            $post->post_parent
+        ),
+    ));
+    if (!is_object($row) || is_wp_error($row)) {
+        return $row;
+    }
+
+    // As wp_publish_post: a post goes live with its taxonomies' default terms, if it has none.
+    foreach (get_object_taxonomies($post->post_type) as $taxonomy) {
+        $default = (int) get_option($taxonomy === 'category' ? 'default_category' : 'default_term_' . $taxonomy, 0);
+        if ($default > 0 && !wp_get_post_terms($post->ID, $taxonomy, array('fields' => 'ids'))) {
+            wp_set_post_terms($post->ID, array($default), $taxonomy);
+        }
+    }
+    return repget_after_row_write($row, $post);
+}
+
+/** Publishes the checked draft and reports what happened. True when it went live. */
+function repget_finish_press($article_id, $dispatch_id, $post_id, $revision, $checked) {
+    $live = repget_publish_draft($checked);
+    if (is_wp_error($live)) {
+        repget_report($article_id, $dispatch_id, null, $post_id, $live->get_error_message(), 'draft');
+        return false;
+    }
+    if (!$live) {
+        repget_report($article_id, $dispatch_id, null, $post_id, 'draft_changed', 'draft', 'draft_changed');
+        return false;
+    }
+    repget_remember_row($live, $revision);
+    repget_confirm($article_id, $dispatch_id, $post_id, 'publish');
+    return true;
 }
 
 /**
@@ -2228,9 +2951,10 @@ function repget_move_articles_to($post_type) {
  *
  * `dispatchId` (1.6.0+) names the exact hand-over; '' for reports that are
  * not a delivery (a moved post) or were parked by 1.5.x. `status` is the
- * post status WordPress stored.
+ * post status WordPress stored. `outcome` (1.10.0) says what a Publish press
+ * on a draft found: see "A Publish press on a draft".
  */
-function repget_report($article_id, $dispatch_id, $url, $remote_id, $error, $status = 'publish') {
+function repget_report($article_id, $dispatch_id, $url, $remote_id, $error, $status = 'publish', $outcome = '') {
     $body = array(
         'articleId' => $article_id,
         'url'       => $url,
@@ -2240,6 +2964,9 @@ function repget_report($article_id, $dispatch_id, $url, $remote_id, $error, $sta
     );
     if ($dispatch_id !== '') {
         $body['dispatchId'] = $dispatch_id;
+    }
+    if ($outcome !== '') {
+        $body['outcome'] = $outcome;
     }
     return repget_request('/api/plugin/published', array(
         'method' => 'POST',
@@ -2269,10 +2996,335 @@ function repget_attach_image($post_id, $url, $alt, $slug = '', $title = '', $att
             REPGET_IMAGE_TIMEOUT
         );
         if (is_wp_error($attachment_id)) {
-            return;
+            return 0;
         }
     }
     set_post_thumbnail($post_id, $attachment_id);
+    // WordPress drops a featured image that does not render: that is no picture set, and is tried again.
+    return (int) get_post_thumbnail_id($post_id) === (int) $attachment_id ? (int) $attachment_id : 0;
+}
+
+/**
+ * Keeps a post's featured image in step with RepGet's picture, without taking
+ * it from the site owner.
+ *
+ * Before 1.10.0 the picture was set on creation only: a picture changed in
+ * RepGet never reached the post, and one that failed to download never came.
+ * What was set is now remembered on the post (REPGET_META_HEADER), which is what
+ * tells "RepGet's picture changed" from "somebody chose another one here":
+ *
+ *  - a new post gets the picture, or, sent without one, the first one sent later;
+ *  - the same picture again (a retried hand-over) changes nothing;
+ *  - a different picture replaces the one RepGet set, if that one is still the
+ *    featured image. If it is not, it was replaced or removed on this site, and
+ *    stays that way;
+ *  - a picture that could not be copied is tried again at the next hand-over,
+ *    and a failed replacement keeps the old picture in place meanwhile;
+ *  - a post from before 1.10.0 has no record of who chose its image, so its
+ *    image is left alone; the record starts from what it holds now.
+ *
+ * repget_attach_image reuses a copy already in the media library, so none of
+ * this adds a duplicate attachment.
+ */
+function repget_sync_header($post_id, $image, $slug, $title, $is_new) {
+    $url = (string) $image['url'];
+    $alt = isset($image['alt']) ? $image['alt'] : '';
+    $hint = isset($image['attachmentId']) ? $image['attachmentId'] : 0;
+    $current = (int) get_post_thumbnail_id($post_id);
+    $record = get_post_meta($post_id, REPGET_META_HEADER, true);
+    $known = is_array($record) && isset($record['url']);
+
+    if (!$known && !$is_new) {
+        $same = $current > 0 && ($current === repget_own_attachment($url, $hint) || $current === repget_find_image($url));
+        repget_remember_header($post_id, $url, $same ? $current : 0, false);
+        return;
+    }
+
+    $ours = $known ? (int) $record['attachment'] : 0;
+    if ($known) {
+        if ($ours > 0 && $current !== $ours) {
+            return; // Replaced or removed on this site.
+        }
+        if ($ours === 0 && ($current > 0 || empty($record['wanted']))) {
+            return; // Chosen on this site, or a post from before the record.
+        }
+        if ($ours > 0 && repget_same_address($record['url'], $url)) {
+            return; // The same picture: a retried hand-over, or an edit of the text.
+        }
+    }
+
+    $attachment = repget_attach_image($post_id, $url, $alt, $slug, $title, $hint);
+    if ($attachment > 0) {
+        repget_remember_header($post_id, $url, $attachment, false);
+    } elseif ($ours > 0) {
+        repget_remember_header($post_id, $record['url'], $ours, false);
+    } else {
+        repget_remember_header($post_id, $url, 0, true);
+    }
+}
+
+function repget_remember_header($post_id, $url, $attachment, $wanted) {
+    update_post_meta($post_id, REPGET_META_HEADER, wp_slash(array(
+        'url'        => (string) $url,
+        'attachment' => (int) $attachment,
+        'wanted'     => (bool) $wanted,
+    )));
+}
+
+/* -------------------------------------------------------------------------- */
+/* Rank Math (1.10.0)                                                         */
+/* -------------------------------------------------------------------------- */
+
+/*
+  Rank Math's "Social" tab keeps its Facebook and Twitter fields in these post
+  meta keys (checked against Rank Math 1.0.281's own code: includes/admin/
+  metabox/class-screen.php names them for its editor, includes/opengraph/
+  class-opengraph.php and class-image.php read them for the page's tags):
+
+    rank_math_facebook_title, rank_math_facebook_description,
+    rank_math_facebook_image (the address, shown in its editor),
+    rank_math_facebook_image_id (the attachment, used for the page's tags),
+    the same four for twitter, and rank_math_twitter_use_facebook: unless it
+    is "off" the Twitter tags are read from the Facebook fields and the editor
+    hides the Twitter ones. Rank Math's own importers set it to "off" when they
+    write Twitter fields (class-plugin-importer.php), and so does this.
+
+  These are the only keys written, on RepGet's own articles only, and only with
+  Rank Math active. Nothing arrives from RepGet except the article itself: no
+  key names travel over the wire.
+
+  A SITE OWNER'S EDIT IS KEPT. What was written is remembered per field
+  (REPGET_META_SOCIAL). A field is rewritten only while it still holds exactly
+  that, and filled only while it is empty. So a field edited or emptied in Rank
+  Math, or filled in before this plugin first wrote it, is left alone for good.
+  A process that dies after writing a field but before remembering it loses
+  nothing: the next run finds the wanted value there and takes it as written,
+  or, if the article has changed since, keeps the field as somebody's edit.
+*/
+
+function repget_rank_math_active() {
+    return defined('RANK_MATH_VERSION');
+}
+
+/**
+ * What an article's social fields should hold: field name => (meta key => value).
+ * A field with several keys is one choice: the image's address and attachment.
+ * The image is the attachment given, or nothing: never an address that is not
+ * this site's own media, and never a picture other than the featured image.
+ */
+function repget_social_fields($title, $description, $attachment_id) {
+    $url = $attachment_id > 0 ? wp_get_attachment_url($attachment_id) : '';
+    $has_image = is_string($url) && $url !== '';
+    $fields = array();
+    foreach (array('facebook', 'twitter') as $network) {
+        $fields["{$network}_title"] = array("rank_math_{$network}_title" => (string) $title);
+        $fields["{$network}_description"] = array("rank_math_{$network}_description" => (string) $description);
+        $fields["{$network}_image"] = array(
+            "rank_math_{$network}_image"    => $has_image ? $url : '',
+            "rank_math_{$network}_image_id" => $has_image ? (string) (int) $attachment_id : '',
+        );
+    }
+    $fields['twitter_use_facebook'] = array('rank_math_twitter_use_facebook' => 'off');
+    return $fields;
+}
+
+/** What was last written to a post's social fields: field name => (meta key => value). */
+function repget_social_written($post_id) {
+    $written = get_post_meta($post_id, REPGET_META_SOCIAL, true);
+    return is_array($written) ? $written : array();
+}
+
+/**
+ * What applying $fields would do to each one, without writing anything:
+ *   'write' - empty, or still what was last written: set it;
+ *   'clear' - nothing to put there any more, and it still holds what was written;
+ *   'same'  - holds this already;
+ *   'kept'  - edited here (or filled in before this plugin wrote it): left alone.
+ */
+function repget_social_plan($post_id, $fields) {
+    $written = repget_social_written($post_id);
+    // Rank Math's editor may store "&" as "&amp;": that is not an edit.
+    $plain = function ($values) {
+        return array_map(function ($value) {
+            return html_entity_decode((string) $value, ENT_QUOTES, 'UTF-8');
+        }, $values);
+    };
+    $plan = array();
+    foreach ($fields as $name => $wanted) {
+        $current = array();
+        foreach ($wanted as $key => $value) {
+            $current[$key] = (string) get_post_meta($post_id, $key, true);
+        }
+        $is_empty = implode('', $current) === '';
+        $is_ours = isset($written[$name]) && $plain($current) === $plain((array) $written[$name]);
+        if ($plain($current) === $plain($wanted)) {
+            $plan[$name] = 'same';
+        } elseif (isset($written[$name]) ? !$is_ours : !$is_empty) {
+            $plan[$name] = 'kept';
+        } else {
+            $plan[$name] = implode('', $wanted) === '' ? 'clear' : 'write';
+        }
+    }
+    return $plan;
+}
+
+/** Applies $fields to a post; returns the plan it followed. Nothing without Rank Math. */
+function repget_social_apply($post_id, $fields) {
+    if (!repget_rank_math_active()) {
+        return array();
+    }
+    $plan = repget_social_plan($post_id, $fields);
+    $before = repget_social_written($post_id);
+    $written = $before;
+    foreach ($plan as $name => $action) {
+        if ($action === 'kept') {
+            continue;
+        }
+        if ($action === 'write' || $action === 'clear') {
+            foreach ($fields[$name] as $key => $value) {
+                if ($value === '') {
+                    delete_post_meta($post_id, $key);
+                } else {
+                    update_post_meta($post_id, $key, wp_slash($value));
+                }
+            }
+        }
+        if (implode('', $fields[$name]) === '') {
+            unset($written[$name]);
+        } else {
+            $written[$name] = $fields[$name];
+        }
+    }
+    if ($written !== $before) {
+        update_post_meta($post_id, REPGET_META_SOCIAL, wp_slash($written));
+    }
+    return $plan;
+}
+
+/**
+ * The featured image changed, whoever changed it: the social images follow it,
+ * unless they were edited by hand. RepGet's own articles only.
+ */
+function repget_social_follow_thumbnail($meta_id, $post_id, $meta_key) {
+    if ($meta_key !== '_thumbnail_id' || !repget_rank_math_active()) {
+        return;
+    }
+    if ((string) get_post_meta($post_id, REPGET_META_ARTICLE, true) === '') {
+        return;
+    }
+    $images = array_intersect_key(
+        repget_social_fields('', '', (int) get_post_thumbnail_id($post_id)),
+        array('facebook_image' => 1, 'twitter_image' => 1)
+    );
+    repget_social_apply($post_id, $images);
+}
+add_action('added_post_meta', 'repget_social_follow_thumbnail', 10, 3);
+add_action('updated_post_meta', 'repget_social_follow_thumbnail', 10, 3);
+add_action('deleted_post_meta', 'repget_social_follow_thumbnail', 10, 3);
+
+/**
+ * An article's title and description for the backfill: Rank Math's own SEO
+ * title and description where they are plain words ("%title% | %sitename%" is a
+ * template, not a title), else the post's title and excerpt, which is what
+ * RepGet sent as its meta description.
+ */
+function repget_social_source($post) {
+    $choose = function ($key, $fallback) use ($post) {
+        $own = trim((string) get_post_meta($post->ID, $key, true));
+        return $own !== '' && strpos($own, '%') === false ? $own : (string) $fallback;
+    };
+    return array(
+        $choose('rank_math_title', $post->post_title),
+        $choose('rank_math_description', $post->post_excerpt),
+    );
+}
+
+/**
+ * Fills the social fields of articles RepGet published before 1.10.0.
+ *
+ * Bounded: at most REPGET_SOCIAL_BACKFILL_MAX posts a run, from $offset; the
+ * answer's "next" is where the following run starts (0 at the end). A DRY RUN
+ * UNLESS $apply is true: it writes nothing, not even its record. Only posts
+ * carrying RepGet's article tag are looked at, in every language, trash excepted.
+ * Fields somebody filled in are reported as kept, and kept.
+ */
+function repget_social_backfill($limit = 25, $offset = 0, $apply = false) {
+    $limit = max(1, min((int) $limit, REPGET_SOCIAL_BACKFILL_MAX));
+    $offset = max(0, (int) $offset);
+    $report = array('active' => repget_rank_math_active(), 'applied' => (bool) $apply, 'offset' => $offset, 'next' => 0, 'to_write' => 0, 'posts' => array());
+    if (!$report['active']) {
+        return $report;
+    }
+    $ids = get_posts(array(
+        'post_type'        => 'any',
+        'post_status'      => 'any',
+        'posts_per_page'   => $limit + 1,
+        'offset'           => $offset,
+        'fields'           => 'ids',
+        'orderby'          => 'ID',
+        'order'            => 'ASC',
+        'no_found_rows'    => true,
+        // A translation plugin must not hide the other languages' articles.
+        'suppress_filters' => true,
+        'meta_key'         => REPGET_META_ARTICLE,
+    ));
+    if (count($ids) > $limit) {
+        $ids = array_slice($ids, 0, $limit);
+        $report['next'] = $offset + $limit;
+    }
+    foreach ($ids as $post_id) {
+        $post = get_post($post_id);
+        if (!$post) {
+            continue;
+        }
+        list($title, $description) = repget_social_source($post);
+        $fields = repget_social_fields($title, $description, (int) get_post_thumbnail_id($post->ID));
+        $plan = $apply ? repget_social_apply($post->ID, $fields) : repget_social_plan($post->ID, $fields);
+        $changes = count(array_intersect($plan, array('write', 'clear')));
+        $report['to_write'] += $changes;
+        $report['posts'][] = array(
+            'id'      => (int) $post->ID,
+            'title'   => (string) $post->post_title,
+            'changes' => $changes,
+            'kept'    => array_keys($plan, 'kept', true),
+        );
+    }
+    return $report;
+}
+
+/** The backfill's answer, on the settings page. */
+function repget_social_report_table($report) {
+    if (empty($report['posts'])) {
+        echo '<p>' . esc_html__('No articles to look at here.', 'repget') . '</p>';
+        return;
+    }
+    echo '<p><strong>' . esc_html($report['applied'] ? __('Done. Fields written:', 'repget') : __('Preview: nothing has changed. Fields that would be written:', 'repget')) . ' ' . (int) $report['to_write'] . '</strong></p>';
+    echo '<table class="widefat striped"><thead><tr><th>' . esc_html__('Article', 'repget') . '</th><th>' . esc_html($report['applied'] ? __('Written', 'repget') : __('Would be written', 'repget')) . '</th><th>' . esc_html__('Kept, edited by hand', 'repget') . '</th></tr></thead><tbody>';
+    foreach ($report['posts'] as $row) {
+        echo '<tr><td>' . esc_html($row['title']) . ' (#' . (int) $row['id'] . ')</td><td>' . (int) $row['changes'] . '</td><td>' . esc_html(implode(', ', $row['kept'])) . '</td></tr>';
+    }
+    echo '</tbody></table>';
+}
+
+/*
+  The same from the command line: a dry run unless --apply is given.
+    wp repget social-backfill [--limit=25] [--offset=0] [--apply]
+*/
+if (defined('WP_CLI') && WP_CLI) {
+    WP_CLI::add_command('repget social-backfill', function ($args, $options) {
+        $report = repget_social_backfill(
+            isset($options['limit']) ? (int) $options['limit'] : 25,
+            isset($options['offset']) ? (int) $options['offset'] : 0,
+            !empty($options['apply'])
+        );
+        if (!$report['active']) {
+            WP_CLI::error('Rank Math is not active.');
+        }
+        foreach ($report['posts'] as $row) {
+            WP_CLI::log(sprintf('#%d %s: %d to write, kept: %s', $row['id'], $row['title'], $row['changes'], implode(', ', $row['kept'])));
+        }
+        WP_CLI::success(sprintf('%s: %d fields. Next offset: %d.', $report['applied'] ? 'Written' : 'Dry run, nothing written', $report['to_write'], $report['next']));
+    });
 }
 
 /**
@@ -2285,13 +3337,14 @@ function repget_attach_image($post_id, $url, $alt, $slug = '', $title = '', $att
  */
 function repget_own_attachment($url, $hint) {
     $hint = (int) $hint;
-    if ($hint > 0 && get_post_type($hint) === 'attachment' && wp_attachment_is_image($hint)
+    // A photo somebody put in the trash (MEDIA_TRASH) is not one to bring back.
+    if ($hint > 0 && get_post_type($hint) === 'attachment' && wp_attachment_is_image($hint) && get_post_status($hint) !== 'trash'
         && repget_same_address(wp_get_attachment_url($hint), $url)) {
         return $hint;
     }
     // Only an address in this site's uploads can match; anything else costs one meta query and finds nothing.
     $found = (int) attachment_url_to_postid((string) $url);
-    return $found > 0 && wp_attachment_is_image($found) ? $found : 0;
+    return $found > 0 && wp_attachment_is_image($found) && get_post_status($found) !== 'trash' ? $found : 0;
 }
 
 /** Two addresses of one picture: the same but for http/https and letter case. */
@@ -2613,7 +3666,7 @@ function repget_find_image($url) {
         'meta_key'         => '_source_url',
         'meta_value'       => $url,
     ));
-    return $found ? (int) $found[0] : 0;
+    return $found && wp_attachment_is_image((int) $found[0]) ? (int) $found[0] : 0;
 }
 
 /**
@@ -2905,17 +3958,23 @@ function repget_localize_older_posts($prefixes, $deadline, $token = null) {
         $pictures = repget_localize_images($post->post_content, $prefixes, $post->ID, $fallback, $deadline);
 
         if ($pictures['html'] !== $post->post_content) {
-            // MD5: exact bytes - the column's collation would call a change of letter case "equal".
+            // This plugin's own write: a draft that was as recorded still is.
+            $written_record = repget_written_current($post->ID, $post);
+            // The same compare-and-swap, on every column the record covers.
             $written = $wpdb->query($wpdb->prepare(
-                "UPDATE {$wpdb->posts} SET post_content = %s WHERE ID = %d AND MD5(post_content) = %s",
-                $pictures['html'],
-                $post->ID,
-                md5($post->post_content)
-            ));
+                "UPDATE {$wpdb->posts} SET post_content = %s WHERE ",
+                $pictures['html']
+            ) . repget_row_guard($post));
             clean_post_cache($post->ID);
             if ($written !== 1) {
                 // Edited meanwhile (or the write failed): the next check starts from what is there now.
                 continue;
+            }
+            if ($written_record !== null) {
+                // From the row as written, not a new reading: see "writing over a post".
+                $row = clone $post;
+                $row->post_content = $pictures['html'];
+                repget_remember_row($row, $written_record['revision']);
             }
             $changed++;
         }

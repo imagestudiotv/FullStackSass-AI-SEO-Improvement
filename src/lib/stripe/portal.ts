@@ -2,6 +2,7 @@
 
 import { and, eq, isNotNull } from "drizzle-orm";
 
+import { hasWaitingOffer } from "@/lib/billing/repget-subscription";
 import { db } from "@/lib/db";
 import { billingCustomers, subscriptions, websites } from "@/lib/db/schema";
 import { isStripeConfigured, stripe } from "@/lib/stripe/client";
@@ -111,9 +112,28 @@ export async function createPortalSession(
   }
 
   try {
+    /*
+      With a REPGET discount waiting, the portal must not change a plan: that can
+      end the free period and charge at once with the wrong coupon on. Change plan
+      in Billing carries the right one (lib/billing/repget-subscription.ts). The
+      portal keeps its other features through a configuration without plan changes.
+      Without that configuration, it opens on updating the card alone.
+    */
+    const waiting = flow !== "cancel" && (await hasWaitingOffer(orgId));
+    const noPlanChange = process.env.STRIPE_PORTAL_CONFIG_NO_PLAN_CHANGE;
+    const returnUrl = `${appUrl()}/billing`;
     const session = await stripe.billingPortal.sessions.create({
       customer: row.customerId,
-      return_url: `${appUrl()}/billing`,
+      return_url: returnUrl,
+      ...(waiting && noPlanChange ? { configuration: noPlanChange } : {}),
+      ...(waiting && !noPlanChange
+        ? {
+            flow_data: {
+              type: "payment_method_update" as const,
+              after_completion: { type: "redirect" as const, redirect: { return_url: returnUrl } },
+            },
+          }
+        : {}),
       ...(flow === "cancel" && subscriptionId
         ? {
             flow_data: {

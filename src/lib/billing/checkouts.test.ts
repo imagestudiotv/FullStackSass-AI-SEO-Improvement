@@ -843,6 +843,9 @@ describe("duplicate checkouts and subscriptions", () => {
     stripeMock.subscriptionsRetrieve.mockResolvedValueOnce({
       id: "sub_live",
       customer: "cus_test",
+      status: "active",
+      metadata: {},
+      discounts: [],
       items: { data: [{ id: "si_1", quantity: 1 }] },
     });
     stripeMock.portalCreate.mockResolvedValueOnce({ url: "https://billing.stripe.test/confirm" });
@@ -858,7 +861,51 @@ describe("duplicate checkouts and subscriptions", () => {
         items: [{ id: "si_1", price: "price_scale" }],
       },
     });
+    expect(stripeMock.portalCreate.mock.calls[0][0].flow_data.subscription_update_confirm.discounts).toBeUndefined();
     expect(await checkouts()).toHaveLength(0);
+  });
+
+  describe("with a REPGET discount not used yet", () => {
+    const onGrow = async () => {
+      const site = await addSite();
+      await test.db.insert(subscriptions).values({ organizationId: "org_a", websiteId: site.id, planId, status: "trialing", stripeSubscriptionId: "sub_live" });
+      stripeMock.subscriptionsRetrieve.mockResolvedValueOnce({
+        id: "sub_live",
+        customer: "cus_test",
+        status: "trialing",
+        metadata: { repget_offer: "REPGET" },
+        discounts: [{ id: "di_1", source: { coupon: "GROW40" } }],
+        items: { data: [{ id: "si_1", quantity: 1 }] },
+      });
+      return site;
+    };
+    const scale = () => test.db.insert(plans).values({ name: "Scale", tier: "scale", interval: "month", currency: "eur", priceCents: 34900, stripePriceId: "price_scale_2", articleLimit: 30, keywordLimit: 100, siteLimit: 1, monthlyCredits: 0, catalogVersion: 40 }).returning().then(([row]) => row.id);
+
+    it("the new plan's coupon is in the same Stripe request as the change", async () => {
+      const site = await onGrow();
+      stripeMock.portalCreate.mockResolvedValueOnce({ url: "https://billing.stripe.test/confirm" });
+      expect(await createCheckoutSession(await scale(), site.id)).toEqual({ url: "https://billing.stripe.test/confirm" });
+      expect(stripeMock.portalCreate.mock.calls[0][0].flow_data.subscription_update_confirm).toMatchObject({
+        items: [{ id: "si_1", price: "price_scale_2" }],
+        discounts: [{ coupon: "SCALE40" }],
+      });
+    });
+
+    it("a coupon Stripe refuses stops the change: no full price, the customer is told, staff are emailed", async () => {
+      const site = await onGrow();
+      const log = vi.spyOn(console, "error").mockImplementation(() => {});
+      stripeMock.portalCreate.mockRejectedValueOnce(stripeRefusal("No such coupon: 'SCALE40'"));
+      expect(await createCheckoutSession(await scale(), site.id)).toEqual({ error: expect.stringContaining("you have not been charged") });
+      expect(mail.sendEmail.mock.calls[0][0].text).toContain("SCALE40");
+      log.mockRestore();
+    });
+
+    it("to annual: refused before Stripe is asked to change anything", async () => {
+      const site = await onGrow();
+      const annual = await test.db.insert(plans).values({ name: "Grow (Annual)", tier: "grow", interval: "year", currency: "eur", priceCents: 149000, stripePriceId: "price_grow_year", articleLimit: 30, keywordLimit: 100, siteLimit: 1, monthlyCredits: 0, catalogVersion: 41 }).returning().then(([row]) => row.id);
+      expect(await createCheckoutSession(annual, site.id)).toEqual({ error: expect.stringContaining("monthly plan") });
+      expect(stripeMock.portalCreate).not.toHaveBeenCalled();
+    });
   });
 
   it("says so for the plan the website is already on", async () => {

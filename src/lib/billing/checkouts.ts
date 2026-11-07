@@ -607,6 +607,12 @@ export async function beginCheckout(
     Boolean(c.checkoutUrl);
 
   /*
+    A REPGET checkout counts every other website's too, so learn which of those
+    are over first. Read, never expired: they are somebody's open checkouts.
+  */
+  if (input.offer) await settleOpenCheckouts(database, { organizationId: input.organizationId }, ops, now, () => true);
+
+  /*
     Only a checkout the provider answered for during THIS request is trusted
     to still be open, and so to be sent back to.
   */
@@ -797,6 +803,30 @@ export async function beginCheckout(
     await tx.execute(
       sql`select pg_advisory_xact_lock(hashtextextended(${`trial:${org.id}`}, 0))`,
     );
+    /*
+      One redemption per workspace, decided under the lock above, across its
+      websites. Completed used it. Open, or not yet known, holds it. Expired or
+      failed gives it back, so opening a checkout does not spend it.
+    */
+    if (input.offer) {
+      const taken = await tx
+        .select({ status: billingCheckouts.status })
+        .from(billingCheckouts)
+        .where(
+          and(
+            eq(billingCheckouts.organizationId, org.id),
+            inArray(billingCheckouts.status, [...BLOCKING_DELETION, "completed"]),
+            sql`${billingCheckouts.requestParams} ->> 'offer' = ${input.offer}`,
+          ),
+        );
+      if (taken.some((row) => row.status === "completed")) {
+        return { kind: "refuse", error: `This workspace has already used the ${input.offer} code.` };
+      }
+      if (taken.length > 0) {
+        return { kind: "refuse", error: `The ${input.offer} code is on another checkout in this workspace. Finish that one, or try again once it has expired.` };
+      }
+    }
+
     const freeArticlesPossible =
       replaces === null &&
       (input.provider === "stripe" || (input.provider === "paypal" && (await hasPayPalFreeArticles(tx, input.planId))));
@@ -812,6 +842,8 @@ export async function beginCheckout(
         status: "open",
         trialDays,
         replacesSubscriptionId: replaces,
+        // Written here, under the lock, so a second checkout sees it. The request recorded next keeps it.
+        ...(input.offer ? { requestParams: { offer: input.offer } } : {}),
         /*
           From the app clock, not the column default: settleOpenCheckouts
           compares it with the app clock, and a database session in another

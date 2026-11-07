@@ -1,8 +1,3 @@
-import { and, eq, sql } from "drizzle-orm";
-
-import { billingCheckouts } from "@/lib/db/schema";
-import type { Executor } from "@/lib/db/types";
-
 /**
  * The REPGET code: 40% off the first paid month of a monthly plan (the owner's
  * decision, 2026-11-05; docs/plan-catalog.md).
@@ -62,18 +57,3 @@ export function readOfferCode(
   return { coupon };
 }
 
-/** One redemption per workspace: a checkout that completed with this offer. */
-export async function repgetOfferUsed(executor: Pick<Executor, "select">, organizationId: string): Promise<boolean> {
-  const [row] = await executor
-    .select({ id: billingCheckouts.id })
-    .from(billingCheckouts)
-    .where(
-      and(
-        eq(billingCheckouts.organizationId, organizationId),
-        eq(billingCheckouts.status, "completed"),
-        sql`${billingCheckouts.requestParams} ->> 'offer' = ${REPGET_CODE}`,
-      ),
-    )
-    .limit(1);
-  return Boolean(row);
-}
