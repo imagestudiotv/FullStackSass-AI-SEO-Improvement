@@ -110,7 +110,7 @@ export async function convertPartnerCommissions(deps: PartnerDeps, input: { part
       amount: -settlement.transferAmount,
       operationKey: `credits:${settlement.id}`,
       settlementId: settlement.id,
-      reason: `Paid ${Money.of(settlement.transferAmount, input.currency).toDecimalString()} ${input.currency.toUpperCase()} as ${credits} RepGet credits (${pack.credits} for ${(pack.priceCents / 100).toFixed(2)})`,
+      reason: `Paid ${Money.of(settlement.transferAmount, input.currency).toDecimalString()} ${input.currency.toUpperCase()} as ${credits} RepGet credits (${pack.credits} for ${Money.of(pack.priceCents, input.currency).toDecimalString()})`,
       actor: "system",
     });
     await tx.settlements.setState(settlement.id, ["reserved"], "transferred", { transferredAt: now });
