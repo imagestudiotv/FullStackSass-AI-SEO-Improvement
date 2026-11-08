@@ -185,6 +185,28 @@ export function payPalForPlan(
 }
 
 /**
+ * A plan with the other billing period (monthly <-> yearly) for a website
+ * already paying through PayPal: PayPal cannot switch it (lib/paypal/
+ * plan-changes.ts refuses), so the card says so in place of a PayPal button
+ * that would only answer the click with an error. A website on its PayPal
+ * free articles is not blocked: choosing a plan there starts a new
+ * subscription, of either period.
+ */
+export function payPalIntervalBlocked(
+  subscription: Pick<CurrentSubscription, "provider" | "status" | "interval"> | null,
+  plan: Pick<PlanRow, "interval">,
+  options: Pick<PaymentOptions, "billedBy">,
+): boolean {
+  return (
+    options.billedBy === "paypal" &&
+    subscription?.provider === "paypal" &&
+    subscription.status !== "trialing" &&
+    Boolean(subscription.interval) &&
+    plan.interval !== subscription.interval
+  );
+}
+
+/**
  * Where a card payment's invoice is found when the webhook left no link:
  * Stripe's portal, behind "Manage billing".
  *  - "page": the plan section already has the button (paymentOptions'

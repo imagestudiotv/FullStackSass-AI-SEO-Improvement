@@ -223,6 +223,7 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
         entitled={isEntitled(current?.status)}
         paypalAvailable={paypalAvailable}
         offerCopy={repgetOfferEnabled() ? OFFER_CODE[locale] : null}
+        paypalIntervalNote={PAYPAL_PLAN_CHANGE_COPY[locale].intervalSwitch}
         checkout={checkout}
         addonResult={addonResult}
         addonPayPalCopy={PAYPAL_PURCHASE_COPY[locale]}

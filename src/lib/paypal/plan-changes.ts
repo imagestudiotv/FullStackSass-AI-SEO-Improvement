@@ -147,7 +147,7 @@ export async function startPlanChange(
     return {
       kind: "error",
       error:
-        "Switching between monthly and yearly billing is not possible through PayPal. Cancel this subscription and choose the new plan once it has ended, or pay by card.",
+        "Switching between monthly and yearly billing is not possible through PayPal. Cancel this subscription; when its paid period ends, you can choose the new plan by card or PayPal.",
     };
   }
   if (from.currency !== to.currency) return { kind: "error", error: "These plans are billed in different currencies." };

@@ -52,6 +52,7 @@ import {
   formatMoney,
   paymentOptions,
   payPalForPlan,
+  payPalIntervalBlocked,
   planFeatures,
   planGridClass,
   subscriptionStatus,
@@ -96,6 +97,8 @@ type BillingClientProps = {
   locale: Locale;
   /** The REPGET field's words, or null while the offer is off. */
   offerCopy?: OfferCodeCopy | null;
+  /** Why a PayPal-billed website cannot switch monthly <-> yearly (lib/i18n/paypal-plan-change.ts). */
+  paypalIntervalNote?: string;
   /** Shared words used on several screens. */
   tCommon: Messages["app"]["common"];
 };
@@ -127,6 +130,7 @@ export function BillingClient({
   t,
   locale,
   offerCopy = null,
+  paypalIntervalNote,
   tCommon,
 }: BillingClientProps) {
   const [offerCode, setOfferCode] = useState("");
@@ -346,7 +350,9 @@ export function BillingClient({
 
   function planCard(plan: PlanRow) {
     const isCurrent = subscription?.planId === plan.id && entitled;
-    const paypal = payPalForPlan(plan, options);
+    // Monthly <-> yearly cannot be switched through PayPal: a note in place of the button.
+    const intervalBlocked = payPalIntervalBlocked(subscription, plan, options);
+    const paypal = payPalForPlan(plan, options) && !intervalBlocked;
     const saving = plan.interval === "year" ? annualSaving(monthlyByTier.get(plan.tier), plan) : 0;
     const busy = pending?.planId === plan.id;
     const headingId = `plan-${plan.id}`;
@@ -445,7 +451,9 @@ export function BillingClient({
                   )}
                 </Button>
               ) : null}
-              {!options.card && !paypal ? (
+              {intervalBlocked && paypalIntervalNote ? (
+                <p className="text-xs leading-5 text-muted-foreground">{paypalIntervalNote}</p>
+              ) : !options.card && !paypal ? (
                 <p className="text-xs leading-5 text-muted-foreground">{t.noPlanChange}</p>
               ) : null}
             </>

@@ -16,11 +16,15 @@ export type PayPalPlanChangeCopy = {
   approveButton: string;
   scheduled: (plan: string, date: string) => string;
   refunding: (amount: string) => string;
+  /** On a plan card with the other billing period, in place of the PayPal button. */
+  intervalSwitch: string;
   result: Record<"completed" | "pending" | "cancelled" | "refunded" | "failed", string>;
 };
 
 export const PAYPAL_PLAN_CHANGE_COPY: Record<Locale, PayPalPlanChangeCopy> = {
   en: {
+    intervalSwitch:
+      "PayPal cannot switch between monthly and yearly billing. To change, cancel your PayPal subscription; when your paid period ends, you can choose this plan by card or PayPal.",
     payTitle: (plan) => `Your change to ${plan} is waiting for payment`,
     payBody: (amount) =>
       `Upgrading through PayPal is paid in two steps: first the difference for the rest of this billing period (${amount}), then you approve the new price on PayPal. Nothing changes until both are done.`,
@@ -41,6 +45,8 @@ export const PAYPAL_PLAN_CHANGE_COPY: Record<Locale, PayPalPlanChangeCopy> = {
     },
   },
   es: {
+    intervalSwitch:
+      "PayPal no permite cambiar entre facturación mensual y anual. Para cambiar, cancele su suscripción de PayPal; cuando termine el periodo pagado, podrá elegir este plan con tarjeta o PayPal.",
     payTitle: (plan) => `Su cambio a ${plan} está pendiente de pago`,
     payBody: (amount) =>
       `El cambio a un plan superior con PayPal se paga en dos pasos: primero la diferencia por el resto de este periodo de facturación (${amount}) y después aprueba el nuevo precio en PayPal. No cambia nada hasta completar ambos.`,
@@ -61,6 +67,8 @@ export const PAYPAL_PLAN_CHANGE_COPY: Record<Locale, PayPalPlanChangeCopy> = {
     },
   },
   fr: {
+    intervalSwitch:
+      "PayPal ne permet pas de passer d’une facturation mensuelle à annuelle, ni l’inverse. Pour changer, résiliez votre abonnement PayPal ; à la fin de la période payée, vous pourrez choisir cette formule par carte ou avec PayPal.",
     payTitle: (plan) => `Votre passage à ${plan} attend le paiement`,
     payBody: (amount) =>
       `Passer à une formule supérieure avec PayPal se règle en deux étapes : d’abord la différence pour le reste de cette période de facturation (${amount}), puis vous approuvez le nouveau prix sur PayPal. Rien ne change avant la fin des deux étapes.`,
@@ -81,6 +89,8 @@ export const PAYPAL_PLAN_CHANGE_COPY: Record<Locale, PayPalPlanChangeCopy> = {
     },
   },
   it: {
+    intervalSwitch:
+      "PayPal non consente di passare dalla fatturazione mensile a quella annuale, né viceversa. Per cambiare, annulli l’abbonamento PayPal; al termine del periodo pagato potrà scegliere questo piano con carta o PayPal.",
     payTitle: (plan) => `Il passaggio a ${plan} è in attesa di pagamento`,
     payBody: (amount) =>
       `Il passaggio a un piano superiore con PayPal si paga in due passaggi: prima la differenza per il resto di questo periodo di fatturazione (${amount}), poi approva il nuovo prezzo su PayPal. Non cambia nulla finché entrambi non sono completati.`,
@@ -101,6 +111,8 @@ export const PAYPAL_PLAN_CHANGE_COPY: Record<Locale, PayPalPlanChangeCopy> = {
     },
   },
   de: {
+    intervalSwitch:
+      "PayPal kann nicht zwischen monatlicher und jährlicher Abrechnung wechseln. Kündigen Sie dazu Ihr PayPal-Abonnement; nach Ende des bezahlten Zeitraums können Sie diesen Tarif per Karte oder mit PayPal wählen.",
     payTitle: (plan) => `Ihr Wechsel zu ${plan} wartet auf die Zahlung`,
     payBody: (amount) =>
       `Ein Upgrade über PayPal wird in zwei Schritten bezahlt: zuerst die Differenz für den Rest dieses Abrechnungszeitraums (${amount}), dann bestätigen Sie den neuen Preis bei PayPal. Bis beides erledigt ist, ändert sich nichts.`,
