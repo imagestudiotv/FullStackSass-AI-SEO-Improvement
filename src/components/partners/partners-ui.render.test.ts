@@ -18,6 +18,7 @@ vi.mock("@/lib/auth-client", () => ({ authClient: { emailOtp: { sendVerification
 import PartnerError from "@/app/(partner)/partner/error";
 import { PartnersContent } from "@/app/(marketing)/partners-content";
 import { LOCALES, localePath } from "@/lib/i18n/config";
+import { APPLICATION_LIMITS } from "@/lib/partners/domain/entities/application";
 import { DEFAULT_PROGRAM_POLICY } from "@/lib/partners/domain/policies/program";
 import { fill, partnerCopy } from "@/lib/partners/presentation/copy";
 
@@ -163,7 +164,7 @@ describe("the public /partners page", () => {
 describe("portal components", () => {
   it.each(LOCALES)("%s: the application form labels every field", (locale) => {
     const copy = partnerCopy(locale).portal.apply;
-    const html = renderToStaticMarkup(createElement(ApplicationForm, { copy, countries: [{ code: "IT", name: "Italia" }] }));
+    const html = renderToStaticMarkup(createElement(ApplicationForm, { copy, countries: [{ code: "IT", name: "Italia" }], limits: APPLICATION_LIMITS }));
     for (const id of ["website", "audience", "promotion", "country"]) {
       expect(html).toContain(`for="${id}"`);
       expect(html).toContain(`aria-describedby="${id}-hint"`);

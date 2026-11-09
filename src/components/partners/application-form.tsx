@@ -4,13 +4,14 @@ import { ArrowRight, Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition, type ReactNode } from "react";
 
-import { APPLICATION_LIMITS } from "@/lib/partners/domain/entities/application";
 import { submitPartnerApplicationAction } from "@/lib/partners/presentation/actions";
 import { fill, type PartnerCopy } from "@/lib/partners/presentation/copy";
 import { cn } from "@/lib/utils";
 
 type Copy = PartnerCopy["portal"]["apply"];
 type FieldName = "website" | "audience" | "promotion" | "country" | "terms";
+/** The answers' lengths (domain/entities/application.ts APPLICATION_LIMITS), passed by the server page: the partner domain stays out of client code (architecture.test). */
+export type ApplicationLimits = { website: number; textMin: number; audience: number; promotion: number };
 
 /** The same address test the server makes (use-cases/submit-application.ts validateAnswers). */
 const WEBSITE = /^https?:\/\/[^\s]+\.[^\s]+$/i;
@@ -36,11 +37,14 @@ export function ApplicationForm({
   copy,
   countries,
   termsHref = "/partners",
+  limits,
 }: {
   copy: Copy;
   countries: { code: string; name: string }[];
   /** The program page, whose questions hold the terms, in the applicant's language. */
   termsHref?: string;
+  /** The server's limits, the one definition the use case checks too. */
+  limits: ApplicationLimits;
 }) {
   const router = useRouter();
   const form = useRef<HTMLFormElement>(null);
@@ -48,7 +52,7 @@ export function ApplicationForm({
   const [failure, setFailure] = useState<string | null>(null);
   const [lengths, setLengths] = useState({ audience: 0, promotion: 0 });
   const [pending, start] = useTransition();
-  const min = APPLICATION_LIMITS.textMin;
+  const min = limits.textMin;
 
   function message(field: FieldName): string {
     return fill(copy.errors[field], { min });
@@ -59,10 +63,10 @@ export function ApplicationForm({
     const found: Partial<Record<FieldName, string>> = {};
     const text = (name: string) => String(data.get(name) ?? "").trim();
     const website = text("website");
-    if (!WEBSITE.test(website) || website.length > APPLICATION_LIMITS.website) found.website = message("website");
+    if (!WEBSITE.test(website) || website.length > limits.website) found.website = message("website");
     for (const name of ["audience", "promotion"] as const) {
       const length = text(name).length;
-      if (length < min || length > APPLICATION_LIMITS[name]) found[name] = message(name);
+      if (length < min || length > limits[name]) found[name] = message(name);
     }
     if (!countries.some((country) => country.code === text("country"))) found.country = message("country");
     if (data.get("terms") !== "on") found.terms = message("terms");
@@ -149,7 +153,7 @@ export function ApplicationForm({
             inputMode="url"
             autoComplete="url"
             required
-            maxLength={APPLICATION_LIMITS.website}
+            maxLength={limits.website}
             placeholder={copy.websitePlaceholder}
             aria-describedby={describedBy("website")}
             aria-invalid={errors.website ? true : undefined}
@@ -166,14 +170,14 @@ export function ApplicationForm({
             required={copy.required}
             hint={copy[`${name}Hint`]}
             error={errors[name]}
-            counter={fill(copy.counter, { count: lengths[name], max: APPLICATION_LIMITS[name] })}
+            counter={fill(copy.counter, { count: lengths[name], max: limits[name] })}
           >
             <textarea
               id={name}
               name={name}
               required
               minLength={min}
-              maxLength={APPLICATION_LIMITS[name]}
+              maxLength={limits[name]}
               rows={4}
               placeholder={copy[`${name}Placeholder`]}
               aria-describedby={describedBy(name)}

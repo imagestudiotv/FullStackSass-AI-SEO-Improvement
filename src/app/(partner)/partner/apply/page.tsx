@@ -6,6 +6,7 @@ import { ApplicationForm } from "@/components/partners/application-form";
 import { VerifyEmail } from "@/components/partners/verify-email";
 import { isLocale, localePath } from "@/lib/i18n/config";
 import { applicationStatus } from "@/lib/partners/application/use-cases/submit-application";
+import { APPLICATION_LIMITS } from "@/lib/partners/domain/entities/application";
 import { fill } from "@/lib/partners/presentation/copy";
 import { publicPayoutTerms } from "@/lib/partners/presentation/payout-terms";
 import { partnerDeps } from "@/lib/partners/server";
@@ -83,6 +84,7 @@ async function ApplicationState({
         copy={payout.form === "credits" ? { ...copy.apply, countryHint: copy.apply.countryHintCredits } : copy.apply}
         countries={countryNames(payout.countries, locale)}
         termsHref={program}
+        limits={APPLICATION_LIMITS}
       />
     </div>
   );
