@@ -7,6 +7,7 @@ import { VerifyEmail } from "@/components/partners/verify-email";
 import { isLocale, localePath } from "@/lib/i18n/config";
 import { applicationStatus } from "@/lib/partners/application/use-cases/submit-application";
 import { fill } from "@/lib/partners/presentation/copy";
+import { publicPayoutTerms } from "@/lib/partners/presentation/payout-terms";
 import { partnerDeps } from "@/lib/partners/server";
 
 import { countryNames, portalContext } from "../portal";
@@ -67,7 +68,7 @@ async function ApplicationState({
   copy: Awaited<ReturnType<typeof portalContext>>["copy"]["portal"];
 }) {
   const deps = partnerDeps();
-  const status = await applicationStatus(deps, applicant);
+  const [status, payout] = await Promise.all([applicationStatus(deps, applicant), publicPayoutTerms(deps)]);
   if (status.latest?.status === "submitted") {
     return (
       <Notice icon={Clock} title={copy.apply.pendingTitle} body={fill(copy.apply.pendingBody, { email: applicant.email })} />
@@ -77,7 +78,12 @@ async function ApplicationState({
   return (
     <div className="space-y-6">
       {status.latest?.status === "rejected" ? <Notice icon={XCircle} title={copy.apply.rejectedTitle} body={copy.apply.rejectedBody} /> : null}
-      <ApplicationForm copy={copy.apply} countries={countryNames(deps.settings.payoutCountries(), locale)} termsHref={program} />
+      {/* The countries the server accepts (Stripe's, plus PayPal's while PayPal payouts run), and the hint for how partners are paid now. */}
+      <ApplicationForm
+        copy={payout.form === "credits" ? { ...copy.apply, countryHint: copy.apply.countryHintCredits } : copy.apply}
+        countries={countryNames(payout.countries, locale)}
+        termsHref={program}
+      />
     </div>
   );
 }

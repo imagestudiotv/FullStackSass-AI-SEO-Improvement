@@ -6,6 +6,7 @@ import styles from "@/components/partners/partners-page.module.css";
 import type { ProgramPolicy } from "@/lib/partners/domain/policies/program";
 import { fill, type PartnerCopy } from "@/lib/partners/presentation/copy";
 import { policyValues, rateLabel, sortedTiers } from "@/lib/partners/presentation/format";
+import type { PublicPayoutTerms } from "@/lib/partners/presentation/payout-terms";
 
 /**
  * The public partner program page (/partners and its translations), in
@@ -34,6 +35,7 @@ export function PartnersContent({
   href,
   plans = [],
   intlLocale = "en-IE",
+  payout = { form: "cash", countries: [] },
 }: {
   copy: PartnerCopy["page"];
   policy: ProgramPolicy;
@@ -43,6 +45,12 @@ export function PartnersContent({
   /** Active monthly plans, for the earnings estimate (none: no estimate). */
   plans?: CalculatorPlan[];
   intlLocale?: string;
+  /**
+   * How partners are paid right now (presentation/payout-terms.ts): credits
+   * replace the payout answer and add a line to the disclaimer; cash shows
+   * Daniel's payout wording as written. Without it, cash.
+   */
+  payout?: PublicPayoutTerms;
 }) {
   const tiers = sortedTiers(policy);
   const low = rateLabel(tiers[0].rateBasisPoints);
@@ -60,7 +68,22 @@ export function PartnersContent({
       .map((tier) => fill(copy.tierPhrase, { rate: rateLabel(tier.rateBasisPoints), count: tier.minCustomers }))
       .join(", "),
   };
-  const faq = copy.faq.map((item) => ({ question: item.question, answer: fill(item.answer, faqValues) }));
+  const creditRate =
+    payout.form === "credits" && payout.pack
+      ? fill(copy.credits.rate, {
+          credits: payout.pack.credits,
+          price: new Intl.NumberFormat(intlLocale, {
+            style: "currency",
+            currency: payout.pack.currency.toUpperCase(),
+            minimumFractionDigits: payout.pack.priceCents % 100 === 0 ? 0 : 2,
+          }).format(payout.pack.priceCents / 100),
+        })
+      : copy.credits.rateUnknown;
+  // While partners are paid in credits, the payout answer says so; nothing promises a method that is off.
+  const faq = copy.faq.map((item) => ({
+    question: item.question,
+    answer: item.payout && payout.form === "credits" ? fill(copy.credits.faq, { ...faqValues, rate: creditRate }) : fill(item.answer, faqValues),
+  }));
   const faqSchema = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
@@ -127,7 +150,10 @@ export function PartnersContent({
           {plans.length > 0 ? (
             <p className={styles.disclaimer}>
               <InfoIcon />
-              <span>{fill(copy.disclaimer, values)}</span>
+              <span>
+                {fill(copy.disclaimer, values)}
+                {payout.form === "credits" ? " " + copy.credits.disclaimer : null}
+              </span>
             </p>
           ) : null}
 

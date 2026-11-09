@@ -108,7 +108,15 @@ export type PartnerCopy = {
     faqKicker: string;
     faqTitle: string;
     faqIntro: string;
-    faq: { question: string; answer: string }[];
+    /** `payout` marks the answer about being paid: Daniel's wording, shown while cash payouts run (`credits` replaces it otherwise). */
+    faq: { question: string; answer: string; payout?: boolean }[];
+    /**
+     * Partners paid in RepGet credits (owner's decision, 2026-11-07: credits now,
+     * cash later; presentation/payout-terms.ts). `faq` replaces the payout
+     * answer and uses {maturity} and {rate}; {rate} is `rate` ({credits},
+     * {price}) or `rateUnknown` when no credit pack is on sale.
+     */
+    credits: { faq: string; rate: string; rateUnknown: string; disclaimer: string };
     /** One higher level in the earnings answer's {tiers}. */
     tierPhrase: string;
     ctaKicker: string;
@@ -150,6 +158,8 @@ export type PartnerCopy = {
       country: string;
       /** Under the country list: Daniel's wording about bank and PayPal payouts. */
       countryHint: string;
+      /** In place of countryHint while partners are paid in credits. */
+      countryHintCredits: string;
       countryPlaceholder: string;
       terms: string;
       termsLink: string;
@@ -362,6 +372,7 @@ const en: PartnerCopy = {
       },
       {
         question: "When and how do I get paid?",
+        payout: true,
         answer:
           "Payouts run on the first of each month once commissions are at least {maturity} days old and your available balance reaches {amount}. Smaller balances carry over to the next payout cycle. Payouts are sent to your bank account through Stripe Connect, or via PayPal where that option is available.",
       },
@@ -378,7 +389,7 @@ const en: PartnerCopy = {
       {
         question: "Are commissions based on the advertised plan price?",
         answer:
-          "No. Commission is calculated on eligible subscription payments actually collected through Stripe, after discounts and excluding taxes, refunds, chargebacks and credits. Subscriptions paid through PayPal do not earn commission at the moment. New tier rates apply to eligible payments made after you reach the applicable tier.",
+          "No. Commission is calculated on eligible subscription payments actually collected, after discounts and excluding taxes, refunds, chargebacks and credits. Payments by card and by PayPal both count; partner coupon codes can only be used when paying by card. New tier rates apply to eligible payments made after you reach the applicable tier.",
       },
       {
         question: "Can I offer my audience a discount?",
@@ -396,6 +407,12 @@ const en: PartnerCopy = {
           "You earn commission only on eligible payments actually collected. If a customer cancels, there are no commissions on future unpaid periods. Refunds and chargebacks reverse the related commission, including after payout; adjustments are deducted from future payouts.",
       },
     ],
+    credits: {
+      faq: "For now, partners are paid in RepGet credits, not cash. Each commission becomes credits {maturity} days after the customer's payment, with no minimum: {rate}. The credits go to a workspace you own, chosen in your partner portal. If a customer is refunded after that, the amount is deducted from your next credits.",
+      rate: "{credits} credits for every {price} of commission, the price of the smallest credit pack",
+      rateUnknown: "at the price of the smallest credit pack",
+      disclaimer: "Commissions are currently paid as RepGet credits.",
+    },
     tierPhrase: "{rate} from {count} paying customers",
     ctaKicker: "Your next introduction could pay off",
     ctaTitle: "Help the right businesses grow. Get rewarded for it.",
@@ -437,6 +454,7 @@ const en: PartnerCopy = {
       counter: "{count} / {max}",
       country: "Payout country",
       countryHint: "Payout availability varies by country. Bank payouts and PayPal are available to eligible partners.",
+      countryHintCredits: "Partners are currently paid in RepGet credits, added to a workspace you choose. Choose the country you are based in.",
       countryPlaceholder: "Select your country",
       terms: "I agree to the {link} and understand that my application is subject to review.",
       termsLink: "Partner Program terms",
@@ -721,6 +739,7 @@ const es: PartnerCopy = {
       },
       {
         question: "¿Cuándo y cómo cobro?",
+        payout: true,
         answer:
           "Los pagos se hacen el día 1 de cada mes, cuando las comisiones tienen al menos {maturity} días y su saldo disponible llega a {amount}. Los saldos menores pasan al siguiente ciclo de pago. Los pagos se envían a su cuenta bancaria a través de Stripe Connect, o mediante PayPal donde esa opción esté disponible.",
       },
@@ -737,7 +756,7 @@ const es: PartnerCopy = {
       {
         question: "¿La comisión se basa en el precio anunciado del plan?",
         answer:
-          "No. La comisión se calcula sobre los pagos de suscripción válidos cobrados realmente a través de Stripe, después de descuentos y sin impuestos, reembolsos, contracargos ni créditos. Las suscripciones pagadas con PayPal no generan comisión por ahora. Las tasas de un nuevo nivel se aplican a los pagos válidos realizados después de alcanzarlo.",
+          "No. La comisión se calcula sobre los pagos de suscripción válidos cobrados realmente, después de descuentos y sin impuestos, reembolsos, contracargos ni créditos. Cuentan tanto los pagos con tarjeta como con PayPal; los códigos de cupón de socio solo se pueden usar al pagar con tarjeta. Las tasas de un nuevo nivel se aplican a los pagos válidos realizados después de alcanzarlo.",
       },
       {
         question: "¿Puedo ofrecer un descuento a mi audiencia?",
@@ -755,6 +774,12 @@ const es: PartnerCopy = {
           "Solo gana comisión sobre los pagos válidos cobrados realmente. Si un cliente cancela, no hay comisiones sobre periodos futuros no pagados. Los reembolsos y contracargos anulan la comisión correspondiente, incluso después del pago; los ajustes se descuentan de los pagos futuros.",
       },
     ],
+    credits: {
+      faq: "Por ahora, los socios cobran en créditos de RepGet, no en dinero. Cada comisión se convierte en créditos {maturity} días después del pago del cliente, sin mínimo: {rate}. Los créditos van a un espacio de trabajo suyo, que usted elige en su portal de socio. Si después se reembolsa a un cliente, el importe se descuenta de sus próximos créditos.",
+      rate: "{credits} créditos por cada {price} de comisión, el precio del paquete de créditos más pequeño",
+      rateUnknown: "al precio del paquete de créditos más pequeño",
+      disclaimer: "Por ahora, las comisiones se pagan en créditos de RepGet.",
+    },
     tierPhrase: "{rate} desde {count} clientes de pago",
     ctaKicker: "Su próxima recomendación puede dar frutos",
     ctaTitle: "Ayude a crecer a las empresas adecuadas. Y reciba una recompensa.",
@@ -796,6 +821,7 @@ const es: PartnerCopy = {
       counter: "{count} / {max}",
       country: "País de cobro",
       countryHint: "La disponibilidad de los pagos varía según el país. Los pagos bancarios y PayPal están disponibles para los socios que cumplan los requisitos.",
+      countryHintCredits: "Por ahora, los socios cobran en créditos de RepGet, que se añaden al espacio de trabajo que usted elija. Elija el país donde reside.",
       countryPlaceholder: "Seleccione su país",
       terms: "Acepto las {link} y entiendo que mi solicitud está sujeta a revisión.",
       termsLink: "condiciones del programa de socios",
@@ -1080,6 +1106,7 @@ const fr: PartnerCopy = {
       },
       {
         question: "Quand et comment suis-je payé ?",
+        payout: true,
         answer:
           "Les versements ont lieu le 1er de chaque mois, dès que les commissions ont au moins {maturity} jours et que votre solde disponible atteint {amount}. Les soldes inférieurs sont reportés au cycle suivant. Les versements sont envoyés sur votre compte bancaire via Stripe Connect, ou via PayPal lorsque cette option est disponible.",
       },
@@ -1096,7 +1123,7 @@ const fr: PartnerCopy = {
       {
         question: "La commission est-elle calculée sur le prix affiché du forfait ?",
         answer:
-          "Non. La commission est calculée sur les paiements d'abonnement éligibles réellement encaissés via Stripe, après remises et hors taxes, remboursements, rétrofacturations et crédits. Les abonnements payés via PayPal ne génèrent pas de commission pour le moment. Les taux d'un nouveau niveau s'appliquent aux paiements éligibles effectués après l'avoir atteint.",
+          "Non. La commission est calculée sur les paiements d'abonnement éligibles réellement encaissés, après remises et hors taxes, remboursements, rétrofacturations et crédits. Les paiements par carte et par PayPal comptent tous les deux ; les codes de réduction partenaires ne s'utilisent qu'avec un paiement par carte. Les taux d'un nouveau niveau s'appliquent aux paiements éligibles effectués après l'avoir atteint.",
       },
       {
         question: "Puis-je offrir une remise à mon audience ?",
@@ -1114,6 +1141,12 @@ const fr: PartnerCopy = {
           "Vous touchez une commission uniquement sur les paiements éligibles réellement encaissés. Si un client résilie, il n'y a pas de commission sur les périodes futures non payées. Les remboursements et rétrofacturations annulent la commission correspondante, même après versement ; les ajustements sont déduits des versements suivants.",
       },
     ],
+    credits: {
+      faq: "Pour l'instant, les partenaires sont rémunérés en crédits RepGet, et non en argent. Chaque commission devient des crédits {maturity} jours après le paiement du client, sans minimum : {rate}. Les crédits sont versés sur un espace de travail qui vous appartient, choisi dans votre espace partenaire. Si un client est remboursé ensuite, le montant est déduit de vos prochains crédits.",
+      rate: "{credits} crédits pour chaque {price} de commission, le prix du plus petit pack de crédits",
+      rateUnknown: "au prix du plus petit pack de crédits",
+      disclaimer: "Les commissions sont actuellement versées en crédits RepGet.",
+    },
     tierPhrase: "{rate} dès {count} clients payants",
     ctaKicker: "Votre prochaine recommandation peut rapporter",
     ctaTitle: "Aidez les bonnes entreprises à grandir. Soyez-en récompensé.",
@@ -1155,6 +1188,7 @@ const fr: PartnerCopy = {
       counter: "{count} / {max}",
       country: "Pays de versement",
       countryHint: "La disponibilité des versements varie selon le pays. Les virements bancaires et PayPal sont proposés aux partenaires éligibles.",
+      countryHintCredits: "Les partenaires sont actuellement rémunérés en crédits RepGet, versés sur l'espace de travail de votre choix. Choisissez le pays où vous résidez.",
       countryPlaceholder: "Choisissez votre pays",
       terms: "J'accepte les {link} et je comprends que ma candidature sera examinée.",
       termsLink: "conditions du programme partenaires",
@@ -1439,6 +1473,7 @@ const it: PartnerCopy = {
       },
       {
         question: "Quando e come vengo pagato?",
+        payout: true,
         answer:
           "I pagamenti avvengono il primo di ogni mese, quando le commissioni hanno almeno {maturity} giorni e il suo saldo disponibile raggiunge {amount}. I saldi inferiori passano al ciclo successivo. I pagamenti vengono inviati sul suo conto bancario tramite Stripe Connect, oppure tramite PayPal dove questa opzione è disponibile.",
       },
@@ -1455,7 +1490,7 @@ const it: PartnerCopy = {
       {
         question: "Le commissioni si basano sul prezzo pubblicato del piano?",
         answer:
-          "No. La commissione si calcola sui pagamenti idonei degli abbonamenti effettivamente incassati tramite Stripe, al netto di sconti ed esclusi tasse, rimborsi, chargeback e crediti. Gli abbonamenti pagati con PayPal per ora non generano commissioni. Le percentuali di un nuovo livello si applicano ai pagamenti idonei effettuati dopo averlo raggiunto.",
+          "No. La commissione si calcola sui pagamenti idonei degli abbonamenti effettivamente incassati, al netto di sconti ed esclusi tasse, rimborsi, chargeback e crediti. Contano sia i pagamenti con carta sia quelli con PayPal; i codici coupon partner si possono usare solo pagando con carta. Le percentuali di un nuovo livello si applicano ai pagamenti idonei effettuati dopo averlo raggiunto.",
       },
       {
         question: "Posso offrire uno sconto al mio pubblico?",
@@ -1473,6 +1508,12 @@ const it: PartnerCopy = {
           "Guadagna commissioni solo sui pagamenti idonei effettivamente incassati. Se un cliente disdice, non ci sono commissioni sui periodi futuri non pagati. Rimborsi e chargeback annullano la commissione relativa, anche dopo il pagamento; le rettifiche vengono detratte dai pagamenti successivi.",
       },
     ],
+    credits: {
+      faq: "Per ora i partner vengono pagati in crediti RepGet, non in denaro. Ogni commissione diventa crediti {maturity} giorni dopo il pagamento del cliente, senza minimo: {rate}. I crediti vanno su un'area di lavoro di sua proprietà, che sceglie nella sua area partner. Se in seguito un cliente viene rimborsato, l'importo viene detratto dai suoi prossimi crediti.",
+      rate: "{credits} crediti per ogni {price} di commissione, il prezzo del pacchetto di crediti più piccolo",
+      rateUnknown: "al prezzo del pacchetto di crediti più piccolo",
+      disclaimer: "Al momento le commissioni vengono pagate in crediti RepGet.",
+    },
     tierPhrase: "{rate} da {count} clienti paganti",
     ctaKicker: "La sua prossima segnalazione può ripagare",
     ctaTitle: "Aiuti le aziende giuste a crescere. E ne venga ricompensato.",
@@ -1514,6 +1555,7 @@ const it: PartnerCopy = {
       counter: "{count} / {max}",
       country: "Paese di pagamento",
       countryHint: "La disponibilità dei pagamenti varia da paese a paese. Bonifici bancari e PayPal sono disponibili per i partner idonei.",
+      countryHintCredits: "Al momento i partner vengono pagati in crediti RepGet, accreditati sull'area di lavoro che sceglie. Selezioni il paese in cui risiede.",
       countryPlaceholder: "Selezioni il suo paese",
       terms: "Accetto i {link} e comprendo che la mia candidatura sarà valutata.",
       termsLink: "termini del programma partner",
@@ -1798,6 +1840,7 @@ const de: PartnerCopy = {
       },
       {
         question: "Wann und wie werde ich bezahlt?",
+        payout: true,
         answer:
           "Auszahlungen erfolgen am Ersten jedes Monats, sobald Provisionen mindestens {maturity} Tage alt sind und Ihr verfügbares Guthaben {amount} erreicht. Kleinere Guthaben werden in den nächsten Auszahlungszyklus übertragen. Auszahlungen gehen über Stripe Connect auf Ihr Bankkonto oder über PayPal, wo diese Option verfügbar ist.",
       },
@@ -1814,7 +1857,7 @@ const de: PartnerCopy = {
       {
         question: "Richtet sich die Provision nach dem ausgeschriebenen Tarifpreis?",
         answer:
-          "Nein. Die Provision wird auf berechtigte Abo-Zahlungen berechnet, die tatsächlich über Stripe eingegangen sind, nach Rabatten und ohne Steuern, Erstattungen, Rückbuchungen und Gutschriften. Über PayPal bezahlte Abos bringen derzeit keine Provision. Neue Stufensätze gelten für berechtigte Zahlungen nach Erreichen der jeweiligen Stufe.",
+          "Nein. Die Provision wird auf berechtigte Abo-Zahlungen berechnet, die tatsächlich eingegangen sind, nach Rabatten und ohne Steuern, Erstattungen, Rückbuchungen und Gutschriften. Zahlungen per Karte und per PayPal zählen beide; Partner-Gutscheincodes lassen sich nur bei Kartenzahlung verwenden. Neue Stufensätze gelten für berechtigte Zahlungen nach Erreichen der jeweiligen Stufe.",
       },
       {
         question: "Kann ich meinem Publikum einen Rabatt anbieten?",
@@ -1832,6 +1875,12 @@ const de: PartnerCopy = {
           "Sie erhalten Provision nur auf tatsächlich eingegangene berechtigte Zahlungen. Kündigt ein Kunde, gibt es für künftige unbezahlte Zeiträume keine Provision. Erstattungen und Rückbuchungen heben die zugehörige Provision auf, auch nach der Auszahlung; Korrekturen werden von künftigen Auszahlungen abgezogen.",
       },
     ],
+    credits: {
+      faq: "Derzeit werden Partner in RepGet-Credits bezahlt, nicht in Geld. Jede Provision wird {maturity} Tage nach der Zahlung des Kunden zu Credits, ohne Mindestbetrag: {rate}. Die Credits gehen in einen Arbeitsbereich, der Ihnen gehört und den Sie in Ihrem Partnerbereich wählen. Wird ein Kunde danach erstattet, wird der Betrag von Ihren nächsten Credits abgezogen.",
+      rate: "{credits} Credits für je {price} Provision, der Preis des kleinsten Credit-Pakets",
+      rateUnknown: "zum Preis des kleinsten Credit-Pakets",
+      disclaimer: "Provisionen werden derzeit als RepGet-Credits ausgezahlt.",
+    },
     tierPhrase: "{rate} ab {count} zahlenden Kunden",
     ctaKicker: "Ihre nächste Empfehlung kann sich lohnen",
     ctaTitle: "Helfen Sie den richtigen Unternehmen zu wachsen. Und werden Sie dafür belohnt.",
@@ -1873,6 +1922,7 @@ const de: PartnerCopy = {
       counter: "{count} / {max}",
       country: "Auszahlungsland",
       countryHint: "Die Verfügbarkeit von Auszahlungen hängt vom Land ab. Banküberweisungen und PayPal stehen berechtigten Partnern zur Verfügung.",
+      countryHintCredits: "Partner werden derzeit in RepGet-Credits bezahlt, gutgeschrieben in einem Arbeitsbereich Ihrer Wahl. Wählen Sie das Land, in dem Sie ansässig sind.",
       countryPlaceholder: "Land auswählen",
       terms: "Ich stimme den {link} zu und verstehe, dass meine Bewerbung geprüft wird.",
       termsLink: "Bedingungen des Partnerprogramms",

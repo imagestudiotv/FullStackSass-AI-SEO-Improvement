@@ -48,7 +48,7 @@ export default async function AffiliateProgramPage() {
     <AdminPage>
       <AdminPageHeader
         title="Affiliate program"
-        description="RepGet's cash partner program: applications, partner links, commissions on Stripe-paid subscriptions, and payouts through Stripe Connect. Not the Partner Network (backlinks), and not the customers' credit referrals."
+        description="RepGet's partner program: applications, partner links, commissions on subscriptions paid by card or PayPal, and what partners are paid - RepGet credits for now (PARTNER_PAYOUT_FORM), cash through Stripe Connect or PayPal once switched on. Not the Partner Network (backlinks), and not the customers' credit referrals."
       />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

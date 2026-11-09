@@ -19,7 +19,7 @@ import PartnerError from "@/app/(partner)/partner/error";
 import { PartnersContent } from "@/app/(marketing)/partners-content";
 import { LOCALES, localePath } from "@/lib/i18n/config";
 import { DEFAULT_PROGRAM_POLICY } from "@/lib/partners/domain/policies/program";
-import { partnerCopy } from "@/lib/partners/presentation/copy";
+import { fill, partnerCopy } from "@/lib/partners/presentation/copy";
 
 import { balanceView, commissionRowView, metricsView, payoutRowView, referralRowView, totalsView } from "@/lib/partners/presentation/views";
 
@@ -112,11 +112,44 @@ describe("the public /partners page", () => {
     expect(text(html)).toContain(copy.closed);
   });
 
-  it("shows the owner's PayPal payout wording, and keeps commission on PayPal-paid subscriptions apart from it", () => {
-    const words = text(renderToStaticMarkup(createElement(PartnersContent, { copy: partnerCopy("en").page, policy: DEFAULT_PROGRAM_POLICY, open: true, locale: "en", href: (p: string) => p })));
+  it("with cash payouts on, shows Daniel's PayPal payout wording as written; PayPal-paid subscriptions earn commission either way", () => {
+    const words = text(
+      renderToStaticMarkup(
+        createElement(PartnersContent, { copy: partnerCopy("en").page, policy: DEFAULT_PROGRAM_POLICY, open: true, locale: "en", href: (p: string) => p, payout: { form: "cash", countries: ["IT"] } }),
+      ),
+    );
     expect(words).toContain("Payouts are sent to your bank account through Stripe Connect, or via PayPal where that option is available.");
-    expect(words).toContain("Subscriptions paid through PayPal do not earn commission at the moment.");
+    expect(words).toContain("Payments by card and by PayPal both count; partner coupon codes can only be used when paying by card.");
+    expect(words).not.toMatch(/do not earn commission|paid in RepGet credits/);
     expect(words).toContain("25–35% commission");
+  });
+
+  it.each(LOCALES)("%s: while partners are paid in credits, the payout answer and its schema say credits and promise no cash", (locale) => {
+    const copy = partnerCopy(locale).page;
+    const html = renderToStaticMarkup(
+      createElement(PartnersContent, {
+        copy,
+        policy: DEFAULT_PROGRAM_POLICY,
+        open: true,
+        locale,
+        href: (p: string) => localePath(locale, p),
+        plans: [{ id: "grow", name: "Grow", priceCents: 14_900, currency: "eur" }],
+        intlLocale: "en-IE",
+        payout: { form: "credits", pack: { priceCents: 7900, credits: 100, currency: "eur" }, countries: ["IT"] },
+      }),
+    );
+    const words = text(html);
+    const payoutItem = copy.faq.find((item) => item.payout)!;
+    // Daniel's cash wording stays in the copy for when cash is switched on, but is not shown now.
+    expect(words).not.toContain(fill(payoutItem.answer, { maturity: 30, amount: "€25.00" }).slice(0, 40));
+    expect(words).toContain("100");
+    expect(words).toContain("€79");
+    expect(words).toContain(copy.credits.disclaimer);
+    expect(words).not.toMatch(/\{\w+\}/);
+    const schema = JSON.parse(html.match(/<script type="application\/ld\+json">(.*?)<\/script>/)![1]) as { mainEntity: { name: string; acceptedAnswer: { text: string } }[] };
+    const answer = schema.mainEntity.find((entry) => entry.name === payoutItem.question)!.acceptedAnswer.text;
+    expect(answer).toContain("€79");
+    expect(answer).not.toMatch(/Stripe Connect|PayPal/);
   });
 
   it("follows the policy, not the copy, when rates change", () => {
