@@ -13,9 +13,21 @@
  *  - Products are matched by name, so a re-run reuses them.
  *  - A plan whose stored id still resolves at PayPal is left alone.
  *
- * PayPal plan prices are IMMUTABLE, like Stripe's. Changing a price means
- * creating a new plan and deactivating the old one; existing subscribers stay
- * on the plan they signed up to, which is the intended behaviour.
+ * PayPal plan prices are NOT immutable (this used to say they were). PayPal's
+ * update-pricing-schemes changes a plan's price for its EXISTING subscribers
+ * too (payments within 10 days of the change excepted). RepGet's rule is that
+ * existing subscribers keep their price (docs/plan-catalog.md), so a new price
+ * is a new catalog row and a new PayPal plan, made here. Repricing a plan in
+ * place is a separate, deliberate step: scripts/paypal-pricing.mjs, dry run
+ * by default, one plan at a time.
+ *
+ * Every id this stores is also kept in paypal_plan_versions with its mode, and
+ * an id it replaces is marked retired there, never forgotten (review P3): the
+ * subscribers still on it keep sending events for it.
+ *
+ * A SANDBOX run refuses a database that is not on this machine unless
+ * --remote-database is given: sandbox plan ids in production break every
+ * live PayPal checkout.
  *
  * Runs against sandbox unless PAYPAL_ENV=live (exactly "live" or "sandbox";
  * anything else stops it). Live also needs --live.
@@ -84,6 +96,22 @@ function databaseTarget(url) {
 console.log(`Mode: ${LIVE ? "LIVE" : "SANDBOX"}`);
 console.log(`Database: ${databaseTarget(DIRECT_URL)}  <- plan ids are written HERE\n`);
 
+/** Whether DIRECT_URL is a database on this machine. */
+function isLocalDatabase(url) {
+  try {
+    return ["localhost", "127.0.0.1", "::1", "[::1]"].includes(new URL(url).hostname);
+  } catch {
+    return false;
+  }
+}
+if (!LIVE && !isLocalDatabase(DIRECT_URL) && !process.argv.includes("--remote-database")) {
+  console.error(
+    "Refusing to write SANDBOX plan ids to a database that is not on this machine.\n" +
+      "If this really is a sandbox/staging database, re-run with --remote-database.",
+  );
+  process.exit(1);
+}
+
 async function token() {
   const response = await fetch(`${BASE}/v1/oauth2/token`, {
     method: "POST",
@@ -133,18 +161,33 @@ async function api(path, init = {}) {
 
 const sql = postgres(DIRECT_URL, { connect_timeout: 30 });
 
+/** The REPGET offer plans' columns (draft 0008); before that migration only the first two kinds are made. */
+const [{ count: offerColumns }] = await sql`
+  select count(*)::int as count from information_schema.columns
+  where table_schema = 'public' and table_name = 'plans' and column_name in ('paypal_offer_plan_id', 'paypal_trial_offer_plan_id')`;
+const HAS_OFFER_COLUMNS = offerColumns === 2;
+if (!HAS_OFFER_COLUMNS) console.warn("plans.paypal_offer_plan_id does not exist yet (migration pending): the REPGET offer plans are NOT made on this run.\n");
+
 const rows = await sql`
-  select id, name, tier, interval, currency, price_cents, paypal_plan_id, paypal_trial_plan_id
+  select id, name, tier, interval, currency, price_cents, paypal_plan_id, paypal_trial_plan_id${HAS_OFFER_COLUMNS ? sql`, paypal_offer_plan_id, paypal_trial_offer_plan_id` : sql``}
   from plans where catalog_version = ${CATALOG_VERSION} order by sort_order, price_cents
 `;
 
 /*
-  Two PayPal plans per RepGet plan (scripts/paypal-plans.mjs): the plan
-  itself, and the same plan with the free articles first (2026-10-22).
+  PayPal plans per RepGet plan (scripts/paypal-plans.mjs): the plan itself,
+  the same plan with the free articles first (2026-10-22), and both again
+  with the REPGET offer's intro cycle (review P5) - those two only once the
+  offer's columns exist (draft 0008).
 */
 const KINDS = [
-  { key: "regular", column: "paypal_plan_id", label: "plan", freeArticles: false },
-  { key: "trial", column: "paypal_trial_plan_id", label: "free-articles plan", freeArticles: true },
+  { key: "regular", column: "paypal_plan_id", label: "plan", freeArticles: false, offer: false },
+  { key: "trial", column: "paypal_trial_plan_id", label: "free-articles plan", freeArticles: true, offer: false },
+  ...(HAS_OFFER_COLUMNS
+    ? [
+        { key: "offer", column: "paypal_offer_plan_id", label: "REPGET offer plan", freeArticles: false, offer: true },
+        { key: "trial_offer", column: "paypal_trial_offer_plan_id", label: "free-articles REPGET offer plan", freeArticles: true, offer: true },
+      ]
+    : []),
 ];
 
 if (rows.length === 0) {
@@ -224,6 +267,28 @@ async function productFor(tier, displayName) {
   return product;
 }
 
+/*
+  The history (paypal_plan_versions, review P3). An id that resolves in this
+  mode is recorded with it; a replaced one is retired, never deleted. Older
+  databases without the table carry on as before, with a warning.
+*/
+const [{ exists: hasHistory }] = await sql`select to_regclass('public.paypal_plan_versions') is not null as exists`;
+if (!hasHistory) console.warn("paypal_plan_versions does not exist yet (migration pending): plan id history is NOT kept on this run.\n");
+
+async function remember(plan, kind, paypalPlanId) {
+  if (!hasHistory) return;
+  await sql`
+    insert into paypal_plan_versions (plan_id, environment, kind, paypal_plan_id, price_cents, currency)
+    values (${plan.id}, ${ENV}, ${kind.key}, ${paypalPlanId}, ${plan.price_cents}, ${plan.currency})
+    on conflict (paypal_plan_id) do update
+      set environment = coalesce(paypal_plan_versions.environment, excluded.environment), updated_at = now()
+      where paypal_plan_versions.plan_id = excluded.plan_id`;
+}
+async function retire(paypalPlanId) {
+  if (!hasHistory || !paypalPlanId) return;
+  await sql`update paypal_plan_versions set retired_at = now(), updated_at = now() where paypal_plan_id = ${paypalPlanId} and retired_at is null`;
+}
+
 for (const plan of rows) {
   console.log(`${plan.name} (${plan.tier}/${plan.interval})`);
 
@@ -231,6 +296,7 @@ for (const plan of rows) {
     // A stored plan that still resolves is left alone.
     const stored = storedState.get(`${plan.id}:${kind.key}`);
     if (stored === "active") {
+      await remember(plan, kind, plan[kind.column]);
       console.log(`  ${kind.label} unchanged: ${plan[kind.column]}`);
       continue;
     }
@@ -243,21 +309,20 @@ for (const plan of rows) {
     const product = await productFor(plan.tier, plan.name);
     const created = await api("/v1/billing/plans", {
       method: "POST",
-      body: JSON.stringify(planBody(plan, product.id, { freeArticles: kind.freeArticles })),
+      body: JSON.stringify(planBody(plan, product.id, { freeArticles: kind.freeArticles, offer: kind.offer })),
     });
 
-    if (kind.key === "trial") {
-      await sql`update plans set paypal_trial_plan_id = ${created.id}, updated_at = now() where id = ${plan.id}`;
-    } else {
-      await sql`update plans set paypal_plan_id = ${created.id}, updated_at = now() where id = ${plan.id}`;
-    }
-    console.log(`  ${kind.label} created: ${created.id}`);
+    // The replaced id stays mapped for the subscribers still on it; the new one is current.
+    await sql`update plans set ${sql(kind.column)} = ${created.id}, updated_at = now() where id = ${plan.id}`;
+    await retire(plan[kind.column]);
+    await remember(plan, kind, created.id);
+    console.log(`  ${kind.label} created: ${created.id}${plan[kind.column] ? ` (replaces ${plan[kind.column]}, kept in history)` : ""}`);
   }
   console.log("");
 }
 
 const final = await sql`
-  select name, interval, currency, price_cents, paypal_plan_id, paypal_trial_plan_id
+  select name, interval, currency, price_cents, paypal_plan_id, paypal_trial_plan_id${HAS_OFFER_COLUMNS ? sql`, paypal_offer_plan_id, paypal_trial_offer_plan_id` : sql``}
   from plans where catalog_version = ${CATALOG_VERSION} order by sort_order, price_cents
 `;
 console.table(final.map((r) => ({ ...r })));
@@ -268,5 +333,13 @@ console.log(
     ? "\nAll plans have a PayPal plan and a free-articles plan. PayPal checkout is ready."
     : `\n${missing.length} plan(s) still missing a PayPal plan or free-articles plan id.`,
 );
+if (HAS_OFFER_COLUMNS) {
+  const noOffer = final.filter((r) => !r.paypal_offer_plan_id || !r.paypal_trial_offer_plan_id);
+  console.log(
+    noOffer.length === 0
+      ? "All plans have their REPGET offer plans: REPGET can be used with PayPal."
+      : `${noOffer.length} plan(s) without REPGET offer plans: REPGET is card-only for them.`,
+  );
+}
 
 await sql.end();

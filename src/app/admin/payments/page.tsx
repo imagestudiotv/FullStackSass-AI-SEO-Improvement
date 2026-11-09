@@ -121,9 +121,9 @@ function paymentStatus(row: AdminPayment): { tone: StatusTone; label: string; ti
  * worse than an explained, disabled one.
  */
 function refundBlockedReason(provider: string): string | null {
-  if (provider === "stripe") return null;
-  if (provider === "paypal") return "PayPal payments are refunded in the PayPal dashboard, not here.";
-  return "Only Stripe payments can be refunded here.";
+  // Both are refunded here since review P6 (lib/billing/refunds.ts).
+  if (provider === "stripe" || provider === "paypal") return null;
+  return "Only Stripe and PayPal payments can be refunded here.";
 }
 
 /**
@@ -259,8 +259,8 @@ export default async function AdminPaymentsPage({
                 const time = clock(row.paidAt);
                 const state = paymentStatus(row);
                 const statusPill = <AdminStatus tone={state.tone} label={state.label} title={state.title} icon={state.icon} />;
-                // Only a real, paid charge can be refunded; offered (or explained) nowhere else.
-                const refundable = row.status === "paid" && !isNoCharge(row);
+                // Only a real, paid charge with money left to send back can be refunded; offered (or explained) nowhere else.
+                const refundable = row.status === "paid" && !isNoCharge(row) && row.refundedCents < row.amountCents;
                 return (
                   <TableRow key={row.id}>
                     <TableCell className="min-w-32 whitespace-normal md:min-w-40">
@@ -296,6 +296,10 @@ export default async function AdminPaymentsPage({
                     <TableCell className="hidden md:table-cell">{processor}</TableCell>
                     <TableCell data-numeric>
                       <span className="font-medium">{amount}</span>
+                      {row.refundedCents > 0 && row.refundedCents < row.amountCents ? (
+                        <span className="block text-xs text-muted-foreground">{formatMoney(row.refundedCents, row.currency)} refunded</span>
+                      ) : null}
+                      {row.unresolvedRefundId ? <span className="block text-xs text-warning">Refund unconfirmed</span> : null}
                       <div className="mt-1 flex justify-end md:hidden">{statusPill}</div>
                     </TableCell>
                     <TableCell className="hidden md:table-cell">{statusPill}</TableCell>
@@ -316,6 +320,9 @@ export default async function AdminPaymentsPage({
                           paidLabel={`${date}, ${time} UTC`}
                           description={row.description}
                           refundBlockedReason={refundBlockedReason(row.provider)}
+                          processor={processor}
+                          refundedCents={row.refundedCents}
+                          unresolvedRefundId={row.unresolvedRefundId}
                         />
                       ) : null}
                     </TableCell>

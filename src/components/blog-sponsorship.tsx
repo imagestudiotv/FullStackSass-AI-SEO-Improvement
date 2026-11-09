@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { SponsorshipPanelCopy } from "@/lib/blog/sponsorship-copy";
-import { startBlogSponsorship } from "@/lib/blog/sponsorship-actions";
+import { sponsorshipPayPalAvailable, startBlogSponsorship, startBlogSponsorshipPayPal } from "@/lib/blog/sponsorship-actions";
+import { PAYPAL_PURCHASE_COPY } from "@/lib/i18n/paypal-purchase";
 import type { Locale } from "@/lib/i18n/config";
 
 const BLACK = "bg-foreground text-background hover:bg-foreground/90 dark:bg-foreground dark:text-background";
@@ -100,6 +101,19 @@ export function BlogSponsorship({
   const titleId = useId();
   const formId = useId();
   const busy = pending || redirecting;
+  /** PayPal beside the card button (review P8), asked of the server once the details step opens. */
+  const [payPal, setPayPal] = useState(false);
+  useEffect(() => {
+    if (!open || step !== "details" || !enabled) return;
+    let current = true;
+    sponsorshipPayPalAvailable().then(
+      (available) => current && setPayPal(available),
+      () => undefined,
+    );
+    return () => {
+      current = false;
+    };
+  }, [open, step, enabled]);
 
   function reset() {
     setOpen(false);
@@ -149,6 +163,8 @@ export function BlogSponsorship({
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    // Which button sent it: the card one (and Enter), or PayPal's.
+    const viaPayPal = (event.nativeEvent as SubmitEvent).submitter?.getAttribute("data-method") === "paypal";
     const form = new FormData(event.currentTarget);
     const details = {
       email: String(form.get("email") ?? ""),
@@ -162,7 +178,7 @@ export function BlogSponsorship({
     setError(null);
     start(async () => {
       try {
-        const result = await startBlogSponsorship({ id, slug, locale, ...details });
+        const result = await (viaPayPal ? startBlogSponsorshipPayPal : startBlogSponsorship)({ id, slug, locale, ...details });
         if ("url" in result) {
           setRedirecting(true);
           window.location.assign(result.url);
@@ -356,7 +372,14 @@ export function BlogSponsorship({
                     </>
                   )}
                 </Button>
-                <p className="mt-2 text-center text-sm text-muted-foreground">{copy.secure}</p>
+                {payPal ? (
+                  <Button type="submit" form={formId} data-method="paypal" variant="outline" disabled={busy} className={`${WIDE} mt-2`}>
+                    {PAYPAL_PURCHASE_COPY[locale].payWithPayPal}
+                  </Button>
+                ) : null}
+                <p className="mt-2 text-center text-sm text-muted-foreground">
+                  {payPal ? PAYPAL_PURCHASE_COPY[locale].secureBoth : copy.secure}
+                </p>
               </div>
             ) : null}
           </>

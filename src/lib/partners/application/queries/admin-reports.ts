@@ -127,6 +127,11 @@ export async function adminSettlementDetail(deps: PartnerDeps, admin: AdminConte
     repos.reporting.ledger({ environment: settlement.environment, settlementId: settlement.id, offset: 0, limit: 200 }),
   ]);
   const reversals = (await Promise.all(transfers.map((attempt) => repos.settlements.reversals(attempt.id)))).flat();
+  // Paid through PayPal (use-cases/paypal-payouts.ts): its attempts, the address it pays, and the mode.
+  const paypalAttempts = await repos.paypalPayouts.attempts(settlement.id);
+  const paypalAccount = settlement.paypalAccountId ? await repos.paypalPayouts.findAccountById(settlement.paypalAccountId) : null;
+  const paypalMode = deps.settings.paypalPayoutMode?.() ?? "off";
+  const manualPending = paypalAttempts.find((attempt) => attempt.mode === "manual" && attempt.status === "pending") ?? null;
   const latestTransfer = [...transfers].sort((a, b) => b.attemptNumber - a.attemptNumber)[0] ?? null;
   const latestPayout = [...payouts].sort((a, b) => b.attemptNumber - a.attemptNumber)[0] ?? null;
   const confirmed = transfers.find((attempt) => attempt.status === "confirmed" || attempt.status === "partially_reversed") ?? null;
@@ -141,10 +146,17 @@ export async function adminSettlementDetail(deps: PartnerDeps, admin: AdminConte
     ledger: ledger.rows,
     transfer: transferDisplayState(settlement.state, latestTransfer?.status ?? null),
     bank: bankDisplayState(latestPayout?.status ?? null),
-    /** Cancel is offered only before anything may have reached Stripe. */
+    paypalAttempts,
+    paypalAccount,
+    paypalMode,
+    /** Manual PayPal: record what was sent (step 1), or confirm/void what was recorded (step 2). */
+    canRecordManualPayPal: settlement.payoutMethod === "paypal" && paypalMode === "manual" && settlement.state === "reserved",
+    manualPending,
+    /** Cancel is offered only before anything may have reached Stripe or PayPal. */
     cancellable:
       (settlement.state === "reserved" || (settlement.state === "needs_review" && settlement.transferredAt === null)) &&
-      transfers.every((attempt) => attempt.status === "retryable_failure" || attempt.status === "failed"),
+      transfers.every((attempt) => attempt.status === "retryable_failure" || attempt.status === "failed") &&
+      paypalAttempts.every((attempt) => attempt.status === "failed"),
     /** A payout under review goes back to work only by a person's decision. */
     resumable: settlement.state === "needs_review",
     /** What a reversal could recover at most (the use case re-checks against the ledger). */

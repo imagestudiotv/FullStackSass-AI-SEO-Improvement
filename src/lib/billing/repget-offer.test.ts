@@ -20,7 +20,7 @@ vi.mock("@/lib/stripe/client", () => ({
 const mail = vi.hoisted(() => ({ sendEmail: vi.fn() }));
 vi.mock("@/lib/email/send", () => mail);
 
-import { readOfferCode, repgetCouponFor } from "@/lib/billing/repget-offer";
+import { readOfferCode, repgetCouponFor, repgetDiscountCents } from "@/lib/billing/repget-offer";
 import { isCouponRefusal, matchOfferToPlan, offerForPlanChange } from "@/lib/billing/repget-subscription";
 
 let test: TestDb;
@@ -41,6 +41,9 @@ beforeAll(async () => {
     { ...row, name: "T Grow", tier: "grow", interval: "month", priceCents: 14900, stripePriceId: "price_grow", catalogVersion: 2 },
     { ...row, name: "T Scale", tier: "scale", interval: "month", priceCents: 34900, stripePriceId: "price_scale", catalogVersion: 2 },
     { ...row, name: "T Grow (Annual)", tier: "grow", interval: "year", priceCents: 149000, stripePriceId: "price_grow_year", catalogVersion: 2 },
+    { ...row, name: "T Scale (Annual)", tier: "scale", interval: "year", priceCents: 349000, stripePriceId: "price_scale_year", catalogVersion: 2 },
+    // An older catalogue's price on the same tier: the offer does not cover it.
+    { ...row, name: "T Old Grow", tier: "grow", interval: "month", priceCents: 9900, stripePriceId: "price_grow_old", catalogVersion: 1 },
   ]);
 });
 
@@ -61,9 +64,18 @@ describe("which coupon a plan gets", () => {
     expect(repgetCouponFor(month("scale", 34900))).toBe("SCALE40");
   });
 
-  it("not annual, not an older price on the same tier, not another currency or tier", () => {
+  it("annual too, at the annual price: the SAME coupon, so the same fixed first-month amount (owner's decision 2026-11-07)", () => {
+    expect(repgetCouponFor({ ...month("launch", 99000), interval: "year" })).toBe("LAUNCH40");
+    expect(repgetCouponFor({ ...month("grow", 149000), interval: "year" })).toBe("GROW40");
+    expect(repgetCouponFor({ ...month("scale", 349000), interval: "year" })).toBe("SCALE40");
+    // EUR 59.60 off the first annual payment, not 40% of the year.
+    expect(repgetDiscountCents({ ...month("grow", 149000), interval: "year" })).toBe(5960);
+    expect(repgetDiscountCents(month("grow", 14900))).toBe(5960);
+  });
+
+  it("not an older price on the same tier (monthly or annual), not another currency or tier", () => {
     expect(repgetCouponFor({ ...month("grow", 14900), interval: "year" })).toBeNull();
-    expect(repgetCouponFor({ ...month("grow", 149000), interval: "year" })).toBeNull();
+    expect(repgetCouponFor({ ...month("grow", 99000), interval: "year" })).toBeNull();
     expect(repgetCouponFor(month("grow", 9900))).toBeNull();
     expect(repgetCouponFor({ ...month("grow", 14900), currency: "usd" })).toBeNull();
     expect(repgetCouponFor(month("legacy", 14900))).toBeNull();
@@ -91,8 +103,9 @@ describe("a code given to RepGet", () => {
     expect(readOfferCode("REPGET", grow).error).toContain("not recognised");
   });
 
-  it("on an annual plan it says why", () => {
-    expect(readOfferCode("REPGET", { ...grow, interval: "year", priceCents: 149000 }).error).toContain("monthly");
+  it("on an annual plan it gives the plan's coupon; on a plan it does not cover it says why", () => {
+    expect(readOfferCode("REPGET", { ...grow, interval: "year", priceCents: 149000 })).toEqual({ coupon: "GROW40" });
+    expect(readOfferCode("REPGET", { ...grow, priceCents: 9900 }).error).toContain("Launch, Grow and Scale");
   });
 });
 
@@ -103,10 +116,16 @@ describe("a plan changed during the free period", () => {
     expect(stripeMock.update.mock.calls[0]).toEqual([SUB, { discounts: [{ coupon: "SCALE40" }] }]);
   });
 
-  it("to annual: the coupon comes off, so nothing reaches a full annual payment", async () => {
+  it("to annual: the plan's coupon stays (the fixed first-month amount off the first annual payment), nothing is sent", async () => {
     live("price_grow_year", [discount("di_1", "GROW40")]);
     await matchOfferToPlan(event);
-    expect(stripeMock.update.mock.calls[0]).toEqual([SUB, { discounts: "" }]);
+    expect(stripeMock.update).not.toHaveBeenCalled();
+  });
+
+  it("to another tier's annual price: that tier's coupon replaces the old one", async () => {
+    live("price_scale_year", [discount("di_1", "GROW40")]);
+    await matchOfferToPlan(event);
+    expect(stripeMock.update.mock.calls[0]).toEqual([SUB, { discounts: [{ coupon: "SCALE40" }] }]);
   });
 
   it("back from annual to monthly: the coupon returns", async () => {
@@ -118,7 +137,7 @@ describe("a plan changed during the free period", () => {
   it("already right, or an event with nothing else changed: nothing is sent", async () => {
     live("price_grow", [discount("di_1", "GROW40")]);
     await matchOfferToPlan(event);
-    live("price_grow_year", []);
+    live("price_grow_year", [discount("di_1", "GROW40")]);
     await matchOfferToPlan(event);
     expect(stripeMock.update).not.toHaveBeenCalled();
   });
@@ -171,8 +190,17 @@ describe("after the free period, on the first paid invoice", () => {
     log.mockRestore();
   });
 
-  it("on annual, where none is owed: finished, and nobody is told", async () => {
+  it("on annual, the first annual invoice without the discount: staff are told, as for monthly", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
     live("price_grow_year", [], "active", paid(0, 149000));
+    await matchOfferToPlan(event);
+    expect(mail.sendEmail).toHaveBeenCalledTimes(1);
+    expect(stripeMock.update).toHaveBeenCalledTimes(1);
+    log.mockRestore();
+  });
+
+  it("on a price the offer does not cover, where none is owed: finished, and nobody is told", async () => {
+    live("price_grow_old", [], "active", paid(0, 9900));
     await matchOfferToPlan(event);
     expect(mail.sendEmail).not.toHaveBeenCalled();
     expect(stripeMock.update).toHaveBeenCalledTimes(1);
@@ -196,9 +224,13 @@ describe("what a plan change owes", () => {
     expect(offerForPlanChange(on("SCALE40"), month("grow", 14900))).toEqual({ coupon: "GROW40" });
   });
 
-  it("to annual, with the discount unused: refused, whatever the status", () => {
-    expect(offerForPlanChange(on("GROW40"), growAnnual).refuse).toContain("monthly");
-    expect(offerForPlanChange(on("GROW40", "active"), growAnnual).refuse).toContain("monthly");
+  it("to annual, with the discount unused: the annual plan keeps the same fixed amount (same coupon)", () => {
+    expect(offerForPlanChange(on("GROW40"), growAnnual)).toEqual({ coupon: "GROW40" });
+    expect(offerForPlanChange(on("SCALE40"), { ...month("scale", 349000), interval: "year" })).toEqual({ coupon: "SCALE40" });
+  });
+
+  it("to a plan the offer does not cover (an older price): refused while the discount is unused", () => {
+    expect(offerForPlanChange(on("GROW40"), month("grow", 9900)).refuse).toContain("does not cover");
   });
 
   it("on the free period with the coupon off, as after a move to annual and back: it returns", () => {

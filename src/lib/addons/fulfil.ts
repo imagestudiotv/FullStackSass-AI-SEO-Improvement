@@ -19,13 +19,20 @@ import { notify } from "@/lib/notifications/create";
  * Imported by a route handler, so no "use server" directive.
  */
 
+/** Paid by card (a Stripe Checkout session) or with PayPal (our paypal_orders row, review P4): exactly one. */
 export type FulfilInput = {
   organizationId: string;
   addonId: string;
-  stripeSessionId: string;
   amountTotal: number | null;
   currency: string | null;
-};
+} & ({ stripeSessionId: string; paypalOrderId?: undefined } | { paypalOrderId: string; stripeSessionId?: undefined });
+
+/** The purchase row's unique key column and value for this payment. */
+function paidBy(input: FulfilInput) {
+  return input.paypalOrderId
+    ? { column: addonPurchases.paypalOrderId, value: input.paypalOrderId, label: `PayPal order ${input.paypalOrderId}` }
+    : { column: addonPurchases.stripeSessionId, value: input.stripeSessionId!, label: `session ${input.stripeSessionId}` };
+}
 
 /** The ledger operation id for a purchase's credits. */
 export function purchaseCreditKey(purchaseId: string): string {
@@ -75,12 +82,13 @@ export async function fulfilAddonPurchase(
      * that will never exist, and the payment still needs a human to look at.
      */
     console.error(
-      `[addons] paid session ${input.stripeSessionId} references unknown addon ${input.addonId}`,
+      `[addons] paid ${paidBy(input).label} references unknown addon ${input.addonId}`,
     );
     return false;
   }
 
   const grantsCredits = addon.kind === "credits" && addon.creditsGranted > 0;
+  const key = paidBy(input);
 
   const outcome = await db.transaction(async (tx) => {
     const [inserted] = await tx
@@ -88,14 +96,14 @@ export async function fulfilAddonPurchase(
       .values({
         organizationId: input.organizationId,
         addonId: addon.id,
-        stripeSessionId: input.stripeSessionId,
-        // What was actually charged, from Stripe, rather than what the row
+        ...(input.paypalOrderId ? { paypalOrderId: input.paypalOrderId } : { stripeSessionId: input.stripeSessionId }),
+        // What was actually charged, from the provider, rather than what the row
         // says now — the price may have changed between purchase and this call.
         pricePaidCents: input.amountTotal ?? addon.priceCents,
         currency: input.currency ?? addon.currency,
         status: "paid",
       })
-      .onConflictDoNothing({ target: addonPurchases.stripeSessionId })
+      .onConflictDoNothing({ target: key.column })
       .returning({ id: addonPurchases.id });
 
     let purchaseId = inserted?.id ?? null;
@@ -105,7 +113,7 @@ export async function fulfilAddonPurchase(
       const [existing] = await tx
         .select({ id: addonPurchases.id, organizationId: addonPurchases.organizationId })
         .from(addonPurchases)
-        .where(eq(addonPurchases.stripeSessionId, input.stripeSessionId))
+        .where(eq(key.column, key.value))
         .for("update");
       if (!existing || !grantsCredits) return { granted: false, fresh: false };
       purchaseId = existing.id;
@@ -185,7 +193,7 @@ export async function fulfilAddonPurchase(
  * credits stay, and the unpaid grant is logged: they may already be spent, so
  * taking them back is a person's decision.
  */
-export async function addonPaymentFailed(input: Pick<FulfilInput, "organizationId" | "addonId" | "stripeSessionId">): Promise<void> {
+export async function addonPaymentFailed(input: { organizationId: string; addonId: string; stripeSessionId: string }): Promise<void> {
   const [purchase] = await db
     .select({ id: addonPurchases.id })
     .from(addonPurchases)

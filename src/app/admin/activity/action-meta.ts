@@ -40,6 +40,7 @@ export type ActionMeta = {
 /** In the order the filter lists them: grouped by the area they belong to. */
 export const ACTION_META: Record<AdminAction, ActionMeta> = {
   "payment.refunded": { label: "Payment refunded", icon: Receipt },
+  "payment.refund_checked": { label: "Refund checked again", icon: Receipt },
   "credits.adjusted": { label: "Credits adjusted", icon: Coins },
   "credits.settings_saved": { label: "Credit prices changed", icon: Coins },
   "earn.approved": { label: "Earn Credits claim approved", icon: Coins },
@@ -115,6 +116,9 @@ export const ACTION_META: Record<AdminAction, ActionMeta> = {
   "partner.coupon_deactivated": { label: "Partner coupon deactivated", icon: Handshake },
   "partner.review_resolved": { label: "Partner review case resolved", icon: Handshake },
   "partner.settlement_created": { label: "Partner payout prepared", icon: Handshake },
+  "partner.paypal_payout_recorded": { label: "Manual PayPal payout recorded", icon: Handshake },
+  "partner.paypal_payout_confirmed": { label: "Manual PayPal payout confirmed", icon: Handshake },
+  "partner.paypal_payout_voided": { label: "Manual PayPal payout voided", icon: Handshake },
   "partner.settlement_retried": { label: "Partner payout retried", icon: Handshake },
   "partner.settlement_canceled": { label: "Partner payout cancelled", icon: Handshake },
   "partner.transfer_reversal_requested": { label: "Partner transfer reversal requested", icon: Handshake },

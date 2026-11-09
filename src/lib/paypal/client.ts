@@ -20,6 +20,8 @@ export class PayPalError extends Error {
     message: string,
     readonly kind: "config" | "auth" | "not_found" | "rejected" | "unknown",
     readonly status?: number,
+    /** PayPal's issue code on a refusal (details[0].issue, e.g. ORDER_ALREADY_CAPTURED), when it gave one. */
+    readonly issue?: string,
   ) {
     super(message);
     this.name = "PayPalError";
@@ -241,7 +243,9 @@ export async function payPalRequest<T>(
       (body?.message as string | undefined) ??
       (body?.error_description as string | undefined) ??
       `PayPal returned ${response.status}`;
-    throw new PayPalError(detail, "rejected", response.status);
+    const details = body?.details as { issue?: string }[] | undefined;
+    const issue = (Array.isArray(details) ? details[0]?.issue : undefined) ?? (body?.name as string | undefined);
+    throw new PayPalError(detail, "rejected", response.status, issue);
   }
 
   return body as T;

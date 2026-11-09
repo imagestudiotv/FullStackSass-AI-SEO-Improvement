@@ -9,6 +9,8 @@ import postgres from "@/vendor/postgres";
 import * as schema from "@/lib/db/schema";
 import { draftMigrations } from "@/test/db";
 
+import { draftStatements } from "./drafts";
+
 /**
  * A disposable database on a REAL Postgres server, for tests that need
  * separate connections - lock contention cannot be shown on PGlite, which
@@ -110,6 +112,8 @@ export async function createPostgresTestDb(
       await setup.unsafe(statement);
     }
   }
+  // Schema drafts awaiting a canonical migration (src/test/drafts.ts); full replays only.
+  if (options.throughIndex === undefined) for (const statement of draftStatements(root)) await setup.unsafe(statement);
 
   /** One client per connection, each pinned to a single socket. */
   const clients = Array.from({ length: connections }, () =>

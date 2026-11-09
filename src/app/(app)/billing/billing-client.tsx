@@ -42,6 +42,7 @@ import { createPayPalCheckout } from "@/lib/paypal/actions";
 import { CONFIRM_EMAIL_FIRST, STARTER_TIER } from "@/lib/plans/features";
 import { OfferCodeField } from "@/components/billing/offer-code-field";
 import type { OfferCodeCopy } from "@/lib/i18n/offer-code";
+import type { PayPalPurchaseCopy } from "@/lib/i18n/paypal-purchase";
 import { createCheckoutSession } from "@/lib/stripe/actions";
 import { createPortalSession, type PortalFlow } from "@/lib/stripe/portal";
 import { cn } from "@/lib/utils";
@@ -51,6 +52,7 @@ import {
   formatMoney,
   paymentOptions,
   payPalForPlan,
+  payPalIntervalBlocked,
   planFeatures,
   planGridClass,
   subscriptionStatus,
@@ -70,8 +72,10 @@ type BillingClientProps = {
   paypalAvailable: boolean;
   /** "success" | "cancelled" after a card checkout. */
   checkout?: string;
-  /** "success" | "cancelled" after an add-on checkout. */
+  /** "success" | "cancelled" after an add-on checkout; also "pending" | "failed" after a PayPal one. */
   addonResult?: string;
+  /** What a PayPal credit-pack purchase still pending or not completed says (lib/i18n/paypal-purchase.ts). */
+  addonPayPalCopy?: Pick<PayPalPurchaseCopy, "pending" | "failed">;
   /** "success" | "cancelled" after a PayPal approval. */
   paypalResult?: string;
   /**
@@ -93,6 +97,8 @@ type BillingClientProps = {
   locale: Locale;
   /** The REPGET field's words, or null while the offer is off. */
   offerCopy?: OfferCodeCopy | null;
+  /** Why a PayPal-billed website cannot switch monthly <-> yearly (lib/i18n/paypal-plan-change.ts). */
+  paypalIntervalNote?: string;
   /** Shared words used on several screens. */
   tCommon: Messages["app"]["common"];
 };
@@ -116,6 +122,7 @@ export function BillingClient({
   paypalAvailable,
   checkout,
   addonResult,
+  addonPayPalCopy,
   paypalResult,
   websiteId,
   websiteSubscriptions,
@@ -123,6 +130,7 @@ export function BillingClient({
   t,
   locale,
   offerCopy = null,
+  paypalIntervalNote,
   tCommon,
 }: BillingClientProps) {
   const [offerCode, setOfferCode] = useState("");
@@ -152,10 +160,15 @@ export function BillingClient({
 
   const purchaseReceived = t.purchaseReceived;
   const purchaseCancelled = t.purchaseCancelled;
+  const purchasePending = addonPayPalCopy?.pending;
+  const purchaseFailed = addonPayPalCopy?.failed;
   useEffect(() => {
     if (addonResult === "success") toast.success(purchaseReceived);
     else if (addonResult === "cancelled") toast(purchaseCancelled);
-  }, [addonResult, purchaseReceived, purchaseCancelled]);
+    // PayPal only: captured but still clearing, or not completed. Never "received" before it is.
+    else if (addonResult === "pending" && purchasePending) toast(purchasePending, { duration: 15_000 });
+    else if (addonResult === "failed" && purchaseFailed) toast.error(purchaseFailed, { duration: 15_000 });
+  }, [addonResult, purchaseReceived, purchaseCancelled, purchasePending, purchaseFailed]);
 
   /*
     PayPal returns with its own parameter. A PayPal subscription is APPROVED
@@ -216,8 +229,8 @@ export function BillingClient({
             : t.billedByCard
           : null;
 
-  // Monthly on a card only, as the server holds it to (lib/billing/repget-offer.ts).
-  const offerField = offerCopy && options.card ? <OfferCodeField copy={offerCopy} value={offerCode} onChange={setOfferCode} /> : null;
+  // Card or PayPal (review P5); the server decides whether the plan takes it (lib/billing/repget-offer.ts).
+  const offerField = offerCopy && (options.card || options.paypal) ? <OfferCodeField copy={offerCopy} value={offerCode} onChange={setOfferCode} /> : null;
 
   async function handleCard(planId: string) {
     setPending({ planId, provider: "stripe" });
@@ -231,7 +244,7 @@ export function BillingClient({
         setPending(null);
         return;
       }
-      const result = await createCheckoutSession(planId, websiteId, "billing", interval === "month" ? offerCode : "");
+      const result = await createCheckoutSession(planId, websiteId, "billing", offerCode);
       /*
         A new workspace confirms its email before the free articles, and
         the code box is on the onboarding plan screen - which also states
@@ -263,7 +276,7 @@ export function BillingClient({
         setPending(null);
         return;
       }
-      const result = await createPayPalCheckout(planId, websiteId);
+      const result = await createPayPalCheckout(planId, websiteId, "billing", offerCode);
       // PayPal gives the free articles too (2026-10-22): the same confirmed address first, on the same screen as card.
       if ("error" in result && result.error === CONFIRM_EMAIL_FIRST) {
         router.push(`/onboarding/plan?site=${encodeURIComponent(websiteId)}`);
@@ -337,7 +350,9 @@ export function BillingClient({
 
   function planCard(plan: PlanRow) {
     const isCurrent = subscription?.planId === plan.id && entitled;
-    const paypal = payPalForPlan(plan, options);
+    // Monthly <-> yearly cannot be switched through PayPal: a note in place of the button.
+    const intervalBlocked = payPalIntervalBlocked(subscription, plan, options);
+    const paypal = payPalForPlan(plan, options) && !intervalBlocked;
     const saving = plan.interval === "year" ? annualSaving(monthlyByTier.get(plan.tier), plan) : 0;
     const busy = pending?.planId === plan.id;
     const headingId = `plan-${plan.id}`;
@@ -436,7 +451,9 @@ export function BillingClient({
                   )}
                 </Button>
               ) : null}
-              {!options.card && !paypal ? (
+              {intervalBlocked && paypalIntervalNote ? (
+                <p className="text-xs leading-5 text-muted-foreground">{paypalIntervalNote}</p>
+              ) : !options.card && !paypal ? (
                 <p className="text-xs leading-5 text-muted-foreground">{t.noPlanChange}</p>
               ) : null}
             </>
@@ -760,7 +777,7 @@ export function BillingClient({
             tCommon={tCommon}
             options={options}
             processorNote={processorNote}
-            offerField={interval === "month" ? offerField : null}
+            offerField={offerField}
             actions={
               <TabsList aria-label={t.billingPeriod}>
                 <TabsTrigger value="month">{t.monthly}</TabsTrigger>

@@ -82,7 +82,7 @@ export async function payoutStage(deps: PartnerDeps, settlement: SettlementRecor
     await raiseDiscrepancy(deps, settlement, "bank payout failed three times", { attempts: String(attempts.length) });
     return { next: new Date(now.getTime() + 24 * HOUR), error: "payout_failed_repeatedly" };
   }
-  const balance = await gateway.connectedAvailableBalance(settlement.stripeAccountId, settlement.currency);
+  const balance = await gateway.connectedAvailableBalance(settlement.stripeAccountId!, settlement.currency);
   if (balance < settlement.transferAmount) {
     // Transfers to some accounts become available later (recipient accounts: +24h). Still short after
     // three days: most likely Stripe converted the transfer into the account's own currency, or the
@@ -106,7 +106,7 @@ export async function payoutStage(deps: PartnerDeps, settlement: SettlementRecor
       attemptNumber: number,
       operationId,
       environment: settlement.environment,
-      stripeAccountId: settlement.stripeAccountId,
+      stripeAccountId: settlement.stripeAccountId!,
       currency: settlement.currency,
       amount: settlement.transferAmount,
       submittedAt: deps.clock.now(),
@@ -117,7 +117,7 @@ export async function payoutStage(deps: PartnerDeps, settlement: SettlementRecor
   });
   if (!attempt) return { next: new Date(now.getTime() + 5 * MINUTE), error: "payout_attempt_exists" };
   const outcome = await gateway.createBankPayout({
-    accountId: settlement.stripeAccountId,
+    accountId: settlement.stripeAccountId!,
     amount: settlement.transferAmount,
     currency: settlement.currency,
     idempotencyKey: operationId,

@@ -7,7 +7,7 @@ import { adminEmails } from "@/lib/admin/guard";
 import { blogPath, LANGUAGE_NAMES_EN } from "@/lib/blog/locale";
 import { getPostInAnyLanguage } from "@/lib/blog/posts";
 import { db } from "@/lib/db";
-import { blogSponsorships } from "@/lib/db/schema";
+import { blogSponsorships, paypalOrders } from "@/lib/db/schema";
 import { escapeHtml, emailButton, emailLayout, emailText } from "@/lib/email/layout";
 import { sendEmail } from "@/lib/email/send";
 import type { Locale } from "@/lib/i18n/config";
@@ -140,7 +140,72 @@ export async function confirmSponsorship(session: Stripe.Checkout.Session): Prom
 
   // Told once, by whichever confirmation got there first (webhook or thanks page).
   if (moved.length > 0) await notifyAdmins(order, amountPaid(session));
+  else if (order.paypalOrderId) {
+    // Not moved, and a PayPal payment for it COMPLETED: PayPal paid it first, so this card payment is a second one.
+    const [paypal] = await db
+      .select({ id: paypalOrders.id })
+      .from(paypalOrders)
+      .where(and(eq(paypalOrders.referenceId, order.id), eq(paypalOrders.purpose, "blog_sponsorship"), eq(paypalOrders.status, "completed")))
+      .limit(1);
+    if (paypal) {
+      console.error(`[blog-sponsorship] ${order.id} was paid with PayPal; card session ${session.id} also paid it - REFUND one payment`);
+      await notifyDoublePayment(order, `${amountPaid(session)} (card)`, session.id);
+    }
+  }
   return moved.length > 0 || order.status !== "pending";
+}
+
+/**
+ * A request paid with PayPal (review P8): called by lib/paypal/orders.ts only
+ * after RepGet captured the order and PayPal reported it COMPLETED for exactly
+ * the amount the server set. Moves only a pending request, and only the one
+ * whose open PayPal payment is this order, so replays change nothing.
+ *
+ * Paid twice - by card while this PayPal payment was approved, the one case
+ * the start actions cannot rule out - leaves the request paid once and tells
+ * the administrators to refund one payment. Nothing is refunded by itself.
+ */
+export async function confirmSponsorshipPayPal(order: {
+  id: string;
+  referenceId: string;
+  amountCents: number;
+  currency: string;
+  paypalCaptureId: string | null;
+}): Promise<boolean> {
+  const [request] = await db.select().from(blogSponsorships).where(eq(blogSponsorships.id, order.referenceId));
+  if (!request) return false;
+  const paid = new Intl.NumberFormat("en-IE", { style: "currency", currency: order.currency.toUpperCase() }).format(order.amountCents / 100);
+  const now = new Date();
+  const moved = await db
+    .update(blogSponsorships)
+    .set({ status: "paid", paidAt: now, updatedAt: now })
+    .where(and(eq(blogSponsorships.id, request.id), eq(blogSponsorships.paypalOrderId, order.id), eq(blogSponsorships.status, "pending")))
+    .returning({ id: blogSponsorships.id });
+  if (moved.length > 0) {
+    await notifyAdmins(request, `${paid} (PayPal)`);
+    return true;
+  }
+  if (request.paypalOrderId === order.id && request.status !== "pending") return true; // A replay.
+  // Paid already another way (or this order is not the request's): money taken twice.
+  console.error(
+    `[blog-sponsorship] ${request.id} was already ${request.status}; PayPal capture ${order.paypalCaptureId} also paid it - REFUND one payment`,
+  );
+  await notifyDoublePayment(request, paid, order.paypalCaptureId);
+  return true;
+}
+
+async function notifyDoublePayment(order: typeof blogSponsorships.$inferSelect, paid: string, captureId: string | null): Promise<void> {
+  const to = adminEmails();
+  if (to.length === 0) return;
+  try {
+    const text = `${order.email} paid ${paid} with PayPal (capture ${captureId ?? "unknown"}) for a placement request (${order.id}) that was already ${order.status}. Refund one of the two payments.`;
+    const html = emailLayout({ heading: "Placement paid twice", preheader: text, body: emailText(escapeHtml(text)) });
+    for (const address of to) {
+      await sendEmail({ to: address, subject: "Placement paid twice: refund one payment", html, text, replyTo: order.email });
+    }
+  } catch (error) {
+    console.error("[blog-sponsorship] double-payment notification failed", error);
+  }
 }
 
 /** Emails the administrators about a newly paid request. Never throws: the payment is recorded either way. */

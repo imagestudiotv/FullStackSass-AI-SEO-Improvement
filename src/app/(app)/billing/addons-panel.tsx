@@ -10,11 +10,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { WorkspaceSection, WorkspaceSubsection } from "@/components/workspace/section";
-import { buyAddon, buyAddonWithCredits } from "@/lib/addons/actions";
+import { buyAddon, buyAddonWithCredits, buyAddonWithPayPal } from "@/lib/addons/actions";
 import type { AddonRow, PurchaseRow } from "@/lib/addons/shared";
 import type { Locale } from "@/lib/i18n/config";
 import { format, formatDate, plural } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
+import type { PayPalPurchaseCopy } from "@/lib/i18n/paypal-purchase";
 import { cn } from "@/lib/utils";
 import { websiteProjectKindOf, websiteProjectsHref } from "@/lib/website-projects/shared";
 
@@ -62,10 +63,17 @@ export function AddonsPanel({
   t,
   tCredits,
   tCommon,
+  paypal = null,
 }: {
   addons: AddonRow[];
   purchases: PurchaseRow[];
   canBuy: boolean;
+  /**
+   * PayPal for credit packs (review P4), when PayPal can complete a purchase
+   * here (lib/paypal/actions.ts isPayPalAvailable): its words in the
+   * reader's language. Null: card only, as before.
+   */
+  paypal?: PayPalPurchaseCopy | null;
   /** For prices and purchase dates in the reader's convention. */
   locale: Locale;
   /** This screen's copy, already in the reader's language. */
@@ -92,6 +100,23 @@ export function AddonsPanel({
       }
       // assign() rather than location.href: the React Compiler treats
       // assigning to an outer value as a mutation, while a method call is not.
+      window.location.assign(result.url);
+    } catch {
+      toast.error(t.checkoutFailed);
+      setPendingId(null);
+    }
+  }
+
+  /** To PayPal; the credits come only once RepGet has captured the payment (lib/paypal/orders.ts). */
+  async function handleBuyWithPayPal(addonId: string) {
+    setPendingId(`paypal:${addonId}`);
+    try {
+      const result = await buyAddonWithPayPal(addonId);
+      if ("error" in result) {
+        toast.error(result.error);
+        setPendingId(null);
+        return;
+      }
       window.location.assign(result.url);
     } catch {
       toast.error(t.checkoutFailed);
@@ -211,6 +236,19 @@ export function AddonsPanel({
                       ) : null}
                       {addon.purchasable ? format(t.buyCredits, { n: addon.creditsGranted }) : t.unavailable}
                     </Button>
+                    {paypal && addon.priceCents > 0 ? (
+                      <Button
+                        className="mt-2 h-auto min-h-8 w-full py-1.5 text-center whitespace-normal"
+                        variant="ghost"
+                        onClick={() => handleBuyWithPayPal(addon.id)}
+                        disabled={pendingId !== null}
+                      >
+                        {pendingId === `paypal:${addon.id}` ? (
+                          <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                        ) : null}
+                        {paypal.payWithPayPal}
+                      </Button>
+                    ) : null}
                   </div>
                 );
               })}

@@ -14,7 +14,7 @@ import { sponsorshipThanksMetadata, sponsorshipThanksPage } from "../../../../bl
  */
 export const dynamic = "force-dynamic";
 
-type Props = { params: Promise<{ locale: string }>; searchParams: Promise<{ session_id?: string | string[] }> };
+type Props = { params: Promise<{ locale: string }>; searchParams: Promise<{ session_id?: string | string[]; paypal_row?: string | string[] }> };
 
 async function language(params: Props["params"]): Promise<Exclude<Locale, "en">> {
   const { locale } = await params;
@@ -27,5 +27,5 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function LocaleSponsorshipThanksPage({ params, searchParams }: Props) {
-  return sponsorshipThanksPage({ locale: await language(params), sessionId: (await searchParams).session_id });
+  return sponsorshipThanksPage({ locale: await language(params), sessionId: (await searchParams).session_id, paypalRow: (await searchParams).paypal_row });
 }

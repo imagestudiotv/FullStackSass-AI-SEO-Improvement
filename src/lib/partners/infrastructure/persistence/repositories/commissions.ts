@@ -100,6 +100,8 @@ export function commissionRepository(db: Executor): CommissionRepository {
           chargeId: input.chargeId,
           stripeSubscriptionId: input.stripeSubscriptionId,
           stripeCustomerId: input.stripeCustomerId,
+          provider: input.provider ?? "stripe",
+          paypalSubscriptionId: input.paypalSubscriptionId ?? null,
           organizationId: input.organizationId,
           attributionId: input.attributionId,
           paymentId: input.paymentId,

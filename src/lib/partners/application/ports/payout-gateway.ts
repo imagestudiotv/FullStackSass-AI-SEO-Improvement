@@ -68,6 +68,43 @@ export type PayoutEvidence = {
   metadata: Record<string, string>;
 };
 
+/**
+ * PayPal Payouts (partners paid through PayPal, automated mode). One payout
+ * is one batch with one item. The sender_batch_id is also the request's
+ * PayPal-Request-Id: a request repeated after a lost answer returns the
+ * original batch (PayPal keeps both 30 days), so it can never pay twice.
+ */
+export type PayPalPayoutEvidence = {
+  batchId: string;
+  senderBatchId: string | null;
+  /** PayPal's batch status (PENDING, PROCESSING, SUCCESS, DENIED...). */
+  batchStatus: string;
+  /** Null until PayPal has created the item (the create answer carries none). */
+  itemId: string | null;
+  /** SUCCESS, PENDING, UNCLAIMED, ONHOLD, FAILED, RETURNED, BLOCKED, REFUNDED, REVERSED, DENIED, CANCELED... */
+  itemStatus: string | null;
+  transactionId: string | null;
+  amount: bigint | null;
+  currency: string | null;
+  fee: bigint | null;
+  receiver: string | null;
+  error: string | null;
+};
+
+export interface PayPalPayoutGateway {
+  /** "test" for sandbox, "live" for live. */
+  environment(): Environment;
+  createPayout(input: {
+    senderBatchId: string;
+    receiver: string;
+    amount: bigint;
+    currency: string;
+    note: string;
+  }): Promise<ProviderOutcome<PayPalPayoutEvidence>>;
+  getBatch(batchId: string): Promise<PayPalPayoutEvidence>;
+  getItem(itemId: string): Promise<PayPalPayoutEvidence>;
+}
+
 /** Connected-account onboarding and readiness: no money moves here. */
 export interface ConnectAccountGateway {
   environment(): Environment;
