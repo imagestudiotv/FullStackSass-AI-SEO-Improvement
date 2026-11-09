@@ -161,7 +161,7 @@ async function api(path, init = {}) {
 
 const sql = postgres(DIRECT_URL, { connect_timeout: 30 });
 
-/** The REPGET offer plans' columns (draft 0008); before that migration only the first two kinds are made. */
+/** The REPGET offer plans' columns (migration 0088); before that migration only the first two kinds are made. */
 const [{ count: offerColumns }] = await sql`
   select count(*)::int as count from information_schema.columns
   where table_schema = 'public' and table_name = 'plans' and column_name in ('paypal_offer_plan_id', 'paypal_trial_offer_plan_id')`;
@@ -177,7 +177,7 @@ const rows = await sql`
   PayPal plans per RepGet plan (scripts/paypal-plans.mjs): the plan itself,
   the same plan with the free articles first (2026-10-22), and both again
   with the REPGET offer's intro cycle (review P5) - those two only once the
-  offer's columns exist (draft 0008).
+  offer's columns exist (migration 0088).
 */
 const KINDS = [
   { key: "regular", column: "paypal_plan_id", label: "plan", freeArticles: false, offer: false },

@@ -21,7 +21,7 @@ This is for the owner. It turns "stub-tested" into "sandbox-verified" for the pa
    - PayPal sandbox: `PAYPAL_ENV=sandbox`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID`.
    - Partners paid through PayPal: `PARTNER_PAYPAL_PAYOUTS=automated` (or `manual`), `PARTNER_PAYPAL_FEE_BEARER=repget`, `PARTNER_PAYPAL_PAYOUT_COUNTRIES=IT`. Turn on the `partner_payouts` switch in Admin only on this copy.
 
-3. Migrate and seed: `npx drizzle-kit migrate`, then apply `drizzle-drafts/payment/*.sql` in order. The canonical migration does not exist yet. Then `npm run db:seed`, `npm run db:seed-addons`, `npm run plans:activate -- --apply --local`, and the sandbox `npm run paypal:setup` (it refuses a non-local database).
+3. Migrate and seed: `npx drizzle-kit migrate` (it includes `0088_blog_images_payments_partner_credits`, the canonical migration for this work). Then `npm run db:seed`, `npm run db:seed-addons`, `npm run plans:activate -- --apply --local`, and the sandbox `npm run paypal:setup` (it refuses a non-local database).
 
 4. Public URL for webhooks. Run `cloudflared tunnel --url http://localhost:3001`, or ngrok, and start the app with `npx next dev -p 3001`.
    - **Stripe:** `stripe listen --forward-to localhost:3001/api/stripe/webhook`.

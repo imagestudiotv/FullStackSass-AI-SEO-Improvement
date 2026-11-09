@@ -1,12 +1,10 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 
 import * as schema from "@/lib/db/schema";
-
-import { draftStatements } from "./drafts";
 
 /**
  * A disposable Postgres for tests: PGlite, in-process, built by replaying the
@@ -22,20 +20,6 @@ import { draftStatements } from "./drafts";
 const root = path.resolve(__dirname, "../..");
 
 type Journal = { entries: { tag: string }[] };
-
-/**
- * Schema changes drafted on a feature branch before the integrator turns them
- * into a canonical migration (drizzle-drafts/, in name order). Applied after
- * the whole chain only: a test that stops at an earlier migration gets none.
- */
-export function draftMigrations(): string[] {
-  const folder = path.join(root, "drizzle-drafts");
-  if (!existsSync(folder)) return [];
-  return readdirSync(folder)
-    .filter((name) => name.endsWith(".sql"))
-    .sort()
-    .map((name) => readFileSync(path.join(folder, name), "utf8"));
-}
 
 /** Applies one migration file to a database, statement by statement. */
 export async function applyMigration(client: PGlite, tag: string) {
@@ -57,14 +41,8 @@ export async function createTestDb(
     readFileSync(path.join(root, "drizzle/meta/_journal.json"), "utf8"),
   ) as Journal;
 
-  const files: string[] = [];
   for (const { tag } of journal.entries) {
-    files.push(readFileSync(path.join(root, "drizzle", `${tag}.sql`), "utf8"));
-    if (options.through === tag) break;
-  }
-  if (!options.through) files.push(...draftMigrations());
-
-  for (const file of files) {
+    const file = readFileSync(path.join(root, "drizzle", `${tag}.sql`), "utf8");
     const statements = file
       .replace(/vector\(\d+\)/g, "text")
       .split("--> statement-breakpoint")
@@ -73,9 +51,8 @@ export async function createTestDb(
     for (const statement of statements) {
       await client.exec(statement);
     }
+    if (options.through === tag) break;
   }
-  // Schema drafts awaiting a canonical migration (src/test/drafts.ts); full replays only.
-  if (!options.through) for (const statement of draftStatements(root)) await client.exec(statement);
 
   const db = drizzle(client, { schema });
   return { client, db };
