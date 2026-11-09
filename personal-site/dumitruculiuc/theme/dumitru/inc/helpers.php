@@ -34,31 +34,51 @@ function dumitru_lines( $text ) {
 }
 
 /**
- * The person's name (Customizer, else the site title).
+ * The person's name: the home page's Elementor "Intro and portrait" widget
+ * when there is one, else the Customizer, else the site title.
  *
  * @return string
  */
 function dumitru_name() {
-	$name = dumitru_mod( 'name' );
+	$name = dumitru_site_value( 'name' );
 	return '' !== $name ? $name : get_bloginfo( 'name' );
 }
 
 /**
- * Social profiles that have a URL, in display order.
+ * Social networks offered for the footer buttons, in display order. The
+ * first six are the Customizer's fields.
  *
- * @return array[] Each: key, label, url, finish (the knob's colour).
+ * @return array[] Key => array( label, finish ) (finish: the knob's colour).
  */
-function dumitru_social_links() {
-	$networks = array(
+function dumitru_social_networks() {
+	return array(
 		'x'         => array( 'X', 'orange' ),
 		'linkedin'  => array( 'LinkedIn', 'steel' ),
 		'instagram' => array( 'Instagram', 'graphite' ),
 		'github'    => array( 'GitHub', 'white' ),
 		'youtube'   => array( 'YouTube', 'orange' ),
 		'facebook'  => array( 'Facebook', 'steel' ),
+		'tiktok'    => array( 'TikTok', 'graphite' ),
+		'threads'   => array( 'Threads', 'white' ),
+		'bluesky'   => array( 'Bluesky', 'steel' ),
+		'medium'    => array( 'Medium', 'graphite' ),
 	);
-	$links    = array();
-	foreach ( $networks as $key => $meta ) {
+}
+
+/**
+ * Social profiles that have a URL, in display order: the home page's
+ * Elementor "Contact and social" widget when there is one, else the
+ * Customizer.
+ *
+ * @return array[] Each: key, label, url, finish (the knob's colour).
+ */
+function dumitru_social_links() {
+	$contact = dumitru_home_widget( 'dumitru-contact' );
+	if ( null !== $contact ) {
+		return dumitru_elementor_social_links( $contact );
+	}
+	$links = array();
+	foreach ( array_slice( dumitru_social_networks(), 0, 6, true ) as $key => $meta ) {
 		$url = dumitru_mod( 'social_' . $key );
 		if ( '' !== $url ) {
 			$links[] = array(
@@ -233,12 +253,39 @@ function dumitru_blog_url() {
 }
 
 /**
+ * Does the home page show its About section?
+ *
+ * @return bool
+ */
+function dumitru_has_about() {
+	if ( null !== dumitru_home_widgets() ) {
+		$about = dumitru_home_widget( 'dumitru-about' );
+		if ( null === $about ) {
+			return false;
+		}
+		return dumitru_has_text( dumitru_el_text( $about, 'body' ) );
+	}
+	return '' !== dumitru_mod( 'about_body' );
+}
+
+/**
+ * Has a text something to show? An editor's leftover empty paragraph does
+ * not count.
+ *
+ * @param string $html Text or HTML.
+ * @return bool
+ */
+function dumitru_has_text( $html ) {
+	return '' !== trim( wp_strip_all_tags( (string) $html ) ) || false !== strpos( (string) $html, '<img' );
+}
+
+/**
  * Header tabs when no menu has been assigned: About (the home page's About
  * section, when it has content) and Blog.
  */
 function dumitru_default_tabs() {
 	$tabs = array();
-	if ( '' !== dumitru_mod( 'about_body' ) ) {
+	if ( dumitru_has_about() ) {
 		$tabs[] = array( __( 'About', 'dumitru' ), home_url( '/#about' ), false );
 	}
 	$tabs[] = array( __( 'Blog', 'dumitru' ), dumitru_blog_url(), is_home() || is_singular( 'post' ) || is_archive() );

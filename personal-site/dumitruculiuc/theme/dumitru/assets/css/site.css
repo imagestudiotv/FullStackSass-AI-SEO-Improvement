@@ -590,6 +590,43 @@ a:hover > .seat, a:hover .product__go { background: var(--dc-accent); color: var
 /* Elementor full-width pages. */
 .full-width { min-height: 40vh; }
 
+/* Home page built with Elementor. The "Dumitru" widgets sit in the page's
+   column exactly like the Customizer layout; Elementor's default spacing
+   around them is taken out, so the design and light/dark stay the same. */
+.front--elementor {
+  --kit-widget-spacing: 0px;
+  --widgets-spacing: 0px;
+  --container-default-padding-top: 0px;
+  --container-default-padding-right: 0px;
+  --container-default-padding-bottom: 0px;
+  --container-default-padding-left: 0px;
+}
+.front--elementor .e-con:has(> .elementor-widget[data-widget_type^="dumitru-"]),
+.front--elementor .e-con:has(> .e-con-inner > .elementor-widget[data-widget_type^="dumitru-"]) {
+  --padding-top: 0px; --padding-right: 0px; --padding-bottom: 0px; --padding-left: 0px;
+  --gap: 0px; --row-gap: 0px; --column-gap: 0px;
+  --content-width: 100%;
+}
+.front--elementor .elementor-column-gap-default > .elementor-column > .elementor-element-populated:has(> .elementor-widget-wrap > .elementor-widget[data-widget_type^="dumitru-"]) { padding: 0; }
+.front--elementor .elementor .elementor-widget[data-widget_type^="dumitru-"] { width: 100%; max-width: 100%; margin-block-end: 0; }
+.front--elementor .elementor-widget[data-widget_type^="dumitru-"] > .elementor-widget-container {
+  width: 100%; max-width: var(--dc-rack); margin: 0 auto; padding: 0 var(--dc-gutter);
+}
+/* Elementor's own resets for links and images in its content outrank a few
+   of the theme's rules; put those back. */
+.front--elementor .key { box-shadow: 0 2px 0 var(--dc-ink); }
+.front--elementor .key:active { box-shadow: 0 0 0 var(--dc-ink); }
+.front--elementor .hero__intro a,
+.front--elementor .about__body a { text-decoration: underline; }
+.front--elementor .hero__intro a { text-decoration-color: var(--dc-accent); }
+.front--elementor .dc-portrait__img { height: 100%; }
+/* In Elementor's editor only: where a section is hidden until filled in. */
+.dumitru-editor-note {
+  margin: 0 0 1rem; padding: 1rem 1.25rem;
+  border: 1.5px dashed var(--dc-rule); border-radius: var(--dc-radius);
+  color: var(--dc-muted); font: 600 0.875rem/1.4 var(--dc-font);
+}
+
 /* ---------- Responsive ---------------------------------------------------------------------------- */
 @media (max-width: 860px) {
   .hero__grid, .about--photo, .band { grid-template-columns: minmax(0, 1fr); }

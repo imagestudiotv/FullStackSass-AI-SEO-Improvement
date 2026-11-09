@@ -9,11 +9,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'DUMITRU_VERSION', '1.0.0' );
+define( 'DUMITRU_VERSION', '1.1.0' );
 
 require get_template_directory() . '/inc/helpers.php';
 require get_template_directory() . '/inc/customizer.php';
 require get_template_directory() . '/inc/projects.php';
+require get_template_directory() . '/inc/sections.php';
+require get_template_directory() . '/inc/elementor.php';
 require get_template_directory() . '/inc/seo.php';
 require get_template_directory() . '/inc/shortcodes.php';
 

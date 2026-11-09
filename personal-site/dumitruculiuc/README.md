@@ -1,6 +1,6 @@
 # dumitruculiuc.com
 
-Dumitru Culiuc's personal site: one home page with a portrait you can grab and stretch, plus a blog. It's a small WordPress theme written for this site (`theme/dumitru`). It needs no page builder and no paid plugin.
+Dumitru Culiuc's personal site: one home page with a portrait you can grab and stretch, plus a blog. It's a small WordPress theme written for this site (`theme/dumitru`). Daniel edits the home page himself with **Elementor (the free version)**, using the theme's own "Dumitru" blocks. No paid plugin is needed. If Elementor is ever switched off, the site still works: the home page is then filled from *Appearance → Customize*.
 
 The site deploys on its own, to Namecheap hosting. It has nothing to do with RepGet's Vercel build.
 
@@ -9,6 +9,8 @@ The site deploys on its own, to Namecheap hosting. It has nothing to do with Rep
 | Path | What it is |
 |---|---|
 | `theme/dumitru/` | The WordPress theme, uploaded as a zip |
+| `theme/dumitru/inc/sections.php` | The home page sections' markup, shared by Elementor and the Customizer fallback |
+| `theme/dumitru/inc/elementor.php`, `inc/elementor/widgets.php` | The "Dumitru" Elementor widgets, the set-up button, and the footer/header values read from the Home page |
 | `theme/dumitru/assets/js/portrait.js` | The grabbable portrait: a self-written WebGL engine with no libraries |
 | `theme/dumitru/assets/images/portrait/` | Crops made from Daniel's photo (the original is not included) |
 | `theme/dumitru/assets/fonts/` | Inter and Zalando Sans Expanded, self-hosted (SIL Open Font License, licence files alongside) |
@@ -19,14 +21,13 @@ The site deploys on its own, to Namecheap hosting. It has nothing to do with Rep
 ## Requirements
 
 - WordPress 6.4 or newer, PHP 7.4 or newer (Namecheap shared hosting has both).
-- **No plugin is required.**
+- **Elementor** (free, from *Plugins → Add New*): for editing the home page. Elementor Pro is not needed.
 - **Optional:**
   - **LiteSpeed Cache** (free): caching and image optimisation. The Namecheap server runs LiteSpeed.
-  - **A newsletter plugin**, only if Daniel wants a newsletter, e.g. MailPoet (free tier).
   - **Yoast SEO** (free), only if wanted. The theme already prints a description, sharing tags and a Person record, and switches these off by itself when Yoast, Rank Math, SEOPress or All in One SEO is active, so nothing is printed twice.
-  - **Elementor (free)**, for building *other* pages. The home page is edited in the Customizer (below).
+- There is no newsletter (Daniel's decision). The theme's dormant newsletter code stays switched off.
 
-## Install (about 15 minutes)
+## Install (about 20 minutes)
 
 1. **Make the theme zip.** From the repository root:
    `git archive --format=zip --prefix=dumitru/ HEAD:personal-site/dumitruculiuc/theme/dumitru -o dumitru.zip`
@@ -40,35 +41,38 @@ The site deploys on its own, to Namecheap hosting. It has nothing to do with Rep
    - Posts page → **Blog**
 7. **Settings → General:** set the *Site Title* to "Dumitru Culiuc" and the *Tagline* to one real sentence. The tagline becomes the home page's search description.
 8. **Settings → Discussion:** turn comments on or off as Daniel prefers.
-9. **Appearance → Customize → Home page:** fill in the texts and links (next section).
-10. **Projects → Add project:** add RepGet, Image Studio and others.
+9. **Plugins → Add New:** search for **Elementor**, then *Install Now* and *Activate*. (If Elementor opens its welcome wizard, you can skip it.)
+10. **Set up the home page:** go to *Dashboard* (or *Pages*). A box says "Edit your home page in Elementor". Click **Set up the home page in Elementor**. This puts all the home page sections into the Home page, in the right order. Anything already written in the Customizer or under *Projects* is copied in; everything else stays empty and hidden.
+    - If the Home page already has content of its own, WordPress asks first. Click *Yes, replace it* only if that content can go.
 11. **Posts:** write or import the real posts.
+12. Daniel then fills in his texts himself (next section).
 
 ## Editing the content
 
-Every field starts empty, and **a section with nothing in it is hidden**. Placeholder text can never go live by accident.
+**Everything on the home page is edited in one place: _Pages → Home → Edit with Elementor_.** Click a section on the page to see its fields on the left. Change them, then click **Publish** (or **Update**) at the bottom left.
 
-| On the page | Where to edit |
+The theme's sections are in the **"Dumitru"** group of Elementor's widget list (or type "dumitru" in its search box), in case one is deleted by mistake and needs adding back.
+
+Every field starts empty, and **a section with nothing in it is hidden** on the live site. In the Elementor editor, a hidden section shows a dashed note instead, so it can still be clicked and filled in. Placeholder text can never go live by accident.
+
+| On the page | Where to edit (in Elementor, on the Home page) |
 |---|---|
-| Header label (next to the avatar) | Customize → Home page → *Name and header* |
-| "Hello! My name is **Dumitru**", the intro paragraphs | *Intro and portrait* |
-| Speech bubble on the portrait ("Psst. Try RepGet →") | *Intro and portrait*. It needs both the main line and an address |
-| Link under the portrait | *Intro and portrait* |
-| "As featured in" | *As featured in*, one line per real article: `Name \| https://…` |
-| Project cards and the logo strip | Admin menu **Projects** (logo = "Logo" box, description = "Excerpt", tick "big card" for the top row, order = "Order") |
-| Projects title, note, "more projects" button | *Projects section* |
+| Your name (footer, portrait description, search engines) and the header label next to the small photo | *Intro and portrait* → *Your name (used on every page)* |
+| "Hello! My name is **Dumitru**", the intro paragraphs | *Intro and portrait* → *Intro* |
+| Speech bubble on the portrait ("Psst. Try RepGet →") | *Intro and portrait* → *Portrait*. It needs both the main line and an address |
+| Link under the portrait | *Intro and portrait* → *Portrait* |
+| "As featured in" | *As featured in*: add one item per real article (publication name + address) |
+| Project cards and the logo strip | *Projects*: add one item per project (logo, name, description, address, "Big card" on or off, optional year and code). Drag items to reorder. While the list is empty, the projects from the admin menu **Projects** are shown instead |
+| Projects title, note, "more projects" button | *Projects* |
 | About: title, text, highlights, photo, caption | *About* |
-| Newsletter (3 places) | *Newsletter*. See below |
-| Blog list | Ordinary **Posts**. The home page shows the latest 4 |
-| Email and social buttons in the footer | *Contact and social links* |
+| Blog list | Ordinary **Posts**. *Latest posts* sets the title and how many are shown (4 unless changed) |
+| Email and social buttons in the footer of every page | *Contact and social*. It shows nothing on the home page itself; its values appear in the footer on every page after you click *Update* |
 | Header tabs | Automatic (About, Blog), or *Appearance → Menus → "Header tabs"* |
 | Light/dark | Visitors switch it; it follows their device until they do |
 
-**Newsletter.** The forms appear only when a newsletter plugin is really connected:
-1. Install the newsletter plugin.
-2. Create a form in it and copy its shortcode, e.g. `[mailpoet_form id="1"]`.
-3. Paste the shortcode into Customize → *Newsletter*, tick *Show the newsletter forms*, and fill in the titles.
-4. Test one sign-up with a real address.
+**What stays fixed:** the portrait itself (only its speech bubble and the link under it are editable), the section design and the page header and footer layout. Elementor's free version can't edit headers or footers, which is why the footer's email and links are entered in the *Contact and social* section on the Home page.
+
+**Only if Elementor is switched off:** the home page then uses *Appearance → Customize → Home page* and the admin menu **Projects** instead. Those fields are only a fallback; once the home page is built with Elementor, change things in Elementor.
 
 **The portrait anywhere else:** the shortcode `[dumitru_portrait width="320"]` (in Elementor, use the free *Shortcode* widget).
 
@@ -87,11 +91,13 @@ Every field starts empty, and **a section with nothing in it is hidden**. Placeh
    - open the blog and one post
    - switch light/dark
    - the footer links
+   - change one word on the Home page in Elementor, click *Update*, and check it on the live page
 5. **Search engines:** after launch, add the site to Google Search Console and submit `https://dumitruculiuc.com/wp-sitemap.xml`.
 
 ## Rollback
 
 - **Theme problem:** *Appearance → Themes*, activate a default theme (e.g. Twenty Twenty-Five). Content and settings stay.
+- **Elementor problem:** *Plugins*, deactivate Elementor. The home page falls back to the Customizer texts by itself; the Elementor content stays saved for when it is switched back on.
 - **Whole site:** in Softaculous, remove the installation (or restore the backup from step 1). The domain then shows the hosting's default page again, and DNS and email are untouched.
 - **Earlier theme version:** upload the earlier `dumitru.zip` and choose *Replace current with uploaded*.
 

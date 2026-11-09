@@ -42,11 +42,15 @@ function dumitru_sanitize_shortcode( $value ) {
  * @param WP_Customize_Manager $wp_customize Customizer.
  */
 function dumitru_customize_register( $wp_customize ) {
+	$description = __( 'Texts and links of the home page. Leave a field empty to hide what it feeds. Projects are edited under Projects in the admin menu; posts under Posts.', 'dumitru' );
+	if ( dumitru_is_elementor_page( dumitru_front_page_id() ) ) {
+		$description = __( 'Your home page is built with Elementor: edit it there (Pages → Home → Edit with Elementor), including the name, header label, email and social links. The fields below are only used if Elementor is switched off.', 'dumitru' );
+	}
 	$wp_customize->add_panel(
 		'dumitru_home',
 		array(
 			'title'       => __( 'Home page', 'dumitru' ),
-			'description' => __( 'Texts and links of the home page. Leave a field empty to hide what it feeds. Projects are edited under Projects in the admin menu; posts under Posts.', 'dumitru' ),
+			'description' => $description,
 			'priority'    => 30,
 		)
 	);

@@ -1,6 +1,8 @@
 <?php
 /**
  * Newsletter band (when set up), contact and social links, copyright.
+ * Email and social links come from the home page's Elementor "Contact and
+ * social" widget when there is one, else from the Customizer.
  *
  * @package Dumitru
  */
@@ -8,7 +10,7 @@
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
-$dumitru_email  = dumitru_mod( 'email' );
+$dumitru_email  = dumitru_site_value( 'email' );
 $dumitru_social = dumitru_social_links();
 $dumitru_band   = dumitru_newsletter_form( 'band' );
 ?>

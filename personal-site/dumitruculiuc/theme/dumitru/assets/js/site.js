@@ -47,11 +47,12 @@
   }
 
   // --- Project strip arrows ----------------------------------------------------
-  var shelves = document.querySelectorAll("[data-dc-shelf]");
-  Array.prototype.forEach.call(shelves, function (shelf) {
+  // Also exposed for Elementor's editor, which redraws sections in place.
+  function mountShelf(shelf) {
     var list = shelf.querySelector(".shelf__items");
     var buttons = shelf.querySelectorAll("[data-dc-shelf-step]");
-    if (!list) return;
+    if (!list || shelf.__dcShelf) return;
+    shelf.__dcShelf = true;
     function update() {
       var max = list.scrollWidth - list.clientWidth - 2;
       shelf.classList.toggle("is-static", max <= 0);
@@ -67,7 +68,9 @@
     list.addEventListener("scroll", update, { passive: true });
     window.addEventListener("resize", update);
     update();
-  });
+  }
+  Array.prototype.forEach.call(document.querySelectorAll("[data-dc-shelf]"), mountShelf);
+  window.DCShelf = { mount: mountShelf };
 
   // --- Copy link ------------------------------------------------------------------
   document.addEventListener("click", function (e) {

@@ -8,7 +8,7 @@
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
-$dumitru_handle = dumitru_mod( 'handle' );
+$dumitru_handle = dumitru_site_value( 'handle' );
 ?><!doctype html>
 <html <?php language_attributes(); ?>>
 <head>

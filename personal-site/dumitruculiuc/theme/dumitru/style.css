@@ -2,8 +2,8 @@
 Theme Name: Dumitru
 Theme URI: https://dumitruculiuc.com/
 Author: Dumitru Culiuc
-Description: Personal site of Dumitru Culiuc: one home page with a grabbable portrait, projects, about, and a blog. Home sections are edited in Appearance → Customize; projects under Projects; posts are ordinary WordPress posts. Works without page builders; Elementor (free) can be used for other pages.
-Version: 1.0.0
+Description: Personal site of Dumitru Culiuc: one home page with a grabbable portrait, projects, about, and a blog. The home page is edited with Elementor (free) using the theme's "Dumitru" widgets; without Elementor it is filled from Appearance → Customize. Projects can also be kept under Projects; posts are ordinary WordPress posts.
+Version: 1.1.0
 Requires at least: 6.4
 Tested up to: 6.8
 Requires PHP: 7.4
