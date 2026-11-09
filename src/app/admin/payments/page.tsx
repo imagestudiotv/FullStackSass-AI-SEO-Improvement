@@ -188,7 +188,7 @@ export default async function AdminPaymentsPage({
     <AdminPage>
       <AdminPageHeader
         title="Payments"
-        description="Every payment taken, newest first. Refunds go back through Stripe and are recorded in the admin log."
+        description="Every payment taken, newest first. Refunds go back through the processor that took the payment, Stripe or PayPal, and are recorded in the admin log."
         actions={
           <Button variant="outline" asChild className="h-9 bg-background">
             <Link href="/admin/activity?action=payment.refunded">
