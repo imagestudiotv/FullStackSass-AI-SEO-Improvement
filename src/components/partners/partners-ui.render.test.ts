@@ -141,7 +141,7 @@ describe("the public /partners page", () => {
     );
     const words = text(html);
     const payoutItem = copy.faq.find((item) => item.payout)!;
-    // Daniel's cash wording stays in the copy for when cash is switched on, but is not shown now.
+    // Daniel's cash wording stays in the copy for when cash is switched on; in credits mode the cash methods appear only as the second phase.
     expect(words).not.toContain(fill(payoutItem.answer, { maturity: 30, amount: "€25.00" }).slice(0, 40));
     expect(words).toContain("100");
     expect(words).toContain("€79");
@@ -150,7 +150,9 @@ describe("the public /partners page", () => {
     const schema = JSON.parse(html.match(/<script type="application\/ld\+json">(.*?)<\/script>/)![1]) as { mainEntity: { name: string; acceptedAnswer: { text: string } }[] };
     const answer = schema.mainEntity.find((entry) => entry.name === payoutItem.question)!.acceptedAnswer.text;
     expect(answer).toContain("€79");
-    expect(answer).not.toMatch(/Stripe Connect|PayPal/);
+    // Daniel: keep the cash methods in view, as the second phase, never as available now.
+    expect(answer).toMatch(/Stripe Connect.*PayPal/);
+    expect(answer).not.toContain("Payouts are sent to your bank account");
   });
 
   it("follows the policy, not the copy, when rates change", () => {
