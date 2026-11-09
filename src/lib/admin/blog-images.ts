@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { recordAdminAction } from "@/lib/admin/audit";
 import { requireAdmin } from "@/lib/admin/guard";
+import { blogImageFile } from "@/lib/blog/image-files";
 import { BLOG_LOCALES, blogLocale, isBlogLocale } from "@/lib/blog/locale";
 import { db } from "@/lib/db";
 import { blogPosts } from "@/lib/db/schema";
@@ -24,8 +25,9 @@ import type { ActionResult } from "@/lib/websites/actions";
  *
  * The list is the storage folder itself (BLOG_IMAGE_FOLDER), so a picture
  * uploaded and never saved into a post is listed too. Which posts use a
- * picture is read from the posts' text at the time of asking; a picture in
- * use cannot be deleted.
+ * picture is read from the posts' text and featured images (client,
+ * 2026-11-07) at the time of asking, drafts included; a picture in use
+ * cannot be deleted.
  *
  * Every picture has languages (client, 2026-10-15: "we need to separate the
  * images suggestions for each language"): an Italian post's picker suggests
@@ -61,6 +63,8 @@ type PostText = {
   translationOf: string | null;
   createdAt: Date;
   bodyHtml: string;
+  featuredImageUrl: string | null;
+  featuredImageAlt: string | null;
 };
 
 async function postTexts(): Promise<PostText[]> {
@@ -74,6 +78,8 @@ async function postTexts(): Promise<PostText[]> {
       translationOf: blogPosts.translationOf,
       createdAt: blogPosts.createdAt,
       bodyHtml: blogPosts.bodyHtml,
+      featuredImageUrl: blogPosts.featuredImageUrl,
+      featuredImageAlt: blogPosts.featuredImageAlt,
     })
     .from(blogPosts);
 }
@@ -81,25 +87,19 @@ async function postTexts(): Promise<PostText[]> {
 /** Where pictures are: the blog folder itself (pictures from before languages), then a folder per language. */
 const FOLDERS = [BLOG_IMAGE_FOLDER, ...BLOG_LOCALES.map((locale) => `${BLOG_IMAGE_FOLDER}/${locale}`)];
 
-/**
- * A blog picture's place in storage: directly in the blog folder, or in one
- * language's folder inside it. Null for anything else - another folder, a
- * customer's picture, a folder itself, a path that climbs out.
- */
-function blogImageFile(path: string): { language: Locale | null } | null {
-  if (!path.startsWith(`${BLOG_IMAGE_FOLDER}/`)) return null;
-  const parts = path.slice(BLOG_IMAGE_FOLDER.length + 1).split("/");
-  // No empty, "." or ".." part: nothing that names a folder or climbs out of one.
-  if (parts.some((part) => part === "" || part === "." || part === "..")) return null;
-  const [first] = parts;
-  // Directly in the blog folder: a picture from before languages - but a language's folder is not a picture.
-  if (parts.length === 1) return isBlogLocale(first) ? null : { language: null };
-  return parts.length === 2 && isBlogLocale(first) ? { language: first } : null;
+/** True when the post's featured image is this picture (its address, or its storage key). */
+function featuredHere(post: PostText, url: string, path: string): boolean {
+  if (!post.featuredImageUrl) return false;
+  return post.featuredImageUrl === url || storedImagePath(post.featuredImageUrl) === path;
 }
 
-/** The posts whose text contains this picture's address (or its storage key, if a link was rewritten). */
+/**
+ * The posts that use this picture: in their text (its address, or its
+ * storage key if a link was rewritten) or as their featured image - drafts
+ * included, so a draft's cover cannot be deleted from under it.
+ */
 function usage(url: string, path: string, posts: PostText[]) {
-  return posts.filter((post) => post.bodyHtml.includes(url) || post.bodyHtml.includes(`/${path}`));
+  return posts.filter((post) => post.bodyHtml.includes(url) || post.bodyHtml.includes(`/${path}`) || featuredHere(post, url, path));
 }
 
 /**
@@ -138,8 +138,8 @@ function pictureLanguages(file: { uploadedFor: Locale | null; storedAt: string |
 const decode = (value: string) =>
   value.replace(/&quot;/g, '"').replace(/&#0?39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
 
-/** The alt text of the first <img> showing this picture, if any. */
-function altFor(url: string, posts: PostText[]): string | null {
+/** The alt text of the first <img> showing this picture, if any; else its description as a post's featured image. */
+function altFor(url: string, path: string, posts: PostText[]): string | null {
   for (const post of posts) {
     const at = post.bodyHtml.indexOf(url);
     if (at < 0) continue;
@@ -149,7 +149,8 @@ function altFor(url: string, posts: PostText[]): string | null {
     const alt = /\balt="([^"]*)"/.exec(post.bodyHtml.slice(start, end + 1))?.[1];
     if (alt && alt.trim()) return decode(alt.trim());
   }
-  return null;
+  // Stored as typed, not as HTML: nothing to decode.
+  return posts.find((post) => featuredHere(post, url, path) && post.featuredImageAlt?.trim())?.featuredImageAlt?.trim() ?? null;
 }
 
 /** Every blog picture, newest first, with where it is used. `term` matches the description, file name or a post title. */
@@ -166,7 +167,7 @@ export async function listBlogImages(term = ""): Promise<{ configured: boolean; 
       name: file.name,
       size: file.size,
       createdAt: file.createdAt,
-      alt: altFor(file.url, posts),
+      alt: altFor(file.url, file.path, posts),
       usedIn: users.map(({ id, title, slug, status }) => ({ id, title, slug, status })),
       languages: pictureLanguages({ uploadedFor: blogImageFile(file.path)?.language ?? null, storedAt: file.createdAt }, users),
     };

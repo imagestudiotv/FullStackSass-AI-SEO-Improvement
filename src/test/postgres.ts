@@ -7,6 +7,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "@/vendor/postgres";
 
 import * as schema from "@/lib/db/schema";
+import { draftMigrations } from "@/test/db";
 
 /**
  * A disposable database on a REAL Postgres server, for tests that need
@@ -96,10 +97,12 @@ export async function createPostgresTestDb(
   const journal = JSON.parse(
     readFileSync(path.join(root, "drizzle/meta/_journal.json"), "utf8"),
   ) as Journal;
-  for (const { tag } of journal.entries.filter(
-    (_entry, index) => options.throughIndex === undefined || index <= options.throughIndex,
-  )) {
-    const file = readFileSync(path.join(root, "drizzle", `${tag}.sql`), "utf8");
+  const files = journal.entries
+    .filter((_entry, index) => options.throughIndex === undefined || index <= options.throughIndex)
+    .map(({ tag }) => readFileSync(path.join(root, "drizzle", `${tag}.sql`), "utf8"));
+  // The feature branches' drafted schema changes, after the whole chain only (src/test/db.ts).
+  if (options.throughIndex === undefined) files.push(...draftMigrations());
+  for (const file of files) {
     for (const statement of (hasVector ? file : file.replace(/vector\(\d+\)/g, "text"))
       .split("--> statement-breakpoint")
       .map((s) => s.trim())

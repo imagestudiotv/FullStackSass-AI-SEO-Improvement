@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { PostCover } from "@/components/post-cover";
+import { BlogCover } from "@/components/blog-cover";
 import { BLOG_CHROME, blogPath, categoryPath, fill } from "@/lib/blog/locale";
 import type { BlogPost } from "@/lib/blog/shared";
 
@@ -33,11 +33,10 @@ export function PostCard({ post }: { post: BlogPost }) {
   const locale = post.locale ?? "en";
   return (
     <article className="group relative flex h-full flex-col overflow-hidden rounded-xl border bg-card text-card-foreground transition-colors hover:border-primary/40">
-      {/* The English name: it picks the cover's colour, the same in every language. */}
-      <PostCover
-        slug={post.slug}
-        title={post.title}
-        category={post.category}
+      {/* Its featured image, or the drawn cover. Three to a row from lg, two from sm (the blog's grids). */}
+      <BlogCover
+        post={post}
+        sizes="(min-width: 1024px) 400px, (min-width: 640px) 50vw, 100vw"
         className="aspect-[100/56] w-full border-b"
       />
 

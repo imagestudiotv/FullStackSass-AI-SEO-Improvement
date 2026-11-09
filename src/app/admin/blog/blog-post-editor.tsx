@@ -6,6 +6,7 @@ import {
   CircleDashed,
   ExternalLink,
   Eye,
+  ImageIcon,
   Languages,
   Loader2,
   Lock,
@@ -13,16 +14,18 @@ import {
   Plus,
   RotateCw,
   Trash2,
+  Upload,
   X,
   XCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition, type ReactNode } from "react";
+import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { toast } from "sonner";
 
 import { BlogArticle } from "@/components/blog-article";
-import type { PickerScopes } from "@/components/image-picker";
+import { ImagePicker, type PickerImage, type PickerScopes } from "@/components/image-picker";
+import { PostCover } from "@/components/post-cover";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,7 +36,6 @@ import {
   createBlogTranslation,
   deleteBlogPost,
   saveBlogPost,
-  uploadBlogImage,
   type AdminBlogPost,
   type BlogPostInput,
 } from "@/lib/admin/blog";
@@ -48,6 +50,7 @@ import {
   hasText,
   readingMinutes,
   type BlogCategoryInfo,
+  type BlogFeaturedImage,
   type BlogPost,
 } from "@/lib/blog/shared";
 import { COMPANY_NAME } from "@/lib/config/site";
@@ -63,6 +66,7 @@ import { useUnsavedChanges } from "../_ui/use-unsaved-changes";
 import { ConfirmDialog } from "./confirm-dialog";
 import { adminBlogPath } from "./languages";
 import { postStatus } from "./post-status";
+import { uploadBlogPicture } from "./upload-picture";
 
 const TEXTAREA =
   "flex w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-2 text-base outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm dark:bg-input/30";
@@ -74,8 +78,13 @@ const TEXTAREA =
  * warns past it instead.
  */
 const LIMITS = { title: 200, description: 300, author: 100, shortAnswer: 1000, question: 300, sourceLabel: 200, rows: 30 };
+/** A featured image's description: the server's limit (lib/blog/image-files.ts), the picker's too. */
+const ALT_MAX = 300;
 /** What search results show of a description (the free audit's limit); longer is saved but cut off there. */
 const DESCRIPTION_TARGET = SNIPPET_LIMITS.metaMax;
+
+/** Why the post cannot be saved while a picture is still on its way to storage. */
+const UPLOADING = "Wait for the picture to finish uploading, then save.";
 
 /** A version conflict (saveBlogPost / deleteBlogPost): someone else saved since this copy was opened. */
 const CONFLICT = /changed after you opened it/i;
@@ -147,6 +156,7 @@ function fromPost(post: AdminBlogPost | null, firstCategory: string, newLocale: 
     bodyHtml: post?.bodyHtml ?? "",
     faqs: post?.faqs ?? [],
     sources: post?.sources ?? [],
+    featuredImage: post?.featuredImage ?? null,
     locale: post?.locale ?? newLocale,
   };
 }
@@ -200,6 +210,12 @@ export function BlogPostEditor({
   const [reviewed, setReviewed] = useState(false);
   /** The language a translation is being started in, while it runs. */
   const [translating, setTranslating] = useState<string | null>(null);
+  /**
+   * Pictures still uploading (into the text or as the featured image). The
+   * post cannot be saved meanwhile: "saved" would not include them.
+   */
+  const [uploads, setUploads] = useState(0);
+  const uploading = uploads > 0;
 
   const live = status === "published";
   const locale = blogLocale(draft.locale);
@@ -231,6 +247,11 @@ export function BlogPostEditor({
   }
 
   function save(action: Exclude<Action, "delete">) {
+    // The buttons are off meanwhile; this catches a confirmation opened before the upload began.
+    if (uploading) {
+      toast.error(UPLOADING);
+      return;
+    }
     const nextStatus = action === "publish" || action === "save" ? "published" : "draft";
     const sent = draft;
     setRunning(action);
@@ -324,23 +345,19 @@ export function BlogPostEditor({
     });
   }
 
+  /** Stores a picture as one of this language's (pictureScopes) and returns its address; null after saying why not. */
   async function uploadImage(file: File): Promise<string | null> {
-    const form = new FormData();
-    form.set("file", file);
-    // Stored as one of this language's pictures (pictureScopes).
-    form.set("locale", locale);
+    setUploads((count) => count + 1);
     try {
-      const result = await uploadBlogImage(form);
+      // Straight to storage, so a picture over a server action's 1 MB body limit arrives too (upload-picture.ts). Never throws.
+      const result = await uploadBlogPicture(file, locale);
       if (!result.ok) {
         toast.error(result.error);
         return null;
       }
-      return result.data.url;
-    } catch (error) {
-      // A thrown upload used to surface as an unhandled rejection (paste/drop) or the error page (picker).
-      console.error("[admin/blog] image upload failed", error);
-      toast.error("The image could not be uploaded. Try again; if it keeps failing, check the server logs.");
-      return null;
+      return result.url;
+    } finally {
+      setUploads((count) => count - 1);
     }
   }
 
@@ -371,6 +388,7 @@ export function BlogPostEditor({
       url: source.url.trim(),
     })),
     body: previewHtml(draft.bodyHtml),
+    featuredImage: draft.featuredImage ?? undefined,
     locale,
   };
   preview.readingMinutes = readingMinutes(preview);
@@ -404,7 +422,15 @@ export function BlogPostEditor({
                   Preview
                 </TabsTrigger>
               </TabsList>
-              <SaveState pending={pending} running={running} creating={creating} failure={failure} unsaved={unsaved} isNew={!post} />
+              <SaveState
+                pending={pending}
+                running={running}
+                creating={creating}
+                failure={failure}
+                unsaved={unsaved}
+                isNew={!post}
+                uploading={uploading}
+              />
             </div>
 
             <div className="flex flex-wrap items-center gap-2 md:shrink-0 md:flex-nowrap">
@@ -417,7 +443,13 @@ export function BlogPostEditor({
                       <span className="sr-only">(opens in a new tab)</span>
                     </a>
                   </Button>
-                  <Button type="button" size="lg" disabled={pending || discarding || !unsaved} onClick={() => save("save")}>
+                  <Button
+                    type="button"
+                    size="lg"
+                    disabled={pending || discarding || uploading || !unsaved}
+                    title={uploading ? UPLOADING : undefined}
+                    onClick={() => save("save")}
+                  >
                     {pending && running === "save" ? <Spinner /> : null}
                     Save changes
                   </Button>
@@ -428,7 +460,8 @@ export function BlogPostEditor({
                     type="button"
                     variant="outline"
                     size="lg"
-                    disabled={pending || discarding || (!unsaved && Boolean(post))}
+                    disabled={pending || discarding || uploading || (!unsaved && Boolean(post))}
+                    title={uploading ? UPLOADING : undefined}
                     onClick={() => save("draft")}
                   >
                     {pending && running === "draft" ? <Spinner /> : null}
@@ -437,8 +470,8 @@ export function BlogPostEditor({
                   <Button
                     type="button"
                     size="lg"
-                    disabled={pending || discarding || blockedByReview}
-                    title={blockedByReview ? "Tick “Reviewed by a native speaker” under Language first" : undefined}
+                    disabled={pending || discarding || uploading || blockedByReview}
+                    title={uploading ? UPLOADING : blockedByReview ? "Tick “Reviewed by a native speaker” under Language first" : undefined}
                     onClick={() => setConfirming("publish")}
                   >
                     {pending && running === "publish" ? <Spinner /> : null}
@@ -537,6 +570,21 @@ export function BlogPostEditor({
                 actions={<RowCount count={draft.sources.length} noun="source" />}
               >
                 <SourceRows sources={draft.sources} onChange={(sources) => set("sources", sources)} />
+              </AdminSection>
+
+              <AdminSection
+                id="post-featured-image"
+                title="Featured image"
+                description="Optional. The post's own cover: shown at the top of the post, on its cards and in shared links. Without one the post keeps its drawn cover."
+              >
+                <FeaturedImageField
+                  value={draft.featuredImage ?? null}
+                  saved={saved.featuredImage ?? null}
+                  locale={locale}
+                  onChange={(featuredImage) => set("featuredImage", featuredImage)}
+                  onUpload={uploadImage}
+                  preview={preview}
+                />
               </AdminSection>
             </TabsContent>
 
@@ -987,6 +1035,7 @@ function SaveState({
   failure,
   unsaved,
   isNew,
+  uploading,
 }: {
   pending: boolean;
   running: Action | null;
@@ -994,6 +1043,8 @@ function SaveState({
   failure: Failure | null;
   unsaved: boolean;
   isNew: boolean;
+  /** A picture is still on its way to storage. */
+  uploading: boolean;
 }) {
   let content: ReactNode;
   if (pending && running) {
@@ -1001,6 +1052,13 @@ function SaveState({
       <>
         <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground motion-reduce:animate-none" aria-hidden="true" />
         <span className="truncate">{creating ? "Creating the post…" : RUNNING[running]}</span>
+      </>
+    );
+  } else if (uploading) {
+    content = (
+      <>
+        <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground motion-reduce:animate-none" aria-hidden="true" />
+        <span className="truncate">Uploading picture…</span>
       </>
     );
   } else if (failure) {
@@ -1390,6 +1448,176 @@ function SourceRows({
         </Button>
         {full ? <p className="text-xs text-muted-foreground">A post keeps up to {LIMITS.rows} sources.</p> : null}
       </div>
+    </div>
+  );
+}
+
+/**
+ * The post's featured image (client, 2026-11-07: "a new section below
+ * Sources"): upload one from the computer or choose one of the blog's
+ * pictures (the same library and language choice as the picture button in
+ * the text), see it as the cover, describe it, replace or remove it.
+ *
+ * Nothing changes until a picture has arrived and been chosen: a failed
+ * upload leaves the image there was, saved or not. Removing it shows the
+ * drawn cover again. Like every other field, it is saved with the post.
+ */
+function FeaturedImageField({
+  value,
+  saved,
+  locale,
+  onChange,
+  onUpload,
+  preview,
+}: {
+  value: BlogFeaturedImage | null;
+  /** The one stored with the post, to say when the one on screen is not saved yet. */
+  saved: BlogFeaturedImage | null;
+  locale: Locale;
+  onChange: (image: BlogFeaturedImage | null) => void;
+  /** Stores a file and returns its address, or null after saying why not. */
+  onUpload: (file: File) => Promise<string | null>;
+  /** The post as the blog would show it, for the drawn cover. */
+  preview: BlogPost;
+}) {
+  const [picking, setPicking] = useState(false);
+  const [images, setImages] = useState<PickerImage[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const latest = useRef(0);
+  const changed = (value?.url ?? "") !== (saved?.url ?? "") || (value?.alt ?? "") !== (saved?.alt ?? "");
+
+  async function search(term: string, scope?: string) {
+    const request = ++latest.current;
+    setLoading(true);
+    try {
+      const found = await listBlogImagesForPicker(term, scope);
+      if (request === latest.current) setImages(found);
+    } catch (error) {
+      console.error("[admin/blog] listing pictures failed", error);
+      if (request === latest.current) toast.error("The pictures could not be listed. Try again.");
+    } finally {
+      if (request === latest.current) setLoading(false);
+    }
+  }
+
+  async function upload(file: File) {
+    setUploading(true);
+    try {
+      const url = await onUpload(file);
+      // The description stays: it was written for the post, and the new picture usually shows the same thing.
+      if (url) onChange({ url, alt: value?.alt ?? "" });
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  if (picking) {
+    return (
+      <ImagePicker
+        className="my-0"
+        images={images}
+        loading={loading}
+        selected={value?.url ?? null}
+        alt={value?.alt ?? null}
+        scopes={pictureScopes(locale)}
+        onSearch={search}
+        onUpload={onUpload}
+        onInsert={(url, alt) => {
+          onChange({ url, alt });
+          setPicking(false);
+        }}
+        onRemove={
+          value
+            ? () => {
+                onChange(null);
+                setPicking(false);
+              }
+            : undefined
+        }
+        onClose={() => setPicking(false)}
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="relative mx-auto max-w-xl overflow-hidden rounded-xl border bg-muted">
+        {value ? (
+          /* As the post's cover is shown: the same shape, cropped to fill it (components/blog-cover.tsx). */
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={value.url} alt={value.alt} className="aspect-[100/56] w-full object-cover" />
+        ) : (
+          <PostCover slug={preview.slug} title={preview.title} category={preview.category} className="aspect-[100/56] w-full" />
+        )}
+        {uploading ? (
+          <div className="absolute inset-0 flex items-center justify-center gap-2 bg-background/70 text-sm font-medium" role="status">
+            <Spinner />
+            Uploading…
+          </div>
+        ) : null}
+      </div>
+      <p className="text-center text-xs text-muted-foreground">
+        {value ? "Shown cropped to this shape on the cards and at the top of the post." : "No featured image: the post shows this drawn cover."}
+      </p>
+
+      {value ? (
+        <Field
+          id="blog-featured-alt"
+          label="Description (alt text)"
+          hint="What the picture shows, for screen readers and search engines. Leave it empty if it adds nothing to the title."
+          counter={value.alt.length > ALT_MAX - 60 ? <Counter value={value.alt.length} limit={ALT_MAX} /> : null}
+        >
+          <Input
+            id="blog-featured-alt"
+            value={value.alt}
+            maxLength={ALT_MAX}
+            onChange={(e) => onChange({ ...value, alt: e.target.value })}
+            aria-describedby="blog-featured-alt-hint"
+          />
+        </Field>
+      ) : null}
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Button type="button" variant="outline" disabled={uploading} onClick={() => fileRef.current?.click()}>
+          {uploading ? <Spinner /> : <Upload aria-hidden="true" />}
+          {value ? "Upload a new one" : "Upload from computer"}
+        </Button>
+        <Button type="button" variant="outline" disabled={uploading} onClick={() => setPicking(true)}>
+          <ImageIcon aria-hidden="true" />
+          {value ? "Replace from library" : "Choose from library"}
+        </Button>
+        {value ? (
+          <Button type="button" variant="ghost" disabled={uploading} onClick={() => onChange(null)} className="text-muted-foreground hover:text-danger">
+            <Trash2 aria-hidden="true" />
+            Remove
+          </Button>
+        ) : null}
+        {changed && !uploading ? (
+          <span className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span className="size-2 shrink-0 rounded-full bg-warning" aria-hidden="true" />
+            Not saved yet
+            <button type="button" className="font-medium text-primary hover:underline" onClick={() => onChange(saved)}>
+              Undo
+            </button>
+          </span>
+        ) : null}
+      </div>
+      <p className="text-xs text-muted-foreground">PNG, JPEG or WebP, up to 8 MB. Wide pictures work best (about 1600 × 900 pixels).</p>
+
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        className="hidden"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          // Cleared, or picking the same file twice fires no change event.
+          event.target.value = "";
+          if (file) void upload(file);
+        }}
+      />
     </div>
   );
 }

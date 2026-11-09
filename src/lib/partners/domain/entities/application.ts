@@ -29,8 +29,18 @@ export type ApplicationAnswers = {
   country: string;
 };
 
+/**
+ * The one definition of how long the answers may be, for the server's checks
+ * (use-cases/submit-application.ts, presentation/validation.ts) and the
+ * form's counters (components/partners/application-form.tsx). Lengths are
+ * of the trimmed answer. The answers are stored as jsonb with no length
+ * constraint of their own. Minimum and maximum from Daniel's form design
+ * (2026-11-07): 15 and 1,200 characters, up from 10 and 1,000.
+ */
 export const APPLICATION_LIMITS = {
   website: 300,
-  audience: 1000,
-  promotion: 1000,
+  /** The fewest characters an audience or promotion answer may have. */
+  textMin: 15,
+  audience: 1200,
+  promotion: 1200,
 } as const;

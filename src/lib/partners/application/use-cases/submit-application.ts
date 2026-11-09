@@ -29,8 +29,8 @@ export function validateAnswers(input: ApplicationInput, payoutCountries: string
   if (!/^https?:\/\/[^\s]+\.[^\s]+$/i.test(website) || website.length > APPLICATION_LIMITS.website) {
     return fail("invalid", "website");
   }
-  if (audience.length < 10 || audience.length > APPLICATION_LIMITS.audience) return fail("invalid", "audience");
-  if (promotion.length < 10 || promotion.length > APPLICATION_LIMITS.promotion) return fail("invalid", "promotion");
+  if (audience.length < APPLICATION_LIMITS.textMin || audience.length > APPLICATION_LIMITS.audience) return fail("invalid", "audience");
+  if (promotion.length < APPLICATION_LIMITS.textMin || promotion.length > APPLICATION_LIMITS.promotion) return fail("invalid", "promotion");
   if (!payoutCountries.includes(country)) return fail("invalid", "country");
   return ok({ website, audience, promotion, country });
 }

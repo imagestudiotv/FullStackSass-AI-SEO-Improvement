@@ -15,7 +15,32 @@ import { legacyHostRedirects } from "./src/lib/site-url";
 */
 const CSP_MODE = cspMode(process.env.CSP_MODE);
 
+/*
+  The blog's pictures in storage (lib/images/storage.ts), which next/image
+  may resize: a post's featured image on its cards and at its top
+  (components/blog-cover.tsx). Only the blog's folder of the article-image
+  bucket - no customer's pictures, no other site. None without storage.
+*/
+function blogImagePatterns(): NonNullable<NextConfig["images"]>["remotePatterns"] {
+  const raw = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  if (!raw) return [];
+  const origin = new URL(raw);
+  return [
+    {
+      protocol: origin.protocol === "http:" ? "http" : "https",
+      hostname: origin.hostname,
+      port: origin.port,
+      pathname: "/storage/v1/object/public/article-images/blog/posts/**",
+      search: "",
+    },
+  ];
+}
+
 const nextConfig: NextConfig = {
+  images: {
+    remotePatterns: blogImagePatterns(),
+  },
+
   env: {
     REPGET_CSP_MODE: CSP_MODE,
   },

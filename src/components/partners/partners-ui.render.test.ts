@@ -77,7 +77,9 @@ describe("the public /partners page", () => {
     const words = text(html).replace(/&#x27;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, "&");
     expect(words).not.toMatch(/\{\w+\}/);
     // The estimate opens at 10 paying customers on Grow: Growth Partner, 30% of EUR 99 = EUR 29.70 each.
-    expect(words).toContain(copy.calculator.title);
+    expect(words).toContain(copy.calculator.headSub);
+    // Every dot is a simulation, and says so.
+    expect(words).toContain(copy.calculator.kind);
     expect(words).toContain("€297");
     expect(words).toContain("€3,564");
     expect(words).toContain("Growth Partner");
@@ -86,8 +88,8 @@ describe("the public /partners page", () => {
     // The higher levels, in the earnings answer.
     expect(words).toMatch(/30%[^.]*10[^.]*35%[^.]*25/);
     expect(words).toContain(copy.ctaTitle);
-    // Apply in the hero and again at the end.
-    expect(html.match(/href="\/partner\/apply"/g)).toHaveLength(2);
+    // Apply in the hero, under the figures and again at the end.
+    expect(html.match(/href="\/partner\/apply"/g)).toHaveLength(3);
     const schema = JSON.parse(html.match(/<script type="application\/ld\+json">(.*?)<\/script>/)![1]) as { "@type": string; mainEntity: { name: string; acceptedAnswer: { text: string } }[] };
     expect(schema["@type"]).toBe("FAQPage");
     expect(schema.mainEntity.map((entry) => entry.name)).toEqual(copy.faq.map((item) => item.question));
@@ -99,8 +101,8 @@ describe("the public /partners page", () => {
   it("shows no estimate without a plan to estimate on", () => {
     const copy = partnerCopy("en").page;
     const html = renderToStaticMarkup(createElement(PartnersContent, { copy, policy: DEFAULT_PROGRAM_POLICY, open: true, locale: "en", href: (p: string) => p, plans: [] }));
-    expect(text(html)).not.toContain(copy.calculator.title);
-    expect(text(html)).toContain(copy.faqTitle);
+    expect(text(html)).not.toContain(copy.calculator.headSub);
+    expect(text(html)).toContain(copy.faqTitle.replace("\n", " "));
   });
 
   it("offers no application while the program is closed", () => {
@@ -108,6 +110,13 @@ describe("the public /partners page", () => {
     const html = renderToStaticMarkup(createElement(PartnersContent, { copy, policy: DEFAULT_PROGRAM_POLICY, open: false, locale: "en", href: (p: string) => p }));
     expect(html).not.toContain('href="/partner/apply"');
     expect(text(html)).toContain(copy.closed);
+  });
+
+  it("shows the owner's PayPal payout wording, and keeps commission on PayPal-paid subscriptions apart from it", () => {
+    const words = text(renderToStaticMarkup(createElement(PartnersContent, { copy: partnerCopy("en").page, policy: DEFAULT_PROGRAM_POLICY, open: true, locale: "en", href: (p: string) => p })));
+    expect(words).toContain("Payouts are sent to your bank account through Stripe Connect, or via PayPal where that option is available.");
+    expect(words).toContain("Subscriptions paid through PayPal do not earn commission at the moment.");
+    expect(words).toContain("25–35% commission");
   });
 
   it("follows the policy, not the copy, when rates change", () => {
@@ -127,6 +136,18 @@ describe("portal components", () => {
       expect(html).toContain(`aria-describedby="${id}-hint"`);
     }
     expect(html).toContain('name="terms"');
+    // Daniel's centred form: the review chip, counters at the server's limits, the PayPal payout hint, the terms link.
+    expect(html).toContain(copy.chip);
+    expect(html.match(/maxLength="1200"|maxlength="1200"/gi)).toHaveLength(2);
+    expect(html.match(/minLength="15"|minlength="15"/gi)).toHaveLength(2);
+    expect(html).toContain("0 / 1200");
+    expect(text(html)).toContain(copy.countryHint);
+    expect(html).toContain('href="/partners"');
+    expect(text(html)).not.toMatch(/\{\w+\}|no data is submitted|preview/i);
+  });
+
+  it("puts Daniel's PayPal wording under the payout country", () => {
+    expect(partnerCopy("en").portal.apply.countryHint).toBe("Payout availability varies by country. Bank payouts and PayPal are available to eligible partners.");
   });
 
   it("offers only what each payout setup state allows", () => {

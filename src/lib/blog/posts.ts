@@ -64,6 +64,7 @@ export function toBlogPost(
     faqs: row.faqs.length > 0 ? row.faqs : undefined,
     sources: row.sources.length > 0 ? row.sources : undefined,
     body: row.bodyHtml,
+    featuredImage: row.featuredImageUrl ? { url: row.featuredImageUrl, alt: row.featuredImageAlt ?? "" } : undefined,
     locale,
   };
   post.readingMinutes = readingMinutes(post);

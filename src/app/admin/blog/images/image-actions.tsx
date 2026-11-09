@@ -7,12 +7,12 @@ import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { uploadBlogImage } from "@/lib/admin/blog";
 import { deleteBlogImage } from "@/lib/admin/blog-images";
 import { BLOG_LOCALES, isBlogLocale, LANGUAGE_NAMES_EN } from "@/lib/blog/locale";
 import type { Locale } from "@/lib/i18n/config";
 
 import { ConfirmDialog } from "../confirm-dialog";
+import { uploadBlogPicture } from "../upload-picture";
 
 /** Copy the picture's address; delete it when no post uses it, after a confirmation. */
 export function ImageCardActions({ url, inUse }: { url: string; inUse: boolean }) {
@@ -93,14 +93,8 @@ export function UploadBlogImage({ language: shown }: { language: Locale | null }
     const chosen = language;
     if (!chosen) return;
     start(async () => {
-      const form = new FormData();
-      form.set("file", file);
-      form.set("locale", chosen);
-      const result = await uploadBlogImage(form).catch(() => null);
-      if (!result) {
-        toast.error("The picture could not be uploaded. Try again.");
-        return;
-      }
+      // Straight to storage, so a picture over a server action's 1 MB body limit arrives too.
+      const result = await uploadBlogPicture(file, chosen);
       if (!result.ok) {
         toast.error(result.error);
         return;
