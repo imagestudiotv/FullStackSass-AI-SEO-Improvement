@@ -1,0 +1,106 @@
+/*
+ * The grabbable portrait (assets/js/portrait.js).
+ *
+ * Geometry, shared with the script: the stage is the photograph's square,
+ * 125% of the circle's size, aligned to the circle's bottom, so the circle's
+ * centre is at (50%, 60%) of the stage and its radius is 40% of it. The body
+ * shows inside the circle only; the head may rise above it.
+ */
+.dc-portrait {
+  --dc-portrait-accent: var(--dc-accent, #f2611d);
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  isolation: isolate;
+}
+
+.dc-portrait__disc {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--dc-portrait-accent);
+  box-shadow: inset 0 -0.6rem 1.4rem rgb(0 0 0 / 0.12);
+}
+
+.dc-portrait__stage {
+  position: absolute;
+  left: -12.5%;
+  top: -25%;
+  width: 125%;
+  height: 125%;
+  z-index: 1;
+  /* Vertical swipes still scroll the page; the script decides the rest. */
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.dc-portrait__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* The circle, plus the head, which sits partly above it. */
+  -webkit-mask-image:
+    radial-gradient(closest-side circle at 50% 60%, #000 99.5%, transparent 100%),
+    radial-gradient(ellipse 21.6% 29.2% at 50% 37%, #000 85%, transparent 100%);
+  mask-image:
+    radial-gradient(closest-side circle at 50% 60%, #000 99.5%, transparent 100%),
+    radial-gradient(ellipse 21.6% 29.2% at 50% 37%, #000 85%, transparent 100%);
+  pointer-events: none;
+}
+
+.dc-portrait__canvas {
+  position: absolute;
+  left: -25%;
+  top: -25%;
+  width: 150%;
+  height: 150%;
+  pointer-events: none;
+}
+
+.dc-portrait.is-live .dc-portrait__img { visibility: hidden; }
+.dc-portrait.is-live .dc-portrait__stage.is-over { cursor: grab; }
+.dc-portrait.is-live .dc-portrait__stage.is-grabbing { cursor: grabbing; }
+/* Stretched skin is drawn over whatever is next to him. */
+.dc-portrait.is-grabbed .dc-portrait__stage { z-index: 20; }
+
+/* The phantom hand of the idle hint. */
+.dc-portrait__ghost {
+  position: absolute;
+  width: 2.6rem;
+  height: 2.6rem;
+  margin: -0.6rem 0 0 -0.9rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.18s ease;
+  background: center / contain no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M11 15V7.5a2 2 0 0 1 4 0V14m0-1V5.5a2 2 0 0 1 4 0V14m0-.5V7a2 2 0 0 1 4 0v8.5m0-3a2 2 0 0 1 4 0v6.2C27 24.5 23.2 29 17.6 29h-.8c-3.3 0-5.6-1.3-7.6-3.8l-4.1-5.3a2.1 2.1 0 0 1 3.2-2.7L11 19.5V15' fill='%23fff' stroke='%23111' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  filter: drop-shadow(0 2px 3px rgb(0 0 0 / 0.25));
+  z-index: 2;
+}
+.dc-portrait__ghost.is-on { opacity: 1; }
+.dc-portrait__ghost.is-gripping { transform: scale(0.88) rotate(-8deg); }
+
+/* Keyboard and screen-reader way to poke him; visible when focused. */
+.dc-portrait__poke {
+  position: absolute;
+  left: 50%;
+  bottom: -2.4rem;
+  transform: translateX(-50%);
+  z-index: 3;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid currentColor;
+  border-radius: 0.25rem;
+  background: var(--dc-paper, #fff);
+  color: inherit;
+  font: inherit;
+  font-size: 0.75rem;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.dc-portrait__poke:focus-visible { clip-path: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .dc-portrait__ghost { display: none; }
+}
