@@ -122,6 +122,8 @@
     "varying vec2 vUv;",
     "varying vec2 vPos;",
     "varying float vShade;",
+    // Around the eyes and brows and around the mouth (picture space).
+    "float feature(vec2 c, vec2 r) { return 1.0 - smoothstep(0.7, 1.0, length((vUv - c) / r)); }",
     "void main() {",
     "  vec4 t = texture2D(uTex, vUv);",
     "  vec2 q = (vUv - uEyeRect.xy) / uEyeRect.zw;",
@@ -136,10 +138,19 @@
     "  }",
     "  float fw = uFaceW.x + uFaceW.y + uFaceW.z;",
     "  if (fw > 0.0) {",
-    "    vec4 g = t * (1.0 - fw);",
-    "    if (uFaceW.x > 0.0) g += uFaceW.x * texture2D(uFace0, vUv);",
-    "    if (uFaceW.y > 0.0) g += uFaceW.y * texture2D(uFace1, vUv);",
-    "    if (uFaceW.z > 0.0) g += uFaceW.z * texture2D(uFace2, vUv);",
+    // A straight mix shows two mouths (and two pairs of eyes) half-way
+    // through a change. So the eyes and the mouth go almost all to whichever
+    // face is ahead (weights to the 16th power, renormalised), swapping in
+    // a frame or so mid-fade, while the rest of the face still fades.
+    "    vec4 w = vec4(max(1.0 - fw, 0.0), uFaceW);",
+    "    vec4 p = w / max(max(w.x, w.y), max(w.z, w.w));",
+    "    p *= p; p *= p; p *= p; p *= p;",
+    "    float k = max(feature(vec2(0.475, 0.515), vec2(0.125, 0.09)), feature(vec2(0.475, 0.355), vec2(0.165, 0.075)));",
+    "    w = mix(w, p / dot(p, vec4(1.0)), k);",
+    "    vec4 g = t * w.x;",
+    "    if (uFaceW.x > 0.0) g += w.y * texture2D(uFace0, vUv);",
+    "    if (uFaceW.y > 0.0) g += w.z * texture2D(uFace1, vUv);",
+    "    if (uFaceW.z > 0.0) g += w.w * texture2D(uFace2, vUv);",
     "    t = g;",
     "  }",
     "  float inCircle = clamp((uCircle.z - distance(vPos, uCircle.xy)) / uPx + 0.5, 0.0, 1.0);",
