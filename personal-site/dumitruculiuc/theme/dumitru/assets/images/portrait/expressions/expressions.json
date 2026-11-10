@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "size": 640,
+  "faces": {
+    "rest": "face-rest.webp?v=d30bd7a355",
+    "laugh": "face-laugh.webp?v=62ebd6d087",
+    "ouch": "face-ouch.webp?v=1e0dc46e07",
+    "shock": "face-shock.webp?v=c1172d0a96",
+    "smile": "face-smile.webp?v=5b809c59e9",
+    "wink": "face-wink.webp?v=39a6d872fe",
+    "annoyed": "face-annoyed.webp?v=23e72b26c4",
+    "blow": "face-blow.webp?v=9fc6f2b22d",
+    "dizzy": "face-dizzy.webp?v=88cc015c2b",
+    "whistle-1": "face-whistle-1.webp?v=648b9f063d",
+    "whistle-2": "face-whistle-2.webp?v=2ad7656f52",
+    "yawn-1": "face-yawn-1.webp?v=31e06c7ad1",
+    "yawn-2": "face-yawn-2.webp?v=3050588317",
+    "yawn-3": "face-yawn-3.webp?v=2db2427346"
+  },
+  "eyes": {
+    "sheet": "eyes.webp?v=5a2be31913",
+    "rect": [
+      0.34375,
+      0.2875,
+      0.27813,
+      0.15
+    ],
+    "cells": {
+      "look-n": [
+        0.00275,
+        0.00667,
+        0.24451,
+        0.32
+      ],
+      "look-ne": [
+        0.25275,
+        0.00667,
+        0.24451,
+        0.32
+      ],
+      "look-e": [
+        0.50275,
+        0.00667,
+        0.24451,
+        0.32
+      ],
+      "look-se": [
+        0.75275,
+        0.00667,
+        0.24451,
+        0.32
+      ],
+      "look-s": [
+        0.00275,
+        0.34,
+        0.24451,
+        0.32
+      ],
+      "look-sw": [
+        0.25275,
+        0.34,
+        0.24451,
+        0.32
+      ],
+      "look-w": [
+        0.50275,
+        0.34,
+        0.24451,
+        0.32
+      ],
+      "look-nw": [
+        0.75275,
+        0.34,
+        0.24451,
+        0.32
+      ],
+      "closed": [
+        0.00275,
+        0.67333,
+        0.24451,
+        0.32
+      ],
+      "half": [
+        0.25275,
+        0.67333,
+        0.24451,
+        0.32
+      ],
+      "drowsy": [
+        0.50275,
+        0.67333,
+        0.24451,
+        0.32
+      ],
+      "fly-cross": [
+        0.75275,
+        0.67333,
+        0.24451,
+        0.32
+      ]
+    }
+  }
+}
