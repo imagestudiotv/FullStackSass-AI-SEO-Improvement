@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // A copy of postgres.js, patched - kept as published (see its README.md).
     "src/vendor/**",
+    // dumitruculiuc.com: a separate WordPress theme, deployed on its own and not part of this app (its README.md).
+    "personal-site/**",
   ]),
   {
     // The application talks to Postgres only through the patched driver, which never pipelines.
