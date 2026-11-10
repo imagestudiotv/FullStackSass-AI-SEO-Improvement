@@ -8,6 +8,8 @@ import type {
   ControlsRepository,
   CouponRepository,
   PartnerRepository,
+  PayPalPayoutRepository,
+  PartnerCreditRepository,
   ProgramRepository,
   ProviderEventRepository,
   ReconciliationRepository,
@@ -31,6 +33,10 @@ export type PartnerRepositories = {
   commissions: CommissionRepository;
   settlements: SettlementRepository;
   stripeAccounts: StripeAccountRepository;
+  /** PayPal payout recipients and payout attempts (partners paid through PayPal). */
+  paypalPayouts: PayPalPayoutRepository;
+  /** Partners paid in RepGet credits: their workspace, the rate and the grants. */
+  credits: PartnerCreditRepository;
   coupons: CouponRepository;
   reviews: ReviewCaseRepository;
   providerEvents: ProviderEventRepository;

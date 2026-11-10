@@ -35,26 +35,45 @@ function regularCycle(plan, sequence) {
   };
 }
 
-/** The body of POST /v1/billing/plans for one of RepGet's plans; `freeArticles` puts FREE_ARTICLES_DAYS free first. */
-export function planBody(plan, productId, { freeArticles = false } = {}) {
+/**
+ * The REPGET offer's intro cycle (review P5): ONE month or year, priced like
+ * the regular cycle. Only a checkout carrying REPGET subscribes to an offer
+ * plan, and it overrides this cycle's price on its own subscription (the fixed
+ * first-month discount, lib/paypal/subscriptions.ts createSubscription), so
+ * the plan itself never sells at a discount to anyone.
+ */
+function introCycle(plan, sequence) {
+  return { ...regularCycle(plan, sequence), tenure_type: "TRIAL", total_cycles: 1 };
+}
+
+/**
+ * The body of POST /v1/billing/plans for one of RepGet's plans.
+ * `freeArticles` puts FREE_ARTICLES_DAYS free first; `offer` adds the REPGET
+ * intro cycle before the regular one (after the free days, so they never use
+ * the discount up). PayPal allows two TRIAL cycles, which the free-articles
+ * offer plan uses.
+ */
+export function planBody(plan, productId, { freeArticles = false, offer = false } = {}) {
+  const cycles = [];
+  if (freeArticles) {
+    cycles.push({
+      frequency: { interval_unit: "DAY", interval_count: FREE_ARTICLES_DAYS },
+      tenure_type: "TRIAL",
+      sequence: 1,
+      total_cycles: 1,
+      pricing_scheme: {
+        fixed_price: { value: "0", currency_code: plan.currency.toUpperCase() },
+      },
+    });
+  }
+  if (offer) cycles.push(introCycle(plan, cycles.length + 1));
+  cycles.push(regularCycle(plan, cycles.length + 1));
+  const suffix = [freeArticles ? "free articles first" : null, offer ? "REPGET offer" : null].filter(Boolean).join(", ");
   return {
     product_id: productId,
-    name: freeArticles ? `${plan.name} - free articles first` : plan.name,
+    name: suffix ? `${plan.name} - ${suffix}` : plan.name,
     status: "ACTIVE",
-    billing_cycles: freeArticles
-      ? [
-          {
-            frequency: { interval_unit: "DAY", interval_count: FREE_ARTICLES_DAYS },
-            tenure_type: "TRIAL",
-            sequence: 1,
-            total_cycles: 1,
-            pricing_scheme: {
-              fixed_price: { value: "0", currency_code: plan.currency.toUpperCase() },
-            },
-          },
-          regularCycle(plan, 2),
-        ]
-      : [regularCycle(plan, 1)],
+    billing_cycles: cycles,
     payment_preferences: {
       auto_bill_outstanding: true,
       // Applies only to a setup fee, and these plans have none.

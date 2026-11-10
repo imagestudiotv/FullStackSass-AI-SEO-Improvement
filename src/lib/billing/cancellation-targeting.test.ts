@@ -82,7 +82,7 @@ beforeEach(async () => {
     { id: "org_a", name: "A", slug: "a", createdAt: new Date() },
     { id: "org_b", name: "B", slug: "b", createdAt: new Date() },
   ]);
-  stripeMock.refundsCreate.mockResolvedValue({ id: "re_1" });
+  stripeMock.refundsCreate.mockResolvedValue({ id: "re_1", status: "succeeded" });
   stripeMock.subscriptionsCancel.mockImplementation(async (id: string) => ({ id, status: "canceled" }));
   stripeMock.invoicesRetrieve.mockResolvedValue({ payments: { data: [{ payment: { type: "payment_intent", payment_intent: "pi_1" } }] } });
 });
@@ -142,7 +142,7 @@ describe("refund with cancellation", () => {
 
     const result = await refundPayment(paid, "customer asked", { cancelSubscription: true });
 
-    expect(result).toEqual({ ok: true, data: { refunded: 4000, cancelled: true, referralReversalFailed: false } });
+    expect(result).toEqual({ ok: true, data: { refunded: 4000, cancelled: true, referralReversalFailed: false, state: "completed", refundId: expect.any(String) } });
     expect(stripeMock.subscriptionsCancel).toHaveBeenCalledTimes(1);
     expect(stripeMock.subscriptionsCancel).toHaveBeenCalledWith("sub_older", {}, {
       idempotencyKey: `refund-cancel:${paid}`,
@@ -194,7 +194,7 @@ describe("refund with cancellation", () => {
 
     const result = await refundPayment(paid, "customer asked", { cancelSubscription: true });
 
-    expect(result).toEqual({ ok: true, data: { refunded: 4000, cancelled: false, referralReversalFailed: false } });
+    expect(result).toEqual({ ok: true, data: { refunded: 4000, cancelled: false, referralReversalFailed: false, state: "completed", refundId: expect.any(String) } });
     expect(await statusOf(target)).toBe("active");
   });
 

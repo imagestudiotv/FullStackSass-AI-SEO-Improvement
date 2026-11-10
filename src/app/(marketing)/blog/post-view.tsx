@@ -41,6 +41,7 @@ export function postMetadata(post: BlogPost, versions: PostVersion[]): Metadata 
     The visible H1 is the article title either way.
   */
   const searchTitle = post.seoTitle || post.title;
+  const picture = shareImage(post);
   const base = publicPageMetadata(blogPath(locale, post.slug), {
     openGraph: {
       type: "article",
@@ -50,6 +51,7 @@ export function postMetadata(post: BlogPost, versions: PostVersion[]): Metadata 
       modifiedTime: post.updatedAt ?? post.publishedAt,
       // The team under its name in the post's language, as its byline reads.
       authors: [isTeamAuthor(post.author) ? BLOG_CHROME[locale].teamName : post.author],
+      ...(post.featuredImage ? { images: [picture] } : {}),
     },
   });
   const alternates = languages(versions);
@@ -58,8 +60,8 @@ export function postMetadata(post: BlogPost, versions: PostVersion[]): Metadata 
     description: post.description,
     /*
       An article rather than a website, titled without the "| RepGet" suffix.
-      The helper keeps the site picture (posts have none of their own) and
-      sets og:url to the canonical.
+      The helper keeps the site picture unless the post has a featured image,
+      and sets og:url to the canonical.
     */
     ...base,
     alternates: alternates ? { ...base.alternates, languages: alternates } : base.alternates,
@@ -67,9 +69,19 @@ export function postMetadata(post: BlogPost, versions: PostVersion[]): Metadata 
       card: "summary_large_image",
       title: searchTitle,
       description: post.description,
-      images: [SHARE_IMAGE],
+      images: [picture],
     },
   };
+}
+
+/**
+ * The picture shared links and structured data show: the post's featured
+ * image (a full storage address; its size is unknown, so none is claimed),
+ * or the site's picture. Its description, or the title, as the alt text.
+ */
+function shareImage(post: BlogPost): { url: string; alt: string; width?: number; height?: number } {
+  if (!post.featuredImage) return SHARE_IMAGE;
+  return { url: post.featuredImage.url, alt: post.featuredImage.alt || post.title };
 }
 
 export function BlogPostView({
@@ -116,8 +128,8 @@ export function BlogPostView({
       url: address,
       mainEntityOfPage: address,
       inLanguage: locale,
-      // Posts have no picture of their own; this is the one shared links show.
-      image: `${site}${SHARE_IMAGE.url}`,
+      // The one shared links show: the featured image, or the site's picture.
+      image: post.featuredImage ? post.featuredImage.url : `${site}${SHARE_IMAGE.url}`,
       datePublished: post.publishedAt,
       dateModified: post.updatedAt ?? post.publishedAt,
       articleSection: categoryName,

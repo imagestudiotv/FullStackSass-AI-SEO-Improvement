@@ -16,6 +16,9 @@ import { drizzleUnitOfWork } from "./infrastructure/persistence/unit-of-work";
 import { burstRateLimiter, quotaRateLimiter } from "./infrastructure/rate-limit";
 import { settingsFromEnv } from "./infrastructure/settings";
 import { stripeBillingSource, stripeCouponGateway } from "./infrastructure/stripe/billing-source";
+import { payPalSaleSource, paypalEnvironment } from "./infrastructure/paypal/sale-source";
+import { payPalPayoutGateway } from "./infrastructure/paypal/payout-gateway";
+import { isPayPalConfigured } from "@/lib/paypal/client";
 import { stripePayoutGateway } from "./infrastructure/stripe/payout-gateway";
 
 /**
@@ -62,6 +65,16 @@ export function partnerDeps(): PartnerDeps {
       payouts,
       billing: environment ? stripeBillingSource(stripe, environment) : null,
       couponGateway: environment ? stripeCouponGateway(stripe) : null,
+      // PayPal sales (review P7): only where PayPal is configured; its mode names the environment.
+      paypalSales: (() => {
+        const paypal = isPayPalConfigured() ? paypalEnvironment() : null;
+        return paypal ? payPalSaleSource(paypal) : null;
+      })(),
+      // Partners paid through PayPal, automated mode (use-cases/paypal-payouts.ts); off unless configured.
+      paypalPayouts: (() => {
+        const paypal = isPayPalConfigured() ? paypalEnvironment() : null;
+        return paypal ? payPalPayoutGateway(paypal) : null;
+      })(),
     };
   }
   return deps;

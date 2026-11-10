@@ -1,8 +1,17 @@
 # Partner program (cash affiliates)
 
-RepGet's native affiliate program: partners apply with their existing RepGet login, share a referral link or an assigned coupon, earn a recurring cash commission on the Stripe subscription revenue their referred customers actually pay, and are paid through Stripe Connect.
+RepGet's native affiliate program: partners apply with their existing RepGet login, share a referral link or an assigned coupon, earn a recurring cash commission on the subscription revenue their referred customers actually pay, by card (Stripe) or with PayPal, and are paid through Stripe Connect.
 
-**This release supports Stripe-paid subscriptions only.** PayPal payments earn no partner commission and are never shown as processed. PayPal itself, its history and the legacy account-credit referral program are unchanged.
+**PayPal subscription payments earn commission (review P7, branch `feature/payment-s1-p11`, not yet released).** The rules are the same as for card: cash collected, tax excluded, fees not subtracted, the 12-month window, the tier at the payment's own time, Net 30, and refunds and reversals reversed cumulatively.
+- **Each completed PayPal sale is one payment fact.** `provider = 'paypal'`; `invoice_payment_id`, `invoice_id` and `charge_id` are all `paypal_sale:<sale id>`.
+- **It is processed by the same job** (`process-provider-events.ts`, kind `paypal_sale`) from PayPal's `PAYMENT.SALE.COMPLETED`, `.REFUNDED` and `.REVERSED`.
+- **It counts only where PayPal's mode is the program's environment** (sandbox = test, live = live).
+- **Differences from card:**
+  - A partner coupon cannot be used with PayPal (PayPal has no promotion codes), so only the referral link attributes a PayPal customer.
+  - PayPal disputes are not read while open: a reversal counts as a lost dispute, and an open dispute does not hold the commission.
+- **Not covered by this:** one-off PayPal purchases (credit packs, "Get Featured") earn no commission, as one-off card purchases earn none either.
+
+Partners receiving their money through PayPal is a separate matter, see "Payouts". The legacy account-credit referral program is unchanged.
 
 Progress against the requirements, phase by phase: [partner-program-progress.md](partner-program-progress.md).
 
@@ -398,6 +407,70 @@ Before that transaction: the `partner_payouts` switch, the live-money key for li
 ### Locking
 
 Lock order everywhere: partner, balance projection, attribution, payment fact, commission, settlement. Every row lock is `FOR NO KEY UPDATE`: it excludes other lockers exactly as `FOR UPDATE` does, but not the `FOR KEY SHARE` lock a foreign-key check takes. With `FOR UPDATE`, a refund (holding a commission, writing a ledger row that references the partner) and the monthly run (holding the partner, waiting for that commission) deadlocked. The real-Postgres race tests found it, and `settlements.postgres.test.ts` reproduces the exact interleaving. Keys are never changed and these rows are never deleted, so nothing needs the stronger lock.
+
+### Partners paid in RepGet credits (the default)
+
+Owner's decisions, 2026-11-07: **"credits now, cash later"**. Partners' earnings become RepGet credits, not money. Code: `use-cases/partner-credits.ts`.
+
+- **Form.** `PARTNER_PAYOUT_FORM`: unset or `credits` means credits; `cash` turns the cash methods back on (Stripe Connect, and PayPal below). While on credits, no cash settlement is prepared, and the monthly cash run skips every partner (`cash_payouts_off`). Settlements already sent in cash keep being tracked.
+- **Rate.** The smallest active credit pack's price, today EUR 79.00 for 100 credits, so 79 cents of commission is one credit.
+  - It is read when converting and recorded on each grant (`partner_credit_grants`), so a later price change never re-prices what was granted.
+  - A fraction of a credit is never lost: each conversion grants the whole credits of everything converted so far at that rate, less those already granted at it. Four EUR 24.75 conversions give 31, 31, 31, then 32.
+  - A commission in a currency other than the pack's is not converted; there is no guessed exchange rate.
+- **Where.** A workspace the partner owns, chosen in portal Settings, and re-checked as owned at every conversion. Without one, commissions wait.
+- **When.** Each commission once it is 30 days old (its normal maturity), with no minimum. The 5-minute partner commissions sweep converts whatever has matured.
+- **The same safeguards as cash:**
+  - the same plan and ledger;
+  - one settlement (`payout_method = 'credits'`) with one `transfer_confirmed` entry;
+  - the same commission is never converted twice or also paid in cash.
+- **Refund after conversion.** The commission is reversed in the ledger, which is then deducted from FUTURE conversions. Credits already granted, and perhaps spent, are not taken back.
+- **All in one transaction.** The settlement, the ledger entry, the commissions marked paid, the grant row and the credit ledger entry (type `partner_commission`, keyed `partner-credits:<settlement>`) commit together.
+- **Switch:** the `partner_payouts` control gates conversions, as it gates cash payouts.
+
+### Partners paid through PayPal
+
+Branch `feature/payment-s1-p11`, not released. Code: `use-cases/paypal-payouts.ts`, `infrastructure/paypal/payout-gateway.ts`.
+
+**Off by default.** It runs only with all of these:
+- `PARTNER_PAYPAL_PAYOUTS`: `automated` or `manual`;
+- `PARTNER_PAYPAL_FEE_BEARER=repget`;
+- `PARTNER_PAYPAL_PAYOUT_COUNTRIES`;
+- the `partner_payouts` switch;
+- for live money, `PARTNER_LIVE_PAYOUTS=enabled`.
+
+**The partner's side** (portal, Settings):
+- They give a PayPal email address. A 6-digit code is sent to it and must be entered within 30 minutes. Only the code's keyed hash is stored; 5 attempts are allowed.
+- Then they choose "Pay me with PayPal".
+- The method applies from the next run. A settlement records the account it pays, so a change of address never redirects money already reserved, and a settlement for a changed address is not sent.
+- Countries come from the server. Applications accept Stripe's countries plus PayPal's, while PayPal payouts can run (`payableCountries`).
+
+**The same as Stripe:**
+- The monthly run reserves the same mature commissions in the same settlement (`payout_method = 'paypal'`, `paypal_account_id`).
+- A commission is in at most one active settlement, and a partner has one open settlement per currency. So the same commission can never be paid by Stripe and by PayPal.
+- The liability is settled by ONE `transfer_confirmed` entry (`paypal-payout:<attempt>`). A later take-back adds `transfer_reversal` (`paypal-payout-reversal:<attempt>`) and opens a review case.
+- Refunds after payment are offset against later payouts.
+
+**Automated** (PayPal Payouts, one batch with one item):
+- The attempt is recorded before the request. Its `sender_batch_id` (`repget-partner-<settlement>-<n>`) is also PayPal's request id, so a lost answer is asked again within 29 days with the same ids, never sent anew.
+- The item's status decides, read from `PAYMENT.PAYOUTS-ITEM.*` webhooks and the payout sweep:
+  - `SUCCESS` settles, and the settlement is `paid`.
+  - `PENDING`, `UNCLAIMED`, `ONHOLD` wait. `UNCLAIMED` means the address has no PayPal account yet; PayPal returns it after 30 days.
+  - `FAILED`, `RETURNED`, `BLOCKED`, `DENIED`, `CANCELED` settle nothing and open review. Since nothing was paid, a person can cancel the settlement and release the commissions.
+  - `REFUNDED` or `REVERSED` after `SUCCESS` takes the money back.
+- The fee PayPal reports is shown on the payout. RepGet pays it; the partner receives the full amount.
+
+**Manual:**
+1. An administrator sends the amount in PayPal to the partner's confirmed address.
+2. They record PayPal's 17-character transaction id ("Record manual PayPal payment").
+3. A DIFFERENT administrator checks it in PayPal's activity and confirms it by typing the id again. Only then is it settled.
+4. A recorded payment that did not go through is voided, so it can be sent again.
+
+Every step is in the audit log, labelled manual.
+
+**Not built, pending owner decisions:**
+- The partner bearing PayPal's fee (`PARTNER_PAYPAL_FEE_BEARER=partner` is refused): its deduction rule must be agreed first.
+- Currencies other than EUR: only EUR has a threshold, as for Stripe.
+- Recipients by PayPal account id ("Log in with PayPal") instead of a confirmed email.
 
 ## Dashboards and reports
 

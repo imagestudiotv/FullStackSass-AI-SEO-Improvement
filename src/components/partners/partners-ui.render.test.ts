@@ -18,8 +18,9 @@ vi.mock("@/lib/auth-client", () => ({ authClient: { emailOtp: { sendVerification
 import PartnerError from "@/app/(partner)/partner/error";
 import { PartnersContent } from "@/app/(marketing)/partners-content";
 import { LOCALES, localePath } from "@/lib/i18n/config";
+import { APPLICATION_LIMITS } from "@/lib/partners/domain/entities/application";
 import { DEFAULT_PROGRAM_POLICY } from "@/lib/partners/domain/policies/program";
-import { partnerCopy } from "@/lib/partners/presentation/copy";
+import { fill, partnerCopy } from "@/lib/partners/presentation/copy";
 
 import { balanceView, commissionRowView, metricsView, payoutRowView, referralRowView, totalsView } from "@/lib/partners/presentation/views";
 
@@ -77,7 +78,9 @@ describe("the public /partners page", () => {
     const words = text(html).replace(/&#x27;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, "&");
     expect(words).not.toMatch(/\{\w+\}/);
     // The estimate opens at 10 paying customers on Grow: Growth Partner, 30% of EUR 99 = EUR 29.70 each.
-    expect(words).toContain(copy.calculator.title);
+    expect(words).toContain(copy.calculator.headSub);
+    // Every dot is a simulation, and says so.
+    expect(words).toContain(copy.calculator.kind);
     expect(words).toContain("€297");
     expect(words).toContain("€3,564");
     expect(words).toContain("Growth Partner");
@@ -86,8 +89,8 @@ describe("the public /partners page", () => {
     // The higher levels, in the earnings answer.
     expect(words).toMatch(/30%[^.]*10[^.]*35%[^.]*25/);
     expect(words).toContain(copy.ctaTitle);
-    // Apply in the hero and again at the end.
-    expect(html.match(/href="\/partner\/apply"/g)).toHaveLength(2);
+    // Apply in the hero, under the figures and again at the end.
+    expect(html.match(/href="\/partner\/apply"/g)).toHaveLength(3);
     const schema = JSON.parse(html.match(/<script type="application\/ld\+json">(.*?)<\/script>/)![1]) as { "@type": string; mainEntity: { name: string; acceptedAnswer: { text: string } }[] };
     expect(schema["@type"]).toBe("FAQPage");
     expect(schema.mainEntity.map((entry) => entry.name)).toEqual(copy.faq.map((item) => item.question));
@@ -99,8 +102,8 @@ describe("the public /partners page", () => {
   it("shows no estimate without a plan to estimate on", () => {
     const copy = partnerCopy("en").page;
     const html = renderToStaticMarkup(createElement(PartnersContent, { copy, policy: DEFAULT_PROGRAM_POLICY, open: true, locale: "en", href: (p: string) => p, plans: [] }));
-    expect(text(html)).not.toContain(copy.calculator.title);
-    expect(text(html)).toContain(copy.faqTitle);
+    expect(text(html)).not.toContain(copy.calculator.headSub);
+    expect(text(html)).toContain(copy.faqTitle.replace("\n", " "));
   });
 
   it("offers no application while the program is closed", () => {
@@ -108,6 +111,48 @@ describe("the public /partners page", () => {
     const html = renderToStaticMarkup(createElement(PartnersContent, { copy, policy: DEFAULT_PROGRAM_POLICY, open: false, locale: "en", href: (p: string) => p }));
     expect(html).not.toContain('href="/partner/apply"');
     expect(text(html)).toContain(copy.closed);
+  });
+
+  it("with cash payouts on, shows Daniel's PayPal payout wording as written; PayPal-paid subscriptions earn commission either way", () => {
+    const words = text(
+      renderToStaticMarkup(
+        createElement(PartnersContent, { copy: partnerCopy("en").page, policy: DEFAULT_PROGRAM_POLICY, open: true, locale: "en", href: (p: string) => p, payout: { form: "cash", countries: ["IT"] } }),
+      ),
+    );
+    expect(words).toContain("Payouts are sent to your bank account through Stripe Connect, or via PayPal where that option is available.");
+    expect(words).toContain("Payments by card and by PayPal both count; partner coupon codes can only be used when paying by card.");
+    expect(words).not.toMatch(/do not earn commission|paid in RepGet credits/);
+    expect(words).toContain("25–35% commission");
+  });
+
+  it.each(LOCALES)("%s: while partners are paid in credits, the payout answer and its schema say credits and promise no cash", (locale) => {
+    const copy = partnerCopy(locale).page;
+    const html = renderToStaticMarkup(
+      createElement(PartnersContent, {
+        copy,
+        policy: DEFAULT_PROGRAM_POLICY,
+        open: true,
+        locale,
+        href: (p: string) => localePath(locale, p),
+        plans: [{ id: "grow", name: "Grow", priceCents: 14_900, currency: "eur" }],
+        intlLocale: "en-IE",
+        payout: { form: "credits", pack: { priceCents: 7900, credits: 100, currency: "eur" }, countries: ["IT"] },
+      }),
+    );
+    const words = text(html);
+    const payoutItem = copy.faq.find((item) => item.payout)!;
+    // Daniel's cash wording stays in the copy for when cash is switched on; in credits mode the cash methods appear only as the second phase.
+    expect(words).not.toContain(fill(payoutItem.answer, { maturity: 30, amount: "€25.00" }).slice(0, 40));
+    expect(words).toContain("100");
+    expect(words).toContain("€79");
+    expect(words).toContain(copy.credits.disclaimer);
+    expect(words).not.toMatch(/\{\w+\}/);
+    const schema = JSON.parse(html.match(/<script type="application\/ld\+json">(.*?)<\/script>/)![1]) as { mainEntity: { name: string; acceptedAnswer: { text: string } }[] };
+    const answer = schema.mainEntity.find((entry) => entry.name === payoutItem.question)!.acceptedAnswer.text;
+    expect(answer).toContain("€79");
+    // Daniel: keep the cash methods in view, as the second phase, never as available now.
+    expect(answer).toMatch(/Stripe Connect.*PayPal/);
+    expect(answer).not.toContain("Payouts are sent to your bank account");
   });
 
   it("follows the policy, not the copy, when rates change", () => {
@@ -121,12 +166,24 @@ describe("the public /partners page", () => {
 describe("portal components", () => {
   it.each(LOCALES)("%s: the application form labels every field", (locale) => {
     const copy = partnerCopy(locale).portal.apply;
-    const html = renderToStaticMarkup(createElement(ApplicationForm, { copy, countries: [{ code: "IT", name: "Italia" }] }));
+    const html = renderToStaticMarkup(createElement(ApplicationForm, { copy, countries: [{ code: "IT", name: "Italia" }], limits: APPLICATION_LIMITS }));
     for (const id of ["website", "audience", "promotion", "country"]) {
       expect(html).toContain(`for="${id}"`);
       expect(html).toContain(`aria-describedby="${id}-hint"`);
     }
     expect(html).toContain('name="terms"');
+    // Daniel's centred form: the review chip, counters at the server's limits, the PayPal payout hint, the terms link.
+    expect(html).toContain(copy.chip);
+    expect(html.match(/maxLength="1200"|maxlength="1200"/gi)).toHaveLength(2);
+    expect(html.match(/minLength="15"|minlength="15"/gi)).toHaveLength(2);
+    expect(html).toContain("0 / 1200");
+    expect(text(html)).toContain(copy.countryHint);
+    expect(html).toContain('href="/partners"');
+    expect(text(html)).not.toMatch(/\{\w+\}|no data is submitted|preview/i);
+  });
+
+  it("puts Daniel's PayPal wording under the payout country", () => {
+    expect(partnerCopy("en").portal.apply.countryHint).toBe("Payout availability varies by country. Bank payouts and PayPal are available to eligible partners.");
   });
 
   it("offers only what each payout setup state allows", () => {

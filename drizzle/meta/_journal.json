@@ -617,6 +617,13 @@
       "when": 1793919547125,
       "tag": "0087_blog_autopilot_comparison",
       "breakpoints": true
+    },
+    {
+      "idx": 88,
+      "version": "7",
+      "when": 1794198560240,
+      "tag": "0088_blog_images_payments_partner_credits",
+      "breakpoints": true
     }
   ]
 }

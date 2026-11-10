@@ -825,6 +825,10 @@ export type AdminPayment = {
   description: string | null;
   invoiceUrl: string | null;
   paidAt: Date;
+  /** Sent back so far (lib/billing/refunds.ts): a partly refunded payment can be refunded up to the rest. */
+  refundedCents: number;
+  /** A refund of it with no confirmed outcome yet ("unknown" or still "requested"): check it again first. */
+  unresolvedRefundId: string | null;
 };
 
 /**
@@ -898,6 +902,12 @@ export async function listPayments(options: {
       description: payments.description,
       invoiceUrl: payments.invoiceUrl,
       paidAt: payments.paidAt,
+      refundedCents: payments.refundedCents,
+      unresolvedRefundId: raw<string | null>`(
+        select pr.id::text from payment_refunds pr
+        where pr.payment_id = ${payments.id} and pr.status in ('unknown', 'requested')
+        order by pr.created_at desc limit 1
+      )`,
     })
     .from(payments)
     .leftJoin(organization, eq(payments.organizationId, organization.id))

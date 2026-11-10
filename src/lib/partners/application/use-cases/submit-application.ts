@@ -2,6 +2,7 @@ import { APPLICATION_LIMITS, type ApplicationAnswers } from "../../domain/entiti
 import type { ApplicantContext } from "../contracts/commands";
 import { fail, ok, type Result } from "../contracts/results";
 import type { PartnerDeps } from "./deps";
+import { payableCountries } from "./paypal-payouts";
 
 /**
  * A signed-in user with a proven address applies to the partner program.
@@ -29,8 +30,8 @@ export function validateAnswers(input: ApplicationInput, payoutCountries: string
   if (!/^https?:\/\/[^\s]+\.[^\s]+$/i.test(website) || website.length > APPLICATION_LIMITS.website) {
     return fail("invalid", "website");
   }
-  if (audience.length < 10 || audience.length > APPLICATION_LIMITS.audience) return fail("invalid", "audience");
-  if (promotion.length < 10 || promotion.length > APPLICATION_LIMITS.promotion) return fail("invalid", "promotion");
+  if (audience.length < APPLICATION_LIMITS.textMin || audience.length > APPLICATION_LIMITS.audience) return fail("invalid", "audience");
+  if (promotion.length < APPLICATION_LIMITS.textMin || promotion.length > APPLICATION_LIMITS.promotion) return fail("invalid", "promotion");
   if (!payoutCountries.includes(country)) return fail("invalid", "country");
   return ok({ website, audience, promotion, country });
 }
@@ -43,7 +44,8 @@ export async function submitApplication(
   const repos = deps.uow.repositories;
   if (!(await repos.controls.isEnabled("partner_program"))) return fail("disabled", "partner_program");
 
-  const answers = validateAnswers(input, deps.settings.payoutCountries());
+  // Stripe's countries, and PayPal's while PayPal payouts can run (paypal-payouts.ts).
+  const answers = validateAnswers(input, payableCountries(deps));
   if (!answers.ok) return answers;
 
   if (await repos.partners.findByUserId(applicant.userId)) return fail("already_processed", "already_partner");

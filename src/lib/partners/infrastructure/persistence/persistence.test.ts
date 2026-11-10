@@ -162,8 +162,9 @@ describe("migrations 0063 and 0064", () => {
       from pg_class c join pg_namespace n on n.oid = c.relnamespace
       where n.nspname = 'public' and c.relkind = 'r' and c.relname like 'partner\\_%'`);
     const rows = (result as unknown as { rows: { name: string; rls: boolean }[] }).rows;
-    // 20 from 0063, partner_referral_codes from 0066.
-    expect(rows.length).toBe(21);
+    // 20 from 0063, partner_referral_codes from 0066; partner_paypal_accounts, partner_paypal_payouts
+    // and partner_credit_grants (all three migration 0088).
+    expect(rows.length).toBe(24);
     expect(rows.filter((row) => !row.rls)).toEqual([]);
   });
 

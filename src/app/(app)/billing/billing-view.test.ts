@@ -32,6 +32,7 @@ import {
   formatMoney,
   paymentOptions,
   payPalForPlan,
+  payPalIntervalBlocked,
   planFeatures,
   planGridClass,
   subscriptionStatus,
@@ -238,6 +239,52 @@ describe("statuses, prices and allowances", () => {
     expect(payPalForPlan(GROW, { paypal: true })).toBe(true);
     expect(payPalForPlan(plan({ paypalPlanId: null }), { paypal: true })).toBe(false);
     expect(payPalForPlan(GROW, { paypal: false })).toBe(false);
+  });
+
+  it("says PayPal cannot switch monthly <-> yearly, in place of the button, for a website paying by PayPal", () => {
+    const monthly = { provider: "paypal", status: "active", interval: "month" };
+    const paidByPayPal = { billedBy: "paypal" as const };
+    expect(payPalIntervalBlocked(monthly, plan({ interval: "year" }), paidByPayPal)).toBe(true);
+    expect(payPalIntervalBlocked({ ...monthly, interval: "year" }, plan({ interval: "month" }), paidByPayPal)).toBe(true);
+    // The same period is a plan change PayPal can make.
+    expect(payPalIntervalBlocked(monthly, plan({ interval: "month" }), paidByPayPal)).toBe(false);
+    // On its PayPal free articles, any plan starts a new subscription: not blocked.
+    expect(payPalIntervalBlocked({ ...monthly, status: "trialing" }, plan({ interval: "year" }), paidByPayPal)).toBe(false);
+    // Paying by card, or not paying yet: nothing to say.
+    expect(payPalIntervalBlocked({ ...monthly, provider: "stripe" }, plan({ interval: "year" }), { billedBy: "stripe" })).toBe(false);
+    expect(payPalIntervalBlocked(null, plan({ interval: "year" }), { billedBy: null })).toBe(false);
+  });
+
+  it("shows the note, and no PayPal button, on a monthly plan for a yearly PayPal subscriber", () => {
+    // The page opens on the subscriber's own period; a tier with no yearly row shows its monthly plan there.
+    const markup = html(
+      createElement(BillingClient, {
+        plans: [plan({ id: "launch-month", tier: "launch", name: "Launch", interval: "month" })],
+        subscription: {
+          status: "active",
+          planId: "grow-year",
+          planName: "Grow",
+          tier: "grow",
+          interval: "year",
+          currentPeriodEnd: new Date("2026-12-01T00:00:00Z"),
+          cancelAtPeriodEnd: false,
+          cancelAt: null,
+          hasCustomer: false,
+          provider: "paypal",
+        },
+        entitled: true,
+        paypalAvailable: true,
+        websiteId: "site-1",
+        websiteSubscriptions: [],
+        viewingSharedDomain: null,
+        t: en.billing,
+        locale: "en",
+        tCommon: en.common,
+        paypalIntervalNote: "PayPal cannot switch between monthly and yearly billing.",
+      }),
+    );
+    expect(markup).toContain("PayPal cannot switch between monthly and yearly billing.");
+    expect(markup).not.toContain(en.common.payWithPayPal);
   });
 });
 

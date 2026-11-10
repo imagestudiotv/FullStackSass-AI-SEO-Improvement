@@ -82,6 +82,17 @@ export const plans = pgTable(
      * by scripts/paypal-setup.mjs.
      */
     paypalTrialPlanId: text("paypal_trial_plan_id"),
+    /**
+     * The REPGET offer through PayPal (review P5): the same plan with one
+     * intro cycle before the regular ones, priced like them by default. Only
+     * a checkout carrying REPGET subscribes to it, and overrides that one
+     * cycle's price on its own subscription (the fixed first-month
+     * discount); renewals are the regular price. The trial variant has the
+     * free days first, so they never use the discount up. Created by
+     * scripts/paypal-setup.mjs.
+     */
+    paypalOfferPlanId: text("paypal_offer_plan_id"),
+    paypalTrialOfferPlanId: text("paypal_trial_offer_plan_id"),
     priceCents: integer("price_cents").notNull(),
     articleLimit: integer("article_limit").notNull(),
     /**
@@ -109,6 +120,55 @@ export const plans = pgTable(
     // idempotent upsert keyed on meaning rather than on the display name,
     // which may change.
     uniqueIndex("plans_tier_interval_version_uidx").on(table.tier, table.interval, table.catalogVersion),
+  ],
+);
+
+/**
+ * EVERY PayPal plan id a plan row has ever had, by PayPal mode (review P3).
+ *
+ * plans.paypal_plan_id / paypal_trial_plan_id hold only the CURRENT ids. When
+ * a PayPal plan is recreated (paypal-setup --switch-mode, or a new price), the
+ * subscriptions still on the old one keep sending events for it. Without the
+ * history such an event maps to no plan: the recorded plan is kept, but the
+ * sync no longer knows the plan's interval or that it was a free-articles
+ * plan, so a subscription in its free days was stored "active" - fully paid
+ * access during the free articles. The history keeps every old id mapped to
+ * its row, and says which kind it was.
+ *
+ * Written by scripts/paypal-setup.mjs whenever it stores an id, and backfilled
+ * from today's plan rows (environment null: recorded before modes were kept;
+ * matched in either mode). Never deleted: a subscription can outlive its
+ * plan's retirement by years.
+ */
+export const paypalPlanVersions = pgTable(
+  "paypal_plan_versions",
+  {
+    id: pk(),
+    planId: uuid("plan_id")
+      .notNull()
+      .references(() => plans.id, { onDelete: "cascade" }),
+    /** "live" | "sandbox"; null for ids backfilled before the mode was recorded. */
+    environment: text("environment"),
+    /** "regular": paypal_plan_id; "trial": paypal_trial_plan_id (the free articles first). */
+    kind: text("kind").notNull(),
+    paypalPlanId: text("paypal_plan_id").notNull(),
+    /** What the PayPal plan charges, as created (it may be repriced later: see pricing_updated_at). */
+    priceCents: integer("price_cents").notNull(),
+    currency: text("currency").notNull(),
+    /** When it stopped being the row's current id; null while current. */
+    retiredAt: timestamp("retired_at"),
+    /** Last price update pushed to PayPal by scripts/paypal-pricing.mjs, if any. */
+    pricingUpdatedAt: timestamp("pricing_updated_at"),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("paypal_plan_versions_paypal_uidx").on(table.paypalPlanId),
+    index("paypal_plan_versions_plan_idx").on(table.planId),
+    check("paypal_plan_versions_kind_check", sql`${table.kind} in ('regular', 'trial', 'offer', 'trial_offer')`),
+    check(
+      "paypal_plan_versions_environment_check",
+      sql`${table.environment} is null or ${table.environment} in ('live', 'sandbox')`,
+    ),
   ],
 );
 
@@ -2396,6 +2456,20 @@ export const payments = pgTable(
     subscriptionId: uuid("subscription_id").references(() => subscriptions.id, {
       onDelete: "set null",
     }),
+    /**
+     * Money sent back so far, cumulative, from payment_refunds (completed or
+     * pending at the provider). `status` becomes "refunded" once all of it
+     * went back; a partial refund leaves it "paid" and this says how much,
+     * so a second partial refund can take only what remains. 0 on rows
+     * refunded before it was kept: readers fall back to the audit entry.
+     */
+    refundedCents: integer("refunded_cents").default(0).notNull(),
+    /**
+     * What `external_id` is, where the prefix does not say: "paypal_sale" (a
+     * subscription payment) or "paypal_capture" (an Orders purchase). Null on
+     * older rows: a PayPal row then is a sale, the only kind there was.
+     */
+    providerObject: text("provider_object"),
     ...timestamps,
   },
   (table) => [
@@ -2405,6 +2479,71 @@ export const payments = pgTable(
     ),
     index("payments_org_paid_idx").on(table.organizationId, table.paidAt),
     index("payments_provider_subscription_idx").on(table.providerSubscriptionId),
+    check(
+      "payments_refunded_check",
+      sql`${table.refundedCents} >= 0 and ${table.refundedCents} <= greatest(${table.amountCents}, 0)`,
+    ),
+  ],
+);
+
+/**
+ * Every refund of a payment, one row per refund OPERATION, whoever made it:
+ * the admin (source "admin") or the provider's dashboard, learned from its
+ * webhook (source "provider").
+ *
+ * WHY A ROW BEFORE THE MONEY MOVES. A refund cannot be undone, and a provider
+ * call can time out after it acted. The row is written first, under the
+ * payment's row lock, with the operation key that is also the provider's
+ * idempotency key; its amount counts against what remains refundable until
+ * it is known to have failed. So two presses, a retry or a lost answer can
+ * never send back more than was paid. `unknown` means the provider may have
+ * acted: the same request is repeated with the same key to learn which.
+ */
+export const paymentRefunds = pgTable(
+  "payment_refunds",
+  {
+    id: pk(),
+    paymentId: uuid("payment_id")
+      .notNull()
+      .references(() => payments.id, { onDelete: "cascade" }),
+    /**
+     * Copied for reading without the join. The row goes with its payment
+     * (cascade): payments go with their workspace, and a refund row must
+     * never block that deletion.
+     */
+    organizationId: text("organization_id").notNull(),
+    provider: text("provider").notNull(),
+    /** The provider's refund id, once known. */
+    providerRefundId: text("provider_refund_id"),
+    amountCents: integer("amount_cents").notNull(),
+    currency: text("currency").notNull(),
+    /** requested | pending | completed | failed | unknown */
+    status: text("status").notNull(),
+    /** admin | provider */
+    source: text("source").notNull(),
+    /** Unique; the provider idempotency key for an admin refund. */
+    operationKey: text("operation_key").notNull(),
+    reason: text("reason"),
+    /** The administrator's email, or "provider". */
+    actor: text("actor").notNull(),
+    /** The admin also asked for the subscription to be cancelled (a separate step, after the money). */
+    cancelRequested: boolean("cancel_requested").default(false).notNull(),
+    error: text("error"),
+    completedAt: timestamp("completed_at"),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("payment_refunds_operation_uidx").on(table.operationKey),
+    uniqueIndex("payment_refunds_provider_uidx")
+      .on(table.provider, table.providerRefundId)
+      .where(sql`${table.providerRefundId} is not null`),
+    index("payment_refunds_payment_idx").on(table.paymentId),
+    check(
+      "payment_refunds_status_check",
+      sql`${table.status} in ('requested', 'pending', 'completed', 'failed', 'unknown')`,
+    ),
+    check("payment_refunds_source_check", sql`${table.source} in ('admin', 'provider')`),
+    check("payment_refunds_amount_check", sql`${table.amountCents} > 0`),
   ],
 );
 
@@ -2421,6 +2560,8 @@ export const addonPurchases = pgTable(
      * replayed webhook cannot double. Null for one paid with credits.
      */
     stripeSessionId: text("stripe_session_id"),
+    /** The paypal_orders row, for a purchase paid with PayPal (review P4). Unique, for the same reason. */
+    paypalOrderId: uuid("paypal_order_id"),
     /** What was actually charged, in case the price changes later. 0 when paid with credits. */
     pricePaidCents: integer("price_paid_cents").notNull(),
     /** Credits paid, for a service bought with credits (the credit_spends row is keyed "addon:<this id>"). */
@@ -2434,11 +2575,13 @@ export const addonPurchases = pgTable(
   (table) => [
     // The idempotency guarantee: one purchase per Stripe session, ever.
     uniqueIndex("addon_purchases_session_key").on(table.stripeSessionId),
+    // And one per PayPal order.
+    uniqueIndex("addon_purchases_paypal_order_key").on(table.paypalOrderId),
     index("addon_purchases_org_idx").on(table.organizationId),
-    // Paid one way or the other: by card (a session) or with credits.
+    // Paid one way or another: by card (a session), with PayPal (an order) or with credits.
     check(
       "addon_purchases_paid_check",
-      sql`${table.stripeSessionId} is not null or ${table.creditsPaid} > 0`,
+      sql`${table.stripeSessionId} is not null or ${table.paypalOrderId} is not null or ${table.creditsPaid} > 0`,
     ),
   ],
 );
@@ -2747,6 +2890,14 @@ export const blogPosts = pgTable(
       .$type<{ label: string; url: string }[]>()
       .default([])
       .notNull(),
+    /**
+     * The post's own cover (client, 2026-11-07): one of the blog's pictures
+     * (Admin -> Blog -> Images), shown on its cards, at the top of the post
+     * and in shared links. Null shows the drawn cover (components/post-cover.tsx).
+     */
+    featuredImageUrl: text("featured_image_url"),
+    /** Its description (alt text); null or empty when it has none. */
+    featuredImageAlt: text("featured_image_alt"),
     /** "draft" | "published". */
     status: text("status").default("draft").notNull(),
     /**
@@ -2837,8 +2988,141 @@ export const blogSponsorships = pgTable("blog_sponsorships", {
   checkoutId: text("checkout_id").unique(),
   checkoutUrl: text("checkout_url"),
   paidAt: timestamp("paid_at"),
+  /** The paypal_orders row of a PayPal payment for it (review P8): open, or the one that paid. Null for card. */
+  paypalOrderId: uuid("paypal_order_id"),
   ...timestamps,
 });
+
+/**
+ * One PayPal Orders v2 purchase (reviews P4, P8): a credit pack, or a "Get
+ * Featured" placement. Written BEFORE PayPal is called, with what the server
+ * decided the buyer pays (amount, currency, product), so nothing the browser
+ * sends can change it; PayPal's capture is checked against it.
+ *
+ * Money moves only when RepGet CAPTURES the approved order (keyed per order,
+ * so twice is once). What was bought is granted only on a COMPLETED capture
+ * of exactly this amount - never on the return redirect, on approval alone,
+ * or on a pending, declined or repeated one. lib/paypal/orders.ts.
+ *
+ *   creating   the row, before PayPal answered
+ *   created    PayPal has the order; the buyer has not finished
+ *   pending    captured, PayPal still clearing it (no grant yet)
+ *   completed  captured and granted (fulfilled_at)
+ *   failed     PayPal refused, or the capture was declined
+ *   voided     abandoned: PayPal voided it, or it was never approved in time
+ *   unknown    PayPal did not answer a create or capture: asked again, never guessed
+ */
+export const paypalOrders = pgTable(
+  "paypal_orders",
+  {
+    id: pk(),
+    /** The buying workspace; null for a public "Get Featured" purchase. */
+    organizationId: text("organization_id"),
+    /** addon_credits | blog_sponsorship */
+    purpose: text("purpose").notNull(),
+    /** The addon bought (addon_credits) or the blog_sponsorships request (blog_sponsorship). */
+    referenceId: uuid("reference_id").notNull(),
+    amountCents: integer("amount_cents").notNull(),
+    currency: text("currency").notNull(),
+    description: text("description").notNull(),
+    status: text("status").default("creating").notNull(),
+    paypalOrderId: text("paypal_order_id"),
+    paypalCaptureId: text("paypal_capture_id"),
+    approveUrl: text("approve_url"),
+    /** Who started it, when signed in. */
+    userId: text("user_id"),
+    fulfilledAt: timestamp("fulfilled_at"),
+    error: text("error"),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("paypal_orders_order_uidx").on(table.paypalOrderId),
+    uniqueIndex("paypal_orders_capture_uidx").on(table.paypalCaptureId),
+    // One open PayPal payment per placement request: a second press reuses it.
+    uniqueIndex("paypal_orders_open_sponsorship_uidx")
+      .on(table.referenceId)
+      .where(sql`${table.purpose} = 'blog_sponsorship' and ${table.status} in ('creating', 'created', 'pending', 'unknown')`),
+    index("paypal_orders_status_idx").on(table.status, table.updatedAt),
+    index("paypal_orders_org_idx").on(table.organizationId),
+    check("paypal_orders_purpose_check", sql`${table.purpose} in ('addon_credits', 'blog_sponsorship', 'plan_upgrade')`),
+    check(
+      "paypal_orders_status_check",
+      sql`${table.status} in ('creating', 'created', 'pending', 'completed', 'failed', 'voided', 'unknown')`,
+    ),
+    check("paypal_orders_amount_check", sql`${table.amountCents} > 0`),
+  ],
+);
+
+/**
+ * A plan change on a PayPal subscription (review P1; owner's decision
+ * 2026-11-07: an UPGRADE charges the prorated difference NOW). PayPal's
+ * revision only changes the price from the next billing date and needs the
+ * buyer's approval, so an upgrade is two approved steps, recorded here so
+ * either can resume after a crash, a timeout or an abandoned approval:
+ *
+ *   awaiting_payment    the difference is a one-off PayPal order (paypal_orders, purpose plan_upgrade)
+ *   awaiting_approval   paid; the revision is asked of PayPal, the buyer approves it
+ *   completed           PayPal reports the subscription on the new plan: new allowances from then
+ *   refunding/refunded  paid but never revised (abandoned 72 hours, or PayPal refused): the difference goes back
+ *   cancelled           abandoned before paying: nothing moved
+ *   failed              needs a person (staff are told)
+ *
+ * A DOWNGRADE charges nothing: it is revised (buyer approves) and the current
+ * paid access stays until effective_at, the next billing date, as by card.
+ * One open change (awaiting payment or approval) per subscription; a refund
+ * in progress never blocks the next one.
+ */
+export const paypalPlanChanges = pgTable(
+  "paypal_plan_changes",
+  {
+    id: pk(),
+    organizationId: text("organization_id").notNull(),
+    subscriptionId: uuid("subscription_id")
+      .notNull()
+      .references(() => subscriptions.id, { onDelete: "cascade" }),
+    paypalSubscriptionId: text("paypal_subscription_id").notNull(),
+    fromPlanId: uuid("from_plan_id").notNull(),
+    toPlanId: uuid("to_plan_id").notNull(),
+    /** upgrade | downgrade */
+    kind: text("kind").notNull(),
+    status: text("status").notNull(),
+    /** The prorated difference charged now (upgrade); 0 for a downgrade. */
+    differenceCents: integer("difference_cents").default(0).notNull(),
+    currency: text("currency").notNull(),
+    /** The paypal_orders row that charged the difference. */
+    orderRowId: uuid("order_row_id"),
+    /** PayPal's approval link for the revision, while awaiting it. */
+    approveUrl: text("approve_url"),
+    /** When the revision was asked of PayPal: the 72-hour approval window runs from here. */
+    revisionRequestedAt: timestamp("revision_requested_at"),
+    /**
+     * A sign the buyer MAY have approved the revision (they came back through
+     * the success link, or PayPal sent BILLING.SUBSCRIPTION.UPDATED since the
+     * request). With it, an unconfirmed upgrade goes to staff, never to an
+     * automatic refund: PayPal does not document when its subscription starts
+     * reporting the new plan_id.
+     */
+    approvalSignalAt: timestamp("approval_signal_at"),
+    /** Downgrade: when the new plan's allowances start (the next billing date). */
+    effectiveAt: timestamp("effective_at"),
+    /** The refund of an incomplete upgrade's difference (payment_refunds). */
+    refundId: uuid("refund_id"),
+    error: text("error"),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("paypal_plan_changes_open_uidx")
+      .on(table.subscriptionId)
+      .where(sql`${table.status} in ('awaiting_payment', 'awaiting_approval')`),
+    index("paypal_plan_changes_paypal_subscription_idx").on(table.paypalSubscriptionId),
+    index("paypal_plan_changes_status_idx").on(table.status, table.updatedAt),
+    check("paypal_plan_changes_kind_check", sql`${table.kind} in ('upgrade', 'downgrade')`),
+    check(
+      "paypal_plan_changes_status_check",
+      sql`${table.status} in ('awaiting_payment', 'awaiting_approval', 'completed', 'refunding', 'refunded', 'cancelled', 'failed')`,
+    ),
+  ],
+);
 
 /** A blog category's name and description in one of the blog's other languages. */
 export type BlogCategoryText = { name: string; blurb: string };

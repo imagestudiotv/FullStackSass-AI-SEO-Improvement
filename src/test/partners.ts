@@ -133,7 +133,7 @@ export function partnerTestDeps(db: Database, overrides: Partial<PartnerDeps> = 
   const deps: PartnerDeps = {
     uow: drizzleUnitOfWork(db, { deliver: false }),
     clock,
-    settings: { ...settingsFromEnv({ STRIPE_SECRET_KEY: "sk_test_fake", NEXT_PUBLIC_APP_URL: "https://repget.test" } as unknown as NodeJS.ProcessEnv) },
+    settings: { ...settingsFromEnv({ STRIPE_SECRET_KEY: "sk_test_fake", NEXT_PUBLIC_APP_URL: "https://repget.test", PARTNER_PAYOUT_FORM: "cash" } as unknown as NodeJS.ProcessEnv) },
     directory: userDirectory(db),
     random: {
       indexes: (n, max) => Array.from({ length: n }, () => Math.floor(Math.random() * max)),

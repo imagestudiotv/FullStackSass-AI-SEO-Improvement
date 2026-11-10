@@ -45,16 +45,33 @@ function withValue(template: string, name: string, value: ReactNode): ReactNode 
 export async function sponsorshipThanksPage({
   locale,
   sessionId,
+  paypalRow,
 }: {
   locale: Locale;
   sessionId: string | string[] | undefined;
+  /** Our paypal_orders row, when the buyer paid with PayPal (app/api/paypal/orders/return). */
+  paypalRow?: string | string[] | undefined;
 }) {
   const t = SPONSORSHIP_COPY[locale].thanks;
   const id = typeof sessionId === "string" && /^cs_[a-zA-Z0-9_]{10,250}$/.test(sessionId) ? sessionId : null;
+  const paypalId =
+    typeof paypalRow === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(paypalRow) ? paypalRow : null;
 
-  const [order] = id ? await db.select().from(blogSponsorships).where(eq(blogSponsorships.checkoutId, id)).limit(1) : [];
+  const [order] = id
+    ? await db.select().from(blogSponsorships).where(eq(blogSponsorships.checkoutId, id)).limit(1)
+    : paypalId
+      ? await db.select().from(blogSponsorships).where(eq(blogSponsorships.paypalOrderId, paypalId)).limit(1)
+      : [];
   let paid = Boolean(order && order.status !== "pending");
-  if (order && !paid && sponsorshipConfigured()) {
+  if (order && !paid && paypalId) {
+    // PayPal: the return already settled it; asked again only while it still waits. The webhook settles it too.
+    try {
+      const { settlePayPalOrder } = await import("@/lib/paypal/order-fulfilment");
+      paid = (await settlePayPalOrder(paypalId)).kind === "completed";
+    } catch (error) {
+      console.error("[blog-sponsorship] thanks page PayPal check failed", error);
+    }
+  } else if (order && !paid && sponsorshipConfigured()) {
     try {
       paid = await confirmSponsorship(await stripe.checkout.sessions.retrieve(order.checkoutId!));
     } catch (error) {

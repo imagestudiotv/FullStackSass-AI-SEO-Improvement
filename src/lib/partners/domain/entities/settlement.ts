@@ -39,7 +39,8 @@ export const SETTLEMENT_TRANSITIONS: TransitionTable<SettlementState> = {
   reserved: ["transfer_processing", "canceled", "needs_review"],
   transfer_processing: ["transferred", "transfer_unknown", "reserved", "canceled", "needs_review"],
   transfer_unknown: ["transferred", "reserved", "canceled", "needs_review"],
-  transferred: ["payout_pending", "payout_failed", "needs_review"],
+  // "paid" directly: a PayPal payout has no bank stage (use-cases/paypal-payouts.ts).
+  transferred: ["payout_pending", "payout_failed", "paid", "needs_review"],
   payout_pending: ["payout_in_transit", "paid", "payout_failed", "needs_review"],
   payout_in_transit: ["paid", "payout_failed", "needs_review"],
   /* Stripe can report a paid payout as failed later (the bank returned it). */

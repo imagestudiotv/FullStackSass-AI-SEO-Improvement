@@ -9,6 +9,7 @@ import type { Environment } from "../ports/repositories";
 import type { PartnerRepositories } from "../ports/unit-of-work";
 import type { PartnerDeps } from "./deps";
 import { rebuildProjection, snapshotOf } from "./mature-commissions";
+import { payPalPayoutAvailability } from "./paypal-payouts";
 
 /**
  * The monthly payout run: which mature money each partner is paid.
@@ -34,7 +35,19 @@ export function settlementJobId(settlementId: string): string {
   return `partners/settlement:${settlementId}`;
 }
 
-async function plan(repos: PartnerRepositories, deps: PartnerDeps, partnerId: string, environment: Environment, currency: string) {
+/**
+ * The plan for one partner and currency, from the immutable ledger. `threshold`
+ * overrides the policy's minimum: credits are paid with none (partner-credits.ts,
+ * the owner's choice "each commission after 30 days").
+ */
+export async function plan(
+  repos: PartnerRepositories,
+  deps: PartnerDeps,
+  partnerId: string,
+  environment: Environment,
+  currency: string,
+  options: { threshold?: Money } = {},
+) {
   const now = deps.clock.now();
   const version = await repos.programs.versionAt(now);
   const candidates = await repos.commissions.lockPayableCandidates(partnerId, environment, currency);
@@ -51,7 +64,7 @@ async function plan(repos: PartnerRepositories, deps: PartnerDeps, partnerId: st
       liability: Money.of(ledger.liability, currency),
       notYetPayable,
       reservedInFlight: Money.of(reserved, currency),
-      threshold: payoutThreshold(version.policy, currency),
+      threshold: options.threshold ?? payoutThreshold(version.policy, currency),
       now,
     }),
     ledger,
@@ -72,11 +85,32 @@ export async function prepareSettlement(
 ): Promise<SettlementOutcome> {
   const environment = deps.settings.environment();
   if (!environment) return { kind: "skipped", reason: "stripe_not_configured" };
+  // Partners are paid in credits (owner's decision 2026-11-07): no cash settlement while so (partner-credits.ts).
+  if ((deps.settings.payoutForm?.() ?? "cash") === "credits") return { kind: "skipped", reason: "cash_payouts_off" };
   const repos = deps.uow.repositories;
   if (!(await repos.controls.isEnabled("partner_payouts"))) return { kind: "skipped", reason: "payouts_disabled" };
   if (!deps.settings.moneyMovementAllowed(environment)) return { kind: "skipped", reason: "money_movement_blocked" };
-  const account = await repos.stripeAccounts.find(input.partnerId, environment);
-  if (!account?.stripeAccountId || account.status !== "ready") return { kind: "skipped", reason: "onboarding_incomplete" };
+  /*
+    Where the money goes: the partner's chosen method (paypal-payouts.ts). A
+    PayPal partner needs PayPal payouts available to them and a VERIFIED
+    PayPal address; a Stripe partner a ready connected account. The
+    settlement records the destination, so a later change of method or
+    address never redirects money already reserved.
+  */
+  let destination: { payoutMethod: "stripe"; stripeAccountId: string; paypalAccountId: null } | { payoutMethod: "paypal"; stripeAccountId: null; paypalAccountId: string };
+  if ((await repos.paypalPayouts.payoutMethodOf(input.partnerId)) === "paypal") {
+    const partner = await repos.partners.findById(input.partnerId);
+    if (!partner) return { kind: "skipped", reason: "not_found" };
+    const availability = payPalPayoutAvailability(deps, partner);
+    if (!availability.available) return { kind: "skipped", reason: availability.reason };
+    const paypal = await repos.paypalPayouts.findAccount(input.partnerId, environment);
+    if (paypal?.status !== "verified") return { kind: "skipped", reason: "paypal_not_verified" };
+    destination = { payoutMethod: "paypal", stripeAccountId: null, paypalAccountId: paypal.id };
+  } else {
+    const account = await repos.stripeAccounts.find(input.partnerId, environment);
+    if (!account?.stripeAccountId || account.status !== "ready") return { kind: "skipped", reason: "onboarding_incomplete" };
+    destination = { payoutMethod: "stripe", stripeAccountId: account.stripeAccountId, paypalAccountId: null };
+  }
 
   const outcome = await deps.uow.transaction(async (tx): Promise<SettlementOutcome> => {
     const partner = await tx.partners.lock(input.partnerId);
@@ -95,7 +129,7 @@ export async function prepareSettlement(
       grossAmount: decided.gross.amount,
       offsetAmount: decided.offset.amount,
       transferAmount: decided.transferAmount.amount,
-      stripeAccountId: account.stripeAccountId!,
+      ...destination,
       transferGroup: `repget-partner-settlement-${deps.random.uuid()}`,
       createdBy: actor.kind === "admin" ? actor.email : `system:${actor.origin}`,
       items: decided.allocations.map((allocation) => ({ commissionId: allocation.commissionId, amount: allocation.amount.amount })),
@@ -161,6 +195,9 @@ export async function cancelSettlement(
     if (!cancellable) return fail("invalid", `state_${settlement.state}`);
     const attempts = await tx.settlements.transferAttempts(settlementId);
     if (attempts.some((attempt) => !["retryable_failure", "failed"].includes(attempt.status))) return fail("invalid", "transfer_may_exist");
+    // The same for a PayPal payout: one that may have moved money (or did) is never cancelled this way.
+    const paypal = await tx.paypalPayouts.attempts(settlementId);
+    if (paypal.some((attempt) => attempt.status !== "failed")) return fail("invalid", "paypal_payout_may_exist");
     await tx.settlements.setState(settlementId, ["reserved", "needs_review"], "canceled", { canceledReason: reason.slice(0, 300) });
     await tx.settlements.deactivateItems(settlementId);
     for (const commission of commissions) {

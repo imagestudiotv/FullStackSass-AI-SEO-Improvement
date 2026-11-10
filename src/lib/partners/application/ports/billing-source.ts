@@ -79,6 +79,44 @@ export interface BillingSource {
   chargeForDispute(disputeId: string): Promise<string | null>;
 }
 
+/* ------------------------------------------------------------------ PayPal */
+
+/**
+ * One PayPal subscription SALE as PayPal reports it now (review P7). PayPal
+ * has no invoice: a sale is the whole collection, so it is the invoice, the
+ * payment and the "charge" at once.
+ */
+export type NormalizedPayPalSale = {
+  environment: Environment;
+  saleId: string;
+  /** The billing agreement (subscription) it paid. */
+  subscriptionId: string | null;
+  /** PayPal's state: completed, partially_refunded, refunded, pending, denied, reversed... */
+  state: string;
+  /** PayPal reports the sale completed: money moved (refunded or not since). Anything else never earns. */
+  verified: boolean;
+  /** Cash collected, minor units. */
+  cash: bigint;
+  currency: string;
+  /** Tax PayPal reports within the sale; 0 when it reports none (RepGet's PayPal plans carry no tax). */
+  tax: bigint;
+  /** The provider's payment time. */
+  paidAt: Date | null;
+  /** Cumulative cash returned: refunds recorded for the sale (lib/billing/refunds.ts), capped at the cash. */
+  refunded: bigint;
+  /** Reversed by PayPal (a chargeback): counts as a lost dispute for the whole sale. */
+  reversed: boolean;
+  evidence: Record<string, unknown>;
+};
+
+export interface PayPalSaleSource {
+  /** The environment of the configured PayPal credentials ("test" for sandbox). */
+  environment(): Environment;
+  loadSale(saleId: string): Promise<NormalizedPayPalSale>;
+  /** The workspace the billing webhook recorded the sale for (payments), or null when it has not. */
+  organizationForSale(saleId: string): Promise<string | null>;
+}
+
 /* ----------------------------------------------------------------- coupons */
 
 export type CouponSpec = {

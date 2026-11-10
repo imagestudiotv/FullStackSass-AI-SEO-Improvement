@@ -55,6 +55,8 @@ export type CreditType =
   | "purchase"
   /** Earned because someone you referred started paying. */
   | "referral"
+  /** A partner's commissions, paid as credits (lib/partners/application/use-cases/partner-credits.ts). */
+  | "partner_commission"
   /** An approved Earn Credits claim - a story, post, tutorial or idea (lib/earn/admin.ts). */
   | "reward"
   /** Manual adjustment by an admin. */

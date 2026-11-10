@@ -39,8 +39,13 @@ export const partnerCommissionsSweep = inngest.createFunction(
       return { deferred: result.deferred, done: result.done.length, retrying: result.retrying.length, failed: result.failed.length };
     });
     const matured = await step.run("mature", () => matureCommissions(partnerDeps()));
+    // Partners paid in credits (owner's decision 2026-11-07): each commission once matured, no minimum.
+    const credits = await step.run("convert-to-credits", async () => {
+      const { convertMaturedCommissions } = await import("@/lib/partners/application/use-cases/partner-credits");
+      return convertMaturedCommissions(partnerDeps());
+    });
     const coupons = await step.run("activate-coupons", () => activateDueCoupons(partnerDeps()));
-    return { events, matured: matured.matured, couponsActivated: coupons.activated };
+    return { events, matured: matured.matured, creditConversions: credits.converted, couponsActivated: coupons.activated };
   },
 );
 

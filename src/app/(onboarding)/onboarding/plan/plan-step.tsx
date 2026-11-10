@@ -229,12 +229,9 @@ export function PlanStep({
 
   async function handleCheckout(provider: "stripe" | "paypal") {
     if (!plan) return;
-    // The field only shows on a monthly plan: a value left from before switching to annual does not count.
-    const offer = offerCopy && !annual ? offerCode : "";
-    if (provider === "paypal" && offer.trim() && offerCopy) {
-      toast.error(offerCopy.cardOnly);
-      return;
-    }
+    // Monthly or annual (annual gets the same fixed first-month amount off, owner's decision 2026-11-07).
+    // Card or PayPal (review P5): the server says if this plan cannot take it through PayPal yet.
+    const offer = offerCopy ? offerCode : "";
     setPending(provider);
 
     /*
@@ -245,7 +242,7 @@ export function PlanStep({
     */
     const result =
       provider === "paypal"
-        ? await createPayPalCheckout(plan.id, websiteId, "onboarding")
+        ? await createPayPalCheckout(plan.id, websiteId, "onboarding", offer)
         : await createCheckoutSession(plan.id, websiteId, "onboarding", offer);
 
     if ("error" in result) {
@@ -513,7 +510,7 @@ export function PlanStep({
           </div>
         ) : null}
 
-        {offerCopy && !annual ? <OfferCodeField copy={offerCopy} value={offerCode} onChange={setOfferCode} className="mt-4" /> : null}
+        {offerCopy ? <OfferCodeField copy={offerCopy} value={offerCode} onChange={setOfferCode} className="mt-4" /> : null}
 
         <Button
           onClick={() => handleCheckout("stripe")}

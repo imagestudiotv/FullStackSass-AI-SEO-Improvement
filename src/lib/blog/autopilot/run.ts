@@ -278,6 +278,9 @@ export async function saveAutopilotTranslation(
           ...fields,
           slug,
           locale,
+          // A cover an administrator gave the English draft meanwhile, copied like the editor's translations (lib/admin/blog.ts).
+          featuredImageUrl: source.featuredImageUrl,
+          featuredImageAlt: source.featuredImageAlt,
           translationOf: source.id,
           needsReview: true,
           status: "draft",

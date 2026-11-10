@@ -179,6 +179,45 @@ export async function buyAddon(addonId: string): Promise<CheckoutResult> {
   }
 }
 
+/**
+ * Starts a credit pack purchase with PayPal (review P4). As with card, nothing
+ * here grants anything: the pack's credits come only after RepGet has
+ * captured the approved order and PayPal reports it COMPLETED for exactly this
+ * amount (lib/paypal/orders.ts) - on the return page, the webhook or the
+ * maintenance sweep, whichever is first. The amount, currency and pack are the
+ * server's: the browser sends only which pack.
+ */
+export async function buyAddonWithPayPal(addonId: string): Promise<CheckoutResult> {
+  const { orgId, userId } = await requireOrg();
+  const { isPayPalConfigured, payPalCheckoutPaused } = await import("@/lib/paypal/client");
+  if (!isPayPalConfigured()) return { error: "PayPal is not available yet. Please pay by card." };
+  if (payPalCheckoutPaused()) return { error: "Paying with PayPal is paused for now. Please pay by card, or try again later." };
+
+  const [addon] = await db
+    .select({ id: addons.id, name: addons.name, kind: addons.kind, priceCents: addons.priceCents, currency: addons.currency, isActive: addons.isActive })
+    .from(addons)
+    .where(eq(addons.id, addonId))
+    .limit(1);
+  if (!addon || !addon.isActive) return { error: "That add-on is not available" };
+  if (addon.kind !== "credits") return { error: `"${addon.name}" is bought with credits` };
+  if (!(addon.priceCents > 0)) return { error: `"${addon.name}" has no price configured yet` };
+
+  const { startOrder } = await import("@/lib/paypal/orders");
+  const base = appUrl();
+  const started = await startOrder({
+    purpose: "addon_credits",
+    organizationId: orgId,
+    referenceId: addon.id,
+    amountCents: addon.priceCents,
+    currency: addon.currency,
+    description: addon.name,
+    userId,
+    returnUrl: (rowId) => `${base}/api/paypal/orders/return?row=${rowId}&outcome=success`,
+    cancelUrl: (rowId) => `${base}/api/paypal/orders/return?row=${rowId}&outcome=cancelled`,
+  });
+  return started.kind === "started" ? { url: started.url } : { error: started.error };
+}
+
 export type CreditPurchaseResult = { ok: true; credits: number } | { ok: false; error: string; needsCredits?: boolean };
 
 /**

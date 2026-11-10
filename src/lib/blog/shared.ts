@@ -76,6 +76,12 @@ export type BlogSource = {
   url: string;
 };
 
+/** A post's own cover: one of the blog's pictures, and its description ("" for none). */
+export type BlogFeaturedImage = {
+  url: string;
+  alt: string;
+};
+
 export type BlogPost = {
   /** URL segment. Permanent once published. */
   slug: string;
@@ -124,6 +130,11 @@ export type BlogPost = {
   sources?: BlogSource[];
   /** Body as HTML, sanitised on every save (lib/articles/sanitize.ts). */
   body: string;
+  /**
+   * Its own cover, chosen in Admin -> Blog: on its cards, at the top of the
+   * post and in shared links. Absent: the drawn cover and the site's picture.
+   */
+  featuredImage?: BlogFeaturedImage;
   /**
    * The language it is written in (lib/blog/locale.ts); absent means English.
    * Decides its address and the words around it.

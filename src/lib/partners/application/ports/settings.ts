@@ -27,4 +27,27 @@ export interface ProgramSettings {
   appUrl(): string;
   /** The countries the platform's Connect configuration supports for partner accounts. */
   payoutCountries(): string[];
+  /**
+   * Partners paid through PayPal: "off" (the default), "automated" (PayPal
+   * Payouts, which PayPal must have enabled on the business account) or
+   * "manual" (a person sends each payment in PayPal and records it). The
+   * owner's choice (review question Q4). Missing means off.
+   */
+  paypalPayoutMode?(): "off" | "automated" | "manual";
+  /**
+   * Who bears PayPal's payout fee (Q5). Null until the owner decides: then no
+   * PayPal payout is made. Only "repget" is built (PayPal charges the sender
+   * and the partner receives the full amount); "partner" is refused until its
+   * deduction rule is agreed.
+   */
+  paypalFeeBearer?(): "repget" | "partner" | null;
+  /** Countries partners may be paid in through PayPal. Empty until configured. */
+  paypalPayoutCountries?(): string[];
+  /**
+   * What partners are paid in (owner's decision, 2026-11-07: "credits now,
+   * cash later"): "credits" - RepGet credits, each commission 30 days after
+   * the customer's payment - or "cash" (Stripe Connect / PayPal, as built).
+   * Missing means cash, for older test fakes; the deployment default is credits.
+   */
+  payoutForm?(): "credits" | "cash";
 }

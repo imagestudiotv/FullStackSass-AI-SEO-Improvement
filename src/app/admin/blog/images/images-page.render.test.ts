@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 vi.mock("sonner", () => ({ toast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() }) }));
-vi.mock("@/lib/admin/blog", () => ({ uploadBlogImage: vi.fn() }));
+vi.mock("@/lib/admin/blog", () => ({ startBlogImageUpload: vi.fn(), finishBlogImageUpload: vi.fn() }));
 const library = vi.hoisted(() => ({ list: vi.fn() }));
 vi.mock("@/lib/admin/blog-images", () => ({ listBlogImages: library.list, deleteBlogImage: vi.fn() }));
 

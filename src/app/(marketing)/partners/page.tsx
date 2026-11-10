@@ -3,6 +3,7 @@ import { localePath } from "@/lib/i18n/config";
 import { intlTag } from "@/lib/i18n/format";
 import { publicProgramSummary } from "@/lib/partners/application/use-cases/manage-program";
 import { partnerCopy } from "@/lib/partners/presentation/copy";
+import { publicPayoutTerms } from "@/lib/partners/presentation/payout-terms";
 import { partnerDeps } from "@/lib/partners/server";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
@@ -24,7 +25,9 @@ export const metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function Page() {
-  const [summary, plans] = await Promise.all([publicProgramSummary(partnerDeps()), listPlans()]);
+  const deps = partnerDeps();
+  // How partners are paid right now: credits or cash (presentation/payout-terms.ts).
+  const [summary, plans, payout] = await Promise.all([publicProgramSummary(deps), listPlans(), publicPayoutTerms(deps)]);
   return (
     <PartnersContent
       copy={copy.page}
@@ -33,6 +36,7 @@ export default async function Page() {
       locale="en"
       intlLocale={intlTag("en")}
       plans={calculatorPlans(plans)}
+      payout={payout}
       href={(path) => localePath("en", path)}
     />
   );

@@ -131,12 +131,27 @@ export const partnerProfiles = pgTable(
     payoutHoldBy: text("payout_hold_by"),
     /** Set when the one welcome email was handed to the mailer. */
     welcomeEmailSentAt: timestamp("welcome_email_sent_at"),
+    /**
+     * How the partner is paid: "stripe" (Stripe Connect, bank) or "paypal"
+     * (their PayPal account, partner_paypal_accounts). Chosen by the partner,
+     * only among the methods their country and the deployment allow. The
+     * monthly run pays the method chosen when it runs.
+     */
+    payoutMethod: text("payout_method").default("stripe").notNull(),
+    /**
+     * Where the partner's earnings go as RepGet CREDITS (owner's decision,
+     * 2026-11-07: partners paid in credits for now): a workspace the partner
+     * owns, chosen by the partner. Text id, no foreign key, like every
+     * financial row here. Null: nothing is converted until they choose.
+     */
+    creditOrganizationId: text("credit_organization_id"),
     ...timestamps,
   },
   (table) => [
     uniqueIndex("partner_profiles_user_uidx").on(table.userId),
     uniqueIndex("partner_profiles_code_uidx").on(table.referralCode),
     check("partner_profiles_status_check", sql`${table.status} in ('active', 'suspended')`),
+    check("partner_profiles_payout_method_check", sql`${table.payoutMethod} in ('stripe', 'paypal')`),
   ],
 );
 
@@ -375,6 +390,15 @@ export const partnerPaymentFacts = pgTable(
     chargeId: text("charge_id"),
     stripeSubscriptionId: text("stripe_subscription_id"),
     stripeCustomerId: text("stripe_customer_id"),
+    /**
+     * Who collected it: "stripe", or "paypal" (review P7). A PayPal fact is
+     * one completed subscription SALE: invoice_payment_id, invoice_id and
+     * charge_id all hold "paypal_sale:<sale id>" (PayPal has no invoice), so
+     * the uniqueness and the cumulative-refund logic keyed on them apply
+     * unchanged.
+     */
+    provider: text("provider").default("stripe").notNull(),
+    paypalSubscriptionId: text("paypal_subscription_id"),
     organizationId: text("organization_id").notNull(),
     attributionId: uuid("attribution_id").references(() => partnerAttributions.id, { onDelete: "restrict" }),
     /** The existing payments row for the invoice, when there is one. */
@@ -559,7 +583,17 @@ export const partnerSettlements = pgTable(
     grossAmount: money("gross_amount").notNull(),
     offsetAmount: money("offset_amount").notNull(),
     transferAmount: money("transfer_amount").notNull(),
-    stripeAccountId: text("stripe_account_id").notNull(),
+    /**
+     * "stripe": a transfer to stripe_account_id, then a bank payout. "paypal":
+     * one PayPal payout to paypal_account_id (partner_paypal_payouts), which
+     * settles the liability when PayPal reports it SUCCESS. Either way the
+     * same allocations (partner_settlement_items) and the same unique
+     * indexes: a commission is in at most one active settlement, so it can
+     * never be paid by both.
+     */
+    payoutMethod: text("payout_method").default("stripe").notNull(),
+    stripeAccountId: text("stripe_account_id"),
+    paypalAccountId: uuid("paypal_account_id"),
     /** Stripe transfer_group: durable evidence that outlives idempotency keys. */
     transferGroup: text("transfer_group").notNull(),
     claimToken: uuid("claim_token"),
@@ -590,6 +624,11 @@ export const partnerSettlements = pgTable(
     check(
       "partner_settlements_amounts_check",
       sql`${table.transferAmount} > 0 and ${table.offsetAmount} >= 0 and ${table.grossAmount} = ${table.transferAmount} + ${table.offsetAmount}`,
+    ),
+    // Each method names its own destination, and only that.
+    check(
+      "partner_settlements_destination_check",
+      sql`(${table.payoutMethod} = 'stripe' and ${table.stripeAccountId} is not null) or (${table.payoutMethod} = 'paypal' and ${table.paypalAccountId} is not null) or (${table.payoutMethod} = 'credits' and ${table.stripeAccountId} is null and ${table.paypalAccountId} is null)`,
     ),
   ],
 );
@@ -652,6 +691,150 @@ export const partnerStripeAccounts = pgTable(
   (table) => [
     uniqueIndex("partner_stripe_accounts_partner_uidx").on(table.partnerId, table.environment),
     uniqueIndex("partner_stripe_accounts_account_uidx").on(table.stripeAccountId),
+  ],
+);
+
+/**
+ * Earnings paid as RepGet credits (owner's decision, 2026-11-07): one row per
+ * credit settlement, saying how many credits went to which workspace, at
+ * which rate. The rate is the smallest credit pack's price at the time
+ * (EUR 79.00 for 100 credits), recorded here, so a later price change never
+ * re-prices what was granted. Fractions are never lost: the credits for a
+ * conversion are the whole credits of everything converted so far at that
+ * rate, minus those already granted at it.
+ */
+export const partnerCreditGrants = pgTable(
+  "partner_credit_grants",
+  {
+    id: pk(),
+    settlementId: uuid("settlement_id")
+      .notNull()
+      .references(() => partnerSettlements.id, { onDelete: "restrict" }),
+    partnerId: uuid("partner_id")
+      .notNull()
+      .references(() => partnerProfiles.id, { onDelete: "restrict" }),
+    environment: text("environment").notNull(),
+    /** The workspace credited (text id, as elsewhere in financial history). */
+    organizationId: text("organization_id").notNull(),
+    currency: text("currency").notNull(),
+    /** Commission converted, in minor units: the settlement's transfer amount. */
+    amount: money("amount").notNull(),
+    credits: integer("credits").notNull(),
+    /** The rate: pack_credits for pack_cents. */
+    packCents: integer("pack_cents").notNull(),
+    packCredits: integer("pack_credits").notNull(),
+    /** credit_ledger's idempotency key for the grant. */
+    ledgerKey: text("ledger_key").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("partner_credit_grants_settlement_uidx").on(table.settlementId),
+    uniqueIndex("partner_credit_grants_ledger_uidx").on(table.ledgerKey),
+    index("partner_credit_grants_partner_idx").on(table.partnerId, table.environment, table.currency),
+    check("partner_credit_grants_amounts_check", sql`${table.amount} > 0 and ${table.credits} >= 0 and ${table.packCents} > 0 and ${table.packCredits} > 0`),
+  ],
+);
+
+/**
+ * A partner's PayPal account for payouts, in one environment (Daniel's
+ * design: partners paid through PayPal). The address is the partner's; it is
+ * VERIFIED by a code sent to it (the hash only is kept), so a typo or someone
+ * else's address is not paid. A change of address starts verification again,
+ * and a settlement records the account it pays, so a change never redirects
+ * money already on its way.
+ */
+export const partnerPayPalAccounts = pgTable(
+  "partner_paypal_accounts",
+  {
+    id: pk(),
+    partnerId: uuid("partner_id")
+      .notNull()
+      .references(() => partnerProfiles.id, { onDelete: "restrict" }),
+    environment: text("environment").notNull(),
+    /** "EMAIL" (the only kind set up here). PayPal's recipient_type. */
+    recipientType: text("recipient_type").default("EMAIL").notNull(),
+    /** The PayPal email address, lower case. */
+    receiver: text("receiver").notNull(),
+    /** pending_verification | verified | disabled */
+    status: text("status").default("pending_verification").notNull(),
+    verificationCodeHash: text("verification_code_hash"),
+    verificationExpiresAt: timestamp("verification_expires_at"),
+    verificationAttempts: integer("verification_attempts").default(0).notNull(),
+    verifiedAt: timestamp("verified_at"),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("partner_paypal_accounts_partner_uidx").on(table.partnerId, table.environment),
+    check("partner_paypal_accounts_status_check", sql`${table.status} in ('pending_verification', 'verified', 'disabled')`),
+    check("partner_paypal_accounts_type_check", sql`${table.recipientType} in ('EMAIL')`),
+  ],
+);
+
+/**
+ * One attempt to pay a PayPal settlement - automated (PayPal Payouts) or
+ * manual (sent by a person in PayPal, recorded here). Recorded BEFORE the
+ * request; the sender_batch_id is also PayPal's request id, so a request
+ * repeated after a lost answer returns the original batch (PayPal keeps both
+ * 30 days) instead of paying twice.
+ *
+ *   processing  sent (or being sent); no batch id yet
+ *   unknown     no answer: may exist; repeated with the same ids, never anew
+ *   pending     PayPal accepted it; the item is not final (PENDING, UNCLAIMED, ONHOLD)
+ *   succeeded   PayPal reports the item SUCCESS (manual: confirmed): liability settled
+ *   failed      refused, or the money came back before reaching the partner
+ *               (FAILED, RETURNED, BLOCKED, DENIED, CANCELED): nothing paid
+ *   reversed    paid, then taken back (REFUNDED, REVERSED): recorded, reviewed
+ */
+export const partnerPayPalPayouts = pgTable(
+  "partner_paypal_payouts",
+  {
+    id: pk(),
+    settlementId: uuid("settlement_id")
+      .notNull()
+      .references(() => partnerSettlements.id, { onDelete: "restrict" }),
+    attemptNumber: integer("attempt_number").notNull(),
+    environment: text("environment").notNull(),
+    /** automated | manual */
+    mode: text("mode").notNull(),
+    paypalAccountId: uuid("paypal_account_id")
+      .notNull()
+      .references(() => partnerPayPalAccounts.id, { onDelete: "restrict" }),
+    /** The address paid, as it was then. */
+    receiver: text("receiver").notNull(),
+    currency: text("currency").notNull(),
+    amount: money("amount").notNull(),
+    senderBatchId: text("sender_batch_id").notNull(),
+    payoutBatchId: text("payout_batch_id"),
+    payoutItemId: text("payout_item_id"),
+    /** PayPal's transaction id (automated: from the item; manual: entered by the person who sent it). */
+    transactionId: text("transaction_id"),
+    status: text("status").default("processing").notNull(),
+    /** PayPal's own item status, as last read. */
+    providerStatus: text("provider_status"),
+    /** PayPal's fee for the item, when reported (the sender pays it). */
+    fee: money("fee"),
+    error: text("error"),
+    /** Manual: who recorded it, and what they wrote. */
+    recordedBy: text("recorded_by"),
+    note: text("note"),
+    submittedAt: timestamp("submitted_at").notNull(),
+    completedAt: timestamp("completed_at"),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("partner_paypal_payouts_attempt_uidx").on(table.settlementId, table.attemptNumber),
+    uniqueIndex("partner_paypal_payouts_batch_uidx").on(table.senderBatchId),
+    uniqueIndex("partner_paypal_payouts_item_uidx").on(table.payoutItemId),
+    // ONE attempt per settlement that may still move money, or did.
+    uniqueIndex("partner_paypal_payouts_live_uidx")
+      .on(table.settlementId)
+      .where(sql`${table.status} in ('processing', 'unknown', 'pending', 'succeeded', 'reversed')`),
+    check("partner_paypal_payouts_mode_check", sql`${table.mode} in ('automated', 'manual')`),
+    check(
+      "partner_paypal_payouts_status_check",
+      sql`${table.status} in ('processing', 'unknown', 'pending', 'succeeded', 'failed', 'reversed')`,
+    ),
+    check("partner_paypal_payouts_amount_check", sql`${table.amount} > 0`),
   ],
 );
 

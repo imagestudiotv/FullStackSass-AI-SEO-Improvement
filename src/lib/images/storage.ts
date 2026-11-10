@@ -192,6 +192,33 @@ export async function listWebsiteImages(
 /** RepGet's own blog pictures: uploadBlogImage (lib/admin/blog.ts) stores them here. */
 export const BLOG_IMAGE_FOLDER = "blog/posts";
 
+/**
+ * Where a blog picture sent straight from the browser waits until the server
+ * has checked it (finishBlogImageUpload, lib/admin/blog.ts). Outside
+ * BLOG_IMAGE_FOLDER, so the library never lists or offers an unchecked file.
+ */
+export const BLOG_PENDING_FOLDER = "blog/pending";
+
+/**
+ * A signed address the browser PUTs one file to, at exactly `path`: the
+ * file never passes through a server function, whose request body is
+ * limited far below MAX_IMAGE_BYTES (1 MB for a server action, 4.5 MB on
+ * Vercel). The address carries a token for that one path, not the key.
+ */
+export async function signedImageUpload(path: string): Promise<string> {
+  const { data, error } = await client().storage.from(BUCKET).createSignedUploadUrl(path);
+  if (error || !data) throw new Error(`Could not prepare the upload: ${error?.message ?? "no address"}`);
+  return data.signedUrl;
+}
+
+/** A stored file's bytes, or null when there is none (or it is bigger than `maxBytes`, which is not read). */
+export async function readStoredFile(path: string, maxBytes: number): Promise<{ data: Buffer; size: number } | { data: null; size: number } | null> {
+  const { data, error } = await client().storage.from(BUCKET).download(path);
+  if (error || !data) return null;
+  if (data.size > maxBytes) return { data: null, size: data.size };
+  return { data: Buffer.from(await data.arrayBuffer()), size: data.size };
+}
+
 export type StoredImage = {
   url: string;
   /** The file name, e.g. 1791570126595-3dob8p.webp. */

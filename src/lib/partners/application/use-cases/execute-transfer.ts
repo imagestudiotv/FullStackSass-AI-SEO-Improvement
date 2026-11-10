@@ -6,6 +6,7 @@ import type { PartnerDeps } from "./deps";
 import { payoutStage } from "./execute-bank-payout";
 import { accountReadiness } from "./manage-payout-account";
 import { rebuildProjection } from "./mature-commissions";
+import { payPalStage } from "./paypal-payouts";
 import { cancelSettlement } from "./prepare-settlement";
 
 /**
@@ -58,6 +59,14 @@ export async function executeSettlement(deps: PartnerDeps, settlementId: string)
   let lastError: string | null = null;
   try {
     let current = settlement;
+    // Paid through PayPal: one stage, no Stripe transfer or bank payout (paypal-payouts.ts).
+    if (current.payoutMethod === "paypal") {
+      const step = await payPalStage(deps, current);
+      next = step.next;
+      lastError = step.error ?? null;
+      current = (await repos.settlements.findById(settlementId))!;
+      return { settlementId, state: current.state, detail: lastError ?? undefined };
+    }
     if (["reserved", "transfer_processing", "transfer_unknown"].includes(current.state)) {
       const step = await transferStage(deps, current);
       next = step.next;
@@ -126,7 +135,7 @@ async function transferStage(deps: PartnerDeps, settlement: SettlementRecord): P
   if (gateway.environment() !== settlement.environment) return cancel("wrong_environment");
   const partner = await repos.partners.findById(settlement.partnerId);
   if (!partner || !canReceiveAutomaticPayout(partner)) return cancel(partner?.status === "suspended" ? "partner_suspended" : "payout_hold");
-  const readiness = await accountReadiness(gateway, settlement.stripeAccountId);
+  const readiness = await accountReadiness(gateway, settlement.stripeAccountId!);
   if (readiness.status !== "ready" || (readiness.metadataPartnerId !== null && readiness.metadataPartnerId !== settlement.partnerId)) {
     return cancel(`account_${readiness.status}`);
   }
@@ -178,7 +187,7 @@ async function transferStage(deps: PartnerDeps, settlement: SettlementRecord): P
       attemptNumber: number,
       operationId,
       environment: settlement.environment,
-      stripeAccountId: settlement.stripeAccountId,
+      stripeAccountId: settlement.stripeAccountId!,
       currency: settlement.currency,
       amount: settlement.transferAmount,
       submittedAt: deps.clock.now(),
@@ -191,7 +200,7 @@ async function transferStage(deps: PartnerDeps, settlement: SettlementRecord): P
   if (!attempt) return { next: new Date(now.getTime() + 5 * MINUTE), error: "attempt_exists" };
 
   const outcome = await gateway.createTransfer({
-    destination: settlement.stripeAccountId,
+    destination: settlement.stripeAccountId!,
     amount: settlement.transferAmount,
     currency: settlement.currency,
     transferGroup: settlement.transferGroup,
@@ -265,7 +274,7 @@ async function resolveUnknownTransfer(deps: PartnerDeps, settlement: SettlementR
     if (!mayResubmit) return { next: new Date(now.getTime() + HOUR), error: "transfer_unknown_held" };
     // Within Stripe's idempotency window: the SAME request, the SAME key - Stripe returns the original result if there was one.
     const outcome = await gateway.createTransfer({
-      destination: settlement.stripeAccountId,
+      destination: settlement.stripeAccountId!,
       amount: settlement.transferAmount,
       currency: settlement.currency,
       transferGroup: settlement.transferGroup,

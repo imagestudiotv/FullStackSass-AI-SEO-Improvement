@@ -100,8 +100,8 @@ describe("partner program architecture", () => {
           if (rel.startsWith("domain/policies/commission") || rel.startsWith("domain/policies/maturity")) {
             offenders.push(`${path.relative(src, file)} calculates money via ${specifier}`);
           }
-          // Client components may call server actions and read pure copy and formatting - nothing else.
-          if (isClient && !/^presentation\/(serializers|validation|format|copy|actions|admin-actions)(\.ts)?$/.test(rel)) {
+          // Client components may call server actions and read pure copy (copy.ts, *-copy.ts) and formatting - nothing else.
+          if (isClient && !/^presentation\/(serializers|validation|format|copy|[a-z-]+-copy|actions|admin-actions)(\.ts)?$/.test(rel)) {
             offenders.push(`${path.relative(src, file)} (client) -> ${specifier}`);
           }
         }

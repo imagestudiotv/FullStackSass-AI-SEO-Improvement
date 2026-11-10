@@ -1,7 +1,17 @@
 import "server-only";
 
 import { sanitizeHtml } from "@/lib/articles/sanitize";
-import { blogSlug, FAQ_ANSWER_LIMIT, hasText, TEAM_AUTHOR, type BlogCategory, type BlogFaq, type BlogSource } from "@/lib/blog/shared";
+import { BLOG_IMAGE_ALT_MAX, isBlogImageUrl } from "@/lib/blog/image-files";
+import {
+  blogSlug,
+  FAQ_ANSWER_LIMIT,
+  hasText,
+  TEAM_AUTHOR,
+  type BlogCategory,
+  type BlogFaq,
+  type BlogFeaturedImage,
+  type BlogSource,
+} from "@/lib/blog/shared";
 import { SEARCH_LIMITS, secondaryKeywordList } from "@/lib/blog/keywords";
 import { siteUrl } from "@/lib/site-url";
 
@@ -30,6 +40,12 @@ export type BlogPostInput = {
   bodyHtml: string;
   faqs: BlogFaq[];
   sources: BlogSource[];
+  /**
+   * The post's own cover, one of the blog's pictures, with its description;
+   * null for the drawn cover. Absent (the autopilot's drafts) leaves a saved
+   * post's as it is.
+   */
+  featuredImage?: BlogFeaturedImage | null;
   /** The language, for a new post only (lib/blog/locale.ts); empty is English. A post keeps its language. */
   locale?: string;
 };
@@ -60,7 +76,28 @@ export type CleanBlogPost = {
   bodyHtml: string;
   faqs: BlogFaq[];
   sources: BlogSource[];
+  /** Only when the input had `featuredImage`: a save without it keeps the stored one. */
+  featuredImageUrl?: string | null;
+  featuredImageAlt?: string | null;
 };
+
+/**
+ * A featured image as stored: one of the blog's own pictures (lib/blog/image-files.ts)
+ * - never another site's address - and a one-line description. Null for none.
+ */
+export function cleanFeaturedImage(input: unknown): { featuredImageUrl: string | null; featuredImageAlt: string | null } {
+  if (input === null || typeof input !== "object") return { featuredImageUrl: null, featuredImageAlt: null };
+  const url = String((input as { url?: unknown }).url ?? "").trim();
+  if (!url) return { featuredImageUrl: null, featuredImageAlt: null };
+  if (!isBlogImageUrl(url)) {
+    throw new BlogPostError("The featured image must be one of the blog's pictures - upload it or choose it from the library");
+  }
+  const alt = oneLine((input as { alt?: unknown }).alt);
+  if (alt.length > BLOG_IMAGE_ALT_MAX) {
+    throw new BlogPostError(`Keep the featured image's description under ${BLOG_IMAGE_ALT_MAX} characters`);
+  }
+  return { featuredImageUrl: url, featuredImageAlt: alt || null };
+}
 
 /** Validates and tidies what the editor sent; `publishing` also requires what a live post needs. */
 export function cleanBlogPost(input: BlogPostInput, publishing: boolean): CleanBlogPost {
@@ -159,6 +196,7 @@ export function cleanBlogPost(input: BlogPostInput, publishing: boolean): CleanB
     bodyHtml,
     faqs,
     sources,
+    ...(input.featuredImage === undefined ? {} : cleanFeaturedImage(input.featuredImage)),
   };
 }
 

@@ -14,6 +14,7 @@ import {
   type BlogCategoryInfo,
   type BlogCategoryTranslations,
   type BlogFaq,
+  type BlogFeaturedImage,
   type BlogSource,
 } from "@/lib/blog/shared";
 import { removeAddedLinks } from "@/lib/blog/autopilot/links";
@@ -25,8 +26,12 @@ import { DEFAULT_LOCALE, LOCALES, type Locale } from "@/lib/i18n/config";
 import { notifyIndexNow } from "@/lib/indexnow";
 import {
   ALLOWED_IMAGE_TYPES,
+  BLOG_PENDING_FOLDER,
+  deleteStoredImage,
   isImageStorageConfigured,
   MAX_IMAGE_BYTES,
+  readStoredFile,
+  signedImageUpload,
   storeArticleImage,
 } from "@/lib/images/storage";
 import {
@@ -110,6 +115,8 @@ export type AdminBlogPost = AdminBlogRow & {
   bodyHtml: string;
   faqs: BlogFaq[];
   sources: BlogSource[];
+  /** Its own cover; null shows the drawn one. */
+  featuredImage: BlogFeaturedImage | null;
   revisedAt: Date | null;
   version: number;
   /** For an original: its translations, one per language. */
@@ -228,6 +235,7 @@ export async function getBlogPostAdmin(id: string): Promise<AdminBlogPost | null
     bodyHtml: row.bodyHtml,
     faqs: row.faqs,
     sources: row.sources,
+    featuredImage: row.featuredImageUrl ? { url: row.featuredImageUrl, alt: row.featuredImageAlt ?? "" } : null,
     revisedAt: row.revisedAt,
     version: row.version,
     locale: blogLocale(row.locale),
@@ -335,6 +343,14 @@ export async function saveBlogPost(input: {
         fields.primaryKeyword !== current.primaryKeyword ||
         JSON.stringify(fields.secondaryKeywords) !== JSON.stringify(current.secondaryKeywords) ||
         fields.breadcrumbLabel !== current.breadcrumbLabel;
+      /*
+        The cover is on the post's page, its cards and its shared links, but
+        it is not a new version of the article: it does not mark it "Updated".
+        Sent without one (fields has no key), it stays as stored.
+      */
+      const imageChanged =
+        (fields.featuredImageUrl !== undefined && fields.featuredImageUrl !== current.featuredImageUrl) ||
+        (fields.featuredImageAlt !== undefined && fields.featuredImageAlt !== current.featuredImageAlt);
       const wasLive = current.status === "published";
       const [updated] = await tx
         .update(blogPosts)
@@ -378,25 +394,26 @@ export async function saveBlogPost(input: {
         more), and a draft never is: nobody can see it.
 
         The post's own page: when it went live or came down, or a live post's
-        text, search fields, author or category changed.
+        text, search fields, author, category or cover changed.
 
         The listings - the blog's front page and the category pages: when the
         post joined or left them, or its card changed (title, description,
-        category, minutes to read). A typo or a new author leaves them as they
-        were. The category it is now in is reported only if it is live there;
-        the one it was in, only if it has left it.
+        category, cover, minutes to read). A typo or a new author leaves them
+        as they were. The category it is now in is reported only if it is live
+        there; the one it was in, only if it has left it.
       */
       const nowLive = input.status === "published";
       const movedCategory = fields.category !== current.category;
       const pageChanged =
         wasLive !== nowLive ||
-        (nowLive && (contentChanged || searchChanged || fields.author !== current.author || movedCategory));
+        (nowLive && (contentChanged || searchChanged || imageChanged || fields.author !== current.author || movedCategory));
       const cardChanged =
         wasLive !== nowLive ||
         (nowLive &&
           (fields.title !== current.title ||
             fields.description !== current.description ||
             movedCategory ||
+            imageChanged ||
             cardMinutes(fields) !== cardMinutes(current)));
       const changedPages: string[] = [];
       if (pageChanged) changedPages.push(blogPath(locale, fields.slug));
@@ -479,7 +496,8 @@ function translatable(row: typeof blogPosts.$inferSelect): TranslatableFields {
  * two for a long post; "copy" copies the English text, to translate by hand.
  * A language that already has a translation returns that one instead.
  *
- * The draft keeps the original's category, author and sources. Its address
+ * The draft keeps the original's category, author, sources and featured
+ * image (a copy: changing either post's later leaves the other's). Its address
  * is made from the translated title (unique across languages: the language
  * code is added when the plain one is taken).
  */
@@ -573,6 +591,9 @@ export async function createBlogTranslation(input: {
           ...fields,
           slug,
           locale,
+          // The English post's cover as it is now; from here on each language's is its own.
+          featuredImageUrl: source.featuredImageUrl,
+          featuredImageAlt: source.featuredImageAlt,
           translationOf: source.id,
           needsReview: true,
           status: "draft",
@@ -623,17 +644,94 @@ export async function uploadBlogImage(formData: FormData): Promise<ActionResult<
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) return { ok: false, error: "Choose an image to upload" };
   if (!ALLOWED_IMAGE_TYPES.includes(file.type as never)) return { ok: false, error: "Use a PNG, JPEG or WebP image" };
-  if (file.size > MAX_IMAGE_BYTES) {
-    return {
-      ok: false,
-      error: `That image is ${Math.round(file.size / 1024 / 1024)}MB. The limit is ${MAX_IMAGE_BYTES / 1024 / 1024}MB.`,
-    };
-  }
-  const language = formData.get("locale");
-  const folder = isBlogLocale(language) ? `posts/${language}` : "posts";
+  if (file.size > MAX_IMAGE_BYTES) return { ok: false, error: tooBig(file.size) };
   // Named after the file it came from, "keyword-planner-steps.webp" (client, 2026-10-20); a pasted "image.png" gets a time-and-random name.
-  const url = await storeArticleImage("blog", folder, Buffer.from(await file.arrayBuffer()), file.type, file.name.replace(/\.[a-z0-9]+$/i, ""));
+  const url = await storeArticleImage("blog", blogImageFolder(formData.get("locale")), Buffer.from(await file.arrayBuffer()), file.type, file.name.replace(/\.[a-z0-9]+$/i, ""));
   return { ok: true, data: { url } };
+}
+
+/** The folder in the blog's storage a language's pictures go in: blog/posts/<locale>, or blog/posts without one. */
+function blogImageFolder(language: unknown): string {
+  return isBlogLocale(language) ? `posts/${language}` : "posts";
+}
+
+const tooBig = (size: number) =>
+  `That image is ${Math.max(1, Math.round(size / 1024 / 1024))}MB. The limit is ${MAX_IMAGE_BYTES / 1024 / 1024}MB.`;
+
+/** What a pending upload is called (startBlogImageUpload): a random id and the extension of its type. */
+const PENDING_UPLOAD = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(png|jpg|webp)$/;
+const PENDING_TYPE = { png: "image/png", jpg: "image/jpeg", webp: "image/webp" } as const;
+
+/** The type a file's first bytes say it is, of the three a blog picture may be; null for anything else. */
+function sniffImageType(data: Buffer): (typeof ALLOWED_IMAGE_TYPES)[number] | null {
+  if (data.length >= 8 && data.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return "image/png";
+  if (data.length >= 3 && data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff) return "image/jpeg";
+  if (data.length >= 12 && data.toString("latin1", 0, 4) === "RIFF" && data.toString("latin1", 8, 12) === "WEBP") return "image/webp";
+  return null;
+}
+
+/**
+ * The first half of uploading a blog picture straight from the browser
+ * (app/admin/blog/upload-picture.ts): checks what the browser says it is
+ * sending and returns a signed address for one new file in the pending
+ * folder (lib/images/storage.ts BLOG_PENDING_FOLDER). The picture never
+ * passes through this server, whose request body is limited far below
+ * MAX_IMAGE_BYTES - the reason a large picture used to fail.
+ * finishBlogImageUpload then checks the file itself.
+ */
+export async function startBlogImageUpload(file: { type: string; size: number }): Promise<ActionResult<{ upload: string; signedUrl: string }>> {
+  await requireAdmin();
+  if (!isImageStorageConfigured()) return { ok: false, error: "Image storage is not set up yet" };
+  const type = typeof file?.type === "string" ? file.type : "";
+  const size = typeof file?.size === "number" && Number.isFinite(file.size) ? file.size : 0;
+  const extension = (Object.keys(PENDING_TYPE) as (keyof typeof PENDING_TYPE)[]).find((key) => PENDING_TYPE[key] === type);
+  if (!extension) return { ok: false, error: "Use a PNG, JPEG or WebP image" };
+  if (size <= 0) return { ok: false, error: "Choose an image to upload" };
+  if (size > MAX_IMAGE_BYTES) return { ok: false, error: tooBig(size) };
+  const upload = `${crypto.randomUUID()}.${extension}`;
+  try {
+    return { ok: true, data: { upload, signedUrl: await signedImageUpload(`${BLOG_PENDING_FOLDER}/${upload}`) } };
+  } catch (error) {
+    console.error("[admin/blog] preparing an image upload failed", error);
+    return { ok: false, error: "The upload could not be started. Try again." };
+  }
+}
+
+/**
+ * The second half: checks the file the browser sent - its size, and that its
+ * bytes are the picture type it was sent as, whatever the browser claimed -
+ * and only then files it in the language's folder of the library, named
+ * after the file it came from, like uploadBlogImage. The pending copy is
+ * removed either way. Returns the picture's address.
+ */
+export async function finishBlogImageUpload(input: { upload: string; name: string; locale?: string | null }): Promise<ActionResult<{ url: string }>> {
+  await requireAdmin();
+  if (!isImageStorageConfigured()) return { ok: false, error: "Image storage is not set up yet" };
+  const upload = typeof input?.upload === "string" ? input.upload : "";
+  const match = PENDING_UPLOAD.exec(upload);
+  if (!match) return { ok: false, error: "That upload does not exist. Upload the picture again." };
+  const path = `${BLOG_PENDING_FOLDER}/${upload}`;
+  const discard = () => deleteStoredImage(path).catch((error) => console.error("[admin/blog] removing a pending upload failed", error));
+  try {
+    const stored = await readStoredFile(path, MAX_IMAGE_BYTES);
+    if (!stored) return { ok: false, error: "The picture did not arrive. Upload it again." };
+    if (!stored.data) {
+      await discard();
+      return { ok: false, error: tooBig(stored.size) };
+    }
+    const type = PENDING_TYPE[match[1] as keyof typeof PENDING_TYPE];
+    if (sniffImageType(stored.data) !== type) {
+      await discard();
+      return { ok: false, error: "That file is not a PNG, JPEG or WebP image" };
+    }
+    const name = typeof input.name === "string" ? input.name.replace(/\.[a-z0-9]+$/i, "").slice(0, 200) : "";
+    const url = await storeArticleImage("blog", blogImageFolder(input.locale), stored.data, type, name);
+    await discard();
+    return { ok: true, data: { url } };
+  } catch (error) {
+    console.error("[admin/blog] finishing an image upload failed", error);
+    return { ok: false, error: "The picture could not be stored. Try again." };
+  }
 }
 
 /* ------------------------------------------------------------------------ */

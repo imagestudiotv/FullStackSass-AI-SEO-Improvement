@@ -22,6 +22,8 @@ import type { PartnerAuditAction } from "@/lib/partners/application/contracts/co
 
 export type AdminAction =
   | "payment.refunded"
+  /** A refund with no confirmed outcome, asked of the provider again with the same key (lib/admin/operations.ts). */
+  | "payment.refund_checked"
   | "credits.adjusted"
   | "organization.limits_changed"
   | "organization.deactivated"

@@ -5,6 +5,7 @@ import {
   adminAuditLog,
   billingCheckouts,
   organization,
+  paypalPlanChanges,
   plans,
   subscriptions,
   websites,
@@ -294,13 +295,13 @@ describe("the REPGET offer", () => {
     expect(params().discounts).toEqual([{ coupon: "SCALE40" }]);
   });
 
-  it("an annual plan, or an older price, is refused before Stripe", async () => {
+  it("an annual plan gets the same plan coupon (the fixed first-month amount); an older price is refused before Stripe", async () => {
     const site = await addSite();
-    const annual = await createCheckoutSession(await growPlan({ interval: "year", priceCents: 149000, stripePriceId: "price_year" }), site.id, "billing", "REPGET");
-    expect(annual).toEqual({ error: expect.stringContaining("monthly") });
     const older = await createCheckoutSession(await growPlan({ name: "Old Grow", priceCents: 9900, stripePriceId: "price_old" }), site.id, "billing", "REPGET");
-    expect(older).toEqual({ error: expect.stringContaining("monthly") });
+    expect(older).toEqual({ error: expect.stringContaining("Launch, Grow and Scale") });
     expect(stripeMock.sessionsCreate).not.toHaveBeenCalled();
+    await createCheckoutSession(await growPlan({ interval: "year", priceCents: 149000, stripePriceId: "price_year" }), site.id, "billing", "REPGET");
+    expect(params().discounts).toEqual([{ coupon: "GROW40" }]);
   });
 
   it("another code is pointed at Stripe's box; switched off, so is REPGET", async () => {
@@ -341,6 +342,76 @@ describe("the REPGET offer", () => {
     // The same request again is the same checkout.
     await createCheckoutSession(plan, site.id, "billing", "REPGET");
     expect(stripeMock.sessionsCreate).toHaveBeenCalledTimes(2);
+  });
+
+  /*
+    REPGET through PayPal (review P5): the plan's REPGET offer plan, its ONE
+    intro cycle priced lower on this subscription only (createSubscription's
+    override), after any free days. PayPal is stubbed at createSubscription:
+    the override body is plans-body/subscriptions tests; PayPal honouring it
+    is the owner's sandbox flow.
+  */
+  describe("through PayPal (review P5)", () => {
+    const offerPlan = (fields: Partial<typeof plans.$inferInsert> = {}) =>
+      growPlan({ paypalPlanId: "P-GROW", paypalTrialPlanId: "P-GROW-FREE", paypalOfferPlanId: "P-GROW-OFFER", paypalTrialOfferPlanId: "P-GROW-FREE-OFFER", ...fields });
+    const created = () => paypalMock.createSubscription.mock.calls.at(-1)![0];
+
+    it("subscribes to the offer plan, its first payment the same fixed amount less", async () => {
+      await usedTrial();
+      const site = await addSite();
+      expect(await createPayPalCheckout(await offerPlan(), site.id, "billing", "REPGET")).toEqual({ url: expect.any(String) });
+      // 149.00 less 59.60.
+      expect(created()).toMatchObject({ planId: "P-GROW-OFFER", intro: { sequence: 1, priceCents: 8940, currency: "eur" } });
+      const [row] = await checkouts();
+      expect(row.requestParams).toMatchObject({ plan: "P-GROW-OFFER", offer: "REPGET", introCents: 8940 });
+    });
+
+    it("after the free articles: the free days first, then the discounted payment", async () => {
+      const site = await addSite();
+      await createPayPalCheckout(await offerPlan(), site.id, "billing", "REPGET");
+      expect(created()).toMatchObject({ planId: "P-GROW-FREE-OFFER", intro: { sequence: 2, priceCents: 8940 } });
+    });
+
+    it("annual: the same fixed amount off the first annual payment", async () => {
+      await usedTrial();
+      const site = await addSite();
+      await createPayPalCheckout(await offerPlan({ interval: "year", priceCents: 149000, stripePriceId: "price_year_pp" }), site.id, "billing", "REPGET");
+      expect(created()).toMatchObject({ planId: "P-GROW-OFFER", intro: { sequence: 1, priceCents: 143040 } });
+    });
+
+    it("no code: the plan as before, with no override", async () => {
+      await usedTrial();
+      const site = await addSite();
+      await createPayPalCheckout(await offerPlan(), site.id);
+      expect(created()).toMatchObject({ planId: "P-GROW" });
+      expect(created().intro).toBeUndefined();
+    });
+
+    it("a plan without its offer plans takes the code by card only", async () => {
+      const site = await addSite();
+      expect(await createPayPalCheckout(await offerPlan({ paypalTrialOfferPlanId: null }), site.id, "billing", "REPGET")).toEqual({
+        error: expect.stringContaining("not available with PayPal"),
+      });
+      expect(paypalMock.createSubscription).not.toHaveBeenCalled();
+      expect(await checkouts()).toHaveLength(0);
+    });
+
+    it("one use per account, whichever processor used it", async () => {
+      const plan = await offerPlan();
+      const earlier = await addSite("org_a", "used.test");
+      await test.db.insert(billingCheckouts).values({ organizationId: "org_a", websiteId: earlier.id, provider: "stripe", planId: plan, status: "completed", trialDays: 0, requestParams: { offer: "REPGET" }, createdAt: new Date() });
+      const site = await addSite();
+      expect(await createPayPalCheckout(plan, site.id, "billing", "REPGET")).toEqual({ error: expect.stringContaining("already used") });
+      expect(paypalMock.createSubscription).not.toHaveBeenCalled();
+    });
+
+    it("is refused for a plan change, as by card", async () => {
+      const plan = await offerPlan();
+      const site = await addSite();
+      await test.db.insert(subscriptions).values({ organizationId: "org_a", websiteId: site.id, provider: "paypal", planId, status: "active", paypalSubscriptionId: "I-LIVE" });
+      expect(await createPayPalCheckout(plan, site.id, "billing", "REPGET")).toEqual({ error: expect.stringContaining("not for changing") });
+      expect(paypalMock.reviseSubscription).not.toHaveBeenCalled();
+    });
   });
 });
 
@@ -411,6 +482,30 @@ describe("opening a checkout", () => {
 });
 
 describe("deleting a website with a checkout open", () => {
+  it("refuses while a paid PayPal upgrade waits for approval or its refund (review P1)", async () => {
+    const site = await addSite();
+    const [sub] = await test.db
+      .insert(subscriptions)
+      // Ended (an active one refuses deletion already); its upgrade's difference not yet refunded.
+      .values({ organizationId: "org_a", websiteId: site.id, provider: "paypal", planId, status: "canceled", paypalSubscriptionId: "I-UP" })
+      .returning();
+    const [change] = await test.db
+      .insert(paypalPlanChanges)
+      .values({ organizationId: "org_a", subscriptionId: sub.id, paypalSubscriptionId: "I-UP", fromPlanId: planId, toPlanId: planId, kind: "upgrade", status: "refunding", differenceCents: 5000, currency: "eur" })
+      .returning();
+    actAsOwner(site);
+    const website = await deleteWebsite(site.id);
+    expect(!website.ok && website.error).toMatch(/plan change/);
+    const workspace = await deleteOrganization("org_a", "erasure request", "DELETE");
+    expect(!workspace.ok && workspace.error).toMatch(/plan change/);
+    expect(await siteExists(site.id)).toBe(true);
+
+    // Nothing paid (a downgrade) holds nothing.
+    await test.db.update(paypalPlanChanges).set({ status: "refunded" }).where(eq(paypalPlanChanges.id, change.id));
+    const after = await deleteOrganization("org_a", "erasure request", "DELETE");
+    expect(!after.ok && after.error ? after.error : "").not.toMatch(/plan change/);
+  });
+
   it("expires the Stripe session, then deletes", async () => {
     const site = await addSite();
     await createCheckoutSession(planId, site.id);
@@ -900,10 +995,21 @@ describe("duplicate checkouts and subscriptions", () => {
       log.mockRestore();
     });
 
-    it("to annual: refused before Stripe is asked to change anything", async () => {
+    it("to annual: the annual price keeps the plan's coupon in the same Stripe request (the fixed first-month amount off the first annual payment)", async () => {
       const site = await onGrow();
       const annual = await test.db.insert(plans).values({ name: "Grow (Annual)", tier: "grow", interval: "year", currency: "eur", priceCents: 149000, stripePriceId: "price_grow_year", articleLimit: 30, keywordLimit: 100, siteLimit: 1, monthlyCredits: 0, catalogVersion: 41 }).returning().then(([row]) => row.id);
-      expect(await createCheckoutSession(annual, site.id)).toEqual({ error: expect.stringContaining("monthly plan") });
+      stripeMock.portalCreate.mockResolvedValueOnce({ url: "https://billing.stripe.test/confirm" });
+      expect(await createCheckoutSession(annual, site.id)).toEqual({ url: "https://billing.stripe.test/confirm" });
+      expect(stripeMock.portalCreate.mock.calls[0][0].flow_data.subscription_update_confirm).toMatchObject({
+        items: [{ id: "si_1", price: "price_grow_year" }],
+        discounts: [{ coupon: "GROW40" }],
+      });
+    });
+
+    it("to a price the offer does not cover: refused before Stripe is asked to change anything", async () => {
+      const site = await onGrow();
+      const older = await test.db.insert(plans).values({ name: "Old Grow", tier: "grow", interval: "month", currency: "eur", priceCents: 9900, stripePriceId: "price_grow_old", articleLimit: 30, keywordLimit: 100, siteLimit: 1, monthlyCredits: 0, catalogVersion: 39 }).returning().then(([row]) => row.id);
+      expect(await createCheckoutSession(older, site.id)).toEqual({ error: expect.stringContaining("does not cover") });
       expect(stripeMock.portalCreate).not.toHaveBeenCalled();
     });
   });
@@ -924,20 +1030,22 @@ describe("duplicate checkouts and subscriptions", () => {
 
   it("revises an existing PayPal subscription instead of creating another", async () => {
     const site = await addSite();
+    // A downgrade (an upgrade pays the difference first: lib/paypal/plan-changes.test.ts).
+    const higher = await addPlan("scale", "price_scale", "P-SCALE");
     await test.db.insert(subscriptions).values({
       organizationId: "org_a",
       websiteId: site.id,
       provider: "paypal",
-      planId,
+      planId: higher,
       status: "active",
       paypalSubscriptionId: "I-LIVE",
     });
-    const other = await addPlan("scale", "price_scale", "P-SCALE");
+    paypalMock.getSubscription.mockResolvedValueOnce({ id: "I-LIVE", status: "ACTIVE", plan_id: "P-SCALE", billing_info: { next_billing_time: "2099-01-01T00:00:00Z" } });
     paypalMock.reviseSubscription.mockResolvedValueOnce({ approveUrl: "https://paypal.test/revise" });
 
-    expect(await createPayPalCheckout(other, site.id)).toEqual({ url: "https://paypal.test/revise" });
+    expect(await createPayPalCheckout(planId, site.id)).toEqual({ url: "https://paypal.test/revise" });
     expect(paypalMock.reviseSubscription).toHaveBeenCalledWith(
-      expect.objectContaining({ subscriptionId: "I-LIVE", planId: "P-SCALE" }),
+      expect.objectContaining({ subscriptionId: "I-LIVE", idempotencyKey: expect.stringMatching(/^plan-change:/) }),
     );
     expect(paypalMock.createSubscription).not.toHaveBeenCalled();
   });
