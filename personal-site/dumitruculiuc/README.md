@@ -119,7 +119,7 @@ Every field starts empty, and **a section with nothing in it is hidden** on the 
 - **Without JavaScript or WebGL:** the plain photo.
 - **Efficiency:** drawing stops when he is still or off screen; the WebGL context is released and rebuilt if the phone takes it away.
 
-**Expressions** (theme 1.3.0), from AI edits of `Dumitru Culiuc Founder RepGet.png` (535x486):
+**Expressions** (theme 1.3.0; 1.3.1 sharpens the face changes), from AI edits of `Dumitru Culiuc Founder RepGet.png` (535x486):
 - his eyes follow the pointer anywhere on the page in 8 directions, and come back to the visitor 2 s after it stops; looking down, the lids come down too
 - he blinks (sometimes twice)
 - hovered: a strong annoyed frown; held: a grimace; let go, clicked or poked: shock
@@ -131,7 +131,7 @@ Every field starts empty, and **a section with nothing in it is hidden** on the 
   - he winks
   - a fly buzzes around him while his eyes follow it, lands on his nose (cross-eyed), and he grimaces, shakes his head and blows it away
 - Any movement, key or scroll ends the act at once (its fly and notes too). A reaction to being handled shows over the hover face.
-- Every change cross-fades from whatever is on screen, so interrupting one never jumps or flashes back to the plain face.
+- Every change cross-fades from whatever is on screen, so interrupting one never jumps or flashes back to the plain face. The eyes and the mouth swap in a frame or so half-way through, so two mouths never show at once.
 - **Reduced motion:** no fly, notes, head movement or hint; the faces still change.
 - **Loading:** the plain photo first; then the eyes and the faces for hover, holding, shock and dizzy; the idle faces only when an idle act first wants them, one at a time.
 - **Off screen or in a background tab:** whatever he was doing stops, and drawing stops.
