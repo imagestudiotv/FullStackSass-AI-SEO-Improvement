@@ -1,4 +1,6 @@
 @import "tailwindcss";
+/* dumitruculiuc.com's WordPress theme lives in the repository but is not part of this app. */
+@source not "../../personal-site";
 
 /**
  * Crisp launcher override. Kept in its own file because it targets the
