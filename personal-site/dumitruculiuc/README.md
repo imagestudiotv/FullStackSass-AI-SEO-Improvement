@@ -15,6 +15,8 @@ The site deploys on its own, to Namecheap hosting. It has nothing to do with Rep
 | `theme/dumitru/assets/images/portrait/` | Crops made from Daniel's photo (the original is not included) |
 | `theme/dumitru/assets/fonts/` | Inter and Zalando Sans Expanded, self-hosted (SIL Open Font License, licence files alongside) |
 | `tools/make-portrait.mjs` | Rebuilds the portrait crops from the original photo |
+| `tools/prepare-expressions.mjs` | Lines AI-edited masters of the photo up with it and keeps only the part that changes (face or eyes) |
+| `tools/make-expressions.mjs` | Builds the faces and the eye sheet (`assets/images/portrait/expressions/`) from the photos |
 | `preview/portrait.html` | A stand-alone page to try the portrait locally |
 | `preview/blueprint.json`, `preview/seed.php` | A local WordPress Playground preview with clearly marked **test** content. Never run on the live site |
 
@@ -117,9 +119,32 @@ Every field starts empty, and **a section with nothing in it is hidden** on the 
 - **Without JavaScript or WebGL:** the plain photo.
 - **Efficiency:** drawing stops when he is still or off screen; the WebGL context is released and rebuilt if the phone takes it away.
 
-**Needs extra photos from Daniel** (same framing and light):
-- **Changing expressions** while held, pulled or let go: smile, surprised, laughing, annoyed.
-- **Eyes that follow the cursor, and blinking:** eyes looking left, right, up and down, closed, and half closed.
-- **Idle acts that need those faces:** yawn, whistle, dozing off.
+**Expressions** (theme 1.3.0), from AI edits of `Dumitru Culiuc Founder RepGet.png` (535x486):
+- his eyes follow the pointer anywhere on the page in 8 directions, and come back to the visitor 2 s after it stops; looking down, the lids come down too
+- he blinks (sometimes twice)
+- hovered: a strong annoyed frown; held: a grimace; let go, clicked or poked: shock
+- shaken hard (a big drag) or poked three times in quick succession: dizzy, eyes rolled up and tongue out
+- **When nobody has moved for a while:**
+  - he dozes off, head sinking, and wakes with a start
+  - he yawns (opening, the big moment with the head tipping back, closing)
+  - he whistles a tune with notes, glancing one way then the other
+  - he winks
+  - a fly buzzes around him while his eyes follow it, lands on his nose (cross-eyed), and he grimaces, shakes his head and blows it away
+- Any movement, key or scroll ends the act at once (its fly and notes too). A reaction to being handled shows over the hover face.
+- Every change cross-fades from whatever is on screen, so interrupting one never jumps or flashes back to the plain face.
+- **Reduced motion:** no fly, notes, head movement or hint; the faces still change.
+- **Loading:** the plain photo first; then the eyes and the faces for hover, holding, shock and dizzy; the idle faces only when an idle act first wants them, one at a time.
+- **Off screen or in a background tab:** whatever he was doing stops, and drawing stops.
+
+Which photo plays which part is `FACE_ROLES` at the top of `portrait.js`. Every photo is optional: a part with no photo is left out.
+
+**Development controls:** add `?dcportrait=dev` to the page URL. Nothing then happens at random (no idle acts, blinks or hint), and a panel triggers every face, eye, gaze direction, act and reaction, or **replay all** (every expression, transition and interruption in a fixed order). The same is available to scripts as `DCPortrait.instances[0].dev` (`replay()`, `mood.run("yawn")`, `mood.show(face, eyes, ms)`, `mood.gaze("ne")`, `drag(dx, dy, ms)`, `poke()`, `state()`).
+
+**Making the expression photos** (photos folder: `dumitru-expressions/`, kept outside git):
+1. `rest.png` is the unedited 535x486 photo. Real photos of the same size edited from it go next to it, named after their part (`smile`, `laugh`, `wink`, `shock`, `ouch`, `closed`).
+2. AI-edited masters (any size, same framing) go into `masters/`, never changed by the tools. `PLAN` in `tools/prepare-expressions.mjs` says what each prepared photo takes from which master: the face from the brows to the chin (annoyed, dizzy, yawn-1/2/3, whistle-1/2, blow) or only the eyes and lids (look-n/ne/e/se/s/sw/w/nw, half and drowsy from the yawns, fly-cross from look-se and look-sw).
+3. `node tools/prepare-expressions.mjs "<photos folder>" <folder with sharp installed>` lines each master up with `rest.png` on what does not move (hair, ears, forehead, nose), matches colour and sharpness at the edge, and writes `prepared/<name>.png` and `prepared/prepared.json` (the fit of each). A master that does not line up or blend in is rejected and listed; check new ones by eye.
+4. `node tools/make-expressions.mjs "<photos folder>" <folder with sharp installed>` builds the theme's set from the photos and `prepared/`. It checks every input first and builds in a staging folder: a failed run leaves the current set untouched. Files are stamped with a content hash.
+5. Bump `DUMITRU_VERSION` so visitors' browsers fetch the new manifest.
 
 **Not included, needs a decision:** the squeak sound. It needs a licensed or self-recorded sound, and should stay off by default.

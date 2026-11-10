@@ -123,12 +123,20 @@ function dumitru_portrait_html( $args = array() ) {
 		)
 	);
 
-	$photo_480 = dumitru_image( 'portrait/cutout-480.webp' );
-	$photo_640 = dumitru_image( 'portrait/cutout-640.webp' );
+	// With the expression photos (tools/make-expressions.mjs) the portrait
+	// starts from their resting face, so the faces match it exactly.
+	$expressions = file_exists( get_template_directory() . '/assets/images/portrait/expressions/expressions.json' );
+	if ( $expressions ) {
+		$photo_480 = dumitru_image( 'portrait/expressions/face-rest-480.webp' );
+		$photo_640 = dumitru_image( 'portrait/expressions/face-rest.webp' );
+	} else {
+		$photo_480 = dumitru_image( 'portrait/cutout-480.webp' );
+		$photo_640 = dumitru_image( 'portrait/cutout-640.webp' );
+	}
 
 	ob_start();
 	?>
-	<div class="dc-portrait" data-dc-portrait data-texture="<?php echo esc_url( $photo_640 ); ?>">
+	<div class="dc-portrait" data-dc-portrait data-texture="<?php echo esc_url( $photo_640 ); ?>"<?php if ( $expressions ) : ?> data-expressions="<?php echo esc_url( dumitru_image( 'portrait/expressions/expressions.json' ) . '?ver=' . DUMITRU_VERSION ); ?>"<?php endif; ?>>
 		<span class="dc-portrait__disc" aria-hidden="true"></span>
 		<div class="dc-portrait__stage">
 			<img class="dc-portrait__img"

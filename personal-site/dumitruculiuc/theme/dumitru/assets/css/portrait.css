@@ -41,22 +41,23 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  /* The circle, plus the head, which sits partly above it. */
+  /* The circle, plus everything above the shoulders: the head and all the hair. */
   -webkit-mask-image:
     radial-gradient(closest-side circle at 50% 60%, #000 99.5%, transparent 100%),
-    radial-gradient(ellipse 21.6% 29.2% at 50% 37%, #000 85%, transparent 100%);
+    linear-gradient(to bottom, #000 56%, transparent 60%);
   mask-image:
     radial-gradient(closest-side circle at 50% 60%, #000 99.5%, transparent 100%),
-    radial-gradient(ellipse 21.6% 29.2% at 50% 37%, #000 85%, transparent 100%);
+    linear-gradient(to bottom, #000 56%, transparent 60%);
   pointer-events: none;
 }
 
 .dc-portrait__canvas {
   position: absolute;
-  left: -25%;
-  top: -25%;
-  width: 150%;
-  height: 150%;
+  /* MARGIN in portrait.js: 40% of the stage on each side. */
+  left: -40%;
+  top: -40%;
+  width: 180%;
+  height: 180%;
   pointer-events: none;
 }
 
@@ -82,6 +83,39 @@
 .dc-portrait__ghost.is-on { opacity: 1; }
 .dc-portrait__ghost.is-gripping { transform: scale(0.88) rotate(-8deg); }
 
+/* The fly of the idle act. Placed and turned by the script. */
+.dc-portrait__fly {
+  position: absolute;
+  width: 1.15rem;
+  height: 1.15rem;
+  pointer-events: none;
+  z-index: 3;
+  filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.3));
+}
+.dc-portrait__fly svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.dc-portrait__fly .body { fill: #1b1b1b; }
+.dc-portrait__fly .eye { fill: #8a1c12; }
+.dc-portrait__fly .wing { fill: rgb(235 242 248 / 0.75); stroke: #333; stroke-width: 0.8; transform-box: fill-box; transform-origin: 50% 85%; }
+.dc-portrait__fly.is-flying .wing { animation: dc-fly-buzz 45ms linear infinite alternate; }
+.dc-portrait__fly.is-landed .wing { opacity: 0.9; }
+@keyframes dc-fly-buzz { to { transform: scaleY(0.35); } }
+
+/* Notes while he whistles. */
+.dc-portrait__note {
+  position: absolute;
+  z-index: 3;
+  font: 700 1.1rem/1 system-ui, sans-serif;
+  color: #fff;
+  -webkit-text-stroke: 0.5px #111;
+  pointer-events: none;
+  animation: dc-note 1.7s ease-out forwards;
+}
+@keyframes dc-note {
+  from { opacity: 0; transform: translate(0, 0) scale(0.6); }
+  15% { opacity: 1; }
+  to { opacity: 0; transform: translate(var(--dc-note-x, 2rem), -3.2rem) rotate(var(--dc-note-turn, 0deg)) scale(1.1); }
+}
+
 /* Keyboard and screen-reader way to poke him; visible when focused. */
 .dc-portrait__poke {
   position: absolute;
@@ -102,5 +136,7 @@
 .dc-portrait__poke:focus-visible { clip-path: none; }
 
 @media (prefers-reduced-motion: reduce) {
-  .dc-portrait__ghost { display: none; }
+  .dc-portrait__ghost,
+  .dc-portrait__fly,
+  .dc-portrait__note { display: none; }
 }
