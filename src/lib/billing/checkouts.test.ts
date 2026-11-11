@@ -34,6 +34,7 @@ const stripeMock = vi.hoisted(() => ({
   sessionsList: vi.fn(),
   subscriptionsRetrieve: vi.fn(),
   portalCreate: vi.fn(),
+  pricesRetrieve: vi.fn(),
 }));
 
 const paypalMock = vi.hoisted(() => ({
@@ -73,6 +74,7 @@ vi.mock("@/lib/stripe/client", () => ({
       },
     },
     subscriptions: { retrieve: stripeMock.subscriptionsRetrieve },
+    prices: { retrieve: stripeMock.pricesRetrieve },
     billingPortal: { sessions: { create: stripeMock.portalCreate } },
   },
 }));
@@ -175,6 +177,8 @@ beforeEach(async () => {
     expires_at: Math.floor(Date.now() / 1000) + 24 * 3600,
   }));
   stripeMock.sessionsList.mockImplementation(() => sessionsFound([]));
+  // The bundle's Stripe price: its struck-through list price (scripts/plan-catalog.mjs BUNDLE_STRIPE_COUPONS).
+  stripeMock.pricesRetrieve.mockImplementation(async () => ({ unit_amount: 29900 }));
 });
 
 /** What checkout.sessions.list iterates over. */
@@ -367,15 +371,34 @@ describe("the REPGET offer, applied automatically (2026-11-11)", () => {
     const bundle = (fields: Partial<typeof plans.$inferInsert> = {}) =>
       growPlan({ name: "Grow + Visibility", tier: "grow_visibility", priceCents: 9900, stripePriceId: "price_bundle", ...fields });
 
-    it("charges at checkout: no trial even for a new workspace, no coupon, Stripe's code box", async () => {
+    it("charges at checkout: no trial even for a new workspace, its own REPGET coupon (EUR 299 -> 99), no code box", async () => {
       const site = await addSite();
       await createCheckoutSession(await bundle(), site.id);
+      expect(stripeMock.pricesRetrieve).toHaveBeenCalledWith("price_bundle");
       expect(params().subscription_data.trial_period_days).toBeUndefined();
-      expect(params().discounts).toBeUndefined();
-      expect(params().allow_promotion_codes).toBe(true);
+      expect(params().discounts).toEqual([{ coupon: "REPGET_GV_M" }]);
+      expect(params().allow_promotion_codes).toBeUndefined();
+      // Not the launch-price offer: nothing marks the subscription or the checkout as REPGET's.
+      expect(params().subscription_data.metadata).not.toHaveProperty("repget_offer");
       const [checkout] = await checkouts();
       expect(checkout.trialDays).toBe(0);
       expect(checkout.requestParams).not.toMatchObject({ offer: "REPGET" });
+    });
+
+    it("still on the old EUR 99 Stripe price: no coupon (it would charge nothing), Stripe's code box", async () => {
+      stripeMock.pricesRetrieve.mockResolvedValueOnce({ unit_amount: 9900 });
+      const site = await addSite();
+      await createCheckoutSession(await bundle(), site.id);
+      expect(params().discounts).toBeUndefined();
+      expect(params().allow_promotion_codes).toBe(true);
+    });
+
+    it("a Stripe price at any other amount starts nothing, rather than mischarge", async () => {
+      stripeMock.pricesRetrieve.mockResolvedValueOnce({ unit_amount: 19900 });
+      const site = await addSite();
+      stripeMock.sessionsCreate.mockClear();
+      expect(await createCheckoutSession(await bundle(), site.id)).toEqual({ error: expect.stringContaining("REPGET") });
+      expect(stripeMock.sessionsCreate).not.toHaveBeenCalled();
     });
 
     it("an unconfirmed address can pay: there are no free articles to protect", async () => {
@@ -1433,10 +1456,10 @@ describe("the win-back offer, applied automatically", () => {
     expect(params().allow_promotion_codes).toBe(true);
   });
 
-  it("never on the Grow + Visibility bundle", async () => {
+  it("never on the Grow + Visibility bundle: only the bundle's own coupon", async () => {
     const site = await addSite();
     await createCheckoutSession(await growPlan({ name: "Grow + Visibility", tier: "grow_visibility", priceCents: 9900, stripePriceId: "price_bundle_w" }), site.id);
-    expect(params().discounts).toBeUndefined();
+    expect(params().discounts).toEqual([{ coupon: "REPGET_GV_M" }]);
   });
 
   it("yearly too: the same coupon, 20% off the first year", async () => {
