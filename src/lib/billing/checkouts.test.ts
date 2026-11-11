@@ -354,6 +354,26 @@ describe("the REPGET offer, applied automatically (2026-11-11)", () => {
     expect(stripeMock.sessionsCreate).toHaveBeenCalledTimes(2);
   });
 
+  it("an open checkout made at the plan's old Stripe price is not reused: closed, and a new one at the new price", async () => {
+    const site = await addSite();
+    const plan = await growPlan({ name: "Grow + Visibility", tier: "grow_visibility", priceCents: 9900, stripePriceId: "price_bundle_99" });
+    stripeMock.pricesRetrieve.mockResolvedValueOnce({ unit_amount: 9900 });
+    await createCheckoutSession(plan, site.id);
+    expect(params().discounts).toBeUndefined();
+    // stripe:setup gave the plan a new price (EUR 299, with its coupon).
+    await test.db.update(plans).set({ stripePriceId: "price_bundle_299" }).where(eq(plans.id, plan));
+    stripeMock.sessionsExpire.mockResolvedValueOnce({ status: "expired" });
+    stripeMock.sessionsCreate.mockImplementationOnce(async () => ({
+      id: "cs_test_2",
+      url: "https://checkout.stripe.test/cs_test_2",
+      expires_at: Math.floor(Date.now() / 1000) + 24 * 3600,
+    }));
+    expect(await createCheckoutSession(plan, site.id)).toEqual({ url: "https://checkout.stripe.test/cs_test_2" });
+    expect(stripeMock.sessionsExpire).toHaveBeenCalledWith("cs_test_1");
+    expect(params().line_items).toEqual([{ price: "price_bundle_299", quantity: 1 }]);
+    expect(params().discounts).toEqual([{ coupon: "REPGET_GV_M" }]);
+  });
+
   it("a plan change of a paying website is not stopped by it", async () => {
     const site = await addSite();
     await test.db.insert(subscriptions).values({ organizationId: "org_a", websiteId: site.id, provider: "stripe", planId, status: "active", stripeSubscriptionId: "sub_live" });
