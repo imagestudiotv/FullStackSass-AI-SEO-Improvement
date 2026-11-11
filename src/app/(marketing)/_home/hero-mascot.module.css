@@ -208,7 +208,6 @@
   gap: 2px;
   opacity: 0;
   text-transform: uppercase;
-  animation: 12.2s ease-in-out 1 both;
 }
 .scene strong {
   font-size: 10px;
@@ -228,14 +227,19 @@
 :global(.dark) .scene small {
   color: #d9cfc9;
 }
+/*
+ * The whole shorthand on each, name included: a shorthand without a name on
+ * .scene was minified to `animation: none` in production, dropping the 12.2s
+ * and leaving the three messages invisible in an empty panel (2026-11-11).
+ */
 .scene-one {
-  animation-name: note-one;
+  animation: note-one 12.2s ease-in-out 1 both;
 }
 .scene-two {
-  animation-name: note-two;
+  animation: note-two 12.2s ease-in-out 1 both;
 }
 .scene-three {
-  animation-name: note-three;
+  animation: note-three 12.2s ease-in-out 1 both;
 }
 
 /* ---------- The banner the owl carries ---------- */
