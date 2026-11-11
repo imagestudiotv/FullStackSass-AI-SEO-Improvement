@@ -5,7 +5,7 @@ import type Stripe from "stripe";
 
 import { requireSession } from "@/lib/auth-guard";
 import { checkoutProviderOps } from "@/lib/billing/checkout-providers";
-import { OFFER_UNAVAILABLE, REPGET_CODE, type OfferPlan } from "@/lib/billing/repget-offer";
+import { BUNDLE_COUPON, bundleCouponFor, OFFER_UNAVAILABLE, REPGET_CODE, type OfferPlan } from "@/lib/billing/repget-offer";
 import { WINBACK_UNAVAILABLE } from "@/lib/billing/winback-offer";
 import { alertStaffAboutOffer, isCouponRefusal, OFFER_KEY, offerForPlanChange } from "@/lib/billing/repget-subscription";
 import {
@@ -136,7 +136,30 @@ export async function createCheckoutSession(
     Nothing the browser sends decides it.
   */
   const autoOffer = await automaticOffer(db, orgId, plan);
-  const offerCoupon = autoOffer?.coupon ?? null;
+
+  /*
+    The Grow + Visibility bundle's own REPGET coupon (client, 2026-11-12: "We
+    need like auto apply coupon code"): its Stripe price is the struck-through
+    EUR 299 and the coupon brings every payment to EUR 99. The price is read
+    from Stripe, so a price and a coupon that disagree never charge.
+  */
+  let bundleCoupon: string | null = null;
+  if (!autoOffer && isDirectPurchaseTier(plan.tier)) {
+    let amount: number | null;
+    try {
+      amount = (await stripe.prices.retrieve(plan.stripePriceId)).unit_amount;
+    } catch (error) {
+      console.error("[stripe] could not read the bundle's price", error);
+      return { error: stripeErrorMessage(error) };
+    }
+    const bundle = bundleCouponFor(plan, amount);
+    if ("refuse" in bundle) {
+      await alertStaffAboutOffer(`the ${plan.name} Stripe price is ${amount} cents`, `Its coupon ${BUNDLE_COUPON.id} needs ${BUNDLE_COUPON.listCents} (or the row's own price), so the customer could not start. Run stripe:setup.`);
+      return { error: OFFER_UNAVAILABLE };
+    }
+    bundleCoupon = bundle.coupon;
+  }
+  const offerCoupon = autoOffer?.coupon ?? bundleCoupon;
 
   const base = appUrl();
 
@@ -263,7 +286,7 @@ export async function createCheckoutSession(
       // Never a checkout without what was promised: nothing was started, and staff are told.
       if (offerCoupon && isCouponRefusal(error)) {
         await alertStaffAboutOffer(error instanceof Error ? error.message : String(error), `Stripe refused coupon ${offerCoupon} at Checkout, so the customer could not start. Website: ${websiteId}.`);
-        return { error: autoOffer?.code === REPGET_CODE ? OFFER_UNAVAILABLE : WINBACK_UNAVAILABLE };
+        return { error: autoOffer && autoOffer.code !== REPGET_CODE ? WINBACK_UNAVAILABLE : OFFER_UNAVAILABLE };
       }
       return { error: stripeErrorMessage(error) };
     }
@@ -315,6 +338,12 @@ async function changeStripePlan(input: {
     const offer = offerForPlanChange(subscription, input.plan);
     if (offer.refuse) return { error: offer.refuse };
     offerCoupon = offer.coupon;
+    // Onto the Grow + Visibility bundle: its own coupon, as at checkout.
+    if (!offerCoupon && isDirectPurchaseTier(input.plan.tier)) {
+      const bundle = bundleCouponFor(input.plan, (await stripe.prices.retrieve(input.priceId)).unit_amount);
+      if ("refuse" in bundle) return { error: OFFER_UNAVAILABLE };
+      offerCoupon = bundle.coupon ?? undefined;
+    }
     const item = subscription.items.data[0];
     const customerId =
       customer?.id ??

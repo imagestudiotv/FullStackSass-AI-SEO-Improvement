@@ -114,6 +114,30 @@ export function repgetFirstPaymentCents(plan: OfferPlan): number | null {
 }
 
 /**
+ * The Grow + Visibility bundle's coupon at Stripe (client, 2026-11-12: "In this
+ * cases 67% applied ... We need like auto apply coupon code"). Its Stripe price
+ * is the struck-through EUR 299 and this `forever` coupon takes EUR 200 off, so
+ * Checkout shows "REPGET (67% off)" and charges the row's EUR 99. Not the launch
+ * price: on every bundle checkout, REPGET on or off, and never marked as the
+ * REPGET offer on the subscription. scripts/plan-catalog.mjs
+ * BUNDLE_STRIPE_COUPONS, which a test keeps equal to this.
+ */
+export const BUNDLE_COUPON = { tier: "grow_visibility", id: "REPGET_GV_M", listCents: 29900, offCents: 20000 } as const;
+
+/**
+ * The bundle's coupon for this plan at this Stripe price amount, or null.
+ * Only when the price really is the list price the coupon was made for: a
+ * bundle row still on its old EUR 99 price takes no coupon (it would charge
+ * nothing), and one at any other amount is refused rather than mischarged.
+ */
+export function bundleCouponFor(plan: OfferPlan, stripeAmountCents: number | null): { coupon: string | null } | { refuse: true } {
+  if (plan.tier !== BUNDLE_COUPON.tier || plan.interval !== "month" || plan.currency !== "eur") return { coupon: null };
+  if (stripeAmountCents === plan.priceCents) return { coupon: null };
+  if (stripeAmountCents === BUNDLE_COUPON.listCents && plan.priceCents === BUNDLE_COUPON.listCents - BUNDLE_COUPON.offCents) return { coupon: BUNDLE_COUPON.id };
+  return { refuse: true };
+}
+
+/**
  * The offer price the pricing page SHOWS for a regular price: what the coupon
  * for that price and interval charges (EUR 99 -> 59 a month, EUR 990 -> 590 a
  * year), so the page and the charge cannot disagree. A price no coupon was made

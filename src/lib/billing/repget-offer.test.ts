@@ -20,8 +20,9 @@ vi.mock("@/lib/stripe/client", () => ({
 const mail = vi.hoisted(() => ({ sendEmail: vi.fn() }));
 vi.mock("@/lib/email/send", () => mail);
 
-import { offerDisplayCents, repgetCouponFor, repgetDiscountCents, repgetFirstPaymentCents } from "@/lib/billing/repget-offer";
-import { REPGET_STRIPE_COUPONS } from "../../../scripts/plan-catalog.mjs";
+import { BUNDLE_COUPON, bundleCouponFor, offerDisplayCents, repgetCouponFor, repgetDiscountCents, repgetFirstPaymentCents } from "@/lib/billing/repget-offer";
+import { BUNDLE_STRIPE_COUPONS, BUNDLES, REPGET_STRIPE_COUPONS, stripeAmountFor } from "../../../scripts/plan-catalog.mjs";
+import { GROW_VISIBILITY_COMPARE_AT_CENTS, GROW_VISIBILITY_TIER } from "@/lib/plans/features";
 import { isCouponRefusal, matchOfferToPlan, offerForPlanChange } from "@/lib/billing/repget-subscription";
 
 let test: TestDb;
@@ -95,6 +96,29 @@ describe("which coupon a plan gets", () => {
       expect(repgetDiscountCents(plan)).toBe(coupon.amountOffCents);
     }
     expect(REPGET_STRIPE_COUPONS).toHaveLength(6);
+  });
+
+  it("the bundle: its coupon brings the struck-through EUR 299 to the EUR 99 it costs, and the setup script agrees", () => {
+    const [coupon] = BUNDLE_STRIPE_COUPONS;
+    const [bundle] = BUNDLES;
+    expect(BUNDLE_STRIPE_COUPONS).toHaveLength(1);
+    expect(coupon).toMatchObject({ id: BUNDLE_COUPON.id, tier: GROW_VISIBILITY_TIER, interval: "month", listCents: BUNDLE_COUPON.listCents, amountOffCents: BUNDLE_COUPON.offCents });
+    expect(BUNDLE_COUPON.tier).toBe(GROW_VISIBILITY_TIER);
+    expect(BUNDLE_COUPON.listCents).toBe(GROW_VISIBILITY_COMPARE_AT_CENTS);
+    expect(BUNDLE_COUPON.listCents - BUNDLE_COUPON.offCents).toBe(bundle.monthlyCents);
+    expect(stripeAmountFor({ tier: GROW_VISIBILITY_TIER, interval: "month", price_cents: 9900 })).toBe(29900);
+    expect(stripeAmountFor({ tier: "grow", interval: "month", price_cents: 14900 })).toBe(14900);
+  });
+
+  it("the bundle's coupon only at the price it was made for: none on the old EUR 99 price, refused at any other", () => {
+    const bundle = month(GROW_VISIBILITY_TIER, 9900);
+    expect(bundleCouponFor(bundle, 29900)).toEqual({ coupon: BUNDLE_COUPON.id });
+    expect(bundleCouponFor(bundle, 9900)).toEqual({ coupon: null });
+    expect(bundleCouponFor(bundle, 19900)).toEqual({ refuse: true });
+    expect(bundleCouponFor(bundle, null)).toEqual({ refuse: true });
+    expect(bundleCouponFor(month(GROW_VISIBILITY_TIER, 12900), 29900)).toEqual({ refuse: true });
+    expect(bundleCouponFor(month("grow", 14900), 14900)).toEqual({ coupon: null });
+    expect(repgetCouponFor(bundle)).toBeNull();
   });
 
   it("not an older price on the same tier (monthly or annual), not another currency or tier, not the bundle", () => {
