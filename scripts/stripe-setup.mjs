@@ -22,7 +22,7 @@ import nextEnv from "@next/env";
 import postgres from "postgres";
 import Stripe from "stripe";
 
-import { CATALOG_VERSION, CURRENCY, REPGET_STRIPE_COUPONS } from "./plan-catalog.mjs";
+import { BUNDLE_STRIPE_COUPONS, CATALOG_VERSION, CURRENCY, REPGET_COUPON_NAME, REPGET_STRIPE_COUPONS, stripeAmountFor } from "./plan-catalog.mjs";
 
 nextEnv.loadEnvConfig(process.cwd());
 
@@ -105,6 +105,8 @@ for (const plan of plans) {
   console.log(`${plan.name} (${plan.tier}/${plan.interval})`);
 
   const product = await findOrCreateProduct(plan.tier, plan.name);
+  // A bundle is priced at its list price, which its coupon brings down to price_cents (plan-catalog.mjs BUNDLE_STRIPE_COUPONS).
+  const amount = stripeAmountFor(plan);
 
   // Reuse the existing price when it still matches in every respect.
   if (plan.stripe_price_id) {
@@ -112,7 +114,7 @@ for (const plan of plans) {
       const price = await stripe.prices.retrieve(plan.stripe_price_id);
       const matches =
         price.active &&
-        price.unit_amount === plan.price_cents &&
+        price.unit_amount === amount &&
         price.currency === plan.currency &&
         price.recurring?.interval === plan.interval;
 
@@ -130,7 +132,7 @@ for (const plan of plans) {
   const price = await stripe.prices.create({
     product: product.id,
     currency: plan.currency,
-    unit_amount: plan.price_cents,
+    unit_amount: amount,
     recurring: { interval: plan.interval },
     metadata: { tier: plan.tier, planId: plan.id },
   });
@@ -149,12 +151,16 @@ for (const plan of plans) {
 /*
   The REPGET launch price's coupons (plan-catalog.mjs REPGET_STRIPE_COUPONS):
   one per tier and interval, a fixed amount off every payment (`forever`),
-  limited to the tier's product. A missing one is created; an existing one is
-  NEVER changed or recreated (Stripe coupons cannot be edited, and subscribers
-  keep the one they have) - a mismatch is only reported, for the owner to look at.
+  limited to the tier's product - and the Grow + Visibility bundle's
+  (BUNDLE_STRIPE_COUPONS: EUR 200 off its EUR 299 list price, every payment).
+  A missing one is created; an existing one is NEVER changed or recreated
+  (Stripe coupons cannot be edited, and subscribers keep the one they have) -
+  a mismatch is only reported, for the owner to look at. Only the name, the
+  one thing Stripe lets change, is brought up to date: it is what Checkout
+  shows on the discount line ("REPGET (40% off)", 2026-11-12).
 */
 console.log("\nREPGET coupons\n");
-for (const want of REPGET_STRIPE_COUPONS) {
+for (const want of [...REPGET_STRIPE_COUPONS.map((coupon) => ({ ...coupon, name: REPGET_COUPON_NAME })), ...BUNDLE_STRIPE_COUPONS]) {
   const product = productByTier.get(want.tier);
   if (!product) {
     console.log(`${want.id}: no ${want.tier} product in this run - skipped`);
@@ -176,11 +182,15 @@ for (const want of REPGET_STRIPE_COUPONS) {
       products.length === 1 &&
       products[0] === product.id;
     console.log(right ? `${want.id}: exists, as expected` : `${want.id}: EXISTS BUT DIFFERS (amount, currency, duration, product or validity) - check it in the Dashboard`);
+    if (existing.name !== want.name) {
+      await stripe.coupons.update(want.id, { name: want.name });
+      console.log(`${want.id}: renamed "${want.name}" (shown at Checkout)`);
+    }
     continue;
   }
   await stripe.coupons.create({
     id: want.id,
-    name: `RepGet launch price (40% off, ${want.interval === "year" ? "yearly" : "monthly"})`,
+    name: want.name,
     amount_off: want.amountOffCents,
     currency: CURRENCY,
     duration: "forever",

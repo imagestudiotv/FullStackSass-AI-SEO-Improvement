@@ -57,6 +57,8 @@ The win-back offer (20% off the first payment, `WINBACK20`, docs/emails.md) appl
 
 A direct purchase: EUR 99 a month (struck EUR 299 on the page), the Grow allowances, no free trial, no free articles, no REPGET. The visibility perks (blog feature, social channels, email spotlight) are delivered by the team by hand: buyers show as "Grow + Visibility" in Admin -> Users / Organizations. Its row is `BUNDLES` in `scripts/plan-catalog.mjs`, monthly only, kept out of the standard plan grids and of Billing's plan list (except for the website on it).
 
+**At Stripe (2026-11-12, the client: "We need like auto apply coupon code"):** its price is the struck-through EUR 299, and every bundle checkout carries the `forever` coupon `REPGET_GV_M` (EUR 200 off, named "REPGET (67% off)"), so Checkout shows the discount line and charges EUR 99 on every payment, with no promotion-code box. The app reads the Stripe price first: on the old EUR 99 price it adds no coupon, and at any other amount it refuses the checkout and tells staff. PayPal has no discount line; its plan stays EUR 99. The launch-price coupons are named "REPGET (40% off)", which is what Checkout shows for Launch, Grow and Scale. `stripe:setup` makes the EUR 299 price (the EUR 99 one is deactivated), creates `REPGET_GV_M` and renames the existing coupons.
+
 On a database already selling catalog 2, with the usual backup first:
 
 1. `npm run db:seed`: writes the bundle row, inactive (and raises Grow's search terms to 500, as the page says).

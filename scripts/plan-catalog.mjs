@@ -53,7 +53,8 @@ export const TIERS = [
  * Grow + Visibility: the Grow plan's allowances, plus visibility perks the
  * team delivers by hand (a blog feature, social channels, an email
  * spotlight), EUR 99 a month with no free trial, no free articles and no
- * REPGET (src/lib/plans/features.ts DIRECT_PURCHASE_TIERS; the tier string is
+ * launch-price coupon - at Stripe its own REPGET coupon instead
+ * (BUNDLE_STRIPE_COUPONS) - (src/lib/plans/features.ts DIRECT_PURCHASE_TIERS; the tier string is
  * kept equal to GROW_VISIBILITY_TIER by lib/plans/catalog.test.ts). Its own
  * product in Stripe and PayPal (stripe:setup, paypal:setup), so the team can
  * see who bought it: its name is the plan name in admin.
@@ -119,3 +120,24 @@ export const REPGET_STRIPE_COUPONS = [
   { id: "LP40_GROW_Y", tier: "grow", interval: "year", amountOffCents: 60000 },
   { id: "LP40_SCALE_Y", tier: "scale", interval: "year", amountOffCents: 140000 },
 ];
+
+/** What Stripe Checkout shows on the discount line: the code the client advertises (2026-11-12). */
+export const REPGET_COUPON_NAME = "REPGET (40% off)";
+
+/**
+ * The Grow + Visibility bundle at Stripe (client, 2026-11-12: "In this cases
+ * 67% applied ... We need like auto apply coupon code"): priced at its
+ * struck-through EUR 299 (src/lib/plans/features.ts
+ * GROW_VISIBILITY_COMPARE_AT_CENTS) with a `forever` coupon of EUR 200, so
+ * Checkout shows "REPGET (67% off)" and charges EUR 99 - the row's
+ * price_cents - on every payment. Applied on every bundle checkout, whether
+ * REPGET is on or not (src/lib/billing/repget-offer.ts bundleCouponFor).
+ * PayPal has no discount line: its plan stays at EUR 99.
+ */
+export const BUNDLE_STRIPE_COUPONS = [
+  { id: "REPGET_GV_M", tier: "grow_visibility", interval: "month", listCents: 29900, amountOffCents: 20000, name: "REPGET (67% off)" },
+];
+
+/** The amount of a row's Stripe price: a bundle's list price, which its coupon brings down to price_cents. */
+export const stripeAmountFor = (row) =>
+  BUNDLE_STRIPE_COUPONS.find((coupon) => coupon.tier === row.tier && coupon.interval === row.interval)?.listCents ?? row.price_cents;
