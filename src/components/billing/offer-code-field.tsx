@@ -10,9 +10,10 @@ import type { OfferCodeCopy } from "@/lib/i18n/offer-code";
  * The REPGET discount, said to be applied (lib/billing/repget-offer.ts): since
  * 2026-11-11 checkout carries it by itself, so there is no code to type.
  *
- * With a plan, the plan's own first payment is stated - and nothing is shown
- * for a plan the offer does not cover (the Grow + Visibility bundle, an older
- * price). Without one (the billing page's list of plans) the general terms.
+ * With a plan, the plan's own discounted payment is stated - every payment for
+ * REPGET's launch price, the first one for the win-back offer - and nothing is
+ * shown for a plan the offer does not cover (the Grow + Visibility bundle, an
+ * older price). Without one (the billing page's list of plans) the general terms.
  */
 export function OfferApplied({
   copy,
@@ -23,7 +24,7 @@ export function OfferApplied({
   plan?: OfferPlan | null;
   className?: string;
 }) {
-  // The win-back discount when the words are its own (lib/billing/winback-offer.ts), else REPGET.
+  // The win-back discount when the words are its own (lib/billing/winback-offer.ts), else REPGET (the price of every payment).
   const firstPayment = copy.offer === "winback" ? winbackFirstPaymentCents : repgetFirstPaymentCents;
   const first = plan ? firstPayment(plan) : null;
   if (plan && first === null) return null;

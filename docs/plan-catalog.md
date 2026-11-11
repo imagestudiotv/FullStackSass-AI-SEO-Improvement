@@ -22,36 +22,36 @@ Until step 6 the site keeps selling catalog 1. Do not merge the code before it: 
 - **Customer Portal (required):** "Switch to this plan" opens the portal's update flow with the target price, and fails unless that price is in the portal's configuration. In Settings -> Billing -> Customer portal, enable "Customers can switch plans" and add all three products with their new prices. While there, check the proration setting: it decides what an upgrade charges and what a downgrade credits.
 - **Coupons:** a coupon limited to certain products does not apply to a new one. Check that the REPGET coupons and partner coupons cover Launch.
 
-## The REPGET offer
+## The REPGET offer: the launch price
 
-The owner's decisions: 40% off the first paid payment, starting with the paid plan purchase, not with signup or the free period (2026-11-05); and, with the pricing page of 2026-11-11, **applied automatically** at checkout on Launch, Grow and Scale, together with the free trial, monthly and yearly. Nobody types a code. Off until `REPGET_OFFER_ENABLED=1`.
+The owner's decisions: 40% off, starting with the paid plan purchase, not with signup or the free period (2026-11-05); with the pricing page of 2026-11-11, **applied automatically** at checkout on Launch, Grow and Scale, together with the free trial, monthly and yearly; and, the same day (owner and client), a **launch price**: 40% off the regular price on **every** payment, not only the first, for every subscription started while the offer is on. Nobody types a code. Off until `REPGET_OFFER_ENABLED=1`. Nothing is built for ending it: the client changes the prices himself later.
 
-Six fixed-amount coupons, each `once` and limited to its tier's product (`lib/billing/repget-offer.ts`, `scripts/plan-catalog.mjs` REPGET_STRIPE_COUPONS):
+Six fixed-amount coupons, each `forever` and limited to its tier's product (`lib/billing/repget-offer.ts`, `scripts/plan-catalog.mjs` REPGET_STRIPE_COUPONS). Each charge is exactly the price the pricing page shows:
 
-| Plan | Monthly coupon | First month | Yearly coupon | First year |
+| Plan | Monthly coupon | Each month | Yearly coupon | Each year |
 |---|---|---|---|---|
-| Launch | `LAUNCH40` EUR 39.60 | EUR 59.40 | `LAUNCH40Y` EUR 400 | EUR 590 |
-| Grow | `GROW40` EUR 59.60 | EUR 89.40 | `GROW40Y` EUR 600 | EUR 890 |
-| Scale | `SCALE40` EUR 139.60 | EUR 209.40 | `SCALE40Y` EUR 1,400 | EUR 2,090 |
+| Launch | `LP40_LAUNCH_M` EUR 40 | EUR 59 (regular 99) | `LP40_LAUNCH_Y` EUR 400 | EUR 590 (regular 990) |
+| Grow | `LP40_GROW_M` EUR 60 | EUR 89 (regular 149) | `LP40_GROW_Y` EUR 600 | EUR 890 (regular 1,490) |
+| Scale | `LP40_SCALE_M` EUR 140 | EUR 209 (regular 349) | `LP40_SCALE_Y` EUR 1,400 | EUR 2,090 (regular 3,490) |
 
-The pricing page shows the monthly offer rounded down to the euro (EUR 59 / 89 / 209), as the client's design does, so the first monthly charge is 40 cents more than shown. The yearly figures are exact. `npm run stripe:setup` creates any of the six that is missing and never changes one that exists.
+`npm run stripe:setup` creates any of the six that is missing and never changes one that exists. The first-payment-only coupons of before (`LAUNCH40`, `GROW40`, `SCALE40` and their `...40Y` yearly ones) are no longer used anywhere; the owner deletes them in Stripe after the deploy.
 
 Monthly and yearly prices share a product, so the product limit does not separate them: the server picks the coupon by interval. **REPGET is not a Stripe promotion code**, and none may be called REPGET: one typed into Stripe's box would bypass all of this.
 
 | Customer | What happens |
 |---|---|
-| With or without a free period | The plan's coupon is on the Checkout. Stripe keeps a `once` coupon through a free period and uses it on the first paid invoice, including when the period is ended early |
-| Plan changed with the discount unused | **Change plan** in Billing carries the new price's coupon (monthly or yearly) in the same Stripe request; a refused coupon stops the change. The portal opened from Billing offers no plan change meanwhile. A change made elsewhere, in Stripe's dashboard, is corrected during the free period by `customer.subscription.updated`; once charged, staff are told (`lib/billing/repget-subscription.ts`) |
+| With or without a free period | The plan's coupon is on the Checkout. The free period stays free; the discount starts with the first paid invoice and stays on every invoice after it |
+| A returning customer | Gets it too: there is no limit per account while the offer is on |
+| Plan changed (another tier, or monthly <-> yearly) | Keeps the launch price on the new plan, at any time: **Change plan** in Billing carries the new price's coupon in the same Stripe request; a refused coupon stops the change. A change made elsewhere, in Stripe's dashboard, is handled by `lib/billing/repget-subscription.ts` |
 | A price other than the coupon's (an older catalogue's) | No discount |
-| The account already used it | Checkout goes at the full price, with Stripe's code box for other codes; the plan screens do not mention REPGET |
 | Credit packs, Grow + Visibility | Never come here |
 | A checkout carrying REPGET | Stripe's code box is off on it, so a partner code cannot be added on top |
 
 **If Stripe refuses a coupon at Checkout,** nothing starts and there is no checkout at full price: the customer is told, and the administrators (`ADMIN_EMAILS`) get an email.
 
-One redemption per user account, across every workspace it owns, decided under a lock when the checkout is made (`beginCheckout`). A completed checkout used it, an open or unknown one holds it (a second checkout elsewhere in the account is refused until that one is settled), and an expired or failed one gives it back.
+The win-back offer (20% off the first payment, `WINBACK20`, docs/emails.md) applies only when REPGET does not, so in practice only while the launch price is off.
 
-**PayPal:** the plan's REPGET offer plan, whose one intro cycle is priced per subscription (regular price less the coupon amount: EUR 59.40 a month, or EUR 590 / 890 / 2,090 for the first year). The annual rows' offer plans made by `paypal:setup` serve the yearly offer as they are; no new PayPal plan is needed. A plan without its offer plans gives the discount by card only.
+**PayPal:** the subscription's regular cycle is priced at the launch price on that subscription only (PayPal's per-subscription plan override, `lib/paypal/subscriptions.ts`), so every PayPal payment is the same EUR 59 / 89 / 209 a month or EUR 590 / 890 / 2,090 a year; a plan change through PayPal sets it again on the new plan. The PayPal plans themselves keep the regular price for everyone else.
 
 ## Grow + Visibility (2026-11-11)
 
@@ -60,7 +60,7 @@ A direct purchase: EUR 99 a month (struck EUR 299 on the page), the Grow allowan
 On a database already selling catalog 2, with the usual backup first:
 
 1. `npm run db:seed`: writes the bundle row, inactive (and raises Grow's search terms to 500, as the page says).
-2. `npm run stripe:setup -- --live`: creates the "Grow + Visibility" product and its EUR 99 monthly price, and the three yearly REPGET coupons.
+2. `npm run stripe:setup -- --live`: creates the "Grow + Visibility" product and its EUR 99 monthly price, and the six REPGET launch-price coupons (`LP40_...`).
 3. `PAYPAL_ENV=live npm run paypal:setup -- --live`: its PayPal plan (only the plan itself; no free-articles or offer plans). Optional: without it the bundle is card only.
 4. `npm run plans:activate`, then `npm run plans:activate -- --apply`: puts the bundle on sale. Until then the pricing page leaves its card out.
 

@@ -286,7 +286,7 @@ describe("the Stripe portal's cancel screen", () => {
   });
 });
 
-describe("the portal, with a REPGET discount waiting", () => {
+describe("the portal, with a subscription on the REPGET launch price", () => {
   const CONFIG = "bpc_no_plan_change";
   const waiting = async (requestParams: Record<string, unknown> = { offer: "REPGET" }, status = "trialing") => {
     const id = `org_${crypto.randomUUID()}`;
@@ -294,7 +294,7 @@ describe("the portal, with a REPGET discount waiting", () => {
     await test.db.insert(billingCustomers).values({ organizationId: id, stripeCustomerId: `cus_${id}` });
     const [site] = await test.db.insert(websites).values({ organizationId: id, url: `https://${id}.test`, domain: `${id}.test` }).returning();
     await test.db.insert(subscriptions).values({ organizationId: id, websiteId: site.id, status, provider: "stripe", stripeSubscriptionId: `sub_${id}` });
-    await test.db.insert(billingCheckouts).values({ organizationId: id, websiteId: site.id, provider: "stripe", status: "completed", trialDays: 30, requestParams, createdAt: new Date() });
+    await test.db.insert(billingCheckouts).values({ organizationId: id, websiteId: site.id, provider: "stripe", status: "completed", trialDays: 30, requestParams, providerSubscriptionId: `sub_${id}`, createdAt: new Date() });
     state.orgId = id;
     stripeMock.portalCreate.mockResolvedValueOnce({ url: "https://billing.stripe.test/p" });
     return site;
@@ -326,13 +326,20 @@ describe("the portal, with a REPGET discount waiting", () => {
     expect(sent().flow_data.type).toBe("subscription_cancel");
   });
 
-  it("no offer, or the free period over: the ordinary portal", async () => {
+  it("after the free period too: the launch price is for good", async () => {
+    process.env.STRIPE_PORTAL_CONFIG_NO_PLAN_CHANGE = CONFIG;
+    await waiting({ offer: "REPGET" }, "active");
+    await createPortalSession("manage");
+    expect(sent().configuration).toBe(CONFIG);
+  });
+
+  it("no offer, or the subscription ended: the ordinary portal", async () => {
     process.env.STRIPE_PORTAL_CONFIG_NO_PLAN_CHANGE = CONFIG;
     await waiting({});
     await createPortalSession("manage");
     expect(sent().configuration).toBeUndefined();
     expect(sent().flow_data).toBeUndefined();
-    await waiting({ offer: "REPGET" }, "active");
+    await waiting({ offer: "REPGET" }, "canceled");
     await createPortalSession("manage");
     expect(sent().configuration).toBeUndefined();
   });

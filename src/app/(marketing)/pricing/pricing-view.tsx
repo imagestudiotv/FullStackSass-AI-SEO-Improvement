@@ -81,7 +81,8 @@ function Both({ monthly, yearly }: { monthly: string; yearly: string }) {
  * terms are the rows checkout charges (scripts/plan-catalog.mjs), so the price
  * read here is the price paid. The offer prices are the regular ones less 40%,
  * as the design rounds them (prices.ts), shown only while the REPGET offer is
- * on - checkout applies it by itself (lib/billing/repget-offer.ts). A plan not
+ * on - checkout applies it by itself, on every payment, so these are the
+ * prices charged (lib/billing/repget-offer.ts). A plan not
  * on sale is left out rather than shown with a price nobody can pay; the bundle
  * appears once its row is on sale.
  */

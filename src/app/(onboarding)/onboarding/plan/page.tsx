@@ -146,7 +146,7 @@ export default async function OnboardingPlanPage({
   const annualPlans = direct
     ? []
     : allPlans.filter((plan) => plan.interval === "year" && !isDirectPurchaseTier(plan.tier)).map(toPickerPlan);
-  // REPGET is applied by itself (2026-11-11): said on screen unless the account has used it; else the win-back offer, for an account that was sent it.
+  // REPGET is applied by itself (2026-11-11): the launch price, said on screen while it is on; else the win-back offer, for an account that was sent it.
   const offerOn = await planScreenOffer(db, orgId);
   // The plans a PayPal subscription can be started for: mirrored into PayPal.
   const paypalPlanIds = allPlans.filter((plan) => plan.paypalPlanId).map((plan) => plan.id);

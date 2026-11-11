@@ -147,11 +147,11 @@ for (const plan of plans) {
 /* -------------------------------------------------------------------------- */
 
 /*
-  The REPGET offer's coupons (plan-catalog.mjs REPGET_STRIPE_COUPONS): one per
-  tier and interval, a fixed amount off once, limited to the tier's product.
-  A missing one is created; an existing one is NEVER changed or recreated
-  (Stripe coupons cannot be edited, and the live monthly ones are in use) -
-  a mismatch is only reported, for the owner to look at.
+  The REPGET launch price's coupons (plan-catalog.mjs REPGET_STRIPE_COUPONS):
+  one per tier and interval, a fixed amount off every payment (`forever`),
+  limited to the tier's product. A missing one is created; an existing one is
+  NEVER changed or recreated (Stripe coupons cannot be edited, and subscribers
+  keep the one they have) - a mismatch is only reported, for the owner to look at.
 */
 console.log("\nREPGET coupons\n");
 for (const want of REPGET_STRIPE_COUPONS) {
@@ -172,7 +172,7 @@ for (const want of REPGET_STRIPE_COUPONS) {
       existing.valid &&
       existing.amount_off === want.amountOffCents &&
       existing.currency === CURRENCY &&
-      existing.duration === "once" &&
+      existing.duration === "forever" &&
       products.length === 1 &&
       products[0] === product.id;
     console.log(right ? `${want.id}: exists, as expected` : `${want.id}: EXISTS BUT DIFFERS (amount, currency, duration, product or validity) - check it in the Dashboard`);
@@ -180,13 +180,13 @@ for (const want of REPGET_STRIPE_COUPONS) {
   }
   await stripe.coupons.create({
     id: want.id,
-    name: `REPGET 40% off (${want.interval === "year" ? "first year" : "first month"})`,
+    name: `RepGet launch price (40% off, ${want.interval === "year" ? "yearly" : "monthly"})`,
     amount_off: want.amountOffCents,
     currency: CURRENCY,
-    duration: "once",
+    duration: "forever",
     applies_to: { products: [product.id] },
   });
-  console.log(`${want.id}: created, ${(want.amountOffCents / 100).toFixed(2)} ${CURRENCY.toUpperCase()} off once, ${want.tier} product ${product.id}`);
+  console.log(`${want.id}: created, ${(want.amountOffCents / 100).toFixed(2)} ${CURRENCY.toUpperCase()} off every payment,${want.tier} product ${product.id}`);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -364,6 +364,68 @@ if (addons.length > 0) {
     missingAddons.length === 0
       ? "All add-ons have a Stripe price."
       : `${missingAddons.length} add-on(s) still missing a price id.`,
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Portal without plan changes                                                 */
+/* -------------------------------------------------------------------------- */
+
+/*
+  A subscription on the REPGET launch price opens a Customer Portal that cannot
+  change its plan (lib/stripe/portal.ts): the coupon of one plan does not fit
+  another, so Billing's Change plan does that. Such a configuration can only be
+  made through the API. This one copies the default configuration's business
+  profile and features, with plan changes off. Found again by its metadata, so a
+  re-run reuses it; never changed once made. Its id goes in
+  STRIPE_PORTAL_CONFIG_NO_PLAN_CHANGE; without it, those customers' portal
+  opens on updating the card alone.
+*/
+console.log("\nPortal without plan changes\n");
+const portalConfigs = await stripe.billingPortal.configurations.list({ limit: 100 });
+let noPlanChange = portalConfigs.data.find((config) => config.metadata?.repget === "no_plan_change" && config.active);
+if (noPlanChange) {
+  console.log(`exists: ${noPlanChange.id}`);
+} else {
+  const base = portalConfigs.data.find((config) => config.is_default);
+  if (!base) {
+    console.log("No default portal configuration in this mode: save the Customer portal settings in the Dashboard once, then re-run.");
+  } else {
+    const { features, business_profile: profile } = base;
+    noPlanChange = await stripe.billingPortal.configurations.create({
+      metadata: { repget: "no_plan_change" },
+      business_profile: {
+        ...(profile.headline ? { headline: profile.headline } : {}),
+        ...(profile.privacy_policy_url ? { privacy_policy_url: profile.privacy_policy_url } : {}),
+        ...(profile.terms_of_service_url ? { terms_of_service_url: profile.terms_of_service_url } : {}),
+      },
+      features: {
+        customer_update: features.customer_update.enabled
+          ? { enabled: true, allowed_updates: features.customer_update.allowed_updates }
+          : { enabled: false },
+        invoice_history: { enabled: features.invoice_history.enabled },
+        payment_method_update: { enabled: features.payment_method_update.enabled },
+        subscription_cancel: features.subscription_cancel.enabled
+          ? {
+              enabled: true,
+              mode: features.subscription_cancel.mode,
+              proration_behavior: features.subscription_cancel.proration_behavior,
+              cancellation_reason: features.subscription_cancel.cancellation_reason.enabled
+                ? { enabled: true, options: features.subscription_cancel.cancellation_reason.options }
+                : { enabled: false },
+            }
+          : { enabled: false },
+        subscription_update: { enabled: false },
+      },
+    });
+    console.log(`created: ${noPlanChange.id} (a copy of ${base.id} with plan changes off)`);
+  }
+}
+if (noPlanChange) {
+  console.log(
+    process.env.STRIPE_PORTAL_CONFIG_NO_PLAN_CHANGE === noPlanChange.id
+      ? "STRIPE_PORTAL_CONFIG_NO_PLAN_CHANGE already names it."
+      : `Set STRIPE_PORTAL_CONFIG_NO_PLAN_CHANGE=${noPlanChange.id} in Vercel (Production).`,
   );
 }
 

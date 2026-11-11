@@ -233,7 +233,9 @@ async function snapshotOf(
   if (live.plan_id) {
     /*
       Any of a plan's PayPal plans: with or without the free articles first,
-      and either again with the REPGET offer's intro cycle (review P5).
+      and either again with an offer plan's intro cycle (review P5; the
+      win-back discount now). The REPGET launch price is the plan's own
+      PayPal plan, repriced on the subscription: nothing here ends it.
     */
     const [plan] = await reader
       .select({ id: plans.id, interval: plans.interval, paypalTrialPlanId: plans.paypalTrialPlanId, paypalTrialOfferPlanId: plans.paypalTrialOfferPlanId })

@@ -104,18 +104,18 @@ export function activationProblems(rows, { requireStripe = true } = {}) {
 }
 
 /**
- * The REPGET offer's Stripe coupons (src/lib/billing/repget-offer.ts, which a
- * test keeps equal to this): fixed amounts off the first payment, `once`, each
- * limited to its tier's product. scripts/stripe-setup.mjs creates any that are
- * missing and never changes one that exists.
- *   monthly  40% of the month (live since 2026-11-10).
- *   yearly   40% off the first year, as the pricing page bills it (2026-11-11).
+ * The REPGET launch price's Stripe coupons (src/lib/billing/repget-offer.ts,
+ * which a test keeps equal to this): fixed amounts off EVERY payment,
+ * `forever`, each limited to its tier's product, so each charge is the price
+ * the pricing page shows - EUR 59 / 89 / 209 a month, 590 / 890 / 2,090 a year
+ * (owner and client, 2026-11-11). scripts/stripe-setup.mjs creates any that
+ * are missing and never changes one that exists.
  */
 export const REPGET_STRIPE_COUPONS = [
-  { id: "LAUNCH40", tier: "launch", interval: "month", amountOffCents: 3960 },
-  { id: "GROW40", tier: "grow", interval: "month", amountOffCents: 5960 },
-  { id: "SCALE40", tier: "scale", interval: "month", amountOffCents: 13960 },
-  { id: "LAUNCH40Y", tier: "launch", interval: "year", amountOffCents: 40000 },
-  { id: "GROW40Y", tier: "grow", interval: "year", amountOffCents: 60000 },
-  { id: "SCALE40Y", tier: "scale", interval: "year", amountOffCents: 140000 },
+  { id: "LP40_LAUNCH_M", tier: "launch", interval: "month", amountOffCents: 4000 },
+  { id: "LP40_GROW_M", tier: "grow", interval: "month", amountOffCents: 6000 },
+  { id: "LP40_SCALE_M", tier: "scale", interval: "month", amountOffCents: 14000 },
+  { id: "LP40_LAUNCH_Y", tier: "launch", interval: "year", amountOffCents: 40000 },
+  { id: "LP40_GROW_Y", tier: "grow", interval: "year", amountOffCents: 60000 },
+  { id: "LP40_SCALE_Y", tier: "scale", interval: "year", amountOffCents: 140000 },
 ];

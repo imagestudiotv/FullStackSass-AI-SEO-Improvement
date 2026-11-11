@@ -82,7 +82,7 @@ export function PlanStep({
   annualPlans: PickerPlan[];
   /** Whether PayPal can complete a checkout at all (lib/paypal/client.ts). */
   paypalAvailable: boolean;
-  /** The REPGET notice's words (applied automatically), or null while the offer is off or the account has used it. */
+  /** The REPGET notice's words (applied automatically, on every payment), or null while the offer is off. */
   offerCopy?: OfferCodeCopy | null;
   /**
    * Set when the plan on screen is bought outright (the Grow + Visibility

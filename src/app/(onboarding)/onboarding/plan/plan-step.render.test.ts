@@ -75,14 +75,15 @@ describe("PayPal on the plan step", () => {
 describe("REPGET, applied automatically (2026-11-11)", () => {
   const GROW_2 = { ...GROW, priceCents: 14900 };
 
-  it("says the discount is applied, with the plan's own first payment, instead of asking for a code", () => {
+  it("says the discount is applied, with the plan's launch price on every payment, instead of asking for a code", () => {
     const html = render({ monthlyPlans: [GROW_2], offerCopy: OFFER_CODE.en });
     expect(html).toContain(OFFER_CODE.en.label);
-    expect(html).toContain("Your first monthly payment: €89.40 instead of €149.");
+    expect(html).toContain("Each monthly payment: €89 instead of €149.");
+    expect(html).toContain("40% off regular price on every payment");
     expect(html).not.toMatch(/<input[^>]*maxLength="24"/i);
   });
 
-  it("says nothing for a plan it does not cover, or once the account has used it (no copy passed)", () => {
+  it("says nothing for a plan it does not cover, or while the offer is off (no copy passed)", () => {
     expect(render({ offerCopy: OFFER_CODE.en })).not.toContain(OFFER_CODE.en.label);
     expect(render({ monthlyPlans: [GROW_2] })).not.toContain(OFFER_CODE.en.label);
   });

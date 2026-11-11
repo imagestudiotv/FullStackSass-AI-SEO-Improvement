@@ -254,16 +254,17 @@ These come from PayPal's documentation, not a test. The code takes the safe path
 - **Downgrade:** nothing is charged. The paid plan stays until the next billing date.
 - **Not possible through PayPal:** monthly↔yearly switches, and changes while a payment is failing.
 
-**REPGET (review P5):**
-- PayPal takes the code only on plans that have their REPGET offer plans. Run `npm run paypal:setup` (sandbox first) after the 0008 migration; it makes them. Until then, REPGET is card-only and the customer is told so.
-- An offer plan is the regular plan with ONE intro cycle in front of it, after the free days if there are any.
-- The intro cycle is priced like the regular cycle. Only a REPGET checkout overrides its price, on that one subscription: the regular price less the fixed first-month amount (Launch EUR 39.60, Grow EUR 59.60, Scale EUR 139.60).
-- Renewals are the regular price. It is one use per account across card and PayPal, as by card.
+**REPGET, the launch price (2026-11-11; review P5 before it):**
+- 40% off the regular price on EVERY payment, as by card: EUR 59 / 89 / 209 a month, EUR 590 / 890 / 2,090 a year. The subscription is on the plan's own PayPal plan (or its free-articles plan), with the regular cycle priced at the launch price on that one subscription only (PayPal's per-subscription override). The PayPal plans keep the regular price for everyone else, and no offer plan is needed.
+- A plan change through PayPal sets the launch price again on the new plan (PayPal does not carry the override over to the revised plan).
+- No limit per account: anyone starting a plan while the offer is on gets it, as by card.
+- The win-back discount (first payment only) still uses the offer plans made by `npm run paypal:setup`: ONE intro cycle in front of the regular plan, after the free days if there are any, priced per subscription. A plan without its offer plans gives the win-back discount by card only, and the customer is told so.
 
 **Sandbox checks (not yet done; the code relies on PayPal's documentation):**
 - Upgrade mid-period: pay the difference, approve, then confirm `GET /v1/billing/subscriptions/{id}` shows the new `plan_id` at once.
   - If it only changes at the next billing date, upgrades reach staff after 72 hours instead of completing. Report it, and completion moves to the UPDATED webhook.
 - Downgrade: Billing shows the date, and the lower plan applies from that date.
 - REPGET with PayPal, monthly and annual:
-  - the first payment is the reduced amount, and the second is the full price;
-  - with the free articles, the first charge after the free days is the reduced amount.
+  - the first payment and the second are both the launch price;
+  - with the free articles, the first charge after the free days is the launch price;
+  - after an upgrade, the next payment is the new plan's launch price.

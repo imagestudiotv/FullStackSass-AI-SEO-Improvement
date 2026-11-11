@@ -1,28 +1,27 @@
 /**
- * The REPGET offer: 40% off the first paid payment of Launch, Grow and Scale,
- * monthly or yearly (owner's decisions, 2026-11-05, and 2026-11-11 for the new
- * pricing page: "implement like the mockup"; docs/plan-catalog.md).
+ * The REPGET offer, now the LAUNCH PRICE: 40% off EVERY payment of Launch, Grow
+ * and Scale, monthly or yearly, for a subscription started while the offer is on
+ * (owner and client, 2026-11-11: "to win the first customers"). EUR 59 / 89 /
+ * 209 a month instead of 99 / 149 / 349, EUR 590 / 890 / 2,090 a year instead
+ * of 990 / 1,490 / 3,490 - the prices the pricing page shows, to the cent.
+ * Nothing ends it: the subscription keeps it, through plan changes too
+ * (lib/billing/repget-subscription.ts). docs/plan-catalog.md.
  *
  * APPLIED AUTOMATICALLY (client, 2026-11-11: "we auto apply the repget coupon
- * code 40% OFF at the checkout"). Nobody types it any more: a checkout for a
- * plan it covers carries it, together with the free trial, unless the account
- * has used it (one use per USER ACCOUNT, across every workspace it owns -
- * lib/billing/checkouts.ts repgetOfferState and beginCheckout). Off until
- * REPGET_OFFER_ENABLED=1.
+ * code 40% OFF at the checkout"). Nobody types it: every checkout for a plan it
+ * covers carries it, together with the free trial (the discount starts with
+ * the first paid invoice), returning customers included - there is no "one use
+ * per account" any more (lib/billing/checkouts.ts automaticRepgetCoupon). Off
+ * until REPGET_OFFER_ENABLED=1; switching it off stops new checkouts taking it,
+ * and subscriptions that have it keep it.
  *
  * WHY THE SERVER PICKS THE COUPON. The discount is a fixed amount per plan and
  * interval, so it is six Stripe coupons, and a Stripe promotion code points at
  * one coupon. So REPGET is not a Stripe promotion code: this picks the coupon.
- *
- *  - MONTHLY: the live coupons LAUNCH40 / GROW40 / SCALE40, EUR 39.60 / 59.60 /
- *    139.60 off once - exactly 40% of the month. The page shows the offer as
- *    EUR 59 / 89 / 209 (rounded down to the euro, as the client's mockup does),
- *    so the first charge is 40 cents more than shown: EUR 59.40 / 89.40 / 209.40.
- *  - YEARLY: 40% off the whole first year, as the mockup bills it: EUR 590 / 890
- *    / 2,090 instead of 990 / 1,490 / 3,490, so LAUNCH40Y / GROW40Y / SCALE40Y,
- *    EUR 400 / 600 / 1,400 off once. Limited to the plan's product like the
- *    monthly ones; monthly and yearly share a product, so it is this table that
- *    keeps each interval on its own coupon.
+ * Each is `forever` and limited to its tier's product (scripts/plan-catalog.mjs
+ * REPGET_STRIPE_COUPONS, created by scripts/stripe-setup.mjs); monthly and
+ * yearly share a product, so it is this table that keeps each interval on its
+ * own coupon.
  *
  * A row counts only at the exact catalogue price, because catalog 1's rows at
  * other prices share these products. Credit packs never come here, nor does the
@@ -32,19 +31,22 @@
  */
 export const REPGET_CODE = "REPGET";
 
+/** The discount is on every payment, not only the first (2026-11-11). For the screens and PayPal to read. */
+export const REPGET_EVERY_PAYMENT = true;
+
 /** To a customer whose Checkout could not carry the coupon: Stripe refused it, so nothing was started. */
 export const OFFER_UNAVAILABLE = `We could not apply the ${REPGET_CODE} discount just now, so nothing was started and you have not been charged. Our team has been told. Please try again later.`;
 
 /** The Stripe coupon for each plan's monthly price. */
-export const REPGET_COUPONS = { launch: "LAUNCH40", grow: "GROW40", scale: "SCALE40" } as const;
+export const REPGET_COUPONS = { launch: "LP40_LAUNCH_M", grow: "LP40_GROW_M", scale: "LP40_SCALE_M" } as const;
 
-/** The Stripe coupon for each plan's yearly price (2026-11-11). */
-export const REPGET_YEARLY_COUPONS = { launch: "LAUNCH40Y", grow: "GROW40Y", scale: "SCALE40Y" } as const;
+/** The Stripe coupon for each plan's yearly price. */
+export const REPGET_YEARLY_COUPONS = { launch: "LP40_LAUNCH_Y", grow: "LP40_GROW_Y", scale: "LP40_SCALE_Y" } as const;
 
 /** Every coupon this offer puts on a subscription, whichever interval. */
 export const ALL_REPGET_COUPONS: readonly string[] = [...Object.values(REPGET_COUPONS), ...Object.values(REPGET_YEARLY_COUPONS)];
 
-/** The share of the regular price the offer takes off. */
+/** The share of the regular price the offer takes off, as the page says it. */
 export const REPGET_PERCENT_OFF = 40;
 
 type CouponRow = {
@@ -57,14 +59,15 @@ type CouponRow = {
 };
 
 /*
-  The prices each coupon was made for, and what it takes off. The Stripe coupons
-  must say the same amounts (scripts/stripe-setup.mjs creates the yearly ones);
-  a test keeps the yearly amounts equal to the price the page shows.
+  The prices each coupon was made for, and what it takes off: 40% rounded so
+  the charge is a whole euro (a month) or ten euros (a year), as the mockup
+  shows it. The Stripe coupons must say the same amounts; a test keeps them
+  equal to scripts/plan-catalog.mjs.
 */
 const COUPONS: Record<keyof typeof REPGET_COUPONS, CouponRow> = {
-  launch: { monthCents: 9900, monthOffCents: 3960, yearCents: 99000, yearOffCents: 40000 },
-  grow: { monthCents: 14900, monthOffCents: 5960, yearCents: 149000, yearOffCents: 60000 },
-  scale: { monthCents: 34900, monthOffCents: 13960, yearCents: 349000, yearOffCents: 140000 },
+  launch: { monthCents: 9900, monthOffCents: 4000, yearCents: 99000, yearOffCents: 40000 },
+  grow: { monthCents: 14900, monthOffCents: 6000, yearCents: 149000, yearOffCents: 60000 },
+  scale: { monthCents: 34900, monthOffCents: 14000, yearCents: 349000, yearOffCents: 140000 },
 };
 
 export type OfferPlan = { tier: string; interval: string; currency: string; priceCents: number };
@@ -95,25 +98,33 @@ export function repgetCouponFor(plan: OfferPlan): string | null {
   return couponRow(plan)?.coupon ?? null;
 }
 
-/** The discount in cents on the first payment: the coupon's fixed amount. Null when not covered. */
+/** The discount in cents on EACH payment: the coupon's fixed amount. Null when not covered. */
 export function repgetDiscountCents(plan: OfferPlan): number | null {
   return couponRow(plan)?.offCents ?? null;
 }
 
-/** What the first payment is with the offer (PayPal's intro cycle, and the plan screens). Null when not covered. */
+/**
+ * The launch price: what EVERY payment is with the offer (PayPal's price, and
+ * the plan screens). The name is from when only the first payment had it. Null
+ * when not covered.
+ */
 export function repgetFirstPaymentCents(plan: OfferPlan): number | null {
   const off = repgetDiscountCents(plan);
   return off === null ? null : plan.priceCents - off;
 }
 
 /**
- * The offer price the pricing page SHOWS for a regular price: 40% off, rounded
- * down as the client's mockup shows it - to the euro for a month (EUR 99 -> 59),
- * to ten euros for a year (EUR 990 -> 590). The yearly figure is what the yearly
- * coupon charges; the monthly one is 40 cents under the monthly coupon's charge
- * (see above).
+ * The offer price the pricing page SHOWS for a regular price: what the coupon
+ * for that price and interval charges (EUR 99 -> 59 a month, EUR 990 -> 590 a
+ * year), so the page and the charge cannot disagree. A price no coupon was made
+ * for gets 40% off, rounded down as the mockup rounds it - to the euro for a
+ * month, to ten euros for a year - though checkout does not discount it.
  */
 export function offerDisplayCents(regularCents: number, interval: string): number {
+  for (const row of Object.values(COUPONS)) {
+    if (interval === "month" && regularCents === row.monthCents) return regularCents - row.monthOffCents;
+    if (interval === "year" && regularCents === row.yearCents) return regularCents - row.yearOffCents;
+  }
   const step = interval === "year" ? 1000 : 100;
   return Math.floor((regularCents * (100 - REPGET_PERCENT_OFF)) / 100 / step) * step;
 }

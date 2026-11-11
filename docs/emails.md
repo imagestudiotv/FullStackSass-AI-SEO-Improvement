@@ -54,12 +54,13 @@ RepGet has no pause feature, so "leave or pause" means a subscription that ended
   server at checkout (`automaticOffer` in `src/lib/billing/checkouts.ts`) for an
   account one of whose owners was **sent** the win-back email; one use per
   account (a completed checkout carrying `offer: "WINBACK"`), never stacked:
-  an account still eligible for REPGET gets REPGET (40%, bigger) instead and the
-  20% is not applied (the 100 credits still are, below); a checkout carrying either has no promotion-code box,
+  while REPGET is on, the plan gets REPGET's launch price instead (40% off
+  every payment, docs/plan-catalog.md) and the 20% is not applied (the 100
+  credits still are, below); a checkout carrying either has no promotion-code box,
   so no partner code on top. Stripe: coupon `WINBACK20` (20% off, once,
   Launch/Grow/Scale products), made by `scripts/stripe-setup.mjs`. PayPal: the
-  REPGET offer plans' intro cycle, priced per subscription at 80%; a plan
-  without offer plans is card-only for it, as for REPGET.
+  offer plans' intro cycle, priced per subscription at 80%; a plan without
+  offer plans is card-only for it.
 - **Credits**: 100 credits when that restarted plan's first payment for money
   goes through (Stripe `invoice.paid`, PayPal `PAYMENT.SALE.COMPLETED`), through
   the credit ledger with the key `winback-bonus:<userId>`: once per person, safe

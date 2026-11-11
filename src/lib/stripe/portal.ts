@@ -2,7 +2,7 @@
 
 import { and, eq, isNotNull } from "drizzle-orm";
 
-import { hasWaitingOffer } from "@/lib/billing/repget-subscription";
+import { hasLaunchPrice } from "@/lib/billing/repget-subscription";
 import { db } from "@/lib/db";
 import { billingCustomers, subscriptions, websites } from "@/lib/db/schema";
 import { isStripeConfigured, stripe } from "@/lib/stripe/client";
@@ -113,20 +113,21 @@ export async function createPortalSession(
 
   try {
     /*
-      With a REPGET discount waiting, the portal must not change a plan: that can
-      end the free period and charge at once with the wrong coupon on. Change plan
-      in Billing carries the right one (lib/billing/repget-subscription.ts). The
-      portal keeps its other features through a configuration without plan changes.
-      Without that configuration, it opens on updating the card alone.
+      With a subscription on the REPGET launch price, the portal must not change a
+      plan, at any time: the change can charge at once, and the old plan's coupon
+      does not fit the new one. Change plan in Billing carries the right one
+      (lib/billing/repget-subscription.ts). The portal keeps its other features
+      through a configuration without plan changes. Without that configuration, it
+      opens on updating the card alone.
     */
-    const waiting = flow !== "cancel" && (await hasWaitingOffer(orgId));
+    const launchPrice = flow !== "cancel" && (await hasLaunchPrice(orgId));
     const noPlanChange = process.env.STRIPE_PORTAL_CONFIG_NO_PLAN_CHANGE;
     const returnUrl = `${appUrl()}/billing`;
     const session = await stripe.billingPortal.sessions.create({
       customer: row.customerId,
       return_url: returnUrl,
-      ...(waiting && noPlanChange ? { configuration: noPlanChange } : {}),
-      ...(waiting && !noPlanChange
+      ...(launchPrice && noPlanChange ? { configuration: noPlanChange } : {}),
+      ...(launchPrice && !noPlanChange
         ? {
             flow_data: {
               type: "payment_method_update" as const,

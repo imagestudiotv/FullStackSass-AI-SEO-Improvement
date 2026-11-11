@@ -10,14 +10,16 @@ import type { Database } from "@/lib/db/types";
 import { createPostgresTestDb, testPostgresUrl } from "@/test/postgres";
 
 /**
- * One REPGET redemption per workspace, on a real Postgres with separate
- * connections. Skipped unless TEST_POSTGRES_URL names a disposable server.
+ * One redemption per account of a once-per-account offer - the win-back
+ * discount; REPGET has no such limit since 2026-11-11 (its launch price goes on
+ * every checkout) - on a real Postgres with separate connections. Skipped
+ * unless TEST_POSTGRES_URL names a disposable server.
  */
 
 const available = Boolean(testPostgresUrl());
-const OFFER = "REPGET";
+const OFFER = "WINBACK";
 
-describe.skipIf(!available)("one REPGET redemption per workspace", () => {
+describe.skipIf(!available)("one win-back redemption per account", () => {
   let a: Database;
   let b: Database;
   let dispose: () => Promise<void>;

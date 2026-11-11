@@ -99,7 +99,7 @@ describe("the win-back credits", () => {
   it("REPGET won at checkout (lead's decision): the promised credits still come, once, and the win-back is then used", async () => {
     await checkout("sub_repget", "REPGET");
     expect(await winbackOfferState(test.db, "org_a")).toBe("used");
-    const payment = { provider: "stripe" as const, providerSubscriptionId: "sub_repget", amountCents: 8940 };
+    const payment = { provider: "stripe" as const, providerSubscriptionId: "sub_repget", amountCents: 8900 };
     const outcomes = await Promise.all(Array.from({ length: 5 }, () => grantWinbackBonus(payment)));
     expect(outcomes.filter((o) => o.status === "granted")).toHaveLength(1);
     expect(await grantWinbackBonus(payment)).toEqual({ status: "already_granted", userId: "user_1" });
@@ -110,7 +110,7 @@ describe("the win-back credits", () => {
 
   it("a REPGET plan from before the email is not a win-back, and leaves the offer open", async () => {
     await checkout("sub_old", "REPGET", "stripe", new Date(Date.now() - 30 * 86_400_000));
-    expect(await grantWinbackBonus({ provider: "stripe", providerSubscriptionId: "sub_old", amountCents: 8940 })).toEqual({ status: "skipped", reason: "not_winback" });
+    expect(await grantWinbackBonus({ provider: "stripe", providerSubscriptionId: "sub_old", amountCents: 8900 })).toEqual({ status: "skipped", reason: "not_winback" });
     expect(await winbackOfferState(test.db, "org_a")).toBe("available");
     expect(await ledger()).toHaveLength(0);
   });
@@ -126,7 +126,7 @@ describe("the win-back credits", () => {
     expect(await grantWinbackBonus({ provider: "paypal", providerSubscriptionId: "sub_w", amountCents: 11920 })).toEqual({ status: "skipped", reason: "not_winback" });
     await test.client.exec(`update lifecycle_emails set status = 'skipped';`);
     await checkout("sub_repget", "REPGET");
-    expect(await grantWinbackBonus({ provider: "stripe", providerSubscriptionId: "sub_repget", amountCents: 8940 })).toEqual({ status: "skipped", reason: "no_recipient" });
+    expect(await grantWinbackBonus({ provider: "stripe", providerSubscriptionId: "sub_repget", amountCents: 8900 })).toEqual({ status: "skipped", reason: "no_recipient" });
     expect(await ledger()).toHaveLength(0);
   });
 });

@@ -226,7 +226,7 @@ describe("the REPGET offer, applied automatically (2026-11-11)", () => {
     const site = await addSite(organizationId, "earlier.test");
     await test.db.insert(subscriptions).values({ organizationId, websiteId: site.id, planId, status: "canceled", provider: "stripe", stripeSubscriptionId: "sub_earlier" });
   };
-  /** A checkout of this workspace that used (completed) or holds (open) REPGET. */
+  /** An earlier checkout of this workspace that carried REPGET, completed or still open. */
   const usedOffer = async (plan: string, status = "completed") => {
     const earlier = await addSite("org_a", "used.test");
     await test.db.insert(billingCheckouts).values({ organizationId: "org_a", websiteId: earlier.id, provider: "stripe", planId: plan, status, trialDays: 0, stripeSessionId: `cs_${status}`, requestParams: { offer: "REPGET" }, createdAt: new Date(Date.now() - 3_600_000) });
@@ -242,7 +242,7 @@ describe("the REPGET offer, applied automatically (2026-11-11)", () => {
   it("nothing typed: the plan's coupon is on the checkout, with the free period, and no code box beside it", async () => {
     const site = await addSite();
     await createCheckoutSession(await growPlan(), site.id);
-    expect(params().discounts).toEqual([{ coupon: "GROW40" }]);
+    expect(params().discounts).toEqual([{ coupon: "LP40_GROW_M" }]);
     expect(params().allow_promotion_codes).toBeUndefined();
     expect(params().subscription_data.trial_period_days).toBe(FREE_ARTICLES_DAYS);
     expect(params().subscription_data.metadata.repget_offer).toBe("REPGET");
@@ -254,21 +254,21 @@ describe("the REPGET offer, applied automatically (2026-11-11)", () => {
     await usedTrial();
     const site = await addSite();
     await createCheckoutSession(await growPlan(), site.id);
-    expect(params().discounts).toEqual([{ coupon: "GROW40" }]);
+    expect(params().discounts).toEqual([{ coupon: "LP40_GROW_M" }]);
     expect(params().subscription_data.trial_period_days).toBeUndefined();
   });
 
-  it("yearly: the plan's YEARLY coupon (40% off the first year)", async () => {
+  it("yearly: the plan's YEARLY coupon", async () => {
     const site = await addSite();
     await createCheckoutSession(await growPlan({ interval: "year", priceCents: 149000, stripePriceId: "price_year" }), site.id);
-    expect(params().discounts).toEqual([{ coupon: "GROW40Y" }]);
+    expect(params().discounts).toEqual([{ coupon: "LP40_GROW_Y" }]);
   });
 
   it("the plan decides the coupon", async () => {
     await usedTrial();
     const site = await addSite();
     await createCheckoutSession(await growPlan({ name: "Scale", tier: "scale", priceCents: 34900, stripePriceId: "price_scale" }), site.id);
-    expect(params().discounts).toEqual([{ coupon: "SCALE40" }]);
+    expect(params().discounts).toEqual([{ coupon: "LP40_SCALE_M" }]);
   });
 
   it("a price it does not cover (an older catalogue's): no coupon, Stripe's code box as before", async () => {
@@ -291,11 +291,11 @@ describe("the REPGET offer, applied automatically (2026-11-11)", () => {
   it("a coupon Stripe refuses starts nothing: no checkout at full price, the customer is told, staff are emailed", async () => {
     const site = await addSite();
     const plan = await growPlan();
-    stripeMock.sessionsCreate.mockRejectedValueOnce(stripeRefusal("No such coupon: 'GROW40'"));
+    stripeMock.sessionsCreate.mockRejectedValueOnce(stripeRefusal("No such coupon: 'LP40_GROW_M'"));
     expect(await createCheckoutSession(plan, site.id)).toEqual({ error: expect.stringContaining("you have not been charged") });
     expect(stripeMock.sessionsCreate).toHaveBeenCalledTimes(1);
     expect(mail.sendEmail).toHaveBeenCalledTimes(1);
-    expect(mail.sendEmail.mock.calls[0][0].text).toContain("GROW40");
+    expect(mail.sendEmail.mock.calls[0][0].text).toContain("LP40_GROW_M");
     const [checkout] = await checkouts();
     expect(checkout.status).toBe("failed");
   });
@@ -310,25 +310,22 @@ describe("the REPGET offer, applied automatically (2026-11-11)", () => {
     expect(mail.sendEmail).not.toHaveBeenCalled();
   });
 
-  it("one use per account: once used, the next checkout goes at the full price with the code box; another workspace still gets it", async () => {
+  it("no one use per account any more: a returning account's next checkout gets the launch price too", async () => {
     const plan = await growPlan();
     await usedOffer(plan);
     const site = await addSite();
     expect(await createCheckoutSession(plan, site.id)).toEqual({ url: expect.any(String) });
-    expect(params().discounts).toBeUndefined();
-    expect(params().allow_promotion_codes).toBe(true);
-    const other = await addSite("org_b", "other.test");
-    state.orgId = "org_b";
-    await createCheckoutSession(plan, other.id);
-    expect(params().discounts).toEqual([{ coupon: "GROW40" }]);
+    expect(params().discounts).toEqual([{ coupon: "LP40_GROW_M" }]);
+    expect(params().allow_promotion_codes).toBeUndefined();
+    expect(params().subscription_data.metadata.repget_offer).toBe("REPGET");
   });
 
-  it("held by another website's open checkout: refused until that one is settled, and that one is not closed", async () => {
+  it("another website's open checkout with it does not hold it: this one gets it too, and that one is not closed", async () => {
     const plan = await growPlan();
     await usedOffer(plan, "open");
     const site = await addSite();
-    expect(await createCheckoutSession(plan, site.id)).toEqual({ error: expect.stringContaining("another checkout") });
-    expect(stripeMock.sessionsCreate).not.toHaveBeenCalled();
+    expect(await createCheckoutSession(plan, site.id)).toEqual({ url: expect.any(String) });
+    expect(params().discounts).toEqual([{ coupon: "LP40_GROW_M" }]);
     expect(stripeMock.sessionsExpire).not.toHaveBeenCalled();
   });
 
@@ -347,7 +344,7 @@ describe("the REPGET offer, applied automatically (2026-11-11)", () => {
     await createCheckoutSession(plan, site.id);
     expect(stripeMock.sessionsExpire).toHaveBeenCalledWith("cs_test_1");
     expect(stripeMock.sessionsCreate).toHaveBeenCalledTimes(2);
-    expect(params().discounts).toEqual([{ coupon: "GROW40" }]);
+    expect(params().discounts).toEqual([{ coupon: "LP40_GROW_M" }]);
     // The same request again is the same checkout.
     await createCheckoutSession(plan, site.id);
     expect(stripeMock.sessionsCreate).toHaveBeenCalledTimes(2);
@@ -398,38 +395,38 @@ describe("the REPGET offer, applied automatically (2026-11-11)", () => {
   });
 
   /*
-    REPGET through PayPal (review P5): the plan's REPGET offer plan, its ONE
-    intro cycle priced lower on this subscription only (createSubscription's
-    override), after any free days. PayPal is stubbed at createSubscription:
-    the override body is plans-body/subscriptions tests; PayPal honouring it
-    is the owner's sandbox flow.
+    REPGET through PayPal: the launch price (2026-11-11) on EVERY payment - the
+    plan's own PayPal plan, its regular cycle priced lower on this subscription
+    only (createSubscription's override), after any free days. PayPal is stubbed
+    at createSubscription: the override body is plans-body/subscriptions tests;
+    PayPal honouring it is the owner's sandbox flow.
   */
-  describe("through PayPal (review P5)", () => {
+  describe("through PayPal", () => {
     const offerPlan = (fields: Partial<typeof plans.$inferInsert> = {}) =>
       growPlan({ paypalPlanId: "P-GROW", paypalTrialPlanId: "P-GROW-FREE", paypalOfferPlanId: "P-GROW-OFFER", paypalTrialOfferPlanId: "P-GROW-FREE-OFFER", ...fields });
     const created = () => paypalMock.createSubscription.mock.calls.at(-1)![0];
 
-    it("subscribes to the offer plan, its first payment the fixed monthly amount less", async () => {
+    it("the plan's own PayPal plan, every payment at the launch price", async () => {
       await usedTrial();
       const site = await addSite();
       expect(await createPayPalCheckout(await offerPlan(), site.id)).toEqual({ url: expect.any(String) });
-      // 149.00 less 59.60.
-      expect(created()).toMatchObject({ planId: "P-GROW-OFFER", intro: { sequence: 1, priceCents: 8940, currency: "eur" } });
+      // 149.00 less 60.00, on the regular cycle (billed until cancelled).
+      expect(created()).toMatchObject({ planId: "P-GROW", prices: [{ sequence: 1, totalCycles: 0, priceCents: 8900, currency: "eur" }] });
       const [row] = await checkouts();
-      expect(row.requestParams).toMatchObject({ plan: "P-GROW-OFFER", offer: "REPGET", introCents: 8940 });
+      expect(row.requestParams).toMatchObject({ plan: "P-GROW", offer: "REPGET", launchCents: 8900 });
     });
 
-    it("after the free articles: the free days first, then the discounted payment", async () => {
+    it("after the free articles: the free days first, then every payment at the launch price", async () => {
       const site = await addSite();
       await createPayPalCheckout(await offerPlan(), site.id);
-      expect(created()).toMatchObject({ planId: "P-GROW-FREE-OFFER", intro: { sequence: 2, priceCents: 8940 } });
+      expect(created()).toMatchObject({ planId: "P-GROW-FREE", prices: [{ sequence: 2, totalCycles: 0, priceCents: 8900 }] });
     });
 
-    it("yearly: the annual offer plan, its first year at 40% off (EUR 890 of 1,490)", async () => {
+    it("yearly: every year at the launch price (EUR 890 of 1,490)", async () => {
       await usedTrial();
       const site = await addSite();
       await createPayPalCheckout(await offerPlan({ interval: "year", priceCents: 149000, stripePriceId: "price_year_pp" }), site.id);
-      expect(created()).toMatchObject({ planId: "P-GROW-OFFER", intro: { sequence: 1, priceCents: 89000 } });
+      expect(created()).toMatchObject({ planId: "P-GROW", prices: [{ sequence: 1, totalCycles: 0, priceCents: 89000 }] });
     });
 
     it("switched off: the plan as before, with no override", async () => {
@@ -438,25 +435,22 @@ describe("the REPGET offer, applied automatically (2026-11-11)", () => {
       const site = await addSite();
       await createPayPalCheckout(await offerPlan(), site.id);
       expect(created()).toMatchObject({ planId: "P-GROW" });
-      expect(created().intro).toBeUndefined();
+      expect(created().prices).toBeUndefined();
     });
 
-    it("a plan without its offer plans gives the discount by card only: nothing is started, and the offer is given back", async () => {
+    it("needs no offer plan: a plan without them still gets the launch price", async () => {
       const site = await addSite();
-      expect(await createPayPalCheckout(await offerPlan({ paypalTrialOfferPlanId: null }), site.id)).toEqual({
-        error: expect.stringContaining("not available with PayPal"),
-      });
-      expect(paypalMock.createSubscription).not.toHaveBeenCalled();
-      expect((await checkouts()).map((c) => c.status)).toEqual(["failed"]);
+      expect(await createPayPalCheckout(await offerPlan({ paypalOfferPlanId: null, paypalTrialOfferPlanId: null }), site.id)).toEqual({ url: expect.any(String) });
+      expect(created()).toMatchObject({ planId: "P-GROW-FREE", prices: [{ sequence: 2, totalCycles: 0, priceCents: 8900 }] });
     });
 
-    it("one use per account, whichever processor used it: used, PayPal goes without it", async () => {
+    it("no one use per account, whichever processor took it before: a returning account gets it by PayPal too", async () => {
       const plan = await offerPlan();
       await usedOffer(plan);
       const site = await addSite();
       expect(await createPayPalCheckout(plan, site.id)).toEqual({ url: expect.any(String) });
-      expect(created().planId).toBe("P-GROW-FREE");
-      expect(created().intro).toBeUndefined();
+      expect(created()).toMatchObject({ planId: "P-GROW-FREE", prices: [{ sequence: 2, totalCycles: 0, priceCents: 8900 }] });
+      expect((await checkouts()).find((c) => c.websiteId === site.id)!.requestParams).toMatchObject({ offer: "REPGET" });
     });
 
     it("a plan change of a PayPal website is not stopped by it", async () => {
@@ -1016,16 +1010,16 @@ describe("duplicate checkouts and subscriptions", () => {
     expect(await checkouts()).toHaveLength(0);
   });
 
-  describe("with a REPGET discount not used yet", () => {
-    const onGrow = async () => {
+  describe("on the REPGET launch price, at any time", () => {
+    const onGrow = async (status = "trialing") => {
       const site = await addSite();
-      await test.db.insert(subscriptions).values({ organizationId: "org_a", websiteId: site.id, planId, status: "trialing", stripeSubscriptionId: "sub_live" });
+      await test.db.insert(subscriptions).values({ organizationId: "org_a", websiteId: site.id, planId, status, stripeSubscriptionId: "sub_live" });
       stripeMock.subscriptionsRetrieve.mockResolvedValueOnce({
         id: "sub_live",
         customer: "cus_test",
-        status: "trialing",
+        status,
         metadata: { repget_offer: "REPGET" },
-        discounts: [{ id: "di_1", source: { coupon: "GROW40" } }],
+        discounts: [{ id: "di_1", source: { coupon: "LP40_GROW_M" } }],
         items: { data: [{ id: "si_1", quantity: 1 }] },
       });
       return site;
@@ -1038,32 +1032,32 @@ describe("duplicate checkouts and subscriptions", () => {
       expect(await createCheckoutSession(await scale(), site.id)).toEqual({ url: "https://billing.stripe.test/confirm" });
       expect(stripeMock.portalCreate.mock.calls[0][0].flow_data.subscription_update_confirm).toMatchObject({
         items: [{ id: "si_1", price: "price_scale_2" }],
-        discounts: [{ coupon: "SCALE40" }],
+        discounts: [{ coupon: "LP40_SCALE_M" }],
       });
     });
 
     it("a coupon Stripe refuses stops the change: no full price, the customer is told, staff are emailed", async () => {
       const site = await onGrow();
       const log = vi.spyOn(console, "error").mockImplementation(() => {});
-      stripeMock.portalCreate.mockRejectedValueOnce(stripeRefusal("No such coupon: 'SCALE40'"));
+      stripeMock.portalCreate.mockRejectedValueOnce(stripeRefusal("No such coupon: 'LP40_SCALE_M'"));
       expect(await createCheckoutSession(await scale(), site.id)).toEqual({ error: expect.stringContaining("you have not been charged") });
-      expect(mail.sendEmail.mock.calls[0][0].text).toContain("SCALE40");
+      expect(mail.sendEmail.mock.calls[0][0].text).toContain("LP40_SCALE_M");
       log.mockRestore();
     });
 
-    it("to annual: the annual price's yearly coupon, in the same Stripe request (40% off the first year)", async () => {
-      const site = await onGrow();
+    it("after the free period, to annual: the annual price's yearly coupon, in the same Stripe request", async () => {
+      const site = await onGrow("active");
       const annual = await test.db.insert(plans).values({ name: "Grow (Annual)", tier: "grow", interval: "year", currency: "eur", priceCents: 149000, stripePriceId: "price_grow_year", articleLimit: 30, keywordLimit: 100, siteLimit: 1, monthlyCredits: 0, catalogVersion: 41 }).returning().then(([row]) => row.id);
       stripeMock.portalCreate.mockResolvedValueOnce({ url: "https://billing.stripe.test/confirm" });
       expect(await createCheckoutSession(annual, site.id)).toEqual({ url: "https://billing.stripe.test/confirm" });
       expect(stripeMock.portalCreate.mock.calls[0][0].flow_data.subscription_update_confirm).toMatchObject({
         items: [{ id: "si_1", price: "price_grow_year" }],
-        discounts: [{ coupon: "GROW40Y" }],
+        discounts: [{ coupon: "LP40_GROW_Y" }],
       });
     });
 
     it("to a price the offer does not cover: refused before Stripe is asked to change anything", async () => {
-      const site = await onGrow();
+      const site = await onGrow("active");
       const older = await test.db.insert(plans).values({ name: "Old Grow", tier: "grow", interval: "month", currency: "eur", priceCents: 9900, stripePriceId: "price_grow_old", articleLimit: 30, keywordLimit: 100, siteLimit: 1, monthlyCredits: 0, catalogVersion: 39 }).returning().then(([row]) => row.id);
       expect(await createCheckoutSession(older, site.id)).toEqual({ error: expect.stringContaining("does not cover") });
       expect(stripeMock.portalCreate).not.toHaveBeenCalled();
@@ -1347,8 +1341,8 @@ describe("trial eligibility", () => {
 /*
   The win-back offer (lib/billing/winback-offer.ts): 20% off the first payment
   for an account whose owner was SENT the win-back email, chosen by the server,
-  once per account, never stacked - REPGET, while the account can still have
-  it, wins instead.
+  once per account, never stacked - REPGET's launch price, while it is on,
+  wins instead.
 */
 describe("the win-back offer, applied automatically", () => {
   const row = { articleLimit: 30, keywordLimit: 100, siteLimit: 1, monthlyCredits: 0 };
@@ -1389,20 +1383,24 @@ describe("the win-back offer, applied automatically", () => {
     expect(open.requestParams).toMatchObject({ offer: "WINBACK" });
   });
 
-  it("still eligible for REPGET: REPGET wins (bigger) and the win-back stays unused", async () => {
+  it("REPGET on: REPGET wins (bigger) and the win-back stays unused", async () => {
     process.env.REPGET_OFFER_ENABLED = "1";
     const site = await addSite();
     await createCheckoutSession(await growPlan(), site.id);
-    expect(params().discounts).toEqual([{ coupon: "GROW40" }]);
+    expect(params().discounts).toEqual([{ coupon: "LP40_GROW_M" }]);
     expect((await checkouts()).find((c) => c.websiteId === site.id)!.requestParams).toMatchObject({ offer: "REPGET" });
   });
 
-  it("REPGET used: the win-back instead", async () => {
+  it("REPGET taken before: REPGET again while it is on (no one use per account), the win-back once it is off", async () => {
     process.env.REPGET_OFFER_ENABLED = "1";
     const plan = await growPlan();
     await usedOffer("REPGET", plan);
     const site = await addSite();
     await createCheckoutSession(plan, site.id);
+    expect(params().discounts).toEqual([{ coupon: "LP40_GROW_M" }]);
+    delete process.env.REPGET_OFFER_ENABLED;
+    const other = await addSite("org_a", "other-w.test");
+    await createCheckoutSession(plan, other.id);
     expect(params().discounts).toEqual([{ coupon: "WINBACK20" }]);
   });
 
@@ -1460,7 +1458,7 @@ describe("the win-back offer, applied automatically", () => {
     const plan = await growPlan({ paypalPlanId: "P-GROW", paypalTrialPlanId: "P-GROW-FREE", paypalOfferPlanId: "P-GROW-OFFER", paypalTrialOfferPlanId: "P-GROW-FREE-OFFER" });
     expect(await createPayPalCheckout(plan, site.id)).toEqual({ url: expect.any(String) });
     // 149.00 less 29.80.
-    expect(paypalMock.createSubscription.mock.calls.at(-1)![0]).toMatchObject({ planId: "P-GROW-OFFER", intro: { sequence: 1, priceCents: 11920, currency: "eur" } });
+    expect(paypalMock.createSubscription.mock.calls.at(-1)![0]).toMatchObject({ planId: "P-GROW-OFFER", prices: [{ sequence: 1, totalCycles: 1, priceCents: 11920, currency: "eur" }] });
     const open = (await checkouts()).find((c) => c.websiteId === site.id)!;
     expect(open.requestParams).toMatchObject({ plan: "P-GROW-OFFER", offer: "WINBACK", introCents: 11920 });
   });

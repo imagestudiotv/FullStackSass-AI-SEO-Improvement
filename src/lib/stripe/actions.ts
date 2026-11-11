@@ -130,8 +130,8 @@ export async function createCheckoutSession(
   }
 
   /*
-    REPGET, applied by itself (2026-11-11): the plan's coupon unless the
-    account has used it - or else the win-back discount for an account that
+    REPGET, applied by itself (2026-11-11): the plan's launch-price coupon
+    while the offer is on - or else the win-back discount for an account that
     was sent the win-back email (lib/billing/winback-offer.ts); never both.
     Nothing the browser sends decides it.
   */
@@ -159,7 +159,7 @@ export async function createCheckoutSession(
     if (begun.current.planId === plan.id) {
       return { error: `This website is already on ${plan.name}.` };
     }
-    // A plan change takes no new REPGET discount, only what offerForPlanChange carries over from the subscription.
+    // A plan change takes no new REPGET discount, only the launch price offerForPlanChange carries over from the subscription.
     return changeStripePlan({
       organizationId: orgId,
       providerSubscriptionId: begun.current.providerSubscriptionId,
@@ -203,7 +203,7 @@ export async function createCheckoutSession(
     /*
       Stripe's code box, for every other code. With the REPGET offer the plan's
       coupon is on the Checkout instead, and Stripe keeps it through a free period
-      for the first paid invoice (lib/billing/repget-offer.ts).
+      and on every invoice after it (`forever`, lib/billing/repget-offer.ts).
     */
     ...(offerCoupon ? { discounts: [{ coupon: offerCoupon }] } : { allow_promotion_codes: true }),
     // Metadata on the SESSION identifies this checkout...
@@ -311,7 +311,7 @@ async function changeStripePlan(input: {
 
   let offerCoupon: string | undefined;
   try {
-    const subscription = await stripe.subscriptions.retrieve(input.providerSubscriptionId, { expand: ["discounts"] });
+    const subscription = await stripe.subscriptions.retrieve(input.providerSubscriptionId);
     const offer = offerForPlanChange(subscription, input.plan);
     if (offer.refuse) return { error: offer.refuse };
     offerCoupon = offer.coupon;
@@ -329,7 +329,7 @@ async function changeStripePlan(input: {
         subscription_update_confirm: {
           subscription: input.providerSubscriptionId,
           items: [{ id: item.id, price: input.priceId, quantity: item.quantity ?? 1 }],
-          // In the same request as the change, which can end a free period and charge at once.
+          // In the same request as the change, which can end a free period or invoice a proration at once.
           ...(offerCoupon ? { discounts: [{ coupon: offerCoupon }] } : {}),
         },
         after_completion: { type: "redirect", redirect: { return_url: input.returnUrl } },

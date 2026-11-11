@@ -36,11 +36,16 @@ function regularCycle(plan, sequence) {
 }
 
 /**
- * The REPGET offer's intro cycle (review P5): ONE month or year, priced like
- * the regular cycle. Only a checkout carrying REPGET subscribes to an offer
- * plan, and it overrides this cycle's price on its own subscription (the fixed
- * first-month discount, lib/paypal/subscriptions.ts createSubscription), so
- * the plan itself never sells at a discount to anyone.
+ * An offer plan's intro cycle (review P5): ONE month or year, priced like the
+ * regular cycle. Only a checkout carrying a first-payment discount - the
+ * win-back one now - subscribes to an offer plan, and it overrides this
+ * cycle's price on its own subscription (lib/paypal/actions.ts), so the plan
+ * itself never sells at a discount to anyone.
+ *
+ * The REPGET launch price (2026-11-11) is every payment, so it needs no offer
+ * plan: its checkout overrides the REGULAR cycle of the plan itself (or of its
+ * free-articles plan, after the free days) on its own subscription. The offer
+ * plans keep their "REPGET offer" name, the one PayPal already has.
  */
 function introCycle(plan, sequence) {
   return { ...regularCycle(plan, sequence), tenure_type: "TRIAL", total_cycles: 1 };
@@ -48,10 +53,10 @@ function introCycle(plan, sequence) {
 
 /**
  * The body of POST /v1/billing/plans for one of RepGet's plans.
- * `freeArticles` puts FREE_ARTICLES_DAYS free first; `offer` adds the REPGET
- * intro cycle before the regular one (after the free days, so they never use
- * the discount up). PayPal allows two TRIAL cycles, which the free-articles
- * offer plan uses.
+ * `freeArticles` puts FREE_ARTICLES_DAYS free first; `offer` adds the intro
+ * cycle before the regular one (after the free days, so they never use the
+ * discount up). PayPal allows two TRIAL cycles, which the free-articles offer
+ * plan uses.
  */
 export function planBody(plan, productId, { freeArticles = false, offer = false } = {}) {
   const cycles = [];

@@ -110,21 +110,21 @@ describe("createSubscription", () => {
   });
 });
 
-describe("the REPGET offer through PayPal (review P5)", () => {
-  it("overrides only the intro cycle's price, on this subscription", async () => {
+describe("discounts through PayPal (review P5; the REPGET launch price 2026-11-11)", () => {
+  it("overrides only the cycles named, on this subscription: the launch price on the regular cycle after the free days", async () => {
     paypal.request.mockResolvedValueOnce({ id: "I-NEW", status: "APPROVAL_PENDING", links: [{ rel: "approve", href: "https://paypal.test/approve", method: "GET" }] });
     await createSubscription({
-      planId: "P-GROW-FREE-OFFER",
+      planId: "P-GROW-FREE",
       organizationId: "org_1",
       websiteId: WEBSITE,
       checkoutId: CHECKOUT,
       returnUrl: "https://app.test/r",
       cancelUrl: "https://app.test/c",
-      intro: { sequence: 2, priceCents: 8940, currency: "eur" },
+      prices: [{ sequence: 2, totalCycles: 0, priceCents: 8900, currency: "eur" }],
     });
     const body = JSON.parse(paypal.request.mock.calls[0][1].body);
     expect(body.plan).toEqual({
-      billing_cycles: [{ sequence: 2, total_cycles: 1, pricing_scheme: { fixed_price: { value: "89.40", currency_code: "EUR" } } }],
+      billing_cycles: [{ sequence: 2, total_cycles: 0, pricing_scheme: { fixed_price: { value: "89.00", currency_code: "EUR" } } }],
     });
   });
 

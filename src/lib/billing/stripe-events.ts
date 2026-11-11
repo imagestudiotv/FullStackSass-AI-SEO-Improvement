@@ -311,7 +311,7 @@ async function processBillingEvent(event: Stripe.Event): Promise<void> {
         the event was created, and a delayed "updated" carrying an old active
         snapshot after a "deleted" used to bring a cancelled plan back.
       */
-      // A plan changed during a free period: its REPGET coupon follows it (lib/billing/repget-subscription.ts).
+      // A plan changed at any time: its REPGET launch-price coupon follows it (lib/billing/repget-subscription.ts).
       if (event.type === "customer.subscription.updated") await matchOfferToPlan(event.data.object);
       await syncStripeSubscription(event.data.object.id);
       return;
@@ -328,8 +328,17 @@ async function processBillingEvent(event: Stripe.Event): Promise<void> {
         return;
       }
 
+      /*
+        A launch-price subscription charged without its discount: the plan
+        changed where the coupon did not follow. Corrected for the payments to
+        come, and staff told of one already paid. Only then is Stripe asked,
+        not on every renewal.
+      */
       const offerMetadata = invoice.parent?.subscription_details?.metadata;
-      if (offerMetadata?.[OFFER_KEY]) await matchOfferToPlan({ id: subscriptionId, metadata: offerMetadata });
+      const undiscounted = invoice.subtotal > 0 && !(invoice.total_discount_amounts ?? []).some((row) => row.amount > 0);
+      if (offerMetadata?.[OFFER_KEY] && undiscounted) {
+        await matchOfferToPlan({ id: subscriptionId, metadata: offerMetadata }, event.type === "invoice.paid" ? invoice.id : undefined);
+      }
 
       const synced = await syncStripeSubscription(subscriptionId);
       const orgId = synced.organizationId;

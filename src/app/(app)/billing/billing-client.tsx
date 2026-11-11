@@ -826,7 +826,7 @@ function PlansSection({
   options: ReturnType<typeof paymentOptions>;
   /** Why one processor's buttons are missing, already worded; null when nothing is. */
   processorNote: string | null;
-  /** The REPGET notice (applied automatically), while the offer is on and the account has not used it. */
+  /** The REPGET notice (applied automatically, on every payment), while the offer is on. */
   offerField?: ReactNode;
   actions?: ReactNode;
   children: ReactNode;

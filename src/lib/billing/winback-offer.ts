@@ -19,10 +19,11 @@ import type { OfferPlan } from "./repget-offer";
  * APPLIED AUTOMATICALLY, like REPGET: an account whose owner was SENT the
  * email gets it at checkout, server-chosen, one use per account
  * (lib/billing/checkouts.ts automaticOffer). Never stacked: a checkout
- * carrying it has no promotion-code box (no partner code), and an account
- * still eligible for REPGET gets REPGET - the bigger discount - instead, the
- * 20% not applied - but the 100 credits still follow that restart, as the
- * email promised (lib/billing/winback.ts), and the offer is then used.
+ * carrying it has no promotion-code box (no partner code), and while the
+ * REPGET launch price is on, a plan it covers gets REPGET - the bigger
+ * discount, on every payment - instead, the 20% not applied - but the 100
+ * credits still follow that restart, as the email promised
+ * (lib/billing/winback.ts), and the offer is then used.
  *
  *  - Stripe: one percent coupon, WINBACK20, 20% off once, limited to the
  *    Launch, Grow and Scale products (scripts/stripe-setup.mjs makes it).
