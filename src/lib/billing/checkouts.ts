@@ -631,6 +631,13 @@ export async function beginCheckout(
     planId: string;
     /** The offer this checkout carries (lib/billing/repget-offer.ts). An open one without it is not the same checkout. */
     offer?: string | null;
+    /**
+     * The Stripe price this checkout would be made at. An open one made at
+     * another price is not the same checkout: it shows the old terms (2026-11-12,
+     * the bundle's EUR 99 page still offered after its price became EUR 299 +
+     * REPGET), so it is closed and a new one made.
+     */
+    price?: string | null;
   },
   ops: CheckoutProviderOps,
   now: Date = new Date(),
@@ -640,6 +647,7 @@ export async function beginCheckout(
     c.provider === input.provider &&
     c.planId === input.planId &&
     ((c.requestParams as { offer?: string } | null)?.offer ?? null) === (input.offer ?? null) &&
+    (input.price === undefined || ((c.requestParams as { price?: string } | null)?.price ?? null) === input.price) &&
     Boolean(c.checkoutUrl);
 
   /*

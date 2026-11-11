@@ -167,7 +167,7 @@ export async function createCheckoutSession(
   try {
     begun = await beginCheckout(
       db,
-      { organizationId: orgId, websiteId, provider: "stripe", planId: plan.id, offer: autoOffer?.code ?? null },
+      { organizationId: orgId, websiteId, provider: "stripe", planId: plan.id, offer: autoOffer?.code ?? null, price: plan.stripePriceId },
       checkoutProviderOps,
     );
   } catch (error) {
