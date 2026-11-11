@@ -89,12 +89,15 @@ export function BlogPostView({
   versions,
   related,
   sponsorship,
+  engagement,
 }: {
   post: BlogPost;
   versions: PostVersion[];
   related: BlogPost[];
   /** "Get Featured in This Article", in the post's language (components/blog-sponsorship.tsx). */
   sponsorship?: ReactNode;
+  /** Comments and upvote (components/blog-engagement), after the FAQ and before the related posts. */
+  engagement?: ReactNode;
 }) {
   const locale: Locale = post.locale ?? DEFAULT_LOCALE;
   const t = BLOG_CHROME[locale];
@@ -212,6 +215,8 @@ export function BlogPostView({
         ) : null}
 
         <BlogArticle post={post} sponsorship={sponsorship} />
+
+        {engagement}
 
         {related.length > 0 ? (
           <nav className="mt-12 rounded-xl border bg-card p-5" aria-label={t.keepReading}>

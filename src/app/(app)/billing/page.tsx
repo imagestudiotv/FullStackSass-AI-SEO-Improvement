@@ -18,12 +18,11 @@ import {
   listWebsiteSubscriptions,
   type PaymentRow,
 } from "@/lib/billing";
-import { hasUnfinishedPayPalApproval } from "@/lib/billing/checkouts";
+import { hasUnfinishedPayPalApproval, planScreenOffer } from "@/lib/billing/checkouts";
 import { db } from "@/lib/db";
 import { billingCustomers, websites } from "@/lib/db/schema";
-import { repgetOfferEnabled } from "@/lib/billing/repget-offer";
 import { getAppMessages } from "@/lib/i18n/app-locale";
-import { OFFER_CODE } from "@/lib/i18n/offer-code";
+import { OFFER_CODE, WINBACK_OFFER_CODE } from "@/lib/i18n/offer-code";
 import { PAYPAL_PENDING_COPY } from "@/lib/i18n/paypal-pending";
 import { PAYPAL_PLAN_CHANGE_COPY } from "@/lib/i18n/paypal-plan-change";
 import { planChangeNoticeForWebsite } from "@/lib/paypal/plan-changes";
@@ -198,6 +197,8 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
     paymentRows,
     paymentOptions(current, paypalAvailable).manageInStripe,
   );
+  // The discount checkout applies by itself, said on screen: REPGET, else the win-back offer (lib/billing/winback-offer.ts).
+  const screenOffer = await planScreenOffer(db, orgId);
 
   return (
     /*
@@ -222,7 +223,7 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
         subscription={current}
         entitled={isEntitled(current?.status)}
         paypalAvailable={paypalAvailable}
-        offerCopy={repgetOfferEnabled() ? OFFER_CODE[locale] : null}
+        offerCopy={screenOffer === "repget" ? OFFER_CODE[locale] : screenOffer === "winback" ? WINBACK_OFFER_CODE[locale] : null}
         paypalIntervalNote={PAYPAL_PLAN_CHANGE_COPY[locale].intervalSwitch}
         checkout={checkout}
         addonResult={addonResult}

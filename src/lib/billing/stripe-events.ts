@@ -4,6 +4,7 @@ import type Stripe from "stripe";
 import { addonPaymentFailed, fulfilAddonPurchase } from "@/lib/addons/fulfil";
 import { cancellationOps } from "@/lib/billing/checkout-providers";
 import { matchOfferToPlan, OFFER_KEY } from "@/lib/billing/repget-subscription";
+import { grantWinbackBonus } from "@/lib/billing/winback";
 import {
   syncProviderSubscription,
   type SubscriptionSnapshot,
@@ -310,7 +311,7 @@ async function processBillingEvent(event: Stripe.Event): Promise<void> {
         the event was created, and a delayed "updated" carrying an old active
         snapshot after a "deleted" used to bring a cancelled plan back.
       */
-      // A plan changed during a free period: its REPGET coupon follows it (lib/billing/repget-subscription.ts).
+      // A plan changed at any time: its REPGET launch-price coupon follows it (lib/billing/repget-subscription.ts).
       if (event.type === "customer.subscription.updated") await matchOfferToPlan(event.data.object);
       await syncStripeSubscription(event.data.object.id);
       return;
@@ -327,8 +328,17 @@ async function processBillingEvent(event: Stripe.Event): Promise<void> {
         return;
       }
 
+      /*
+        A launch-price subscription charged without its discount: the plan
+        changed where the coupon did not follow. Corrected for the payments to
+        come, and staff told of one already paid. Only then is Stripe asked,
+        not on every renewal.
+      */
       const offerMetadata = invoice.parent?.subscription_details?.metadata;
-      if (offerMetadata?.[OFFER_KEY]) await matchOfferToPlan({ id: subscriptionId, metadata: offerMetadata });
+      const undiscounted = invoice.subtotal > 0 && !(invoice.total_discount_amounts ?? []).some((row) => row.amount > 0);
+      if (offerMetadata?.[OFFER_KEY] && undiscounted) {
+        await matchOfferToPlan({ id: subscriptionId, metadata: offerMetadata }, event.type === "invoice.paid" ? invoice.id : undefined);
+      }
 
       const synced = await syncStripeSubscription(subscriptionId);
       const orgId = synced.organizationId;
@@ -388,6 +398,13 @@ async function processBillingEvent(event: Stripe.Event): Promise<void> {
        */
       if (event.type === "invoice.paid") {
         await convertReferral(orgId, invoice.amount_paid ?? 0);
+        /*
+          The win-back offer's credits (lib/billing/winback.ts): the first
+          payment for money of a plan restarted with the win-back discount.
+          Keyed by the person, so a retried or concurrent delivery adds them
+          once; thrown on failure, so the event is retried.
+        */
+        await grantWinbackBonus({ provider: "stripe", providerSubscriptionId: subscriptionId, amountCents: invoice.amount_paid ?? 0 });
         /*
           The subscription's first payment for money goes to Google Analytics
           as a purchase (lib/conversions/conversions.ts): once, only for a

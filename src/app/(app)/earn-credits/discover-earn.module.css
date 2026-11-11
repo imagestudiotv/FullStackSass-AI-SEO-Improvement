@@ -1,0 +1,806 @@
+/*
+  Discover & earn (client design, repget-earn-credits-multiple-businesses.html,
+  2026-11-11): the design's sizes, colours and breakpoints. Its colours are the
+  light theme's tokens below; the night theme maps them to the app's.
+
+  Darkened from the design for WCAG AA (4.5:1 on their backgrounds): the
+  mission banner's orange (#d64c08 -> #b13f06), the mission note (#81838a ->
+  #6b6e75), the AI note (#6c727d -> #666c77) and the queue's small grey text
+  (#8a9098 / #848a94 / #8a8e97 -> #6b717a). Orange TEXT uses the app's primary,
+  which passes; the design's #e64f04 stays on fills, borders and the bars.
+*/
+
+.card {
+  --d-card: #fff;
+  --d-border: #dedfdf;
+  --d-ink: #22262d;
+  --d-text: #6d7380;
+  --d-soft: #6b717a;
+  --d-line: #ecebea;
+  --d-orange: #e64f04;
+  --d-chip-border: #e9e8e7;
+  --d-chip-text: #6b7180;
+  --d-skip: #3d434c;
+  --d-green: #138157;
+  --d-note-bg: #f6f6f6;
+  --d-note-text: #666c77;
+  --d-note-icon: #838c9b;
+  --d-mission-bg: #fffcfa;
+  --d-mission-border: #f1dbd0;
+  --d-banner-bg: #fff0e8;
+  --d-banner-text: #b13f06;
+  --d-task-b: #636a78;
+  --d-track: #e7e7e8;
+  --d-mission-note: #6b6e75;
+  --d-complete: #10845c;
+  --d-queue-bg: linear-gradient(180deg, #fefefe, #fcfcfb);
+  --d-tile-bg: #fff;
+  --d-tile-border: #e4e4e2;
+  --d-tile-hover-border: #ffc4aa;
+  --d-tile-hover-bg: #fffdfb;
+  --d-tile-active-bg: #fff7f2;
+  --d-tile-active-border: #ed702e;
+  --d-tile-img: #f0eeeb;
+  --d-photo-bg: #e5e0d9;
+  --d-fallback: linear-gradient(130deg, #f7f0eb, #e8e9eb);
+  --d-next-border: #f3b8a1;
+  --d-next-hover: #fff5f0;
+
+  overflow: hidden;
+  background: var(--d-card);
+  border: 1px solid var(--d-border);
+  border-radius: 11px;
+  box-shadow: 0 4px 18px rgba(25, 31, 37, 0.025);
+  color: var(--d-ink);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+:global(.dark) .card {
+  --d-card: var(--card);
+  --d-border: var(--border);
+  --d-ink: var(--foreground);
+  --d-text: var(--muted-foreground);
+  --d-soft: var(--muted-foreground);
+  --d-line: var(--border);
+  --d-chip-border: var(--border);
+  --d-chip-text: var(--muted-foreground);
+  --d-skip: var(--foreground);
+  --d-green: #6ee7b7;
+  --d-note-bg: var(--muted);
+  --d-note-text: var(--muted-foreground);
+  --d-note-icon: var(--muted-foreground);
+  --d-mission-bg: #2c211b;
+  --d-mission-border: #4a2d1c;
+  --d-banner-bg: #3d2416;
+  --d-banner-text: #ffb38a;
+  --d-task-b: var(--muted-foreground);
+  --d-track: var(--muted);
+  --d-mission-note: var(--muted-foreground);
+  --d-complete: #6ee7b7;
+  --d-queue-bg: var(--card);
+  --d-tile-bg: var(--card);
+  --d-tile-border: var(--border);
+  --d-tile-hover-border: #8a4a26;
+  --d-tile-hover-bg: #34261f;
+  --d-tile-active-bg: #3d2416;
+  --d-tile-img: var(--muted);
+  --d-photo-bg: var(--muted);
+  --d-fallback: linear-gradient(130deg, #3a2a22, #2f3440);
+  --d-next-border: #8a4a26;
+  --d-next-hover: #34261f;
+}
+
+.overline {
+  font-size: 10px;
+  letter-spacing: 0.125em;
+  color: var(--primary);
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+/* The three parts: photo, body, mission. */
+.discover {
+  display: grid;
+  grid-template-columns: minmax(255px, 0.98fr) minmax(300px, 1.05fr) minmax(310px, 1fr);
+  align-items: stretch;
+  gap: 24px;
+  padding: 18px 19px;
+  min-height: 237px;
+}
+
+.photo {
+  position: relative;
+  min-width: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--d-photo-bg);
+  height: 208px;
+  min-height: 208px;
+}
+
+.photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition:
+    opacity 0.16s ease,
+    transform 0.22s ease;
+}
+
+.switching img {
+  opacity: 0.4;
+  transform: scale(1.025);
+}
+
+.photo::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.36) 0%, transparent 37%, transparent 47%, rgba(0, 0, 0, 0.72) 100%);
+  pointer-events: none;
+}
+
+/* No featured image: a neutral ground with the business's logo or initial. */
+.fallback {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: var(--d-fallback);
+}
+
+.fallback img {
+  width: 38%;
+  height: auto;
+  max-height: 46%;
+  object-fit: contain;
+}
+
+.fallback span {
+  font-size: 64px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: rgba(34, 38, 45, 0.28);
+}
+
+:global(.dark) .fallback span {
+  color: rgba(255, 255, 255, 0.28);
+}
+
+.photoTop,
+.photoBottom {
+  position: absolute;
+  left: 11px;
+  right: 11px;
+  z-index: 2;
+  color: #fff;
+}
+
+.photoTop {
+  top: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 9px;
+}
+
+.photoTop span {
+  display: inline-flex;
+  background: rgba(0, 0, 0, 0.52);
+  padding: 5px 9px;
+  border-radius: 5px;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  font-weight: 800;
+}
+
+.photoTop a {
+  color: #fff;
+  text-decoration: none;
+  background: rgba(0, 0, 0, 0.54);
+  padding: 5px 8px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 720;
+}
+
+.photoTop a:hover {
+  background: rgba(0, 0, 0, 0.8);
+}
+
+.photoBottom {
+  bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+.photoBottom strong {
+  font-size: 19px;
+  line-height: 1.15;
+  letter-spacing: -0.035em;
+}
+
+.photoBottom span {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.93);
+  line-height: 1.3;
+}
+
+.body {
+  padding: 1px 0;
+  align-self: center;
+  min-width: 0;
+}
+
+.body h2 {
+  font-size: 18px;
+  line-height: 1.25;
+  letter-spacing: -0.037em;
+  margin: 6px 0 7px;
+  font-weight: 780;
+}
+
+.body p {
+  font-size: 12px;
+  color: var(--d-text);
+  line-height: 1.55;
+  margin: 0 0 8px;
+}
+
+.category {
+  display: inline-block;
+  border: 1px solid var(--d-chip-border);
+  border-radius: 5px;
+  padding: 4px 7px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--d-chip-text);
+  background: var(--d-card);
+  margin: -2px 0 10px;
+}
+
+.buttons {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.buttons > * {
+  flex: 1;
+  min-width: 130px;
+  height: auto;
+  padding: 11px 10px;
+  font-size: 12px;
+  font-weight: 720;
+  line-height: 1.1;
+}
+
+.links {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 27px;
+}
+
+.skip {
+  padding: 9px 1px 4px;
+  border: none;
+  background: none;
+  color: var(--d-skip);
+  font-size: 11px;
+  font-weight: 780;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.skip:hover {
+  color: var(--primary);
+}
+
+.feedback {
+  color: var(--d-green);
+  font-size: 10px;
+  white-space: nowrap;
+  font-weight: 750;
+}
+
+.feedback:empty {
+  display: none;
+}
+
+.aiNote {
+  background: var(--d-note-bg);
+  color: var(--d-note-text);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border-radius: 7px;
+  padding: 8px 10px;
+  margin-top: 5px;
+  font-size: 10.5px;
+}
+
+.aiNote svg {
+  color: var(--d-note-icon);
+  width: 15px;
+  height: 15px;
+  flex: none;
+}
+
+/* The goal. */
+.mission {
+  align-self: center;
+  padding: 13px 14px;
+  border: 1px solid var(--d-mission-border);
+  background: var(--d-mission-bg);
+  border-radius: 9px;
+}
+
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--d-banner-bg);
+  border-radius: 6px;
+  padding: 9px 10px;
+  color: var(--d-banner-text);
+  font-size: 12px;
+  font-weight: 790;
+  line-height: 1.4;
+  margin-bottom: 14px;
+}
+
+.banner svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+
+.taskRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 720;
+  margin: 10px 0 7px;
+}
+
+.taskRow + .track + .taskRow {
+  margin-top: 17px;
+}
+
+.taskRow span {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+}
+
+.taskRow svg {
+  color: var(--d-orange);
+  width: 15px;
+  height: 15px;
+  flex: none;
+}
+
+.taskRow b {
+  color: var(--d-task-b);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.track {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 100px;
+  background: var(--d-track);
+}
+
+.fill {
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, #e95808, #f18d4f);
+  transition: width 0.2s;
+}
+
+.note {
+  font-size: 10px;
+  color: var(--d-mission-note);
+  margin: 12px 0 0;
+}
+
+.complete {
+  color: var(--d-complete);
+}
+
+.claim {
+  margin-top: 14px;
+  width: 100%;
+}
+
+/* The queue. */
+.queue {
+  border-top: 1px solid var(--d-line);
+  padding: 12px 19px 15px;
+  background: var(--d-queue-bg);
+}
+
+.queueTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.caption {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.caption strong {
+  font-size: 12px;
+  letter-spacing: -0.015em;
+}
+
+.caption span {
+  font-size: 10px;
+  color: var(--d-soft);
+}
+
+.nav {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.nav > span {
+  font-size: 10px;
+  color: var(--d-soft);
+  font-weight: 750;
+  min-width: 40px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.arrow,
+.next {
+  border: 1px solid var(--d-border);
+  background: var(--d-card);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: 0.16s ease;
+}
+
+.arrow {
+  width: 29px;
+  height: 29px;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--d-ink);
+}
+
+.arrow:hover:not(:disabled) {
+  border-color: var(--d-orange);
+  color: var(--primary);
+}
+
+.next {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  font-size: 11px;
+  font-weight: 720;
+  line-height: 1.1;
+  white-space: nowrap;
+  color: var(--primary);
+  border-color: var(--d-next-border);
+}
+
+.next:hover {
+  background: var(--d-next-hover);
+}
+
+.arrow:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.arrow:focus-visible,
+.next:focus-visible,
+.skip:focus-visible,
+.tile:focus-visible,
+.photoTop a:focus-visible {
+  outline: 3px solid #f9bc97;
+  outline-offset: 2px;
+}
+
+/* Six tiles across, as in the design; more scroll sideways. */
+.rail {
+  position: relative;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: calc((100% - 5 * 9px) / 6);
+  gap: 9px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  /* Room for the active tile's ring and bar inside the scrolling box. */
+  padding: 2px 1px 4px;
+}
+
+.tile {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  text-align: left;
+  background: var(--d-tile-bg);
+  padding: 7px;
+  border: 1px solid var(--d-tile-border);
+  border-radius: 8px;
+  transition:
+    border-color 0.15s,
+    background 0.15s,
+    box-shadow 0.15s;
+  cursor: pointer;
+  position: relative;
+  color: var(--d-ink);
+}
+
+.tile:hover {
+  border-color: var(--d-tile-hover-border);
+  background: var(--d-tile-hover-bg);
+}
+
+.active,
+.active:hover {
+  background: var(--d-tile-active-bg);
+  border-color: var(--d-tile-active-border);
+  box-shadow: 0 0 0 1px #ed702e30;
+}
+
+.active::before {
+  content: "";
+  position: absolute;
+  left: 7px;
+  right: 7px;
+  top: -1px;
+  height: 2px;
+  background: var(--d-orange);
+  border-radius: 4px;
+}
+
+.thumb {
+  position: relative;
+  width: 46px;
+  height: 45px;
+  flex: none;
+  overflow: hidden;
+  border-radius: 5px;
+  background: var(--d-tile-img);
+}
+
+.thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.thumb .fallback span {
+  font-size: 18px;
+}
+
+.thumb .fallback img {
+  width: 70%;
+  max-height: 70%;
+}
+
+.tileInfo {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tileInfo strong {
+  font-size: 10.5px;
+  line-height: 1.22;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tileInfo small {
+  font-size: 9px;
+  line-height: 1.2;
+  color: var(--d-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tileInfo em {
+  font-size: 9px;
+  font-style: normal;
+  color: var(--d-green);
+  font-weight: 720;
+  min-height: 11px;
+}
+
+.tileInfo em:empty {
+  display: none;
+}
+
+@media (max-width: 1160px) {
+  .rail {
+    grid-auto-columns: 175px;
+  }
+
+  .caption span {
+    display: none;
+  }
+}
+
+@media (max-width: 1040px) {
+  .discover {
+    grid-template-columns: minmax(230px, 1fr) minmax(250px, 1.15fr);
+    gap: 16px;
+  }
+
+  .mission {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 1.6fr 1fr 1fr;
+    gap: 16px;
+    align-items: center;
+  }
+
+  .banner {
+    margin: 0;
+  }
+
+  .note {
+    grid-column: 1 / -1;
+    margin: 0;
+  }
+
+  .claim {
+    grid-column: 1 / -1;
+    margin: 0;
+  }
+}
+
+@media (max-width: 990px) {
+  .discover {
+    grid-template-columns: minmax(220px, 0.82fr) minmax(260px, 1fr);
+    gap: 15px;
+  }
+
+  .mission {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .photo {
+    min-height: 198px;
+    height: 198px;
+  }
+}
+
+@media (max-width: 760px) {
+  .discover {
+    padding: 14px;
+  }
+
+  .body {
+    padding: 1px 4px;
+  }
+
+  .mission {
+    display: block;
+    padding: 14px;
+  }
+
+  .banner {
+    margin-bottom: 15px;
+  }
+
+  .note {
+    margin-top: 12px;
+  }
+
+  .claim {
+    margin-top: 14px;
+  }
+}
+
+@media (max-width: 620px) {
+  .discover {
+    display: flex;
+    flex-direction: column;
+    padding: 12px;
+    gap: 13px;
+  }
+
+  .photo {
+    min-height: 190px;
+    height: 190px;
+  }
+
+  .body {
+    align-self: stretch;
+  }
+
+  .mission {
+    padding: 11px 12px;
+  }
+
+  .queue {
+    padding: 12px;
+  }
+
+  .queueTop {
+    align-items: flex-start;
+  }
+
+  .caption {
+    display: block;
+  }
+
+  .caption strong {
+    display: block;
+  }
+
+  .nav {
+    flex-shrink: 0;
+  }
+
+  .next {
+    font-size: 10px;
+  }
+
+  .rail {
+    grid-auto-columns: 156px;
+    gap: 7px;
+  }
+
+  .thumb {
+    width: 42px;
+    height: 42px;
+  }
+
+  .photoBottom strong {
+    font-size: 18px;
+  }
+}
+
+@media (max-width: 450px) {
+  .buttons > * {
+    min-width: 120px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .photo img,
+  .fill,
+  .tile {
+    transition: none;
+  }
+
+  .switching img {
+    transform: none;
+  }
+}

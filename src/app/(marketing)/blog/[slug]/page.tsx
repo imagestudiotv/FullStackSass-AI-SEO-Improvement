@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { blogEngagementFor } from "@/components/blog-engagement/blog-engagement-section";
 import { BlogSponsorship } from "@/components/blog-sponsorship";
 import { getPost, postVersions, relatedPosts } from "@/lib/blog/posts";
 import { sponsorshipConfigured } from "@/lib/blog/sponsorship";
@@ -41,13 +42,14 @@ export default async function BlogPostPage({
   // dead URL in the index indefinitely.
   if (!post) notFound();
 
-  const [related, versions] = await Promise.all([relatedPosts(post), postVersions(slug, "en")]);
+  const [related, versions, engagement] = await Promise.all([relatedPosts(post), postVersions(slug, "en"), blogEngagementFor(post)]);
 
   return (
     <BlogPostView
       post={post}
       versions={versions}
       related={related}
+      engagement={engagement}
       sponsorship={
         <BlogSponsorship
           slug={post.slug}

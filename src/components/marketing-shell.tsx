@@ -11,8 +11,10 @@ import { BrandHomeLink } from "@/components/brand-home-link";
 import { ConsentBanner } from "@/components/consent-banner";
 import { LiveChat } from "@/components/live-chat";
 import { PreviousPageTracker } from "@/components/previous-page";
+import { PromoBanner } from "@/components/promo-banner";
 import { RenderAllOnJump } from "@/components/render-all-on-jump";
 import { siteChrome } from "@/lib/i18n/site-chrome";
+import type { LiveBanner } from "@/lib/promo-banner/banner";
 
 import footer from "./site-footer.module.css";
 
@@ -25,8 +27,12 @@ import footer from "./site-footer.module.css";
  * The frame itself is MarketingFrame, which sets lang to the address's
  * language (/es -> "es"), because the root layout's <html lang="en"> is
  * shared by every page and cannot be told it (see marketing-nav.tsx).
+ *
+ * `banner` is the administrators' offer bar above the header
+ * (components/promo-banner.tsx), read by the (marketing) layout; the 404 for
+ * addresses that match no route goes without it.
  */
-export function MarketingShell({ children }: { children: React.ReactNode }) {
+export function MarketingShell({ children, banner = null }: { children: React.ReactNode; banner?: LiveBanner | null }) {
   // The header and footer words, picked out here so the browser never loads
   // the whole dictionary (lib/i18n/site-chrome.ts).
   const chrome = siteChrome();
@@ -45,6 +51,8 @@ export function MarketingShell({ children }: { children: React.ReactNode }) {
         top. Its menus and the phone drawer hang from it; see marketing-nav.
         z-index 50 sits above page content but below dialogs.
       */}
+      {/* Above the header; it scrolls away with the page while the header stays sticky. */}
+      <PromoBanner banner={banner} />
       <MarketingNav chrome={chrome} />
 
       <main className="flex-1">{children}</main>

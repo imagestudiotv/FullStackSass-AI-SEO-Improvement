@@ -1,6 +1,7 @@
 import { Check } from "lucide-react";
 import Link from "next/link";
 
+import { GuestCopilot } from "@/components/guest-copilot/guest-copilot";
 import { localePath, type Locale } from "@/lib/i18n/config";
 import { TOOLS_COMMON } from "@/lib/tools/i18n/common";
 import { TOOL_CATEGORIES, toolsByCategory } from "@/lib/tools/registry";
@@ -28,6 +29,9 @@ export function ToolsHub({ locale }: { locale: Locale }) {
           <p className="mx-auto mt-4 max-w-xl text-pretty text-muted-foreground">{t.hub.intro}</p>
         </div>
       </div>
+
+      {/* The guest Growth Copilot (client, 2026-11-11): three free questions, then its own tool page. */}
+      <GuestCopilot locale={locale} id="growth-copilot" />
 
       <div className="mx-auto max-w-5xl space-y-12 px-4 py-16">
         {TOOL_CATEGORIES.map((category) => (

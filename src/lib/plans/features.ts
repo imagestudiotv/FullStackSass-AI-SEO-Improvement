@@ -91,6 +91,26 @@ export function signUpForPlan(tier: string): string {
 }
 
 /**
+ * The Grow + Visibility bundle (client, 2026-11-11, the pricing page's first
+ * banner): the Grow plan's allowances plus visibility perks the team delivers
+ * by hand (a blog feature, social channels, an email spotlight), EUR 99 a
+ * month. A DIRECT PURCHASE: no free trial, no free articles, no REPGET - the
+ * first payment is taken at checkout (lib/billing/checkouts.ts beginCheckout).
+ * Its row is scripts/plan-catalog.mjs BUNDLES.
+ */
+export const GROW_VISIBILITY_TIER = "grow_visibility";
+
+/** The bundle's value as the client's page strikes it through ("EUR 299"), beside the price checkout charges. */
+export const GROW_VISIBILITY_COMPARE_AT_CENTS = 29900;
+
+/** Tiers bought outright: no trial, kept out of the standard plan grids and the upgrade ladder. */
+export const DIRECT_PURCHASE_TIERS: readonly string[] = [GROW_VISIBILITY_TIER];
+
+export function isDirectPurchaseTier(tier: string | null | undefined): boolean {
+  return Boolean(tier) && DIRECT_PURCHASE_TIERS.includes(tier as string);
+}
+
+/**
  * ONE website per subscription, on every plan.
  *
  * The client's instruction: "We insert 3, and 10. But for both plans we allow

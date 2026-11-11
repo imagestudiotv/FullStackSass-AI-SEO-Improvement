@@ -179,6 +179,38 @@ export function parseCustomId(value: string | null | undefined): {
 }
 
 /**
+ * A price PayPal's per-subscription plan override sets on ONE billing cycle of
+ * the subscription's plan (scripts/paypal-plans.mjs gives each plan's cycle
+ * sequences). The plan itself keeps its price for everyone else.
+ */
+export type CyclePrice = {
+  sequence: number;
+  /** As the plan has it: 1 for an intro cycle, 0 for the regular cycle (billed until cancelled). */
+  totalCycles: number;
+  priceCents: number;
+  currency: string;
+};
+
+/** The `plan` override PayPal takes on a create or a revise; none when no cycle is repriced. */
+function planOverride(prices: CyclePrice[] | undefined) {
+  if (!prices || prices.length === 0) return {};
+  return {
+    plan: {
+      billing_cycles: prices.map((price) => ({
+        sequence: price.sequence,
+        total_cycles: price.totalCycles,
+        pricing_scheme: {
+          fixed_price: {
+            value: (price.priceCents / 100).toFixed(2),
+            currency_code: price.currency.toUpperCase(),
+          },
+        },
+      })),
+    },
+  };
+}
+
+/**
  * Starts a subscription and returns the approval URL.
  *
  * Nothing is charged here. The customer approves on PayPal, and the
@@ -195,11 +227,12 @@ export async function createSubscription(input: {
   returnUrl: string;
   cancelUrl: string;
   /**
-   * The REPGET offer (review P5): the price of the offer plan's ONE intro
-   * cycle on this subscription only - the regular price less the fixed
-   * first-month discount. The cycle is the plan's intro, after any free days.
+   * Cycles priced differently on this subscription only (lib/paypal/actions.ts):
+   * the REPGET launch price on the plan's regular cycle, so on every payment
+   * (2026-11-11), or the win-back discount on an offer plan's ONE intro cycle.
+   * Any free days before them stay free.
    */
-  intro?: { sequence: number; priceCents: number; currency: string };
+  prices?: CyclePrice[];
 }): Promise<CreatedSubscription> {
   const subscription = await payPalRequest<PayPalSubscription>(
     "/v1/billing/subscriptions",
@@ -225,28 +258,11 @@ export async function createSubscription(input: {
          */
         custom_id: `${input.organizationId}:${input.websiteId}:${input.checkoutId}`,
         /*
-          PayPal's per-subscription plan override: only the intro cycle's
-          price, so the plan (priced like the regular cycle) never sells at a
-          discount to anyone else, and every renewal is the regular price.
+          PayPal's per-subscription plan override: only the cycles named, on
+          this subscription, so the plan itself never sells at a discount to
+          anyone else.
         */
-        ...(input.intro
-          ? {
-              plan: {
-                billing_cycles: [
-                  {
-                    sequence: input.intro.sequence,
-                    total_cycles: 1,
-                    pricing_scheme: {
-                      fixed_price: {
-                        value: (input.intro.priceCents / 100).toFixed(2),
-                        currency_code: input.intro.currency.toUpperCase(),
-                      },
-                    },
-                  },
-                ],
-              },
-            }
-          : {}),
+        ...planOverride(input.prices),
         application_context: {
           brand_name: "RepGet",
           user_action: "SUBSCRIBE_NOW",
@@ -302,6 +318,12 @@ export async function reviseSubscription(input: {
   cancelUrl: string;
   /** Per plan change (paypal_plan_changes): a later change back to the same plan is a new request. */
   idempotencyKey?: string;
+  /**
+   * The REPGET launch price on the new plan's regular cycle
+   * (lib/paypal/plan-changes.ts). PayPal does not carry a subscription's
+   * override over to the revised plan, so it is set again here or lost.
+   */
+  prices?: CyclePrice[];
 }): Promise<{ approveUrl: string | null }> {
   const revised = await payPalRequest<{ links?: { href: string; rel: string }[] }>(
     `/v1/billing/subscriptions/${encodeURIComponent(input.subscriptionId)}/revise`,
@@ -310,6 +332,7 @@ export async function reviseSubscription(input: {
       idempotencyKey: input.idempotencyKey ?? `revise:${input.subscriptionId}:${input.planId}`,
       body: JSON.stringify({
         plan_id: input.planId,
+        ...planOverride(input.prices),
         application_context: {
           return_url: input.returnUrl,
           cancel_url: input.cancelUrl,
@@ -347,9 +370,9 @@ export function inFreeDays(live: PayPalSubscription, now: Date = new Date()): bo
   const next = info?.next_billing_time ? Date.parse(info.next_billing_time) : Number.NaN;
   if (!Number.isFinite(next) || next <= now.getTime()) return false;
   /*
-    Every PAID cycle - the regular one, and on a REPGET offer plan the paid
-    intro cycle after the free days (review P5) - has not run yet. The free
-    cycle is always sequence 1.
+    Every PAID cycle - the regular one, and on an offer plan the paid intro
+    cycle after the free days (review P5; the win-back discount) - has not
+    run yet. The free cycle is always sequence 1.
   */
   const paid = info?.cycle_executions?.filter((cycle) => cycle.tenure_type === "REGULAR" || (cycle.sequence ?? 1) > 1) ?? [];
   if (paid.length > 0) return paid.every((cycle) => (cycle.cycles_completed ?? 0) === 0);

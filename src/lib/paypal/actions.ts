@@ -7,6 +7,7 @@ import { requireSession } from "@/lib/auth-guard";
 import { isEntitled } from "@/lib/billing-shared";
 import { checkoutProviderOps } from "@/lib/billing/checkout-providers";
 import {
+  automaticOffer,
   beginCheckout,
   isTrialEligible,
   markCheckoutFailed,
@@ -15,12 +16,12 @@ import {
   settlePayPalReturn,
 } from "@/lib/billing/checkouts";
 import { syncPayPalSubscription } from "@/lib/billing/paypal-events";
-import { readOfferCode, repgetDiscountCents, REPGET_CODE } from "@/lib/billing/repget-offer";
+import { REPGET_CODE } from "@/lib/billing/repget-offer";
 import { rememberPayer } from "@/lib/conversions/conversions";
 import { db } from "@/lib/db";
 import { plans, subscriptions, websites } from "@/lib/db/schema";
 import { isPayPalConfigured, PayPalError, payPalCheckoutPaused } from "@/lib/paypal/client";
-import { CONFIRM_EMAIL_FIRST } from "@/lib/plans/features";
+import { CONFIRM_EMAIL_FIRST, isDirectPurchaseTier } from "@/lib/plans/features";
 import { startPlanChange } from "@/lib/paypal/plan-changes";
 import { cancelSubscription, createSubscription } from "@/lib/paypal/subscriptions";
 import { requireOrg } from "@/lib/tenant";
@@ -127,8 +128,6 @@ export async function createPayPalCheckout(
   websiteId: string,
   /** Where the customer started, so approving returns them there. */
   origin: CheckoutOrigin = "billing",
-  /** What the customer typed in the REPGET field (lib/billing/repget-offer.ts), if anything. */
-  offerCode?: string | null,
 ): Promise<PayPalResult> {
   const { orgId } = await requireOrg();
 
@@ -191,7 +190,7 @@ export async function createPayPalCheckout(
     its email is confirmed. Only where PayPal can give them - a plan without
     its free-articles PayPal plan charges at once, and needs nothing.
   */
-  if (plan.paypalTrialPlanId) {
+  if (plan.paypalTrialPlanId && !isDirectPurchaseTier(plan.tier)) {
     const session = await requireSession();
     if (session.user.emailVerified !== true && (await isTrialEligible(db, orgId))) {
       return { error: CONFIRM_EMAIL_FIRST };
@@ -199,19 +198,24 @@ export async function createPayPalCheckout(
   }
 
   /*
-    REPGET through PayPal (review P5): the same fixed first-month discount as
-    by card, on the plan's REPGET offer plan - its one intro cycle priced
-    lower on THIS subscription only, after any free days; renewals at the
-    regular price. One use per account, decided by beginCheckout as for card.
-    A plan whose offer plans are not made yet (scripts/paypal-setup.mjs)
-    takes the code by card only.
+    REPGET through PayPal: the launch price (2026-11-11), the same as by card,
+    on EVERY payment. The plan's own PayPal plan, its regular cycle priced at
+    the launch price on THIS subscription only (PayPal's per-subscription
+    override), after any free days - so no PayPal plan of its own is needed.
+    Applied by itself, as by card, to anyone starting a plan while the offer
+    is on (beginCheckout decides).
+
+    The win-back discount (lib/billing/winback-offer.ts) is the first payment
+    only, so it rides on the plan's offer plans (scripts/paypal-plans.mjs):
+    their one intro cycle at 80% of the price, set per subscription. A plan
+    whose offer plans are not made yet gives it by card only, so its PayPal
+    checkout says so rather than charge the full price the plan screen did
+    not show.
   */
-  const offer = readOfferCode(offerCode, plan);
-  if (offer.error !== undefined) return { error: offer.error };
-  const discount = offer.coupon ? repgetDiscountCents(plan) : null;
-  if (offer.coupon && (!discount || !plan.paypalOfferPlanId || (plan.paypalTrialPlanId && !plan.paypalTrialOfferPlanId))) {
-    return { error: `The ${REPGET_CODE} code is not available with PayPal for "${plan.name}" yet. Please pay by card to use it.` };
-  }
+  const autoOffer = await automaticOffer(db, orgId, plan);
+  const launchPrice = autoOffer?.code === REPGET_CODE;
+  const discount = autoOffer ? autoOffer.discountCents : null;
+  const winbackReady = Boolean(plan.paypalOfferPlanId && (!plan.paypalTrialPlanId || plan.paypalTrialOfferPlanId));
 
   const base = appUrl();
   const returnUrl = `${base}${checkoutReturnPath(origin, "success", websiteId, "paypal")}`;
@@ -221,7 +225,7 @@ export async function createPayPalCheckout(
   try {
     begun = await beginCheckout(
       db,
-      { organizationId: orgId, websiteId, provider: "paypal", planId: plan.id, offer: offer.coupon ? REPGET_CODE : null },
+      { organizationId: orgId, websiteId, provider: "paypal", planId: plan.id, offer: autoOffer?.code ?? null },
       checkoutProviderOps,
     );
   } catch (error) {
@@ -236,12 +240,12 @@ export async function createPayPalCheckout(
     if (begun.current.planId === plan.id) {
       return { error: `This website is already on ${plan.name}.` };
     }
-    if (offer.coupon) return { error: `The ${REPGET_CODE} code is for starting a first paid plan, not for changing one.` };
     /*
       The same subscription, revised - never a second one. An upgrade pays
       the prorated difference first, then the buyer approves the revision;
       a downgrade is revised and applies from the next billing date
-      (lib/paypal/plan-changes.ts, review P1).
+      (lib/paypal/plan-changes.ts, review P1). A subscription on the REPGET
+      launch price keeps it on the new plan (the same file).
     */
     const session = await requireSession();
     try {
@@ -259,6 +263,11 @@ export async function createPayPalCheckout(
   }
 
   const { checkoutId, trialDays } = begun;
+  // Checked here, not before: a plan change above needs no offer plan. Failing the row gives the discount back.
+  if (autoOffer && !launchPrice && !winbackReady) {
+    await markCheckoutFailed(db, checkoutId).catch(() => {});
+    return { error: `The welcome-back discount is not available with PayPal for "${plan.name}" yet. Please pay by card to get it.` };
+  }
   /*
     The free articles (2026-10-22): the checkout granted them, so the plan
     with its free days first (scripts/paypal-plans.mjs); otherwise the plan
@@ -266,25 +275,40 @@ export async function createPayPalCheckout(
     the free articles.
   */
   const withFreeDays = trialDays > 0 && Boolean(plan.paypalTrialPlanId);
-  const paypalPlanId = discount
+  const winback = discount !== null && !launchPrice;
+  const paypalPlanId = winback
     ? withFreeDays
       ? plan.paypalTrialOfferPlanId!
       : plan.paypalOfferPlanId!
     : withFreeDays
       ? plan.paypalTrialPlanId!
       : plan.paypalPlanId;
-  // The offer's intro cycle: after the free days (sequence 2), or first.
-  const intro = discount
-    ? { sequence: withFreeDays ? 2 : 1, priceCents: plan.priceCents - discount, currency: plan.currency }
-    : undefined;
+  /*
+    The first paid cycle, after the free days (sequence 2) or first: the
+    regular cycle of the plan itself (billed until cancelled) for the launch
+    price, the offer plan's one intro cycle for the win-back discount.
+  */
+  const discounted =
+    discount !== null
+      ? { sequence: withFreeDays ? 2 : 1, totalCycles: launchPrice ? 0 : 1, priceCents: plan.priceCents - discount, currency: plan.currency }
+      : null;
   // The payer's GA identity, for the purchase reported when the money arrives.
   await rememberPayer(db, checkoutId);
   const idempotencyKey = `checkout:${checkoutId}`;
   try {
     await recordCheckoutRequest(db, checkoutId, {
       idempotencyKey,
-      // The offer stays on the row: it is what one use per account counts (beginCheckout).
-      params: { plan: paypalPlanId, ...(intro ? { offer: REPGET_CODE, introCents: intro.priceCents } : {}) },
+      /*
+        The offer stays on the row: the record of it - what a plan change
+        reads to keep the launch price (lib/paypal/plan-changes.ts), and what
+        the win-back counts once per person.
+      */
+      params: {
+        plan: paypalPlanId,
+        ...(discounted && autoOffer
+          ? { offer: autoOffer.code, ...(launchPrice ? { launchCents: discounted.priceCents } : { introCents: discounted.priceCents }) }
+          : {}),
+      },
     });
     const result = await createSubscription({
       planId: paypalPlanId,
@@ -293,7 +317,7 @@ export async function createPayPalCheckout(
       checkoutId,
       returnUrl,
       cancelUrl,
-      intro,
+      prices: discounted ? [discounted] : undefined,
     });
     await recordCheckoutStarted(db, checkoutId, {
       providerSubscriptionId: result.subscriptionId,

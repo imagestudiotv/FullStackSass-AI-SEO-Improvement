@@ -109,6 +109,8 @@ export const TOOL_SLUGS = [
   "snippet-preview",
   "keyword-density",
   "meta-description-generator",
+  // The guest Growth Copilot as a free tool (client, 2026-11-11).
+  "growth-copilot",
 ] as const;
 
 export const TRANSLATED_PATHS: ReadonlySet<string> = new Set([
@@ -120,6 +122,8 @@ export const TRANSLATED_PATHS: ReadonlySet<string> = new Set([
   "/success-stories",
   // lib/marketing/case-study-image-studio.ts CASE_STUDY_PATH (client, 2026-10-15: the first case study).
   "/success-stories/image-studio",
+  // The customer directory (client, 2026-11-11 round 2); its profiles, /discover/<slug>, are database pages (lib/discover/paths.ts).
+  "/discover",
   "/publishers",
   "/affiliate",
   // The cash partner program (lib/partners/presentation/copy.ts).

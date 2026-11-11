@@ -112,3 +112,19 @@ describe("billing, on the free articles through PayPal", () => {
     expect(html).not.toContain(t.paypalFreePlans);
   });
 });
+
+describe("the Grow + Visibility bundle in Billing", () => {
+  const BUNDLE = plan("plan_bundle", "Grow + Visibility", "grow_visibility", 9900, 10);
+  const none = null as unknown as CurrentSubscription;
+
+  it("is not offered in the plan list: it is sold from its own button on /pricing", () => {
+    const html = render(none, { plans: [GROW, SCALE, BUNDLE], entitled: false, websiteSubscriptions: [] });
+    expect(html).toContain("Scale");
+    expect(html).not.toContain("Grow + Visibility");
+  });
+
+  it("is shown to the website on it, as its current plan", () => {
+    const onBundle = { ...onPayPal("active"), planId: BUNDLE.id, planName: BUNDLE.name, tier: BUNDLE.tier };
+    expect(render(onBundle, { plans: [GROW, SCALE, BUNDLE] })).toContain("Grow + Visibility");
+  });
+});

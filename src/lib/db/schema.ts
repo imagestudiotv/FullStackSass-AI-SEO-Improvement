@@ -31,6 +31,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import type { ComparisonBrief } from "../blog/autopilot/comparison-brief";
+import type { BannerCopyByLocale } from "../promo-banner/banner";
 
 // Every table gets Row Level Security - see ./table.ts.
 import { pgTable } from "./table";
@@ -2898,6 +2899,33 @@ export const blogPosts = pgTable(
     featuredImageUrl: text("featured_image_url"),
     /** Its description (alt text); null or empty when it has none. */
     featuredImageAlt: text("featured_image_alt"),
+    /**
+     * The business a customer story is about (client, 2026-11-11: the
+     * homepage's Customer stories and Earn Credits' "Discover businesses";
+     * lib/blog/engagement.ts). All optional, set in the editor's "Business"
+     * section. The logo is one of the blog's pictures, chosen like the cover;
+     * the website is an http(s) address; the tagline is one short line.
+     */
+    businessLogoUrl: text("business_logo_url"),
+    businessName: text("business_name"),
+    businessCategory: text("business_category"),
+    businessWebsiteUrl: text("business_website_url"),
+    businessTagline: text("business_tagline"),
+    /**
+     * The business's showcase profile (client, 2026-11-11 round 2:
+     * /discover/<business_slug>, lib/discover/profiles.ts). The address is
+     * unique per language: a translation keeps it, under its language's
+     * prefix. Tags are the profile's chips, services its "Main services";
+     * about and audience are plain text (paragraphs on blank lines).
+     */
+    businessSlug: text("business_slug"),
+    businessTags: jsonb("business_tags").$type<string[]>().default([]).notNull(),
+    businessLocation: text("business_location"),
+    businessAvailability: text("business_availability"),
+    businessAbout: text("business_about"),
+    businessAudience: text("business_audience"),
+    businessServices: jsonb("business_services").$type<string[]>().default([]).notNull(),
+    businessIndustry: text("business_industry"),
     /** "draft" | "published". */
     status: text("status").default("draft").notNull(),
     /**
@@ -2938,7 +2966,122 @@ export const blogPosts = pgTable(
     index("blog_posts_status_published_idx").on(table.status, table.publishedAt),
     index("blog_posts_locale_status_published_idx").on(table.locale, table.status, table.publishedAt),
     uniqueIndex("blog_posts_translation_locale_uidx").on(table.translationOf, table.locale),
+    uniqueIndex("blog_posts_business_slug_locale_uidx")
+      .on(table.locale, table.businessSlug)
+      .where(sql`${table.businessSlug} is not null`),
   ],
+);
+
+/**
+ * Upvotes on blog posts (client, 2026-11-11): any signed-in user, one per
+ * user and post (the unique index decides), toggled on and off
+ * (lib/blog/engagement.ts).
+ */
+export const blogPostUpvotes = pgTable(
+  "blog_post_upvotes",
+  {
+    id: pk(),
+    postId: uuid("post_id")
+      .notNull()
+      .references(() => blogPosts.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("blog_post_upvotes_post_user_uidx").on(table.postId, table.userId),
+    index("blog_post_upvotes_user_idx").on(table.userId),
+  ],
+);
+
+/**
+ * Comments on blog posts (client, 2026-11-11): any signed-in user, plain
+ * text, live at once (lib/blog/engagement.ts). Never hard-deleted by the
+ * app: an administrator removes one (removed_at/removed_by, restorable, in
+ * Admin -> Blog -> Comments) and its author can delete their own
+ * (deleted_at). Either hides it everywhere; the rows still count towards the
+ * author's posting rate limit.
+ */
+export const blogComments = pgTable(
+  "blog_comments",
+  {
+    id: pk(),
+    postId: uuid("post_id")
+      .notNull()
+      .references(() => blogPosts.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    /** Plain text, 1-750 characters, shown escaped. */
+    body: text("body").notNull(),
+    /** Removed by an administrator (their email in removed_by); null while shown. */
+    removedAt: timestamp("removed_at"),
+    removedBy: text("removed_by"),
+    /** Deleted by its author. */
+    deletedAt: timestamp("deleted_at"),
+    ...timestamps,
+  },
+  (table) => [
+    index("blog_comments_post_created_idx").on(table.postId, table.createdAt),
+    index("blog_comments_user_created_idx").on(table.userId, table.createdAt),
+    index("blog_comments_created_idx").on(table.createdAt),
+    check("blog_comments_body_length_check", sql`char_length(${table.body}) between 1 and 750`),
+  ],
+);
+
+/** Upvotes on blog comments: one per user and comment, toggled like a post's. */
+export const blogCommentUpvotes = pgTable(
+  "blog_comment_upvotes",
+  {
+    id: pk(),
+    commentId: uuid("comment_id")
+      .notNull()
+      .references(() => blogComments.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("blog_comment_upvotes_comment_user_uidx").on(table.commentId, table.userId),
+    index("blog_comment_upvotes_user_idx").on(table.userId),
+  ],
+);
+
+/**
+ * A business profile's views (/discover/<slug>, client 2026-11-11 round 2),
+ * one row per post and UTC day: the directory's eye shows the total, the
+ * profile's "Impressions this week" the last seven days
+ * (lib/discover/profiles.ts).
+ */
+export const blogPostViews = pgTable(
+  "blog_post_views",
+  {
+    id: pk(),
+    postId: uuid("post_id")
+      .notNull()
+      .references(() => blogPosts.id, { onDelete: "cascade" }),
+    day: date("day").notNull(),
+    views: integer("views").default(0).notNull(),
+  },
+  (table) => [uniqueIndex("blog_post_views_post_day_uidx").on(table.postId, table.day)],
+);
+
+/**
+ * Who has been counted today: a keyed hash of the day, the post and the
+ * visitor (no address or browser string is stored), so one visitor counts
+ * once per profile per day. Rows older than yesterday are deleted as new
+ * ones arrive.
+ */
+export const blogPostViewKeys = pgTable(
+  "blog_post_view_keys",
+  {
+    id: pk(),
+    key: text("key").notNull(),
+    day: date("day").notNull(),
+  },
+  (table) => [uniqueIndex("blog_post_view_keys_key_uidx").on(table.key), index("blog_post_view_keys_day_idx").on(table.day)],
 );
 
 /**
@@ -2976,6 +3119,28 @@ export const testimonials = pgTable(
   },
   (table) => [index("testimonials_published_order_idx").on(table.published, table.sortOrder)],
 );
+
+/**
+ * The bar above the public site's header (client, 2026-11-11: "a top banner
+ * text with count that redirects to pricing page ... on the admin dashboard,
+ * so we can change the texting quite often during different holidays").
+ * One row, key "top", written in Admin -> Site banner (lib/admin/site-banner.ts);
+ * what each field means and the rules a save must pass are in
+ * lib/promo-banner/banner.ts. No row means no banner.
+ */
+export const siteBanner = pgTable("site_banner", {
+  key: text("key").primaryKey().default("top"),
+  /** Off until an administrator turns it on. */
+  enabled: boolean("enabled").default(false).notNull(),
+  /** The words, per language (lib/i18n/config.ts LOCALES); English is required to show it. */
+  copy: jsonb("copy").$type<BannerCopyByLocale>().default({}).notNull(),
+  /** The countdown's end. The banner hides itself then; null shows it without a countdown. */
+  endsAt: timestamp("ends_at"),
+  /** The bar's colour (BANNER_TONES). */
+  tone: text("tone").default("orange").notNull(),
+  updatedBy: text("updated_by"),
+  ...timestamps,
+});
 
 /** One-time sponsored mentions; deliberately separate from subscriptions. */
 export const blogSponsorships = pgTable("blog_sponsorships", {

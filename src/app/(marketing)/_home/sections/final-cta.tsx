@@ -1,8 +1,4 @@
-import Link from "next/link";
-
-import { format } from "@/lib/i18n/format";
 import { finalCtaCopy } from "@/lib/i18n/home/final-cta";
-import { FREE_ARTICLES } from "@/lib/plans/features";
 import type { SectionProps } from "../types";
 import { FinalCtaForm } from "./final-cta-form";
 import styles from "./final-cta.module.css";
@@ -15,60 +11,56 @@ const c = (names: string) =>
     .join(" ");
 
 /**
- * The closing banner (client's design, 2026-11-03: "the call to action
- * banner at the end is different"; <section class="rcta-wrap"
- * id="repget-final-cta">), ported as drawn: the dark box with the sign-up
- * field and the two ways to start on the left, what RepGet covers on the
- * right.
+ * The closing banner (client's design cta.html, 2026-11-11), ported as
+ * drawn: the dark box with the two ways to start and one field on the left,
+ * what RepGet covers on the right.
  *
- * The field submits as the hero's does (FinalCtaForm). "Check my website for
- * free" is the free check (/audit, no account needed); "Create {n} Articles
- * for Free" is sign-up. In both that and the field's button, {n} is
- * FREE_ARTICLES - the number the account really gets.
+ * It replaces the 2026-11-03 banner, whose field and buttons looked the same
+ * as the hero's. The visitor picks "Check my website" (the free check, /audit)
+ * or "Start free trial" (sign-up) first; FinalCtaForm sends the field there.
+ *
+ * The blog's pages end with it too (blog/post-view.tsx and the lists).
  */
 export function FinalCta({ locale, href }: SectionProps) {
   const t = finalCtaCopy(locale);
-  const n = { n: FREE_ARTICLES };
 
   return (
     <section className={c("rcta-wrap")} id="repget-final-cta" aria-labelledby="rcta-heading">
       <div className={c("rcta-box")}>
-        <div className={c("rcta-pattern")} aria-hidden="true" />
-        <div className={c("rcta-inner")}>
-          <div className={c("rcta-kicker")}>{t.kicker}</div>
+        <div className={c("rcta-main")}>
+          <p className={c("rcta-kicker")}>{t.kicker}</p>
           <h2 id="rcta-heading">
             {t.titleLead} <em>{t.titleAccent}</em>
           </h2>
           <p className={c("rcta-desc")}>{t.desc}</p>
-          <FinalCtaForm strings={{ ...t.form, submit: format(t.form.submit, n) }} signUpPath={href("/sign-up")} onboardingPath={href("/onboarding/website")} />
-          <div className={c("rcta-quick-actions")} aria-label={t.quickLabel}>
-            <Link prefetch={false} className={c("rcta-quick-btn rcta-quick-primary")} href={href("/audit")}>
-              {t.checkFree} <span aria-hidden="true">→</span>
-            </Link>
-            <Link prefetch={false} className={c("rcta-quick-btn rcta-quick-secondary")} href={href("/sign-up")}>
-              {format(t.createFree, n)} <span aria-hidden="true">→</span>
-            </Link>
-          </div>
-          <div className={c("rcta-bottom")}>
+          <FinalCtaForm
+            strings={t.form}
+            paths={{ auditPath: href("/audit"), signUpPath: href("/sign-up"), onboardingPath: href("/onboarding/website") }}
+          />
+          <ul className={c("rcta-trust")}>
             {t.points.map((point) => (
-              <span key={point}>{point}</span>
+              <li key={point}>
+                <span aria-hidden="true">✓</span>
+                {point}
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
         <div className={c("rcta-side")}>
-          <div className={c("rcta-pills")}>
+          <ul className={c("rcta-pills")}>
             {t.pills.map((pill) => (
-              <span key={pill}>{pill}</span>
+              <li key={pill}>{pill}</li>
             ))}
-          </div>
-          <div className={c("rcta-panel")}>
-            <div className={c("rcta-panel-head")}>
-              <strong>{t.panelTitle}</strong>
-              <small>{t.panelBody}</small>
-            </div>
-            <ul className={c("rcta-mini-list")}>
+          </ul>
+          <div className={c("rcta-card")}>
+            <h3>{t.panelTitle}</h3>
+            <p className={c("rcta-card-intro")}>{t.panelBody}</p>
+            <ul className={c("rcta-benefits")}>
               {t.items.map((item) => (
                 <li key={item.title}>
+                  <span className={c("rcta-check")} aria-hidden="true">
+                    ✓
+                  </span>
                   <div>
                     <strong>{item.title}</strong>
                     <span>{item.body}</span>
@@ -77,7 +69,7 @@ export function FinalCta({ locale, href }: SectionProps) {
               ))}
             </ul>
           </div>
-          <div className={c("rcta-side-note")}>{t.sideNote}</div>
+          <p className={c("rcta-side-note")}>{t.sideNote}</p>
         </div>
       </div>
     </section>

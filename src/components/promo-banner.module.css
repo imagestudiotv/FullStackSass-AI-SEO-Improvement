@@ -1,0 +1,145 @@
+/*
+  The bar above the public site's header (promo-banner.tsx), after the
+  client's reference (nxgntools.com): a full-width coloured strip, one line on
+  a computer, wrapping to two short lines on a phone. It scrolls away with the
+  page; the floating header below stays sticky.
+
+  Every tone carries white text at 4.5:1 or better, the countdown boxes
+  included (lib/promo-banner/banner.test.ts checks the figures).
+*/
+.bar {
+  --tone: #cc4a15;
+  --box: rgba(0, 0, 0, 0.22);
+  display: block;
+  background: var(--tone);
+  color: #fff;
+  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-decoration: none;
+  -webkit-font-smoothing: antialiased;
+}
+.bar[data-tone="dark"] {
+  --tone: #1c1b19;
+  --box: rgba(255, 255, 255, 0.14);
+}
+.bar[data-tone="red"] {
+  --tone: #b42318;
+}
+.bar[data-tone="green"] {
+  --tone: #11693b;
+}
+.bar[data-tone="purple"] {
+  --tone: #6d3fb0;
+}
+.bar[data-tone="blue"] {
+  --tone: #1d4ed8;
+}
+a.bar:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: -4px;
+}
+
+.inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px 10px;
+  max-width: 1240px;
+  min-height: 42px;
+  margin: 0 auto;
+  padding: 8px 16px;
+  text-align: center;
+}
+.group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px 10px;
+}
+/* The countdown and the link stay together on one line. */
+.action {
+  flex-wrap: nowrap;
+}
+.label {
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+.dot {
+  opacity: 0.75;
+}
+.count {
+  display: inline-flex;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.unit {
+  min-width: 2.6em;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--box);
+  font-weight: 800;
+}
+.unit small {
+  margin-left: 1px;
+  font-size: 0.72em;
+  font-weight: 700;
+}
+.link {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+a.bar:hover .link {
+  text-decoration-thickness: 2px;
+}
+
+/*
+  The header floats 16px below the top of the page (site-header.module.css,
+  sticky at top: 16px). Under the bar it would sit flush against it, so it
+  keeps the same 16px here, and gives it back below so the page under it
+  starts where it did.
+*/
+.bar + header {
+  margin-top: 16px;
+  margin-bottom: -16px;
+}
+
+/* Below this the two groups usually take a line each: the dot between them would hang at a line's end. */
+@media (max-width: 1100px) {
+  .between {
+    display: none;
+  }
+}
+
+@media (max-width: 700px) {
+  .bar {
+    font-size: 13px;
+  }
+  .inner,
+  .group {
+    gap: 3px 8px;
+  }
+  .inner {
+    padding: 7px 12px;
+  }
+  /* A phone wraps every group: the bold label and the boxes separate the parts. */
+  .dot {
+    display: none;
+  }
+  /* The header's own offset on a phone (top: 10px). */
+  .bar + header {
+    margin-top: 10px;
+    margin-bottom: -10px;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .link {
+    transition: text-decoration-thickness 0.15s;
+  }
+}

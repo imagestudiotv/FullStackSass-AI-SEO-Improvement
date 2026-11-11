@@ -9,6 +9,7 @@ import { getAppMessages } from "@/lib/i18n/app-locale";
 import { plural } from "@/lib/i18n/format";
 import { inWarmup, listAccounts, pinterestBoards, socialAccess } from "@/lib/social/accounts";
 import { isBundleConfigured } from "@/lib/social/bundle";
+import { isConnectNotice } from "@/lib/social/connect-return";
 import { isSocialPlatform, SUGGESTIONS_PER_DAY } from "@/lib/social/platforms";
 import { requireWebsitePage } from "@/lib/tenant";
 
@@ -108,7 +109,8 @@ export default async function WebsiteSocialPage({ params, searchParams }: PagePr
 
   const price = credits.prices.social_post;
   const notice = typeof query.social === "string" ? query.social : null;
-  const noticePlatform = typeof query.platform === "string" ? query.platform : null;
+  // Only a platform's own name reaches the toast, never whatever a link carries.
+  const noticePlatform = typeof query.platform === "string" && isSocialPlatform(query.platform) ? query.platform : null;
 
   return (
     <SocialPanel
@@ -125,7 +127,7 @@ export default async function WebsiteSocialPage({ params, searchParams }: PagePr
       perDay={SUGGESTIONS_PER_DAY}
       priceLabel={price > 0 ? plural(t.app.credits.creditsCount, price) : t.app.social.free}
       boards={boards}
-      notice={notice === "connected" || notice === "not_connected" || notice === "connect_failed" ? { kind: notice, platform: noticePlatform } : null}
+      notice={isConnectNotice(notice) ? { kind: notice, platform: noticePlatform } : null}
       locale={locale}
       t={t.app.social}
     />

@@ -1,0 +1,833 @@
+/*
+ * The gecko and the owl in the hero's title (client's design, 2026-11-11:
+ * repget_homepage_animated_social_proof.html, `mascot-button`).
+ *
+ * The design stacks five style blocks that override each other
+ * (`repget-articulated-mascots` ... `repget-gecko-one-time-messages`); this is
+ * what the browser ends up running, one rule per element and breakpoint:
+ *
+ *  - the owl flies once (7.4s) carrying an orange banner with the search, AI
+ *    and social platforms, then hovers softly ("soft" phase, hero-mascot.tsx);
+ *  - the gecko waves all along, and says three things once (12.2s), then
+ *    nothing;
+ *  - a click, once the owl hovers, makes both hop.
+ *
+ * The design's orbiting pills belong to its stories 2 and 3, which it never
+ * shows (its story is fixed at 1), so they are not here. The pictures are the
+ * design's own layers, made smaller (public/images/home/hero).
+ *
+ * Reduced motion: two still portraits, no words.
+ */
+
+.mascot {
+  position: relative;
+  flex: none;
+  display: block;
+  width: clamp(104px, 9.6vw, 138px);
+  height: clamp(72px, 6.75vw, 95px);
+  margin: 0 -2px -2px;
+  isolation: isolate;
+  cursor: pointer;
+  /* The surrounding title's letter spacing would squeeze the notes' words. */
+  letter-spacing: 0;
+  line-height: 1;
+  white-space: nowrap;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.glow {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(246, 164, 104, 0.16), transparent 70%);
+}
+
+/* ---------- The two portraits ---------- */
+
+.actor {
+  position: absolute;
+  display: block;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  box-shadow:
+    0 5px 15px rgba(55, 41, 30, 0.15),
+    0 0 0 2px #fff;
+}
+:global(.dark) .actor {
+  box-shadow:
+    0 5px 15px rgba(0, 0, 0, 0.3),
+    0 0 0 2px #1b201b;
+}
+.actor img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+}
+.photo {
+  z-index: 1;
+  border-radius: 50%;
+  clip-path: circle(49.7% at 50% 50%);
+}
+
+.gecko {
+  width: 60%;
+  top: 13%;
+  left: 0;
+  z-index: 3;
+  animation: gecko-body 6.8s ease-in-out infinite;
+}
+.arm {
+  z-index: 3;
+  transform-origin: 54.4% 41.8%;
+  animation: gecko-wave 6.8s ease-in-out infinite;
+}
+
+.owl {
+  width: 66%;
+  top: 0;
+  right: 0;
+  z-index: 4;
+  will-change: transform;
+  animation: owl-flight 7.4s cubic-bezier(0.42, 0, 0.2, 1) 1 both;
+}
+.wing {
+  z-index: 2;
+  will-change: transform;
+}
+.wing-left {
+  transform-origin: 24.5% 63.5%;
+  animation: wing-left 7.4s cubic-bezier(0.4, 0, 0.2, 1) 1 both;
+}
+.wing-right {
+  transform-origin: 78.2% 61.7%;
+  animation: wing-right 7.4s cubic-bezier(0.4, 0, 0.2, 1) 1 both;
+}
+.body {
+  z-index: 3;
+  clip-path: circle(49.5% at 50% 50%);
+}
+
+/* After the flight: the owl hovers. */
+.mascot[data-phase="soft"] .owl {
+  transform-origin: 50% 58%;
+  animation: owl-soft 3.8s ease-in-out infinite;
+}
+.mascot[data-phase="soft"] .wing-left {
+  animation: wing-soft-left 3.8s ease-in-out infinite;
+}
+.mascot[data-phase="soft"] .wing-right {
+  animation: wing-soft-right 3.8s ease-in-out infinite;
+}
+.mascot[data-phase="soft"] .banner {
+  display: none;
+}
+
+/* A click: both hop. */
+.mascot[data-hop] .owl {
+  animation: owl-hop 0.9s cubic-bezier(0.22, 0.7, 0.26, 1) both;
+}
+.mascot[data-hop] .wing-left {
+  animation: wing-hop-left 0.9s ease-in-out both;
+}
+.mascot[data-hop] .wing-right {
+  animation: wing-hop-right 0.9s ease-in-out both;
+}
+.mascot[data-hop] .gecko,
+.mascot[data-hop] .arm {
+  animation-duration: 1.8s;
+}
+.mascot:hover .gecko,
+.mascot:hover .arm {
+  animation-duration: 3.4s;
+}
+
+.star {
+  position: absolute;
+  top: 10px;
+  left: 4px;
+  font-size: 19px;
+  line-height: 1;
+  color: #f67438;
+  pointer-events: none;
+  animation: twinkle 2.7s ease-in-out infinite;
+}
+.star-two {
+  top: auto;
+  left: auto;
+  bottom: 5px;
+  right: -4px;
+  color: #8b66c0;
+  animation-delay: 0.8s;
+}
+
+/* ---------- The gecko's three messages ---------- */
+
+.note {
+  position: absolute;
+  left: -10px;
+  top: 102%;
+  z-index: 7;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  column-gap: 7px;
+  min-width: 170px;
+  padding: 7px 11px;
+  border: 1px solid rgba(232, 119, 35, 0.18);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 10px 24px rgba(35, 21, 29, 0.1);
+  color: #1f1d22;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  animation: note-panel 12.2s linear 1 both;
+}
+:global(.dark) .note {
+  background: rgba(22, 21, 27, 0.96);
+  border-color: rgba(246, 164, 104, 0.22);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.28);
+}
+.note-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #f67438;
+  box-shadow: 0 0 0 4px rgba(232, 119, 35, 0.12);
+}
+.scene {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  opacity: 0;
+  text-transform: uppercase;
+  animation: 12.2s ease-in-out 1 both;
+}
+.scene strong {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.045em;
+  color: #1f1d22;
+}
+.scene small {
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.085em;
+  color: #6b6066;
+}
+:global(.dark) .scene strong {
+  color: #fff7f2;
+}
+:global(.dark) .scene small {
+  color: #d9cfc9;
+}
+.scene-one {
+  animation-name: note-one;
+}
+.scene-two {
+  animation-name: note-two;
+}
+.scene-three {
+  animation-name: note-three;
+}
+
+/* ---------- The banner the owl carries ---------- */
+
+.banner {
+  position: absolute;
+  left: 49%;
+  top: 113%;
+  z-index: 7;
+  display: grid;
+  place-items: center;
+  min-width: 157px;
+  min-height: 41px;
+  padding: 5px 12px 6px;
+  border: 1px solid rgba(244, 117, 59, 0.38);
+  border-radius: 9px;
+  background: linear-gradient(115deg, #fb813e 0%, #ef5f2b 100%);
+  box-shadow:
+    0 10px 22px rgba(233, 95, 43, 0.23),
+    0 2px 5px rgba(66, 31, 25, 0.08);
+  pointer-events: none;
+  transform-origin: 50% -14px;
+  opacity: 0;
+  animation: banner 7.4s ease-in-out 1 both;
+}
+/* The two strings it hangs from. */
+.banner::before,
+.banner::after {
+  content: "";
+  position: absolute;
+  top: -11px;
+  width: 1.4px;
+  height: 11px;
+  background: linear-gradient(to bottom, rgba(143, 84, 64, 0.75), rgba(220, 171, 130, 0.35));
+}
+.banner::before {
+  left: 24%;
+  transform: rotate(-13deg);
+}
+.banner::after {
+  right: 24%;
+  transform: rotate(13deg);
+}
+.banner-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 128px;
+}
+.banner-topline {
+  position: relative;
+  display: block;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+  overflow: hidden;
+}
+.banner-topline::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  top: 2px;
+  width: 44%;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.86);
+}
+.banner-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+}
+.banner-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 38px;
+  padding: 4px 5px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.12);
+  opacity: 0.92;
+}
+/* Search is the one in front, as in the design. */
+.banner-card:first-child {
+  background: rgba(255, 255, 255, 0.28);
+  border-color: rgba(255, 255, 255, 0.42);
+  opacity: 1;
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.14);
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  height: 14px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+}
+.chip-google {
+  background: #fff3eb;
+  color: #c24d00;
+}
+.chip-search {
+  background: #fff8ef;
+  color: #70462d;
+}
+.chip-chatgpt {
+  background: #eef8f3;
+  color: #1f6b4f;
+}
+.chip-perplexity {
+  background: #eef6ff;
+  color: #2c5f99;
+}
+.chip-facebook {
+  background: #eef4ff;
+  color: #2856a8;
+}
+.chip-instagram {
+  background: #fff0f7;
+  color: #a23a7d;
+}
+
+/* ---------- Smaller screens ---------- */
+
+@media (max-width: 760px) {
+  .mascot {
+    width: clamp(72px, 14.8vw, 100px);
+    height: clamp(55px, 10.8vw, 73px);
+  }
+  .note {
+    min-width: 144px;
+    padding: 6px 9px;
+    left: -13px;
+    top: 105%;
+  }
+  .scene strong {
+    font-size: 8.5px;
+  }
+  .scene small {
+    font-size: 7px;
+  }
+  .banner {
+    left: 45%;
+    top: 137%;
+    min-width: 124px;
+    min-height: 30px;
+    padding: 5px 8px;
+    border-radius: 7px;
+  }
+  .banner-inner {
+    min-width: 102px;
+    gap: 5px;
+  }
+  .banner-topline {
+    height: 6px;
+  }
+  .banner-topline::after {
+    top: 1px;
+  }
+  .banner-row {
+    gap: 5px;
+  }
+  .banner-card {
+    height: 30px;
+    padding: 3px 4px;
+    border-radius: 8px;
+  }
+  .chips {
+    gap: 3px;
+  }
+  .chip {
+    height: 12px;
+    padding: 0 5px;
+    font-size: 5.8px;
+  }
+}
+
+@media (max-width: 510px) {
+  .mascot {
+    width: clamp(57px, 14.4vw, 68px);
+    height: clamp(48px, 12.3vw, 59px);
+    margin: 0 1px -2px;
+  }
+  .star {
+    font-size: 12px;
+  }
+  .note {
+    min-width: 136px;
+    padding: 5px 8px;
+    left: -14px;
+    top: 108%;
+  }
+  .scene strong {
+    font-size: 8px;
+  }
+  .scene small {
+    font-size: 6.7px;
+  }
+  .banner {
+    left: 47%;
+    top: 148%;
+    min-width: 108px;
+    min-height: 27px;
+    padding: 4px 6px;
+  }
+  .chip {
+    height: 11px;
+    padding: 0 4px;
+    font-size: 5.3px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gecko,
+  .arm,
+  .owl,
+  .wing,
+  .star,
+  .mascot[data-phase="soft"] .owl,
+  .mascot[data-phase="soft"] .wing-left,
+  .mascot[data-phase="soft"] .wing-right {
+    animation: none;
+  }
+  .note,
+  .banner {
+    display: none;
+  }
+}
+
+/* ---------- Motion (the design's values) ---------- */
+
+@keyframes owl-flight {
+  0%,
+  9%,
+  83%,
+  100% {
+    transform: translate(0, 1%) rotate(0) scale(1);
+  }
+  13% {
+    transform: translate(6%, -9%) rotate(6deg) scale(1.015);
+  }
+  20% {
+    transform: translate(21%, -28%) rotate(10deg) scale(1.045);
+  }
+  27% {
+    transform: translate(28%, -49%) rotate(3deg) scale(1.085);
+  }
+  34% {
+    transform: translate(11%, -55%) rotate(-10deg) scale(1.085);
+  }
+  42% {
+    transform: translate(-23%, -36%) rotate(-15deg) scale(1.055);
+  }
+  51% {
+    transform: translate(-20%, -9%) rotate(-5deg) scale(0.985);
+  }
+  58% {
+    transform: translate(8%, -23%) rotate(12deg) scale(1.05);
+  }
+  65% {
+    transform: translate(19%, -11%) rotate(8deg) scale(1.018);
+  }
+  73% {
+    transform: translate(-4%, 5%) rotate(-5deg) scale(0.98);
+  }
+  79% {
+    transform: translate(0, 0) rotate(2deg) scale(1);
+  }
+}
+@keyframes wing-left {
+  0%,
+  9%,
+  81%,
+  100% {
+    transform: rotate(3deg) scaleY(1);
+  }
+  14% {
+    transform: rotate(40deg) scaleY(0.97);
+  }
+  20% {
+    transform: rotate(-27deg) scaleY(1.02);
+  }
+  27% {
+    transform: rotate(48deg) scaleY(0.96);
+  }
+  34% {
+    transform: rotate(-33deg) scaleY(1.03);
+  }
+  41% {
+    transform: rotate(43deg) scaleY(0.97);
+  }
+  47% {
+    transform: rotate(-27deg) scaleY(1.02);
+  }
+  54% {
+    transform: rotate(40deg);
+  }
+  60% {
+    transform: rotate(-20deg);
+  }
+  67% {
+    transform: rotate(30deg);
+  }
+  74% {
+    transform: rotate(-10deg);
+  }
+  79% {
+    transform: rotate(3deg);
+  }
+}
+@keyframes wing-right {
+  0%,
+  9%,
+  81%,
+  100% {
+    transform: rotate(0deg) scaleY(1);
+  }
+  14% {
+    transform: rotate(-17deg) scaleY(0.97);
+  }
+  20% {
+    transform: rotate(49deg) scaleY(1.02);
+  }
+  27% {
+    transform: rotate(-21deg) scaleY(0.97);
+  }
+  34% {
+    transform: rotate(54deg) scaleY(1.02);
+  }
+  41% {
+    transform: rotate(-20deg) scaleY(0.97);
+  }
+  47% {
+    transform: rotate(48deg) scaleY(1.02);
+  }
+  54% {
+    transform: rotate(-17deg);
+  }
+  60% {
+    transform: rotate(44deg);
+  }
+  67% {
+    transform: rotate(-13deg);
+  }
+  74% {
+    transform: rotate(18deg);
+  }
+  79% {
+    transform: rotate(0deg);
+  }
+}
+@keyframes banner {
+  0%,
+  11%,
+  19%,
+  74%,
+  100% {
+    opacity: 0;
+    transform: translate(-50%, 9px) rotate(-8deg) scale(0.86);
+  }
+  26% {
+    opacity: 1;
+    transform: translate(-50%, 0) rotate(3deg) scale(1);
+  }
+  39% {
+    opacity: 1;
+    transform: translate(-50%, 0) rotate(-3deg) scale(1);
+  }
+  54% {
+    opacity: 1;
+    transform: translate(-50%, 0) rotate(2deg) scale(1);
+  }
+  66% {
+    opacity: 1;
+    transform: translate(-50%, 1px) rotate(-1deg) scale(1);
+  }
+}
+@keyframes owl-soft {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0deg) scale(1);
+  }
+  22% {
+    transform: translate(2%, -4%) rotate(3deg) scale(1.012);
+  }
+  48% {
+    transform: translate(-2%, -7%) rotate(-2deg) scale(1.02);
+  }
+  72% {
+    transform: translate(1%, -3%) rotate(2deg) scale(1.01);
+  }
+}
+@keyframes wing-soft-left {
+  0%,
+  100% {
+    transform: rotate(0deg) scale(1);
+  }
+  25% {
+    transform: rotate(-8deg) scale(1.01);
+  }
+  50% {
+    transform: rotate(-13deg) scale(1.02);
+  }
+  75% {
+    transform: rotate(-6deg) scale(1.01);
+  }
+}
+@keyframes wing-soft-right {
+  0%,
+  100% {
+    transform: rotate(0deg) scale(1);
+  }
+  25% {
+    transform: rotate(8deg) scale(1.01);
+  }
+  50% {
+    transform: rotate(13deg) scale(1.02);
+  }
+  75% {
+    transform: rotate(6deg) scale(1.01);
+  }
+}
+@keyframes owl-hop {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  35% {
+    transform: translate(4%, -10%) rotate(6deg) scale(1.04);
+  }
+  65% {
+    transform: translate(-2%, -6%) rotate(-3deg) scale(1.02);
+  }
+  100% {
+    transform: translate(0, 0) rotate(0deg) scale(1);
+  }
+}
+@keyframes wing-hop-left {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  35% {
+    transform: rotate(-18deg);
+  }
+  65% {
+    transform: rotate(-8deg);
+  }
+}
+@keyframes wing-hop-right {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  35% {
+    transform: rotate(18deg);
+  }
+  65% {
+    transform: rotate(8deg);
+  }
+}
+@keyframes gecko-body {
+  0%,
+  10%,
+  58%,
+  100% {
+    transform: translate(0, 0) rotate(-3deg);
+  }
+  17% {
+    transform: translate(-1px, -3px) rotate(-5deg);
+  }
+  32% {
+    transform: translate(1px, 0) rotate(-1deg);
+  }
+  45% {
+    transform: translate(-1px, -2px) rotate(-4deg);
+  }
+}
+@keyframes gecko-wave {
+  0%,
+  10%,
+  60%,
+  100% {
+    transform: rotate(0deg);
+  }
+  17% {
+    transform: rotate(-25deg);
+  }
+  23% {
+    transform: rotate(13deg);
+  }
+  29% {
+    transform: rotate(-27deg);
+  }
+  35% {
+    transform: rotate(12deg);
+  }
+  41% {
+    transform: rotate(-22deg);
+  }
+  48% {
+    transform: rotate(10deg);
+  }
+  56% {
+    transform: rotate(0deg);
+  }
+}
+@keyframes note-panel {
+  0%,
+  5% {
+    opacity: 0;
+    visibility: hidden;
+  }
+  9%,
+  90% {
+    opacity: 1;
+    visibility: visible;
+  }
+  98%,
+  100% {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+@keyframes note-one {
+  0%,
+  6% {
+    opacity: 0;
+    transform: translateY(5px) scale(0.97);
+  }
+  10%,
+  27% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  32%,
+  100% {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.97);
+  }
+}
+@keyframes note-two {
+  0%,
+  30% {
+    opacity: 0;
+    transform: translateY(5px) scale(0.97);
+  }
+  36%,
+  56% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  62%,
+  100% {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.97);
+  }
+}
+@keyframes note-three {
+  0%,
+  60% {
+    opacity: 0;
+    transform: translateY(5px) scale(0.97);
+  }
+  67%,
+  87% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  93%,
+  100% {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.97);
+  }
+}
+@keyframes twinkle {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.75) rotate(0);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.25) rotate(24deg);
+  }
+}

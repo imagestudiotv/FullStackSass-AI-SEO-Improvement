@@ -93,3 +93,13 @@ describe("elsewhere", () => {
     expect(renderToStaticMarkup(createElement(LanguageSwitcher, { label: "x" }))).toBe("");
   });
 });
+
+describe("on a business profile (/discover/<slug>)", () => {
+  it("leads to the same profile in each language: the address is the same everywhere", () => {
+    state.pathname = "/it/discover/image-studio";
+    const menu = links();
+    expect(menu.en).toEqual({ href: "/discover/image-studio", text: "English" });
+    expect(menu.it.href).toBe("/it/discover/image-studio");
+    expect(menu.de.href).toBe("/de/discover/image-studio");
+  });
+});

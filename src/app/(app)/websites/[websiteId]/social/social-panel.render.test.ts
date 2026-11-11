@@ -4,13 +4,15 @@ import { describe, expect, it, vi } from "vitest";
 
 import { LOCALES } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
+import { SOCIAL_CONNECTIONS_COPY } from "@/lib/i18n/social-connections";
 
 /**
  * The Opportunities page's first render (client's design, 2026-11-03): the
- * channels strip, the tabs with their counts, the next post RepGet
- * publishes, a failed post with its reason, and a trial's locked platforms -
- * in every language, with no placeholder left unfilled. What a click does is
- * covered by the actions' tests (lib/social/social.test.ts).
+ * "Social connections" panel (client's design, 2026-11-11), the tabs with
+ * their counts, the next post RepGet publishes, a failed post with its
+ * reason, and a trial's locked platforms - in every language, with no
+ * placeholder left unfilled. What a click does is covered by the actions'
+ * tests (lib/social/social.test.ts).
  */
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), replace: vi.fn() }) }));
@@ -88,17 +90,89 @@ function render(over: Partial<Props> = {}, locale: (typeof LOCALES)[number] = "e
   return renderToStaticMarkup(createElement(SocialPanel, props));
 }
 
-describe("the Opportunities page", () => {
-  it("shows the channels, the tabs with their counts and an accessible tablist", () => {
+/** One platform's card in the "Social connections" panel, found by the name it shows. */
+function card(html: string, name: string): string {
+  const start = html.indexOf(`>${name}</h3>`);
+  if (start < 0) throw new Error(`no card for ${name}`);
+  const open = html.lastIndexOf("<li", start);
+  return html.slice(open, html.indexOf("</li>", start) + 5);
+}
+
+describe("the Social connections panel", () => {
+  it("counts the connected accounts and shows the six platforms, connected or ready to connect", () => {
     const html = render();
-    expect(html).toContain("2 of 6 channels active");
+    expect(html).toContain("Social connections");
+    expect(html).toContain("Connect your channels to discover opportunities and manage your activity.");
+    expect(html).toContain("2 of 6 connected");
+    expect(html).toMatch(/width:33\.33\d*%/);
+    expect(html).toContain('id="social-connections"');
+    for (const name of ["Reddit", "Quora", "X (Twitter)", "Threads", "Pinterest", "Bluesky"]) card(html, name);
+
+    // Quora by username, X through bundle.social: both linked, both one click from disconnecting.
+    for (const name of ["Quora", "X (Twitter)"]) {
+      const item = card(html, name);
+      expect(item).toContain(">Connected<");
+      expect(item).toContain("Account linked");
+      expect(item).toContain(">Disconnect</button>");
+    }
+    const reddit = card(html, "Reddit");
+    expect(reddit).toContain(">Not connected<");
+    expect(reddit).toContain("Ready to connect");
+    expect(reddit).toMatch(/<button[^>]*>Connect<\/button>/);
+    expect(reddit).not.toContain("disabled");
+
+    expect(html).toContain("Disconnecting stops future activity on that channel.");
+    expect(html).toContain("Account settings</button>");
+    expect(html).not.toContain("Demo:");
+    expect(html).not.toContain("Manage");
+  });
+
+  it("shows a trial's other platforms as locked: the lock's words and a Connect that cannot be clicked", () => {
+    const html = render({ level: "trial", platforms: ["quora"] });
+    expect(html).toContain("1 of 6 connected");
+    const reddit = card(html, "Reddit");
+    expect(reddit).toContain("Included once your plan starts.");
+    expect(reddit).toMatch(/<button[^>]*disabled=""[^>]*>Connect<\/button>/);
+    // The X account a paid plan had connected is not usable on the trial.
+    const x = card(html, "X (Twitter)");
+    expect(x).toContain(">Not connected<");
+    expect(x).toMatch(/<button[^>]*disabled=""[^>]*>Connect<\/button>/);
+    expect(card(html, "Quora")).toContain(">Disconnect</button>");
+  });
+
+  it("offers no settings before an account is connected", () => {
+    const html = render({ accounts: [], open: [], posted: [] });
+    expect(html).toContain("0 of 6 connected");
+    expect(html).not.toContain("Account settings");
+    expect(html.match(/>Connect<\/button>/g)).toHaveLength(6);
+  });
+
+  it("is read-only for a viewer: the states, no Connect or Disconnect", () => {
+    const html = render({ canEdit: false });
+    expect(html).toContain("2 of 6 connected");
+    expect(card(html, "Quora")).toContain("Account linked");
+    expect(html).not.toContain(">Connect</button>");
+    expect(html).not.toContain(">Disconnect</button>");
+  });
+
+  it.each(LOCALES)("is written in %s", (locale) => {
+    const html = render({}, locale);
+    const copy = SOCIAL_CONNECTIONS_COPY[locale];
+    for (const text of [copy.eyebrow, copy.title, copy.sub, copy.connected, copy.notConnected, copy.linked, copy.ready, copy.hint, copy.settings]) {
+      expect(html).toContain(text.replace(/'/g, "&#x27;"));
+    }
+  });
+});
+
+describe("the Opportunities page", () => {
+  it("shows the tabs with their counts and an accessible tablist", () => {
+    const html = render();
     expect(html).toContain('role="tablist"');
     expect(html).toContain('aria-label="Stage"');
     expect(html.match(/role="tab"/g)).toHaveLength(5);
     // All 5 (the failed one too), Suggested 1, Scheduled 1, Drafts 1, Published 1.
     expect(html).toMatch(/All<span[^>]*>5<\/span>/);
     expect(html).toMatch(/Drafts<span[^>]*>1<\/span>/);
-    expect(html).toContain('aria-label="X: automatic posting paused"');
   });
 
   it("puts the next scheduled post on top, with what can be done to it", () => {
@@ -108,17 +182,11 @@ describe("the Opportunities page", () => {
     expect(html).toContain("Publish now");
   });
 
-  it("shows a failed post's reason and a retry, and a paused account without opening Manage", () => {
+  it("shows a failed post's reason and a retry, and a paused account without opening the settings", () => {
     const html = render();
     expect(html).toContain("Not published: duplicate content");
     expect(html).toContain(">Retry<");
     expect(html).toContain("Automatic posting is paused: X refused a post (rate limited)");
-  });
-
-  it("shows a trial's other platforms as locked", () => {
-    const html = render({ level: "trial", platforms: ["quora"] });
-    expect(html).toContain('aria-label="Reddit: included once your plan starts"');
-    expect(html).toContain("1 of 6 channels active");
   });
 
   it("gives a viewer nothing to post, skip or find", () => {
@@ -128,9 +196,10 @@ describe("the Opportunities page", () => {
     expect(html).not.toContain("Resume");
   });
 
-  it("asks a new website to connect an account", () => {
+  it("asks a new website to connect an account, at the panel", () => {
     const html = render({ accounts: [], open: [], posted: [] });
     expect(html).toContain("Connect an account and RepGet writes your first suggestions.");
+    expect(html).toContain('href="#social-connections"');
     expect(html).toContain("Connect accounts");
   });
 

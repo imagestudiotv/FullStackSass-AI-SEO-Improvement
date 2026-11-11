@@ -5,9 +5,11 @@ import type Stripe from "stripe";
 
 import { requireSession } from "@/lib/auth-guard";
 import { checkoutProviderOps } from "@/lib/billing/checkout-providers";
-import { OFFER_UNAVAILABLE, readOfferCode, REPGET_CODE, type OfferPlan } from "@/lib/billing/repget-offer";
+import { OFFER_UNAVAILABLE, REPGET_CODE, type OfferPlan } from "@/lib/billing/repget-offer";
+import { WINBACK_UNAVAILABLE } from "@/lib/billing/winback-offer";
 import { alertStaffAboutOffer, isCouponRefusal, OFFER_KEY, offerForPlanChange } from "@/lib/billing/repget-subscription";
 import {
+  automaticOffer,
   beginCheckout,
   isTrialEligible,
   markCheckoutFailed,
@@ -17,7 +19,7 @@ import {
 import { rememberPayer } from "@/lib/conversions/conversions";
 import { db } from "@/lib/db";
 import { billingCustomers, plans, websites } from "@/lib/db/schema";
-import { CONFIRM_EMAIL_FIRST } from "@/lib/plans/features";
+import { CONFIRM_EMAIL_FIRST, isDirectPurchaseTier } from "@/lib/plans/features";
 import { isStripeConfigured, stripe } from "@/lib/stripe/client";
 import { getOrCreateCustomer } from "@/lib/stripe/customer";
 import { stripeErrorMessage } from "@/lib/stripe/errors";
@@ -70,8 +72,6 @@ export async function createCheckoutSession(
   websiteId: string,
   /** Where the customer started, so paying returns them there. */
   origin: CheckoutOrigin = "billing",
-  /** A code the customer gave RepGet, not Stripe. Checked below (lib/billing/repget-offer.ts). */
-  offerCode?: string | null,
 ): Promise<CheckoutResult> {
   const { orgId } = await requireOrg();
 
@@ -123,14 +123,20 @@ export async function createCheckoutSession(
     addresses. Refused rather than charged without them - the page said
     "0 today", and changing the terms silently would make that untrue.
   */
+  // Not for a plan bought outright: it gives no free articles (lib/plans/features.ts DIRECT_PURCHASE_TIERS).
   const session = await requireSession();
-  if (session.user.emailVerified !== true && (await isTrialEligible(db, orgId))) {
+  if (!isDirectPurchaseTier(plan.tier) && session.user.emailVerified !== true && (await isTrialEligible(db, orgId))) {
     return { error: CONFIRM_EMAIL_FIRST };
   }
 
-  const offer = readOfferCode(offerCode, plan);
-  if (offer.error !== undefined) return { error: offer.error };
-  const offerCoupon = offer.coupon;
+  /*
+    REPGET, applied by itself (2026-11-11): the plan's launch-price coupon
+    while the offer is on - or else the win-back discount for an account that
+    was sent the win-back email (lib/billing/winback-offer.ts); never both.
+    Nothing the browser sends decides it.
+  */
+  const autoOffer = await automaticOffer(db, orgId, plan);
+  const offerCoupon = autoOffer?.coupon ?? null;
 
   const base = appUrl();
 
@@ -138,7 +144,7 @@ export async function createCheckoutSession(
   try {
     begun = await beginCheckout(
       db,
-      { organizationId: orgId, websiteId, provider: "stripe", planId: plan.id, offer: offerCoupon ? REPGET_CODE : null },
+      { organizationId: orgId, websiteId, provider: "stripe", planId: plan.id, offer: autoOffer?.code ?? null },
       checkoutProviderOps,
     );
   } catch (error) {
@@ -153,7 +159,7 @@ export async function createCheckoutSession(
     if (begun.current.planId === plan.id) {
       return { error: `This website is already on ${plan.name}.` };
     }
-    if (offerCoupon) return { error: `The ${REPGET_CODE} code is for starting a first paid plan, not for changing one.` };
+    // A plan change takes no new REPGET discount, only the launch price offerForPlanChange carries over from the subscription.
     return changeStripePlan({
       organizationId: orgId,
       providerSubscriptionId: begun.current.providerSubscriptionId,
@@ -197,7 +203,7 @@ export async function createCheckoutSession(
     /*
       Stripe's code box, for every other code. With the REPGET offer the plan's
       coupon is on the Checkout instead, and Stripe keeps it through a free period
-      for the first paid invoice (lib/billing/repget-offer.ts).
+      and on every invoice after it (`forever`, lib/billing/repget-offer.ts).
     */
     ...(offerCoupon ? { discounts: [{ coupon: offerCoupon }] } : { allow_promotion_codes: true }),
     // Metadata on the SESSION identifies this checkout...
@@ -207,7 +213,7 @@ export async function createCheckoutSession(
     // ...but session metadata does NOT propagate to the subscription, so it
     // is written there too, for every later subscription event.
     subscription_data: {
-      metadata: { ...metadata, ...(offerCoupon ? { [OFFER_KEY]: REPGET_CODE } : {}) },
+      metadata: { ...metadata, ...(autoOffer?.code === REPGET_CODE ? { [OFFER_KEY]: REPGET_CODE } : {}) },
       /**
        * A trial ONLY for a workspace that has never had a subscription
        * (isTrialEligible: durable history, decided under a lock). It used to
@@ -226,7 +232,7 @@ export async function createCheckoutSession(
     // needed to find the session it made (checkouts.ts findStripeSession).
     await recordCheckoutRequest(db, checkoutId, {
       idempotencyKey,
-      params: { customer: customerId, price: plan.stripePriceId, trialDays, ...(offerCoupon ? { offer: REPGET_CODE } : {}) },
+      params: { customer: customerId, price: plan.stripePriceId, trialDays, ...(autoOffer ? { offer: autoOffer.code } : {}) },
     });
 
     const session = await stripe.checkout.sessions.create(params, { idempotencyKey });
@@ -257,7 +263,7 @@ export async function createCheckoutSession(
       // Never a checkout without what was promised: nothing was started, and staff are told.
       if (offerCoupon && isCouponRefusal(error)) {
         await alertStaffAboutOffer(error instanceof Error ? error.message : String(error), `Stripe refused coupon ${offerCoupon} at Checkout, so the customer could not start. Website: ${websiteId}.`);
-        return { error: OFFER_UNAVAILABLE };
+        return { error: autoOffer?.code === REPGET_CODE ? OFFER_UNAVAILABLE : WINBACK_UNAVAILABLE };
       }
       return { error: stripeErrorMessage(error) };
     }
@@ -305,7 +311,7 @@ async function changeStripePlan(input: {
 
   let offerCoupon: string | undefined;
   try {
-    const subscription = await stripe.subscriptions.retrieve(input.providerSubscriptionId, { expand: ["discounts"] });
+    const subscription = await stripe.subscriptions.retrieve(input.providerSubscriptionId);
     const offer = offerForPlanChange(subscription, input.plan);
     if (offer.refuse) return { error: offer.refuse };
     offerCoupon = offer.coupon;
@@ -323,7 +329,7 @@ async function changeStripePlan(input: {
         subscription_update_confirm: {
           subscription: input.providerSubscriptionId,
           items: [{ id: item.id, price: input.priceId, quantity: item.quantity ?? 1 }],
-          // In the same request as the change, which can end a free period and charge at once.
+          // In the same request as the change, which can end a free period or invoice a proration at once.
           ...(offerCoupon ? { discounts: [{ coupon: offerCoupon }] } : {}),
         },
         after_completion: { type: "redirect", redirect: { return_url: input.returnUrl } },

@@ -77,6 +77,9 @@ export const config = {
     "/partner/:path*",
     "/blog/:path*",
     "/:locale/blog/:path*",
+    // The customer showcase: rendered per request, with members' comments.
+    "/discover/:path*",
+    "/:locale/discover/:path*",
     "/audit",
     "/:locale/audit",
     "/tools/ai-crawler-checker",

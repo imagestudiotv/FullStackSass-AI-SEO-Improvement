@@ -33,7 +33,7 @@ import { verifyBacklinks } from "./verify-backlinks";
 import { publishSocialPost, socialSuggestionsDaily, suggestSocial } from "./social-media";
 import { makeVideo, publishVideoJob, suggestVideoIdeasJob, videoFollowupDaily, videoIdeasDaily } from "./videos";
 import { chatCleanupDaily } from "./chat";
-import { lifecycleHourly, lifecycleSignup, lifecycleWeeklySummary, lifecycleWeeklySummaryOne } from "./lifecycle-emails";
+import { lifecycleHourly, lifecycleSignup, lifecycleWeeklySummary, lifecycleWeeklySummaryOne, lifecycleWinback } from "./lifecycle-emails";
 
 export const functions = [
   activateExchange,
@@ -78,4 +78,5 @@ export const functions = [
   lifecycleHourly,
   lifecycleWeeklySummary,
   lifecycleWeeklySummaryOne,
+  lifecycleWinback,
 ];

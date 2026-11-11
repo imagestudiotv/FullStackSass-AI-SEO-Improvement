@@ -67,6 +67,10 @@ import { ConfirmDialog } from "./confirm-dialog";
 import { adminBlogPath } from "./languages";
 import { postStatus } from "./post-status";
 import { uploadBlogPicture } from "./upload-picture";
+import { BusinessField } from "./business-field";
+import { BusinessProfileField } from "./business-profile-field";
+import { EMPTY_BUSINESS } from "@/lib/blog/business";
+import { EMPTY_PROFILE } from "@/lib/discover/profile-fields";
 
 const TEXTAREA =
   "flex w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-2 text-base outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm dark:bg-input/30";
@@ -157,6 +161,8 @@ function fromPost(post: AdminBlogPost | null, firstCategory: string, newLocale: 
     faqs: post?.faqs ?? [],
     sources: post?.sources ?? [],
     featuredImage: post?.featuredImage ?? null,
+    business: post?.business ?? EMPTY_BUSINESS,
+    businessProfile: post?.businessProfile ?? EMPTY_PROFILE,
     locale: post?.locale ?? newLocale,
   };
 }
@@ -584,6 +590,25 @@ export function BlogPostEditor({
                   onChange={(featuredImage) => set("featuredImage", featuredImage)}
                   onUpload={uploadImage}
                   preview={preview}
+                />
+              </AdminSection>
+
+              <AdminSection
+                id="post-business"
+                title="Business"
+                description="Optional. For a post in Customer stories: the business it is about, shown on the homepage's customer stories, in Earn Credits' Discover businesses and - with a profile address - in the customer directory (/discover)."
+              >
+                <BusinessField
+                  value={draft.business ?? EMPTY_BUSINESS}
+                  scopes={pictureScopes(locale)}
+                  onChange={(business) => set("business", business)}
+                  onUpload={uploadImage}
+                />
+                <BusinessProfileField
+                  value={draft.businessProfile ?? EMPTY_PROFILE}
+                  name={(draft.business ?? EMPTY_BUSINESS).name}
+                  locale={locale}
+                  onChange={(businessProfile) => set("businessProfile", businessProfile)}
                 />
               </AdminSection>
             </TabsContent>

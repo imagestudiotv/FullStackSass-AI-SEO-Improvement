@@ -1,36 +1,23 @@
-import { Check } from "lucide-react";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { Badge } from "@/components/ui/badge";
-import { TrialComparison } from "@/components/trial-comparison";
-import { FREE_ARTICLES, FREE_ARTICLES_DAYS, signUpForPlan, STARTER_TIER } from "@/lib/plans/features";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { formatPrice, listPlans } from "@/lib/billing";
-import { readCreditSettings, TRIAL_CREDIT_DAYS } from "@/lib/credits/prices";
-import { format, plural } from "@/lib/i18n/format";
+import { listPlans } from "@/lib/billing";
+import { repgetOfferEnabled } from "@/lib/billing/repget-offer";
 import { isLocale } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
+import { listPublishedTestimonials } from "@/lib/marketing/testimonials-db";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
+import { PricingView } from "../../pricing/pricing-view";
+
 /**
- * Localised pricing.
+ * Localised pricing: the English page's design (pricing/pricing-view.tsx) in
+ * the reader's language.
  *
  * Prices come from the same plans table as the English page, so a price change
  * is made once and cannot drift between languages. Only the surrounding copy is
- * translated — the numbers are the numbers.
- *
- * formatPrice already renders the currency correctly; the plan NAMES stay in
- * English because they are product names, not words. "Launch" is what the
- * customer sees on their invoice.
+ * translated - the numbers are the numbers, and the plan NAMES stay in English
+ * because they are product names: "Launch" is what the customer sees on their
+ * invoice.
  */
 export const dynamic = "force-dynamic";
 
@@ -55,149 +42,6 @@ export default async function LocalisedPricingPage({
   const { locale } = await params;
   if (!isLocale(locale) || locale === "en") notFound();
 
-  const t = getMessages(locale);
-  const [plans, credits] = await Promise.all([listPlans(), readCreditSettings()]);
-  const monthly = plans.filter((plan) => plan.interval === "month");
-
-  return (
-    <div className="mx-auto max-w-5xl px-4 py-16 sm:py-20">
-      <div className="text-center">
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-          {t.pricing.title}
-        </h1>
-        <p className="mx-auto mt-3 max-w-lg text-muted-foreground">
-          {t.pricing.subtitle}
-        </p>
-      </div>
-
-      {monthly.length === 0 ? (
-        // Real state, not a placeholder: with no plans configured we say so
-        // rather than inventing prices checkout would not honour.
-        <p className="mt-12 text-center text-sm text-muted-foreground">
-          {t.pricing.unavailable}
-        </p>
-      ) : (
-        // The grid follows the line-up, as on the English page.
-        <div className={`mx-auto mt-12 grid gap-6 ${monthly.length > 2 ? "lg:grid-cols-3" : "max-w-3xl sm:grid-cols-2"}`}>
-          {monthly.map((plan) => {
-            const featured = plan.tier === "grow";
-            const isStarter = plan.tier === STARTER_TIER;
-            return (
-              /*
-                The badge sits on a WRAPPER, not the Card. Card carries
-                overflow-hidden so images clip to its rounded corners, which
-                also cut this badge in half at the border.
-              */
-              <div key={plan.id} className="relative pt-2.5">
-                {featured ? (
-                  <Badge className="absolute top-0 left-6 z-10 shadow-sm">
-                    {t.pricing.mostPopular}
-                  </Badge>
-                ) : null}
-                {isStarter ? (
-                  <Badge
-                    variant="secondary"
-                    className="absolute top-0 left-6 z-10 border border-emerald-500/40 text-emerald-700 shadow-sm dark:text-emerald-400"
-                  >
-                    {t.pricing.tryItFirst}
-                  </Badge>
-                ) : null}
-                <Card
-                  className={`h-full ${
-                    featured
-                      ? "border-primary/40 shadow-sm"
-                      : isStarter
-                        ? "border-emerald-500/40"
-                        : ""
-                  }`}
-                >
-                  <CardHeader>
-                    {/* Plan names are product names, not words to translate. */}
-                    <CardTitle className="text-base">{plan.name}</CardTitle>
-                    <CardDescription>
-                      <span className="text-3xl font-semibold text-foreground">
-                        {formatPrice(plan.priceCents, plan.currency)}
-                      </span>
-                      <span className="text-muted-foreground">
-                        {t.pricing.perMonth}
-                      </span>
-                      {isStarter ? (
-                        <span className="mt-2 block text-muted-foreground">
-                          {t.pricing.starterTagline}
-                        </span>
-                      ) : null}
-                    </CardDescription>
-                  </CardHeader>
-
-                  {/* Takes the spare height, so each card's button lines up however long its list. */}
-                  <CardContent className="flex-1">
-                    <ul className="space-y-2.5 text-sm">
-                      {[
-                        plural(t.pricing.features.articles, plan.articleLimit, {
-                          n: plan.articleLimit,
-                        }),
-                        ...(plan.socialPostLimit > 0 ? [format(t.pricing.features.socialPosts, { n: plan.socialPostLimit })] : []),
-                        format(t.pricing.features.keywords, {
-                          n: plan.keywordLimit.toLocaleString(locale),
-                        }),
-                        /*
-                          Capability, not counts. The website and credit
-                          figures were dropped at the client's request; the
-                          limits still exist and are still enforced, they are
-                          simply no longer advertised beside a price.
-                        */
-                        t.pricing.features.backlinks,
-                        t.pricing.features.audit,
-                        t.pricing.features.healthChecks,
-                        t.pricing.features.publishing,
-                      ].map((feature) => (
-                        <li key={feature} className="flex items-start gap-2.5">
-                          <Check
-                            className="mt-0.5 size-4 shrink-0 text-primary"
-                            aria-hidden="true"
-                          />
-                          <span className="text-muted-foreground">
-                            {feature}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-
-                  <CardFooter>
-                    <Button
-                      asChild
-                      className="w-full"
-                      variant={featured ? "default" : "outline"}
-                    >
-                      <Link href={signUpForPlan(plan.tier)}>{t.pricing.getStarted}</Link>
-                    </Button>
-                  </CardFooter>
-                </Card>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {monthly.length > 0 ? (
-        <TrialComparison
-          t={t.pricing.trial}
-          freeArticles={FREE_ARTICLES}
-          freeDays={FREE_ARTICLES_DAYS}
-          trialDailyCredits={credits.trialDailyFree}
-          trialCreditDays={TRIAL_CREDIT_DAYS}
-          className="mx-auto mt-10 max-w-3xl"
-        />
-      ) : null}
-
-      <p className="mt-10 text-center text-sm text-muted-foreground">
-        {t.pricing.annualNote}{" "}
-        <Link href="/refunds" className="underline underline-offset-4">
-          {t.pricing.refundPolicy}
-        </Link>
-        .
-      </p>
-    </div>
-  );
+  const [plans, testimonials] = await Promise.all([listPlans(), listPublishedTestimonials()]);
+  return <PricingView locale={locale} plans={plans} testimonials={testimonials} offer={repgetOfferEnabled()} />;
 }

@@ -12,6 +12,7 @@ import { db } from "@/lib/db";
 import type { Executor } from "@/lib/db/types";
 import { billingCheckouts, organization, payments, paypalPlanChanges, paypalPlanVersions, plans, subscriptions } from "@/lib/db/schema";
 import { recordProviderRefund } from "@/lib/billing/refunds";
+import { grantWinbackBonus } from "@/lib/billing/winback";
 import { PayPalError, payPalMode } from "@/lib/paypal/client";
 import { fromPayPalAmount } from "@/lib/paypal/payments";
 import { convertReferral, reverseReferralReward } from "@/lib/referrals/core";
@@ -232,7 +233,9 @@ async function snapshotOf(
   if (live.plan_id) {
     /*
       Any of a plan's PayPal plans: with or without the free articles first,
-      and either again with the REPGET offer's intro cycle (review P5).
+      and either again with an offer plan's intro cycle (review P5; the
+      win-back discount now). The REPGET launch price is the plan's own
+      PayPal plan, repriced on the subscription: nothing here ends it.
     */
     const [plan] = await reader
       .select({ id: plans.id, interval: plans.interval, paypalTrialPlanId: plans.paypalTrialPlanId, paypalTrialOfferPlanId: plans.paypalTrialOfferPlanId })
@@ -509,6 +512,12 @@ export async function processPayPalEvent(event: PayPalEvent): Promise<void> {
           const { recordPartnerPayPalWork } = await import("@/lib/partners/presentation/webhooks");
           await recordPartnerPayPalWork({ id: event.id, eventType: event.event_type, saleId: resource.id });
           await convertReferral(synced.organizationId, Number.isFinite(total) ? Math.round(total * 100) : 0);
+          // The win-back offer's credits, as on Stripe's (lib/billing/winback.ts): once per person, thrown on failure.
+          await grantWinbackBonus({
+            provider: "paypal",
+            providerSubscriptionId: billingId,
+            amountCents: Number.isFinite(total) ? Math.round(total * 100) : 0,
+          });
           // The first real payment, to Google Analytics, as on Stripe's (lib/conversions/conversions.ts).
           await reportFirstPayment(db, {
             provider: "paypal",

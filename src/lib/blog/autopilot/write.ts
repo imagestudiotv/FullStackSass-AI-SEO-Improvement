@@ -1,8 +1,9 @@
 import "server-only";
 
 import * as cheerio from "cheerio";
-import { and, asc, desc, eq, lte } from "drizzle-orm";
+import { and, asc, desc, eq, lte, ne } from "drizzle-orm";
 
+import { CUSTOMER_STORIES_SLUG } from "@/lib/blog/engagement";
 import { keywordReport } from "@/lib/blog/keywords";
 import { blogPath } from "@/lib/blog/locale";
 import { blogSiteHosts, type BlogPostInput } from "@/lib/blog/post-fields";
@@ -132,6 +133,8 @@ export async function loadWriterContext(asOf: Date, executor: Executor = db): Pr
   const categories = await executor
     .select({ name: blogCategories.name, blurb: blogCategories.blurb })
     .from(blogCategories)
+    // Customer stories are about real businesses and written by the team (client, 2026-11-11): never the writer's to fill.
+    .where(ne(blogCategories.slug, CUSTOMER_STORIES_SLUG))
     .orderBy(asc(blogCategories.sortOrder), asc(blogCategories.name));
   const published = await executor
     .select({

@@ -7,6 +7,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 
 import { usePostVersions } from "@/components/post-languages";
 import { buttonVariants } from "@/components/ui/button";
+import { discoverPath } from "@/lib/discover/paths";
 import { LOCALE_NAMES, localePath, LOCALES, splitLocale, TRANSLATED_PATHS, type Locale } from "@/lib/i18n/config";
 import { cn } from "@/lib/utils";
 
@@ -45,6 +46,9 @@ import { cn } from "@/lib/utils";
 /** "/blog/<slug>": a post's page. Not /blog itself, nor /blog/category/..., which have more parts. */
 const POST_PATH = /^\/blog\/(?!category$|author$|sponsorship$)[^/]+$/;
 
+/** "/discover/<slug>": a business profile. Same address in every language (an untranslated one shows the English story). */
+const PROFILE_PATH = /^\/discover\/([^/]+)$/;
+
 /** A language's blog, and that an article is not in it - each in that language, as the link's name is. */
 const BLOG_FALLBACK: Record<Locale, { blog: string; missing: string }> = {
   en: { blog: "Blog in English", missing: "This article is not available in English" },
@@ -71,6 +75,7 @@ export function LanguageSwitcher({
   const { locale, path } = splitLocale(pathname);
   const menu = useRef<HTMLDetailsElement>(null);
   const isPost = POST_PATH.test(path);
+  const profile = PROFILE_PATH.exec(path)?.[1];
   const versions = usePostVersions(pathname);
 
   /*
@@ -101,7 +106,7 @@ export function LanguageSwitcher({
   }, []);
 
   // Nothing to switch to on a page that only exists in English.
-  if (!TRANSLATED_PATHS.has(path) && !isPost) return null;
+  if (!TRANSLATED_PATHS.has(path) && !profile && !isPost) return null;
 
   return (
     <details ref={menu} className={cn("group relative", appearance?.details)}>
@@ -126,7 +131,13 @@ export function LanguageSwitcher({
       <ul className={cn("absolute bottom-full left-0 z-50 mb-1 min-w-32 rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10", isPost && "w-max max-w-[min(20rem,calc(100vw-2rem))]")}>
         {LOCALES.map((option) => {
           // On a post: this article (the language being read, or a published translation), or that language's blog.
-          const article = !isPost ? localePath(option, path) : option === locale ? pathname : versions?.[option];
+          const article = profile
+            ? discoverPath(option, profile)
+            : !isPost
+              ? localePath(option, path)
+              : option === locale
+                ? pathname
+                : versions?.[option];
           return (
             <li key={option}>
               <Link

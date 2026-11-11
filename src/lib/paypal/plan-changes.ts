@@ -1,13 +1,14 @@
 import "server-only";
 
-import { and, eq, gt, inArray, isNotNull, isNull, lt, lte, or } from "drizzle-orm";
+import { and, eq, gt, inArray, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
 
 import { adminEmails } from "@/lib/admin/guard";
 import { syncPayPalSubscription } from "@/lib/billing/paypal-events";
 import { refundProviderOps } from "@/lib/billing/refund-providers";
 import { executeRefund, reserveRefund, type RefundProviderOps } from "@/lib/billing/refunds";
+import { REPGET_CODE, repgetFirstPaymentCents } from "@/lib/billing/repget-offer";
 import { db as appDb } from "@/lib/db";
-import { payments, paypalOrders, paypalPlanChanges, plans, subscriptions } from "@/lib/db/schema";
+import { billingCheckouts, payments, paypalOrders, paypalPlanChanges, plans, subscriptions } from "@/lib/db/schema";
 import type { Database } from "@/lib/db/types";
 import { emailLayout, emailText, escapeHtml } from "@/lib/email/layout";
 import { sendEmail } from "@/lib/email/send";
@@ -41,6 +42,11 @@ import { getSubscription, reviseSubscription, type PayPalSubscription } from "@/
  *           holds it), from which the lower price and allowances apply.
  *  Monthly <-> yearly through PayPal is refused: a revision cannot settle a
  *           different period's price fairly.
+ *
+ * A subscription on the REPGET launch price (2026-11-11) keeps it: the
+ * difference is between the two launch prices, and the revision sets the new
+ * plan's launch price on the subscription (PayPal does not carry an override
+ * over to a revised plan). A plan the launch price does not cover is refused.
  *
  * Every step is idempotent and re-entered from the return page, the webhook
  * and the maintenance sweep alike (reconcilePlanChanges).
@@ -114,6 +120,26 @@ export function prorateDifference(input: {
 
 const dateOf = (value: Date) => value.toISOString().slice(0, 10);
 
+/**
+ * Whether this PayPal subscription was started on the REPGET launch price,
+ * which it keeps on every payment and through a plan change: its checkout
+ * carried the offer (lib/paypal/actions.ts).
+ */
+async function onLaunchPrice(database: Database, paypalSubscriptionId: string): Promise<boolean> {
+  const [row] = await database
+    .select({ id: billingCheckouts.id })
+    .from(billingCheckouts)
+    .where(
+      and(
+        eq(billingCheckouts.provider, "paypal"),
+        eq(billingCheckouts.providerSubscriptionId, paypalSubscriptionId),
+        sql`${billingCheckouts.requestParams} ->> 'offer' = ${REPGET_CODE}`,
+      ),
+    )
+    .limit(1);
+  return Boolean(row);
+}
+
 export type StartPlanChangeResult = { kind: "redirect"; url: string } | { kind: "error"; error: string };
 
 /**
@@ -151,6 +177,14 @@ export async function startPlanChange(
     };
   }
   if (from.currency !== to.currency) return { kind: "error", error: "These plans are billed in different currencies." };
+  // What each plan costs THIS subscriber: the launch prices, for a subscription on them.
+  const launch = await onLaunchPrice(database, paypalSubscriptionId);
+  const toLaunchCents = launch ? repgetFirstPaymentCents(to) : null;
+  if (launch && toLaunchCents === null) {
+    return { kind: "error", error: `Your ${REPGET_CODE} launch price does not cover ${to.name}, so this website stays on ${from.name}.` };
+  }
+  const fromCents = launch ? (repgetFirstPaymentCents(from) ?? from.priceCents) : from.priceCents;
+  const toCents = toLaunchCents ?? to.priceCents;
   if (sub.status !== "active") {
     return {
       kind: "error",
@@ -193,13 +227,13 @@ export async function startPlanChange(
   const periodEnd = live.billing_info?.next_billing_time ? new Date(live.billing_info.next_billing_time) : sub.currentPeriodEnd;
   const periodStart = sub.currentPeriodStart;
 
-  const upgrade = to.priceCents >= from.priceCents;
+  const upgrade = toCents >= fromCents;
   let difference = 0;
-  if (upgrade && to.priceCents > from.priceCents) {
+  if (upgrade && toCents > fromCents) {
     if (!periodStart || !periodEnd) {
       return { kind: "error", error: "We could not read this subscription's billing period. Please try again shortly." };
     }
-    difference = prorateDifference({ fromCents: from.priceCents, toCents: to.priceCents, periodStart, periodEnd, now });
+    difference = prorateDifference({ fromCents, toCents, periodStart, periodEnd, now });
   }
 
   let change: ChangeRow;
@@ -313,10 +347,20 @@ export async function requestRevision(changeId: string, options: Options = {}): 
   const [change] = await database.select().from(paypalPlanChanges).where(eq(paypalPlanChanges.id, changeId)).limit(1);
   if (!change || change.status !== "awaiting_approval") return { kind: "error", error: "This change of plan is no longer open." };
   if (change.approveUrl) return { kind: "approve", url: change.approveUrl };
-  const [to] = await database.select({ paypalPlanId: plans.paypalPlanId }).from(plans).where(eq(plans.id, change.toPlanId)).limit(1);
+  const [to] = await database
+    .select({ paypalPlanId: plans.paypalPlanId, tier: plans.tier, interval: plans.interval, currency: plans.currency, priceCents: plans.priceCents })
+    .from(plans)
+    .where(eq(plans.id, change.toPlanId))
+    .limit(1);
   if (!to?.paypalPlanId) {
     await endUnrevised(database, ops, change, "the new plan has no PayPal plan any more", now);
     return { kind: "error", error: "This plan is no longer available through PayPal." };
+  }
+  // The launch price on the new plan's regular cycle (its plan has that one cycle) for a subscription on it.
+  const launchCents = (await onLaunchPrice(database, change.paypalSubscriptionId)) ? repgetFirstPaymentCents(to) : undefined;
+  if (launchCents === null) {
+    await endUnrevised(database, ops, change, `the ${REPGET_CODE} launch price does not cover the new plan`, now);
+    return { kind: "error", error: `Your ${REPGET_CODE} launch price does not cover this plan.` };
   }
   if (!change.revisionRequestedAt) await update(database, change.id, { revisionRequestedAt: now }, now);
 
@@ -328,6 +372,7 @@ export async function requestRevision(changeId: string, options: Options = {}): 
       returnUrl: `${base}${planChangeReturnPath(change.id, "success")}`,
       cancelUrl: `${base}${planChangeReturnPath(change.id, "cancelled")}`,
       idempotencyKey: `plan-change:${change.id}`,
+      prices: launchCents !== undefined ? [{ sequence: 1, totalCycles: 0, priceCents: launchCents, currency: to.currency }] : undefined,
     });
     if (!revised.approveUrl) {
       // No approval asked (PayPal did it at once): settled from what PayPal says.

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { activationProblems, CATALOG_VERSION, catalogRows, TIERS } from "../../../scripts/plan-catalog.mjs";
-import { planFeatures, signUpForPlan } from "./features";
+import { activationProblems, BUNDLES, CATALOG_VERSION, catalogRows, isBundleTier, TIERS } from "../../../scripts/plan-catalog.mjs";
+import { GROW_VISIBILITY_TIER, isDirectPurchaseTier, planFeatures, signUpForPlan } from "./features";
 
 /** What the plans table should hold for a catalog that is ready to sell. */
 const readyRows = () =>
@@ -28,9 +28,9 @@ describe("the plan catalog", () => {
     expect(CATALOG_VERSION).toBeGreaterThan(1);
   });
 
-  it("gives every tier a monthly row and an annual row at ten months' price", () => {
+  it("gives every tier a monthly row and an annual row at ten months' price, and each bundle a monthly row", () => {
     const rows = catalogRows();
-    expect(rows).toHaveLength(TIERS.length * 2);
+    expect(rows).toHaveLength(TIERS.length * 2 + BUNDLES.length);
     for (const tier of TIERS) {
       const annual = rows.find((row) => row.tier === tier.tier && row.interval === "year");
       expect(annual?.priceCents).toBe(tier.monthlyCents * 10);
@@ -50,6 +50,33 @@ describe("the plan catalog", () => {
   });
 });
 
+describe("Grow + Visibility (client, 2026-11-11)", () => {
+  const bundle = catalogRows().filter((row) => row.tier === GROW_VISIBILITY_TIER);
+  const grow = TIERS.find((tier) => tier.tier === "grow")!;
+
+  it("is one monthly row at EUR 99, a direct purchase in the app too", () => {
+    expect(bundle).toHaveLength(1);
+    expect(bundle[0]).toMatchObject({ name: "Grow + Visibility", interval: "month", priceCents: 9900 });
+    expect(isBundleTier(GROW_VISIBILITY_TIER)).toBe(true);
+    expect(isDirectPurchaseTier(GROW_VISIBILITY_TIER)).toBe(true);
+    expect(isDirectPurchaseTier("grow")).toBe(false);
+  });
+
+  it("has the Grow plan's allowances", () => {
+    for (const key of ["articleLimit", "socialPostLimit", "keywordLimit", "siteLimit", "monthlyCredits"] as const) {
+      expect(bundle[0][key]).toBe(grow[key]);
+    }
+  });
+
+  it("states the page's search terms: Launch 300, Grow 500, Scale 1,500", () => {
+    expect(TIERS.map((tier) => tier.keywordLimit)).toEqual([300, 500, 1500]);
+  });
+
+  it("goes through sign-up straight to its own plan step", () => {
+    expect(signUpForPlan(GROW_VISIBILITY_TIER)).toBe("/sign-up?next=%2Fonboarding%2Fwebsite%3Fplan%3Dgrow_visibility");
+  });
+});
+
 describe("activating a catalog", () => {
   it("allows a complete catalog with every Stripe price", () => {
     expect(activationProblems(readyRows())).toEqual([]);
@@ -62,6 +89,11 @@ describe("activating a catalog", () => {
       "launch/year: no Stripe price - run stripe:setup",
     ]);
     expect(activationProblems(rows, { requireStripe: false })).toEqual([]);
+  });
+
+  it("keeps the bundle off sale until it has its Stripe price", () => {
+    const rows = readyRows().map((row) => (row.tier === GROW_VISIBILITY_TIER ? { ...row, stripe_price_id: null } : row));
+    expect(activationProblems(rows)).toEqual(["grow_visibility/month: no Stripe price - run stripe:setup"]);
   });
 
   it("refuses a missing row, even locally", () => {

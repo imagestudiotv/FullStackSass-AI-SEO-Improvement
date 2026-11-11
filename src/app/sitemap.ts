@@ -2,6 +2,8 @@ import type { MetadataRoute } from "next";
 
 import { blogPath, categoryPath } from "@/lib/blog/locale";
 import { listPosts } from "@/lib/blog/posts";
+import { discoverPath } from "@/lib/discover/paths";
+import { discoverSitemapProfiles } from "@/lib/discover/profiles";
 import { localePath, PREFIXED_LOCALES, TRANSLATED_PATHS } from "@/lib/i18n/config";
 import { INTEGRATION_DOC_PAGES, PUBLIC_PAGES, TOOL_PAGES } from "@/lib/seo/public-pages";
 import { siteUrl as canonicalSiteUrl } from "@/lib/site-url";
@@ -128,5 +130,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }));
   });
 
-  return [...pages, ...tools, ...docs, ...posts, ...categories, ...translated, ...translatedPosts, ...translatedCategories];
+  /**
+   * The customer directory's business profiles (lib/discover/profiles.ts), in
+   * each language they are published in - not the pages that only show the
+   * English profile, which name it as their canonical.
+   */
+  const profiles: MetadataRoute.Sitemap = (await discoverSitemapProfiles()).map((profile) => ({
+    url: `${base}${discoverPath(profile.locale, profile.slug)}`,
+    lastModified: profile.updatedAt,
+    priority: 0.5,
+  }));
+
+  return [...pages, ...tools, ...docs, ...posts, ...categories, ...translated, ...translatedPosts, ...translatedCategories, ...profiles];
 }

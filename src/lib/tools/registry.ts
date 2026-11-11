@@ -63,6 +63,13 @@ export const TOOLS: Tool[] = [
 
   /* --- AI visibility ---------------------------------------------------- */
   {
+    href: "/tools/growth-copilot",
+    title: "AI Growth Copilot",
+    blurb: "Ask 3 growth questions a day, free and without signup.",
+    emoji: "💬",
+    category: "AI visibility",
+  },
+  {
     href: "/tools/ai-crawler-checker",
     title: "AI Crawler Checker",
     blurb: "Test GPTBot, ClaudeBot and PerplexityBot access.",

@@ -70,7 +70,7 @@ const en: EarnShareCopy = {
 
   eyebrow: "Your sharing toolkit",
   title: "Ready to share. Ready to earn.",
-  body: "Choose a platform and start from a template. Each one is only a starting point: make it your own, then copy it.",
+  body: "Choose a platform and start from a template. Each one is a starting point: make it your own, then copy it.",
   flag: "+{credits} credits",
   flagNote: "For one approved social post",
 

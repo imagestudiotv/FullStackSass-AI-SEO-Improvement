@@ -1,13 +1,15 @@
 import "server-only";
 
-import { and, count, eq, gt, gte, inArray, isNotNull, lte, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, eq, gt, gte, inArray, isNotNull, isNull, lte, sql, type SQL } from "drizzle-orm";
 
 import { customerTitleSql } from "@/lib/articles/review";
 
 import { isFreeArticlesTrial } from "@/lib/billing/entitlement-period";
+import { WINBACK_BONUS_CREDITS, WINBACK_PERCENT_OFF, winbackOfferEnabled } from "@/lib/billing/winback-offer";
 import { db } from "@/lib/db";
 import {
   articles,
+  calendarItems,
   creditLedger,
   member,
   payments,
@@ -232,6 +234,11 @@ export async function emailsAfterSubscriptionSync(
     );
   }
 
+  // Ended after the customer cancelled it, or a free period that never became a plan: the win-back, two days later.
+  if (ended && !isSubscriptionEnded(previous.status) && endedByLeaving(previous)) {
+    await scheduleWinback(row.id);
+  }
+
   if (PAYMENT_DUE.has(row.status) && !PAYMENT_DUE.has(previous.status)) {
     await sendLifecycleEmail(
       {
@@ -244,6 +251,104 @@ export async function emailsAfterSubscriptionSync(
       executor,
     );
   }
+}
+
+/* ------------------------------------------------------------------------- */
+/* Win-back                                                                   */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * Whether a subscription that has just ended was LEFT by its customer (the
+ * win-back's people, lib/billing/winback-offer.ts), judged from the row as it
+ * was before: a free period (cancelled, or ended without a plan starting), a
+ * paid plan that was set to cancel, or a paid plan ended at once. Never an
+ * unpaid plan the provider ended after failed payments, nor a checkout that
+ * was never completed.
+ */
+export function endedByLeaving(previous: NonNullable<PreviousSubscription>): boolean {
+  if (previous.status === "trialing" || previous.status === "active") return true;
+  return PAYMENT_DUE.has(previous.status) && previous.cancelAtPeriodEnd;
+}
+
+/**
+ * Queues the win-back for WINBACK_WAIT later (lifecycle-winback job), keyed by
+ * the subscription so a repeated sync is one job. Everything is decided again
+ * when it runs (emailWinback). Never thrown.
+ */
+async function scheduleWinback(subscriptionId: string): Promise<void> {
+  try {
+    const { queueJob } = await import("@/inngest/send");
+    await queueJob({ id: `lifecycle-winback:${subscriptionId}`, name: "email/subscription.ended", data: { subscriptionId } });
+  } catch (error) {
+    console.error(`[lifecycle-email] the win-back for ${subscriptionId} could not be queued`, error);
+  }
+}
+
+/** The person a workspace's emails go to: its owner, else whoever joined first (as recipientFor in lifecycle.ts). */
+async function workspaceOwner(executor: Executor, organizationId: string): Promise<string | null> {
+  const [row] = await executor
+    .select({ userId: member.userId })
+    .from(member)
+    .where(eq(member.organizationId, organizationId))
+    .orderBy(sql`case when ${member.role} = 'owner' then 0 else 1 end`, asc(member.createdAt))
+    .limit(1);
+  return row?.userId ?? null;
+}
+
+/** Whether a person still has a subscription running (or owed) in any workspace they belong to. */
+export async function hasRunningSubscription(executor: Executor, userId: string): Promise<boolean> {
+  const [row] = await executor
+    .select({ id: subscriptions.id })
+    .from(subscriptions)
+    .innerJoin(member, eq(member.organizationId, subscriptions.organizationId))
+    .where(and(eq(member.userId, userId), inArray(subscriptions.status, ["active", "trialing", "past_due", "unpaid"])))
+    .limit(1);
+  return Boolean(row);
+}
+
+/**
+ * The win-back email, about two days after a subscription the customer left
+ * has ended (scheduled by emailsAfterSubscriptionSync). Read again now: the
+ * subscription must still be ended and the person must have no other
+ * subscription running - one who came back meanwhile gets nothing. Once per
+ * PERSON, ever (scope user, one dedupe key). Tips and reports, so it respects
+ * the unsubscribe. Not sent while the offer is off (WINBACK_OFFER_ENABLED),
+ * so it never promises a discount checkout would not give.
+ */
+export async function emailWinback(subscriptionId: string, executor: Executor = db): Promise<LifecycleOutcome> {
+  if (!winbackOfferEnabled()) return { status: "skipped", reason: "offer_off" };
+  const [row] = await executor
+    .select({ id: subscriptions.id, organizationId: subscriptions.organizationId, websiteId: subscriptions.websiteId, status: subscriptions.status })
+    .from(subscriptions)
+    .where(eq(subscriptions.id, subscriptionId))
+    .limit(1);
+  if (!row) return { status: "skipped", reason: "no_subscription" };
+  if (!isSubscriptionEnded(row.status)) return { status: "skipped", reason: "not_ended" };
+  const userId = await workspaceOwner(executor, row.organizationId);
+  if (!userId) return { status: "skipped", reason: "no_recipient" };
+  if (await hasRunningSubscription(executor, userId)) return { status: "skipped", reason: "has_subscription" };
+  return sendLifecycleEmail(
+    {
+      userId,
+      kind: "winback",
+      dedupeKey: "winback",
+      build: async () => {
+        // A plan that took money, or a free period that never did.
+        const [paid] = await executor
+          .select({ n: count() })
+          .from(payments)
+          .where(and(eq(payments.subscriptionId, row.id), gt(payments.amountCents, 0), inArray(payments.status, ["paid", "refunded"])));
+        return {
+          kind: "winback",
+          websiteId: row.websiteId,
+          ended: Number(paid?.n ?? 0) > 0 ? "plan" : "trial",
+          percentOff: WINBACK_PERCENT_OFF,
+          credits: WINBACK_BONUS_CREDITS,
+        };
+      },
+    },
+    executor,
+  );
 }
 
 /**
@@ -316,6 +421,93 @@ export async function emailTrialsEnding(now: Date = new Date(), executor: Execut
     if (outcome.status === "sent") sent += 1;
   }
   return sent;
+}
+
+/**
+ * "Fingers crossed!" (client, 2026-11-11, "Email Autopilot"): about a day into
+ * a website's free period, its journey and its first figures. The free
+ * periods that started 24 to 48 hours ago, still on their free articles, not
+ * cancelled, attached to a website - read by the hourly job from the stored
+ * period start, and checked again when sent. Once per subscription.
+ */
+export async function emailTrialsProgress(now: Date = new Date(), executor: Executor = db): Promise<number> {
+  const due = await executor
+    .select({ id: subscriptions.id })
+    .from(subscriptions)
+    .where(
+      and(
+        eq(subscriptions.status, "trialing"),
+        eq(subscriptions.cancelAtPeriodEnd, false),
+        isNotNull(subscriptions.websiteId),
+        gt(subscriptions.currentPeriodStart, new Date(now.getTime() - 2 * DAY_MS)),
+        lte(subscriptions.currentPeriodStart, new Date(now.getTime() - DAY_MS)),
+        gt(subscriptions.currentPeriodEnd, now),
+      ),
+    )
+    .limit(500);
+  let sent = 0;
+  for (const { id } of due) {
+    const outcome = await emailTrialProgress(id, now, executor);
+    if (outcome.status === "sent") sent += 1;
+  }
+  return sent;
+}
+
+/** The website's first figures, from its own records: articles written and live, topics planned (never translations). */
+export async function trialProgress(websiteId: string, executor: Executor = db) {
+  const site = and(eq(articles.websiteId, websiteId), isNull(articles.translationOf));
+  const [written] = await executor
+    .select({ n: count() })
+    .from(articles)
+    .where(and(site, inArray(articles.status, ["draft", "published"]), isNotNull(articles.bodyHtml)));
+  const [live] = await executor
+    .select({ n: count() })
+    .from(articles)
+    .where(and(site, eq(articles.status, "published")));
+  const [planned] = await executor
+    .select({ n: count() })
+    .from(calendarItems)
+    .where(and(eq(calendarItems.websiteId, websiteId), eq(calendarItems.status, "planned")));
+  return {
+    articlesWritten: Number(written?.n ?? 0),
+    articlesLive: Number(live?.n ?? 0),
+    topicsPlanned: Number(planned?.n ?? 0),
+  };
+}
+
+/** One free period's "Fingers crossed!", after reading it again: skipped once it is paid, cancelled or ended. */
+export async function emailTrialProgress(
+  subscriptionId: string,
+  now: Date = new Date(),
+  executor: Executor = db,
+): Promise<LifecycleOutcome> {
+  const row = await subscriptionFacts(executor, eq(subscriptions.id, subscriptionId));
+  if (!row?.websiteId || !row.currentPeriodStart) return { status: "skipped", reason: "no_website" };
+  if (row.status !== "trialing" || row.cancelAtPeriodEnd || !isFreeArticlesTrial(row)) {
+    return { status: "skipped", reason: "not_on_free_articles" };
+  }
+  if (now.getTime() - row.currentPeriodStart.getTime() < DAY_MS) return { status: "skipped", reason: "too_early" };
+  const websiteId = row.websiteId;
+  return sendLifecycleEmail(
+    {
+      organizationId: row.organizationId,
+      kind: "trial_progress",
+      dedupeKey: row.id,
+      build: async () => {
+        const figures = await trialProgress(websiteId, executor);
+        const above = (value: number) => (value > 0 ? value : undefined);
+        return {
+          kind: "trial_progress",
+          websiteId,
+          domain: row.domain,
+          articlesWritten: above(figures.articlesWritten),
+          articlesLive: above(figures.articlesLive),
+          topicsPlanned: above(figures.topicsPlanned),
+        };
+      },
+    },
+    executor,
+  );
 }
 
 /** One trial's reminder, after reading it again: skipped once it is paid, cancelled or ended. */

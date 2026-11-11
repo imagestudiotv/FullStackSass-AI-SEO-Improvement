@@ -17,7 +17,8 @@ import { FREE_ARTICLES } from "@/lib/plans/features";
  * NO NUMBER IS WRITTEN HERE. Every figure in these emails - a date, a plan's
  * name, a view count, a credit balance - comes from the caller, read from the
  * database at send time; a metric that is zero or unknown is left out rather
- * than shown.
+ * than shown. (The one figure in the words, "DR 60+" in trial_ending, is part
+ * of RepGet's own offer, not a fact about the account.)
  *
  * Every email has ONE button, to the page in the app where the reader acts on
  * it, and the same link written out under it for clients that strip buttons.
@@ -27,6 +28,7 @@ export const LIFECYCLE_KINDS = [
   "welcome",
   "setup_reminder",
   "trial_started",
+  "trial_progress",
   "trial_ending",
   "trial_ended",
   "plan_started",
@@ -37,6 +39,7 @@ export const LIFECYCLE_KINDS = [
   "video_views",
   "referral_reward",
   "weekly_summary",
+  "winback",
 ] as const;
 
 export type LifecycleKind = (typeof LIFECYCLE_KINDS)[number];
@@ -52,6 +55,7 @@ export const ESSENTIAL: Record<LifecycleKind, boolean> = {
   welcome: true,
   setup_reminder: false,
   trial_started: true,
+  trial_progress: false,
   trial_ending: true,
   trial_ended: true,
   plan_started: true,
@@ -62,6 +66,7 @@ export const ESSENTIAL: Record<LifecycleKind, boolean> = {
   video_views: false,
   referral_reward: true,
   weekly_summary: false,
+  winback: false,
 };
 
 /** What each email says about itself, by kind. */
@@ -69,6 +74,15 @@ export type LifecycleEmail =
   | { kind: "welcome"; invited: boolean }
   | { kind: "setup_reminder" }
   | { kind: "trial_started"; websiteId: string; domain: string; plan: string; endsOn: Date; provider: "stripe" | "paypal" }
+  | {
+      kind: "trial_progress";
+      websiteId: string;
+      domain: string;
+      /** Each figure only when it is above zero; the caller leaves the others out. */
+      articlesWritten?: number;
+      articlesLive?: number;
+      topicsPlanned?: number;
+    }
   | { kind: "trial_ending"; websiteId: string; domain: string; plan: string; endsOn: Date }
   | { kind: "trial_ended"; websiteId: string; domain: string }
   | { kind: "plan_started"; websiteId: string; domain: string; plan: string }
@@ -95,6 +109,16 @@ export type LifecycleEmail =
       socialPosts?: number;
       videosPosted?: number;
       credits?: number;
+    }
+  | {
+      kind: "winback";
+      /** The website whose Billing the button opens; null when it is gone (Billing then picks one). */
+      websiteId: string | null;
+      /** What ended: a paid plan, or a free period that never became one. */
+      ended: "plan" | "trial";
+      /** The offer's terms (lib/billing/winback-offer.ts), never written in the copy. */
+      percentOff: number;
+      credits: number;
     };
 
 type Copy = {
@@ -121,7 +145,33 @@ type Copy = {
     cancel: string;
     button: string;
   };
-  trial_ending: { subject: string; heading: string; preheader: string; body: string; cancel: string; button: string };
+  trial_progress: {
+    subject: string;
+    heading: string;
+    preheader: string;
+    intro: string;
+    statsIntro: string;
+    articlesWritten: string;
+    articlesLive: string;
+    topicsPlanned: string;
+    /** When there is no figure yet. */
+    noStats: string;
+    button: string;
+  };
+  trial_ending: {
+    subject: string;
+    heading: string;
+    preheader: string;
+    /** The billing facts: when it ends, that the plan starts and is charged. */
+    body: string;
+    /** "Continue growing with RepGet", introducing the three lines below. */
+    growth: string;
+    blogPost: string;
+    social: string;
+    backlink: string;
+    cancel: string;
+    button: string;
+  };
   trial_ended: { subject: string; heading: string; preheader: string; body: string; button: string };
   plan_started: { subject: string; heading: string; preheader: string; body: string; next: string; button: string };
   payment_failed: { subject: string; heading: string; preheader: string; body: string; next: string; button: string };
@@ -149,6 +199,18 @@ type Copy = {
     socialPosts: string;
     videosPosted: string;
     credits: string;
+    button: string;
+  };
+  winback: {
+    subject: string;
+    heading: string;
+    preheader: string;
+    endedPlan: string;
+    endedTrial: string;
+    offer: string;
+    discount: string;
+    credits: string;
+    terms: string;
     button: string;
   };
 };
@@ -188,11 +250,27 @@ export const LIFECYCLE_COPY: Record<Locale, Copy> = {
       cancel: "If you cancel in Billing before then, you pay nothing.",
       button: "Write your first article",
     },
+    trial_progress: {
+      subject: "Fingers crossed! {domain} has started its journey with RepGet",
+      heading: "Your journey with RepGet has started",
+      preheader: "The first updates and stats for {domain}.",
+      intro: "Fingers crossed! {domain} has started its journey with RepGet. We will share its updates and stats with you here.",
+      statsIntro: "So far, during the free period:",
+      articlesWritten: "Articles written: {count}",
+      articlesLive: "Articles live on your website: {count}",
+      topicsPlanned: "Topics planned: {count}",
+      noStats: "RepGet is preparing the first articles now. You will see them here as soon as they are written.",
+      button: "Open your website",
+    },
     trial_ending: {
-      subject: "Your free period ends tomorrow",
-      heading: "Your free period ends tomorrow",
+      subject: "Your free period ends tomorrow: continue growing with RepGet",
+      heading: "Continue growing with RepGet",
       preheader: "Your {plan} plan for {domain} starts on {date}.",
       body: "The free period for {domain} ends on {date}. Your {plan} plan then starts and the first payment is taken.",
+      growth: "Continue growing with RepGet. With your plan:",
+      blogPost: "We publish and share a great blog post about your business.",
+      social: "We mention you on RepGet's social channels for a brand boost.",
+      backlink: "You get a strong dofollow link from a DR 60+ website.",
       cancel: "To change plan or cancel, open Billing before then.",
       button: "Open Billing",
     },
@@ -272,6 +350,18 @@ export const LIFECYCLE_COPY: Record<Locale, Copy> = {
       credits: "Credit balance: {count}",
       button: "Open your dashboard",
     },
+    winback: {
+      subject: "Come back to RepGet: {credits} extra credits and {percent}% off",
+      heading: "Come back to RepGet",
+      preheader: "{percent}% off your first payment and {credits} extra credits when you restart a plan.",
+      endedPlan: "Your RepGet plan has ended.",
+      endedTrial: "Your RepGet free period has ended.",
+      offer: "If you would like to keep growing your website, here is a welcome-back offer for you:",
+      discount: "{percent}% off your first payment when you restart a plan, monthly or yearly.",
+      credits: "{credits} extra credits, added as soon as that first payment goes through.",
+      terms: "The discount is applied automatically at checkout on Launch, Grow and Scale. It can be used once per account and is not combined with other discounts.",
+      button: "Choose a plan",
+    },
   },
   es: {
     greeting: "Hola:",
@@ -307,11 +397,27 @@ export const LIFECYCLE_COPY: Record<Locale, Copy> = {
       cancel: "Si cancela en Facturación antes de esa fecha, no paga nada.",
       button: "Escribir su primer artículo",
     },
+    trial_progress: {
+      subject: "¡Crucemos los dedos! {domain} ha empezado su camino con RepGet",
+      heading: "Su camino con RepGet ha empezado",
+      preheader: "Las primeras novedades y estadísticas de {domain}.",
+      intro: "¡Crucemos los dedos! {domain} ha empezado su camino con RepGet. Aquí le compartiremos sus novedades y estadísticas.",
+      statsIntro: "Hasta ahora, durante el periodo gratuito:",
+      articlesWritten: "Artículos escritos: {count}",
+      articlesLive: "Artículos publicados en su sitio web: {count}",
+      topicsPlanned: "Temas planificados: {count}",
+      noStats: "RepGet está preparando ahora los primeros artículos. Los verá aquí en cuanto estén escritos.",
+      button: "Abrir su sitio web",
+    },
     trial_ending: {
-      subject: "Su periodo gratuito termina mañana",
-      heading: "Su periodo gratuito termina mañana",
+      subject: "Su periodo gratuito termina mañana: siga creciendo con RepGet",
+      heading: "Siga creciendo con RepGet",
       preheader: "Su plan {plan} para {domain} empieza el {date}.",
       body: "El periodo gratuito de {domain} termina el {date}. Entonces empieza su plan {plan} y se cobra el primer pago.",
+      growth: "Siga creciendo con RepGet. Con su plan:",
+      blogPost: "Publicamos y difundimos un excelente artículo de blog sobre su negocio.",
+      social: "Le mencionamos en las redes sociales de RepGet para impulsar su marca.",
+      backlink: "Obtiene un sólido enlace dofollow desde un sitio web con DR 60+.",
       cancel: "Para cambiar de plan o cancelar, abra Facturación antes de esa fecha.",
       button: "Abrir Facturación",
     },
@@ -391,6 +497,18 @@ export const LIFECYCLE_COPY: Record<Locale, Copy> = {
       credits: "Saldo de créditos: {count}",
       button: "Abrir su panel",
     },
+    winback: {
+      subject: "Vuelva a RepGet: {credits} créditos extra y un {percent} % de descuento",
+      heading: "Vuelva a RepGet",
+      preheader: "Un {percent} % de descuento en su primer pago y {credits} créditos extra al volver a contratar un plan.",
+      endedPlan: "Su plan de RepGet ha terminado.",
+      endedTrial: "Su periodo gratuito de RepGet ha terminado.",
+      offer: "Si desea seguir haciendo crecer su sitio web, tenemos una oferta de bienvenida para usted:",
+      discount: "Un {percent} % de descuento en su primer pago al volver a contratar un plan, mensual o anual.",
+      credits: "{credits} créditos extra, que se añaden en cuanto se realice ese primer pago.",
+      terms: "El descuento se aplica automáticamente al pagar en Launch, Grow y Scale. Puede usarse una vez por cuenta y no se combina con otros descuentos.",
+      button: "Elegir un plan",
+    },
   },
   fr: {
     greeting: "Bonjour,",
@@ -426,11 +544,27 @@ export const LIFECYCLE_COPY: Record<Locale, Copy> = {
       cancel: "Si vous annulez dans Facturation avant cette date, vous ne payez rien.",
       button: "Rédiger votre premier article",
     },
+    trial_progress: {
+      subject: "Croisons les doigts ! {domain} a commencé son parcours avec RepGet",
+      heading: "Votre parcours avec RepGet a commencé",
+      preheader: "Les premières nouvelles et statistiques de {domain}.",
+      intro: "Croisons les doigts ! {domain} a commencé son parcours avec RepGet. Nous vous communiquerons ici ses nouvelles et ses statistiques.",
+      statsIntro: "Jusqu’à présent, pendant la période gratuite :",
+      articlesWritten: "Articles rédigés : {count}",
+      articlesLive: "Articles en ligne sur votre site : {count}",
+      topicsPlanned: "Sujets planifiés : {count}",
+      noStats: "RepGet prépare en ce moment les premiers articles. Vous les verrez ici dès qu’ils seront rédigés.",
+      button: "Ouvrir votre site",
+    },
     trial_ending: {
-      subject: "Votre période gratuite se termine demain",
-      heading: "Votre période gratuite se termine demain",
+      subject: "Votre période gratuite se termine demain : continuez à grandir avec RepGet",
+      heading: "Continuez à grandir avec RepGet",
       preheader: "Votre forfait {plan} pour {domain} démarre le {date}.",
       body: "La période gratuite de {domain} se termine le {date}. Votre forfait {plan} démarre alors et le premier paiement est prélevé.",
+      growth: "Continuez à grandir avec RepGet. Avec votre forfait :",
+      blogPost: "Nous publions et diffusons un excellent article de blog sur votre entreprise.",
+      social: "Nous vous mentionnons sur les réseaux sociaux de RepGet pour donner de la visibilité à votre marque.",
+      backlink: "Vous obtenez un lien dofollow solide depuis un site au DR 60+.",
       cancel: "Pour changer de forfait ou annuler, ouvrez Facturation avant cette date.",
       button: "Ouvrir Facturation",
     },
@@ -510,6 +644,18 @@ export const LIFECYCLE_COPY: Record<Locale, Copy> = {
       credits: "Solde de crédits : {count}",
       button: "Ouvrir votre tableau de bord",
     },
+    winback: {
+      subject: "Revenez sur RepGet : {credits} crédits offerts et {percent} % de réduction",
+      heading: "Revenez sur RepGet",
+      preheader: "{percent} % de réduction sur votre premier paiement et {credits} crédits offerts en reprenant un forfait.",
+      endedPlan: "Votre forfait RepGet a pris fin.",
+      endedTrial: "Votre période gratuite RepGet a pris fin.",
+      offer: "Si vous souhaitez continuer à développer votre site, voici une offre de bienvenue pour votre retour :",
+      discount: "{percent} % de réduction sur votre premier paiement en reprenant un forfait, mensuel ou annuel.",
+      credits: "{credits} crédits offerts, ajoutés dès que ce premier paiement est effectué.",
+      terms: "La réduction est appliquée automatiquement au paiement sur Launch, Grow et Scale. Elle est utilisable une fois par compte et ne se cumule pas avec d’autres réductions.",
+      button: "Choisir un forfait",
+    },
   },
   it: {
     greeting: "Buongiorno,",
@@ -545,11 +691,27 @@ export const LIFECYCLE_COPY: Record<Locale, Copy> = {
       cancel: "Se annulla in Fatturazione prima di quella data, non paga nulla.",
       button: "Scrivi il primo articolo",
     },
+    trial_progress: {
+      subject: "Incrociamo le dita! {domain} ha iniziato il suo percorso con RepGet",
+      heading: "Il Suo percorso con RepGet è iniziato",
+      preheader: "I primi aggiornamenti e le prime statistiche di {domain}.",
+      intro: "Incrociamo le dita! {domain} ha iniziato il suo percorso con RepGet. Qui Le condivideremo i suoi aggiornamenti e le sue statistiche.",
+      statsIntro: "Finora, durante il periodo gratuito:",
+      articlesWritten: "Articoli scritti: {count}",
+      articlesLive: "Articoli online sul Suo sito web: {count}",
+      topicsPlanned: "Argomenti pianificati: {count}",
+      noStats: "RepGet sta preparando ora i primi articoli. Li vedrà qui non appena saranno scritti.",
+      button: "Apri il Suo sito",
+    },
     trial_ending: {
-      subject: "Il Suo periodo gratuito termina domani",
-      heading: "Il Suo periodo gratuito termina domani",
+      subject: "Il Suo periodo gratuito termina domani: continui a crescere con RepGet",
+      heading: "Continui a crescere con RepGet",
       preheader: "Il Suo piano {plan} per {domain} inizia il {date}.",
       body: "Il periodo gratuito di {domain} termina il {date}. Poi inizia il Suo piano {plan} e viene addebitato il primo pagamento.",
+      growth: "Continui a crescere con RepGet. Con il Suo piano:",
+      blogPost: "Pubblichiamo e condividiamo un ottimo articolo di blog sulla Sua attività.",
+      social: "La menzioniamo sui canali social di RepGet per dare slancio al Suo marchio.",
+      backlink: "Ottiene un solido link dofollow da un sito web con DR 60+.",
       cancel: "Per cambiare piano o annullare, apra Fatturazione prima di quella data.",
       button: "Apri Fatturazione",
     },
@@ -629,6 +791,18 @@ export const LIFECYCLE_COPY: Record<Locale, Copy> = {
       credits: "Saldo crediti: {count}",
       button: "Apri la Sua dashboard",
     },
+    winback: {
+      subject: "Torni su RepGet: {credits} crediti extra e il {percent}% di sconto",
+      heading: "Torni su RepGet",
+      preheader: "Il {percent}% di sconto sul primo pagamento e {credits} crediti extra se riattiva un piano.",
+      endedPlan: "Il Suo piano RepGet è terminato.",
+      endedTrial: "Il Suo periodo gratuito RepGet è terminato.",
+      offer: "Se desidera continuare a far crescere il Suo sito web, ecco un’offerta di bentornato per Lei:",
+      discount: "Il {percent}% di sconto sul primo pagamento quando riattiva un piano, mensile o annuale.",
+      credits: "{credits} crediti extra, aggiunti non appena quel primo pagamento va a buon fine.",
+      terms: "Lo sconto viene applicato automaticamente al pagamento su Launch, Grow e Scale. È utilizzabile una volta per account e non si cumula con altri sconti.",
+      button: "Scegli un piano",
+    },
   },
   de: {
     greeting: "Guten Tag,",
@@ -664,11 +838,27 @@ export const LIFECYCLE_COPY: Record<Locale, Copy> = {
       cancel: "Wenn Sie vorher unter Abrechnung kündigen, zahlen Sie nichts.",
       button: "Ersten Artikel schreiben",
     },
+    trial_progress: {
+      subject: "Daumen drücken! {domain} hat seine Reise mit RepGet begonnen",
+      heading: "Ihre Reise mit RepGet hat begonnen",
+      preheader: "Die ersten Neuigkeiten und Zahlen zu {domain}.",
+      intro: "Daumen drücken! {domain} hat seine Reise mit RepGet begonnen. Hier teilen wir Ihnen die Neuigkeiten und Zahlen dazu mit.",
+      statsIntro: "Bisher, im kostenlosen Zeitraum:",
+      articlesWritten: "Geschriebene Artikel: {count}",
+      articlesLive: "Artikel online auf Ihrer Website: {count}",
+      topicsPlanned: "Geplante Themen: {count}",
+      noStats: "RepGet bereitet gerade die ersten Artikel vor. Sie sehen sie hier, sobald sie geschrieben sind.",
+      button: "Website öffnen",
+    },
     trial_ending: {
-      subject: "Ihr kostenloser Zeitraum endet morgen",
-      heading: "Ihr kostenloser Zeitraum endet morgen",
+      subject: "Ihr kostenloser Zeitraum endet morgen: Wachsen Sie weiter mit RepGet",
+      heading: "Wachsen Sie weiter mit RepGet",
       preheader: "Ihr Tarif {plan} für {domain} beginnt am {date}.",
       body: "Der kostenlose Zeitraum für {domain} endet am {date}. Danach beginnt Ihr Tarif {plan} und die erste Zahlung wird eingezogen.",
+      growth: "Wachsen Sie weiter mit RepGet. Mit Ihrem Tarif:",
+      blogPost: "Wir veröffentlichen und teilen einen starken Blogartikel über Ihr Unternehmen.",
+      social: "Wir erwähnen Sie auf den Social-Media-Kanälen von RepGet, um Ihre Marke zu stärken.",
+      backlink: "Sie erhalten einen starken Dofollow-Link von einer Website mit DR 60+.",
       cancel: "Um den Tarif zu wechseln oder zu kündigen, öffnen Sie vorher die Abrechnung.",
       button: "Abrechnung öffnen",
     },
@@ -748,6 +938,18 @@ export const LIFECYCLE_COPY: Record<Locale, Copy> = {
       credits: "Credit-Guthaben: {count}",
       button: "Dashboard öffnen",
     },
+    winback: {
+      subject: "Kommen Sie zurück zu RepGet: {credits} zusätzliche Credits und {percent} % Rabatt",
+      heading: "Kommen Sie zurück zu RepGet",
+      preheader: "{percent} % Rabatt auf Ihre erste Zahlung und {credits} zusätzliche Credits, wenn Sie wieder einen Tarif starten.",
+      endedPlan: "Ihr RepGet-Tarif ist beendet.",
+      endedTrial: "Ihr kostenloser Zeitraum bei RepGet ist beendet.",
+      offer: "Wenn Sie Ihre Website weiter wachsen lassen möchten, haben wir ein Angebot für Ihre Rückkehr:",
+      discount: "{percent} % Rabatt auf Ihre erste Zahlung, wenn Sie wieder einen Tarif starten, monatlich oder jährlich.",
+      credits: "{credits} zusätzliche Credits, gutgeschrieben, sobald diese erste Zahlung eingegangen ist.",
+      terms: "Der Rabatt wird beim Bezahlen für Launch, Grow und Scale automatisch angewendet. Er gilt einmal pro Konto und ist nicht mit anderen Rabatten kombinierbar.",
+      button: "Tarif wählen",
+    },
   },
 };
 
@@ -771,6 +973,8 @@ type Parts = {
   paragraphs: string[];
   /** Label: value lines, shown as a list (the weekly summary). */
   facts?: string[];
+  /** Paragraphs after the list (what to do before a date, an offer's terms). */
+  closing?: string[];
   /** A link written out in the body (an article's live address). */
   link?: { label: string; href: string };
   button: { label: string; path: string };
@@ -827,6 +1031,25 @@ function parts(email: LifecycleEmail, locale: Locale): Parts {
         button: { label: c.button, path: `/websites/${email.websiteId}` },
       };
     }
+    case "trial_progress": {
+      const c = copy.trial_progress;
+      const values = { domain: email.domain };
+      const line = (template: string, value: number | undefined) =>
+        value !== undefined && value > 0 ? [format(template, { count: formatNumber(value, locale) })] : [];
+      const facts = [
+        ...line(c.articlesWritten, email.articlesWritten),
+        ...line(c.articlesLive, email.articlesLive),
+        ...line(c.topicsPlanned, email.topicsPlanned),
+      ];
+      return {
+        subject: format(c.subject, values),
+        heading: c.heading,
+        preheader: format(c.preheader, values),
+        paragraphs: [format(c.intro, values), facts.length > 0 ? c.statsIntro : c.noStats],
+        facts,
+        button: { label: c.button, path: `/websites/${email.websiteId}` },
+      };
+    }
     case "trial_ending": {
       const c = copy.trial_ending;
       const values = { domain: email.domain, plan: email.plan, date: longDate(email.endsOn, locale) };
@@ -834,7 +1057,10 @@ function parts(email: LifecycleEmail, locale: Locale): Parts {
         subject: c.subject,
         heading: c.heading,
         preheader: format(c.preheader, values),
-        paragraphs: [format(c.body, values), c.cancel],
+        // The billing facts first: it stays an essential email about money.
+        paragraphs: [format(c.body, values), c.growth],
+        facts: [c.blogPost, c.social, c.backlink],
+        closing: [c.cancel],
         button: { label: c.button, path: billing(email.websiteId) },
       };
     }
@@ -947,6 +1173,19 @@ function parts(email: LifecycleEmail, locale: Locale): Parts {
         button: { label: c.button, path: "/dashboard" },
       };
     }
+    case "winback": {
+      const c = copy.winback;
+      const values = { percent: formatNumber(email.percentOff, locale), credits: formatNumber(email.credits, locale) };
+      return {
+        subject: format(c.subject, values),
+        heading: c.heading,
+        preheader: format(c.preheader, values),
+        paragraphs: [`${email.ended === "trial" ? c.endedTrial : c.endedPlan} ${c.offer}`],
+        facts: [format(c.discount, values), format(c.credits, values)],
+        closing: [c.terms],
+        button: { label: c.button, path: email.websiteId ? billing(email.websiteId) : "/billing" },
+      };
+    }
   }
 }
 
@@ -971,6 +1210,7 @@ export function renderLifecycleEmail(email: LifecycleEmail, context: LifecycleCo
       emailText(escapeHtml(greeting)),
       ...part.paragraphs.map((paragraph) => emailText(escapeHtml(paragraph))),
       part.facts?.length ? emailText(part.facts.map((fact) => `&bull; ${escapeHtml(fact)}`).join("<br>")) : "",
+      ...(part.closing ?? []).map((paragraph) => emailText(escapeHtml(paragraph))),
       part.link
         ? emailText(
             `${escapeHtml(part.link.label)}<br><a href="${escapeHtml(part.link.href)}" style="color:#3f3f46;word-break:break-all;">${escapeHtml(part.link.href)}</a>`,
@@ -991,6 +1231,7 @@ export function renderLifecycleEmail(email: LifecycleEmail, context: LifecycleCo
     greeting,
     ...part.paragraphs,
     ...(part.facts?.length ? [part.facts.map((fact) => `- ${fact}`).join("\n")] : []),
+    ...(part.closing ?? []),
     ...(part.link ? [`${part.link.label}\n${part.link.href}`] : []),
     `${part.button.label}:\n${href}`,
     copy.signOff,

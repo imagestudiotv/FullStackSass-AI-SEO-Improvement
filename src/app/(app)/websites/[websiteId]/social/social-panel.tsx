@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, ChevronRight, Clock, Copy, ExternalLink, Lock, MoreHorizontal, RefreshCw, Search, Send, SkipForward } from "lucide-react";
+import { Clock, Copy, ExternalLink, MoreHorizontal, RefreshCw, Search, Send, SkipForward } from "lucide-react";
 import { useId, useState } from "react";
 import { toast } from "sonner";
 
@@ -19,11 +19,14 @@ import { Notice } from "@/components/workspace/notice";
 import { copyTextNow } from "@/lib/copy-text";
 import type { Locale } from "@/lib/i18n/config";
 import { format, plural } from "@/lib/i18n/format";
+import { SOCIAL_CONNECTIONS_COPY } from "@/lib/i18n/social-connections";
 import { findSocialSuggestions, postScheduledNow, setSocialAutoPost, skipSocialSuggestion } from "@/lib/social/actions";
-import { PLATFORMS, SOCIAL_PLATFORMS, type SocialPlatform } from "@/lib/social/platforms";
+import { CONNECTIONS_ANCHOR, type ConnectNotice } from "@/lib/social/connect-return";
+import { PLATFORMS, SOCIAL_PLATFORMS } from "@/lib/social/platforms";
 import { cn } from "@/lib/utils";
 
 import { AccountsDialog } from "./accounts-dialog";
+import { ConnectionsPanel } from "./connections-panel";
 import {
   latest,
   nextScheduled,
@@ -47,8 +50,10 @@ import { Ago, atTime, CopyTextButton, PlatformTile, StageChip, useSocialAction, 
 
 /**
  * The Opportunities page (client, 2026-10-27; redesigned from the client's
- * design, 2026-11-03). The connected channels in a strip, their settings
- * behind "Manage"; then every conversation in one panel, from the first
+ * design, 2026-11-03). The six platforms as cards, each connected or
+ * disconnected in one click (connections-panel.tsx, client's design
+ * 2026-11-11), the connected ones' settings behind the panel's "Account
+ * settings"; then every conversation in one panel, from the first
  * suggestion to the published post, in tabs by stage, with the next post
  * RepGet publishes on top. A row opens the review drawer, where a reply is
  * edited and posted with one click.
@@ -71,11 +76,12 @@ export function SocialPanel(props: {
   perDay: number;
   priceLabel: string;
   boards: string[];
-  notice: { kind: "connected" | "not_connected" | "connect_failed"; platform: string | null } | null;
+  notice: { kind: ConnectNotice; platform: string | null } | null;
   locale: Locale;
   t: T;
 }) {
   const { t, websiteId, canEdit, locale } = props;
+  const copy = SOCIAL_CONNECTIONS_COPY[locale];
   const { pending, run } = useSocialAction(t, props.priceLabel);
   // Its own transition: "Looking…" is for this button, not for a skip elsewhere on the page.
   const finder = useSocialAction(t, props.priceLabel);
@@ -96,8 +102,6 @@ export function SocialPanel(props: {
   const editable = (row: SuggestionView) => canEdit && props.platforms.includes(row.platform);
   const accountFor = (name: string) => props.accounts.find((account) => account.platform === name) ?? null;
   const paused = props.accounts.filter((account) => account.pausedReason !== null && props.platforms.includes(account.platform));
-  const active = props.accounts.filter((account) => props.platforms.includes(account.platform)).length;
-  const noticePlatform = props.notice?.platform ? platformName(props.notice.platform) : "";
 
   function review(id: string) {
     setSelected(id);
@@ -129,12 +133,7 @@ export function SocialPanel(props: {
         ) : null}
       </div>
 
-      {props.notice ? (
-        <Notice tone={props.notice.kind === "connected" ? "success" : "warning"} role="status">
-          {format(props.notice.kind === "connected" ? t.connectedNotice : t.notConnectedNotice, { platform: noticePlatform })}
-        </Notice>
-      ) : null}
-      {/* The accounts moved into a dialog: a paused one must still be seen without opening it. */}
+      {/* The accounts' settings are in a dialog: a paused one must still be seen without opening it. */}
       {paused.map((account) => (
         <Notice
           key={account.platform}
@@ -151,30 +150,19 @@ export function SocialPanel(props: {
         </Notice>
       ))}
 
-      <section aria-labelledby="social-channels" className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl border bg-card p-4 sm:px-5">
-        <div className="min-w-0 flex-1 md:flex-none">
-          <h2 id="social-channels" className="text-[0.7rem] font-semibold tracking-wider text-muted-foreground uppercase">
-            {t.channelsTitle}
-          </h2>
-          <p className="mt-1 text-sm font-semibold">{format(t.channelsActive, { count: String(active), total: String(SOCIAL_PLATFORMS.length) })}</p>
-        </div>
-        <Button variant="ghost" size="sm" className="text-muted-foreground md:order-last" onClick={() => setManage(true)}>
-          {t.manage}
-          <ChevronRight aria-hidden="true" />
-        </Button>
-        <ul className="flex basis-full flex-wrap gap-2 md:flex-1 md:basis-auto">
-          {SOCIAL_PLATFORMS.map((name) => (
-            <ChannelPill
-              key={name}
-              platform={name}
-              account={accountFor(name)}
-              locked={!props.platforms.includes(name)}
-              onClick={() => setManage(true)}
-              t={t}
-            />
-          ))}
-        </ul>
-      </section>
+      <ConnectionsPanel
+        websiteId={websiteId}
+        accounts={props.accounts}
+        platforms={props.platforms}
+        bundle={props.bundle}
+        canEdit={canEdit}
+        priceLabel={props.priceLabel}
+        notice={props.notice}
+        onSettings={() => setManage(true)}
+        locale={locale}
+        t={t}
+        copy={copy}
+      />
 
       <section aria-labelledby="social-conversations" className="overflow-hidden rounded-xl border bg-card">
         <Tabs value={tab} onValueChange={(value) => setTab(value as Tab)} className="flex-col gap-0">
@@ -264,8 +252,8 @@ export function SocialPanel(props: {
                   <p className="font-semibold">{rows.length === 0 ? (props.accounts.length === 0 ? t.empty : t.emptyToday) : t.noMatches}</p>
                   {rows.length > 0 ? <p className="mt-1 text-sm text-muted-foreground">{t.noMatchesHelp}</p> : null}
                   {rows.length === 0 && props.accounts.length === 0 && canEdit ? (
-                    <Button className="mt-4" onClick={() => setManage(true)}>
-                      {t.connectAccounts}
+                    <Button asChild className="mt-4">
+                      <a href={`#${CONNECTIONS_ANCHOR}`}>{t.connectAccounts}</a>
                     </Button>
                   ) : null}
                 </div>
@@ -306,7 +294,6 @@ export function SocialPanel(props: {
         accounts={props.accounts}
         platforms={props.platforms}
         manualOnly={props.manualOnly}
-        bundle={props.bundle}
         boards={props.boards}
         canEdit={canEdit}
         pending={pending}
@@ -314,6 +301,7 @@ export function SocialPanel(props: {
         priceLabel={props.priceLabel}
         locale={locale}
         t={t}
+        copy={copy}
       />
       <ReviewSheet
         suggestion={current}
@@ -328,57 +316,6 @@ export function SocialPanel(props: {
         t={t}
       />
     </div>
-  );
-}
-
-function ChannelPill({
-  platform,
-  account,
-  locked,
-  onClick,
-  t,
-}: {
-  platform: SocialPlatform;
-  account: AccountView | null;
-  locked: boolean;
-  onClick: () => void;
-  t: T;
-}) {
-  const state: keyof T["channelState"] = locked
-    ? "locked"
-    : !account
-      ? "off"
-      : account.pausedReason !== null
-        ? "paused"
-        : account.inWarmup
-          ? "warmup"
-          : "connected";
-  const name = PLATFORMS[platform].name;
-  const label = format(t.channelLabel, { platform: name, state: t.channelState[state] });
-  const off = state === "off" || state === "locked";
-  return (
-    <li>
-      <button
-        type="button"
-        onClick={onClick}
-        aria-label={label}
-        title={label}
-        className={cn(
-          "inline-flex h-8 items-center gap-1.5 rounded-lg border bg-card pr-2.5 pl-1 text-xs font-medium transition-colors outline-none hover:bg-muted focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
-          off && "bg-muted/40 text-muted-foreground",
-        )}
-      >
-        <PlatformTile platform={platform} size="sm" muted={off} />
-        {name}
-        {state === "locked" ? (
-          <Lock className="size-3" aria-hidden="true" />
-        ) : state === "paused" ? (
-          <AlertTriangle className="size-3.5 text-amber-600 dark:text-amber-400" aria-hidden="true" />
-        ) : state === "connected" || state === "warmup" ? (
-          <span className={cn("size-1.5 rounded-full", state === "warmup" ? "bg-amber-500" : "bg-emerald-500")} aria-hidden="true" />
-        ) : null}
-      </button>
-    </li>
   );
 }
 

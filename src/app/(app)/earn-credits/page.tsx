@@ -1,4 +1,4 @@
-import { ArrowUpRight, Check, CheckCircle2, ChevronDown, Info, Lightbulb, Plus, Sun, UserPlus, UsersRound, Wallet } from "lucide-react";
+import { ArrowUpRight, Check, CheckCircle2, ChevronDown, Coins, Info, Lightbulb, Plus, Sun, UserPlus, UsersRound, Wallet } from "lucide-react";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -13,10 +13,12 @@ import { requireSession } from "@/lib/auth-guard";
 import { creditOverviewForRequest } from "@/lib/credits/overview-request";
 import { TRIAL_CREDIT_DAYS } from "@/lib/credits/prices";
 import { canEnterReferralCode, listEarnClaims } from "@/lib/earn/actions";
+import { loadDiscover, type DiscoverState } from "@/lib/earn/discover";
 import { EARN_WAYS } from "@/lib/earn/ways";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { DAILY_CLAIM_COPY, dailyWhen } from "@/lib/i18n/daily-claim";
 import { EARN_COPY } from "@/lib/i18n/earn";
+import { EARN_DISCOVER_COPY } from "@/lib/i18n/earn-discover";
 import { EARN_SHARE_COPY } from "@/lib/i18n/earn-share";
 import { format, formatDate, formatNumber, plural } from "@/lib/i18n/format";
 import { getReferralSummary } from "@/lib/referrals/actions";
@@ -26,6 +28,7 @@ import { siteUrl as canonicalSiteUrl } from "@/lib/site-url";
 import { requireOrg } from "@/lib/tenant";
 import { hasOnlySharedWork } from "@/lib/websites/accessible";
 
+import { DiscoverEarn } from "./discover-earn";
 import { EarnWays, EnterReferralCode, ReferralShare } from "./earn-client";
 import { ShareKit } from "./share-kit";
 
@@ -43,7 +46,8 @@ export const dynamic = "force-dynamic";
 /**
  * Earn Credits (client design, 2026-11-02), its own page rather than a card
  * on Settings: the referral program (code, link, the share kit, who signed
- * up), the daily check-in, the four other ways to earn (each reviewed by the
+ * up), the daily check-in, Discover & earn (ticket 2026-11-11: upvotes and
+ * comments on the blog's customer stories, and one bonus), the four other ways to earn (each reviewed by the
  * RepGet team, lib/earn), entering someone else's code, and the FAQ.
  *
  * Everything is the reader's own workspace (requireOrg). Someone who owns no
@@ -76,10 +80,15 @@ export default async function EarnCreditsPage() {
   } catch (error) {
     console.error("[earn-credits] could not load the referral summary", error);
   }
-  const [overview, claims, codeOpen] = await Promise.all([
+  const [overview, claims, codeOpen, discover] = await Promise.all([
     creditOverviewForRequest(orgId).catch(() => null),
     listEarnClaims(),
     canEnterReferralCode(),
+    // A failure here hides Discover & earn, never the rest of the page.
+    loadDiscover(session.user.id, locale).catch((error: unknown): DiscoverState | null => {
+      console.error("[earn-credits] could not load Discover & earn", error);
+      return null;
+    }),
   ]);
   // The production domain, never a localhost link a customer would then share.
   const link = referrals ? `${canonicalSiteUrl()}/r/${referrals.code}` : null;
@@ -99,15 +108,15 @@ export default async function EarnCreditsPage() {
           <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">{e.subtitle}</p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
-          <Button asChild variant="outline">
+          <Button asChild variant="outline" size="sm">
             <Link href="/credits">
               <Wallet aria-hidden="true" />
               {e.viewCredits}
             </Link>
           </Button>
           {overview ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
-              <CheckCircle2 className="size-3.5" aria-hidden="true" />
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-bold whitespace-nowrap text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
+              <Coins className="size-3.5" aria-hidden="true" />
               {format(e.available, { count: formatNumber(overview.available, locale) })}
             </span>
           ) : null}
@@ -189,11 +198,11 @@ export default async function EarnCreditsPage() {
           </div>
           <ul className="relative mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted-foreground">
             <li className="flex items-center gap-1.5">
-              <CheckCircle2 className="size-3.5 text-primary" aria-hidden="true" />
+              <Info className="size-3.5 text-primary" aria-hidden="true" />
               {format(e.metaPerReferral, { credits })}
             </li>
             <li className="flex items-center gap-1.5">
-              <CheckCircle2 className="size-3.5 text-primary" aria-hidden="true" />
+              <Info className="size-3.5 text-primary" aria-hidden="true" />
               {e.metaAfterPayment}
             </li>
           </ul>
@@ -264,6 +273,10 @@ export default async function EarnCreditsPage() {
           )}
         </section>
       </div>
+
+      {discover && discover.businesses.length > 0 ? (
+        <DiscoverEarn businesses={discover.businesses} progress={discover.progress} claimed={discover.claimed} t={EARN_DISCOVER_COPY[locale]} />
+      ) : null}
 
       {referrals && link ? (
         <ShareKit code={referrals.code} link={link} postCredits={EARN_WAYS.post.credits} referralCredits={credits} locale={locale} t={k} />

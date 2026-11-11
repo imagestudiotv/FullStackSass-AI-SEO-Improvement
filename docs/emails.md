@@ -24,7 +24,8 @@ administrators' own emails and the existing 1,000-views video email.
 | Welcome | Right after sign-up (Better Auth hook, `src/lib/auth.ts` -> `lifecycle-signup` job) | Essential |
 | Setup reminder | 3 hours after sign-up, if the person still has no website (re-checked then; never for someone invited to a shared site) | Tips and reports |
 | Free articles started | A website's subscription becomes `trialing` on its free articles (Stripe or PayPal) | Essential |
-| Free period ends tomorrow | Hourly job: trialing, not cancelled, stored trial end within 24 hours (re-checked at send time) | Essential |
+| Fingers crossed (free period, day 2) | Hourly job: trialing on its free articles, not cancelled, started 24-48 hours ago (re-checked at send time); "{domain} has started its journey with RepGet" plus its first real figures (articles written, articles live, topics planned - only non-zero ones); once per subscription | Tips and reports |
+| Free period ends tomorrow: continue growing | Hourly job: trialing, not cancelled, stored trial end within 24 hours (re-checked at send time). The billing facts (end date, plan starts and first payment is taken, change or cancel in Billing before then) plus "Continue growing with RepGet": a blog post about the business, a mention on RepGet's social channels, a dofollow link from a DR 60+ site | Essential |
 | Free period ended | `trialing` -> ended, without the customer having cancelled first | Essential |
 | Welcome to your plan | The subscription's first payment of real money (Stripe `invoice.paid`, PayPal `PAYMENT.SALE.COMPLETED`) | Essential |
 | Payment failed | The subscription becomes `past_due` / `unpaid`; once per billing period | Essential |
@@ -34,6 +35,7 @@ administrators' own emails and the existing 1,000-views video email.
 | Video passed 500 views | The daily video follow-up sees 500+ (and under 1,000) views; once per video | Tips and reports |
 | Referral reward | Referral credits are added to the referrer (`convertReferral`) | Essential |
 | Weekly summary | Monday 08:00 UTC, workspaces on a plan or free articles that published something that week; only non-zero real figures | Tips and reports |
+| Win-back offer | About 2 days after a subscription the customer LEFT has ended (a free period cancelled or ended without a plan, a paid plan set to cancel, or ended at once from active; never an unpaid plan ended by the provider) - queued by `emailsAfterSubscriptionSync`, sent by the `lifecycle-winback` job after re-checking that it is still ended and the owner has no subscription running anywhere; once per PERSON ever. 20% off the first payment of a restarted Launch/Grow/Scale plan plus 100 credits after that payment (see below). Only while `WINBACK_OFFER_ENABLED=1` | Tips and reports |
 
 Billing emails are decided in one place for both providers: after
 `syncProviderSubscription` commits, from the row before and after the change
@@ -41,6 +43,35 @@ Billing emails are decided in one place for both providers: after
 deleted site, free articles replaced by a plan) emails nobody. Stripe may also
 send its own receipts and failed-payment emails; ours link to the app's
 Billing page.
+
+## The win-back offer
+
+`src/lib/billing/winback-offer.ts` (rules), `src/lib/billing/winback.ts` (credits).
+RepGet has no pause feature, so "leave or pause" means a subscription that ended.
+
+- **Discount**: 20% off the first payment of a restarted Launch, Grow or Scale
+  plan, monthly or yearly; never the Grow + Visibility bundle. Applied by the
+  server at checkout (`automaticOffer` in `src/lib/billing/checkouts.ts`) for an
+  account one of whose owners was **sent** the win-back email; one use per
+  account (a completed checkout carrying `offer: "WINBACK"`), never stacked:
+  while REPGET is on, the plan gets REPGET's launch price instead (40% off
+  every payment, docs/plan-catalog.md) and the 20% is not applied (the 100
+  credits still are, below); a checkout carrying either has no promotion-code box,
+  so no partner code on top. Stripe: coupon `WINBACK20` (20% off, once,
+  Launch/Grow/Scale products), made by `scripts/stripe-setup.mjs`. PayPal: the
+  offer plans' intro cycle, priced per subscription at 80%; a plan without
+  offer plans is card-only for it.
+- **Credits**: 100 credits when that restarted plan's first payment for money
+  goes through (Stripe `invoice.paid`, PayPal `PAYMENT.SALE.COMPLETED`), through
+  the credit ledger with the key `winback-bonus:<userId>`: once per person, safe
+  under retried or simultaneous webhooks. Also when REPGET won at checkout: a
+  plan restarted with REPGET, by an account whose owner was sent the win-back
+  email BEFORE that checkout, gets the 100 credits too (the email promised
+  them). That restart uses the win-back up: no win-back discount afterwards.
+- **Switch**: `WINBACK_OFFER_ENABLED=1`. Off, the email is not sent and no
+  checkout carries the coupon. Turn it on only after `WINBACK20` exists in Stripe.
+- Billing and the onboarding plan step say "Welcome back: 20% OFF applied" while
+  it applies (`WINBACK_OFFER_CODE`, `src/lib/i18n/offer-code.ts`).
 
 ## How it works
 
@@ -53,7 +84,8 @@ Billing page.
   Which kinds are essential is fixed here (`ESSENTIAL`).
 - `src/lib/email/lifecycle-triggers.ts` - one function per moment.
 - `src/inngest/functions/lifecycle-emails.ts` - sign-up (welcome, wait, reminder),
-  hourly (free period ending), weekly summary.
+  win-back (wait 2 days, then send),
+  hourly (free period day 2, free period ending), weekly summary.
 - Unsubscribe: every tips-and-reports email has a signed link
   (`unsubscribe-token.ts`, HMAC with `BETTER_AUTH_SECRET`, no expiry) to
   `/unsubscribe/<token>` and a one-click `List-Unsubscribe` header

@@ -33,6 +33,14 @@ vi.mock("@/lib/earn/actions", () => ({
   submitEarnClaim: claimAction.submit,
   enterReferralCode: claimAction.enter,
 }));
+const discover = vi.hoisted(() => ({ state: null as unknown, upvote: vi.fn(), comment: vi.fn(), draft: vi.fn(), claim: vi.fn() }));
+vi.mock("@/lib/earn/discover", () => ({ loadDiscover: async () => discover.state }));
+vi.mock("@/lib/earn/discover-actions", () => ({
+  discoverUpvoteAction: discover.upvote,
+  discoverCommentAction: discover.comment,
+  discoverDraftAction: discover.draft,
+  claimDiscoverBonusAction: discover.claim,
+}));
 vi.mock("@/lib/referrals/actions", () => ({
   getReferralSummary: async () => ({ code: "OWN1CODE", earned: 0, pending: 0, referrals: [] }),
 }));
@@ -48,9 +56,23 @@ async function render(daily: Record<string, unknown>) {
   return renderToStaticMarkup(await EarnCreditsPage());
 }
 
+const story = (postId: string, extra: Record<string, unknown> = {}) => ({
+  postId,
+  name: "Lakeside Bakery",
+  category: "Food & Drink",
+  tagline: "Sourdough in Como.",
+  websiteUrl: null,
+  imageUrl: null,
+  logoUrl: null,
+  upvoted: false,
+  commented: false,
+  ...extra,
+});
+
 beforeEach(() => {
   claimAction.submit.mockClear();
   claimAction.enter.mockClear();
+  discover.state = { businesses: [], progress: { upvotes: 0, comments: 0 }, claimed: false };
 });
 
 describe("the Earn Credits page", () => {
@@ -94,6 +116,71 @@ describe("the Earn Credits page", () => {
   it("keeps the honest-feedback and incentive disclosure on the post claim", async () => {
     const html = await render({});
     expect(html).toContain("Share an honest post");
+  });
+
+  describe("Discover & earn", () => {
+    it("sits between the hero row and the share kit, with the stories from the server and none of the design's samples", async () => {
+      discover.state = {
+        businesses: [
+          story("p1", { websiteUrl: "https://lakeside.example/", imageUrl: "https://cdn.example/bakery.jpg", upvoted: true }),
+          story("p2", { name: "Harbour Bikes", category: null, tagline: "Bike repairs by the lake." }),
+        ],
+        progress: { upvotes: 3, comments: 1 },
+        claimed: false,
+      };
+      const html = await render({});
+      const at = html.indexOf('id="discover-earn"');
+      expect(at).toBeGreaterThan(html.indexOf('id="daily"'));
+      expect(at).toBeLessThan(html.indexOf('id="share-kit"'));
+      expect(html).toContain("Support businesses. Earn credits.");
+      expect(html).toContain("BUSINESS 1 OF 2");
+      expect(html).toContain("Lakeside Bakery");
+      expect(html).toContain("Harbour Bikes");
+      expect(html).toContain("https://cdn.example/bakery.jpg");
+      expect(html).toContain('href="https://lakeside.example/"');
+      expect(html).toContain("Visit site");
+      // The first story is upvoted already: its button says so and is off.
+      expect(html).toContain("Upvoted");
+      expect(html).toContain("20 upvotes + 10 comments =");
+      expect(html).toContain("20 bonus credits");
+      expect(html).toContain("3 / 20");
+      expect(html).toContain("1 / 10");
+      expect(html).toContain("Complete both goals to unlock 20 bonus credits.");
+      expect(html).not.toContain("Claim 20 bonus credits");
+      expect(html).not.toContain("Image Studio");
+      expect(html).not.toContain("Simulate completed goals");
+      expect(html).not.toContain("Interactive design preview");
+    });
+
+    it("offers the claim only once both goals are met, and says when it was claimed", async () => {
+      discover.state = { businesses: [story("p1")], progress: { upvotes: 20, comments: 10 }, claimed: false };
+      expect(await render({})).toContain("Claim 20 bonus credits");
+      discover.state = { businesses: [story("p1")], progress: { upvotes: 25, comments: 12 }, claimed: true };
+      const html = await render({});
+      expect(html).not.toContain("Claim 20 bonus credits");
+      expect(html).toContain("20 bonus credits claimed.");
+      expect(html).toContain("20 / 20");
+    });
+
+    it("no Visit site without a website, and no card at all without customer stories", async () => {
+      discover.state = { businesses: [story("p1")], progress: { upvotes: 0, comments: 0 }, claimed: false };
+      const one = await render({});
+      expect(one).toContain('id="discover-earn"');
+      expect(one).not.toContain("Visit site");
+      discover.state = { businesses: [], progress: { upvotes: 0, comments: 0 }, claimed: false };
+      expect(await render({})).not.toContain('id="discover-earn"');
+      discover.state = null;
+      expect(await render({})).toContain('id="share-kit"');
+    });
+
+    it("rendering upvotes, comments, drafts and claims nothing", async () => {
+      discover.state = { businesses: [story("p1")], progress: { upvotes: 20, comments: 10 }, claimed: false };
+      await render({});
+      expect(discover.upvote).not.toHaveBeenCalled();
+      expect(discover.comment).not.toHaveBeenCalled();
+      expect(discover.draft).not.toHaveBeenCalled();
+      expect(discover.claim).not.toHaveBeenCalled();
+    });
   });
 
   describe("the daily card", () => {
