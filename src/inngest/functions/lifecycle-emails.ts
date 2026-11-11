@@ -3,8 +3,10 @@ import { lifecycleEmailsEnabled, rememberSignupLocale } from "@/lib/email/lifecy
 import {
   emailSetupReminder,
   emailTrialsEnding,
+  emailTrialsProgress,
   emailWeeklySummary,
   emailWelcome,
+  emailWinback,
   isoWeek,
   weeklySummaryOrganizations,
 } from "@/lib/email/lifecycle-triggers";
@@ -18,10 +20,14 @@ import { isLocale } from "@/lib/i18n/config";
  *  - lifecycle-signup: the welcome at sign-up, then, SETUP_WAIT later, the
  *    reminder to add a website - checked at that moment, so a website added
  *    meanwhile cancels it. Queued by the sign-up hook in lib/auth.ts.
- *  - lifecycle-hourly: the free periods that end within a day get their
- *    reminder, read from the stored trial end and checked again then.
+ *  - lifecycle-hourly: the free periods that started a day ago get their
+ *    first figures ("Fingers crossed!"), and those ending within a day their
+ *    reminder - both read from the stored period and checked again then.
  *  - lifecycle-weekly-summary: Monday morning, one event per workspace on a
  *    plan; lifecycle-weekly-summary-one writes and sends each.
+ *  - lifecycle-winback: WINBACK_WAIT after a subscription its customer left
+ *    has ended, the win-back offer - checked again then (emailWinback).
+ *    Queued by emailsAfterSubscriptionSync.
  */
 
 /** How long after sign-up the setup reminder waits ("~3 hours"). */
@@ -46,8 +52,9 @@ export const lifecycleHourly = inngest.createFunction(
   { id: "lifecycle-hourly", retries: 1, triggers: [{ cron: "15 * * * *" }] },
   async ({ step }) => {
     if (!(await step.run("enabled", () => lifecycleEmailsEnabled()))) return { skipped: "disabled" };
+    const trialProgress = await step.run("trial-progress", () => emailTrialsProgress());
     const trialEnding = await step.run("trial-ending", () => emailTrialsEnding());
-    return { trialEnding };
+    return { trialProgress, trialEnding };
   },
 );
 
@@ -85,5 +92,20 @@ export const lifecycleWeeklySummaryOne = inngest.createFunction(
     const organizationId = String(event.data.organizationId ?? "");
     const at = typeof event.data.at === "string" ? new Date(event.data.at) : new Date();
     return step.run("send", () => emailWeeklySummary(organizationId, at));
+  },
+);
+
+/** How long after a subscription ends the win-back waits ("about 2 days"). */
+export const WINBACK_WAIT = "2d";
+
+export const lifecycleWinback = inngest.createFunction(
+  { id: "lifecycle-winback", retries: 3, triggers: [{ event: "email/subscription.ended" }] },
+  async ({ event, step, logger }) => {
+    const subscriptionId = String(event.data.subscriptionId ?? "");
+    if (!subscriptionId) return { skipped: "no_subscription" };
+    await step.sleep("winback-wait", WINBACK_WAIT);
+    const winback = await step.run("winback", () => emailWinback(subscriptionId));
+    logger.info({ subscriptionId, winback: winback.status }, "Win-back email done");
+    return { winback };
   },
 );

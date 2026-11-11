@@ -18,11 +18,14 @@ import {
   type BlogSource,
 } from "@/lib/blog/shared";
 import { removeAddedLinks } from "@/lib/blog/autopilot/links";
+import type { BlogBusiness } from "@/lib/blog/business";
+import type { BusinessProfile } from "@/lib/discover/profile-fields";
+import { customerStoriesCategory } from "@/lib/blog/engagement";
 import { translateBlogPost, type TranslatableFields } from "@/lib/blog/translate";
 import { blogLinkTargets, localizeLinks } from "@/lib/blog/translation-links";
 import { db } from "@/lib/db";
 import { blogCategories, blogPosts } from "@/lib/db/schema";
-import { DEFAULT_LOCALE, LOCALES, type Locale } from "@/lib/i18n/config";
+import { DEFAULT_LOCALE, LOCALES, localePath, type Locale } from "@/lib/i18n/config";
 import { notifyIndexNow } from "@/lib/indexnow";
 import {
   ALLOWED_IMAGE_TYPES,
@@ -117,6 +120,10 @@ export type AdminBlogPost = AdminBlogRow & {
   sources: BlogSource[];
   /** Its own cover; null shows the drawn one. */
   featuredImage: BlogFeaturedImage | null;
+  /** The business a customer story is about (empty strings for none). */
+  business: BlogBusiness;
+  /** The business's showcase profile, /discover/<slug> (empty strings for none). */
+  businessProfile: BusinessProfile;
   revisedAt: Date | null;
   version: number;
   /** For an original: its translations, one per language. */
@@ -130,6 +137,41 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 
 const TAKEN = (slug: string) => `Another post already uses the address "${slug}" (addresses are unique across languages) - choose another`;
+/** A business profile address is unique per language (a translation keeps its original's). */
+const PROFILE_TAKEN = (slug: string, locale: Locale) =>
+  `Another ${LANGUAGE_NAMES_EN[locale]} post already uses the business profile address "${slug}" (/discover/${slug}) - choose another`;
+const PROFILE_SLUG_INDEX = "blog_posts_business_slug_locale_uidx";
+
+/** True when a unique violation was on the business profile address, however the driver wraps it. */
+function isProfileSlugViolation(error: unknown): boolean {
+  const e = error as { constraint?: string; constraint_name?: string; cause?: { constraint?: string; constraint_name?: string } } | null;
+  const name = e?.constraint ?? e?.constraint_name ?? e?.cause?.constraint ?? e?.cause?.constraint_name ?? "";
+  return name === PROFILE_SLUG_INDEX || String((error as Error | null)?.message ?? "").includes(PROFILE_SLUG_INDEX);
+}
+
+/** Whether another post in the language already has this profile address. */
+async function profileSlugTaken(tx: Pick<typeof db, "select">, slug: string | null | undefined, locale: Locale, except: string | null): Promise<boolean> {
+  if (!slug) return false;
+  const rows = await tx
+    .select({ id: blogPosts.id })
+    .from(blogPosts)
+    .where(and(eq(blogPosts.businessSlug, slug), eq(blogPosts.locale, locale)))
+    .limit(2);
+  return rows.some((row) => row.id !== except);
+}
+
+function profileOf(row: typeof blogPosts.$inferSelect): BusinessProfile {
+  return {
+    slug: row.businessSlug ?? "",
+    tags: (row.businessTags ?? []).join("\n"),
+    location: row.businessLocation ?? "",
+    availability: row.businessAvailability ?? "",
+    about: row.businessAbout ?? "",
+    audience: row.businessAudience ?? "",
+    services: (row.businessServices ?? []).join("\n"),
+    industry: row.businessIndustry ?? "",
+  };
+}
 
 /**
  * The public pages a live post is shown on: its own, its language's blog
@@ -173,6 +215,19 @@ async function categorySlugByName(tx: Pick<typeof db, "select">, name: string): 
 function refresh(id?: string) {
   revalidatePath("/admin/blog");
   if (id) revalidatePath(`/admin/blog/${id}`);
+}
+
+/**
+ * The homepages are built ahead (app/(marketing)/page.tsx) and show the
+ * latest customer stories (lib/blog/engagement.ts): a save of a post that was
+ * or is live in that category rebuilds them at once, in every language (a
+ * language without stories of its own shows the English ones).
+ */
+async function refreshCustomerStories(liveIn: string[]) {
+  if (liveIn.length === 0) return;
+  const stories = await customerStoriesCategory();
+  if (!stories || !liveIn.includes(stories.name)) return;
+  for (const locale of LOCALES) revalidatePath(localePath(locale, "/"));
 }
 
 /** Every post, drafts included, most recently edited first. */
@@ -236,6 +291,14 @@ export async function getBlogPostAdmin(id: string): Promise<AdminBlogPost | null
     faqs: row.faqs,
     sources: row.sources,
     featuredImage: row.featuredImageUrl ? { url: row.featuredImageUrl, alt: row.featuredImageAlt ?? "" } : null,
+    business: {
+      logoUrl: row.businessLogoUrl ?? "",
+      name: row.businessName ?? "",
+      category: row.businessCategory ?? "",
+      websiteUrl: row.businessWebsiteUrl ?? "",
+      tagline: row.businessTagline ?? "",
+    },
+    businessProfile: profileOf(row),
     revisedAt: row.revisedAt,
     version: row.version,
     locale: blogLocale(row.locale),
@@ -288,6 +351,7 @@ export async function saveBlogPost(input: {
       if (input.id === null) {
         if (taken) throw new BlogError(TAKEN(fields.slug));
         const locale = isBlogLocale(input.post.locale) ? input.post.locale : DEFAULT_LOCALE;
+        if (await profileSlugTaken(tx, fields.businessSlug, locale, null)) throw new BlogError(PROFILE_TAKEN(fields.businessSlug ?? "", locale));
         const [created] = await tx
           .insert(blogPosts)
           .values({
@@ -312,7 +376,11 @@ export async function saveBlogPost(input: {
           },
           tx,
         );
-        return { saved: created, changedPages: input.status === "published" ? postPages(locale, fields.slug, category.slug) : [] };
+        return {
+          saved: created,
+          changedPages: input.status === "published" ? postPages(locale, fields.slug, category.slug) : [],
+          liveIn: input.status === "published" ? [fields.category] : [],
+        };
       }
 
       const [current] = await tx.select().from(blogPosts).where(eq(blogPosts.id, input.id)).for("update");
@@ -327,6 +395,7 @@ export async function saveBlogPost(input: {
         throw new BlogError(`The address of a published post cannot change - it would break every link to ${blogPath(locale, current.slug)}`);
       }
       if (taken && taken.id !== current.id) throw new BlogError(TAKEN(fields.slug));
+      if (await profileSlugTaken(tx, fields.businessSlug, locale, current.id)) throw new BlogError(PROFILE_TAKEN(fields.businessSlug ?? "", locale));
       const needsReview = current.needsReview && input.reviewed !== true;
       if (needsReview && input.status === "published") throw new BlogError(UNREVIEWED);
 
@@ -425,13 +494,20 @@ export async function saveBlogPost(input: {
           changedPages.push(categoryPath(locale, movedCategory ? await categorySlugByName(tx, current.category) : category.slug));
         }
       }
-      return { saved: updated, changedPages };
+      // The categories the post was or is live in: the homepage's customer stories follow them.
+      const liveIn = [...(wasLive ? [current.category] : []), ...(nowLive ? [fields.category] : [])];
+      return { saved: updated, changedPages, liveIn };
     });
     refresh(saved.saved.id);
+    await refreshCustomerStories(saved.liveIn);
     notifyIndexNow(saved.changedPages);
     return { ok: true, data: saved.saved };
   } catch (error) {
     if (error instanceof BlogError) return { ok: false, error: error.message };
+    // Two saves at once took the same profile address: the second is told so.
+    if (isUniqueViolation(error) && isProfileSlugViolation(error)) {
+      return { ok: false, error: PROFILE_TAKEN(fields.businessSlug ?? "", isBlogLocale(input.post.locale) ? input.post.locale : DEFAULT_LOCALE) };
+    }
     if (isUniqueViolation(error)) return { ok: false, error: TAKEN(fields.slug) };
     throw error;
   }
@@ -584,6 +660,8 @@ export async function createBlogTranslation(input: {
         }
       }
       if (!slug) throw new BlogError("Every address tried for the translation is taken. Rename the English post's address, then try again.");
+      // Its business profile keeps the original's address (/it/discover/<same>), unless that language already uses it.
+      const profileSlug = (await profileSlugTaken(tx, source.businessSlug, locale, null)) ? null : source.businessSlug;
       const now = new Date();
       const [row] = await tx
         .insert(blogPosts)
@@ -594,6 +672,21 @@ export async function createBlogTranslation(input: {
           // The English post's cover as it is now; from here on each language's is its own.
           featuredImageUrl: source.featuredImageUrl,
           featuredImageAlt: source.featuredImageAlt,
+          // A customer story's business, the same; its category label and tagline are translated by hand.
+          businessLogoUrl: source.businessLogoUrl,
+          businessName: source.businessName,
+          businessCategory: source.businessCategory,
+          businessWebsiteUrl: source.businessWebsiteUrl,
+          businessTagline: source.businessTagline,
+          // Its showcase profile, the same; the words are translated by hand like the tagline.
+          businessSlug: profileSlug,
+          businessTags: source.businessTags,
+          businessLocation: source.businessLocation,
+          businessAvailability: source.businessAvailability,
+          businessAbout: source.businessAbout,
+          businessAudience: source.businessAudience,
+          businessServices: source.businessServices,
+          businessIndustry: source.businessIndustry,
           translationOf: source.id,
           needsReview: true,
           status: "draft",

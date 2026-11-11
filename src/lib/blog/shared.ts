@@ -83,6 +83,8 @@ export type BlogFeaturedImage = {
 };
 
 export type BlogPost = {
+  /** The stored post's id (blog_posts.id): its comments and upvotes. Absent in the editor's preview. */
+  id?: string;
   /** URL segment. Permanent once published. */
   slug: string;
   /** The visible H1, and the card's title. */

@@ -54,6 +54,9 @@ export type AdminAction =
   | "blog.placement_reopened"
   | "blog.image_deleted"
   | "blog.translation_created"
+  /* Readers' comments on the blog (lib/admin/blog-comments.ts). */
+  | "blog.comment_removed"
+  | "blog.comment_restored"
   /* The blog autopilot (lib/admin/blog-autopilot.ts). */
   | "blog.autopilot_settings_saved"
   | "blog.autopilot_topics_added"
@@ -76,6 +79,8 @@ export type AdminAction =
   | "valuation.policy_published"
   /* What credits buy (lib/admin/credits.ts). */
   | "credits.settings_saved"
+  /* The bar above the public site's header (lib/admin/site-banner.ts). */
+  | "site.banner_saved"
   /* Earn Credits claims (lib/earn/admin.ts). */
   | "earn.approved"
   | "earn.declined"

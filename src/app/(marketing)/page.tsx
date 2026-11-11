@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { listPlansForPrebuiltPage } from "@/lib/billing";
+import { homeCustomerStories } from "@/lib/blog/engagement";
 import { countContentCreated } from "@/lib/marketing/content-count";
 import { listPublishedTestimonials } from "@/lib/marketing/testimonials-db";
 import { HomePageSections } from "./home-page";
@@ -45,10 +46,11 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const [plans, testimonials, contentCount] = await Promise.all([
+  const [plans, testimonials, contentCount, customerStories] = await Promise.all([
     listPlansForPrebuiltPage(),
     listPublishedTestimonials(),
     countContentCreated(),
+    homeCustomerStories("en"),
   ]);
   // English is unprefixed; the localised pages pass a prefixing builder.
   const href = (path: string) => path;
@@ -63,7 +65,14 @@ export default async function HomePage() {
   return (
     <>
       <OrganizationSchema siteUrl={siteUrl} plans={plans} />
-      <HomePageSections locale="en" href={href} testimonials={testimonials} contentCount={contentCount} plans={plans} />
+      <HomePageSections
+        locale="en"
+        href={href}
+        testimonials={testimonials}
+        contentCount={contentCount}
+        plans={plans}
+        customerStories={customerStories}
+      />
     </>
   );
 }

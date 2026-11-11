@@ -2,7 +2,7 @@ import { and, eq, sql } from "drizzle-orm";
 import type Stripe from "stripe";
 
 import { adminEmails } from "@/lib/admin/guard";
-import { REPGET_CODE, REPGET_COUPONS, repgetCouponFor, type OfferPlan } from "@/lib/billing/repget-offer";
+import { ALL_REPGET_COUPONS, REPGET_CODE, repgetCouponFor, type OfferPlan } from "@/lib/billing/repget-offer";
 import { db } from "@/lib/db";
 import { billingCheckouts, plans, subscriptions } from "@/lib/db/schema";
 import { emailLayout, emailText, escapeHtml } from "@/lib/email/layout";
@@ -15,8 +15,9 @@ import { stripe } from "@/lib/stripe/client";
  * The coupon goes on at Checkout, and Stripe keeps it through a free period for the
  * first paid invoice (checked in Stripe's test mode, 2026-11-06). One case needs
  * help: each coupon is limited to its own plan's product, so a plan changed before
- * then would lose the discount, and a move to the same plan's annual price would
- * keep it, on a full annual payment.
+ * then would lose the discount, and a move between the same plan's monthly and
+ * yearly prices would keep the other interval's coupon (the prices share a
+ * product), with the wrong amount off.
  *
  * A PLAN CHANGE CAN END THE FREE PERIOD AND CHARGE AT ONCE, so a webhook is too late.
  *   - Change plan in Billing carries the new plan's coupon in the same Stripe request
@@ -48,7 +49,7 @@ export async function alertStaffAboutOffer(reason: string, detail: string): Prom
       `The ${REPGET_CODE} discount could not be applied.`,
       `Why: ${reason}`,
       detail,
-      `What to do: check the plan's coupon in Stripe (${Object.values(REPGET_COUPONS).join(", ")}).`,
+      `What to do: check the plan's coupon in Stripe (${ALL_REPGET_COUPONS.join(", ")}).`,
     ];
     const html = emailLayout({
       heading: `${REPGET_CODE} discount needs attention`,
@@ -63,21 +64,21 @@ export async function alertStaffAboutOffer(reason: string, detail: string): Prom
   }
 }
 
-const OURS = Object.values(REPGET_COUPONS) as (string | null)[];
+const OURS = ALL_REPGET_COUPONS as readonly (string | null)[];
 
 /**
  * What a plan change owes a subscription whose REPGET discount is not used yet, for
  * the Stripe request that makes the change. Needs `discounts` expanded.
- *   coupon  the new plan's, to go in that request.
- *   refuse  the new plan has none, annual say. Stripe keeps a coupon on a plan's
- *           annual price, because the prices share a product, so the change waits
- *           until the discount is used.
+ *   coupon  the new plan's, to go in that request: a monthly price's monthly
+ *           coupon, a yearly price's yearly one (2026-11-11).
+ *   refuse  the new plan has none (an older catalogue's price, say), so the
+ *           change waits until the discount is used.
  */
 export function offerForPlanChange(
   subscription: Pick<Stripe.Subscription, "status" | "metadata" | "discounts">,
   plan: OfferPlan,
 ): { coupon?: string; refuse?: string } {
-  // Only a subscription that took the offer through RepGet's field. The same coupons reached by a Stripe promotion code are Stripe's to handle, as before.
+  // Only a subscription that took the offer through RepGet. The same coupons reached by a Stripe promotion code are Stripe's to handle, as before.
   if (!subscription.metadata?.[OFFER_KEY]) return {};
   const onIt = subscription.discounts.some((discount) => OURS.includes(couponIdOf(discount)));
   const waiting = subscription.status === "trialing";
@@ -107,7 +108,8 @@ export async function hasWaitingOffer(organizationId: string): Promise<boolean> 
 
 /**
  * A subscription carrying the offer has changed. During the free period its coupon
- * follows its plan: the new plan's, or none on an annual one. After it, the first
+ * follows its plan and interval: the new price's, or none on a price the offer
+ * does not cover. After it, the first
  * paid invoice is read once: if the discount was owed and is not on it, staff are
  * told, because that money is already charged. Reads Stripe afresh, so a late,
  * repeated or out-of-order event does no harm, and asks nothing unless the event's

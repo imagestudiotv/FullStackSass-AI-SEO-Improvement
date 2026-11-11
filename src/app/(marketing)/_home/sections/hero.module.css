@@ -9,6 +9,10 @@
  * browser ends up applying, with the design's values and class names, one
  * rule per element and breakpoint. The design's `body.dark` is the site's
  * `.dark` on <html>.
+ *
+ * 2026-11-11: above the field, the client's simpler hero replaced the
+ * eyebrow, the rating pill, the old title and the six floating cards (see
+ * "Above the field" below); the field and what follows are unchanged.
  */
 
 /* The design's page defaults (its <body>): 14px, normal line height. */
@@ -92,194 +96,192 @@
   z-index: 2;
 }
 
-.rgx-eyebrow {
-  font-size: 10.8px;
-  font-weight: 790;
-  letter-spacing: 0.17em;
-  text-transform: uppercase;
-  color: #b66345;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  white-space: nowrap;
-  margin: 0 auto 16px;
-}
-.rgx-spark {
-  font-size: 19px;
-  line-height: 1;
-  color: #f36d3c;
-}
-
-/* The review pill (`.rgx-rating.rgx-rating-live`). */
-.rgx-rating {
-  height: 44px;
-  min-height: 44px;
-  width: max-content;
-  max-width: calc(100vw - 28px);
-  padding: 5px 13px 5px 15px;
-  gap: 10px;
+/*
+  Above the field (client, 2026-11-11, repget_homepage_animated_social_proof.html
+  `hero-pill`, `hero-title`, `hero-subtitle`, `hero-descr`): the pill, "Meet
+  [the mascots] RepGet.", the promise in two lines, and the description. The
+  name and the promise are one heading, so the page's title still says what
+  RepGet does. The mascots: _home/hero-mascot.module.css.
+*/
+.rgx-pill {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  margin: 0 auto 21px;
+  gap: 10px;
+  max-width: 100%;
+  padding: 8px 14px 8px 9px;
+  border: 1px solid #eae5e3;
+  border-radius: 99px;
   background: #fff;
-  border: 1px solid #eee5dd;
-  border-radius: 100px;
-  box-shadow: 0 3px 14px #59432609;
-  font-size: 11px;
-  text-align: left;
-  white-space: nowrap;
-  color: #272d26;
-  text-decoration: none;
-  vertical-align: middle;
-  transition:
-    transform 0.2s,
-    border-color 0.2s,
-    box-shadow 0.2s;
-}
-a.rgx-rating:hover {
-  border-color: #edc9b4;
-  box-shadow: 0 6px 20px #59432616;
-  transform: translateY(-1px);
-}
-.rgx-hero a.rgx-rating:focus-visible {
-  outline: 3px solid #f3a27e;
-  outline-offset: 3px;
-}
-.rgx-stars {
-  font-size: 14px;
-  letter-spacing: 0.6px;
-  line-height: 1;
-  flex: none;
-  color: #ea9637;
-}
-.rgx-rating strong {
-  font-size: 12px;
-  font-weight: 830;
-  font-variant-numeric: tabular-nums;
-  color: #30342f;
-  flex: none;
-}
-.rgx-rating-copy {
+  box-shadow: 0 4px 20px rgba(55, 29, 33, 0.035);
+  color: #79737d;
   font-size: 10.5px;
-  color: #72746b;
-  flex: none;
+  font-weight: 800;
+  letter-spacing: 0.065em;
+  line-height: 1.3;
+  text-transform: uppercase;
 }
-.rgx-review-avatars {
-  height: 30px;
-  display: flex;
-  align-items: center;
-  flex: none;
-  padding-left: 0;
-  margin-left: 1px;
-  border-left: 0;
-}
-.rgx-review-avatar {
-  position: relative;
+.rgx-pill-mark {
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
-  margin-left: -9px;
   flex: none;
-  overflow: hidden;
-  border: 2px solid #fff;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
-  background: #eae9e4;
-  box-shadow: 0 1px 3px #2b231923;
+  background: #fff0e7;
+  color: #f67438;
+  font-size: 19px;
+  line-height: 1;
 }
-.rgx-review-avatar:first-child {
-  margin-left: 0;
+:global(.dark) .rgx-pill {
+  background: #252923;
+  border-color: #3a3e37;
+  color: #b1b1a8;
 }
-.rgx-review-avatar:nth-child(2) {
-  z-index: 2;
-}
-.rgx-review-avatar:nth-child(3) {
-  z-index: 3;
-}
-.rgx-review-avatar-fallback {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  font-size: 8px;
-  letter-spacing: -0.025em;
-  font-weight: 850;
-  color: #775c4e;
-  background: #f7e9e0;
-}
-.rgx-review-avatar:nth-child(2) .rgx-review-avatar-fallback {
-  background: #313330;
-  color: #fff;
-}
-.rgx-review-avatar:nth-child(3) .rgx-review-avatar-fallback {
-  background: #e7edf0;
-  color: #47565d;
-}
-.rgx-review-avatar img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 50%;
-  background: #f4f1ed;
-  display: block;
-}
-:global(.dark) .rgx-rating {
-  background: #282c27;
-  color: #f2efe9;
-  border-color: #45463e;
-}
-:global(.dark) .rgx-rating strong {
-  color: #f2efe9;
-}
-:global(.dark) .rgx-rating-copy {
-  color: #b3b1a8;
-}
-:global(.dark) .rgx-review-avatar {
-  border-color: #282c27;
+:global(.dark) .rgx-pill-mark {
+  background: #3b261e;
+  color: #ff8649;
 }
 
-/* `.rgx h1` */
 .rgx-title {
-  font-size: clamp(48px, 5.45vw, 77px);
-  font-weight: 850;
-  letter-spacing: -0.071em;
-  line-height: 1.075;
-  margin: 0;
+  margin: 14px 0 12px;
   color: #222722;
-  white-space: nowrap;
-}
-.rgx-title span {
-  white-space: nowrap;
-}
-.rgx-title em {
-  font-style: normal;
-  color: #eb6634;
-  position: relative;
+  font-weight: 790;
 }
 :global(.dark) .rgx-title {
   color: #f1efe8;
 }
+/*
+  "Meet [mascots] RepGet." on one line. The design's size, made smaller where a
+  language's words are longer than "Meet" (--title-chars, set by hero.tsx):
+  what is left of the width once the mascots have theirs, over the letters.
+*/
+.rgx-name {
+  --title-room: min(100vw - 48px, 1050px);
+  --mascot-room: clamp(124px, 11.6vw, 168px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(9px, 1vw, 15px);
+  font-size: min(clamp(65px, 9.2vw, 119px), calc((var(--title-room) - var(--mascot-room)) / (var(--title-chars, 11) * 0.52)));
+  line-height: 1.03;
+  letter-spacing: -0.092em;
+  white-space: nowrap;
+  margin-bottom: 4px;
+}
+.rgx-brand {
+  color: #eb6634;
+  padding-right: 0.06em;
+}
+.rgx-subtitle {
+  display: block;
+  max-width: 760px;
+  margin: 0 auto;
+  font-size: clamp(27px, 3.25vw, 43px);
+  font-weight: 760;
+  line-height: 1.12;
+  letter-spacing: -0.06em;
+}
+.rgx-subtitle em {
+  font-style: normal;
+  background: linear-gradient(105deg, #8b66c0, #bc72ae);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+:global(.dark) .rgx-subtitle em {
+  background-image: linear-gradient(105deg, #b59aea, #d39ad0);
+}
 
 .rgx-description {
-  color: #757973;
-  line-height: 1.6;
-  font-size: 17px;
-  max-width: 755px;
-  margin: 20px auto 27px;
+  max-width: 850px;
+  margin: 2px auto 25px;
+  color: #3a343e;
+  font-size: 16px;
+  line-height: 1.55;
+  letter-spacing: -0.015em;
+}
+.rgx-description > span {
+  display: block;
 }
 .rgx-description strong {
-  font-weight: 750;
-  color: #4b524b;
+  font-weight: 790;
+  color: #222722;
+}
+.rgx-description .rgx-description-support {
+  margin-top: 2px;
+  color: #79737d;
+  font-size: 14px;
+  font-weight: 480;
+  letter-spacing: 0;
 }
 :global(.dark) .rgx-description {
-  color: #b1b1a8;
+  color: #ddd9d1;
 }
 :global(.dark) .rgx-description strong {
-  color: #ddd9d1;
+  color: #f1efe8;
+}
+:global(.dark) .rgx-description .rgx-description-support {
+  color: #b1b1a8;
+}
+
+@media (max-width: 800px) {
+  .rgx-description {
+    max-width: 620px;
+    font-size: 14px;
+    margin-bottom: 23px;
+  }
+  .rgx-description .rgx-description-support {
+    font-size: 13px;
+  }
+}
+@media (max-width: 760px) {
+  .rgx-name {
+    --title-room: calc(100vw - 38px);
+    --mascot-room: clamp(77px, 15.8vw, 105px);
+    gap: 5px;
+    font-size: min(clamp(47px, 9.8vw, 76px), calc((var(--title-room) - var(--mascot-room)) / (var(--title-chars, 11) * 0.52)));
+    /* Room for the mascots' words under the line. */
+    margin: 18px 0 30px;
+  }
+  .rgx-title {
+    margin-top: 0;
+  }
+  .rgx-subtitle {
+    font-size: clamp(25px, 4.9vw, 34px);
+  }
+}
+@media (max-width: 560px) {
+  .rgx-description {
+    max-width: 350px;
+    font-size: 13px;
+    margin: 0 auto 18px;
+  }
+  .rgx-description .rgx-description-support {
+    font-size: 12px;
+    margin-top: 5px;
+  }
+}
+@media (max-width: 510px) {
+  .rgx-pill {
+    font-size: 9px;
+  }
+  .rgx-name {
+    --title-room: calc(100vw - 34px);
+    --mascot-room: clamp(64px, 15.4vw, 72px);
+    gap: 6px;
+    font-size: min(clamp(40px, 9.8vw, 55px), calc((var(--title-room) - var(--mascot-room)) / (var(--title-chars, 11) * 0.52)));
+    letter-spacing: -0.084em;
+    margin: 19px 0 33px;
+  }
+  .rgx-subtitle {
+    font-size: 27px;
+    line-height: 1.2;
+  }
+}
+@media (max-width: 380px) {
+  .rgx-subtitle {
+    font-size: 25px;
+  }
 }
 
 /* The field. */
@@ -613,362 +615,6 @@ a.rgx-rating:hover {
   border-color: #42433a;
 }
 
-/* ---------- The six floating cards and their icon clouds ---------- */
-
-.rgx-metric-field {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-}
-.rgx-metric-card {
-  --metric-accent: #ed7446;
-  position: absolute;
-  isolation: isolate;
-  width: 176px;
-  min-height: 0;
-  height: auto;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: flex-start;
-  gap: 3px;
-  padding: 11px 14px 10px;
-  border: 1px solid rgba(232, 226, 218, 0.96);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow:
-    0 9px 28px rgba(59, 45, 30, 0.055),
-    0 1px 3px rgba(59, 45, 30, 0.018);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  text-align: left;
-  overflow: visible;
-}
-.rgx-metric-social {
-  top: 24%;
-  left: 4.2%;
-  --metric-accent: #ed8254;
-}
-.rgx-metric-seo {
-  top: 25%;
-  right: 4.2%;
-  --metric-accent: #6b96b8;
-}
-.rgx-metric-ai {
-  top: 49%;
-  left: 1.6%;
-  --metric-accent: #9d86ce;
-}
-.rgx-metric-backlinks {
-  top: 49.5%;
-  right: 1.6%;
-  --metric-accent: #c7a168;
-}
-.rgx-metric-content {
-  top: 75%;
-  left: 5.7%;
-  --metric-accent: #e88b70;
-}
-.rgx-metric-insights {
-  top: 76%;
-  right: 5.7%;
-  --metric-accent: #7b9eb2;
-}
-.rgx-metric-copy {
-  display: contents;
-}
-.rgx-metric-title {
-  display: flex;
-  width: auto;
-  max-width: 100%;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 7px;
-  margin: 0;
-  padding: 0;
-  min-height: 0;
-  color: #384039;
-  font-size: 13px;
-  font-weight: 790;
-  line-height: 1.23;
-  letter-spacing: -0.024em;
-  white-space: nowrap;
-}
-.rgx-metric-title > svg {
-  width: 16px;
-  height: 16px;
-  flex: 0 0 16px;
-  color: var(--metric-accent);
-  stroke-width: 1.75;
-}
-.rgx-metric-row {
-  display: block;
-  width: 100%;
-  margin: 0;
-  padding: 0;
-  line-height: 1.25;
-}
-.rgx-metric-row strong {
-  display: block;
-  font-size: 11.2px;
-  font-weight: 650;
-  line-height: 1.25;
-  letter-spacing: -0.015em;
-  white-space: normal;
-  color: #69706b;
-}
-:global(.dark) .rgx-metric-card {
-  background: rgba(38, 42, 38, 0.97);
-  border-color: #42473f;
-  box-shadow: 0 10px 25px #0002;
-}
-:global(.dark) .rgx-metric-title {
-  color: #f2efe8;
-}
-:global(.dark) .rgx-metric-row strong {
-  color: #b8c0b5;
-}
-
-.rgx-card-cloud {
-  position: absolute;
-  inset: -15px -18px -16px -18px;
-  display: block;
-  z-index: 4;
-  pointer-events: none;
-  overflow: visible;
-}
-.rgx-mini-brand,
-.rgx-mini-chip {
-  position: absolute;
-  display: grid;
-  place-items: center;
-  margin: 0;
-  width: 23px;
-  height: 23px;
-  border-radius: 8px;
-  border: 1px solid #fff;
-  background: #fff;
-  box-shadow:
-    0 5px 15px rgba(53, 40, 27, 0.1),
-    0 1px 2px rgba(53, 40, 27, 0.03);
-  color: #757e77;
-  font:
-    800 9px/1 Inter,
-    Arial,
-    sans-serif;
-  letter-spacing: -0.02em;
-  line-height: 1;
-  overflow: hidden;
-  opacity: 0.94;
-  animation: repget-orbit-float 6.8s ease-in-out infinite;
-}
-.rgx-mini-brand svg {
-  display: block;
-  width: 14px;
-  height: 14px;
-  fill: none;
-  color: inherit;
-}
-:global(.dark) .rgx-mini-brand,
-:global(.dark) .rgx-mini-chip {
-  border-color: #32362f;
-  box-shadow: 0 4px 12px #0002;
-}
-.rgx-card-cloud > :nth-child(1) {
-  left: 8px;
-  top: -4px;
-  animation-delay: -0.5s;
-}
-.rgx-card-cloud > :nth-child(2) {
-  right: 10px;
-  top: -10px;
-  animation-delay: -2.1s;
-}
-.rgx-card-cloud > :nth-child(3) {
-  left: -3px;
-  bottom: 1px;
-  animation-delay: -3.7s;
-}
-.rgx-card-cloud > :nth-child(4) {
-  right: -4px;
-  bottom: -4px;
-  animation-delay: -5.2s;
-}
-
-/* Where each icon sits around its card, and its colours. */
-.rgx-card-cloud-social > :nth-child(1) {
-  background: #fbe6f2;
-  color: #c850a5;
-}
-.rgx-card-cloud-social > :nth-child(2) {
-  right: 27px;
-  top: -14px;
-  background: #e8f3ff;
-  color: #1877b5;
-}
-.rgx-card-cloud-social > :nth-child(3) {
-  left: -7px;
-  bottom: 5px;
-  background: #25282c;
-  color: #fff;
-}
-.rgx-card-cloud-social > :nth-child(4) {
-  right: 8px;
-  bottom: -10px;
-  background: #e7f0ff;
-  color: #1877f2;
-}
-
-.rgx-card-cloud-seo > :nth-child(1) {
-  left: auto;
-  right: 12px;
-  top: -15px;
-  color: #4285f4;
-  font-size: 15px;
-}
-.rgx-card-cloud-seo > :nth-child(2) {
-  left: -4px;
-  right: auto;
-  top: -5px;
-  background: #eef5ff;
-  color: #5b84c7;
-}
-.rgx-card-cloud-seo > :nth-child(3) {
-  left: auto;
-  right: 11px;
-  bottom: 5px;
-  background: #fff1df;
-  color: #e48932;
-}
-.rgx-card-cloud-seo > :nth-child(4) {
-  left: 27px;
-  right: auto;
-  bottom: -13px;
-  background: #ecf7ff;
-  color: #4285f4;
-}
-
-.rgx-card-cloud-ai > :nth-child(1) {
-  left: 19px;
-  top: -13px;
-  background: #ecf1ff;
-  color: #7462bd;
-}
-.rgx-card-cloud-ai > :nth-child(2) {
-  right: -7px;
-  top: 4px;
-  background: #f4ecff;
-  color: #9a69ca;
-}
-.rgx-card-cloud-ai > :nth-child(3) {
-  left: 19px;
-  bottom: -5px;
-  background: #eefbfa;
-  color: #418a97;
-  font-size: 10px;
-}
-.rgx-card-cloud-ai > :nth-child(4) {
-  right: 26px;
-  bottom: -13px;
-  background: #fff1e5;
-  color: #d77545;
-}
-
-.rgx-card-cloud-backlinks > :nth-child(1) {
-  left: auto;
-  right: 20px;
-  top: -15px;
-  background: #fff5e9;
-  color: #c88d45;
-}
-.rgx-card-cloud-backlinks > :nth-child(2) {
-  left: -7px;
-  right: auto;
-  top: 0;
-  background: #edf8ef;
-  color: #6d9a6c;
-}
-.rgx-card-cloud-backlinks > :nth-child(3) {
-  left: auto;
-  right: 12px;
-  bottom: 7px;
-  background: #fff7e8;
-  color: #b68a51;
-  font-size: 10px;
-}
-.rgx-card-cloud-backlinks > :nth-child(4) {
-  left: 18px;
-  right: auto;
-  bottom: -14px;
-  background: #eef4ff;
-  color: #7295ca;
-}
-
-.rgx-card-cloud-content > :nth-child(1) {
-  left: 9px;
-  top: -13px;
-  background: #fff0e9;
-  color: #e37c4f;
-}
-.rgx-card-cloud-content > :nth-child(2) {
-  right: -7px;
-  top: -3px;
-  background: #ffefed;
-  color: #ee445b;
-}
-.rgx-card-cloud-content > :nth-child(3) {
-  left: 21px;
-  bottom: -14px;
-  background: #fff0f1;
-  color: #d43153;
-}
-.rgx-card-cloud-content > :nth-child(4) {
-  right: 17px;
-  bottom: -10px;
-  background: #e8f3ff;
-  color: #1877b5;
-}
-
-.rgx-card-cloud-insights > :nth-child(1) {
-  left: auto;
-  right: 15px;
-  top: -14px;
-  background: #edf5ff;
-  color: #6d94bf;
-}
-.rgx-card-cloud-insights > :nth-child(2) {
-  left: 16px;
-  right: auto;
-  top: -5px;
-  background: #fff5e7;
-  color: #d89b42;
-}
-.rgx-card-cloud-insights > :nth-child(3) {
-  left: auto;
-  right: 12px;
-  bottom: 3px;
-  background: #f4efff;
-  color: #8e76c5;
-}
-.rgx-card-cloud-insights > :nth-child(4) {
-  left: -5px;
-  right: auto;
-  bottom: -7px;
-  background: #edf9f0;
-  color: #61997c;
-}
-
-@keyframes repget-orbit-float {
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0) rotate(-3deg);
-  }
-  50% {
-    transform: translate3d(1px, -5px, 0) rotate(3deg);
-  }
-}
-
 /* ---------- The platform ribbon and the content counter ---------- */
 
 .rgx-channel-ribbon {
@@ -1166,129 +812,6 @@ a.rgx-rating:hover {
 
 /* ---------- Breakpoints ---------- */
 
-@media (min-width: 1201px) and (max-width: 1380px) {
-  .rgx-metric-card {
-    width: 160px;
-    padding: 10px 11px 9px;
-  }
-  .rgx-metric-title {
-    font-size: 12.3px;
-    gap: 6px;
-  }
-  .rgx-metric-row strong {
-    font-size: 10.5px;
-  }
-  .rgx-metric-social {
-    left: 2%;
-  }
-  .rgx-metric-seo {
-    right: 2%;
-  }
-  .rgx-metric-ai {
-    left: 0.8%;
-  }
-  .rgx-metric-backlinks {
-    right: 0.8%;
-  }
-  .rgx-metric-content {
-    left: 3%;
-  }
-  .rgx-metric-insights {
-    right: 3%;
-  }
-  .rgx-card-cloud {
-    inset: -13px -14px;
-  }
-  .rgx-mini-brand,
-  .rgx-mini-chip {
-    width: 20px;
-    height: 20px;
-    border-radius: 6px;
-  }
-  .rgx-mini-brand svg {
-    width: 12px;
-    height: 12px;
-  }
-  .rgx-card-cloud > :nth-child(3) {
-    bottom: 2px;
-  }
-}
-
-/* Below 1200px the cards leave the sides and line up in a scrolling rail under the content. */
-@media (max-width: 1200px) {
-  .rgx-hero {
-    flex-direction: column;
-    align-items: center;
-  }
-  .rgx-hero-content {
-    order: 1;
-  }
-  .rgx-metric-field {
-    order: 3;
-    position: relative;
-    inset: auto;
-    z-index: 2;
-    width: min(950px, 100%);
-    margin: 24px auto 0;
-    display: flex;
-    gap: 25px;
-    overflow-x: auto;
-    padding: 25px 20px 25px;
-    scrollbar-width: thin;
-    scrollbar-color: #e6d7c9 transparent;
-    pointer-events: auto;
-    overscroll-behavior-x: contain;
-  }
-  .rgx-metric-card {
-    position: relative;
-    top: auto;
-    left: auto;
-    right: auto;
-    flex: 0 0 168px;
-    width: 168px;
-    padding: 11px 13px 10px;
-  }
-  .rgx-metric-title {
-    font-size: 12.5px;
-  }
-  .rgx-metric-row strong {
-    font-size: 10.8px;
-  }
-  .rgx-card-cloud {
-    inset: -14px -13px;
-  }
-  .rgx-card-cloud > :nth-child(n + 3) {
-    display: none;
-  }
-  .rgx-mini-brand,
-  .rgx-mini-chip {
-    width: 20px;
-    height: 20px;
-    border-radius: 7px;
-    font-size: 8px;
-  }
-  .rgx-mini-brand svg {
-    width: 12px;
-    height: 12px;
-  }
-  /* The design's rail rule wins over each chip's own size, the "G" included. */
-  .rgx-card-cloud > .rgx-mini-chip {
-    font-size: 8px;
-  }
-  .rgx-card-cloud > :nth-child(1) {
-    left: -2px;
-    right: auto;
-    top: -5px;
-    bottom: auto;
-  }
-  .rgx-card-cloud > :nth-child(2) {
-    left: auto;
-    right: -2px;
-    top: auto;
-    bottom: -6px;
-  }
-}
-
 @media (max-width: 1100px) {
   .rgx-channel-ribbon {
     padding-bottom: 37px;
@@ -1321,40 +844,6 @@ a.rgx-rating:hover {
     margin-top: -9px;
     padding: 96px 19px 22px;
     min-height: unset;
-  }
-  .rgx-eyebrow {
-    font-size: 8px;
-    letter-spacing: 0.13em;
-    margin-bottom: 16px;
-  }
-  .rgx-rating {
-    gap: 7px;
-    padding: 5px 10px 5px 14px;
-    margin-bottom: 18px;
-  }
-  .rgx-rating strong {
-    font-size: 11.5px;
-  }
-  .rgx-review-avatar {
-    width: 30px;
-    height: 30px;
-  }
-  .rgx-title {
-    font-size: clamp(38px, 9vw, 56px);
-    line-height: 1.08;
-    white-space: normal;
-  }
-  .rgx-title span {
-    white-space: normal;
-  }
-  .rgx-description {
-    font-size: 14px;
-    line-height: 1.62;
-    max-width: 710px;
-    margin: 19px auto 27px;
-  }
-  .rgx-wide-br {
-    display: none;
   }
   .rgx-form {
     width: min(727px, 100%);
@@ -1418,29 +907,6 @@ a.rgx-rating:hover {
     width: 38px;
     height: 38px;
   }
-  .rgx-metric-field {
-    width: calc(100% + 20px);
-    margin-top: 32px;
-    gap: 26px;
-    padding: 26px 18px 26px;
-  }
-  .rgx-metric-card {
-    flex: 0 0 161px;
-    width: 161px;
-    padding: 10px 12px 9px;
-  }
-  .rgx-metric-title {
-    font-size: 12px;
-  }
-  .rgx-metric-row strong {
-    font-size: 10.3px;
-  }
-  .rgx-card-cloud {
-    inset: -12px;
-  }
-  .rgx-card-cloud > :nth-child(2) {
-    bottom: -5px;
-  }
 
   .rgx-channel-ribbon {
     padding: 5px 12px 40px;
@@ -1487,44 +953,6 @@ a.rgx-rating:hover {
 @media (max-width: 450px) {
   .rgx-hero {
     padding: 87px 17px 22px;
-  }
-  .rgx-eyebrow {
-    font-size: 7.7px;
-    letter-spacing: 0.1em;
-    gap: 6px;
-  }
-  .rgx-rating {
-    height: 40px;
-    min-height: 40px;
-    gap: 5px;
-    padding: 4px 7px 4px 10px;
-  }
-  .rgx-stars {
-    font-size: 12px;
-    letter-spacing: 0;
-  }
-  .rgx-rating strong {
-    font-size: 10.5px;
-  }
-  .rgx-rating-copy {
-    font-size: 9.5px;
-  }
-  .rgx-review-avatars {
-    margin-left: 0;
-    height: 26px;
-  }
-  .rgx-review-avatar {
-    width: 27px;
-    height: 27px;
-    margin-left: -8px;
-  }
-  .rgx-title {
-    font-size: clamp(37px, 10vw, 46px);
-    letter-spacing: -0.073em;
-  }
-  .rgx-description {
-    font-size: 13px;
-    margin-bottom: 25px;
   }
   .rgx-form {
     height: 64px;
@@ -1592,8 +1020,6 @@ a.rgx-rating:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .rgx-mini-brand,
-  .rgx-mini-chip,
   .rgx-channel-track {
     animation: none !important;
   }

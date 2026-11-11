@@ -18,7 +18,8 @@ import {
   planFeatures,
   type PickerPlan,
 } from "@/lib/plans/features";
-import { OfferCodeField } from "@/components/billing/offer-code-field";
+import { OfferApplied } from "@/components/billing/offer-code-field";
+import type { DirectPurchaseCopy } from "@/lib/i18n/direct-purchase";
 import type { OfferCodeCopy } from "@/lib/i18n/offer-code";
 import { createPayPalCheckout } from "@/lib/paypal/actions";
 import { createCheckoutSession } from "@/lib/stripe/actions";
@@ -66,6 +67,7 @@ export function PlanStep({
   annualPlans,
   paypalAvailable,
   offerCopy = null,
+  directPurchase = null,
   paypalPlanIds,
   paypalFreeArticlePlanIds = [],
   websiteId,
@@ -80,8 +82,14 @@ export function PlanStep({
   annualPlans: PickerPlan[];
   /** Whether PayPal can complete a checkout at all (lib/paypal/client.ts). */
   paypalAvailable: boolean;
-  /** The REPGET field's words, or null while the offer is off. */
+  /** The REPGET notice's words (applied automatically), or null while the offer is off or the account has used it. */
   offerCopy?: OfferCodeCopy | null;
+  /**
+   * Set when the plan on screen is bought outright (the Grow + Visibility
+   * bundle, lib/plans/features.ts DIRECT_PURCHASE_TIERS): no free articles,
+   * no email code, the first payment taken at checkout.
+   */
+  directPurchase?: DirectPurchaseCopy | null;
   /** The plans that exist in PayPal; any other gets no PayPal button. */
   paypalPlanIds: string[];
   /**
@@ -106,7 +114,6 @@ export function PlanStep({
   t?: Messages["app"]["onboarding"];
 }) {
   const [annual, setAnnual] = useState(false);
-  const [offerCode, setOfferCode] = useState("");
   /**
    * Which tier is on screen. The mid tier by default — the reference opens on
    * Grow and offers Scale through a link, which is the same judgement: most
@@ -127,8 +134,13 @@ export function PlanStep({
   const [code, setCode] = useState("");
   const [checking, setChecking] = useState<"send" | "confirm" | null>(null);
 
+  /**
+   * The free articles, as checkout will give them: never on a plan bought
+   * outright (lib/billing/checkouts.ts beginCheckout).
+   */
+  const freeArticles = trialEligible && !directPurchase;
   /** The code step stands between a new workspace and card checkout. */
-  const needsEmail = trialEligible && !verified;
+  const needsEmail = freeArticles && !verified;
 
   async function sendCode() {
     setChecking("send");
@@ -229,9 +241,7 @@ export function PlanStep({
 
   async function handleCheckout(provider: "stripe" | "paypal") {
     if (!plan) return;
-    // Monthly or annual (annual gets the same fixed first-month amount off, owner's decision 2026-11-07).
-    // Card or PayPal (review P5): the server says if this plan cannot take it through PayPal yet.
-    const offer = offerCopy ? offerCode : "";
+    // REPGET is applied by the server by itself (2026-11-11), card or PayPal; nothing to send.
     setPending(provider);
 
     /*
@@ -242,8 +252,8 @@ export function PlanStep({
     */
     const result =
       provider === "paypal"
-        ? await createPayPalCheckout(plan.id, websiteId, "onboarding", offer)
-        : await createCheckoutSession(plan.id, websiteId, "onboarding", offer);
+        ? await createPayPalCheckout(plan.id, websiteId, "onboarding")
+        : await createCheckoutSession(plan.id, websiteId, "onboarding");
 
     if ("error" in result) {
       setPending(null);
@@ -277,7 +287,7 @@ export function PlanStep({
     PayPal plan - the same offer, so the same confirmed address first
     (createPayPalCheckout refuses without it, as card checkout does).
   */
-  const paypalFree = paypal && trialEligible && paypalFreeArticlePlanIds.includes(plan.id);
+  const paypalFree = paypal && freeArticles && paypalFreeArticlePlanIds.includes(plan.id);
 
   /**
    * The badge on the card, per the design.
@@ -286,8 +296,9 @@ export function PlanStep({
    * to the wrong plan the first time the line-up changes, which is exactly how
    * the pricing page once highlighted the wrong tier.
    */
-  const badge =
-    plan.tier === "grow"
+  const badge = directPurchase
+    ? directPurchase.badge
+    : plan.tier === "grow"
       ? "Most popular plan"
       : plan.tier === "scale"
         ? "Best value"
@@ -510,7 +521,7 @@ export function PlanStep({
           </div>
         ) : null}
 
-        {offerCopy ? <OfferCodeField copy={offerCopy} value={offerCode} onChange={setOfferCode} className="mt-4" /> : null}
+        {offerCopy && !directPurchase ? <OfferApplied copy={offerCopy} plan={plan} className="mt-4" /> : null}
 
         <Button
           onClick={() => handleCheckout("stripe")}
@@ -524,7 +535,7 @@ export function PlanStep({
             </>
           ) : (
             <>
-              {trialEligible ? `Start with ${FREE_ARTICLES} free articles` : "Continue to payment"}
+              {directPurchase ? directPurchase.button : freeArticles ? `Start with ${FREE_ARTICLES} free articles` : "Continue to payment"}
               <ArrowRight className="size-4" aria-hidden="true" />
             </>
           )}
@@ -539,7 +550,11 @@ export function PlanStep({
           as "cancel any time": someone entering a card is owed when money
           leaves their account, not a reassuring phrase.
         */}
-        {trialEligible ? (
+        {directPurchase ? (
+          <p className="mt-3 text-center text-sm text-muted-foreground">
+            {format(directPurchase.note, { price: formatPrice(plan.priceCents, plan.currency) })}
+          </p>
+        ) : freeArticles ? (
           <p className="mt-3 text-center text-sm">
             <span className="font-medium">
               {formatPrice(0, plan.currency)} today
@@ -599,7 +614,7 @@ export function PlanStep({
           Nothing to add for a workspace that has had its free articles:
           card and PayPal both charge today, as the line above says.
         */}
-        {paypal && trialEligible ? (
+        {paypal && freeArticles ? (
           <p className="mt-2 text-center text-xs text-muted-foreground">
             {paypalFree
               ? format(t.paypalFreeArticles, { n: FREE_ARTICLES, days: FREE_ARTICLES_DAYS })

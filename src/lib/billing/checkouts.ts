@@ -1,7 +1,8 @@
-import { and, eq, inArray, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
 
 import {
   billingCheckouts,
+  lifecycleEmails,
   member,
   organization,
   paypalPlanChanges,
@@ -10,7 +11,15 @@ import {
   websites,
 } from "@/lib/db/schema";
 import type { Database, Executor, Transaction } from "@/lib/db/types";
-import { FREE_ARTICLES_DAYS } from "@/lib/plans/features";
+import { REPGET_CODE, repgetCouponFor, repgetDiscountCents, repgetOfferEnabled, type OfferPlan } from "@/lib/billing/repget-offer";
+import {
+  WINBACK_CODE,
+  WINBACK_COUPON,
+  winbackCovers,
+  winbackDiscountCents,
+  winbackOfferEnabled,
+} from "@/lib/billing/winback-offer";
+import { FREE_ARTICLES_DAYS, isDirectPurchaseTier } from "@/lib/plans/features";
 
 /**
  * Checkouts we have sent a customer to, and what became of them.
@@ -833,7 +842,8 @@ export async function beginCheckout(
     /*
       One redemption per USER ACCOUNT (owner's decision, 2026-11-07): the
       account that owns this workspace, across EVERY workspace it owns, so a
-      second workspace cannot take the offer again. Decided under a lock per
+      second workspace cannot take the offer again (REPGET, and the win-back
+      discount the same way). Decided under a lock per
       owner (taken in a fixed order, after the workspace lock above, so two
       checkouts in two of the account's workspaces wait for each other and
       never deadlock). Completed used it. Open, or not yet known, holds it.
@@ -842,54 +852,30 @@ export async function beginCheckout(
       workspace with no recorded owner falls back to itself.
     */
     if (input.offer) {
-      const owners = [
-        ...new Set(
-          (
-            await tx
-              .select({ userId: member.userId })
-              .from(member)
-              .where(and(eq(member.organizationId, org.id), eq(member.role, "owner")))
-          ).map((row) => row.userId),
-        ),
-      ].sort();
+      const owners = await accountOwners(tx, org.id);
       for (const owner of owners) {
         await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`offer:${input.offer}:user:${owner}`}, 0))`);
       }
-      const workspaces =
-        owners.length === 0
-          ? [org.id]
-          : [
-              ...new Set([
-                org.id,
-                ...(
-                  await tx
-                    .select({ organizationId: member.organizationId })
-                    .from(member)
-                    .where(and(inArray(member.userId, owners), eq(member.role, "owner")))
-                ).map((row) => row.organizationId),
-              ]),
-            ];
-      const taken = await tx
-        .select({ status: billingCheckouts.status })
-        .from(billingCheckouts)
-        .where(
-          and(
-            inArray(billingCheckouts.organizationId, workspaces),
-            inArray(billingCheckouts.status, [...BLOCKING_DELETION, "completed"]),
-            sql`${billingCheckouts.requestParams} ->> 'offer' = ${input.offer}`,
-          ),
-        );
-      if (taken.some((row) => row.status === "completed")) {
-        return { kind: "refuse", error: `Your account has already used the ${input.offer} code.` };
+      const state = await offerStateOfAccount(tx, org.id, owners, input.offer);
+      const offerName = input.offer === WINBACK_CODE ? "welcome-back" : input.offer;
+      if (state === "used") {
+        return { kind: "refuse", error: `Your account has already used the ${offerName} discount.` };
       }
-      if (taken.length > 0) {
-        return { kind: "refuse", error: `The ${input.offer} code is on another checkout of your account. Finish that one, or try again once it has expired.` };
+      if (state === "held") {
+        return { kind: "refuse", error: `The ${offerName} discount is on another checkout of your account. Finish that one, or try again once it has expired.` };
       }
     }
 
+    /*
+      The free articles: never when starting the plan now, and never on a plan
+      bought outright (the Grow + Visibility bundle, lib/plans/features.ts
+      DIRECT_PURCHASE_TIERS) - its first payment is taken at checkout.
+    */
+    const chosen = await planForCheckout(tx, input.planId);
     const freeArticlesPossible =
       replaces === null &&
-      (input.provider === "stripe" || (input.provider === "paypal" && (await hasPayPalFreeArticles(tx, input.planId))));
+      !isDirectPurchaseTier(chosen?.tier) &&
+      (input.provider === "stripe" || (input.provider === "paypal" && Boolean(chosen?.paypalTrialPlanId)));
     const trialDays = freeArticlesPossible && (await isTrialEligible(tx, org.id)) ? FREE_ARTICLES_DAYS : 0;
 
     const [row] = await tx
@@ -916,14 +902,197 @@ export async function beginCheckout(
   });
 }
 
-/** Whether a plan has its free-articles PayPal plan (scripts/paypal-setup.mjs). */
-async function hasPayPalFreeArticles(executor: Pick<Executor, "select">, planId: string): Promise<boolean> {
+/** What the trial decision needs of the plan: its tier, and whether it has its free-articles PayPal plan (scripts/paypal-setup.mjs). */
+async function planForCheckout(executor: Pick<Executor, "select">, planId: string) {
   const [plan] = await executor
-    .select({ trial: plans.paypalTrialPlanId })
+    .select({ tier: plans.tier, paypalTrialPlanId: plans.paypalTrialPlanId })
     .from(plans)
     .where(eq(plans.id, planId))
     .limit(1);
-  return Boolean(plan?.trial);
+  return plan ?? null;
+}
+
+/** The user accounts that own a workspace, sorted (the order their offer locks are taken in). */
+async function accountOwners(executor: Pick<Executor, "select">, organizationId: string): Promise<string[]> {
+  const rows = await executor
+    .select({ userId: member.userId })
+    .from(member)
+    .where(and(eq(member.organizationId, organizationId), eq(member.role, "owner")));
+  return [...new Set(rows.map((row) => row.userId))].sort();
+}
+
+/**
+ * Where an account stands with an offer, across every workspace its owners
+ * own (a workspace with no recorded owner counts alone): a completed checkout
+ * USED it; an open or not-yet-known one HOLDS it; expired or failed ones gave
+ * it back.
+ */
+async function offerStateOfAccount(
+  executor: Pick<Executor, "select">,
+  organizationId: string,
+  owners: string[],
+  offer: string,
+): Promise<RepgetOfferState> {
+  const workspaces =
+    owners.length === 0
+      ? [organizationId]
+      : [
+          ...new Set([
+            organizationId,
+            ...(
+              await executor
+                .select({ organizationId: member.organizationId })
+                .from(member)
+                .where(and(inArray(member.userId, owners), eq(member.role, "owner")))
+            ).map((row) => row.organizationId),
+          ]),
+        ];
+  const taken = await executor
+    .select({ status: billingCheckouts.status })
+    .from(billingCheckouts)
+    .where(
+      and(
+        inArray(billingCheckouts.organizationId, workspaces),
+        inArray(billingCheckouts.status, [...BLOCKING_DELETION, "completed"]),
+        sql`${billingCheckouts.requestParams} ->> 'offer' = ${offer}`,
+      ),
+    );
+  if (taken.some((row) => row.status === "completed")) return "used";
+  return taken.length > 0 ? "held" : "available";
+}
+
+export type RepgetOfferState = "available" | "held" | "used";
+
+/**
+ * Whether the account owning this workspace can still get the automatic REPGET
+ * discount (lib/billing/repget-offer.ts): "used" means never again, so its
+ * checkouts go without it and the plan screens do not promise it. "held" is
+ * another of its checkouts still open: the discount is still the account's,
+ * and a second checkout carrying it is refused until that one is settled.
+ *
+ * Read without a lock, for deciding what to show and what to ask for;
+ * beginCheckout decides again under the account's lock.
+ */
+export async function repgetOfferState(
+  executor: Pick<Executor, "select">,
+  organizationId: string,
+  offer: string = REPGET_CODE,
+): Promise<RepgetOfferState> {
+  return offerStateOfAccount(executor, organizationId, await accountOwners(executor, organizationId), offer);
+}
+
+/**
+ * The coupon a new checkout for this plan carries by itself (client,
+ * 2026-11-11: "we auto apply the repget coupon code 40% OFF at the checkout"):
+ * the plan's REPGET coupon while the offer is on, the plan is covered and the
+ * account has not used it. Null otherwise - the checkout then goes without it.
+ * beginCheckout makes the final decision under the account's lock.
+ */
+export async function automaticRepgetCoupon(
+  executor: Pick<Executor, "select">,
+  organizationId: string,
+  plan: OfferPlan,
+): Promise<string | null> {
+  if (!repgetOfferEnabled()) return null;
+  const coupon = repgetCouponFor(plan);
+  if (!coupon) return null;
+  return (await repgetOfferState(executor, organizationId)) === "used" ? null : coupon;
+}
+
+/** The win-back email's kind (lib/email/lifecycle-copy.ts), named here so billing does not import the email module. */
+const WINBACK_EMAIL_KIND = "winback";
+
+/**
+ * Whether the account owning this workspace may get the win-back discount
+ * (lib/billing/winback-offer.ts): "none" unless one of its owners was SENT
+ * the win-back email; then, as for REPGET, "used" once a checkout carrying it
+ * completed and "held" while one is open. Read without a lock; beginCheckout
+ * decides again under the account's lock.
+ */
+export async function winbackOfferState(
+  executor: Pick<Executor, "select">,
+  organizationId: string,
+): Promise<RepgetOfferState | "none"> {
+  const owners = await accountOwners(executor, organizationId);
+  if (owners.length === 0) return "none";
+  const [emailed] = await executor
+    .select({ sentAt: lifecycleEmails.updatedAt })
+    .from(lifecycleEmails)
+    .where(
+      and(
+        eq(lifecycleEmails.kind, WINBACK_EMAIL_KIND),
+        eq(lifecycleEmails.status, "sent"),
+        inArray(lifecycleEmails.userId, owners),
+      ),
+    )
+    .orderBy(lifecycleEmails.updatedAt)
+    .limit(1);
+  if (!emailed) return "none";
+  /*
+    One restart only: a plan restarted with REPGET after the email was sent
+    (its row's updatedAt, set by the app clock when it went out, as the
+    checkout's createdAt is; REPGET
+    won, and the win-back's credits went with it - lib/billing/winback.ts)
+    used the win-back too.
+  */
+  const [restarted] = await executor
+    .select({ id: billingCheckouts.id })
+    .from(billingCheckouts)
+    .innerJoin(member, and(eq(member.organizationId, billingCheckouts.organizationId), eq(member.role, "owner")))
+    .where(
+      and(
+        inArray(member.userId, owners),
+        eq(billingCheckouts.status, "completed"),
+        sql`${billingCheckouts.requestParams} ->> 'offer' = ${REPGET_CODE}`,
+        gt(billingCheckouts.createdAt, emailed.sentAt),
+      ),
+    )
+    .limit(1);
+  if (restarted) return "used";
+  return offerStateOfAccount(executor, organizationId, owners, WINBACK_CODE);
+}
+
+/**
+ * Which discount the plan screens say is applied (Billing, the onboarding plan
+ * step): REPGET while the account can have it, else the win-back offer for an
+ * account that was sent it and has not used it, else none. The same order as
+ * automaticOffer; checkout decides again per plan.
+ */
+export async function planScreenOffer(
+  executor: Pick<Executor, "select">,
+  organizationId: string,
+): Promise<"repget" | "winback" | null> {
+  if (repgetOfferEnabled() && (await repgetOfferState(executor, organizationId)) !== "used") return "repget";
+  if (!winbackOfferEnabled()) return null;
+  const state = await winbackOfferState(executor, organizationId);
+  return state === "none" || state === "used" ? null : "winback";
+}
+
+/** The discount a new checkout carries by itself: which offer, its Stripe coupon, and what it takes off the first payment. */
+export type AutomaticOffer = { code: string; coupon: string; discountCents: number };
+
+/**
+ * The ONE discount a new checkout for this plan carries, chosen by the server
+ * and never stacked: REPGET while the account can still have it (the bigger
+ * discount; the win-back credits still follow - lib/billing/winback.ts), otherwise the win-back discount for
+ * an account that was sent the win-back email and has not used it. Null for
+ * neither - the checkout then has Stripe's promotion-code box instead (a
+ * partner's code). beginCheckout makes the final decision under the
+ * account's lock, for either.
+ */
+export async function automaticOffer(
+  executor: Pick<Executor, "select">,
+  organizationId: string,
+  plan: OfferPlan,
+): Promise<AutomaticOffer | null> {
+  const repget = await automaticRepgetCoupon(executor, organizationId, plan);
+  const repgetOff = repget ? repgetDiscountCents(plan) : null;
+  if (repget && repgetOff !== null) return { code: REPGET_CODE, coupon: repget, discountCents: repgetOff };
+  if (!winbackOfferEnabled()) return null;
+  const off = winbackCovers(plan) ? winbackDiscountCents(plan) : null;
+  if (off === null) return null;
+  const state = await winbackOfferState(executor, organizationId);
+  return state === "none" || state === "used" ? null : { code: WINBACK_CODE, coupon: WINBACK_COUPON, discountCents: off };
 }
 
 /** How long a released PayPal approval is still asked about, in case it is approved after all. */

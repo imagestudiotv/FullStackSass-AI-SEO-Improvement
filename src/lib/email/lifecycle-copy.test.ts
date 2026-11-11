@@ -29,6 +29,7 @@ const SAMPLES: Record<LifecycleKind, LifecycleEmail> = {
   welcome: { kind: "welcome", invited: false },
   setup_reminder: { kind: "setup_reminder" },
   trial_started: { kind: "trial_started", websiteId: "w1", domain: "example.com", plan: "Growth", endsOn: new Date("2026-12-01T00:00:00Z"), provider: "stripe" },
+  trial_progress: { kind: "trial_progress", websiteId: "w1", domain: "example.com", articlesWritten: 2, articlesLive: 1, topicsPlanned: 8 },
   trial_ending: { kind: "trial_ending", websiteId: "w1", domain: "example.com", plan: "Growth", endsOn: new Date("2026-12-01T00:00:00Z") },
   trial_ended: { kind: "trial_ended", websiteId: "w1", domain: "example.com" },
   plan_started: { kind: "plan_started", websiteId: "w1", domain: "example.com", plan: "Growth" },
@@ -46,6 +47,7 @@ const SAMPLES: Record<LifecycleKind, LifecycleEmail> = {
   video_views: { kind: "video_views", websiteId: "w1", domain: "example.com", title: "Clip", views: 500 },
   referral_reward: { kind: "referral_reward", credits: 50 },
   weekly_summary: { kind: "weekly_summary", articlesPublished: 3, liveArticles: 12, socialPosts: 4, videosPosted: 2, credits: 120 },
+  winback: { kind: "winback", websiteId: "w1", ended: "plan", percentOff: 20, credits: 100 },
 };
 
 describe("lifecycle email copy", () => {
@@ -110,5 +112,53 @@ describe("email settings copy", () => {
     const theirs = strings(EMAILS_COPY[locale]);
     expect([...theirs.keys()].sort()).toEqual([...english.keys()].sort());
     for (const path of english.keys()) expect(theirs.get(path)?.trim(), `${locale} ${path}`).toBeTruthy();
+  });
+});
+
+describe("the Email Autopilot additions (2026-11-11)", () => {
+  const context = { locale: "en" as const, name: null, appUrl: "https://app.test", unsubscribeUrl: "https://app.test/unsubscribe/t" };
+
+  it("day 2: the journey sentence, and only the figures there are", () => {
+    const email = renderLifecycleEmail({ kind: "trial_progress", websiteId: "w1", domain: "example.com", articlesWritten: 2 }, context);
+    expect(email.subject).toBe("Fingers crossed! example.com has started its journey with RepGet");
+    expect(email.text).toContain("Fingers crossed! example.com has started its journey with RepGet. We will share its updates and stats with you here.");
+    expect(email.text).toContain("Articles written: 2");
+    expect(email.text).not.toMatch(/Articles live|Topics planned/);
+    const empty = renderLifecycleEmail({ kind: "trial_progress", websiteId: "w1", domain: "example.com" }, context);
+    expect(empty.text).toContain("RepGet is preparing the first articles now.");
+    expect(empty.text).not.toContain("So far");
+  });
+
+  it("the free period ending keeps every billing fact, beside the growth message", () => {
+    for (const locale of LOCALES) {
+      const email = renderLifecycleEmail(
+        { kind: "trial_ending", websiteId: "w1", domain: "example.com", plan: "Grow", endsOn: new Date("2026-12-01T00:00:00Z") },
+        { ...context, locale, unsubscribeUrl: null },
+      );
+      const c = LIFECYCLE_COPY[locale].trial_ending;
+      for (const sentence of [c.cancel, c.blogPost, c.social, c.backlink]) expect(email.text, locale).toContain(sentence);
+      expect(email.text, locale).toContain("example.com");
+      expect(email.text, locale).toContain("Grow");
+      expect(email.text, locale).toContain("2026");
+    }
+    const en = renderLifecycleEmail(
+      { kind: "trial_ending", websiteId: "w1", domain: "example.com", plan: "Grow", endsOn: new Date("2026-12-01T00:00:00Z") },
+      { ...context, unsubscribeUrl: null },
+    );
+    expect(en.text).toMatch(/The free period for example.com ends on .*2026. Your Grow plan then starts and the first payment is taken./);
+    expect(en.text).toContain("Continue growing with RepGet");
+    expect(en.text).toContain("DR 60+");
+    expect(ESSENTIAL.trial_ending).toBe(true);
+  });
+
+  it("the win-back says first payment, the figures given, and opens Billing", () => {
+    const email = renderLifecycleEmail({ kind: "winback", websiteId: null, ended: "trial", percentOff: 20, credits: 100 }, context);
+    expect(email.subject).toBe("Come back to RepGet: 100 extra credits and 20% off");
+    expect(email.text).toContain("Your RepGet free period has ended.");
+    expect(email.text).toContain("20% off your first payment when you restart a plan, monthly or yearly.");
+    expect(email.text).toContain("100 extra credits, added as soon as that first payment goes through.");
+    expect(email.text).toContain("https://app.test/billing");
+    expect(ESSENTIAL.winback).toBe(false);
+    expect(ESSENTIAL.trial_progress).toBe(false);
   });
 });

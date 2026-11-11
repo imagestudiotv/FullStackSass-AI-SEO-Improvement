@@ -1,0 +1,363 @@
+/*
+ * A blog post's comments and upvote (client's design, 2026-11-11,
+ * repget_compact_comments_upvote_orange.html), after the article's FAQ and
+ * before the related posts. The design's values; its demo frame and note are
+ * left out. The signed-in compose box and the comment list are added in the
+ * same compact style (the design shows only the signed-out state).
+ *
+ * Contrast (WCAG AA) - darkened from the design where its colour failed:
+ *  - the muted text (counts, the gate's small print, dates): #747984 (4.4:1) -> #6b707a;
+ *  - the "Create a free account" link: #d95430 -> #b94020 (the design's own hover colour), hover #9a3418;
+ *  - the pressed upvote's text: #d95430 -> #b94020 on #fff2ec;
+ *  - "Sign in" / "Post comment": white on #f1653e is 3.1:1, so the fill is #c94a24 (hover #b94020).
+ * Dark mode follows the site's `.dark` class on <html> (lib/theme.ts).
+ */
+
+.root {
+  --rg-orange: #f1653e;
+  --rg-orange-strong: #c94a24;
+  --rg-orange-strong-hover: #b94020;
+  --rg-orange-text: #b94020;
+  --rg-orange-soft: #fff2ec;
+  --rg-ink: #17191f;
+  --rg-body: #4f5662;
+  --rg-muted: #6b707a;
+  --rg-muted-on-soft: #6b707a;
+  --rg-border: #e8e8ec;
+  --rg-surface: #fafafa;
+  --rg-card: #fff;
+  --rg-upvote-border: #eadbd6;
+  --rg-upvote-hover-bg: #fff8f4;
+  --rg-upvote-hover-border: #f4b39e;
+  --rg-upvote-on-border: #f4ae97;
+  margin-top: 3.5rem;
+  width: 100%;
+  color: var(--rg-ink);
+  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  scroll-margin-top: 6rem;
+}
+:global(.dark) .root {
+  --rg-orange-text: #f6a283;
+  --rg-orange-soft: #3a2a22;
+  --rg-ink: #f3f0ea;
+  --rg-body: #c9ccc4;
+  --rg-muted: #b1b4ab;
+  --rg-muted-on-soft: #b1b4ab;
+  --rg-border: #3b3f38;
+  --rg-surface: #232722;
+  --rg-card: #1c1f1c;
+  --rg-upvote-border: #4a3d37;
+  --rg-upvote-hover-bg: #2c2420;
+  --rg-upvote-hover-border: #8a5a48;
+  --rg-upvote-on-border: #8a5a48;
+}
+.root * {
+  box-sizing: border-box;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 18px;
+}
+.header h2 {
+  margin: 0;
+  font-size: 27px;
+  line-height: 1.2;
+  letter-spacing: -0.8px;
+  font-weight: 750;
+}
+.count {
+  font-size: 13px;
+  color: var(--rg-muted);
+  white-space: nowrap;
+}
+.subtitle {
+  margin: 8px 0 17px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--rg-body);
+}
+
+.gate {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 19px;
+  border: 1px solid var(--rg-border);
+  border-radius: 15px;
+  background: var(--rg-surface);
+}
+.gateCopy {
+  min-width: 0;
+}
+.gateCopy strong {
+  display: block;
+  font-size: 14px;
+  line-height: 1.4;
+  font-weight: 620;
+  color: var(--rg-ink);
+}
+.gateCopy p {
+  margin: 5px 0 0;
+  font-size: 12.5px;
+  color: var(--rg-muted-on-soft);
+  line-height: 1.5;
+}
+.gateCopy a {
+  color: var(--rg-orange-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-weight: 680;
+}
+.gateCopy a:hover {
+  color: #9a3418;
+}
+:global(.dark) .gateCopy a:hover {
+  color: #ffc0a8;
+}
+
+.actions {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.upvote,
+.primary {
+  min-height: 40px;
+  padding: 9px 15px;
+  border-radius: 10px;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 7px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 690;
+  line-height: 1.2;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+.upvote {
+  border: 1px solid var(--rg-upvote-border);
+  color: var(--rg-ink);
+  background: var(--rg-card);
+}
+.arrow {
+  color: var(--rg-orange);
+  font-size: 19px;
+  line-height: 0.8;
+}
+.upvote:hover {
+  background: var(--rg-upvote-hover-bg);
+  border-color: var(--rg-upvote-hover-border);
+}
+.upvote[aria-pressed="true"] {
+  background: var(--rg-orange-soft);
+  color: var(--rg-orange-text);
+  border-color: var(--rg-upvote-on-border);
+}
+.total {
+  color: var(--rg-muted);
+  margin-left: 2px;
+  font-variant-numeric: tabular-nums;
+}
+.upvote[aria-pressed="true"] .total {
+  color: var(--rg-orange-text);
+}
+.primary {
+  background: var(--rg-orange-strong);
+  border: 1px solid var(--rg-orange-strong);
+  color: #fff;
+}
+.primary:hover {
+  background: var(--rg-orange-strong-hover);
+  border-color: var(--rg-orange-strong-hover);
+  color: #fff;
+}
+.primary:disabled,
+.upvote:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
+.empty {
+  margin: 22px 0 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--rg-body);
+}
+
+/* ---------- Signed in: the compose box, in the gate's style ---------- */
+
+.compose {
+  padding: 14px 15px;
+  border: 1px solid var(--rg-border);
+  border-radius: 15px;
+  background: var(--rg-surface);
+}
+.textarea {
+  display: block;
+  width: 100%;
+  min-height: 84px;
+  resize: vertical;
+  padding: 10px 12px;
+  border: 1px solid var(--rg-border);
+  border-radius: 10px;
+  background: var(--rg-card);
+  color: var(--rg-ink);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.textarea::placeholder {
+  color: var(--rg-muted);
+}
+.composeRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+.counter {
+  font-size: 12.5px;
+  color: var(--rg-muted-on-soft);
+  font-variant-numeric: tabular-nums;
+}
+.counterOver {
+  color: var(--rg-orange-text);
+  font-weight: 650;
+}
+.error {
+  margin: 10px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--rg-orange-text);
+}
+
+/* ---------- The comments ---------- */
+
+.list {
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 0;
+}
+.comment {
+  padding: 14px 0;
+  border-top: 1px solid var(--rg-border);
+}
+.comment:first-child {
+  border-top: 0;
+}
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  font-size: 13px;
+}
+.name {
+  font-weight: 650;
+  color: var(--rg-ink);
+}
+.date {
+  color: var(--rg-muted);
+}
+.text {
+  margin: 5px 0 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--rg-body);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.commentActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 9px;
+}
+.small {
+  min-height: 32px;
+  padding: 5px 11px;
+  font-size: 12.5px;
+}
+.small .arrow {
+  font-size: 16px;
+}
+.link {
+  border: 0;
+  background: none;
+  padding: 6px 4px;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 620;
+  color: var(--rg-muted);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.link:hover {
+  color: var(--rg-orange-text);
+}
+.confirm {
+  font-size: 12.5px;
+  color: var(--rg-body);
+}
+
+.root button:focus-visible,
+.root a:focus-visible,
+.root textarea:focus-visible {
+  outline: 3px solid #fac3ae;
+  outline-offset: 3px;
+}
+
+@media (max-width: 680px) {
+  .header h2 {
+    font-size: 24px;
+  }
+  .subtitle {
+    font-size: 14px;
+  }
+  .gate {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 15px;
+    gap: 14px;
+  }
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .gate .upvote,
+  .gate .primary,
+  .composeRow .upvote,
+  .composeRow .primary {
+    width: 100%;
+  }
+  .composeRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .empty {
+    margin-top: 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root * {
+    transition: none !important;
+  }
+}

@@ -22,7 +22,7 @@ import nextEnv from "@next/env";
 import postgres from "postgres";
 import Stripe from "stripe";
 
-import { CATALOG_VERSION } from "./plan-catalog.mjs";
+import { CATALOG_VERSION, CURRENCY, REPGET_STRIPE_COUPONS } from "./plan-catalog.mjs";
 
 nextEnv.loadEnvConfig(process.cwd());
 
@@ -140,6 +140,98 @@ for (const plan of plans) {
     where id = ${plan.id}
   `;
   console.log(`  price created: ${price.id}\n`);
+}
+
+/* -------------------------------------------------------------------------- */
+/* REPGET coupons                                                              */
+/* -------------------------------------------------------------------------- */
+
+/*
+  The REPGET offer's coupons (plan-catalog.mjs REPGET_STRIPE_COUPONS): one per
+  tier and interval, a fixed amount off once, limited to the tier's product.
+  A missing one is created; an existing one is NEVER changed or recreated
+  (Stripe coupons cannot be edited, and the live monthly ones are in use) -
+  a mismatch is only reported, for the owner to look at.
+*/
+console.log("\nREPGET coupons\n");
+for (const want of REPGET_STRIPE_COUPONS) {
+  const product = productByTier.get(want.tier);
+  if (!product) {
+    console.log(`${want.id}: no ${want.tier} product in this run - skipped`);
+    continue;
+  }
+  let existing = null;
+  try {
+    existing = await stripe.coupons.retrieve(want.id, { expand: ["applies_to"] });
+  } catch (error) {
+    if (error?.statusCode !== 404) throw error;
+  }
+  if (existing) {
+    const products = existing.applies_to?.products ?? [];
+    const right =
+      existing.valid &&
+      existing.amount_off === want.amountOffCents &&
+      existing.currency === CURRENCY &&
+      existing.duration === "once" &&
+      products.length === 1 &&
+      products[0] === product.id;
+    console.log(right ? `${want.id}: exists, as expected` : `${want.id}: EXISTS BUT DIFFERS (amount, currency, duration, product or validity) - check it in the Dashboard`);
+    continue;
+  }
+  await stripe.coupons.create({
+    id: want.id,
+    name: `REPGET 40% off (${want.interval === "year" ? "first year" : "first month"})`,
+    amount_off: want.amountOffCents,
+    currency: CURRENCY,
+    duration: "once",
+    applies_to: { products: [product.id] },
+  });
+  console.log(`${want.id}: created, ${(want.amountOffCents / 100).toFixed(2)} ${CURRENCY.toUpperCase()} off once, ${want.tier} product ${product.id}`);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Win-back coupon                                                             */
+/* -------------------------------------------------------------------------- */
+
+/*
+  The win-back offer's coupon (src/lib/billing/winback-offer.ts WINBACK_COUPON):
+  20% off the first payment, once, limited to the Launch, Grow and Scale
+  products - never the Grow + Visibility bundle. A percentage, so one coupon
+  fits every price and interval. Created when missing, NEVER changed (Stripe
+  coupons cannot be edited): a mismatch is only reported. The app applies it
+  only once WINBACK_OFFER_ENABLED=1.
+*/
+const WINBACK = { id: "WINBACK20", percentOff: 20, tiers: ["launch", "grow", "scale"] };
+console.log("\nWin-back coupon\n");
+const winbackProducts = WINBACK.tiers.map((tier) => productByTier.get(tier)?.id).filter(Boolean);
+if (winbackProducts.length !== WINBACK.tiers.length) {
+  console.log(`${WINBACK.id}: not every one of ${WINBACK.tiers.join(", ")} has a product in this run - skipped`);
+} else {
+  let existing = null;
+  try {
+    existing = await stripe.coupons.retrieve(WINBACK.id, { expand: ["applies_to"] });
+  } catch (error) {
+    if (error?.statusCode !== 404) throw error;
+  }
+  if (existing) {
+    const products = [...(existing.applies_to?.products ?? [])].sort();
+    const right =
+      existing.valid &&
+      existing.percent_off === WINBACK.percentOff &&
+      existing.duration === "once" &&
+      products.length === winbackProducts.length &&
+      products.every((id, index) => id === [...winbackProducts].sort()[index]);
+    console.log(right ? `${WINBACK.id}: exists, as expected` : `${WINBACK.id}: EXISTS BUT DIFFERS (percent, duration, products or validity) - check it in the Dashboard`);
+  } else {
+    await stripe.coupons.create({
+      id: WINBACK.id,
+      name: "Welcome back: 20% off the first payment",
+      percent_off: WINBACK.percentOff,
+      duration: "once",
+      applies_to: { products: winbackProducts },
+    });
+    console.log(`${WINBACK.id}: created, ${WINBACK.percentOff}% off once, products ${winbackProducts.join(", ")}`);
+  }
 }
 
 const final = await sql`

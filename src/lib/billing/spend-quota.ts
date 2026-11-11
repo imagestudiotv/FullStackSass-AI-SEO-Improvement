@@ -146,6 +146,14 @@ async function liveCount(tx: Executor, rule: QuotaRule, now: Date) {
   return row?.n ?? 0;
 }
 
+/**
+ * How many live slots a rule's window holds now - for showing what is left
+ * (the guest copilot's "2 of 3"). Only reserveAll enforces a limit.
+ */
+export async function usedInWindow(rule: QuotaRule, now: Date = new Date()): Promise<number> {
+  return liveCount(db, rule, now);
+}
+
 async function inTransaction<T>(
   executor: Executor | undefined,
   fn: (tx: Executor) => Promise<T>,

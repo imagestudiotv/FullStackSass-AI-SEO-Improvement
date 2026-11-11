@@ -4,6 +4,7 @@ import type Stripe from "stripe";
 import { addonPaymentFailed, fulfilAddonPurchase } from "@/lib/addons/fulfil";
 import { cancellationOps } from "@/lib/billing/checkout-providers";
 import { matchOfferToPlan, OFFER_KEY } from "@/lib/billing/repget-subscription";
+import { grantWinbackBonus } from "@/lib/billing/winback";
 import {
   syncProviderSubscription,
   type SubscriptionSnapshot,
@@ -388,6 +389,13 @@ async function processBillingEvent(event: Stripe.Event): Promise<void> {
        */
       if (event.type === "invoice.paid") {
         await convertReferral(orgId, invoice.amount_paid ?? 0);
+        /*
+          The win-back offer's credits (lib/billing/winback.ts): the first
+          payment for money of a plan restarted with the win-back discount.
+          Keyed by the person, so a retried or concurrent delivery adds them
+          once; thrown on failure, so the event is retried.
+        */
+        await grantWinbackBonus({ provider: "stripe", providerSubscriptionId: subscriptionId, amountCents: invoice.amount_paid ?? 0 });
         /*
           The subscription's first payment for money goes to Google Analytics
           as a purchase (lib/conversions/conversions.ts): once, only for a

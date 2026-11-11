@@ -4,24 +4,27 @@ import type { Locale } from "@/lib/i18n/config";
  * The homepage hero and the platform ribbon under it (client's design,
  * 2026-11-03: `rgx-hero` and `rgx-channel-ribbon`), in every language.
  *
- * English is the design's own wording, figures included (the owner asked for
- * the design's texts on 2026-11-04). The one exception is the ribbon's
- * counter: it shows the real number of things RepGet has made
- * (lib/marketing/content-count.ts), so only its caption is here.
+ * English is the design's own wording (the owner asked for the design's
+ * texts on 2026-11-04); above the field it is the simpler hero of 2026-11-11
+ * (repget_homepage_animated_social_proof.html). The ribbon's counter shows
+ * the real number of things RepGet has made (lib/marketing/content-count.ts),
+ * so only its caption is here.
  *
- * Marks: `*word*` is the orange accent, `**words**` bold (see _home/text.tsx).
+ * Marks: `**words**` bold (see _home/text.tsx).
  */
 export type HeroCopy = {
   hero: {
-    eyebrow: string;
-    /** The review pill: "4.9/5" (the stars are drawn, the same everywhere). */
-    ratingScore: string;
-    ratingCopy: string;
-    /** The pill's accessible name. */
-    ratingLabel: string;
-    /** Two lines; `*word*` is the orange one. */
-    titleLine1: string;
-    titleLine2: string;
+    /** The pill above the title (client, 2026-11-11). */
+    pill: string;
+    /** The title's first word(s), before the mascots and "RepGet." - short: the title is one line on a phone. */
+    meet: string;
+    /** The promise under the name, in the same heading; the second line is the violet one. */
+    subtitleLine1: string;
+    subtitleLine2: string;
+    /** What the gecko says, once, in three steps: a bold line and a small one each. */
+    mascotNotes: [[string, string], [string, string], [string, string]];
+    /** "Search" on the owl's banner (the other labels there are brand names). */
+    mascotSearch: string;
     /** The description's first line (`**bold**` allowed) and its second. */
     descriptionLead: string;
     descriptionRest: string;
@@ -42,10 +45,6 @@ export type HeroCopy = {
     benefits: [string, string, string];
     joinGoogle: string;
     seeHow: string;
-    /** Accessible name of the six floating cards. */
-    cardsLabel: string;
-    /** The six floating cards, in order: social, SEO, AI, backlinks, content, insights. */
-    cards: { title: string; detail: string }[];
   };
   ribbon: {
     label: string;
@@ -56,12 +55,16 @@ export type HeroCopy = {
 
 const en: HeroCopy = {
   hero: {
-    eyebrow: "One growth platform for search, AI & social",
-    ratingScore: "4.9/5",
-    ratingCopy: "Customer reviews",
-    ratingLabel: "Customer reviews: 4.9 out of 5. Read what customers say.",
-    titleLine1: "Get *found* on Google & AI.",
-    titleLine2: "Grow across *social.*",
+    pill: "Meet your AI search and social growth team",
+    meet: "Meet",
+    subtitleLine1: "Get found on Google & AI.",
+    subtitleLine2: "Grow across social.",
+    mascotNotes: [
+      ["I improve your", "ChatGPT mentions."],
+      ["I help you show up", "in AI search."],
+      ["I strengthen your", "Google visibility."],
+    ],
+    mascotSearch: "Search",
     descriptionLead: "Your AI growth team for **SEO, content, backlinks and social.**",
     descriptionRest: "Create once, get discovered, and reach customers everywhere.",
     websiteLabel: "Your website address",
@@ -79,15 +82,6 @@ const en: HeroCopy = {
     benefits: ["Private and secure", "24/7 real human support", "Results in seconds"],
     joinGoogle: "Join with Google",
     seeHow: "See how it works",
-    cardsLabel: "RepGet growth features",
-    cards: [
-      { title: "Social", detail: "90+ posts a month" },
-      { title: "SEO", detail: "+200% organic clicks" },
-      { title: "AI Mentions", detail: "ChatGPT, Gemini + more" },
-      { title: "Backlinks", detail: "20+ links this month" },
-      { title: "Content", detail: "30+ articles a month" },
-      { title: "Insights", detail: "24/7 growth insights" },
-    ],
   },
   ribbon: {
     label: "Search, AI and social platforms",
@@ -97,12 +91,16 @@ const en: HeroCopy = {
 
 const es: HeroCopy = {
   hero: {
-    eyebrow: "Una plataforma de crecimiento para búsqueda, IA y redes",
-    ratingScore: "4.9/5",
-    ratingCopy: "Opiniones de clientes",
-    ratingLabel: "Opiniones de clientes: 4,9 de 5. Lea lo que dicen los clientes.",
-    titleLine1: "Aparezca en *Google* y la IA.",
-    titleLine2: "Crezca en las *redes.*",
+    pill: "Su equipo IA para búsqueda y redes",
+    meet: "Conozca a",
+    subtitleLine1: "Aparezca en Google y la IA.",
+    subtitleLine2: "Crezca en las redes.",
+    mascotNotes: [
+      ["Mejoro sus", "menciones en ChatGPT."],
+      ["Le ayudo a aparecer", "en la búsqueda con IA."],
+      ["Refuerzo su", "visibilidad en Google."],
+    ],
+    mascotSearch: "Búsqueda",
     descriptionLead: "Su equipo de crecimiento con IA para **SEO, contenido, backlinks y redes sociales.**",
     descriptionRest: "Cree una vez, hágase visible y llegue a sus clientes en todas partes.",
     websiteLabel: "La dirección de su sitio web",
@@ -120,15 +118,6 @@ const es: HeroCopy = {
     benefits: ["Privado y seguro", "Soporte humano real 24/7", "Resultados en segundos"],
     joinGoogle: "Entrar con Google",
     seeHow: "Vea cómo funciona",
-    cardsLabel: "Funciones de crecimiento de RepGet",
-    cards: [
-      { title: "Redes", detail: "Más de 90 publicaciones al mes" },
-      { title: "SEO", detail: "+200 % de clics orgánicos" },
-      { title: "Menciones en IA", detail: "ChatGPT, Gemini y más" },
-      { title: "Backlinks", detail: "Más de 20 enlaces este mes" },
-      { title: "Contenido", detail: "Más de 30 artículos al mes" },
-      { title: "Análisis", detail: "Ideas de crecimiento 24/7" },
-    ],
   },
   ribbon: {
     label: "Plataformas de búsqueda, IA y redes",
@@ -138,12 +127,16 @@ const es: HeroCopy = {
 
 const fr: HeroCopy = {
   hero: {
-    eyebrow: "Une plateforme de croissance pour la recherche, l’IA et les réseaux",
-    ratingScore: "4.9/5",
-    ratingCopy: "Avis clients",
-    ratingLabel: "Avis clients : 4,9 sur 5. Lire les avis des clients.",
-    titleLine1: "*Visible* sur Google et l’IA.",
-    titleLine2: "Grandissez sur les *réseaux.*",
+    pill: "Votre équipe IA : recherche et réseaux",
+    meet: "Découvrez",
+    subtitleLine1: "Visible sur Google et l’IA.",
+    subtitleLine2: "Grandissez sur les réseaux.",
+    mascotNotes: [
+      ["J’améliore vos", "mentions dans ChatGPT."],
+      ["Je vous aide à apparaître", "dans la recherche IA."],
+      ["Je renforce votre", "visibilité sur Google."],
+    ],
+    mascotSearch: "Recherche",
     descriptionLead: "Votre équipe de croissance IA pour **le SEO, le contenu, les backlinks et les réseaux sociaux.**",
     descriptionRest: "Créez une fois, gagnez en visibilité et touchez vos clients partout.",
     websiteLabel: "L’adresse de votre site",
@@ -161,15 +154,6 @@ const fr: HeroCopy = {
     benefits: ["Privé et sécurisé", "Une vraie assistance humaine 24h/24", "Résultats en quelques secondes"],
     joinGoogle: "Continuer avec Google",
     seeHow: "Voir comment ça marche",
-    cardsLabel: "Les fonctions de croissance de RepGet",
-    cards: [
-      { title: "Réseaux", detail: "Plus de 90 publications par mois" },
-      { title: "SEO", detail: "+200 % de clics organiques" },
-      { title: "Mentions IA", detail: "ChatGPT, Gemini et plus" },
-      { title: "Backlinks", detail: "Plus de 20 liens ce mois-ci" },
-      { title: "Contenu", detail: "Plus de 30 articles par mois" },
-      { title: "Analyses", detail: "Pistes de croissance 24h/24" },
-    ],
   },
   ribbon: {
     label: "Plateformes de recherche, d’IA et de réseaux",
@@ -179,12 +163,16 @@ const fr: HeroCopy = {
 
 const it: HeroCopy = {
   hero: {
-    eyebrow: "Un’unica piattaforma di crescita per ricerca, IA e social",
-    ratingScore: "4.9/5",
-    ratingCopy: "Recensioni dei clienti",
-    ratingLabel: "Recensioni dei clienti: 4,9 su 5. Legga cosa dicono i clienti.",
-    titleLine1: "*Visibile* su Google e sull’IA.",
-    titleLine2: "Cresca sui *social.*",
+    pill: "Il Suo team IA per ricerca e social",
+    meet: "Scopra",
+    subtitleLine1: "Visibile su Google e sull’IA.",
+    subtitleLine2: "Cresca sui social.",
+    mascotNotes: [
+      ["Miglioro le Sue", "menzioni su ChatGPT."],
+      ["La aiuto a comparire", "nella ricerca IA."],
+      ["Rafforzo la Sua", "visibilità su Google."],
+    ],
+    mascotSearch: "Ricerca",
     descriptionLead: "Il Suo team di crescita con IA per **SEO, contenuti, backlink e social.**",
     descriptionRest: "Crei una volta, si faccia trovare e raggiunga i clienti ovunque.",
     websiteLabel: "L’indirizzo del Suo sito",
@@ -202,15 +190,6 @@ const it: HeroCopy = {
     benefits: ["Privato e sicuro", "Assistenza umana reale 24/7", "Risultati in pochi secondi"],
     joinGoogle: "Entri con Google",
     seeHow: "Scopra come funziona",
-    cardsLabel: "Le funzioni di crescita di RepGet",
-    cards: [
-      { title: "Social", detail: "Oltre 90 post al mese" },
-      { title: "SEO", detail: "+200% di clic organici" },
-      { title: "Menzioni IA", detail: "ChatGPT, Gemini e altri" },
-      { title: "Backlink", detail: "Oltre 20 link questo mese" },
-      { title: "Contenuti", detail: "Oltre 30 articoli al mese" },
-      { title: "Insight", detail: "Spunti di crescita 24/7" },
-    ],
   },
   ribbon: {
     label: "Piattaforme di ricerca, IA e social",
@@ -220,12 +199,16 @@ const it: HeroCopy = {
 
 const de: HeroCopy = {
   hero: {
-    eyebrow: "Eine Wachstumsplattform für Suche, KI und Social Media",
-    ratingScore: "4.9/5",
-    ratingCopy: "Kundenbewertungen",
-    ratingLabel: "Kundenbewertungen: 4,9 von 5. Lesen Sie, was Kunden sagen.",
-    titleLine1: "Bei Google & KI *gefunden.*",
-    titleLine2: "Auf *Social Media* wachsen.",
+    pill: "Ihr KI-Team für Suche und Social Media",
+    meet: "Das ist",
+    subtitleLine1: "Bei Google & KI gefunden.",
+    subtitleLine2: "Auf Social Media wachsen.",
+    mascotNotes: [
+      ["Ich verbessere Ihre", "ChatGPT-Erwähnungen."],
+      ["Ich helfe Ihnen,", "in der KI-Suche aufzutauchen."],
+      ["Ich stärke Ihre", "Sichtbarkeit bei Google."],
+    ],
+    mascotSearch: "Suche",
     descriptionLead: "Ihr KI-Wachstumsteam für **SEO, Inhalte, Backlinks und Social Media.**",
     descriptionRest: "Einmal erstellen, gefunden werden und Kunden überall erreichen.",
     websiteLabel: "Ihre Website-Adresse",
@@ -243,15 +226,6 @@ const de: HeroCopy = {
     benefits: ["Privat und sicher", "Echter persönlicher Support rund um die Uhr", "Ergebnisse in Sekunden"],
     joinGoogle: "Mit Google anmelden",
     seeHow: "So funktioniert es",
-    cardsLabel: "Die Wachstumsfunktionen von RepGet",
-    cards: [
-      { title: "Social", detail: "Über 90 Beiträge pro Monat" },
-      { title: "SEO", detail: "+200 % organische Klicks" },
-      { title: "KI-Erwähnungen", detail: "ChatGPT, Gemini und mehr" },
-      { title: "Backlinks", detail: "Über 20 Links diesen Monat" },
-      { title: "Inhalte", detail: "Über 30 Artikel pro Monat" },
-      { title: "Insights", detail: "Wachstumsimpulse rund um die Uhr" },
-    ],
   },
   ribbon: {
     label: "Such-, KI- und Social-Media-Plattformen",

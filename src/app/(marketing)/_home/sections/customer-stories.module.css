@@ -1,0 +1,367 @@
+/*
+ * Customer stories (client's design, 2026-11-11,
+ * RepGet_Customer_Stories_Corrected_Elementor.html), after the guest Growth
+ * Copilot: three equal columns of logo, title, arrow, description and byline,
+ * then two, then one with separators on phones. The design's values and
+ * breakpoints; its full-width band sits in the homepage's frame, the content
+ * centred at the width of the Copilot card above it.
+ *
+ * Contrast (WCAG AA) - darkened from the design where its colour failed on
+ * the section's #faf9f7:
+ *  - the byline: #9797a2 (2.8:1) -> #6e6e79, the design's own muted grey;
+ *  - the eyebrow: #ef693a (2.9:1, 15px) -> #b84a1c.
+ * Dark mode follows the site's `.dark` class on <html> (lib/theme.ts).
+ */
+
+.section {
+  --rg-back: #faf9f7;
+  --rg-ink: #191923;
+  --rg-muted: #6e6e79;
+  --rg-light: #6e6e79;
+  --rg-accent: #ef693a;
+  --rg-accent-text: #b84a1c;
+  --rg-line: #e5e2e2;
+  --rg-tile: #fff;
+  --rg-tile-line: #e4e1e3;
+  --rg-arrow: #7b7780;
+  --rg-see-all-icon: #8c8b94;
+  background: var(--rg-back);
+  color: var(--rg-ink);
+  width: 100%;
+  padding: 12px 35px 76px;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+:global(.dark) .section {
+  --rg-back: var(--bg, #171917);
+  --rg-ink: #f3f0ea;
+  --rg-muted: #b1b4ab;
+  --rg-light: #b1b4ab;
+  --rg-accent-text: #f08a63;
+  --rg-line: #3b3f38;
+  --rg-tile: #232722;
+  --rg-tile-line: #3b3f38;
+  --rg-arrow: #b1b4ab;
+  --rg-see-all-icon: #b1b4ab;
+}
+.section,
+.section * {
+  box-sizing: border-box;
+}
+.inner {
+  max-width: 1240px;
+  margin: 0 auto;
+}
+.section :is(h2, h3, p) {
+  margin: 0;
+  padding: 0;
+  color: inherit;
+}
+.section a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.eyebrow {
+  color: var(--rg-accent-text);
+  font-size: 15px;
+  line-height: 1.3;
+  letter-spacing: 0.14em;
+  font-weight: 550;
+  margin: 0 0 8px;
+}
+.section h2 {
+  font-family: inherit;
+  font-size: 32px;
+  line-height: 1.19;
+  font-weight: 710;
+  letter-spacing: -0.045em;
+}
+.introRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 24px;
+  margin-top: 13px;
+}
+.intro {
+  font-size: 19px;
+  line-height: 1.42;
+  letter-spacing: -0.015em;
+  color: var(--rg-muted);
+}
+.section .seeAll {
+  display: inline-flex;
+  gap: 11px;
+  align-items: center;
+  font-size: 18px;
+  line-height: 1.35;
+  letter-spacing: -0.021em;
+  color: var(--rg-muted);
+  white-space: nowrap;
+  transition: color 0.15s ease;
+}
+.seeAll svg {
+  width: 16px;
+  height: 16px;
+  stroke: var(--rg-see-all-icon);
+  stroke-width: 1.75;
+  fill: none;
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+.section .seeAll:hover {
+  color: var(--rg-accent-text);
+}
+.seeAll:hover svg {
+  stroke: var(--rg-accent);
+  transform: translate(2px, -2px);
+}
+.separator {
+  height: 1px;
+  background: var(--rg-line);
+  margin: 19px 0 24px;
+}
+
+.stories {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: 35px;
+  align-items: start;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.story {
+  display: grid;
+  grid-template-columns: 55px minmax(0, 1fr);
+  column-gap: 15px;
+  min-width: 0;
+  align-items: start;
+}
+.logoWrap {
+  position: relative;
+  width: 55px;
+  height: 55px;
+  flex: none;
+}
+.logo {
+  border-radius: 13px;
+  width: 55px;
+  height: 55px;
+  background: var(--rg-tile);
+  border: 1px solid var(--rg-tile-line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.logo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+/* No logo: a neutral tile with the business's initial. */
+.initial {
+  font-family: Georgia, serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--rg-muted);
+}
+.featured {
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  position: absolute;
+  right: -7px;
+  top: -7px;
+  display: grid;
+  place-items: center;
+  background: #ef693a;
+  color: white;
+  border: 2px solid var(--rg-back);
+  z-index: 1;
+}
+.featured svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: white;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.copy {
+  min-width: 0;
+}
+.titleRow {
+  position: relative;
+  padding-right: 21px;
+}
+.section h3 {
+  font-family: inherit;
+  font-size: 22px;
+  line-height: 1.45;
+  font-weight: 690;
+  letter-spacing: -0.042em;
+  margin: -4px 0 9px;
+}
+.section h3 a:hover {
+  color: var(--rg-accent-text);
+}
+.section .arrow {
+  position: absolute;
+  right: 0;
+  top: 3px;
+  width: 19px;
+  height: 19px;
+  color: var(--rg-arrow);
+  transition:
+    transform 0.15s ease,
+    color 0.15s ease;
+}
+.arrow svg {
+  display: block;
+  width: 19px;
+  height: 19px;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.section .arrow:hover {
+  color: var(--rg-accent-text);
+  transform: translate(2px, -2px);
+}
+.description {
+  color: var(--rg-muted);
+  font-size: 19px;
+  font-weight: 400;
+  letter-spacing: -0.026em;
+  line-height: 1.36;
+  margin: 0;
+}
+.section .byline {
+  color: var(--rg-light);
+  font-size: 15px;
+  line-height: 1.45;
+  letter-spacing: -0.014em;
+  margin-top: 7px;
+}
+.byline b {
+  font-weight: 400;
+  color: var(--rg-light);
+  padding: 0 5px;
+}
+.section a:focus-visible {
+  outline: 2px solid var(--rg-accent);
+  outline-offset: 4px;
+}
+
+@media (max-width: 1120px) {
+  .section {
+    padding-inline: 25px;
+  }
+  .stories {
+    column-gap: 24px;
+  }
+  .story {
+    grid-template-columns: 48px minmax(0, 1fr);
+    gap: 12px;
+  }
+  .logoWrap,
+  .logo {
+    width: 48px;
+    height: 48px;
+  }
+  .section h3 {
+    font-size: 19px;
+    line-height: 1.4;
+  }
+  .description {
+    font-size: 16px;
+    line-height: 1.45;
+  }
+}
+@media (max-width: 800px) {
+  .section {
+    padding: 30px 24px 52px;
+  }
+  .stories {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 32px 24px;
+  }
+  .section h2 {
+    font-size: 29px;
+  }
+  .intro {
+    font-size: 16px;
+  }
+  .section .seeAll {
+    font-size: 15px;
+  }
+}
+@media (max-width: 590px) {
+  .section {
+    padding: 27px 20px 42px;
+  }
+  .eyebrow {
+    font-size: 12px;
+    margin-bottom: 8px;
+  }
+  .section h2 {
+    font-size: 28px;
+  }
+  .introRow {
+    display: block;
+    margin-top: 10px;
+  }
+  .intro {
+    font-size: 15px;
+    line-height: 1.48;
+  }
+  .section .seeAll {
+    margin-top: 16px;
+  }
+  .separator {
+    margin: 20px 0 22px;
+  }
+  .stories {
+    display: block;
+  }
+  .story {
+    grid-template-columns: 50px minmax(0, 1fr);
+    gap: 13px;
+    padding-bottom: 24px;
+  }
+  .story + .story {
+    padding-top: 25px;
+    border-top: 1px solid var(--rg-line);
+  }
+  .logoWrap,
+  .logo {
+    width: 50px;
+    height: 50px;
+  }
+  .section h3 {
+    font-size: 19px;
+    line-height: 1.38;
+    margin-top: -2px;
+  }
+  .description {
+    font-size: 15px;
+    line-height: 1.5;
+    letter-spacing: -0.017em;
+  }
+  .section .byline {
+    font-size: 13px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .section *,
+  .section *::after {
+    transition: none !important;
+  }
+}

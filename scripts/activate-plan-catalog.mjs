@@ -20,7 +20,7 @@
 import nextEnv from "@next/env";
 import postgres from "postgres";
 
-import { CATALOG_VERSION, activationProblems } from "./plan-catalog.mjs";
+import { CATALOG_VERSION, activationProblems, isBundleTier } from "./plan-catalog.mjs";
 
 nextEnv.loadEnvConfig(process.cwd());
 
@@ -53,8 +53,8 @@ if (problems.length > 0) {
   process.exit(1);
 }
 
-// PayPal is optional per plan: without its id the plan step offers card only.
-const noPayPal = rows.filter((row) => !row.paypal_plan_id || !row.paypal_trial_plan_id);
+// PayPal is optional per plan: without its id the plan step offers card only. A bundle has no free-articles plan.
+const noPayPal = rows.filter((row) => !row.paypal_plan_id || (!isBundleTier(row.tier) && !row.paypal_trial_plan_id));
 if (noPayPal.length > 0) {
   console.log(`NOTE: ${noPayPal.length} plan(s) have no PayPal plans yet, so they will be sold by card only (paypal:setup).\n`);
 }

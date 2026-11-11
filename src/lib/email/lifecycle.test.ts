@@ -25,6 +25,8 @@ const sent = vi.hoisted(() => ({
   })),
 }));
 vi.mock("@/lib/email/send", () => sent);
+// The win-back is queued for later when a subscription ends (lifecycle-autopilot.test.ts tests it).
+vi.mock("@/inngest/send", () => ({ queueJob: vi.fn(async () => true) }));
 
 import { POST as unsubscribeRoute } from "@/app/api/email/unsubscribe/route";
 import { LIFECYCLE_CONTROL_KEY, sendLifecycleEmail, setTips, wantsTips } from "@/lib/email/lifecycle";

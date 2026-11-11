@@ -4,6 +4,7 @@ import { queueJob } from "@/inngest/send";
 import { getSession } from "@/lib/auth-guard";
 import { listAccounts, syncBundleAccounts } from "@/lib/social/accounts";
 import { isBundleConfigured } from "@/lib/social/bundle";
+import { connectReturnPath } from "@/lib/social/connect-return";
 import { isSocialPlatform } from "@/lib/social/platforms";
 import { isVideoPlatform } from "@/lib/video/formats";
 import { requireEditor } from "@/lib/websites/require-editor";
@@ -20,13 +21,21 @@ import { requireEditor } from "@/lib/websites/require-editor";
  * The video platforms (Instagram, TikTok, YouTube, Facebook, Pinterest:
  * lib/video) come back here too, and go on to the Videos page. Pinterest is
  * both, so it goes back to the page it was connected from (`from=videos`).
+ *
+ * The Opportunities page is returned to at its "Social connections" panel
+ * (lib/social/connect-return.ts; client, 2026-11-11), which toasts the
+ * result: the next account is one click away.
  */
 
 export const dynamic = "force-dynamic";
 
-function back(path: string, params: Record<string, string>) {
+function redirectTo(pathAndQuery: string) {
   const base = (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
-  return NextResponse.redirect(`${base}${path}?${new URLSearchParams(params).toString()}`);
+  return NextResponse.redirect(`${base}${pathAndQuery}`);
+}
+
+function back(path: string, params: Record<string, string>) {
+  return redirectTo(`${path}?${new URLSearchParams(params).toString()}`);
 }
 
 export async function GET(request: Request) {
@@ -41,8 +50,8 @@ export async function GET(request: Request) {
 
   const editor = await requireEditor(websiteId).catch(() => null);
   if (!editor?.ok) return back("/websites", {});
-  const page = `/websites/${websiteId}/${video ? "videos" : "social"}`;
-  if (!isBundleConfigured()) return back(page, { social: "not_configured" });
+  const toPage = (params: Record<string, string>) => redirectTo(connectReturnPath(websiteId, video ? "videos" : "social", params));
+  if (!isBundleConfigured()) return toPage({ social: "not_configured" });
 
   try {
     const before = new Set((await listAccounts(websiteId)).filter((row) => row.bundleAccountId).map((row) => row.platform));
@@ -52,9 +61,9 @@ export async function GET(request: Request) {
     if (connected && !before.has(platform) && social) {
       await queueJob({ name: "social/suggest.requested", data: { websiteId } });
     }
-    return back(page, { social: connected ? "connected" : "not_connected", platform });
+    return toPage({ social: connected ? "connected" : "not_connected", platform });
   } catch (error) {
     console.error("[social] reading connected accounts failed", { websiteId, platform, error });
-    return back(page, { social: "connect_failed", platform });
+    return toPage({ social: "connect_failed", platform });
   }
 }

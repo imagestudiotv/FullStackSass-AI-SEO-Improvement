@@ -9,19 +9,19 @@ import { TrialComparison } from "@/components/trial-comparison";
 import { WizardProgress } from "@/components/wizard-progress";
 import { requireSession } from "@/lib/auth-guard";
 import { twoStepArticles } from "@/lib/articles/review";
-import { repgetOfferEnabled } from "@/lib/billing/repget-offer";
 import { getAppMessages } from "@/lib/i18n/app-locale";
-import { OFFER_CODE } from "@/lib/i18n/offer-code";
+import { OFFER_CODE, WINBACK_OFFER_CODE } from "@/lib/i18n/offer-code";
 import { ARTICLE_DELIVERY } from "@/lib/i18n/article-delivery";
 import { PAYPAL_PENDING_COPY } from "@/lib/i18n/paypal-pending";
 import { listPlans } from "@/lib/billing";
 import { readCreditSettings, TRIAL_CREDIT_DAYS } from "@/lib/credits/prices";
 import { getMessages } from "@/lib/i18n/messages";
-import { hasUnfinishedPayPalApproval, isTrialEligible } from "@/lib/billing/checkouts";
+import { hasUnfinishedPayPalApproval, isTrialEligible, planScreenOffer } from "@/lib/billing/checkouts";
+import { DIRECT_PURCHASE } from "@/lib/i18n/direct-purchase";
 import { db } from "@/lib/db";
 import { getOnboardingState } from "@/lib/onboarding/steps";
 import { isPayPalAvailable } from "@/lib/paypal/actions";
-import { FREE_ARTICLES, FREE_ARTICLES_DAYS, toPickerPlan } from "@/lib/plans/features";
+import { FREE_ARTICLES, FREE_ARTICLES_DAYS, isDirectPurchaseTier, toPickerPlan } from "@/lib/plans/features";
 import { requireOrg } from "@/lib/tenant";
 import { CheckoutPending } from "./checkout-pending";
 import { PlanStep } from "./plan-step";
@@ -75,6 +75,15 @@ export default async function OnboardingPlanPage({
    */
   if (state.hasPlan) {
     /*
+      The Grow + Visibility button pressed by an owner whose website already
+      pays: bought for ANOTHER website, through the add-a-website step, which
+      brings them back here for it. Changing the paying site's plan stays in
+      Billing.
+    */
+    if (isDirectPurchaseTier(chosenTier) && !siteParam) {
+      redirect(`/onboarding/website?next=1&plan=${encodeURIComponent(chosenTier!)}`);
+    }
+    /*
       To Connect Google, the step that now follows billing — not straight to
       AI visibility. Carrying ?site= matters here: this redirect fires the
       moment a webhook lands, and dropping the parameter would send someone
@@ -123,12 +132,22 @@ export default async function OnboardingPlanPage({
     );
   }
 
-  const monthlyPlans = allPlans
-    .filter((plan) => plan.interval === "month")
-    .map(toPickerPlan);
-  const annualPlans = allPlans
-    .filter((plan) => plan.interval === "year")
-    .map(toPickerPlan);
+  /*
+    A plan bought outright (the Grow + Visibility bundle) is on screen alone,
+    and only when its button was pressed: no trial, no tier switch, no yearly
+    price. Otherwise it is left out of the choice.
+  */
+  const direct = isDirectPurchaseTier(chosenTier)
+    ? allPlans.find((plan) => plan.interval === "month" && plan.tier === chosenTier)
+    : undefined;
+  const monthlyPlans = direct
+    ? [toPickerPlan(direct)]
+    : allPlans.filter((plan) => plan.interval === "month" && !isDirectPurchaseTier(plan.tier)).map(toPickerPlan);
+  const annualPlans = direct
+    ? []
+    : allPlans.filter((plan) => plan.interval === "year" && !isDirectPurchaseTier(plan.tier)).map(toPickerPlan);
+  // REPGET is applied by itself (2026-11-11): said on screen unless the account has used it; else the win-back offer, for an account that was sent it.
+  const offerOn = await planScreenOffer(db, orgId);
   // The plans a PayPal subscription can be started for: mirrored into PayPal.
   const paypalPlanIds = allPlans.filter((plan) => plan.paypalPlanId).map((plan) => plan.id);
   // ...and those whose PayPal checkout gives the free articles too (2026-10-22).
@@ -182,7 +201,8 @@ export default async function OnboardingPlanPage({
               monthlyPlans={monthlyPlans}
               annualPlans={annualPlans}
               paypalAvailable={paypalAvailable}
-              offerCopy={repgetOfferEnabled() ? OFFER_CODE[locale] : null}
+              offerCopy={offerOn === "repget" ? OFFER_CODE[locale] : offerOn === "winback" ? WINBACK_OFFER_CODE[locale] : null}
+              directPurchase={direct ? DIRECT_PURCHASE[locale] : null}
               paypalPlanIds={paypalPlanIds}
               paypalFreeArticlePlanIds={paypalFreeArticlePlanIds}
               websiteId={state.websiteId}
@@ -194,7 +214,7 @@ export default async function OnboardingPlanPage({
               What the free trial gives and what the plan adds (client,
               2026-10-27), for a workspace that will get the trial.
             */}
-            {trialEligible ? (
+            {trialEligible && !direct ? (
               <TrialComparison
                 t={getMessages(locale).pricing.trial}
                 freeArticles={FREE_ARTICLES}

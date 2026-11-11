@@ -114,6 +114,8 @@ describe("localePath", () => {
       "/docs/integrations/[slug]": INTEGRATION_DOCS.map((doc) => doc.slug),
       "/blog/[slug]": [],
       "/blog/category/[category]": [],
+      // Business profiles: database pages with an address of their own in each language (lib/discover/paths.ts).
+      "/discover/[slug]": [],
     };
     const pages: string[] = [];
     const walk = (dir: string, at: string) => {

@@ -1,40 +1,18 @@
 import type { Locale } from "@/lib/i18n/config";
 
 /**
- * Words for three homepage sections of the client's approved design
- * (design.html, 2026-11-04): Growth AI Chat Copilot with its "Connect your
- * website and favorite accounts" strip, the founder, and the customer
- * reviews ("Customer stories").
+ * Words for two homepage sections of the client's approved design
+ * (design.html, 2026-11-04): the founder, and the customer reviews
+ * ("Customer stories"). The Growth AI Chat Copilot section that was here too
+ * gave way to the guest copilot on 2026-11-11 (lib/i18n/guest-copilot.ts).
  *
  * English is the design's text, word for word. The other languages use the
- * formal address (usted / vous / Lei / Sie). "Growth AI Chat Copilot" is a
- * product name and stays in English everywhere. The chat lines are an
- * illustration of the product, not an account or a result.
+ * formal address (usted / vous / Lei / Sie).
  *
  * The reviews themselves are not here: they are the published cards from
  * Admin -> Testimonials, in the customers' own words.
  */
 export type CopilotFounderReviewsCopy = {
-  copilot: {
-    strip: string;
-    /** aria-label of the row of platform tiles. */
-    stripLabel: string;
-    kicker: string;
-    title: string;
-    body: string;
-    points: { lead: string; text: string }[];
-    connect: string;
-    watch: string;
-    /** The example website in the drawing. */
-    site: string;
-    channelsConnected: string;
-    /** aria-label of the drawn conversation. */
-    previewLabel: string;
-    userMessage: string;
-    status: string;
-    lines: [string, string, string];
-    input: string;
-  };
   founder: {
     eyebrow: string;
     role: string;
@@ -85,27 +63,6 @@ export type CopilotFounderReviewsCopy = {
 };
 
 const en: CopilotFounderReviewsCopy = {
-  copilot: {
-    strip: "Connect your website and favorite accounts",
-    stripLabel: "Supported connections",
-    kicker: "Website + Social + AI Copilot",
-    title: "Meet your Growth AI Chat Copilot.",
-    body: "Connect your website, your social channels and your data, then manage everything from one simple conversation.",
-    points: [
-      { lead: "Connect.", text: "Add your domain, search data and social profiles." },
-      { lead: "Ask.", text: "Get audits, content plans, post ideas and growth actions." },
-      { lead: "Publish.", text: "Approve once and let RepGet handle the execution." },
-    ],
-    connect: "Connect your setup",
-    watch: "Watch the demo",
-    site: "yourwebsite.com",
-    channelsConnected: "4 channels connected",
-    previewLabel: "Growth AI Chat Copilot preview",
-    userMessage: "Connect my website, Instagram and TikTok, then build me a growth plan for this month.",
-    status: "Growth AI Copilot is connecting your website and channels",
-    lines: ["Website audit ready", "Social accounts connected", "Drafting SEO, AI and social actions"],
-    input: "Ask anything about your growth...",
-  },
   founder: {
     eyebrow: "Built by",
     role: "Founder of RepGet",
@@ -172,27 +129,6 @@ const en: CopilotFounderReviewsCopy = {
 };
 
 const es: CopilotFounderReviewsCopy = {
-  copilot: {
-    strip: "Conecte su sitio web y sus cuentas favoritas",
-    stripLabel: "Conexiones disponibles",
-    kicker: "Sitio web + Redes + Copiloto de IA",
-    title: "Conozca su Growth AI Chat Copilot.",
-    body: "Conecte su sitio web, sus redes sociales y sus datos, y gestione todo desde una conversación sencilla.",
-    points: [
-      { lead: "Conecte.", text: "Añada su dominio, sus datos de búsqueda y sus perfiles sociales." },
-      { lead: "Pregunte.", text: "Obtenga auditorías, planes de contenido, ideas de publicaciones y acciones de crecimiento." },
-      { lead: "Publique.", text: "Apruebe una vez y deje que RepGet se encargue de la ejecución." },
-    ],
-    connect: "Conectar su configuración",
-    watch: "Ver la demostración",
-    site: "susitioweb.com",
-    channelsConnected: "4 canales conectados",
-    previewLabel: "Vista previa de Growth AI Chat Copilot",
-    userMessage: "Conecta mi sitio web, Instagram y TikTok, y prepárame un plan de crecimiento para este mes.",
-    status: "Growth AI Copilot está conectando su sitio web y sus canales",
-    lines: ["Auditoría del sitio lista", "Cuentas sociales conectadas", "Preparando acciones de SEO, IA y redes"],
-    input: "Pregunte lo que quiera sobre su crecimiento...",
-  },
   founder: {
     eyebrow: "Creado por",
     role: "Fundador de RepGet",
@@ -259,27 +195,6 @@ const es: CopilotFounderReviewsCopy = {
 };
 
 const fr: CopilotFounderReviewsCopy = {
-  copilot: {
-    strip: "Connectez votre site et vos comptes préférés",
-    stripLabel: "Connexions disponibles",
-    kicker: "Site + Réseaux + Copilote IA",
-    title: "Découvrez votre Growth AI Chat Copilot.",
-    body: "Connectez votre site, vos réseaux sociaux et vos données, puis pilotez tout depuis une simple conversation.",
-    points: [
-      { lead: "Connectez.", text: "Ajoutez votre domaine, vos données de recherche et vos profils sociaux." },
-      { lead: "Demandez.", text: "Obtenez des audits, des plans de contenu, des idées de publications et des actions de croissance." },
-      { lead: "Publiez.", text: "Validez une fois et laissez RepGet s’occuper de l’exécution." },
-    ],
-    connect: "Connecter votre configuration",
-    watch: "Voir la démo",
-    site: "votresite.com",
-    channelsConnected: "4 canaux connectés",
-    previewLabel: "Aperçu de Growth AI Chat Copilot",
-    userMessage: "Connecte mon site, Instagram et TikTok, puis prépare-moi un plan de croissance pour ce mois-ci.",
-    status: "Growth AI Copilot connecte votre site et vos canaux",
-    lines: ["Audit du site prêt", "Comptes sociaux connectés", "Préparation des actions SEO, IA et réseaux"],
-    input: "Posez une question sur votre croissance...",
-  },
   founder: {
     eyebrow: "Créé par",
     role: "Fondateur de RepGet",
@@ -346,27 +261,6 @@ const fr: CopilotFounderReviewsCopy = {
 };
 
 const it: CopilotFounderReviewsCopy = {
-  copilot: {
-    strip: "Colleghi il Suo sito e i Suoi account preferiti",
-    stripLabel: "Collegamenti disponibili",
-    kicker: "Sito + Social + Copilota IA",
-    title: "Scopra il Suo Growth AI Chat Copilot.",
-    body: "Colleghi il Suo sito, i Suoi canali social e i Suoi dati, poi gestisca tutto da una semplice conversazione.",
-    points: [
-      { lead: "Colleghi.", text: "Aggiunga dominio, dati di ricerca e profili social." },
-      { lead: "Chieda.", text: "Ottenga audit, piani di contenuti, idee per i post e azioni di crescita." },
-      { lead: "Pubblichi.", text: "Approvi una volta e lasci che RepGet si occupi dell’esecuzione." },
-    ],
-    connect: "Colleghi la Sua configurazione",
-    watch: "Guardi la demo",
-    site: "ilsuosito.com",
-    channelsConnected: "4 canali collegati",
-    previewLabel: "Anteprima di Growth AI Chat Copilot",
-    userMessage: "Collega il mio sito, Instagram e TikTok, poi preparami un piano di crescita per questo mese.",
-    status: "Growth AI Copilot sta collegando il Suo sito e i Suoi canali",
-    lines: ["Audit del sito pronto", "Account social collegati", "Preparazione di azioni SEO, IA e social"],
-    input: "Chieda qualsiasi cosa sulla Sua crescita...",
-  },
   founder: {
     eyebrow: "Creato da",
     role: "Fondatore di RepGet",
@@ -433,27 +327,6 @@ const it: CopilotFounderReviewsCopy = {
 };
 
 const de: CopilotFounderReviewsCopy = {
-  copilot: {
-    strip: "Verbinden Sie Ihre Website und Ihre Lieblingskonten",
-    stripLabel: "Verfügbare Verbindungen",
-    kicker: "Website + Social Media + KI-Copilot",
-    title: "Lernen Sie Ihren Growth AI Chat Copilot kennen.",
-    body: "Verbinden Sie Ihre Website, Ihre Social-Media-Kanäle und Ihre Daten und steuern Sie alles in einem einfachen Gespräch.",
-    points: [
-      { lead: "Verbinden.", text: "Fügen Sie Domain, Suchdaten und Social-Media-Profile hinzu." },
-      { lead: "Fragen.", text: "Erhalten Sie Audits, Inhaltspläne, Post-Ideen und Wachstumsaktionen." },
-      { lead: "Veröffentlichen.", text: "Einmal freigeben, RepGet übernimmt die Umsetzung." },
-    ],
-    connect: "Einrichtung verbinden",
-    watch: "Demo ansehen",
-    site: "ihrewebsite.de",
-    channelsConnected: "4 Kanäle verbunden",
-    previewLabel: "Vorschau von Growth AI Chat Copilot",
-    userMessage: "Verbinde meine Website, Instagram und TikTok und erstelle mir einen Wachstumsplan für diesen Monat.",
-    status: "Growth AI Copilot verbindet Ihre Website und Ihre Kanäle",
-    lines: ["Website-Audit fertig", "Social-Media-Konten verbunden", "SEO-, KI- und Social-Aktionen in Arbeit"],
-    input: "Fragen Sie alles zu Ihrem Wachstum...",
-  },
   founder: {
     eyebrow: "Entwickelt von",
     role: "Gründer von RepGet",

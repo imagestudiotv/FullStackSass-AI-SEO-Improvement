@@ -65,6 +65,7 @@ type PostText = {
   bodyHtml: string;
   featuredImageUrl: string | null;
   featuredImageAlt: string | null;
+  businessLogoUrl: string | null;
 };
 
 async function postTexts(): Promise<PostText[]> {
@@ -80,6 +81,7 @@ async function postTexts(): Promise<PostText[]> {
       bodyHtml: blogPosts.bodyHtml,
       featuredImageUrl: blogPosts.featuredImageUrl,
       featuredImageAlt: blogPosts.featuredImageAlt,
+      businessLogoUrl: blogPosts.businessLogoUrl,
     })
     .from(blogPosts);
 }
@@ -96,10 +98,15 @@ function featuredHere(post: PostText, url: string, path: string): boolean {
 /**
  * The posts that use this picture: in their text (its address, or its
  * storage key if a link was rewritten) or as their featured image - drafts
- * included, so a draft's cover cannot be deleted from under it.
+ * included, so a draft's cover cannot be deleted from under it. A
+ * customer story's business logo counts too (2026-11-11).
  */
 function usage(url: string, path: string, posts: PostText[]) {
-  return posts.filter((post) => post.bodyHtml.includes(url) || post.bodyHtml.includes(`/${path}`) || featuredHere(post, url, path));
+  const logoHere = (post: PostText) =>
+    post.businessLogoUrl !== null && (post.businessLogoUrl === url || storedImagePath(post.businessLogoUrl) === path);
+  return posts.filter(
+    (post) => post.bodyHtml.includes(url) || post.bodyHtml.includes(`/${path}`) || featuredHere(post, url, path) || logoHere(post),
+  );
 }
 
 /**

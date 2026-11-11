@@ -1,4 +1,4 @@
-import { Bot, ExternalLink, ImageIcon, Megaphone, Newspaper, Plus } from "lucide-react";
+import { Bot, ExternalLink, ImageIcon, Megaphone, MessageSquare, Newspaper, Plus } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -123,6 +123,13 @@ export default async function AdminBlogPage({ searchParams }: { searchParams: Pr
               <Link href="/admin/blog/images">
                 <ImageIcon aria-hidden="true" />
                 Images
+              </Link>
+            </Button>
+            {/* Readers' comments, to remove or restore (lib/admin/blog-comments.ts). */}
+            <Button asChild size="lg" variant="outline">
+              <Link href="/admin/blog/comments">
+                <MessageSquare aria-hidden="true" />
+                Comments
               </Link>
             </Button>
             {/* The daily article, its languages and its topic list (lib/blog/autopilot). */}

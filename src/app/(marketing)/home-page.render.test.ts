@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { PlanRow } from "@/lib/billing-shared";
 import { LOCALES, localePath, type Locale } from "@/lib/i18n/config";
+import { guestCopilotCopy } from "@/lib/i18n/guest-copilot";
 import { heroCopy } from "@/lib/i18n/home/hero";
 import { copilotFounderReviewsCopy } from "@/lib/i18n/home/copilot-founder-reviews";
 import { faqCopy } from "@/lib/i18n/home/faq";
@@ -116,10 +117,26 @@ describe("homepage sections", () => {
 
   it("keeps the anchors the header and the hero link to", () => {
     const html = renderHome("en", { testimonials: [REVIEW] });
-    // Header "How it works" (/#how-it-works), the hero's watch link and reviews pill, the Social tool (/#features).
+    // Header "How it works" (/#how-it-works), the hero's watch link, the Social tool (/#features), the reviews.
     for (const id of ["how-it-works", "repget-demo-video", "repget-reviews", "features"]) expect(html).toContain(`id="${id}"`);
     expect(html).toContain('href="#repget-demo-video"');
-    expect(html).toContain('href="#repget-reviews"');
+  });
+
+  it.each(LOCALES)("%s: the hero's one heading says the name and the promise; the mascots are decoration", (locale) => {
+    const t = heroCopy(locale).hero;
+    const html = renderHome(locale);
+    const h1 = html.match(/<h1[\s\S]*?<\/h1>/)?.[0] ?? "";
+    // What a screen reader and a search engine read: the visible words, apart, without the mascots' own.
+    const words = h1
+      .replace(/<span[^>]*aria-hidden="true"[\s\S]*?(?=<span[^>]*>RepGet\.<\/span>)/, " ")
+      .replace(/<[^>]+>/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    expect(words).toBe(esc(`${t.meet} RepGet. ${t.subtitleLine1} ${t.subtitleLine2}`));
+    expect(h1).toMatch(/<span[^>]*aria-hidden="true"[^>]*>/);
+    expect(h1).not.toContain("<button");
+    // The old hero's floating cards and rating pill are gone.
+    expect(html).not.toContain("growth features");
   });
 
   it("loads nothing from YouTube on the first paint, and still links to the video", () => {
@@ -144,12 +161,14 @@ describe("homepage sections", () => {
   });
 
   it("shows the real content count, not the design's ticking 12,840", () => {
-    // The hero now carries the design's own texts (owner, 2026-11-04: 4.9/5,
-    // +200%, 90+ ...); the counter alone stays real (lib/marketing/content-count.ts).
+    // The counter stays real (lib/marketing/content-count.ts). The hero's
+    // rating pill and floating cards with the design's figures (4.9/5, +200%,
+    // 90+ ...) gave way to the simpler hero of 2026-11-11.
     // The visible words only: icon drawings are full of coordinates.
     const text = renderHome("en", { testimonials: [REVIEW], contentCount: 1234 }).replace(/<[^>]*>/g, " ");
     expect(text).not.toContain("12,840");
-    for (const shown of ["4.9/5", "+200% organic clicks", "90+ posts a month"]) expect(text).toContain(shown);
+    expect(text).toContain("1,234");
+    for (const gone of ["4.9/5", "+200% organic clicks"]) expect(text).not.toContain(gone);
   });
 
   it("leaves out the reviews and the reviewer pill while none is published", () => {
@@ -201,10 +220,18 @@ describe("homepage sections", () => {
     expect(html).toContain("sample-04.webp");
   });
 
-  it.each(LOCALES)("%s: the copilot shows a placeholder site, not a customer's", (locale) => {
+  it.each(LOCALES)("%s: the guest copilot leads to its free tool and to sign-up, with the chat on the page", (locale) => {
     const html = renderHome(locale);
+    const t = guestCopilotCopy(locale);
+    const section = html.slice(html.indexOf('id="repget-copilot-connect"'), html.indexOf('id="repget-founder"'));
+    expect(section).toContain(esc(t.section.titleAccent));
+    expect(section).toMatch(new RegExp(`<a[^>]*href="${localePath(locale, "/tools/growth-copilot")}"[^>]*>${esc(t.section.tryFree).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")}`));
+    expect(section).toMatch(new RegExp(`<a[^>]*href="/sign-up"[^>]*>${esc(t.section.unlock)}`));
+    expect(section).toContain(`aria-label="${esc(t.chat.label)}"`);
+    expect(section).toContain(`aria-label="${esc(t.chat.inputLabel)}"`);
+    for (const chip of t.chat.chips) expect(section).toContain(esc(chip));
+    // No customer's website anywhere in the example.
     expect(html).not.toContain("imagestudio.com");
-    expect(html).toContain(esc(copilotFounderReviewsCopy(locale).copilot.site));
   });
 
   it("shows the founder's chosen photograph", () => {

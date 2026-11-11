@@ -14,7 +14,8 @@ const KIND_ADMIN: Record<LifecycleKind, { label: string; when: string }> = {
   welcome: { label: "Welcome", when: "Right after sign-up." },
   setup_reminder: { label: "Setup reminder", when: "3 hours after sign-up, if the person still has no website." },
   trial_started: { label: "Free articles started", when: "When a website starts its free articles (card or PayPal)." },
-  trial_ending: { label: "Free period ends tomorrow", when: "About 24 hours before the free period ends, unless paid or cancelled." },
+  trial_progress: { label: "Fingers crossed (free period, day 2)", when: "About 24 hours into a free period, with the website's first figures; unless paid or cancelled." },
+  trial_ending: { label: "Free period ends tomorrow (continue growing)", when: "About 24 hours before the free period ends, unless paid or cancelled." },
   trial_ended: { label: "Free period ended", when: "When the free period ends without a plan starting." },
   plan_started: { label: "Welcome to your plan", when: "On the subscription's first payment of real money." },
   payment_failed: { label: "Payment failed", when: "When Stripe or PayPal marks a plan as waiting for payment." },
@@ -24,6 +25,7 @@ const KIND_ADMIN: Record<LifecycleKind, { label: string; when: string }> = {
   video_views: { label: "Video passed 500 views", when: "Once per video (the 1,000-views email is separate and always on)." },
   referral_reward: { label: "Referral reward", when: "When referral credits are added to the referrer's balance." },
   weekly_summary: { label: "Weekly summary", when: "Monday 08:00 UTC, to workspaces on a plan that published something that week." },
+  winback: { label: "Win-back offer", when: "About 2 days after a subscription the customer left has ended, if they have no other; once per person. Needs WINBACK_OFFER_ENABLED=1." },
 };
 
 /**

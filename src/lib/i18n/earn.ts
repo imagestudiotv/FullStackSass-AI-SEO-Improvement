@@ -101,7 +101,7 @@ const en: EarnCopy = {
   program: "Referral program",
   heroTitle: "Share RepGet.",
   heroEm: "Earn {credits} credits.",
-  heroBody: "Help a business discover RepGet. When they sign up with your link or code and pay for their first month, you receive {credits} credits.",
+  heroBody: "Help a business discover RepGet. When they sign up with your link or code and pay for their first month, you earn {credits} credits.",
   codeLabel: "Your referral code",
   ready: "Ready to share",
   copyCode: "Copy code",

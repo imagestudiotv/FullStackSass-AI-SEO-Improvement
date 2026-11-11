@@ -1,7 +1,9 @@
 import "server-only";
 
 import { sanitizeHtml } from "@/lib/articles/sanitize";
+import { BUSINESS_LIMITS, businessWebsite, type BlogBusiness } from "@/lib/blog/business";
 import { BLOG_IMAGE_ALT_MAX, isBlogImageUrl } from "@/lib/blog/image-files";
+import { discoverSlug, PROFILE_LIMITS, profileLines, RESERVED_DISCOVER_SLUGS, type BusinessProfile } from "@/lib/discover/profile-fields";
 import {
   blogSlug,
   FAQ_ANSWER_LIMIT,
@@ -46,6 +48,17 @@ export type BlogPostInput = {
    * post's as it is.
    */
   featuredImage?: BlogFeaturedImage | null;
+  /**
+   * The business a customer story is about (lib/blog/business.ts), every
+   * field optional. Absent (the autopilot's drafts) leaves a saved post's as
+   * it is; null clears it.
+   */
+  business?: BlogBusiness | null;
+  /**
+   * The business's showcase profile (/discover/<slug>, lib/discover/profile-fields.ts),
+   * every field optional. Absent leaves a saved post's as it is; null clears it.
+   */
+  businessProfile?: BusinessProfile | null;
   /** The language, for a new post only (lib/blog/locale.ts); empty is English. A post keeps its language. */
   locale?: string;
 };
@@ -79,7 +92,111 @@ export type CleanBlogPost = {
   /** Only when the input had `featuredImage`: a save without it keeps the stored one. */
   featuredImageUrl?: string | null;
   featuredImageAlt?: string | null;
+} & Partial<CleanBusiness> &
+  Partial<CleanBusinessProfile>;
+
+/** The business columns as stored (blog_posts.business_*). */
+export type CleanBusiness = {
+  businessLogoUrl: string | null;
+  businessName: string | null;
+  businessCategory: string | null;
+  businessWebsiteUrl: string | null;
+  businessTagline: string | null;
 };
+
+/**
+ * A customer story's business as stored: the logo one of the blog's own
+ * pictures, like the featured image; the website an http(s) address
+ * (businessWebsite); the words one line each, within BUSINESS_LIMITS -
+ * refused rather than cut. Empty fields are null.
+ */
+export function cleanBusiness(input: unknown): CleanBusiness {
+  const value = (input !== null && typeof input === "object" ? input : {}) as Partial<Record<keyof BlogBusiness, unknown>>;
+  const logo = String(value.logoUrl ?? "").trim();
+  if (logo && !isBlogImageUrl(logo)) {
+    throw new BlogPostError("The business logo must be one of the blog's pictures - upload it or choose it from the library");
+  }
+  const words = (key: "name" | "category" | "tagline", label: string): string | null => {
+    const text = oneLine(value[key]);
+    if (text.length > BUSINESS_LIMITS[key]) throw new BlogPostError(`Keep the business ${label} under ${BUSINESS_LIMITS[key]} characters`);
+    return text || null;
+  };
+  const rawWebsite = String(value.websiteUrl ?? "").trim();
+  const website = rawWebsite ? businessWebsite(rawWebsite) : null;
+  if (rawWebsite && !website) {
+    throw new BlogPostError(`"${rawWebsite.slice(0, 60)}" is not a website address - use a full address starting with https://`);
+  }
+  return {
+    businessLogoUrl: logo || null,
+    businessName: words("name", "name"),
+    businessCategory: words("category", "category"),
+    businessWebsiteUrl: website,
+    businessTagline: words("tagline", "tagline"),
+  };
+}
+
+/** The showcase profile's columns as stored (blog_posts.business_slug and the rest). */
+export type CleanBusinessProfile = {
+  businessSlug: string | null;
+  businessTags: string[];
+  businessLocation: string | null;
+  businessAvailability: string | null;
+  businessAbout: string | null;
+  businessAudience: string | null;
+  businessServices: string[];
+  businessIndustry: string | null;
+};
+
+/**
+ * A business's showcase profile as stored (lib/discover/profile-fields.ts):
+ * the address tidied to letters, digits and hyphens; the lists one entry per
+ * line; everything within PROFILE_LIMITS - refused rather than cut. Empty
+ * fields are null (or an empty list). That the address is free in the post's
+ * language is checked when saving (lib/admin/blog.ts).
+ */
+export function cleanBusinessProfile(input: unknown): CleanBusinessProfile {
+  const value = (input !== null && typeof input === "object" ? input : {}) as Partial<Record<keyof BusinessProfile, unknown>>;
+  const rawSlug = String(value.slug ?? "").trim();
+  if (rawSlug.length > PROFILE_LIMITS.slug) throw new BlogPostError(`Keep the profile address under ${PROFILE_LIMITS.slug} characters`);
+  const slug = rawSlug ? discoverSlug(rawSlug) : "";
+  if (rawSlug && !slug) throw new BlogPostError("Give the business profile an address with letters or numbers, e.g. image-studio");
+  if (RESERVED_DISCOVER_SLUGS.has(slug)) throw new BlogPostError(`"${slug}" is kept for the directory itself - choose another profile address`);
+
+  const words = (key: "location" | "availability" | "industry", label: string): string | null => {
+    const text = oneLine(value[key]);
+    if (text.length > PROFILE_LIMITS[key]) throw new BlogPostError(`Keep the business ${label} under ${PROFILE_LIMITS[key]} characters`);
+    return text || null;
+  };
+  const prose = (key: "about" | "audience", label: string): string | null => {
+    const text = String(value[key] ?? "")
+      .replace(/\r\n?/g, "\n")
+      .split("\n")
+      .map((line) => line.trim().replace(/\s+/g, " "))
+      .join("\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+    if (text.length > PROFILE_LIMITS[key]) throw new BlogPostError(`Keep "${label}" under ${PROFILE_LIMITS[key]} characters`);
+    return text || null;
+  };
+  const list = (key: "tags" | "services", one: "tag" | "service", label: string): string[] => {
+    const items = profileLines(String(value[key] ?? ""));
+    if (items.length > PROFILE_LIMITS[key]) throw new BlogPostError(`Up to ${PROFILE_LIMITS[key]} ${label} - this profile has ${items.length}`);
+    const long = items.find((item) => item.length > PROFILE_LIMITS[one]);
+    if (long) throw new BlogPostError(`"${long.slice(0, 30)}…" is too long - keep each of the ${label} under ${PROFILE_LIMITS[one]} characters`);
+    return items;
+  };
+
+  return {
+    businessSlug: slug || null,
+    businessTags: list("tags", "tag", "profile chips"),
+    businessLocation: words("location", "location (Based in)"),
+    businessAvailability: words("availability", "availability (Available in)"),
+    businessAbout: prose("about", "About"),
+    businessAudience: prose("audience", "Who it's for"),
+    businessServices: list("services", "service", "main services"),
+    businessIndustry: words("industry", "industry"),
+  };
+}
 
 /**
  * A featured image as stored: one of the blog's own pictures (lib/blog/image-files.ts)
@@ -197,6 +314,8 @@ export function cleanBlogPost(input: BlogPostInput, publishing: boolean): CleanB
     faqs,
     sources,
     ...(input.featuredImage === undefined ? {} : cleanFeaturedImage(input.featuredImage)),
+    ...(input.business === undefined ? {} : cleanBusiness(input.business)),
+    ...(input.businessProfile === undefined ? {} : cleanBusinessProfile(input.businessProfile)),
   };
 }
 

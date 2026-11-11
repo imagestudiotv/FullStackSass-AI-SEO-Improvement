@@ -48,7 +48,7 @@
 import nextEnv from "@next/env";
 import postgres from "postgres";
 
-import { CATALOG_VERSION } from "./plan-catalog.mjs";
+import { CATALOG_VERSION, isBundleTier } from "./plan-catalog.mjs";
 import { planBody } from "./paypal-plans.mjs";
 
 nextEnv.loadEnvConfig(process.cwd());
@@ -190,6 +190,17 @@ const KINDS = [
     : []),
 ];
 
+/*
+  A bundle (Grow + Visibility, plan-catalog.mjs BUNDLES) is bought outright:
+  no free articles and no REPGET, so only its plan itself is made.
+
+  The YEARLY REPGET offer (2026-11-11, 40% off the first year) needs no new
+  PayPal plan: the annual rows' offer plans made here already have their one
+  intro cycle, and each checkout sets that cycle's price on its own
+  subscription (lib/paypal/actions.ts: EUR 590 / 890 / 2,090).
+*/
+const kindsFor = (plan) => (isBundleTier(plan.tier) ? KINDS.filter((kind) => kind.key === "regular") : KINDS);
+
 if (rows.length === 0) {
   console.error("This catalog has no plans. Run `npm run db:seed` first.");
   await sql.end();
@@ -205,7 +216,7 @@ if (rows.length === 0) {
 const storedState = new Map();
 const otherMode = [];
 for (const plan of rows) {
-  for (const kind of KINDS) {
+  for (const kind of kindsFor(plan)) {
     const storedId = plan[kind.column];
     if (!storedId) continue;
     try {
@@ -292,7 +303,7 @@ async function retire(paypalPlanId) {
 for (const plan of rows) {
   console.log(`${plan.name} (${plan.tier}/${plan.interval})`);
 
-  for (const kind of KINDS) {
+  for (const kind of kindsFor(plan)) {
     // A stored plan that still resolves is left alone.
     const stored = storedState.get(`${plan.id}:${kind.key}`);
     if (stored === "active") {
@@ -322,19 +333,19 @@ for (const plan of rows) {
 }
 
 const final = await sql`
-  select name, interval, currency, price_cents, paypal_plan_id, paypal_trial_plan_id${HAS_OFFER_COLUMNS ? sql`, paypal_offer_plan_id, paypal_trial_offer_plan_id` : sql``}
+  select name, tier, interval, currency, price_cents, paypal_plan_id, paypal_trial_plan_id${HAS_OFFER_COLUMNS ? sql`, paypal_offer_plan_id, paypal_trial_offer_plan_id` : sql``}
   from plans where catalog_version = ${CATALOG_VERSION} order by sort_order, price_cents
 `;
 console.table(final.map((r) => ({ ...r })));
 
-const missing = final.filter((r) => !r.paypal_plan_id || !r.paypal_trial_plan_id);
+const missing = final.filter((r) => !r.paypal_plan_id || (!isBundleTier(r.tier) && !r.paypal_trial_plan_id));
 console.log(
   missing.length === 0
     ? "\nAll plans have a PayPal plan and a free-articles plan. PayPal checkout is ready."
     : `\n${missing.length} plan(s) still missing a PayPal plan or free-articles plan id.`,
 );
 if (HAS_OFFER_COLUMNS) {
-  const noOffer = final.filter((r) => !r.paypal_offer_plan_id || !r.paypal_trial_offer_plan_id);
+  const noOffer = final.filter((r) => !isBundleTier(r.tier) && (!r.paypal_offer_plan_id || !r.paypal_trial_offer_plan_id));
   console.log(
     noOffer.length === 0
       ? "All plans have their REPGET offer plans: REPGET can be used with PayPal."

@@ -12,6 +12,7 @@ import { db } from "@/lib/db";
 import type { Executor } from "@/lib/db/types";
 import { billingCheckouts, organization, payments, paypalPlanChanges, paypalPlanVersions, plans, subscriptions } from "@/lib/db/schema";
 import { recordProviderRefund } from "@/lib/billing/refunds";
+import { grantWinbackBonus } from "@/lib/billing/winback";
 import { PayPalError, payPalMode } from "@/lib/paypal/client";
 import { fromPayPalAmount } from "@/lib/paypal/payments";
 import { convertReferral, reverseReferralReward } from "@/lib/referrals/core";
@@ -509,6 +510,12 @@ export async function processPayPalEvent(event: PayPalEvent): Promise<void> {
           const { recordPartnerPayPalWork } = await import("@/lib/partners/presentation/webhooks");
           await recordPartnerPayPalWork({ id: event.id, eventType: event.event_type, saleId: resource.id });
           await convertReferral(synced.organizationId, Number.isFinite(total) ? Math.round(total * 100) : 0);
+          // The win-back offer's credits, as on Stripe's (lib/billing/winback.ts): once per person, thrown on failure.
+          await grantWinbackBonus({
+            provider: "paypal",
+            providerSubscriptionId: billingId,
+            amountCents: Number.isFinite(total) ? Math.round(total * 100) : 0,
+          });
           // The first real payment, to Google Analytics, as on Stripe's (lib/conversions/conversions.ts).
           await reportFirstPayment(db, {
             provider: "paypal",

@@ -45,6 +45,7 @@ export function toBlogPost(
 ): BlogPost {
   const locale = blogLocale(row.locale);
   const post: BlogPost = {
+    id: row.id,
     slug: row.slug,
     title: row.title,
     seoTitle: row.seoTitle,

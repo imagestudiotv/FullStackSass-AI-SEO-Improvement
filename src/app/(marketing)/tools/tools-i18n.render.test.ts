@@ -28,6 +28,7 @@ import { MetaTagsTool } from "./meta-tag-checker/tool";
 import { RobotsTool } from "./robots-checker/tool";
 import { SitemapTool } from "./sitemap-checker/tool";
 import { SnippetTool } from "./snippet-preview/tool";
+import { GrowthCopilotTool } from "./growth-copilot/tool";
 
 type Render = (locale: Locale) => Promise<ReactElement> | ReactElement;
 
@@ -41,6 +42,7 @@ const TOOLS: [string, Render][] = [
   ["/tools/keyword-density", (locale) => KeywordDensityTool({ locale, searchParams: {} })],
   ["/tools/meta-description-generator", (locale) => MetaDescriptionTool({ locale, searchParams: {} })],
   ["/tools/snippet-preview", (locale) => SnippetTool({ locale })],
+  ["/tools/growth-copilot", (locale) => GrowthCopilotTool({ locale })],
 ];
 
 const html = async (render: Render, locale: Locale) => renderToStaticMarkup(await render(locale));

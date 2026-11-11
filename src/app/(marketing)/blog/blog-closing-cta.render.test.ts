@@ -4,10 +4,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import { BLOG_LOCALES } from "@/lib/blog/locale";
-import { format } from "@/lib/i18n/format";
 import { finalCtaCopy } from "@/lib/i18n/home/final-cta";
 import { getMessages } from "@/lib/i18n/messages";
-import { FREE_ARTICLES } from "@/lib/plans/features";
 
 /**
  * The blog's closing section is the homepage's banner (client, 2026-11-05,
@@ -39,19 +37,17 @@ const post = (locale: (typeof BLOG_LOCALES)[number]) => ({
 const count = (html: string, needle: string) => html.split(needle).length - 1;
 
 describe("the end of a blog post", () => {
-  it.each(BLOG_LOCALES)("%s: one banner, with the form and both ways to start, in the post's language", (locale) => {
+  it.each(BLOG_LOCALES)("%s: one banner, with the form and its two ways to start (tabs), in the post's language", (locale) => {
     vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://www.repget.com");
     const html = renderToStaticMarkup(createElement(BlogPostView, { post: post(locale), versions: [], related: [] }));
-    const prefix = locale === "en" ? "" : `/${locale}`;
     const t = finalCtaCopy(locale);
 
     expect(count(html, 'id="repget-final-cta"')).toBe(1);
     expect(count(html, "<form")).toBe(1);
     expect(html).toContain(`name="website"`);
-    expect(html).toContain(`href="${prefix}/audit"`);
-    // Sign-up is one page for every language (not in TRANSLATED_PATHS), as the homepage's banner links it.
-    expect(html).toMatch(/href="(?:\/[a-z]{2})?\/sign-up"/);
-    expect(html).toContain(format(t.form.submit, { n: FREE_ARTICLES }));
+    // The free check and the trial are tabs over one field; where each leads is final-cta.render.test.ts's.
+    expect(html).toContain('role="tablist"');
+    expect(html).toContain(t.form.audit.submit);
     // Not the old panel's words.
     expect(html).not.toContain(getMessages(locale).home.closingSub.replace(/'/g, "&#x27;"));
     vi.unstubAllEnvs();

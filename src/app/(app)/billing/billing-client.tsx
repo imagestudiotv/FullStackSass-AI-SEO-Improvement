@@ -39,8 +39,8 @@ import type { Locale } from "@/lib/i18n/config";
 import { format, formatDate } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
 import { createPayPalCheckout } from "@/lib/paypal/actions";
-import { CONFIRM_EMAIL_FIRST, STARTER_TIER } from "@/lib/plans/features";
-import { OfferCodeField } from "@/components/billing/offer-code-field";
+import { CONFIRM_EMAIL_FIRST, isDirectPurchaseTier, STARTER_TIER } from "@/lib/plans/features";
+import { OfferApplied } from "@/components/billing/offer-code-field";
 import type { OfferCodeCopy } from "@/lib/i18n/offer-code";
 import type { PayPalPurchaseCopy } from "@/lib/i18n/paypal-purchase";
 import { createCheckoutSession } from "@/lib/stripe/actions";
@@ -116,7 +116,7 @@ const CARD_BUTTON = "h-auto min-h-8 w-full py-1.5 text-center whitespace-normal"
 const PAYPAL_AUTOPAY = "https://www.paypal.com/myaccount/autopay/";
 
 export function BillingClient({
-  plans,
+  plans: allPlans,
   subscription,
   entitled,
   paypalAvailable,
@@ -133,7 +133,11 @@ export function BillingClient({
   paypalIntervalNote,
   tCommon,
 }: BillingClientProps) {
-  const [offerCode, setOfferCode] = useState("");
+  /*
+    A plan bought outright (the Grow + Visibility bundle) is sold from its own
+    button on /pricing, not in this list: shown here only to the website on it.
+  */
+  const plans = allPlans.filter((plan) => !isDirectPurchaseTier(plan.tier) || plan.id === subscription?.planId);
   const [interval, setBillingInterval] = useState<"month" | "year">(
     subscription?.interval === "year" ? "year" : "month",
   );
@@ -229,8 +233,8 @@ export function BillingClient({
             : t.billedByCard
           : null;
 
-  // Card or PayPal (review P5); the server decides whether the plan takes it (lib/billing/repget-offer.ts).
-  const offerField = offerCopy && (options.card || options.paypal) ? <OfferCodeField copy={offerCopy} value={offerCode} onChange={setOfferCode} /> : null;
+  // Card or PayPal (review P5); applied by the server by itself (lib/billing/repget-offer.ts), so only said here.
+  const offerField = offerCopy && (options.card || options.paypal) ? <OfferApplied copy={offerCopy} /> : null;
 
   async function handleCard(planId: string) {
     setPending({ planId, provider: "stripe" });
@@ -244,7 +248,7 @@ export function BillingClient({
         setPending(null);
         return;
       }
-      const result = await createCheckoutSession(planId, websiteId, "billing", offerCode);
+      const result = await createCheckoutSession(planId, websiteId, "billing");
       /*
         A new workspace confirms its email before the free articles, and
         the code box is on the onboarding plan screen - which also states
@@ -276,7 +280,7 @@ export function BillingClient({
         setPending(null);
         return;
       }
-      const result = await createPayPalCheckout(planId, websiteId, "billing", offerCode);
+      const result = await createPayPalCheckout(planId, websiteId, "billing");
       // PayPal gives the free articles too (2026-10-22): the same confirmed address first, on the same screen as card.
       if ("error" in result && result.error === CONFIRM_EMAIL_FIRST) {
         router.push(`/onboarding/plan?site=${encodeURIComponent(websiteId)}`);
@@ -822,7 +826,7 @@ function PlansSection({
   options: ReturnType<typeof paymentOptions>;
   /** Why one processor's buttons are missing, already worded; null when nothing is. */
   processorNote: string | null;
-  /** The REPGET field, when a monthly plan on a card can take it. */
+  /** The REPGET notice (applied automatically), while the offer is on and the account has not used it. */
   offerField?: ReactNode;
   actions?: ReactNode;
   children: ReactNode;
