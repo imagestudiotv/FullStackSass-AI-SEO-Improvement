@@ -92,6 +92,22 @@ export async function storeVideoFile(websiteId: string, folder: string, data: Bu
 }
 
 /**
+ * Stores a file shared by every website - the stock footage cache
+ * (lib/video/footage/store.ts, recorded in video_stock_assets) - under
+ * "shared/", outside any website's folder, so a website's cleanup
+ * (deleteVideoFiles) never removes a file other videos reuse.
+ */
+export async function storeSharedFile(folder: string, data: Buffer | Uint8Array, contentType: string): Promise<string> {
+  const path = `shared/${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${EXTENSIONS[contentType] ?? "bin"}`;
+  if (!isVideoStorageConfigured() && process.env.NODE_ENV !== "production") return storeLocally(path, data);
+  await ensureBucket();
+  const bucket = client().storage.from(BUCKET);
+  const { error } = await bucket.upload(path, data, { contentType, upsert: false });
+  if (error) throw new Error(`Could not store the file: ${error.message}`);
+  return bucket.getPublicUrl(path).data.publicUrl;
+}
+
+/**
  * A signed upload address, so the customer's browser sends a clip straight
  * to storage - a 50 MB file never passes through a server function, whose
  * request body is limited to a few megabytes.
