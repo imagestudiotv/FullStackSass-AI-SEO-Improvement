@@ -20,7 +20,9 @@ import {
   addVideoMedia,
   disconnectVideoPlatform,
   removeVideoMedia,
+  resetVideoSettingsAction,
   resumeVideoPlatform,
+  saveVideoProfileAction,
   saveVideoSettingsAction,
 } from "@/lib/video/actions";
 import {
@@ -48,10 +50,9 @@ import type { VideoSettings } from "@/lib/video/settings";
 import { SUPPORTED_LANGUAGES } from "@/lib/websites/languages";
 import { MARKET_GLOBAL, MARKETS } from "@/lib/websites/markets";
 
-// TODO(viral-integration): resetVideoSettingsAction/saveVideoProfileAction from "@/lib/video/actions";
-// connectVideoPlatform and VideoPublishingStatus from "@/lib/video/publish-actions".
-import { connectVideoPlatform, resetVideoSettingsAction, saveVideoProfileAction, type VideoPublishingStatus } from "./_pending";
-import { profileChanged, settingsChanges, settingsProblems, viralSplit, type ProfileForm } from "./logic";
+// TODO(viral-integration): connectVideoPlatform and VideoPublishingStatus from "@/lib/video/publish-actions" (Worker D).
+import { connectVideoPlatform, type VideoPublishingStatus } from "./_pending";
+import { profileChanged, profileChanges, settingsChanges, settingsProblems, viralSplit, type ProfileForm } from "./logic";
 import { errorText, Field, MediaThumb, opportunitiesHref, selectClass, upload, type MediaView, type Run, type T, type VideoAccountView, xWords } from "./shared";
 
 export const SETTINGS_PANES = ["strategy", "audience", "video", "publishing", "safety", "brand"] as const;
@@ -113,6 +114,14 @@ export function SettingsPanel(props: {
   const dirty = Object.keys(changes).length > 0 || profileDirty;
   const problems = settingsProblems(form, profile);
 
+  // A refusal that names its field says which one, and opens the pane it is on.
+  function refused(result: { ok: false; error: string; field?: string }) {
+    const place = result.field ? fieldPlace(t, result.field) : result.error === "bad_language" ? fieldPlace(t, "language") : null;
+    if (!place) return setError(errorText(t, result, ""));
+    props.onPane(place.pane);
+    setError(`${format(s.fieldProblem, { field: place.label, pane: s.panes[place.pane] })} ${errorText(t, result, "")}`);
+  }
+
   function save() {
     setError(null);
     if (problems.length > 0) return setError(problems.map((problem) => s.problems[problem]).join(" "));
@@ -120,11 +129,11 @@ export function SettingsPanel(props: {
       try {
         if (Object.keys(changes).length > 0) {
           const saved = await saveVideoSettingsAction(websiteId, changes);
-          if (!saved.ok) return setError(errorText(t, saved, ""));
+          if (!saved.ok) return refused(saved);
         }
         if (profileDirty) {
-          const saved = await saveVideoProfileAction(websiteId, profile);
-          if (!saved.ok) return setError(errorText(t, saved, ""));
+          const saved = await saveVideoProfileAction(websiteId, profileChanges(props.profile, profile));
+          if (!saved.ok) return refused(saved);
         }
         toast.success(t.saved);
         router.refresh();
@@ -424,10 +433,10 @@ function AudiencePane({ profile, setProfile, disabled, t }: { profile: ProfileFo
       <Notice>{a.shared}</Notice>
       <div className="grid gap-4 md:grid-cols-2">
         <Field label={a.targetAudience}>
-          <Textarea rows={3} maxLength={2000} disabled={disabled} value={profile.targetAudience} onChange={(event) => set("targetAudience", event.target.value)} />
+          <Textarea rows={3} maxLength={500} disabled={disabled} value={profile.targetAudience} onChange={(event) => set("targetAudience", event.target.value)} />
         </Field>
         <Field label={a.topics}>
-          <Textarea rows={3} maxLength={2000} disabled={disabled} value={profile.priorityTopics} onChange={(event) => set("priorityTopics", event.target.value)} />
+          <Textarea rows={3} maxLength={500} disabled={disabled} value={profile.priorityTopics} onChange={(event) => set("priorityTopics", event.target.value)} />
         </Field>
         <Field label={a.language} hint={a.languageHint}>
           <NativeLikeSelect className={selectClass} disabled={disabled} value={profile.language} onChange={(event) => set("language", event.target.value)}>
@@ -459,11 +468,11 @@ function AudiencePane({ profile, setProfile, disabled, t }: { profile: ProfileFo
           disabled={disabled}
         />
         <Field label={a.toneNotes} hint={a.toneNotesHint}>
-          <Textarea rows={2} maxLength={2000} disabled={disabled} value={profile.tone} onChange={(event) => set("tone", event.target.value)} />
+          <Textarea rows={2} maxLength={500} disabled={disabled} value={profile.tone} onChange={(event) => set("tone", event.target.value)} />
         </Field>
       </Block>
       <Field label={a.avoid}>
-        <Textarea rows={3} maxLength={2000} disabled={disabled} placeholder={a.avoidPlaceholder} value={profile.avoid} onChange={(event) => set("avoid", event.target.value)} />
+        <Textarea rows={3} maxLength={500} disabled={disabled} placeholder={a.avoidPlaceholder} value={profile.avoid} onChange={(event) => set("avoid", event.target.value)} />
       </Field>
     </>
   );
@@ -546,7 +555,7 @@ function VideoPane({ form, set, toggle, disabled, t }: { form: VideoSettings; se
       <SwitchRow title={s.cta} help={s.ctaHelp} checked={form.includeCta} disabled={disabled} onChange={(on) => set("includeCta", on)} />
       {form.includeCta ? (
         <Field label={s.defaultCta} hint={s.defaultCtaHint}>
-          <Input maxLength={120} disabled={disabled} value={form.defaultCta ?? ""} placeholder={s.defaultCtaPlaceholder} onChange={(event) => set("defaultCta", event.target.value)} />
+          <Input maxLength={150} disabled={disabled} value={form.defaultCta ?? ""} placeholder={s.defaultCtaPlaceholder} onChange={(event) => set("defaultCta", event.target.value)} />
         </Field>
       ) : null}
       <Block title={s.animated} body={s.animatedBody}>
@@ -849,3 +858,44 @@ function UploadButton(props: { label: string; disabled: boolean; accept: string;
   );
 }
 
+/** Where a settings or profile field is edited: its pane and its label, for a refusal that names it. */
+export function fieldPlace(t: T, field: string): { pane: SettingsPane; label: string } | null {
+  const s = t.viral.settings;
+  const places: Record<string, [SettingsPane, string]> = {
+    style: ["video", s.video.animated],
+    voice: ["video", t.defaultVoice],
+    music: ["video", s.video.music],
+    captions: ["video", t.captionsOn],
+    formats: ["video", s.video.formats],
+    duration: ["video", s.video.duration],
+    audioMode: ["video", s.video.audio],
+    narration: ["video", s.video.narration],
+    captionStyle: ["video", s.video.captions],
+    musicDirection: ["video", s.video.music],
+    showHook: ["video", s.video.hook],
+    includeCta: ["video", s.video.cta],
+    defaultCta: ["video", s.video.defaultCta],
+    viralMix: ["strategy", s.strategy.mix],
+    goal: ["strategy", s.strategy.goal],
+    techniques: ["strategy", s.strategy.techniques],
+    trendInspired: ["strategy", s.strategy.trends],
+    targetAudience: ["audience", s.audience.targetAudience],
+    priorityTopics: ["audience", s.audience.topics],
+    language: ["audience", s.audience.language],
+    country: ["audience", s.audience.market],
+    tonePreset: ["audience", s.audience.voice],
+    tone: ["audience", s.audience.toneNotes],
+    avoid: ["audience", s.audience.avoid],
+    publishMode: ["publishing", t.publishMode],
+    platforms: ["publishing", t.platforms],
+    frequency: ["publishing", s.publishing.frequency],
+    humor: ["safety", s.safety.creative],
+    allowControversial: ["safety", s.safety.controversial],
+    strongLanguage: ["safety", s.safety.language],
+    requireFactReview: ["safety", s.safety.facts],
+    requireControversyReview: ["safety", s.safety.controversy],
+    logoUrl: ["brand", t.logo],
+  };
+  const place = places[field];
+  return place ? { pane: place[0], label: place[1] } : null;
+}

@@ -78,7 +78,7 @@ export type VideoAccountView = {
 export type MediaView = { id: string; url: string; kind: "image" | "video"; name: string | null };
 export type TrackView = { id: string; title: string; mood: string };
 /** What every action on this page answers: VideoResult (actions.ts) and PublishResult (publish-actions.ts) both fit. */
-export type ActionResult<D = unknown> = { ok: true; data: D } | { ok: false; error: string; available?: number; price?: number };
+export type ActionResult<D = unknown> = { ok: true; data: D } | { ok: false; error: string; available?: number; price?: number; retryAt?: string; field?: string };
 export type Run = (action: () => Promise<ActionResult>, success?: string, after?: () => void) => void;
 
 export const platformName = (platform: string) => (isVideoPlatform(platform) ? VIDEO_PLATFORM_SPECS[platform].name : platform);
@@ -91,8 +91,13 @@ export const selectClass = "data-[size=default]:h-9";
 const errorWords = (t: T): Record<string, string | undefined> => ({ ...t.viral.errors, ...t.errors });
 
 /** An action's error in the reader's language; a code this copy does not know yet reads as the generic one. */
-export function errorText(t: T, result: { ok: false; error: string; available?: number }, price: string): string {
+export function errorText(t: T, result: { ok: false; error: string; available?: number; retryAt?: string }, price: string): string {
   if (result.error === "not_enough_credits") return format(t.errors.not_enough_credits, { price, available: String(result.available ?? 0) });
+  // Asked again too soon: how long to wait, from the server's retryAt (called on an answer, never while rendering).
+  if (result.error === "too_soon" && result.retryAt) {
+    const seconds = Math.max(1, Math.ceil((new Date(result.retryAt).getTime() - Date.now()) / 1000));
+    if (Number.isFinite(seconds)) return format(t.viral.newIdeas.tooSoonIn, { seconds: String(seconds) });
+  }
   return errorWords(t)[result.error] ?? t.errors.generic;
 }
 

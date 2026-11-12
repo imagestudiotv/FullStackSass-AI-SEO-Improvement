@@ -214,6 +214,8 @@ export type ViralCopy = {
     busy: string;
     usedUp: string;
     tooSoon: string;
+    /** "too_soon" with the server's retryAt: {seconds} to wait. */
+    tooSoonIn: string;
   };
   categories: { all: string; viral: string; educational: string; authority: string; promotional: string };
   categoryHelp: { all: string; viral: string; educational: string; authority: string; promotional: string };
@@ -315,6 +317,8 @@ export type ViralCopy = {
     resetBody: string;
     resetDone: string;
     unsaved: string;
+    /** A field the server refused: {field} its label, {pane} its pane. */
+    fieldProblem: string;
     savedNote: string;
     brandNote: string;
     problems: { no_format: string; cta_too_long: string; profile_too_long: string; bad_value: string };
@@ -459,6 +463,7 @@ const viralEn: ViralCopy = {
     busy: "New ideas are being written. They appear here in a minute.",
     usedUp: "You have used today's 3 free batches. More ideas arrive tomorrow morning.",
     tooSoon: "Please wait a moment before asking for more ideas.",
+    tooSoonIn: "Please wait {seconds} seconds before asking for more ideas.",
   },
   categories: { all: "All ideas", viral: "Viral", educational: "Educational", authority: "Authority", promotional: "Promotional" },
   categoryHelp: {
@@ -610,11 +615,12 @@ const viralEn: ViralCopy = {
     resetBody: "Strategy, video, publishing and safety go back to RepGet's suggestions. Your accounts, logo, pictures and business profile stay as they are.",
     resetDone: "Settings reset to the suggested defaults.",
     unsaved: "You have unsaved changes.",
+    fieldProblem: "Check “{field}” in {pane}: this value cannot be saved.",
     savedNote: "Settings are saved for this website.",
     brandNote: "Your logo and pictures are saved as soon as you upload them.",
     problems: {
       no_format: "Choose at least one format.",
-      cta_too_long: "Keep the call to action under 120 characters.",
+      cta_too_long: "Keep the call to action under 150 characters.",
       profile_too_long: "One of the texts is too long.",
       bad_value: "One of the choices is not valid. Please reload the page.",
     },
@@ -774,6 +780,7 @@ const viralEs: ViralCopy = {
     busy: "Se están escribiendo ideas nuevas. Aparecerán aquí en un minuto.",
     usedUp: "Ya ha usado los 3 lotes gratuitos de hoy. Mañana por la mañana llegan más ideas.",
     tooSoon: "Espere un momento antes de pedir más ideas.",
+    tooSoonIn: "Espere {seconds} segundos antes de pedir más ideas.",
   },
   categories: { all: "Todas las ideas", viral: "Virales", educational: "Educativas", authority: "Autoridad", promotional: "Promocionales" },
   categoryHelp: {
@@ -925,11 +932,12 @@ const viralEs: ViralCopy = {
     resetBody: "La estrategia, el vídeo, la publicación y la seguridad vuelven a las recomendaciones de RepGet. Sus cuentas, su logotipo, sus imágenes y su perfil de empresa no cambian.",
     resetDone: "Ajustes restablecidos a los valores recomendados.",
     unsaved: "Tiene cambios sin guardar.",
+    fieldProblem: "Revise «{field}» en {pane}: este valor no se puede guardar.",
     savedNote: "Los ajustes se guardan para este sitio web.",
     brandNote: "Su logotipo y sus imágenes se guardan en cuanto los sube.",
     problems: {
       no_format: "Elija al menos un formato.",
-      cta_too_long: "La llamada a la acción debe tener menos de 120 caracteres.",
+      cta_too_long: "La llamada a la acción debe tener menos de 150 caracteres.",
       profile_too_long: "Uno de los textos es demasiado largo.",
       bad_value: "Una de las opciones no es válida. Vuelva a cargar la página.",
     },
@@ -1089,6 +1097,7 @@ const viralFr: ViralCopy = {
     busy: "De nouvelles idées sont en cours de rédaction. Elles apparaîtront ici dans une minute.",
     usedUp: "Vous avez utilisé les 3 lots gratuits du jour. De nouvelles idées arrivent demain matin.",
     tooSoon: "Patientez un instant avant de demander d’autres idées.",
+    tooSoonIn: "Patientez {seconds} secondes avant de demander d’autres idées.",
   },
   categories: { all: "Toutes les idées", viral: "Virales", educational: "Pédagogiques", authority: "Expertise", promotional: "Promotionnelles" },
   categoryHelp: {
@@ -1240,11 +1249,12 @@ const viralFr: ViralCopy = {
     resetBody: "La stratégie, la vidéo, la publication et la sécurité reviennent aux suggestions de RepGet. Vos comptes, votre logo, vos images et votre profil d’entreprise restent tels quels.",
     resetDone: "Réglages remis aux valeurs conseillées.",
     unsaved: "Vous avez des modifications non enregistrées.",
+    fieldProblem: "Vérifiez « {field} » dans {pane} : cette valeur ne peut pas être enregistrée.",
     savedNote: "Les réglages sont enregistrés pour ce site.",
     brandNote: "Votre logo et vos images sont enregistrés dès leur envoi.",
     problems: {
       no_format: "Choisissez au moins un format.",
-      cta_too_long: "L’appel à l’action doit faire moins de 120 caractères.",
+      cta_too_long: "L’appel à l’action doit faire moins de 150 caractères.",
       profile_too_long: "Un des textes est trop long.",
       bad_value: "Un des choix n’est pas valide. Rechargez la page.",
     },
@@ -1404,6 +1414,7 @@ const viralIt: ViralCopy = {
     busy: "Si stanno scrivendo nuove idee. Compariranno qui tra un minuto.",
     usedUp: "Ha già usato i 3 gruppi gratuiti di oggi. Altre idee arrivano domani mattina.",
     tooSoon: "Attenda un momento prima di chiedere altre idee.",
+    tooSoonIn: "Attenda {seconds} secondi prima di chiedere altre idee.",
   },
   categories: { all: "Tutte le idee", viral: "Virali", educational: "Educative", authority: "Autorevolezza", promotional: "Promozionali" },
   categoryHelp: {
@@ -1555,11 +1566,12 @@ const viralIt: ViralCopy = {
     resetBody: "Strategia, video, pubblicazione e sicurezza tornano ai suggerimenti di RepGet. Gli account, il logo, le immagini e il profilo aziendale restano come sono.",
     resetDone: "Impostazioni riportate ai valori consigliati.",
     unsaved: "Ci sono modifiche non salvate.",
+    fieldProblem: "Controlli «{field}» in {pane}: questo valore non può essere salvato.",
     savedNote: "Le impostazioni vengono salvate per questo sito.",
     brandNote: "Il logo e le immagini vengono salvati appena li carica.",
     problems: {
       no_format: "Scelga almeno un formato.",
-      cta_too_long: "L’invito all’azione deve avere meno di 120 caratteri.",
+      cta_too_long: "L’invito all’azione deve avere meno di 150 caratteri.",
       profile_too_long: "Uno dei testi è troppo lungo.",
       bad_value: "Una delle scelte non è valida. Ricarichi la pagina.",
     },
@@ -1719,6 +1731,7 @@ const viralDe: ViralCopy = {
     busy: "Neue Ideen werden gerade geschrieben. Sie erscheinen hier in einer Minute.",
     usedUp: "Sie haben die 3 kostenlosen Pakete von heute genutzt. Neue Ideen kommen morgen früh.",
     tooSoon: "Bitte warten Sie einen Moment, bevor Sie weitere Ideen anfordern.",
+    tooSoonIn: "Bitte warten Sie {seconds} Sekunden, bevor Sie weitere Ideen anfordern.",
   },
   categories: { all: "Alle Ideen", viral: "Viral", educational: "Lehrreich", authority: "Expertise", promotional: "Werbend" },
   categoryHelp: {
@@ -1870,11 +1883,12 @@ const viralDe: ViralCopy = {
     resetBody: "Strategie, Video, Veröffentlichen und Sicherheit gehen auf die Empfehlungen von RepGet zurück. Ihre Konten, Ihr Logo, Ihre Bilder und Ihr Unternehmensprofil bleiben, wie sie sind.",
     resetDone: "Einstellungen auf die Empfehlungen zurückgesetzt.",
     unsaved: "Sie haben ungespeicherte Änderungen.",
+    fieldProblem: "Bitte prüfen Sie „{field}“ unter {pane}: Dieser Wert kann nicht gespeichert werden.",
     savedNote: "Die Einstellungen werden für diese Website gespeichert.",
     brandNote: "Ihr Logo und Ihre Bilder werden gespeichert, sobald Sie sie hochladen.",
     problems: {
       no_format: "Wählen Sie mindestens ein Format.",
-      cta_too_long: "Der Handlungsaufruf darf höchstens 120 Zeichen haben.",
+      cta_too_long: "Der Handlungsaufruf darf höchstens 150 Zeichen haben.",
       profile_too_long: "Einer der Texte ist zu lang.",
       bad_value: "Eine der Auswahlen ist ungültig. Bitte laden Sie die Seite neu.",
     },

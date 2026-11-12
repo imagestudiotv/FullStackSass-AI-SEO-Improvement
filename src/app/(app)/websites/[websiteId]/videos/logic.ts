@@ -148,8 +148,9 @@ export type ProfileForm = {
   tonePreset: TonePreset;
 };
 
-export const DEFAULT_CTA_MAX = 120;
-const PROFILE_MAX = 2000;
+/** The server limits (lib/video/settings.ts MAX_DEFAULT_CTA, strategy/profile.ts MAX_PROFILE_TEXT); settings.ts is server-only. */
+export const DEFAULT_CTA_MAX = 150;
+const PROFILE_MAX = 500;
 
 export type SettingsProblem = "no_format" | "cta_too_long" | "profile_too_long" | "bad_value";
 
@@ -240,5 +241,18 @@ export function settingsChanges(initial: VideoSettings, form: VideoSettings): Pa
 }
 
 export function profileChanged(initial: ProfileForm, form: ProfileForm): boolean {
-  return (Object.keys(initial) as (keyof ProfileForm)[]).some((key) => initial[key].trim() !== form[key].trim());
+  return Object.keys(profileChanges(initial, form)).length > 0;
+}
+
+/**
+ * The profile fields the Save sends: only those changed, trimmed. A field
+ * left alone is never sent - an older stored value (a language spelled
+ * another way) is not refused or rewritten because something else changed.
+ */
+export function profileChanges(initial: ProfileForm, form: ProfileForm): Partial<ProfileForm> {
+  const out: Partial<ProfileForm> = {};
+  for (const key of Object.keys(initial) as (keyof ProfileForm)[]) {
+    if (initial[key].trim() !== form[key].trim()) (out as Record<string, string>)[key] = form[key].trim();
+  }
+  return out;
 }

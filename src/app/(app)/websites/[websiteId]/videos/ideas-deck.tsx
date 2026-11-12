@@ -9,12 +9,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/workspace/notice";
 import { format } from "@/lib/i18n/format";
-import { restoreVideoIdea, skipVideoIdea, undoVideoIdea } from "@/lib/video/actions";
+import { approveVideoIdea, approveVideoReview, restoreVideoIdea, skipVideoIdea, undoVideoIdea, type IdeaEdit } from "@/lib/video/actions";
 import { slideCount, UNDO_SECONDS, VIDEO_PLATFORM_SPECS, type MakeVia, type VideoScript, type VideoStyle } from "@/lib/video/formats";
 import type { VideoSettings } from "@/lib/video/settings";
 
-// TODO(viral-integration): approveVideoIdea/approveVideoReview from "@/lib/video/actions".
-import { approveVideoIdea, approveVideoReview, type ViralIdeaEdit, type VideoPublishingStatus } from "./_pending";
+// TODO(viral-integration): VideoPublishingStatus from "@/lib/video/publish-actions" (Worker D).
+import type { VideoPublishingStatus } from "./_pending";
 import { EditDialog } from "./edit-dialog";
 import {
   browse,
@@ -140,7 +140,7 @@ export function IdeasDeck(props: {
   );
 
   const approve = useCallback(
-    (idea: IdeaView, edit: ViralIdeaEdit = {}, via: MakeVia = "button") => {
+    (idea: IdeaView, edit: IdeaEdit = {}, via: MakeVia = "button") => {
       setLastSkipped(null);
       setLast({ kind: "make", id: idea.id, at: Date.now() });
       void settle(idea, approveVideoIdea(websiteId, idea.id, edit, via), t.approved, () => void undoMake(idea.id));

@@ -1,81 +1,18 @@
 import "server-only";
 
-import { and, eq, gt, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { db } from "@/lib/db";
-import { brandVoice, socialAccounts, videoIdeaBatches, videoIdeas, websites } from "@/lib/db/schema";
+import { socialAccounts } from "@/lib/db/schema";
 import type { VideoResult } from "@/lib/video/actions";
-import { DAILY_BATCH_SIZE, EXTRA_BATCHES_PER_DAY, TONE_PRESETS, type TonePreset } from "@/lib/video/formats";
-import { readVideoSettings } from "@/lib/video/settings";
 
 import type { VideoPublishingStatus } from "./_pending";
 
 /**
- * TODO(viral-integration): server-only stand-ins for the readers Workers A
- * and D are writing, read straight from the contract's tables so the page
- * shows real numbers meanwhile. Each is replaced by the import named beside
- * it, and this file deleted.
+ * TODO(viral-integration): the server-only stand-in for Worker D's status
+ * reader. Replaced by the import named below, and this file deleted.
+ * (Worker A's readers were swapped for their real modules on 2026-11-12.)
  */
-
-export type IdeaAllowance = { dailyWritten: number; extraUsed: number; extraLeft: number; busy: boolean; nextAllowedAt: Date | null };
-
-/** Real: `ideaAllowance(websiteId, now)` from "@/lib/video/batches" (also counts retryable batches and the request gap). */
-export async function ideaAllowance(websiteId: string, now: Date): Promise<IdeaAllowance> {
-  const day = now.toISOString().slice(0, 10);
-  const [[written], batches] = await Promise.all([
-    db
-      .select({ n: sql<number>`count(*)::int` })
-      .from(videoIdeas)
-      .where(and(eq(videoIdeas.websiteId, websiteId), eq(videoIdeas.day, day))),
-    db
-      .select({ slot: videoIdeaBatches.slot, status: videoIdeaBatches.status })
-      .from(videoIdeaBatches)
-      .where(and(eq(videoIdeaBatches.websiteId, websiteId), eq(videoIdeaBatches.day, day), gt(videoIdeaBatches.slot, 0))),
-  ]);
-  const extraUsed = batches.length;
-  return {
-    dailyWritten: Math.min(Number(written?.n ?? 0), DAILY_BATCH_SIZE),
-    extraUsed,
-    extraLeft: Math.max(0, EXTRA_BATCHES_PER_DAY - extraUsed),
-    busy: batches.some((batch) => batch.status === "reserved" || batch.status === "writing"),
-    nextAllowedAt: null,
-  };
-}
-
-/** Real: `VideoProfile` from "@/lib/video/strategy/profile" (feature/viral-strategy). */
-export type VideoProfile = {
-  targetAudience: string | null;
-  language: string | null;
-  country: string | null;
-  tone: string | null;
-  avoid: string | null;
-  priorityTopics: string | null;
-  tonePreset: TonePreset;
-};
-
-/** Real: `videoProfile(websiteId)` from "@/lib/video/strategy/profile" (websites + brand_voice + the two video fields). */
-export async function videoProfile(websiteId: string): Promise<VideoProfile | null> {
-  const [[site], [voice], settings] = await Promise.all([
-    db.select({ targetAudience: websites.targetAudience, language: websites.language, country: websites.country }).from(websites).where(eq(websites.id, websiteId)),
-    db.select({ tone: brandVoice.tone, avoid: brandVoice.avoid }).from(brandVoice).where(eq(brandVoice.websiteId, websiteId)),
-    readVideoSettings(websiteId),
-  ]);
-  if (!site) return null;
-  return {
-    targetAudience: site.targetAudience,
-    language: site.language,
-    country: site.country,
-    tone: voice?.tone ?? null,
-    avoid: voice?.avoid ?? null,
-    priorityTopics: settings.priorityTopics,
-    tonePreset: (TONE_PRESETS as readonly string[]).includes(settings.tonePreset) ? settings.tonePreset : "professional",
-  };
-}
-
-/** Real: `reviewBlocksAutoPublish(idea)` from "@/lib/video/review" (an approval also has to match the content hash). */
-export function reviewBlocksAutoPublish(idea: { reviewStatus: string }): boolean {
-  return idea.reviewStatus === "required";
-}
 
 /**
  * Real: `videoPublishingStatus(websiteId)` from "@/lib/video/publish-actions"

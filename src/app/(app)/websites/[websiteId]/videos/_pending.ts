@@ -1,96 +1,17 @@
 /**
- * TODO(viral-integration): thin stand-ins for the server actions and the
- * client-safe helper Workers A and D are writing (names and signatures as
- * agreed, 2026-11-12). Nothing here is billable or posts anything: the not
- * yet available actions answer "not_configured". At integration each export
- * is replaced by an import from its real module (listed beside it) and this
- * file is deleted.
+ * TODO(viral-integration): thin stand-ins for Worker D's publishing actions
+ * and client-safe helper (feature/viral-publishing, 176065bc), with the same
+ * names and signatures. Nothing here is billable or posts anything: the
+ * actions not yet available answer "not_configured". At integration each
+ * export is replaced by an import from its real module (named beside it)
+ * and this file is deleted. Worker A's stand-ins were swapped on 2026-11-12.
  */
 
-import {
-  approveVideoIdea as approveNow,
-  connectVideoPlatform as connectNow,
-  editVideoIdea as editNow,
-  requestVideoIdeas as requestDailyNow,
-  type IdeaEdit,
-  type VideoResult,
-} from "@/lib/video/actions";
-import {
-  DURATION_SECONDS,
-  isVideoPlatform,
-  VIDEO_PLATFORM_SPECS,
-  type BatchKind,
-  type CreativeDirection,
-  type DurationRange,
-  type IdeaCategory,
-  type IdeaOverrides,
-  type MakeVia,
-  type NativeAudioSelection,
-  type ProductionChoices,
-  type VideoFormat,
-  type VideoPlatform,
-} from "@/lib/video/formats";
-import type { VideoSettings } from "@/lib/video/settings";
-
-import type { ProfileForm } from "./logic";
+import { connectVideoPlatform as connectNow, type VideoResult } from "@/lib/video/actions";
+import { DURATION_SECONDS, isVideoPlatform, VIDEO_PLATFORM_SPECS, type DurationRange, type NativeAudioSelection, type VideoFormat, type VideoPlatform } from "@/lib/video/formats";
 
 type Pending<T = null> = Promise<VideoResult<T>>;
 const notReady = async <T>(): Pending<T> => ({ ok: false, error: "not_configured" });
-
-/** The edit the extended editor sends (A extends IdeaEdit in lib/video/actions.ts). */
-export type ViralIdeaEdit = IdeaEdit & {
-  title?: string;
-  category?: IdeaCategory;
-  direction?: CreativeDirection;
-  production?: Partial<ProductionChoices>;
-  overrides?: IdeaOverrides;
-};
-
-/* -------------------------------------------- Worker A: lib/video/actions.ts */
-
-/** Real: `requestVideoIdeas` from "@/lib/video/actions" (kind + requestKey; errors day_full | extra_used_up | busy | too_soon). */
-export async function requestVideoIdeas(websiteId: string, kind: BatchKind = "daily", requestKey?: string): Pending {
-  void requestKey;
-  // Today's action only knows the daily batch.
-  return kind === "daily" ? requestDailyNow(websiteId) : notReady();
-}
-
-/** Real: `editVideoIdea` from "@/lib/video/actions" (today's ignores the new fields). */
-export function editVideoIdea(websiteId: string, id: string, edit: ViralIdeaEdit): Pending {
-  return editNow(websiteId, id, edit);
-}
-
-/** Real: `approveVideoIdea` from "@/lib/video/actions". */
-export function approveVideoIdea(websiteId: string, id: string, edit: ViralIdeaEdit = {}, via: MakeVia = "button"): Pending {
-  return approveNow(websiteId, id, edit, via);
-}
-
-/** Real: `rewriteVideoIdea` from "@/lib/video/actions" (free; writes the script again with the idea's saved choices). */
-export function rewriteVideoIdea(websiteId: string, id: string): Pending {
-  void websiteId;
-  void id;
-  return notReady();
-}
-
-/** Real: `approveVideoReview` from "@/lib/video/actions" (ties the check to the content hash). */
-export function approveVideoReview(websiteId: string, id: string): Pending {
-  void websiteId;
-  void id;
-  return notReady();
-}
-
-/** Real: `resetVideoSettingsAction` from "@/lib/video/actions". */
-export function resetVideoSettingsAction(websiteId: string): Pending<VideoSettings | null> {
-  void websiteId;
-  return notReady();
-}
-
-/** Real: `saveVideoProfileAction` from "@/lib/video/actions" (writes websites + brand_voice + the two video fields). */
-export function saveVideoProfileAction(websiteId: string, profile: ProfileForm): Pending {
-  void websiteId;
-  void profile;
-  return notReady();
-}
 
 /* ------------------------------------- Worker D: lib/video/publish-actions.ts */
 /* Mirrors feature/viral-publishing (176065bc) so the swap is an import change. */

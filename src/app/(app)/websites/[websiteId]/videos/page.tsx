@@ -37,9 +37,12 @@ import { totalViews } from "@/lib/video/followup";
 import { MUSIC_TRACKS } from "@/lib/video/music";
 import { brandLook, readVideoSettings, videoAccess, type VideoSettings } from "@/lib/video/settings";
 
-// TODO(viral-integration): ideaAllowance from "@/lib/video/batches", videoProfile from A's profile reader,
-// reviewBlocksAutoPublish from "@/lib/video/review", videoPublishingStatus from "@/lib/video/publish-actions".
-import { ideaAllowance, reviewBlocksAutoPublish, videoProfile, videoPublishingStatus } from "./_pending-server";
+import { ideaAllowance } from "@/lib/video/batches";
+import { reviewBlocksAutoPublish } from "@/lib/video/review";
+import { videoProfile } from "@/lib/video/strategy/profile";
+
+// TODO(viral-integration): videoPublishingStatus from "@/lib/video/publish-actions" (Worker D).
+import { videoPublishingStatus } from "./_pending-server";
 import { VideosPanel, type IdeaView, type VideoAccountView } from "./videos-panel";
 
 export const dynamic = "force-dynamic";

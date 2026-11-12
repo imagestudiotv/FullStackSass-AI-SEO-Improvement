@@ -12,14 +12,13 @@ import { Input } from "@/components/ui/input";
 import { Notice } from "@/components/workspace/notice";
 import type { Locale } from "@/lib/i18n/config";
 import { format, formatDate } from "@/lib/i18n/format";
-import { publishVideoIdea, unscheduleVideoIdea } from "@/lib/video/actions";
+import { approveVideoIdea, publishVideoIdea, unscheduleVideoIdea } from "@/lib/video/actions";
 import { isVideoFormat, isVideoPlatform, REEL, slideCount, VIDEO_PLATFORM_SPECS, type VideoPlatform } from "@/lib/video/formats";
 import type { VideoSettings } from "@/lib/video/settings";
 
-// TODO(viral-integration): approveVideoIdea from "@/lib/video/actions"; connectVideoPlatform/searchInstagramAudio/setNativeAudio and
+// TODO(viral-integration): connectVideoPlatform/searchInstagramAudio/setNativeAudio and
 // VideoPublishingStatus from "@/lib/video/publish-actions"; compatibility from "@/lib/video/destinations"; InstagramAudio from "@/lib/social/bundle".
 import {
-  approveVideoIdea,
   compatibility,
   connectVideoPlatform,
   searchInstagramAudio,
