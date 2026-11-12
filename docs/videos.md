@@ -4,7 +4,7 @@ Client decisions of 2026-10-29. Every day each website gets **20 video ideas** t
 
 | Step | What happens | Where |
 |---|---|---|
-| Ideas | Claude writes 20 scripts a day from the website's live articles and business profile (hook, 2–4 points, proof, call to action, post text, hashtags). About one in four is a carousel; most use the website's style, every fourth another style. | `lib/video/ideas.ts`, job `suggest-video-ideas` (07:00 UTC `video-ideas-daily` for websites that use videos; also when the Videos page is opened with no ideas today) |
+| Ideas | Claude writes 20 scripts a day from the website's live articles and business profile (hook, 2–4 points, proof, call to action, post text, hashtags). About one in four is a carousel; most use the website's style, every fourth another style. | `lib/video/ideas.ts`, job `suggest-video-ideas` (06:00 UTC `video-ideas-daily` for websites that use videos; also when the Videos page is opened with no ideas today) |
 | Swipe | Each idea is previewed in the page with the real template (Remotion's player): no voice, nothing rendered, so the 20 previews cost nothing. Right / → makes it, left / ← skips it, Edit changes anything first. Only a finger swipes (a mouse drag, or sliding through a carousel's slides, never makes a video), and → is ignored with Alt/Ctrl/Shift held or after a press on the preview. A make from the deck can be undone for 10 seconds (the credit comes back): the `make-video` job waits 15 s before it starts. Each make records who (`approved_by`) and how (`approved_via`: button, swipe, key, retry, chat). After 3 the day shows complete; more can be made. Above the tabs, three real numbers (client, 2026-11-02): ideas ready (today's not made or skipped), made today against the goal, and the credits available (owner only, the sidebar's balance). Today's ideas has a format filter and Focus mode (the preview and Create alone, remembered in the browser, Esc leaves it); beside the preview, a panel with the hook, the points, the post text and where it goes. | `app/(app)/websites/[websiteId]/videos` |
 | Making | Approving charges **1 credit** (`video_post`, Admin → Credits). The voice is spoken part by part (OpenAI `gpt-4o-mini-tts`, PCM, so each scene starts exactly with its words), transcribed with word timestamps (Whisper) for the captions, then the reel is rendered. A video that cannot be made gives its credit back. | `lib/video/make.ts`, `lib/video/voice.ts`, job `make-video` |
 | Rendering | On Vercel: a **Vercel Sandbox** (the client's Vercel account) renders detached; the job checks every 10 s and collects the MP4. Locally: `@remotion/renderer`. Carousels are rendered as PNG slides. | `lib/video/render.ts` |
@@ -56,3 +56,56 @@ Videos are included in the free-articles trial (client: "to convince people to s
 - Environment: `OPENAI_API_KEY` (voice; without it videos have no voice), `BUNDLE_SOCIAL_API_KEY` (publishing), `NEXT_PUBLIC_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` (files), Vercel Sandbox (OIDC, automatic on Vercel), optional `REMOTION_LICENSE_KEY`.
 - `npm run build` bundles the templates first (`scripts/remotion-bundle.mjs` → `.remotion-bundle`, shipped with `/api/inngest`).
 - After deploying: resync the Inngest app (5 new functions), and set Admin → Credits "Video or carousel" to 1.
+
+## Viral social content (client, 2026-11-12)
+
+Daniel chose genuinely different productions ("Option B"), not catchier scripts in one template. Types and constants: the contract block at the end of `lib/video/formats.ts`; migration `0092_viral_social_content`.
+
+### Ideas
+- **Categories**: Viral, Educational, Authority, Promotional. The viral share is `video_settings.viral_mix` (0–100 in steps of 10, default 40). The rest is split by goal (`NON_VIRAL_SPLIT`: Balanced 50/30/20, Grow reach 60/30/10, Generate leads 30/30/40), rounded by largest remainder so totals are exact, and interleaved (`strategy/allocation.ts`).
+- **Free allowance** (`lib/video/batches.ts`, table `video_idea_batches`): 20 daily ideas (slot 0, the 06:00 UTC job or the first visit), plus 3 extra batches of 10 a UTC day from the New ideas menu: New daily ideas (mixed), Generate viral ideas, Ideas from your website (verified services and pages). That is at most 50 a day.
+  - A slot is reserved by a unique (website, day, slot) insert in a short transaction; no lock is held during the AI call. A request key makes retries idempotent.
+  - Requests are refused while a batch is being written ("busy"), and must be 20 s apart. A batch that failed with 0 ideas may be asked for once more, in the same slot.
+  - Skips never give a slot back. The same rules apply to buttons, the AI chat and jobs.
+- **Creative direction** per idea (`strategy/creative.ts`): meme, footage, storytelling, text_music, voiceover or animated (the original templates, which keep the `style` column).
+  - No direction takes more than 40% of a batch. Recipes are unique in a batch and against the last 7 days.
+  - Each idea carries a `plan` (ShotPlan: per scene a visual request, transition, reaction/overlay; pacing, caption style, music mood) and `production` (audio, narration, captions, music, duration, hook and CTA): a snapshot of the settings, editable per video.
+- **Audio**: Auto (default; the writer chooses per concept), Voiceover, or Text + Music (no narration or transcription call at all).
+- **Length**: 15–30 / 30–45 / 45–60 / 60–90 s, with word budgets of 2.4 words/s narrated and 2.75 words/s on screen. A Story is at most 60 s.
+- **Formats**: about 1 in 4 is a carousel and 1 in 10 a Story, when allowed.
+- **Trends**: trend-inspired only (proven formats, niche knowledge). Nothing is ever called "currently trending" without provider data; such claims are stripped or the idea is dropped.
+- **Learning** (`strategy/learning.ts`): views and engagement of the website's posted videos over the last 60 days give soft weights, with each direction kept between a 10% floor and the 40% cap.
+- **Profile**: audience, language, market (country), tone and avoid are the website's profile and Brand Voice, saved there (`saveVideoProfileAction`). Only priority topics and the tone preset (Professional/Bold/Playful, next to the free-text tone) are video settings. Per-video overrides (`overrides`) never change the global profile. "Rewrite with these" is free, up to 10 a website a day.
+- **Languages**: the 8 content languages plus Romanian (`ro`).
+
+### Safety and review (`lib/video/review.ts`)
+- **Always on, not settings**: no invented facts, figures, testimonials, results, prices or offers; no misleading clickbait; no impersonation, celebrities, film clips or downloaded social videos; no stock actors presented as customers; no unverifiable competitor claims; nothing unlawful.
+- **The customer's choices**: humor level, controversial topics, stronger language.
+- **Claims**: each idea lists its claims with a source. Unsourced figures need a check (when "Check figures" is on); controversial angles need approval; sensitive topics are always reviewed. Until a person approves, automatic posting holds the video.
+- **Approval**: tied to a content hash. Any edit that changes the published words needs a new approval.
+- **Content sources**: only public content is used (`publicRevisionSql`); never held articles or unpublished staff revisions.
+
+### Publishing (`lib/video/publish.ts`, `publish-actions.ts`, `schedule.ts`)
+- **Modes**:
+  - Review before publishing (`manual`);
+  - Save as draft (`draft`: kept in Your videos, never sent, not a bundle.social draft);
+  - Auto-publish (`auto`, only when the customer chose it; it never makes or charges a video).
+- **Frequency**: 3 or 5 a week, 1 or 2 a day. A `null` frequency (existing auto customers) keeps the old "each made video at the next best hour". Never more than 3 automatic posts a day, or 3 a platform a day.
+  - Slots are reserved in `video_schedule_slots` (unique website + hour).
+  - Websites have no timezone column: the country → offset table is applied in one helper (`localOffsetHours`), without daylight saving.
+- **Per destination**: each platform's result is kept in `video_ideas.destinations`. A retry only sends to platforms not yet posted.
+- **LinkedIn**: a profile or company page, connected through bundle.social (`social_accounts.target`). One video up to 30 min, 3,000 characters, no links, no carousels.
+- **X**: reuses the social X account, posted as its own bundle.social post, text fitted to 280 with links removed. bundle.social passes X's charge through ($0.015 a post, $0.20 with a URL).
+  - Available only with `X_VIDEO_POSTS_ENABLED=1` and a positive `X_VIDEO_MONTHLY_LIMIT_USD`. The optional `X_VIDEO_COST_PER_POST_USD` defaults to 0.02.
+  - Each post reserves its cost atomically in `provider_spend` before posting. It is charged on success and released on failure; usage events have kind `social_api`.
+  - When the limit is reached X is skipped and the others still go.
+- **Stories**: real Instagram and Facebook Stories (one file, no caption, 3–60 s). Other platforms are skipped with a reason; a reel is never sent as a Story.
+- **Instagram native audio**: search and selection through bundle.social (`/misc/instagram/audio`, `musicSoundInfo`, volumes 0–100), for Reels on accounts connected through Facebook Login.
+  - Instagram then gets the no-music version (`alt_video_url`, an audio-only remux). Other platforms and the download keep RepGet's licensed music.
+  - The final native mix can only be heard on Instagram. Nothing is labelled trending: the provider returns no trending data.
+- **Analytics**: need a paid bundle.social plan. X stats are billed on demand, so the daily stats skip X and Stories.
+
+### Setup after deploying
+- Migration `0092_viral_social_content` (backfill: music off stays off; no voice becomes Text + Music; existing auto customers keep `frequency` null).
+- Resync Inngest (no new functions; the video jobs moved into `videos-ideas.ts`, `videos-make.ts` and `videos-publish.ts`, with the same ids).
+- Optional environment: `X_VIDEO_POSTS_ENABLED`, `X_VIDEO_MONTHLY_LIMIT_USD`, `X_VIDEO_COST_PER_POST_USD`, and the stock footage keys (see Production).
