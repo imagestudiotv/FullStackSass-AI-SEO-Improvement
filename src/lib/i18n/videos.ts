@@ -282,7 +282,7 @@ export type ViralCopy = {
     rewritten: string;
   };
   /** Platform checks; {platform} and {length} are filled in. */
-  compat: { title: string; no_story: string; too_long: string; no_carousel: string; other: string };
+  compat: { title: string; no_story: string; too_long: string; no_carousel: string; other: string; too_short: string; x_not_configured: string };
   draft: { badge: string; body: string };
   destinations: { label: string; status: { pending: string; scheduled: string; posting: string; posted: string; failed: string; skipped: string } };
   nativeAudio: {
@@ -293,7 +293,8 @@ export type ViralCopy = {
     search: string;
     searchButton: string;
     none: string;
-    trending: string;
+    reasons: { not_configured: string; not_connected: string; needs_facebook_login: string };
+    reconnect: string;
     use: string;
     current: string;
     remove: string;
@@ -303,7 +304,7 @@ export type ViralCopy = {
     chosen: string;
   };
   x: { needsSetup: string; budget: string };
-  linkedin: { help: string };
+  linkedin: { help: string; noTarget: string };
   settings: {
     open: string;
     sidebar: string;
@@ -422,11 +423,22 @@ export type ViralCopy = {
     bad_profile: string;
     review_required: string;
     x_not_configured: string;
-    x_budget: string;
+    x_limit_reached: string;
     no_story: string;
     too_long: string;
     no_carousel: string;
-    audio_unavailable: string;
+    incompatible: string;
+    linkedin_no_target: string;
+    reel_only: string;
+    bad_audio: string;
+    not_connected: string;
+    needs_facebook_login: string;
+    search_failed: string;
+    paused: string;
+    daily_limit: string;
+    too_short: string;
+    native_audio_login: string;
+    native_audio_file: string;
   };
 };
 
@@ -548,6 +560,8 @@ const viralEn: ViralCopy = {
     too_long: "{platform} does not take videos of {length}.",
     no_carousel: "{platform} takes no carousels here, so this carousel is not sent there.",
     other: "{platform} cannot take this video.",
+    too_short: "{platform} takes Stories of at least 3 seconds.",
+    x_not_configured: "X is not set up for videos yet, so nothing is sent there.",
   },
   draft: { badge: "Draft", body: "Draft - publish when you are ready." },
   destinations: {
@@ -562,7 +576,8 @@ const viralEn: ViralCopy = {
     search: "Search Instagram's audio",
     searchButton: "Search",
     none: "Nothing found. Try other words.",
-    trending: "Trending on Instagram",
+    reasons: { not_configured: "Instagram's own audio is not set up on this RepGet yet.", not_connected: "Connect Instagram first.", needs_facebook_login: "Reconnect Instagram through Facebook Login to use its audio." },
+    reconnect: "Reconnect with Facebook Login",
     use: "Use",
     current: "Chosen",
     remove: "Remove Instagram audio",
@@ -574,7 +589,7 @@ const viralEn: ViralCopy = {
     needsSetup: "X needs setup: RepGet posts there only once X is configured with a spending limit.",
     budget: "X has reached its spending limit for now. RepGet posts there again when the limit allows.",
   },
-  linkedin: { help: "Your profile or a company page." },
+  linkedin: { help: "Your profile or a company page.", noTarget: "Choose a profile or page: reconnect LinkedIn and pick one." },
   settings: {
     open: "Content settings",
     sidebar: "Preferences",
@@ -720,11 +735,22 @@ const viralEn: ViralCopy = {
     bad_profile: "The audience details could not be saved. Please check them and try again.",
     review_required: "This video needs your check before it can be posted automatically.",
     x_not_configured: "X is not set up yet.",
-    x_budget: "X spending limit reached",
+    x_limit_reached: "X spending limit reached",
     no_story: "Stories are not supported there",
     too_long: "Too long for this platform",
     no_carousel: "Carousels are not supported there",
-    audio_unavailable: "Instagram's audio is not available for this account.",
+    incompatible: "A chosen platform cannot take this video. Untick it or change the video.",
+    linkedin_no_target: "Reconnect LinkedIn and choose your profile or a company page.",
+    reel_only: "Instagram's audio works on Reels only.",
+    bad_audio: "This track cannot be used. Please choose another.",
+    not_connected: "Instagram is not connected.",
+    needs_facebook_login: "Reconnect Instagram through Facebook Login to use its audio.",
+    search_failed: "Instagram's audio could not be searched. Please try again.",
+    paused: "Paused after a refusal: resume it in Settings",
+    daily_limit: "Daily limit reached on this platform",
+    too_short: "Too short for a Story",
+    native_audio_login: "Reconnect Instagram through Facebook Login for its audio",
+    native_audio_file: "The version for Instagram's audio could not be made",
   },
 };
 
@@ -846,6 +872,8 @@ const viralEs: ViralCopy = {
     too_long: "{platform} no acepta vídeos de {length}.",
     no_carousel: "{platform} no acepta carruseles aquí, así que este carrusel no se envía allí.",
     other: "{platform} no puede recibir este vídeo.",
+    too_short: "{platform} acepta Historias de al menos 3 segundos.",
+    x_not_configured: "X aún no está configurado para vídeos, así que no se envía nada allí.",
   },
   draft: { badge: "Borrador", body: "Borrador: publíquelo cuando quiera." },
   destinations: {
@@ -860,7 +888,8 @@ const viralEs: ViralCopy = {
     search: "Buscar en el audio de Instagram",
     searchButton: "Buscar",
     none: "No se ha encontrado nada. Pruebe con otras palabras.",
-    trending: "Tendencia en Instagram",
+    reasons: { not_configured: "El audio de Instagram aún no está configurado en este RepGet.", not_connected: "Conecte primero Instagram.", needs_facebook_login: "Vuelva a conectar Instagram con Facebook Login para usar su audio." },
+    reconnect: "Volver a conectar con Facebook Login",
     use: "Usar",
     current: "Elegido",
     remove: "Quitar el audio de Instagram",
@@ -872,7 +901,7 @@ const viralEs: ViralCopy = {
     needsSetup: "X necesita configuración: RepGet solo publica allí cuando X está configurado con un límite de gasto.",
     budget: "X ha alcanzado su límite de gasto por ahora. RepGet volverá a publicar allí cuando el límite lo permita.",
   },
-  linkedin: { help: "Su perfil o una página de empresa." },
+  linkedin: { help: "Su perfil o una página de empresa.", noTarget: "Elija un perfil o una página: vuelva a conectar LinkedIn y elija uno." },
   settings: {
     open: "Ajustes de contenido",
     sidebar: "Preferencias",
@@ -1018,11 +1047,22 @@ const viralEs: ViralCopy = {
     bad_profile: "No se han podido guardar los datos del público. Revíselos e inténtelo de nuevo.",
     review_required: "Este vídeo necesita su revisión antes de publicarse automáticamente.",
     x_not_configured: "X aún no está configurado.",
-    x_budget: "Límite de gasto de X alcanzado",
+    x_limit_reached: "Límite de gasto de X alcanzado",
     no_story: "Allí no se admiten Historias",
     too_long: "Demasiado largo para esta plataforma",
     no_carousel: "Allí no se admiten carruseles",
-    audio_unavailable: "El audio de Instagram no está disponible para esta cuenta.",
+    incompatible: "Una de las plataformas elegidas no acepta este vídeo. Desmárquela o cambie el vídeo.",
+    linkedin_no_target: "Vuelva a conectar LinkedIn y elija su perfil o una página de empresa.",
+    reel_only: "El audio de Instagram solo funciona en Reels.",
+    bad_audio: "Esta pista no se puede usar. Elija otra.",
+    not_connected: "Instagram no está conectado.",
+    needs_facebook_login: "Vuelva a conectar Instagram con Facebook Login para usar su audio.",
+    search_failed: "No se ha podido buscar en el audio de Instagram. Inténtelo de nuevo.",
+    paused: "En pausa tras un rechazo: reanúdelo en Ajustes",
+    daily_limit: "Límite diario alcanzado en esta plataforma",
+    too_short: "Demasiado corto para una Historia",
+    native_audio_login: "Vuelva a conectar Instagram con Facebook Login para su audio",
+    native_audio_file: "No se ha podido crear la versión para el audio de Instagram",
   },
 };
 
@@ -1144,6 +1184,8 @@ const viralFr: ViralCopy = {
     too_long: "{platform} n’accepte pas de vidéos de {length}.",
     no_carousel: "{platform} n’accepte pas de carrousels ici : ce carrousel n’y est donc pas envoyé.",
     other: "{platform} ne peut pas recevoir cette vidéo.",
+    too_short: "{platform} accepte les Stories d’au moins 3 secondes.",
+    x_not_configured: "X n’est pas encore configuré pour les vidéos : rien n’y est envoyé.",
   },
   draft: { badge: "Brouillon", body: "Brouillon : publiez-le quand vous êtes prêt." },
   destinations: {
@@ -1158,7 +1200,8 @@ const viralFr: ViralCopy = {
     search: "Rechercher dans l’audio d’Instagram",
     searchButton: "Rechercher",
     none: "Aucun résultat. Essayez d’autres mots.",
-    trending: "Tendance sur Instagram",
+    reasons: { not_configured: "L’audio d’Instagram n’est pas encore configuré sur ce RepGet.", not_connected: "Connectez d’abord Instagram.", needs_facebook_login: "Reconnectez Instagram via Facebook Login pour utiliser son audio." },
+    reconnect: "Reconnecter via Facebook Login",
     use: "Utiliser",
     current: "Choisi",
     remove: "Retirer l’audio Instagram",
@@ -1170,7 +1213,7 @@ const viralFr: ViralCopy = {
     needsSetup: "X doit être configuré : RepGet n’y publie qu’une fois X configuré avec une limite de dépenses.",
     budget: "X a atteint sa limite de dépenses pour le moment. RepGet y publiera de nouveau quand la limite le permettra.",
   },
-  linkedin: { help: "Votre profil ou une page entreprise." },
+  linkedin: { help: "Votre profil ou une page entreprise.", noTarget: "Choisissez un profil ou une page : reconnectez LinkedIn et choisissez-en un." },
   settings: {
     open: "Réglages du contenu",
     sidebar: "Préférences",
@@ -1316,11 +1359,22 @@ const viralFr: ViralCopy = {
     bad_profile: "Les informations sur le public n’ont pas pu être enregistrées. Vérifiez-les et réessayez.",
     review_required: "Cette vidéo doit être vérifiée par vous avant d’être publiée automatiquement.",
     x_not_configured: "X n’est pas encore configuré.",
-    x_budget: "Limite de dépenses X atteinte",
+    x_limit_reached: "Limite de dépenses X atteinte",
     no_story: "Les Stories n’y sont pas prises en charge",
     too_long: "Trop longue pour cette plateforme",
     no_carousel: "Les carrousels n’y sont pas pris en charge",
-    audio_unavailable: "L’audio d’Instagram n’est pas disponible pour ce compte.",
+    incompatible: "Une plateforme choisie ne peut pas recevoir cette vidéo. Décochez-la ou modifiez la vidéo.",
+    linkedin_no_target: "Reconnectez LinkedIn et choisissez votre profil ou une page entreprise.",
+    reel_only: "L’audio d’Instagram ne fonctionne que sur les Reels.",
+    bad_audio: "Ce morceau ne peut pas être utilisé. Choisissez-en un autre.",
+    not_connected: "Instagram n’est pas connecté.",
+    needs_facebook_login: "Reconnectez Instagram via Facebook Login pour utiliser son audio.",
+    search_failed: "La recherche dans l’audio d’Instagram a échoué. Réessayez.",
+    paused: "En pause après un refus : reprenez-le dans Réglages",
+    daily_limit: "Limite quotidienne atteinte sur cette plateforme",
+    too_short: "Trop courte pour une Story",
+    native_audio_login: "Reconnectez Instagram via Facebook Login pour son audio",
+    native_audio_file: "La version pour l’audio d’Instagram n’a pas pu être créée",
   },
 };
 
@@ -1442,6 +1496,8 @@ const viralIt: ViralCopy = {
     too_long: "{platform} non accetta video di {length}.",
     no_carousel: "{platform} non accetta caroselli qui, quindi questo carosello non viene inviato lì.",
     other: "{platform} non può ricevere questo video.",
+    too_short: "{platform} accetta Storie di almeno 3 secondi.",
+    x_not_configured: "X non è ancora configurato per i video, quindi lì non viene inviato nulla.",
   },
   draft: { badge: "Bozza", body: "Bozza: la pubblichi quando è pronto." },
   destinations: {
@@ -1456,7 +1512,8 @@ const viralIt: ViralCopy = {
     search: "Cerca nell’audio di Instagram",
     searchButton: "Cerca",
     none: "Nessun risultato. Provi con altre parole.",
-    trending: "Di tendenza su Instagram",
+    reasons: { not_configured: "L’audio di Instagram non è ancora configurato su questo RepGet.", not_connected: "Colleghi prima Instagram.", needs_facebook_login: "Ricolleghi Instagram con Facebook Login per usare il suo audio." },
+    reconnect: "Ricollega con Facebook Login",
     use: "Usa",
     current: "Scelto",
     remove: "Rimuovi l’audio di Instagram",
@@ -1468,7 +1525,7 @@ const viralIt: ViralCopy = {
     needsSetup: "X va configurato: RepGet pubblica lì solo quando X è configurato con un limite di spesa.",
     budget: "X ha raggiunto il suo limite di spesa per ora. RepGet tornerà a pubblicare lì quando il limite lo permetterà.",
   },
-  linkedin: { help: "Il suo profilo o una pagina aziendale." },
+  linkedin: { help: "Il suo profilo o una pagina aziendale.", noTarget: "Scelga un profilo o una pagina: ricolleghi LinkedIn e ne scelga uno." },
   settings: {
     open: "Impostazioni dei contenuti",
     sidebar: "Preferenze",
@@ -1614,11 +1671,22 @@ const viralIt: ViralCopy = {
     bad_profile: "I dati sul pubblico non sono stati salvati. Li controlli e riprovi.",
     review_required: "Questo video va controllato prima di essere pubblicato automaticamente.",
     x_not_configured: "X non è ancora configurato.",
-    x_budget: "Limite di spesa di X raggiunto",
+    x_limit_reached: "Limite di spesa di X raggiunto",
     no_story: "Lì le Storie non sono supportate",
     too_long: "Troppo lungo per questa piattaforma",
     no_carousel: "Lì i caroselli non sono supportati",
-    audio_unavailable: "L’audio di Instagram non è disponibile per questo account.",
+    incompatible: "Una delle piattaforme scelte non accetta questo video. La deselezioni o modifichi il video.",
+    linkedin_no_target: "Ricolleghi LinkedIn e scelga il suo profilo o una pagina aziendale.",
+    reel_only: "L’audio di Instagram funziona solo sui Reel.",
+    bad_audio: "Questa traccia non si può usare. Ne scelga un’altra.",
+    not_connected: "Instagram non è collegato.",
+    needs_facebook_login: "Ricolleghi Instagram con Facebook Login per usare il suo audio.",
+    search_failed: "Non è stato possibile cercare nell’audio di Instagram. Riprovi.",
+    paused: "In pausa dopo un rifiuto: lo riprenda in Impostazioni",
+    daily_limit: "Limite giornaliero raggiunto su questa piattaforma",
+    too_short: "Troppo breve per una Storia",
+    native_audio_login: "Ricolleghi Instagram con Facebook Login per il suo audio",
+    native_audio_file: "Non è stato possibile creare la versione per l’audio di Instagram",
   },
 };
 
@@ -1740,6 +1808,8 @@ const viralDe: ViralCopy = {
     too_long: "{platform} nimmt keine Videos mit {length} an.",
     no_carousel: "{platform} nimmt hier keine Karussells an, daher wird dieses Karussell nicht dorthin gesendet.",
     other: "{platform} kann dieses Video nicht annehmen.",
+    too_short: "{platform} nimmt Storys ab 3 Sekunden an.",
+    x_not_configured: "X ist für Videos noch nicht eingerichtet, daher wird nichts dorthin gesendet.",
   },
   draft: { badge: "Entwurf", body: "Entwurf - veröffentlichen Sie ihn, wann Sie möchten." },
   destinations: {
@@ -1754,7 +1824,8 @@ const viralDe: ViralCopy = {
     search: "Instagram-Audio durchsuchen",
     searchButton: "Suchen",
     none: "Nichts gefunden. Versuchen Sie andere Wörter.",
-    trending: "Im Trend auf Instagram",
+    reasons: { not_configured: "Instagram-Audio ist in diesem RepGet noch nicht eingerichtet.", not_connected: "Verbinden Sie zuerst Instagram.", needs_facebook_login: "Verbinden Sie Instagram über Facebook Login neu, um das Audio zu nutzen." },
+    reconnect: "Mit Facebook Login neu verbinden",
     use: "Verwenden",
     current: "Gewählt",
     remove: "Instagram-Audio entfernen",
@@ -1766,7 +1837,7 @@ const viralDe: ViralCopy = {
     needsSetup: "X muss eingerichtet werden: RepGet postet dort erst, wenn X mit einem Ausgabenlimit eingerichtet ist.",
     budget: "X hat sein Ausgabenlimit vorerst erreicht. RepGet postet dort wieder, sobald das Limit es erlaubt.",
   },
-  linkedin: { help: "Ihr Profil oder eine Unternehmensseite." },
+  linkedin: { help: "Ihr Profil oder eine Unternehmensseite.", noTarget: "Wählen Sie ein Profil oder eine Seite: Verbinden Sie LinkedIn neu und wählen Sie eins." },
   settings: {
     open: "Inhaltseinstellungen",
     sidebar: "Präferenzen",
@@ -1912,11 +1983,22 @@ const viralDe: ViralCopy = {
     bad_profile: "Die Angaben zur Zielgruppe konnten nicht gespeichert werden. Bitte prüfen Sie sie und versuchen Sie es erneut.",
     review_required: "Dieses Video muss geprüft werden, bevor es automatisch gepostet werden kann.",
     x_not_configured: "X ist noch nicht eingerichtet.",
-    x_budget: "Ausgabenlimit für X erreicht",
+    x_limit_reached: "Ausgabenlimit für X erreicht",
     no_story: "Storys werden dort nicht unterstützt",
     too_long: "Zu lang für diese Plattform",
     no_carousel: "Karussells werden dort nicht unterstützt",
-    audio_unavailable: "Instagram-Audio ist für dieses Konto nicht verfügbar.",
+    incompatible: "Eine gewählte Plattform nimmt dieses Video nicht an. Wählen Sie sie ab oder ändern Sie das Video.",
+    linkedin_no_target: "Verbinden Sie LinkedIn neu und wählen Sie Ihr Profil oder eine Unternehmensseite.",
+    reel_only: "Instagram-Audio gibt es nur für Reels.",
+    bad_audio: "Dieser Titel kann nicht verwendet werden. Bitte wählen Sie einen anderen.",
+    not_connected: "Instagram ist nicht verbunden.",
+    needs_facebook_login: "Verbinden Sie Instagram über Facebook Login neu, um das Audio zu nutzen.",
+    search_failed: "Die Suche im Instagram-Audio ist fehlgeschlagen. Bitte versuchen Sie es erneut.",
+    paused: "Nach einer Ablehnung pausiert: in den Einstellungen fortsetzen",
+    daily_limit: "Tageslimit auf dieser Plattform erreicht",
+    too_short: "Zu kurz für eine Story",
+    native_audio_login: "Instagram für das Audio über Facebook Login neu verbinden",
+    native_audio_file: "Die Version für das Instagram-Audio konnte nicht erstellt werden",
   },
 };
 

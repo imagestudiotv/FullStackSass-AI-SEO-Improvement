@@ -13,19 +13,18 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Notice } from "@/components/workspace/notice";
 import type { Locale } from "@/lib/i18n/config";
 import { format, plural } from "@/lib/i18n/format";
-import type { VideoResult } from "@/lib/video/actions";
 import { EXTRA_BATCHES_PER_DAY, type BrandLook, type ExtraBatchKind } from "@/lib/video/formats";
 import type { VideoSettings } from "@/lib/video/settings";
 
 // TODO(viral-integration): requestVideoIdeas(websiteId, kind, requestKey) from "@/lib/video/actions".
-import { requestVideoIdeas } from "./_pending";
-import type { IdeaAllowance, PublishingStatus, VideoProfile } from "./_pending-server";
+import { requestVideoIdeas, type VideoPublishingStatus } from "./_pending";
+import type { IdeaAllowance, VideoProfile } from "./_pending-server";
 import { IdeasDeck } from "./ideas-deck";
 import type { CategoryFilter, FormatFilter } from "./logic";
 import { MadeList } from "./made-list";
 import { PostedList } from "./posted-list";
 import { SettingsPanel, type SettingsPane } from "./settings-panel";
-import { errorText, platformName, selectClass, type IdeaView, type MediaView, type T, type Tab, type TrackView, type VideoAccountView } from "./shared";
+import { errorText, platformName, type ActionResult, selectClass, type IdeaView, type MediaView, type T, type Tab, type TrackView, type VideoAccountView } from "./shared";
 
 export type { IdeaView, VideoAccountView } from "./shared";
 
@@ -101,7 +100,7 @@ export function VideosPanel(props: {
   credits: { available: number; label: string } | null;
   settings: VideoSettings;
   profile: VideoProfile;
-  publishing: PublishingStatus;
+  publishing: VideoPublishingStatus;
   brand: BrandLook;
   media: MediaView[];
   accounts: VideoAccountView[];
@@ -125,7 +124,7 @@ export function VideosPanel(props: {
   const [focus, setFocus] = useFocusMode();
 
   const run = useCallback(
-    (action: () => Promise<VideoResult<unknown>>, success?: string, after?: () => void) => {
+    (action: () => Promise<ActionResult>, success?: string, after?: () => void) => {
       start(async () => {
         const result = await action().catch(() => null);
         if (!result) return void toast.error(t.errors.generic);

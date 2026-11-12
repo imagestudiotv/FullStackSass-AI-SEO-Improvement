@@ -70,7 +70,7 @@ export default async function WebsiteVideosPage({ params, searchParams }: PagePr
 
   const now = new Date();
   const today = now.toISOString().slice(0, 10);
-  const [level, settings, ideas, made, posted, approvedToday, media, accounts, credits, wallet, { t, locale }, query, allowance, profile, publishing] = await Promise.all([
+  const [level, settings, ideas, made, posted, approvedToday, media, accounts, credits, wallet, { t, locale }, query, allowance, profile, publishingStatus] = await Promise.all([
     videoAccess(site.id),
     readVideoSettings(site.id),
     db
@@ -121,6 +121,10 @@ export default async function WebsiteVideosPage({ params, searchParams }: PagePr
   const writing = Number(todayCount) === 0 && level !== "none" && site.status === "ready";
   if (writing && access !== "viewer") await queueJob({ name: "video/ideas.requested", data: { websiteId: site.id } }).catch(() => false);
 
+  // Without the status, nothing optional is offered (X, Instagram's own audio).
+  const publishing = publishingStatus.ok
+    ? publishingStatus.data
+    : { x: { available: false, reason: "disabled" as const }, instagramAudio: { available: false as const, reason: "not_configured" as const }, linkedin: { connected: false, target: null } };
   const brand = brandLook(site, settings.logoUrl);
   const view = (row: (typeof ideas)[number]): IdeaView => {
     const script = row.script as VideoScript;

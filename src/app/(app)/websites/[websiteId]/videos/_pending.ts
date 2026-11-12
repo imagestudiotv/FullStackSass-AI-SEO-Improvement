@@ -9,14 +9,16 @@
 
 import {
   approveVideoIdea as approveNow,
+  connectVideoPlatform as connectNow,
   editVideoIdea as editNow,
   requestVideoIdeas as requestDailyNow,
   type IdeaEdit,
   type VideoResult,
 } from "@/lib/video/actions";
 import {
-  VIDEO_PLATFORM_SPECS,
   DURATION_SECONDS,
+  isVideoPlatform,
+  VIDEO_PLATFORM_SPECS,
   type BatchKind,
   type CreativeDirection,
   type DurationRange,
@@ -91,48 +93,68 @@ export function saveVideoProfileAction(websiteId: string, profile: ProfileForm):
 }
 
 /* ------------------------------------- Worker D: lib/video/publish-actions.ts */
+/* Mirrors feature/viral-publishing (176065bc) so the swap is an import change. */
 
-export type AudioTrack = { audioId: string; title: string; artist: string | null; durationMs: number | null; trending: boolean };
-export type AudioSearch = { available: boolean; reason?: string; tracks: AudioTrack[] };
+/** Real: `InstagramAudio` from "@/lib/social/bundle". */
+export type InstagramAudio = { audioId: string; title: string; artist: string | null; durationMs: number | null; coverUrl: string | null; previewUrl: string | null };
+/** Real: `NativeAudioUnavailable` from "@/lib/video/native-audio". */
+export type NativeAudioUnavailable = "not_configured" | "not_connected" | "needs_facebook_login";
+/** Real: `XUnavailable` from "@/lib/video/x-spend". */
+export type XUnavailable = "disabled" | "no_limit" | "limit_reached";
+/** Real: `VideoPublishingStatus` from "@/lib/video/publish-actions". */
+export type VideoPublishingStatus = {
+  x: { available: boolean; reason: XUnavailable | null };
+  instagramAudio: { available: true } | { available: false; reason: NativeAudioUnavailable };
+  linkedin: { connected: boolean; target: string | null };
+};
 
-/** Real: `searchInstagramAudio` from "@/lib/video/publish-actions". */
-export function searchInstagramAudio(websiteId: string, query: string): Pending<AudioSearch> {
+/** Real: `searchInstagramAudio` from "@/lib/video/publish-actions" (errors: NativeAudioUnavailable | search_failed). */
+export function searchInstagramAudio(websiteId: string, query: string): Pending<{ tracks: InstagramAudio[] }> {
   void websiteId;
   void query;
   return notReady();
 }
 
 /** Real: `setNativeAudio` from "@/lib/video/publish-actions" (null removes it). */
-export function setNativeAudio(websiteId: string, id: string, selection: Omit<NativeAudioSelection, "provider" | "selectedAt"> | null): Pending {
+export function setNativeAudio(websiteId: string, ideaId: string, selection: Partial<NativeAudioSelection> | null): Pending<{ nativeAudio: NativeAudioSelection | null }> {
   void websiteId;
-  void id;
+  void ideaId;
   void selection;
   return notReady();
 }
 
+/** Real: `connectVideoPlatform` from "@/lib/video/publish-actions" (facebookLogin: Instagram through Facebook Login). */
+export function connectVideoPlatform(websiteId: string, platform: string, language = "en", options: { facebookLogin?: boolean } = {}): Pending<{ url: string }> {
+  void options;
+  return connectNow(websiteId, platform, language);
+}
+
 /* ----------------------------------------- Worker D: lib/video/destinations.ts */
 
-export type CompatibilityCode = "no_story" | "too_long" | "no_carousel";
-export type Compatibility = { ok: boolean; problems: { platform: VideoPlatform; code: CompatibilityCode | string }[] };
+/** Real: `DestinationProblem` from "@/lib/video/destinations". */
+export type DestinationProblem = "no_story" | "no_carousel" | "too_long" | "too_short" | "x_not_configured";
+export type Compatibility = { ok: VideoPlatform[]; problems: Partial<Record<VideoPlatform, DestinationProblem>> };
 
 /**
  * Real: `compatibility` from "@/lib/video/destinations" (pure, client-safe).
- * This stand-in reads the same platform specs, so the warnings are right
- * meanwhile.
+ * The same rules, on the same platform specs, until the swap.
  */
-export function compatibility(input: { format: VideoFormat; duration: DurationRange; platforms: readonly VideoPlatform[] }): Compatibility {
-  const problems: Compatibility["problems"] = [];
-  const seconds = DURATION_SECONDS[input.duration]?.max ?? 0;
-  for (const platform of input.platforms) {
+export function compatibility(input: { format: VideoFormat; duration: number | DurationRange | null; platforms: readonly string[]; xAvailable?: boolean }): Compatibility {
+  const ok: VideoPlatform[] = [];
+  const problems: Compatibility["problems"] = {};
+  const length = input.duration === null ? null : typeof input.duration === "number" ? input.duration : (DURATION_SECONDS[input.duration]?.max ?? null);
+  for (const platform of [...new Set(input.platforms)].filter(isVideoPlatform)) {
     const spec = VIDEO_PLATFORM_SPECS[platform];
-    if (input.format === "carousel") {
-      if (!spec.carousel) problems.push({ platform, code: "no_carousel" });
-    } else if (input.format === "story") {
-      if (!spec.story) problems.push({ platform, code: "no_story" });
-      else if (spec.storyMaxSeconds !== null && seconds > spec.storyMaxSeconds) problems.push({ platform, code: "too_long" });
-    } else if (seconds > spec.maxVideoSeconds) {
-      problems.push({ platform, code: "too_long" });
-    }
+    let problem: DestinationProblem | null = null;
+    if (platform === "x" && !input.xAvailable) problem = "x_not_configured";
+    else if (input.format === "carousel") problem = spec.carousel ? null : "no_carousel";
+    else if (input.format === "story") {
+      if (!spec.story || spec.storyMaxSeconds === null) problem = "no_story";
+      else if (length !== null && length > spec.storyMaxSeconds) problem = "too_long";
+      else if (typeof input.duration === "number" && length !== null && length < 3) problem = "too_short";
+    } else if (length !== null && length > spec.maxVideoSeconds) problem = "too_long";
+    if (problem) problems[platform] = problem;
+    else ok.push(platform);
   }
-  return { ok: problems.length === 0, problems };
+  return { ok, problems };
 }

@@ -9,12 +9,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/workspace/notice";
 import { format } from "@/lib/i18n/format";
-import { restoreVideoIdea, skipVideoIdea, undoVideoIdea, type VideoResult } from "@/lib/video/actions";
+import { restoreVideoIdea, skipVideoIdea, undoVideoIdea } from "@/lib/video/actions";
 import { slideCount, UNDO_SECONDS, VIDEO_PLATFORM_SPECS, type MakeVia, type VideoScript, type VideoStyle } from "@/lib/video/formats";
 import type { VideoSettings } from "@/lib/video/settings";
 
 // TODO(viral-integration): approveVideoIdea/approveVideoReview from "@/lib/video/actions".
-import { approveVideoIdea, approveVideoReview, type ViralIdeaEdit } from "./_pending";
+import { approveVideoIdea, approveVideoReview, type ViralIdeaEdit, type VideoPublishingStatus } from "./_pending";
 import { EditDialog } from "./edit-dialog";
 import {
   browse,
@@ -30,7 +30,7 @@ import {
   type LastAction,
 } from "./logic";
 import { CarouselPreview, ReelPreview } from "./preview";
-import { EmptyState, errorText, PlatformDots, type IdeaView, type MediaView, type Run, type T, type TrackView } from "./shared";
+import { EmptyState, errorText, type ActionResult, PlatformDots, type IdeaView, type MediaView, type Run, type T, type TrackView } from "./shared";
 
 const CATEGORY_CHIPS: CategoryFilter[] = ["all", "viral", "educational", "authority", "promotional"];
 
@@ -58,6 +58,7 @@ export function IdeasDeck(props: {
   goal: number;
   priceLabel: string;
   settings: VideoSettings;
+  publishing: VideoPublishingStatus;
   media: MediaView[];
   tracks: TrackView[];
   run: Run;
@@ -95,7 +96,7 @@ export function IdeasDeck(props: {
   );
 
   const settle = useCallback(
-    async (idea: IdeaView, action: Promise<VideoResult<unknown>>, success?: string, onUndo?: () => void) => {
+    async (idea: IdeaView, action: Promise<ActionResult>, success?: string, onUndo?: () => void) => {
       setGone((set) => new Set(set).add(idea.id));
       const result = await action.catch(() => null);
       if (!result || !result.ok) {
@@ -375,6 +376,7 @@ export function IdeasDeck(props: {
             media={props.media}
             tracks={props.tracks}
             settings={props.settings}
+            xAvailable={props.publishing.x.available}
             priceLabel={props.priceLabel}
             onClose={() => setEditing(null)}
             onApprove={(edit) => {

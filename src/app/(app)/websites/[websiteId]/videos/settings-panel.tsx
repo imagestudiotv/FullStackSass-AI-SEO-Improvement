@@ -18,7 +18,6 @@ import type { Locale } from "@/lib/i18n/config";
 import { format } from "@/lib/i18n/format";
 import {
   addVideoMedia,
-  connectVideoPlatform,
   disconnectVideoPlatform,
   removeVideoMedia,
   resumeVideoPlatform,
@@ -49,11 +48,12 @@ import type { VideoSettings } from "@/lib/video/settings";
 import { SUPPORTED_LANGUAGES } from "@/lib/websites/languages";
 import { MARKET_GLOBAL, MARKETS } from "@/lib/websites/markets";
 
-// TODO(viral-integration): resetVideoSettingsAction/saveVideoProfileAction from "@/lib/video/actions".
-import { resetVideoSettingsAction, saveVideoProfileAction } from "./_pending";
-import type { PublishingStatus, VideoProfile } from "./_pending-server";
+// TODO(viral-integration): resetVideoSettingsAction/saveVideoProfileAction from "@/lib/video/actions";
+// connectVideoPlatform and VideoPublishingStatus from "@/lib/video/publish-actions".
+import { connectVideoPlatform, resetVideoSettingsAction, saveVideoProfileAction, type VideoPublishingStatus } from "./_pending";
+import type { VideoProfile } from "./_pending-server";
 import { profileChanged, settingsChanges, settingsProblems, viralSplit, type ProfileForm } from "./logic";
-import { errorText, Field, MediaThumb, opportunitiesHref, selectClass, upload, type MediaView, type Run, type T, type VideoAccountView } from "./shared";
+import { errorText, Field, MediaThumb, opportunitiesHref, selectClass, upload, type MediaView, type Run, type T, type VideoAccountView, xWords } from "./shared";
 
 export const SETTINGS_PANES = ["strategy", "audience", "video", "publishing", "safety", "brand"] as const;
 export type SettingsPane = (typeof SETTINGS_PANES)[number];
@@ -76,7 +76,7 @@ export function SettingsPanel(props: {
   bundle: boolean;
   settings: VideoSettings;
   profile: VideoProfile;
-  publishing: PublishingStatus;
+  publishing: VideoPublishingStatus;
   brand: BrandLook;
   media: MediaView[];
   accounts: VideoAccountView[];
@@ -576,7 +576,7 @@ function PublishingPane(props: {
   canEdit: boolean;
   bundle: boolean;
   settings: VideoSettings;
-  publishing: PublishingStatus;
+  publishing: VideoPublishingStatus;
   accounts: VideoAccountView[];
   run: Run;
   pending: boolean;
@@ -591,8 +591,10 @@ function PublishingPane(props: {
   const v = t.viral;
   const s = v.settings.publishing;
   const busy = !props.canEdit || props.pending;
-  const xReady = props.publishing.x.configured;
-  const xMessage = props.publishing.x.message ?? (xReady ? (props.publishing.x.budgetOk ? null : v.x.budget) : v.x.needsSetup);
+  // X is set up when it takes videos now, or only its spending limit is used up for the moment.
+  const xReady = props.publishing.x.available || props.publishing.x.reason === "limit_reached";
+  const xMessage = props.publishing.x.available ? null : xWords(t, props.publishing);
+  const linkedinNoTarget = props.publishing.linkedin.connected && !props.publishing.linkedin.target;
   // Frequency: a customer on automatic posting from before 2026-11-12 keeps "as videos are made" until they choose.
   const legacy = props.settings.frequency === null;
 
@@ -641,6 +643,7 @@ function PublishingPane(props: {
                     ) : null}
                     {board ? <p className="mt-0.5 text-xs text-muted-foreground">{t.pinterest.shared}</p> : null}
                     {platform === "linkedin" ? <p className="mt-0.5 text-xs text-muted-foreground">{v.linkedin.help}</p> : null}
+                    {platform === "linkedin" && linkedinNoTarget ? <p className="text-xs text-amber-700 dark:text-amber-400">{v.linkedin.noTarget}</p> : null}
                   </div>
                 </div>
                 <div className="flex gap-2">

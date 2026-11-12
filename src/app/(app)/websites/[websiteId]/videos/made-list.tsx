@@ -16,9 +16,17 @@ import { publishVideoIdea, unscheduleVideoIdea } from "@/lib/video/actions";
 import { isVideoFormat, isVideoPlatform, REEL, slideCount, VIDEO_PLATFORM_SPECS, type VideoPlatform } from "@/lib/video/formats";
 import type { VideoSettings } from "@/lib/video/settings";
 
-// TODO(viral-integration): approveVideoIdea from "@/lib/video/actions"; searchInstagramAudio/setNativeAudio from "@/lib/video/publish-actions"; compatibility from "@/lib/video/destinations".
-import { approveVideoIdea, compatibility, searchInstagramAudio, setNativeAudio, type AudioTrack } from "./_pending";
-import type { PublishingStatus } from "./_pending-server";
+// TODO(viral-integration): approveVideoIdea from "@/lib/video/actions"; connectVideoPlatform/searchInstagramAudio/setNativeAudio and
+// VideoPublishingStatus from "@/lib/video/publish-actions"; compatibility from "@/lib/video/destinations"; InstagramAudio from "@/lib/social/bundle".
+import {
+  approveVideoIdea,
+  compatibility,
+  connectVideoPlatform,
+  searchInstagramAudio,
+  setNativeAudio,
+  type InstagramAudio,
+  type VideoPublishingStatus,
+} from "./_pending";
 import { compatText } from "./edit-dialog";
 import type { FormatFilter } from "./logic";
 import { reelFrames } from "./preview";
@@ -36,6 +44,7 @@ import {
   type Run,
   type T,
   type VideoAccountView,
+  xWords,
 } from "./shared";
 
 /** A made video's length, as its render works it out (voice, scenes and closing card), in seconds. */
@@ -51,7 +60,7 @@ type ListProps = {
   accounts: VideoAccountView[];
   bundle: boolean;
   settings: VideoSettings;
-  publishing: PublishingStatus;
+  publishing: VideoPublishingStatus;
   priceLabel: string;
   run: Run;
   pending: boolean;
@@ -227,7 +236,7 @@ function MadeCard(props: ListProps & { idea: IdeaView; connected: VideoAccountVi
 
       {dialog === "preview" ? <PreviewDialog idea={idea} length={length} locale={props.locale} t={t} onClose={() => setDialog(null)} /> : null}
       {dialog === "publish" ? <PublishDialog {...props} available={available} onClose={() => setDialog(null)} /> : null}
-      {dialog === "audio" ? <NativeAudioDialog idea={idea} websiteId={websiteId} publishing={props.publishing} run={props.run} pending={props.pending} t={t} onClose={() => setDialog(null)} /> : null}
+      {dialog === "audio" ? <NativeAudioDialog idea={idea} websiteId={websiteId} publishing={props.publishing} run={props.run} pending={props.pending} locale={props.locale} t={t} onClose={() => setDialog(null)} /> : null}
     </article>
   );
 }
@@ -306,7 +315,7 @@ function PublishDialog(props: {
   available: VideoAccountView[];
   websiteId: string;
   settings: VideoSettings;
-  publishing: PublishingStatus;
+  publishing: VideoPublishingStatus;
   run: Run;
   pending: boolean;
   locale: Locale;
@@ -317,11 +326,12 @@ function PublishDialog(props: {
   const v = t.viral;
   const carousel = idea.format === "carousel";
   const platforms = props.available.map((account) => account.platform).filter(isVideoPlatform);
-  const check = compatibility({ format: isVideoFormat(idea.format) ? idea.format : "reel", duration: idea.production.duration, platforms });
+  // The made video's own length where it is known, else the length chosen for it.
+  const length = carousel ? null : idea.videoUrl ? reelSeconds(idea) : idea.production.duration;
+  const check = compatibility({ format: isVideoFormat(idea.format) ? idea.format : "reel", duration: length, platforms, xAvailable: props.publishing.x.available });
   const blocked = new Map<VideoPlatform, string>();
-  for (const problem of check.problems) blocked.set(problem.platform, compatText(t, problem, idea.production.duration));
-  if (platforms.includes("x") && !(props.publishing.x.configured && props.publishing.x.budgetOk)) {
-    blocked.set("x", props.publishing.x.configured ? v.x.budget : v.x.needsSetup);
+  for (const [platform, code] of Object.entries(check.problems) as [VideoPlatform, string][]) {
+    blocked.set(platform, code === "x_not_configured" ? xWords(t, props.publishing) : compatText(t, { platform, code }, idea.production.duration));
   }
   const usable = platforms.filter((platform) => !blocked.has(platform));
   const [chosen, setChosen] = useState<string[]>(() => {
@@ -417,18 +427,18 @@ function PublishDialog(props: {
 
 /**
  * Instagram's own audio for a reel (bundle.social's Instagram audio, Worker
- * D): searched only when Instagram says it is available, "trending" only
- * when Instagram says so. The other platforms and the download keep
+ * D): searched only when the account can use it; nothing is labelled
+ * trending (Instagram's audio API gives no such data). The other platforms and the download keep
  * RepGet's licensed music.
  */
-function NativeAudioDialog(props: { idea: IdeaView; websiteId: string; publishing: PublishingStatus; run: Run; pending: boolean; t: T; onClose: () => void }) {
+function NativeAudioDialog(props: { idea: IdeaView; websiteId: string; publishing: VideoPublishingStatus; run: Run; pending: boolean; locale: Locale; t: T; onClose: () => void }) {
   const { idea, t } = props;
   const n = t.viral.nativeAudio;
   const [query, setQuery] = useState("");
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<{ available: boolean; reason?: string; tracks: AudioTrack[] } | null>(null);
+  const [tracks, setTracks] = useState<InstagramAudio[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const ready = props.publishing.nativeAudio.configured;
+  const eligibility = props.publishing.instagramAudio;
 
   async function search() {
     setBusy(true);
@@ -437,16 +447,17 @@ function NativeAudioDialog(props: { idea: IdeaView; websiteId: string; publishin
     setBusy(false);
     if (!found) return setError(t.errors.generic);
     if (!found.ok) return setError(errorText(t, found, ""));
-    setResult(found.data);
+    setTracks(found.data.tracks);
   }
 
-  const pick = (track: AudioTrack | null) =>
+  const pick = (track: InstagramAudio | null) =>
     props.run(
       () =>
         setNativeAudio(
           props.websiteId,
           idea.id,
-          track ? { audioId: track.audioId, title: track.title, artist: track.artist, volume: null, originalVolume: null, trending: track.trending } : null,
+          // Instagram's API gives no trending data, so nothing is labelled trending.
+          track ? { audioId: track.audioId, title: track.title, artist: track.artist, trending: false } : null,
         ),
       track ? n.saved : n.removed,
       props.onClose,
@@ -459,8 +470,27 @@ function NativeAudioDialog(props: { idea: IdeaView; websiteId: string; publishin
           <DialogTitle>{n.title}</DialogTitle>
           <DialogDescription>{n.honest}</DialogDescription>
         </DialogHeader>
-        {!ready ? (
-          <Notice tone="warning">{props.publishing.nativeAudio.message ?? n.unavailable}</Notice>
+        {!eligibility.available ? (
+          <Notice tone="warning">
+            <span className="block">{n.reasons[eligibility.reason]}</span>
+            {eligibility.reason === "needs_facebook_login" ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-2"
+                disabled={props.pending}
+                onClick={() =>
+                  props.run(async () => {
+                    const result = await connectVideoPlatform(props.websiteId, "instagram", props.locale, { facebookLogin: true });
+                    if (result.ok) window.location.assign(result.data.url);
+                    return result;
+                  })
+                }
+              >
+                {n.reconnect}
+              </Button>
+            ) : null}
+          </Notice>
         ) : (
           <form
             className="flex gap-2"
@@ -477,19 +507,17 @@ function NativeAudioDialog(props: { idea: IdeaView; websiteId: string; publishin
           </form>
         )}
         {error ? <Notice tone="danger">{error}</Notice> : null}
-        {result && !result.available ? <Notice tone="warning">{result.reason ?? n.unavailable}</Notice> : null}
-        {result?.available ? (
-          result.tracks.length === 0 ? (
+        {tracks ? (
+          tracks.length === 0 ? (
             <p className="text-sm text-muted-foreground">{n.none}</p>
           ) : (
             <ul className="divide-y rounded-xl border" aria-live="polite">
-              {result.tracks.map((track) => (
+              {tracks.map((track) => (
                 <li key={track.audioId} className="flex items-center justify-between gap-2 p-2.5">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium">{track.title}</p>
                     <p className="truncate text-xs text-muted-foreground">
                       {[track.artist, track.durationMs ? format(t.list.seconds, { seconds: String(Math.round(track.durationMs / 1000)) }) : null].filter(Boolean).join(" · ")}
-                      {track.trending ? <Badge className="ml-1.5 bg-primary/10 text-primary">{n.trending}</Badge> : null}
                     </p>
                   </div>
                   <Button size="sm" variant={idea.nativeAudio?.audioId === track.audioId ? "secondary" : "outline"} disabled={props.pending} onClick={() => pick(track)}>

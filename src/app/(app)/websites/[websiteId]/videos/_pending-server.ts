@@ -3,10 +3,12 @@ import "server-only";
 import { and, eq, gt, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
-import { brandVoice, videoIdeaBatches, videoIdeas, websites } from "@/lib/db/schema";
-import { isBundleConfigured } from "@/lib/social/bundle";
+import { brandVoice, socialAccounts, videoIdeaBatches, videoIdeas, websites } from "@/lib/db/schema";
+import type { VideoResult } from "@/lib/video/actions";
 import { DAILY_BATCH_SIZE, EXTRA_BATCHES_PER_DAY, TONE_PRESETS, type TonePreset } from "@/lib/video/formats";
 import { readVideoSettings } from "@/lib/video/settings";
+
+import type { VideoPublishingStatus } from "./_pending";
 
 /**
  * TODO(viral-integration): server-only stand-ins for the readers Workers A
@@ -73,18 +75,22 @@ export function reviewBlocksAutoPublish(idea: { reviewStatus: string }): boolean
   return idea.reviewStatus === "required";
 }
 
-export type DestinationSetup = { configured: boolean; budgetOk: boolean; message: string | null };
-export type PublishingStatus = { x: DestinationSetup; linkedin: DestinationSetup; stories: DestinationSetup; nativeAudio: DestinationSetup };
-
-/** Real: `videoPublishingStatus(websiteId)` from "@/lib/video/publish-actions". */
-export async function videoPublishingStatus(websiteId: string): Promise<PublishingStatus> {
-  void websiteId;
-  const bundle = isBundleConfigured();
+/**
+ * Real: `videoPublishingStatus(websiteId)` from "@/lib/video/publish-actions"
+ * (feature/viral-publishing). Until then X is never offered and Instagram's
+ * own audio reads as not set up; LinkedIn's connection is read as it is.
+ */
+export async function videoPublishingStatus(websiteId: string): Promise<VideoResult<VideoPublishingStatus>> {
+  const [linkedin] = await db
+    .select({ bundle: socialAccounts.bundleAccountId, target: socialAccounts.target })
+    .from(socialAccounts)
+    .where(and(eq(socialAccounts.websiteId, websiteId), eq(socialAccounts.platform, "linkedin")));
   return {
-    // X needs its own configuration and spending limit (Worker D): never shown as ready before that.
-    x: { configured: false, budgetOk: false, message: null },
-    linkedin: { configured: bundle, budgetOk: true, message: null },
-    stories: { configured: bundle, budgetOk: true, message: null },
-    nativeAudio: { configured: false, budgetOk: true, message: null },
+    ok: true,
+    data: {
+      x: { available: false, reason: "disabled" },
+      instagramAudio: { available: false, reason: "not_configured" },
+      linkedin: { connected: Boolean(linkedin?.bundle), target: linkedin?.bundle ? (linkedin.target ?? null) : null },
+    },
   };
 }

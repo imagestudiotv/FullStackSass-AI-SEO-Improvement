@@ -21,6 +21,8 @@ import {
   type VideoPlatform,
 } from "@/lib/video/formats";
 
+import type { VideoPublishingStatus } from "./_pending";
+
 /** The Social Content page's shared pieces: the idea's view, the error words, the small parts every tab uses. */
 
 export type T = VideosCopy;
@@ -75,7 +77,9 @@ export type VideoAccountView = {
 };
 export type MediaView = { id: string; url: string; kind: "image" | "video"; name: string | null };
 export type TrackView = { id: string; title: string; mood: string };
-export type Run = (action: () => Promise<VideoResult<unknown>>, success?: string, after?: () => void) => void;
+/** What every action on this page answers: VideoResult (actions.ts) and PublishResult (publish-actions.ts) both fit. */
+export type ActionResult<D = unknown> = { ok: true; data: D } | { ok: false; error: string; available?: number; price?: number };
+export type Run = (action: () => Promise<ActionResult>, success?: string, after?: () => void) => void;
 
 export const platformName = (platform: string) => (isVideoPlatform(platform) ? VIDEO_PLATFORM_SPECS[platform].name : platform);
 /** Where Pinterest's board is chosen: Opportunities, the social page. */
@@ -202,7 +206,7 @@ export async function upload(websiteId: string, file: File): Promise<VideoResult
 }
 
 /** Runs an action whose success message needs its result. */
-export function startWith<D>(run: Run, action: () => Promise<VideoResult<D>>, success: (data: D) => string, after?: () => void) {
+export function startWith<D>(run: Run, action: () => Promise<ActionResult<D>>, success: (data: D) => string, after?: () => void) {
   let message = "";
   run(
     async () => {
@@ -218,3 +222,7 @@ export function startWith<D>(run: Run, action: () => Promise<VideoResult<D>>, su
   );
 }
 
+/** Why X is closed: not set up for videos, or its spending limit reached for now. */
+export function xWords(t: T, publishing: VideoPublishingStatus): string {
+  return publishing.x.reason === "limit_reached" ? t.viral.x.budget : t.viral.x.needsSetup;
+}

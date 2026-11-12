@@ -59,6 +59,8 @@ export function EditDialog(props: {
   media: MediaView[];
   tracks: TrackView[];
   settings: VideoSettings;
+  /** Whether X takes videos now (videoPublishingStatus). */
+  xAvailable: boolean;
   priceLabel: string;
   onClose: () => void;
   onApprove: (edit: ViralIdeaEdit) => void;
@@ -110,7 +112,13 @@ export function EditDialog(props: {
     captions,
   };
   const preview: ReelProps = { ...idea.props, script, style: style as VideoStyle, captions, media };
-  const check = compatibility({ format: isVideoFormat(formatValue) ? formatValue : "reel", duration: production.duration, platforms: props.settings.platforms });
+  const check = compatibility({
+    format: isVideoFormat(formatValue) ? formatValue : "reel",
+    duration: formatValue === "carousel" ? null : production.duration,
+    platforms: props.settings.platforms,
+    xAvailable: props.xAvailable,
+  });
+  const problems = Object.entries(check.problems) as [string, string][];
 
   const setPoint = (index: number, change: Partial<VideoScript["points"][number]>) =>
     setScript((value) => ({ ...value, points: value.points.map((point, at) => (at === index ? { ...point, ...change } : point)) }));
@@ -418,11 +426,11 @@ export function EditDialog(props: {
               ) : null}
             </div>
 
-            {!check.ok ? (
+            {problems.length > 0 ? (
               <Notice tone="warning" title={v.compat.title}>
                 <ul className="list-disc space-y-0.5 pl-5">
-                  {check.problems.map((problem) => (
-                    <li key={`${problem.platform}-${problem.code}`}>{compatText(t, problem, production.duration)}</li>
+                  {problems.map(([platform, code]) => (
+                    <li key={platform}>{compatText(t, { platform, code }, production.duration)}</li>
                   ))}
                 </ul>
               </Notice>
