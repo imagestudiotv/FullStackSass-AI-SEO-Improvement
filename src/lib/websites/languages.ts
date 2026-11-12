@@ -31,6 +31,8 @@ export const SUPPORTED_LANGUAGES: SupportedLanguage[] = [
   { value: "Portuguese", label: "Português (Portuguese)" },
   { value: "Dutch", label: "Nederlands (Dutch)" },
   { value: "Polish", label: "Polski (Polish)" },
+  // Client, 2026-11-12: Romanian content (the Social Content mockup's languages).
+  { value: "Romanian", label: "Română (Romanian)" },
 ];
 
 /**
@@ -67,12 +69,22 @@ const ALIASES: Record<string, string> = {
   nl: "Dutch",
   polish: "Polish",
   polski: "Polish",
+  // "Română" with either form of the comma-below/cedilla letters, and without them.
+  romanian: "Romanian",
+  "română": "Romanian",
+  "romînă": "Romanian",
+  romana: "Romanian",
+  "românește": "Romanian",
+  "româneşte": "Romanian",
+  romaneste: "Romanian",
+  ro: "Romanian",
   pl: "Polish",
 };
 
 export function normalizeLanguage(value: string | null): string | null {
   if (!value) return null;
-  const key = value.trim().toLowerCase();
+  // NFC: "ă" typed as "a" + a combining breve still matches.
+  const key = value.normalize("NFC").trim().toLowerCase();
   if (!key) return null;
   return ALIASES[key] ?? null;
 }
