@@ -26,6 +26,7 @@ const LANGUAGE_CODES: Record<string, string> = {
   Portuguese: "pt",
   Dutch: "nl",
   Polish: "pl",
+  Romanian: "ro",
 };
 
 function displayNames(locale: Locale, type: "language" | "region"): Intl.DisplayNames | null {
