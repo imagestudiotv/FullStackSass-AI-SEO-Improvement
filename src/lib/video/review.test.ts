@@ -37,6 +37,7 @@ const PLAN: ShotPlan = {
 };
 const content = { script: SCRIPT, caption: "Light sells.", plan: PLAN, production: { ctaText: null } };
 const ON = { requireFactReview: true, requireControversyReview: true };
+const MATERIAL = { articles: ["Golden hour", "White backgrounds bring 40% more clicks", "Lighting"], profile: JSON.stringify({ facts: ["Since 2015"] }) };
 
 describe("an approval", () => {
   it("holds for the same words, and not after any published word changes", () => {
@@ -73,14 +74,18 @@ describe("an approval", () => {
 
 describe("a new idea's review", () => {
   it("needs a check for a figure or ranking with no source in the material", () => {
-    const claims = checkClaims([{ text: "Rated the best studio in Dublin", source: null }], 3);
+    const claims = checkClaims([{ text: "Rated the best studio in Dublin", source: null }], MATERIAL);
     expect(assessReview({ content, claims, controversial: false, sensitive: false, techniques: [] }, ON)).toEqual({ reviewStatus: "required", reviewReasons: ["unverified_claim"] });
-    const sourced = checkClaims([{ text: "40% more clicks", source: "article:2" }], 3);
+    const sourced = checkClaims([{ text: "40% more clicks", source: "article:2" }], MATERIAL);
     const withStat = { ...content, script: { ...SCRIPT, points: [SCRIPT.points[0], { ...SCRIPT.points[1], stat: { value: 40, suffix: "%", label: "more clicks" } }] } };
     expect(assessReview({ content: withStat, claims: sourced, controversial: false, sensitive: false, techniques: [] }, ON).reviewStatus).toBe("none");
     // The same figure "from" an article that was not given is no source.
-    const invented = checkClaims([{ text: "40% more clicks", source: "article:9" }], 3);
+    const invented = checkClaims([{ text: "40% more clicks", source: "article:9" }], MATERIAL);
     expect(invented[0].source).toBeNull();
+    // A real article that does not say it is no source either.
+    expect(checkClaims([{ text: "55% more clicks", source: "article:2" }], MATERIAL)[0].source).toBeNull();
+    expect(checkClaims([{ text: "Shooting since 2015", source: "profile" }], MATERIAL)[0].source).toBe("profile");
+    expect(checkClaims([{ text: "Shooting since 2009", source: "profile" }], MATERIAL)[0].source).toBeNull();
     expect(assessReview({ content: withStat, claims: invented, controversial: false, sensitive: false, techniques: [] }, ON).reviewReasons).toEqual(["unverified_claim"]);
   });
 

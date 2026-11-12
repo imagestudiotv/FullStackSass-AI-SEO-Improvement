@@ -93,17 +93,31 @@ const articleNumber = (source: string) => {
   return match ? Number(match[1]) : null;
 };
 
-/** The writer's claims with their sources checked against the material given: an article number that was not given, or anything else, becomes null. */
-export function checkClaims(claims: FactClaim[], articleCount: number): FactClaim[] {
+/** The material the writer was given, as text: each article's (in order, "article:1" first) and the profile's. */
+export type ClaimMaterial = { articles: string[]; profile: string };
+
+/** The numbers in a text ("40", "1,200", "3.5"), without a trailing full stop or comma. */
+const numbersIn = (text: string) => text.match(/\d(?:[\d.,]*\d)?/g) ?? [];
+
+/**
+ * The writer's claims with their sources checked against the material given:
+ * a source that was not given becomes null, and so does one that does not
+ * contain the claim's figures - a number "from article 2" must be in what
+ * article 2 said.
+ */
+export function checkClaims(claims: FactClaim[], material: ClaimMaterial): FactClaim[] {
   return claims
     .filter((claim) => claim && typeof claim.text === "string" && claim.text.trim())
     .slice(0, 12)
     .map((claim) => {
       const text = claim.text.replace(/\s+/g, " ").trim().slice(0, 240);
-      const source = typeof claim.source === "string" ? claim.source.trim() : null;
-      if (source === "profile") return { text, source };
-      const n = source ? articleNumber(source) : null;
-      return { text, source: n !== null && n >= 1 && n <= articleCount ? `article:${n}` : null };
+      const raw = typeof claim.source === "string" ? claim.source.trim() : null;
+      const n = raw ? articleNumber(raw) : null;
+      const source = raw === "profile" ? "profile" : n !== null && n >= 1 && n <= material.articles.length ? `article:${n}` : null;
+      if (!source) return { text, source: null };
+      const said = source === "profile" ? material.profile : material.articles[(n ?? 1) - 1];
+      const stated = numbersIn(text).every((number) => said.includes(number));
+      return { text, source: stated ? source : null };
     });
 }
 
@@ -124,7 +138,6 @@ export function publishedText(content: ReviewedContent): string {
 /** Figures in the text that no sourced claim states. */
 function unsourcedFigures(content: ReviewedContent, claims: FactClaim[]): boolean {
   const sourced = claims.filter((claim) => claim.source).map((claim) => claim.text);
-  const numbersIn = (text: string) => text.match(/\d[\d.,]*/g) ?? [];
   const covered = new Set(sourced.flatMap(numbersIn));
   const lines = publishedText(content).split("\n").filter(hasFigure);
   if (content.script.points.some((point) => point.stat && !covered.has(String(point.stat.value)))) return true;

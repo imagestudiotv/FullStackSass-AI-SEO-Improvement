@@ -368,7 +368,7 @@ type RowContext = {
 };
 
 function composeRows(composed: Composed[], context: RowContext): (typeof videoIdeas.$inferInsert)[] {
-  const { material, now } = context;
+  const { material } = context;
   const { settings } = material;
   const pictures = material.live.flatMap((article) => (article.imageUrl ? [article.imageUrl] : []));
   const parts = composed.map((item) => {
@@ -409,7 +409,10 @@ function composeRows(composed: Composed[], context: RowContext): (typeof videoId
     const plan: ShotPlan = plans[j];
     const index = slot.index;
     const caption = captionText(withoutClaimsOfTrendOrPromise(written.caption) ?? "", Array.isArray(written.hashtags) ? written.hashtags : []);
-    const claims = checkClaims(Array.isArray(written.claims) ? written.claims : [], material.live.length);
+    const claims = checkClaims(Array.isArray(written.claims) ? written.claims : [], {
+      articles: material.live.map((article) => [article.title, article.keyword, article.summary].filter(Boolean).join(" ")),
+      profile: JSON.stringify(material.profile),
+    });
     const techniques =
       slot.category === "viral"
         ? (() => {
