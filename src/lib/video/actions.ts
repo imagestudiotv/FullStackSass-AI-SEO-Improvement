@@ -7,10 +7,7 @@ import { queueJob } from "@/inngest/send";
 import { updateBrandVoice } from "@/lib/brand/actions";
 import { refundSpend, spendCredits } from "@/lib/credits/spend";
 import { db } from "@/lib/db";
-import { socialAccounts, socialTeams, videoIdeas, videoMedia } from "@/lib/db/schema";
-import { ensureTeam, removeAccount } from "@/lib/social/accounts";
-import { disconnectAccount, isBundleConfigured, portalLink } from "@/lib/social/bundle";
-import { siteUrl } from "@/lib/site-url";
+import { videoIdeas, videoMedia } from "@/lib/db/schema";
 import { updateWebsiteDetails } from "@/lib/websites/actions";
 import { requireEditor } from "@/lib/websites/require-editor";
 
@@ -22,11 +19,9 @@ import {
   isIdeaCategory,
   isMakeVia,
   isVideoFormat,
-  isVideoPlatform,
   isVideoStyle,
   isVoice,
   UNDO_SECONDS,
-  VIDEO_PLATFORM_SPECS,
   VOICES,
   type BatchKind,
   type CreativeDirection,
@@ -41,7 +36,6 @@ import {
 } from "./formats";
 import { rewriteIdea } from "./ideas";
 import { spendKey } from "./make";
-import { nextPublishTime } from "./schedule";
 import { musicTrack } from "./music";
 import { contentHash, reviewAfterEdit } from "./review";
 import { readVideoSettings, resetVideoSettings, saveVideoSettings, validateVideoSettings, videoAccess, type SettingsInput, type VideoSettings } from "./settings";
@@ -109,10 +103,6 @@ async function guard(websiteId: string) {
 async function ideaFor(websiteId: string, id: string) {
   const [row] = await db.select().from(videoIdeas).where(and(eq(videoIdeas.id, id), eq(videoIdeas.websiteId, websiteId)));
   return row ?? null;
-}
-
-function appUrl(): string {
-  return process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") || siteUrl();
 }
 
 // ---------------------------------------------------------------- ideas
@@ -500,68 +490,6 @@ export async function restoreVideoIdea(websiteId: string, id: string): Promise<V
   return { ok: true, data: null };
 }
 
-// ------------------------------------------------------------- publishing
-
-/**
- * Publishes a ready video now, at the next good time ("best"), or at the
- * time the customer chose, to the platforms chosen. Pinterest chosen without
- * a board is refused here, before anything is scheduled: the customer is
- * told where to choose one (or to untick Pinterest).
- */
-export async function publishVideoIdea(
-  websiteId: string,
-  id: string,
-  options: { platforms: string[]; when: "now" | "best" | string },
-): Promise<VideoResult<{ at: string }>> {
-  const checked = await guard(websiteId);
-  if (!checked.ok) return fail(checked.error);
-  const row = await ideaFor(websiteId, id);
-  if (!row) return fail("not_found");
-  if (!["ready", "scheduled", "failed"].includes(row.status) || (!row.videoUrl && !row.slideUrls?.length)) return fail("already_handled");
-
-  const carousel = row.format === "carousel";
-  const connected = await db
-    .select({ platform: socialAccounts.platform, bundle: socialAccounts.bundleAccountId, target: socialAccounts.target })
-    .from(socialAccounts)
-    .where(eq(socialAccounts.websiteId, websiteId));
-  const platforms = [...new Set(options.platforms)]
-    .filter(isVideoPlatform)
-    .filter((platform) => (!carousel || VIDEO_PLATFORM_SPECS[platform].carousel) && connected.some((row) => row.platform === platform && row.bundle));
-  if (platforms.length === 0 || !isBundleConfigured()) return fail("no_accounts");
-  const boardless = platforms.some(
-    (platform) => VIDEO_PLATFORM_SPECS[platform].board && !connected.find((row) => row.platform === platform)?.target?.trim(),
-  );
-  if (boardless) return fail("no_board");
-
-  const now = new Date();
-  let at: Date;
-  if (options.when === "now") at = now;
-  else if (options.when === "best") at = await nextPublishTime(websiteId, now);
-  else {
-    at = new Date(options.when);
-    if (Number.isNaN(at.getTime()) || at.getTime() < now.getTime() - 60_000 || at.getTime() > now.getTime() + 60 * 24 * 3_600_000) return fail("bad_time");
-  }
-  await db
-    .update(videoIdeas)
-    .set({ status: "scheduled", platforms, scheduledFor: at, error: null, updatedAt: now })
-    .where(and(eq(videoIdeas.id, id), inArray(videoIdeas.status, ["ready", "scheduled", "failed"])));
-  await queueJob({ name: "video/publish.scheduled", data: { ideaId: id, at: at.toISOString() } });
-  revalidatePath(pagePath(websiteId));
-  return { ok: true, data: { at: at.toISOString() } };
-}
-
-/** Takes a scheduled video off the schedule; it stays ready. */
-export async function unscheduleVideoIdea(websiteId: string, id: string): Promise<VideoResult> {
-  const checked = await guard(websiteId);
-  if (!checked.ok) return fail(checked.error);
-  await db
-    .update(videoIdeas)
-    .set({ status: "ready", scheduledFor: null, updatedAt: new Date() })
-    .where(and(eq(videoIdeas.id, id), eq(videoIdeas.websiteId, websiteId), eq(videoIdeas.status, "scheduled")));
-  revalidatePath(pagePath(websiteId));
-  return { ok: true, data: null };
-}
-
 // ---------------------------------------------------------------- settings
 
 /**
@@ -622,66 +550,6 @@ export async function saveVideoProfileAction(websiteId: string, input: VideoProf
     const current = await readVideoSettings(websiteId);
     await saveVideoSettings(websiteId, { ...current, ...video });
   }
-  revalidatePath(pagePath(websiteId));
-  return { ok: true, data: null };
-}
-
-// ---------------------------------------------------------------- accounts
-
-/** The bundle.social page where the customer connects a video platform; they come back to /api/social/connected. */
-export async function connectVideoPlatform(websiteId: string, platform: string, language = "en"): Promise<VideoResult<{ url: string }>> {
-  if (!isVideoPlatform(platform)) return fail("not_found");
-  const checked = await guard(websiteId);
-  if (!checked.ok) return fail(checked.error);
-  if (!isBundleConfigured()) return fail("not_configured");
-  try {
-    const teamId = await ensureTeam(websiteId);
-    // "from": Pinterest is on both pages, so the way back says which one it left.
-    const back = `${appUrl()}/api/social/connected?website=${encodeURIComponent(websiteId)}&platform=${platform}&from=videos`;
-    const url = await portalLink({
-      teamId,
-      type: VIDEO_PLATFORM_SPECS[platform].bundleType,
-      redirectUrl: back,
-      language,
-      userName: checked.site.brandName ?? checked.site.domain,
-    });
-    return { ok: true, data: { url } };
-  } catch (error) {
-    console.error("[video] connect link failed", { websiteId, platform, error });
-    return fail("connect_failed");
-  }
-}
-
-export async function disconnectVideoPlatform(websiteId: string, platform: string): Promise<VideoResult> {
-  if (!isVideoPlatform(platform)) return fail("not_found");
-  const editor = await requireEditor(websiteId);
-  if (!editor.ok) return fail("view_only");
-  const [account] = await db
-    .select()
-    .from(socialAccounts)
-    .where(and(eq(socialAccounts.websiteId, websiteId), eq(socialAccounts.platform, platform)));
-  if (account?.bundleAccountId && isBundleConfigured()) {
-    const [team] = await db.select().from(socialTeams).where(eq(socialTeams.websiteId, websiteId));
-    if (team) {
-      await disconnectAccount(team.teamId, VIDEO_PLATFORM_SPECS[platform].bundleType).catch((error) =>
-        console.error("[video] disconnect failed", error),
-      );
-    }
-  }
-  await removeAccount(websiteId, platform);
-  revalidatePath(pagePath(websiteId));
-  return { ok: true, data: null };
-}
-
-/** Resumes a platform RepGet paused after a refusal. */
-export async function resumeVideoPlatform(websiteId: string, platform: string): Promise<VideoResult> {
-  if (!isVideoPlatform(platform)) return fail("not_found");
-  const checked = await guard(websiteId);
-  if (!checked.ok) return fail(checked.error);
-  await db
-    .update(socialAccounts)
-    .set({ pausedAt: null, pausedReason: null, updatedAt: new Date() })
-    .where(and(eq(socialAccounts.websiteId, websiteId), eq(socialAccounts.platform, platform)));
   revalidatePath(pagePath(websiteId));
   return { ok: true, data: null };
 }

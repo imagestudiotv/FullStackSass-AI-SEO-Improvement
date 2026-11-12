@@ -50,6 +50,11 @@ export type ChatCopy = {
     not_enough_credits: string;
     ai_failed: string;
     already_handled: string;
+    /** Video ideas: the free allowance (lib/video/batches.ts). */
+    day_full: string;
+    extra_used_up: string;
+    busy: string;
+    too_soon: string;
     generic: string;
   };
 };
@@ -93,7 +98,7 @@ const en: ChatCopy = {
     rerun_website_check: "Run the website check again",
     find_social_posts: "Find new social media suggestions",
     make_video: "Make this video",
-    new_video_ideas: "Write today's video ideas",
+    new_video_ideas: "Write new video ideas",
     snooze_task: "Hide this task for 7 days",
     add_backlink_page: "Get backlinks to this page",
   },
@@ -115,6 +120,10 @@ const en: ChatCopy = {
     not_enough_credits: "Not enough credits: {price} needed, {available} available.",
     ai_failed: "No answer came this time. Your message was not counted, please try again.",
     already_handled: "This was already confirmed or cancelled.",
+    day_full: "Today's ideas are all written. New ones arrive tomorrow morning.",
+    extra_used_up: "Today's three extra batches of ideas are used up. New ideas arrive tomorrow morning.",
+    busy: "Ideas are being written right now. Please wait a minute.",
+    too_soon: "Please wait a few seconds before asking for more ideas.",
     generic: "Something went wrong. Please try again.",
   },
 };
@@ -158,7 +167,7 @@ const es: ChatCopy = {
     rerun_website_check: "Volver a revisar el sitio web",
     find_social_posts: "Buscar nuevas sugerencias para redes sociales",
     make_video: "Crear este vídeo",
-    new_video_ideas: "Escribir las ideas de vídeo de hoy",
+    new_video_ideas: "Escribir nuevas ideas de vídeo",
     snooze_task: "Ocultar esta tarea durante 7 días",
     add_backlink_page: "Conseguir backlinks para esta página",
   },
@@ -180,6 +189,10 @@ const es: ChatCopy = {
     not_enough_credits: "No hay créditos suficientes: se necesitan {price}, hay {available}.",
     ai_failed: "Esta vez no llegó ninguna respuesta. Su mensaje no se ha contado, inténtelo de nuevo.",
     already_handled: "Esto ya se confirmó o se canceló.",
+    day_full: "Las ideas de hoy ya están escritas. Mañana por la mañana llegan nuevas.",
+    extra_used_up: "Ya se han usado los tres lotes extra de ideas de hoy. Mañana por la mañana llegan nuevas.",
+    busy: "Se están escribiendo ideas en este momento. Espere un minuto.",
+    too_soon: "Espere unos segundos antes de pedir más ideas.",
     generic: "Algo salió mal. Inténtelo de nuevo.",
   },
 };
@@ -223,7 +236,7 @@ const fr: ChatCopy = {
     rerun_website_check: "Relancer l'analyse du site",
     find_social_posts: "Trouver de nouvelles suggestions pour les réseaux sociaux",
     make_video: "Créer cette vidéo",
-    new_video_ideas: "Écrire les idées de vidéos du jour",
+    new_video_ideas: "Écrire de nouvelles idées de vidéos",
     snooze_task: "Masquer cette tâche pendant 7 jours",
     add_backlink_page: "Obtenir des backlinks vers cette page",
   },
@@ -245,6 +258,10 @@ const fr: ChatCopy = {
     not_enough_credits: "Crédits insuffisants : {price} nécessaires, {available} disponibles.",
     ai_failed: "Aucune réponse cette fois. Votre message n'a pas été compté, veuillez réessayer.",
     already_handled: "Cela a déjà été confirmé ou annulé.",
+    day_full: "Les idées du jour sont toutes écrites. De nouvelles arrivent demain matin.",
+    extra_used_up: "Les trois lots d'idées supplémentaires du jour sont utilisés. De nouvelles idées arrivent demain matin.",
+    busy: "Des idées sont en cours d'écriture. Veuillez patienter une minute.",
+    too_soon: "Veuillez patienter quelques secondes avant de demander d'autres idées.",
     generic: "Une erreur s'est produite. Veuillez réessayer.",
   },
 };
@@ -288,7 +305,7 @@ const it: ChatCopy = {
     rerun_website_check: "Controllare di nuovo il sito",
     find_social_posts: "Trovare nuovi suggerimenti per i social",
     make_video: "Creare questo video",
-    new_video_ideas: "Scrivere le idee video di oggi",
+    new_video_ideas: "Scrivere nuove idee video",
     snooze_task: "Nascondere questa attività per 7 giorni",
     add_backlink_page: "Ottenere backlink verso questa pagina",
   },
@@ -310,6 +327,10 @@ const it: ChatCopy = {
     not_enough_credits: "Crediti insufficienti: ne servono {price}, disponibili {available}.",
     ai_failed: "Questa volta non è arrivata una risposta. Il suo messaggio non è stato conteggiato, riprovi.",
     already_handled: "Questa azione è già stata confermata o annullata.",
+    day_full: "Le idee di oggi sono già tutte scritte. Domattina ne arrivano di nuove.",
+    extra_used_up: "I tre lotti extra di idee di oggi sono esauriti. Domattina arrivano nuove idee.",
+    busy: "Le idee sono in fase di scrittura. Attenda un minuto.",
+    too_soon: "Attenda qualche secondo prima di chiedere altre idee.",
     generic: "Qualcosa è andato storto. Riprovi.",
   },
 };
@@ -353,7 +374,7 @@ const de: ChatCopy = {
     rerun_website_check: "Website erneut prüfen",
     find_social_posts: "Neue Social-Media-Vorschläge finden",
     make_video: "Dieses Video erstellen",
-    new_video_ideas: "Die Videoideen für heute schreiben",
+    new_video_ideas: "Neue Videoideen schreiben",
     snooze_task: "Diese Aufgabe 7 Tage ausblenden",
     add_backlink_page: "Backlinks für diese Seite bekommen",
   },
@@ -375,6 +396,10 @@ const de: ChatCopy = {
     not_enough_credits: "Nicht genug Credits: {price} benötigt, {available} verfügbar.",
     ai_failed: "Diesmal kam keine Antwort. Ihre Nachricht wurde nicht gezählt, bitte versuchen Sie es erneut.",
     already_handled: "Das wurde bereits bestätigt oder abgebrochen.",
+    day_full: "Die Ideen für heute sind alle geschrieben. Neue kommen morgen früh.",
+    extra_used_up: "Die drei zusätzlichen Ideenpakete für heute sind aufgebraucht. Neue Ideen kommen morgen früh.",
+    busy: "Gerade werden Ideen geschrieben. Bitte warten Sie eine Minute.",
+    too_soon: "Bitte warten Sie ein paar Sekunden, bevor Sie weitere Ideen anfordern.",
     generic: "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
   },
 };

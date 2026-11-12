@@ -82,6 +82,13 @@ export async function portalLink(input: {
   redirectUrl: string;
   language: string;
   userName?: string;
+  /**
+   * Instagram only: "FACEBOOK" connects it through Facebook Login (a
+   * professional account linked to a Facebook Page), which Instagram's audio
+   * API needs; "INSTAGRAM" is Instagram's own login. bundle.social's default
+   * applies when left out.
+   */
+  instagramConnectionMethod?: "FACEBOOK" | "INSTAGRAM";
 }): Promise<string> {
   const languages = ["en", "fr", "de", "es", "it"];
   const link = await call<{ url: string }>("POST", "/social-account/create-portal-link", {
@@ -93,6 +100,7 @@ export async function portalLink(input: {
     hidePoweredBy: true,
     maxSocialAccountsConnected: 1,
     ...(input.userName ? { userName: input.userName.slice(0, 80) } : {}),
+    ...(input.instagramConnectionMethod ? { instagramConnectionMethod: input.instagramConnectionMethod } : {}),
   });
   return link.url;
 }
@@ -104,6 +112,18 @@ export type BundleAccount = {
   displayName: string | null;
   /** Pinterest boards, among others. */
   channels: { id: string; name: string | null }[];
+  /**
+   * The selected publishing target (a LinkedIn profile or organization, a
+   * Facebook Page...): empty until a channel is chosen on bundle.social's page,
+   * and posting fails without it.
+   */
+  externalId: string | null;
+  /** The person who connected it (a LinkedIn member's id, for one). */
+  userId: string | null;
+  /** Instagram: connected through Facebook Login ("FACEBOOK") or Instagram's own ("INSTAGRAM"). */
+  instagramConnectionMethod: "FACEBOOK" | "INSTAGRAM" | null;
+  /** X: the account's subscription (none | basic | premium | premium_plus), which sets its text and video limits. */
+  twitterSubType: string | null;
 };
 
 /** The accounts connected to a team, without the ones bundle.social has deleted. */
@@ -115,6 +135,10 @@ export async function teamAccounts(teamId: string): Promise<BundleAccount[]> {
     displayName?: string | null;
     deletedAt?: string | null;
     channels?: { id: string; name?: string | null }[] | null;
+    externalId?: string | null;
+    userId?: string | null;
+    instagramConnectionMethod?: string | null;
+    twitterSubType?: string | null;
   };
   const team = await call<{ socialAccounts?: Raw[] | null }>("GET", `/team/${encodeURIComponent(teamId)}`);
   return (team.socialAccounts ?? [])
@@ -125,6 +149,11 @@ export async function teamAccounts(teamId: string): Promise<BundleAccount[]> {
       username: account.username ?? null,
       displayName: account.displayName ?? null,
       channels: (account.channels ?? []).map((channel) => ({ id: channel.id, name: channel.name ?? null })),
+      externalId: account.externalId || null,
+      userId: account.userId || null,
+      instagramConnectionMethod:
+        account.instagramConnectionMethod === "FACEBOOK" || account.instagramConnectionMethod === "INSTAGRAM" ? account.instagramConnectionMethod : null,
+      twitterSubType: account.twitterSubType ?? null,
     }));
 }
 
@@ -145,6 +174,8 @@ export type BundlePost = {
   status: BundlePostStatus;
   error: string | null;
   errors: Record<string, string> | null;
+  /** Per platform: the refusal in detail, when bundle.social gives it (retryability says whether trying again can help). */
+  errorsVerbose?: Record<string, { code?: string | null; errorMessage?: string | null; retryability?: "retryable" | "non_retryable" | "unknown" | null; userFacingMessage?: string | null } | null> | null;
   /** Per platform: the published post's id and link. */
   externalData: Record<string, { id?: string | null; permalink?: string | null } | null> | null;
 };
@@ -155,7 +186,7 @@ export type BundlePost = {
  */
 export async function createPost(input: {
   teamId: string;
-  type: BundleType;
+  type: BundleType | VideoBundleType;
   data: Record<string, unknown>;
   title: string;
   referenceKey: string;
@@ -228,4 +259,50 @@ export async function postStats(postId: string, type: string): Promise<PostStats
     comments: latest.comments ?? 0,
     shares: latest.shares ?? 0,
   };
+}
+
+export type InstagramAudio = {
+  audioId: string;
+  title: string;
+  artist: string | null;
+  durationMs: number | null;
+  coverUrl: string | null;
+  previewUrl: string | null;
+};
+
+/**
+ * Instagram's own music for Reels (Meta's Instagram audio API, through
+ * bundle.social): only for an Instagram account connected through Facebook
+ * Login - an account connected with Instagram's own login gets a 400.
+ * `GET /misc/instagram/audio?teamId&audioType=music&searchQuery`
+ * (https://info.bundle.social/api-reference/platforms/instagram-music.md).
+ * The answer has no trending flag: nothing found here is called trending.
+ */
+export async function instagramAudio(teamId: string, query: string): Promise<InstagramAudio[]> {
+  const params = new URLSearchParams({ teamId, audioType: "music" });
+  const search = query.trim().slice(0, 100);
+  if (search) params.set("searchQuery", search);
+  type Raw = {
+    audio_id?: string | number | null;
+    title?: string | null;
+    display_artist?: string | null;
+    duration_in_ms?: number | null;
+    cover_artwork_thumbnail_url?: string | null;
+    download_url?: string | null;
+  };
+  const result = await call<{ audio?: Raw[] | null }>("GET", `/misc/instagram/audio?${params.toString()}`);
+  return (result.audio ?? []).flatMap((item) =>
+    item.audio_id === null || item.audio_id === undefined || item.audio_id === ""
+      ? []
+      : [
+          {
+            audioId: String(item.audio_id),
+            title: item.title?.trim() || "Untitled",
+            artist: item.display_artist?.trim() || null,
+            durationMs: typeof item.duration_in_ms === "number" ? item.duration_in_ms : null,
+            coverUrl: item.cover_artwork_thumbnail_url ?? null,
+            previewUrl: item.download_url ?? null,
+          },
+        ],
+  );
 }

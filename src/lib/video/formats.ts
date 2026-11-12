@@ -69,7 +69,7 @@ export const VIDEO_PLATFORM_SPECS: Record<VideoPlatform, VideoPlatformSpec> = {
   */
   pinterest: { name: "Pinterest", bundleType: "PINTEREST", carousel: false, captionMax: 800, titleMax: 100, board: true, story: false, maxVideoSeconds: 900, storyMaxSeconds: null },
   /* LinkedIn (client, 2026-11-12): a profile or a company page, connected through bundle.social. Limits verified by Worker D. */
-  linkedin: { name: "LinkedIn", bundleType: "LINKEDIN", carousel: false, captionMax: 3000, titleMax: null, board: false, story: false, maxVideoSeconds: 600, storyMaxSeconds: null },
+  linkedin: { name: "LinkedIn", bundleType: "LINKEDIN", carousel: false, captionMax: 3000, titleMax: null, board: false, story: false, maxVideoSeconds: 1800, storyMaxSeconds: null },
   /*
     X (client, 2026-11-12): the same account as the social posts (social_accounts
     platform "x", bundle type TWITTER). X meters each post, so videos go there
