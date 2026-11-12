@@ -57,7 +57,7 @@ import {
 } from "./formats";
 import { MUSIC_VOLUME, musicTrack, musicUrl, pickProductionTrack, pickTrack } from "./music";
 import { remuxNoMusic, renderReelLocally, renderSlides } from "./render";
-import { nextPublishTime } from "./schedule";
+import { autoPublishTime, releaseScheduleSlot } from "./schedule";
 import { readVideoSettings, websiteBrand } from "./settings";
 import { storeVideoFile } from "./storage";
 import { isVoiceConfigured, speakScript, UnsupportedVoiceLanguageError, voiceLanguage, VOICE_COST_PER_MINUTE } from "./voice";
@@ -561,9 +561,8 @@ export async function finishMaking(
   const [idea] = await db.select().from(videoIdeas).where(eq(videoIdeas.id, id));
   if (!idea || idea.status !== "making") return { autoAt: null };
   const settings = await readVideoSettings(idea.websiteId);
-  // TODO(viral-integration): autoPublishTime - Worker D's autoPublishTime(idea, settings, now) from ./schedule
-  // (manual/draft/auto, frequency, review hold, slot reservation) replaces this call.
-  const autoAt = settings.publishMode === "auto" ? await nextPublishTime(idea.websiteId, now) : null;
+  // Manual and draft keep it in Your videos; auto takes a slot within the posting frequency, unless a review is owed.
+  const autoAt = await autoPublishTime(idea, settings, now);
   // The files' storage, estimated (kept FILE_DAYS after posting, fetched by the platforms).
   await recordCost(id, { kind: "storage", provider: "supabase", usd: storageEstimate(formatOf(idea)), basis: "estimated", note: "files and transfer at list price" }, "storage");
   await db
@@ -590,6 +589,7 @@ export async function failMaking(id: string, reason: string, now: Date = new Dat
   // Holds of the failed attempt are released; recorded items stay (retries never reset the ledger).
   const ledger = await readLedger(id);
   for (const key of Object.keys(ledger.holds)) await releaseCost(id, key);
+  await releaseScheduleSlot(id);
   await db
     .update(videoIdeas)
     .set({ status: "failed", error: reason.replace(/\s+/g, " ").slice(0, 300), updatedAt: now })

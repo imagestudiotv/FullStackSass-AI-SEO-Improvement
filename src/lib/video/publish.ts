@@ -19,6 +19,7 @@ import {
   type VideoPlatform,
   type VideoScript,
 } from "./formats";
+import { makeNoMusicVersion } from "./make";
 import { isAudioRefusal, musicSoundInfo, nativeAudioApplies, readNativeAudio } from "./native-audio";
 import { nextPublishTime, releaseScheduleSlot, reviewBlocksAutoPublish } from "./schedule";
 import { chargeXSpend, releaseXSpend, reserveXSpend, trackXPost, xPostCostUsd, xSpendKey, xVideoStatus } from "./x-spend";
@@ -259,16 +260,13 @@ const isPermanent = (error: unknown) => error instanceof BundleError && error.st
 
 /**
  * The Instagram Reel without RepGet's music, for a native track: made by
- * Worker B's makeNoMusicVersion when it is missing.
- * TODO(viral-integration): import makeNoMusicVersion from ./make directly once it exists.
+ * makeNoMusicVersion (an audio-only remux, lib/video/make.ts) when it is missing.
  */
 async function noMusicVersion(row: Idea): Promise<string | null> {
   if (row.altVideoUrl) return row.altVideoUrl;
   if (row.musicTrack === "none" && row.videoUrl) return row.videoUrl;
-  const make = (await import("./make")) as unknown as { makeNoMusicVersion?: (id: string) => Promise<unknown> };
-  if (typeof make.makeNoMusicVersion !== "function") return null;
   try {
-    const made = await make.makeNoMusicVersion(row.id);
+    const made = await makeNoMusicVersion(row.id);
     if (typeof made === "string" && made) return made;
     const [fresh] = await db.select({ url: videoIdeas.altVideoUrl }).from(videoIdeas).where(eq(videoIdeas.id, row.id));
     return fresh?.url ?? null;

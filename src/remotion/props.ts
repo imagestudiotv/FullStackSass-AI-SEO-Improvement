@@ -63,6 +63,7 @@ export type ProductionReelProps = ReelProps & {
 };
 
 /** Whether the props describe one of the new productions (else the original templates render). */
-export function isProduction(props: Partial<Pick<ProductionReelProps, "direction" | "plan">>): boolean {
+export function isProduction(input: object): boolean {
+  const props = input as Partial<Pick<ProductionReelProps, "direction" | "plan">>;
   return Boolean(props.direction && props.direction !== "animated" && props.plan && Array.isArray(props.plan.scenes));
 }
