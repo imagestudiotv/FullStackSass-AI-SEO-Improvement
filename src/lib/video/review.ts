@@ -51,8 +51,10 @@ function hash53(text: string, seed = 0): string {
  * and reaction beats) and the closing CTA. Field order is fixed, so the same
  * content always gives the same hash.
  */
-export function contentHash(idea: ReviewedContent): string {
-  const script = idea.script;
+export function contentHash(row: StoredContent): string {
+  // Rows hold jsonb: read them as the shapes they are written in.
+  const idea = row as ReviewedContent;
+  const script = idea.script as VideoScript | undefined;
   const canonical = JSON.stringify([
     script?.hook ?? "",
     (script?.points ?? []).map((point) => [point.title, point.detail, point.stat ? [point.stat.value, point.stat.suffix, point.stat.label] : null]),
@@ -65,7 +67,9 @@ export function contentHash(idea: ReviewedContent): string {
   return `v1:${hash53(canonical)}${hash53(canonical, 7)}`;
 }
 
-export type ReviewState = ReviewedContent & { reviewStatus: string; reviewedHash: string | null };
+/** A video_ideas row as stored (jsonb columns untyped) is enough. */
+export type StoredContent = { script: unknown; caption: string; plan?: unknown; production?: unknown };
+export type ReviewState = StoredContent & { reviewStatus: string; reviewedHash: string | null };
 
 /** Whether automatic publishing must wait for a person: review required, or approved for different content. */
 export function reviewBlocksAutoPublish(idea: ReviewState): boolean {
