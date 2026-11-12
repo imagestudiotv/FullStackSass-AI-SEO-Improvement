@@ -30,6 +30,8 @@ const queue = vi.hoisted(() => ({ queueJob: vi.fn(async () => true) }));
 vi.mock("@/inngest/send", () => queue);
 vi.mock("@/lib/ai/client", () => ({ anthropic: { messages: { create: vi.fn() } }, isAiConfigured: () => true, MODELS: { GENERATION: "claude-sonnet-5" } }));
 
+import { syncBundleAccounts } from "@/lib/social/accounts";
+
 import { compatibility, fitCaption, readDestinations } from "./destinations";
 import type { VideoScript } from "./formats";
 import { checkVideoPublished, publishVideo } from "./publish";
@@ -337,5 +339,44 @@ describe("the review hold", () => {
     expect(bodies(fetch)).toHaveLength(1);
     // Publishing is not an approval.
     expect((await saved(row.id)).reviewStatus).toBe("required");
+  });
+});
+
+describe("connections read back from bundle.social", () => {
+  it("keep LinkedIn's chosen page, Instagram's login method, and one X account for social and videos", async () => {
+    const { websiteId } = await seedWebsite(test);
+    await test.db.insert(socialTeams).values({ websiteId, teamId: "team_sync" });
+    // X connected earlier from the Social page.
+    await test.db.insert(socialAccounts).values({ websiteId, platform: "x", username: "brand", bundleAccountId: "acc_x", warmupEndsAt: NOW });
+    const team = {
+      socialAccounts: [
+        {
+          id: "acc_li",
+          type: "LINKEDIN",
+          username: "jane-doe",
+          displayName: "Jane Doe",
+          externalId: "urn:li:organization:12345",
+          userId: "abc",
+          channels: [
+            { id: "urn:li:person:abc", name: "Jane Doe" },
+            { id: "urn:li:organization:12345", name: "Image Studio" },
+          ],
+        },
+        { id: "acc_ig", type: "INSTAGRAM", username: "imagestudio", instagramConnectionMethod: "FACEBOOK", channels: [] },
+        { id: "acc_x", type: "TWITTER", username: "brand", twitterSubType: "none", channels: [] },
+      ],
+    };
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(team), { status: 200 })));
+    const accounts = await syncBundleAccounts(websiteId, NOW);
+    const by = (platform: string) => accounts.filter((account) => account.platform === platform);
+    expect(by("linkedin")).toEqual([expect.objectContaining({ username: "Image Studio", target: "organization", bundleAccountId: "acc_li" })]);
+    expect(by("instagram")).toEqual([expect.objectContaining({ target: "facebook_login" })]);
+    expect(by("x")).toEqual([expect.objectContaining({ bundleAccountId: "acc_x", username: "brand" })]);
+
+    // A profile, and a LinkedIn connected without a target chosen yet.
+    team.socialAccounts[0] = { ...team.socialAccounts[0], externalId: "urn:li:person:abc" };
+    expect((await syncBundleAccounts(websiteId, NOW)).find((account) => account.platform === "linkedin")).toMatchObject({ target: "profile", username: "Jane Doe" });
+    team.socialAccounts[0] = { ...team.socialAccounts[0], externalId: null as unknown as string };
+    expect((await syncBundleAccounts(websiteId, NOW)).find((account) => account.platform === "linkedin")?.target).toBeNull();
   });
 });

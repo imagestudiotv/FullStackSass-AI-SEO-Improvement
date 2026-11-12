@@ -564,15 +564,25 @@ async function settleXSpend(row: Idea, state: DestinationState, failed: boolean)
   }).catch((error) => console.error("[video] X usage not recorded", { id: row.id, error }));
 }
 
-/** A job that died while publishing: back to ready, so the customer can try again; an X reservation not used is released. */
+/**
+ * A job that died while publishing: back to the customer (ready, or posted
+ * where some destinations already are), so they can try again; an X
+ * reservation the attempt never used is released. Not when bundle.social has
+ * any destination on its way - checkVideoPublished settles those.
+ */
 export async function abandonVideoPublishing(id: string, now: Date = new Date()): Promise<void> {
   const [row] = await db.select().from(videoIdeas).where(eq(videoIdeas.id, id));
-  if (row?.status !== "posting" || row.bundlePostId) return;
+  if (row?.status !== "posting") return;
   const destinations = readDestinations(row.destinations);
+  const handedOver = Object.values(destinations).some((state) => state?.status === "posting");
+  // Before per-destination results: the video's one post.
+  if (handedOver || (Object.keys(destinations).length === 0 && row.bundlePostId)) return;
   // A reservation made for the attempt that never got handed over (releasing is once per key, so this is safe to repeat).
-  if (destinations.x?.status !== "posting" && destinations.x?.status !== "posted") {
-    await releaseXSpend(xSpendKey(id, (destinations.x?.attempts ?? 0) + 1), "abandoned");
-  }
-  await db.update(videoIdeas).set({ status: "ready", error: "Publishing did not finish", updatedAt: now }).where(eq(videoIdeas.id, id));
-  await releaseScheduleSlot(id);
+  if (destinations.x?.status !== "posted") await releaseXSpend(xSpendKey(id, (destinations.x?.attempts ?? 0) + 1), "abandoned");
+  const already = postedPlatforms(destinations);
+  await db
+    .update(videoIdeas)
+    .set({ status: already.length > 0 ? "posted" : "ready", error: "Publishing did not finish", updatedAt: now })
+    .where(and(eq(videoIdeas.id, id), eq(videoIdeas.status, "posting")));
+  if (already.length === 0) await releaseScheduleSlot(id);
 }
