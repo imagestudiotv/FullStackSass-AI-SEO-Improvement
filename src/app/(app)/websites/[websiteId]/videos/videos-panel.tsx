@@ -18,9 +18,9 @@ import type { VideoSettings } from "@/lib/video/settings";
 
 // TODO(viral-integration): requestVideoIdeas(websiteId, kind, requestKey) from "@/lib/video/actions".
 import { requestVideoIdeas, type VideoPublishingStatus } from "./_pending";
-import type { IdeaAllowance, VideoProfile } from "./_pending-server";
+import type { IdeaAllowance } from "./_pending-server";
 import { IdeasDeck } from "./ideas-deck";
-import type { CategoryFilter, FormatFilter } from "./logic";
+import type { CategoryFilter, FormatFilter, ProfileForm } from "./logic";
 import { MadeList } from "./made-list";
 import { PostedList } from "./posted-list";
 import { SettingsPanel, type SettingsPane } from "./settings-panel";
@@ -99,7 +99,7 @@ export function VideosPanel(props: {
   /** The workspace's balance, for its owner only (null for a guest, or when it could not be read). */
   credits: { available: number; label: string } | null;
   settings: VideoSettings;
-  profile: VideoProfile;
+  profile: ProfileForm;
   publishing: VideoPublishingStatus;
   brand: BrandLook;
   media: MediaView[];

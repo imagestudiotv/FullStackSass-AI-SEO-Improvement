@@ -428,6 +428,9 @@ export type ViralCopy = {
     too_long: string;
     no_carousel: string;
     incompatible: string;
+    bad_language: string;
+    rewrites_used_up: string;
+    ai_failed: string;
     linkedin_no_target: string;
     reel_only: string;
     bad_audio: string;
@@ -740,6 +743,9 @@ const viralEn: ViralCopy = {
     too_long: "Too long for this platform",
     no_carousel: "Carousels are not supported there",
     incompatible: "A chosen platform cannot take this video. Untick it or change the video.",
+    bad_language: "Choose one of the content languages RepGet writes in.",
+    rewrites_used_up: "You have used today's free rewrites. You can still edit the idea yourself.",
+    ai_failed: "The AI could not write this just now. Please try again in a minute.",
     linkedin_no_target: "Reconnect LinkedIn and choose your profile or a company page.",
     reel_only: "Instagram's audio works on Reels only.",
     bad_audio: "This track cannot be used. Please choose another.",
@@ -1052,6 +1058,9 @@ const viralEs: ViralCopy = {
     too_long: "Demasiado largo para esta plataforma",
     no_carousel: "Allí no se admiten carruseles",
     incompatible: "Una de las plataformas elegidas no acepta este vídeo. Desmárquela o cambie el vídeo.",
+    bad_language: "Elija uno de los idiomas de contenido en los que escribe RepGet.",
+    rewrites_used_up: "Ya ha usado las reescrituras gratuitas de hoy. Puede seguir editando la idea usted mismo.",
+    ai_failed: "La IA no ha podido escribirlo ahora. Inténtelo de nuevo en un minuto.",
     linkedin_no_target: "Vuelva a conectar LinkedIn y elija su perfil o una página de empresa.",
     reel_only: "El audio de Instagram solo funciona en Reels.",
     bad_audio: "Esta pista no se puede usar. Elija otra.",
@@ -1364,6 +1373,9 @@ const viralFr: ViralCopy = {
     too_long: "Trop longue pour cette plateforme",
     no_carousel: "Les carrousels n’y sont pas pris en charge",
     incompatible: "Une plateforme choisie ne peut pas recevoir cette vidéo. Décochez-la ou modifiez la vidéo.",
+    bad_language: "Choisissez une des langues de contenu dans lesquelles RepGet écrit.",
+    rewrites_used_up: "Vous avez utilisé les réécritures gratuites du jour. Vous pouvez toujours modifier l’idée vous-même.",
+    ai_failed: "L’IA n’a pas pu l’écrire pour le moment. Réessayez dans une minute.",
     linkedin_no_target: "Reconnectez LinkedIn et choisissez votre profil ou une page entreprise.",
     reel_only: "L’audio d’Instagram ne fonctionne que sur les Reels.",
     bad_audio: "Ce morceau ne peut pas être utilisé. Choisissez-en un autre.",
@@ -1676,6 +1688,9 @@ const viralIt: ViralCopy = {
     too_long: "Troppo lungo per questa piattaforma",
     no_carousel: "Lì i caroselli non sono supportati",
     incompatible: "Una delle piattaforme scelte non accetta questo video. La deselezioni o modifichi il video.",
+    bad_language: "Scelga una delle lingue dei contenuti in cui scrive RepGet.",
+    rewrites_used_up: "Ha già usato le riscritture gratuite di oggi. Può comunque modificare l’idea lei.",
+    ai_failed: "L’IA non è riuscita a scriverlo ora. Riprovi tra un minuto.",
     linkedin_no_target: "Ricolleghi LinkedIn e scelga il suo profilo o una pagina aziendale.",
     reel_only: "L’audio di Instagram funziona solo sui Reel.",
     bad_audio: "Questa traccia non si può usare. Ne scelga un’altra.",
@@ -1988,6 +2003,9 @@ const viralDe: ViralCopy = {
     too_long: "Zu lang für diese Plattform",
     no_carousel: "Karussells werden dort nicht unterstützt",
     incompatible: "Eine gewählte Plattform nimmt dieses Video nicht an. Wählen Sie sie ab oder ändern Sie das Video.",
+    bad_language: "Wählen Sie eine der Inhaltssprachen, in denen RepGet schreibt.",
+    rewrites_used_up: "Sie haben die kostenlosen Neufassungen von heute genutzt. Sie können die Idee weiterhin selbst bearbeiten.",
+    ai_failed: "Die KI konnte das gerade nicht schreiben. Bitte versuchen Sie es in einer Minute erneut.",
     linkedin_no_target: "Verbinden Sie LinkedIn neu und wählen Sie Ihr Profil oder eine Unternehmensseite.",
     reel_only: "Instagram-Audio gibt es nur für Reels.",
     bad_audio: "Dieser Titel kann nicht verwendet werden. Bitte wählen Sie einen anderen.",

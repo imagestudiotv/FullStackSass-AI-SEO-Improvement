@@ -125,6 +125,16 @@ export default async function WebsiteVideosPage({ params, searchParams }: PagePr
   const publishing = publishingStatus.ok
     ? publishingStatus.data
     : { x: { available: false, reason: "disabled" as const }, instagramAudio: { available: false as const, reason: "not_configured" as const }, linkedin: { connected: false, target: null } };
+  // The audience fields as the form edits them (the business profile and Brand Voice, shared).
+  const profileForm = {
+    targetAudience: profile?.targetAudience ?? "",
+    language: profile?.language ?? "",
+    country: profile?.country ?? "",
+    tone: profile?.tone ?? "",
+    avoid: profile?.avoid ?? "",
+    priorityTopics: profile?.priorityTopics ?? "",
+    tonePreset: profile?.tonePreset ?? settings.tonePreset,
+  };
   const brand = brandLook(site, settings.logoUrl);
   const view = (row: (typeof ideas)[number]): IdeaView => {
     const script = row.script as VideoScript;
@@ -217,7 +227,7 @@ export default async function WebsiteVideosPage({ params, searchParams }: PagePr
       priceLabel={price > 0 ? plural(t.app.credits.creditsCount, price) : t.app.social.free}
       credits={wallet ? { available: wallet.available, label: plural(t.app.credits.creditsCount, wallet.available) } : null}
       settings={settings}
-      profile={profile}
+      profile={profileForm}
       publishing={publishing}
       brand={brand}
       media={media.map((item) => ({ id: item.id, url: item.url, kind: item.kind === "video" ? "video" : "image", name: item.name }))}

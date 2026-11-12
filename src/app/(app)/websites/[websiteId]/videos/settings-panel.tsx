@@ -51,7 +51,6 @@ import { MARKET_GLOBAL, MARKETS } from "@/lib/websites/markets";
 // TODO(viral-integration): resetVideoSettingsAction/saveVideoProfileAction from "@/lib/video/actions";
 // connectVideoPlatform and VideoPublishingStatus from "@/lib/video/publish-actions".
 import { connectVideoPlatform, resetVideoSettingsAction, saveVideoProfileAction, type VideoPublishingStatus } from "./_pending";
-import type { VideoProfile } from "./_pending-server";
 import { profileChanged, settingsChanges, settingsProblems, viralSplit, type ProfileForm } from "./logic";
 import { errorText, Field, MediaThumb, opportunitiesHref, selectClass, upload, type MediaView, type Run, type T, type VideoAccountView, xWords } from "./shared";
 
@@ -75,7 +74,7 @@ export function SettingsPanel(props: {
   canEdit: boolean;
   bundle: boolean;
   settings: VideoSettings;
-  profile: VideoProfile;
+  profile: ProfileForm;
   publishing: VideoPublishingStatus;
   brand: BrandLook;
   media: MediaView[];

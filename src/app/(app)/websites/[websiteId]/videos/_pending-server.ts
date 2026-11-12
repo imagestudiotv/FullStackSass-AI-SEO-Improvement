@@ -19,7 +19,7 @@ import type { VideoPublishingStatus } from "./_pending";
 
 export type IdeaAllowance = { dailyWritten: number; extraUsed: number; extraLeft: number; busy: boolean; nextAllowedAt: Date | null };
 
-/** Real: `ideaAllowance(websiteId, now)` from "@/lib/video/batches". */
+/** Real: `ideaAllowance(websiteId, now)` from "@/lib/video/batches" (also counts retryable batches and the request gap). */
 export async function ideaAllowance(websiteId: string, now: Date): Promise<IdeaAllowance> {
   const day = now.toISOString().slice(0, 10);
   const [[written], batches] = await Promise.all([
@@ -42,35 +42,37 @@ export async function ideaAllowance(websiteId: string, now: Date): Promise<IdeaA
   };
 }
 
+/** Real: `VideoProfile` from "@/lib/video/strategy/profile" (feature/viral-strategy). */
 export type VideoProfile = {
-  targetAudience: string;
-  language: string;
-  country: string;
-  tone: string;
-  avoid: string;
-  priorityTopics: string;
+  targetAudience: string | null;
+  language: string | null;
+  country: string | null;
+  tone: string | null;
+  avoid: string | null;
+  priorityTopics: string | null;
   tonePreset: TonePreset;
 };
 
-/** Real: `videoProfile(websiteId)` from A's profile reader (websites + brand_voice + the two video fields). */
-export async function videoProfile(websiteId: string): Promise<VideoProfile> {
+/** Real: `videoProfile(websiteId)` from "@/lib/video/strategy/profile" (websites + brand_voice + the two video fields). */
+export async function videoProfile(websiteId: string): Promise<VideoProfile | null> {
   const [[site], [voice], settings] = await Promise.all([
     db.select({ targetAudience: websites.targetAudience, language: websites.language, country: websites.country }).from(websites).where(eq(websites.id, websiteId)),
     db.select({ tone: brandVoice.tone, avoid: brandVoice.avoid }).from(brandVoice).where(eq(brandVoice.websiteId, websiteId)),
     readVideoSettings(websiteId),
   ]);
+  if (!site) return null;
   return {
-    targetAudience: site?.targetAudience ?? "",
-    language: site?.language ?? "",
-    country: site?.country ?? "",
-    tone: voice?.tone ?? "",
-    avoid: voice?.avoid ?? "",
-    priorityTopics: settings.priorityTopics ?? "",
+    targetAudience: site.targetAudience,
+    language: site.language,
+    country: site.country,
+    tone: voice?.tone ?? null,
+    avoid: voice?.avoid ?? null,
+    priorityTopics: settings.priorityTopics,
     tonePreset: (TONE_PRESETS as readonly string[]).includes(settings.tonePreset) ? settings.tonePreset : "professional",
   };
 }
 
-/** Real: `reviewBlocksAutoPublish(idea)` from "@/lib/video/review" (also compares the content hash). */
+/** Real: `reviewBlocksAutoPublish(idea)` from "@/lib/video/review" (an approval also has to match the content hash). */
 export function reviewBlocksAutoPublish(idea: { reviewStatus: string }): boolean {
   return idea.reviewStatus === "required";
 }
