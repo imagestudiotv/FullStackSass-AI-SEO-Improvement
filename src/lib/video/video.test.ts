@@ -42,7 +42,8 @@ vi.mock("@/lib/ai/client", () => ({
 }));
 
 import { recordCredit } from "@/lib/backlinks/credits";
-import { approveVideoIdea, editVideoIdea, publishVideoIdea, requestVideoIdeas, restoreVideoIdea, skipVideoIdea, undoVideoIdea } from "./actions";
+import { approveVideoIdea, editVideoIdea, requestVideoIdeas, restoreVideoIdea, skipVideoIdea, undoVideoIdea } from "./actions";
+import { publishVideoIdea } from "./publish-actions";
 import { captionText, cleanScript, formatFor, styleFor, suggestVideoIdeas, type IdeaInput } from "./ideas";
 import { failMaking, finishMaking, spendKey } from "./make";
 import { checkVideoPublished, publishVideo } from "./publish";

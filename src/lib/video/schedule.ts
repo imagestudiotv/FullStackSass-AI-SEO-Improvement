@@ -7,6 +7,7 @@ import { videoIdeas, videoScheduleSlots, websites } from "@/lib/db/schema";
 import type { Executor } from "@/lib/db/types";
 
 import { BEST_HOURS, MAX_AUTO_POSTS_PER_DAY, type PostingFrequency, type PublishMode } from "./formats";
+import { reviewBlocksAutoPublish } from "./review";
 
 /**
  * When videos are published automatically (docs/videos.md). Split out of
@@ -210,21 +211,11 @@ export async function releaseScheduleSlot(ideaId: string, executor: Executor = d
 
 /* ----------------------------------------------------------------- review */
 
-type ReviewFields = { reviewStatus: string; reviewedHash: string | null };
-
-/**
- * TODO(viral-integration): replace with Worker A's
- * `reviewBlocksAutoPublish` from ./review (same signature). Until then: an
- * idea whose review is required and not given holds automatic publishing.
- * A's version also re-checks an approval against the content hash.
- */
-function reviewBlocksAutoPublishShim(idea: ReviewFields): boolean {
-  return idea.reviewStatus === "required";
-}
-
-export function reviewBlocksAutoPublish(idea: ReviewFields): boolean {
-  return reviewBlocksAutoPublishShim(idea);
-}
+/*
+  A review still owed - or an approval given for different content - holds
+  automatic publishing (lib/video/review.ts). Re-exported for publish.ts.
+*/
+export { reviewBlocksAutoPublish };
 
 /**
  * When a made video is published automatically (lib/video/make.ts
@@ -235,7 +226,7 @@ export function reviewBlocksAutoPublish(idea: ReviewFields): boolean {
  * never makes or charges a video: it only places the ones already made.
  */
 export async function autoPublishTime(
-  idea: { id: string; websiteId: string } & ReviewFields,
+  idea: { id: string; websiteId: string } & Parameters<typeof reviewBlocksAutoPublish>[0],
   settings: { publishMode: PublishMode; frequency: PostingFrequency | null },
   now: Date = new Date(),
   executor: Executor = db,

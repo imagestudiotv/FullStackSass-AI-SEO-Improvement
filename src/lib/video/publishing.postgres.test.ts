@@ -151,7 +151,7 @@ describe.skipIf(!available)("publishing on real Postgres", () => {
       const made = await ideas(websiteId, 8);
       const settings = { publishMode: "auto" as const, frequency: "2_day" as const };
       const times = await Promise.all(
-        made.map((idea, i) => on(i, () => autoPublishTime({ id: idea.id, websiteId, reviewStatus: "none", reviewedHash: null }, settings, NOW))),
+        made.map((idea, i) => on(i, () => autoPublishTime({ id: idea.id, websiteId, reviewStatus: "none", reviewedHash: null, script: null, caption: "" }, settings, NOW))),
       );
       const hours = times.map((t) => t!.toISOString());
       expect(new Set(hours).size).toBe(8);
@@ -168,21 +168,21 @@ describe.skipIf(!available)("publishing on real Postgres", () => {
       const made = await ideas(websiteId, 4);
       const settings = { publishMode: "auto" as const, frequency: "3_week" as const };
       const times: Date[] = [];
-      for (const idea of made) times.push((await autoPublishTime({ id: idea.id, websiteId, reviewStatus: "none", reviewedHash: null }, settings, NOW))!);
+      for (const idea of made) times.push((await autoPublishTime({ id: idea.id, websiteId, reviewStatus: "none", reviewedHash: null, script: null, caption: "" }, settings, NOW))!);
       // Mon, Wed, Fri of this week; the fourth goes to next week.
       expect(times.map((t) => t.toISOString().slice(0, 10))).toEqual(["2026-11-16", "2026-11-18", "2026-11-20", "2026-11-23"]);
       await releaseScheduleSlot(made[1].id);
-      const again = await autoPublishTime({ id: made[1].id, websiteId, reviewStatus: "none", reviewedHash: null }, settings, NOW);
+      const again = await autoPublishTime({ id: made[1].id, websiteId, reviewStatus: "none", reviewedHash: null, script: null, caption: "" }, settings, NOW);
       expect(again?.toISOString().slice(0, 10)).toBe("2026-11-18");
     });
 
     it("holds a video that needs review, and never schedules in manual or draft mode", async () => {
       const websiteId = await website();
       const [idea] = await ideas(websiteId, 1);
-      const held = await autoPublishTime({ id: idea.id, websiteId, reviewStatus: "required", reviewedHash: null }, { publishMode: "auto", frequency: "1_day" }, NOW);
+      const held = await autoPublishTime({ id: idea.id, websiteId, reviewStatus: "required", reviewedHash: null, script: null, caption: "" }, { publishMode: "auto", frequency: "1_day" }, NOW);
       expect(held).toBeNull();
       for (const publishMode of ["manual", "draft"] as const) {
-        expect(await autoPublishTime({ id: idea.id, websiteId, reviewStatus: "none", reviewedHash: null }, { publishMode, frequency: "1_day" }, NOW)).toBeNull();
+        expect(await autoPublishTime({ id: idea.id, websiteId, reviewStatus: "none", reviewedHash: null, script: null, caption: "" }, { publishMode, frequency: "1_day" }, NOW)).toBeNull();
       }
       expect(await dbs[0].select().from(videoScheduleSlots).where(eq(videoScheduleSlots.websiteId, websiteId))).toHaveLength(0);
     });
