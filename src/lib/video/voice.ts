@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { CaptionWord, Voice } from "./formats";
+import type { CaptionWord, NarrationStyle, Voice } from "./formats";
 
 /**
  * The AI voice and its word timings (client, 2026-10-29: "AI voice-over in
@@ -29,6 +29,58 @@ const TIMEOUT_MS = 60_000;
 /** Approximate list prices, for usage tracking (USD per minute). */
 export const VOICE_COST_PER_MINUTE = 0.015 + 0.006;
 
+/**
+ * The content languages a voice can be made in (lib/websites/languages.ts,
+ * plus Romanian, 2026-11-12): the ISO code Whisper takes, and the name the
+ * speech model is told. A script in any other language is refused - never
+ * spoken in English by mistake.
+ */
+export const VOICE_LANGUAGES: Record<string, string> = {
+  en: "English",
+  es: "Spanish",
+  fr: "French",
+  it: "Italian",
+  de: "German",
+  pt: "Portuguese",
+  nl: "Dutch",
+  pl: "Polish",
+  ro: "Romanian",
+};
+
+export class UnsupportedVoiceLanguageError extends Error {
+  constructor(language: string) {
+    super(`The voice cannot be made in this language (${language || "unknown"}). Choose Text + Music for this video.`);
+    this.name = "UnsupportedVoiceLanguageError";
+  }
+}
+
+/** The ISO code for a stored language ("ro", "ro-RO", "Romanian"), or null when the voice does not support it. */
+export function voiceLanguage(language: string | null | undefined): string | null {
+  const value = (language ?? "").trim().toLowerCase();
+  if (!value) return null;
+  const code = value.slice(0, 2);
+  if (/^[a-z]{2}([-_][a-z]{2})?$/.test(value) && VOICE_LANGUAGES[code]) return code;
+  const byName = Object.entries(VOICE_LANGUAGES).find(([, name]) => name.toLowerCase() === value);
+  return byName ? byName[0] : null;
+}
+
+/**
+ * How each narration style sounds (production.narration): distinct
+ * instructions to the speech model, the language named in each.
+ */
+export function narrationInstructions(style: NarrationStyle | null | undefined, languageName: string): string {
+  if (style === "warm") {
+    return `Speak in ${languageName} as a warm, cinematic storyteller of a short social video: calm, intimate and unhurried, with natural pauses that let each line land. Never robotic, never salesy.`;
+  }
+  if (style === "energetic") {
+    return `Speak in ${languageName} as an energetic, upbeat creator on a short social video: quick, punchy and excited, smiling through the words, stressing the key words. Never shouting, never robotic.`;
+  }
+  if (style === "natural") {
+    return `Speak in ${languageName} in a natural, conversational way, like a real person talking to a friend on a short social video: relaxed, clear and genuine. Never robotic, never like an advert.`;
+  }
+  return `Speak in ${languageName} as an upbeat, confident narrator of a short social media video: lively, clear and natural, never robotic.`;
+}
+
 export function isVoiceConfigured(): boolean {
   return Boolean(process.env.OPENAI_API_KEY?.trim());
 }
@@ -39,7 +91,7 @@ function key(): string {
   return value;
 }
 
-async function speak(text: string, voice: Voice, language: string): Promise<Buffer> {
+async function speak(text: string, voice: Voice, language: string, narration: NarrationStyle | null): Promise<Buffer> {
   const response = await fetch("https://api.openai.com/v1/audio/speech", {
     method: "POST",
     headers: { authorization: `Bearer ${key()}`, "content-type": "application/json" },
@@ -48,7 +100,7 @@ async function speak(text: string, voice: Voice, language: string): Promise<Buff
       voice,
       input: text.slice(0, 1500),
       response_format: "pcm",
-      instructions: `Speak in ${language} as an upbeat, confident narrator of a short social media video: lively, clear and natural, never robotic.`,
+      instructions: narrationInstructions(narration, VOICE_LANGUAGES[language] ?? language),
     }),
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
@@ -81,7 +133,7 @@ async function transcribe(pcm: Buffer, language: string): Promise<{ words: Capti
   form.append("model", TRANSCRIBE_MODEL);
   form.append("response_format", "verbose_json");
   form.append("timestamp_granularities[]", "word");
-  if (/^[a-z]{2}$/.test(language)) form.append("language", language);
+  form.append("language", language);
   const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
     method: "POST",
     headers: { authorization: `Bearer ${key()}` },
@@ -122,9 +174,12 @@ export type SpokenScript = {
  * Speaks the parts in order. The scenes follow the voice: part n starts at
  * sceneStartsMs[n].
  */
-export async function speakScript(parts: string[], voice: Voice, language: string): Promise<SpokenScript> {
-  const spoken = await Promise.all(parts.map((part) => speak(part, voice, language)));
-  const heard = await Promise.all(spoken.map((pcm) => transcribe(pcm, language)));
+export async function speakScript(parts: string[], voice: Voice, language: string, narration: NarrationStyle | null = null): Promise<SpokenScript> {
+  // Never a silent English fallback: an unsupported language fails before anything is paid for.
+  const code = voiceLanguage(language);
+  if (!code) throw new UnsupportedVoiceLanguageError(language);
+  const spoken = await Promise.all(parts.map((part) => speak(part, voice, code, narration)));
+  const heard = await Promise.all(spoken.map((pcm) => transcribe(pcm, code)));
 
   const gap = Buffer.alloc(Math.round(GAP_MS * BYTES_PER_MS) & ~1);
   const chunks: Buffer[] = [];

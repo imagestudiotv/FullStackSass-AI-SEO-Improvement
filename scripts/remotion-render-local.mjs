@@ -3,14 +3,17 @@
 // renderer cannot load inside Next's server, and a render should not hold
 // the dev server's memory.
 //
-//   node scripts/remotion-render-local.mjs reel|slides <props.json> <out-dir> [slide-count]
+//   node scripts/remotion-render-local.mjs reel|slides|remux <props.json> <out-dir> [slide-count]
+//
+// remux (2026-11-12): the reel without RepGet's music - the props file is the job
+// from lib/video/render.ts remuxJob ({OUT} = out-dir); Remotion's own ffmpeg, -c:v copy.
 //
 // Prints the files written, one per line, as JSON at the end.
-import { cpSync, existsSync, readFileSync, rmSync } from "node:fs";
+import { cpSync, existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { bundle } from "@remotion/bundler";
-import { renderMedia, renderStill, selectComposition } from "@remotion/renderer";
+import { RenderInternals, renderMedia, renderStill, selectComposition } from "@remotion/renderer";
 
 const [kind, propsFile, outDir, countArg] = process.argv.slice(2);
 const props = JSON.parse(readFileSync(propsFile, "utf8"));
@@ -26,6 +29,20 @@ function fontsOnly() {
   rmSync(dir, { recursive: true, force: true });
   cpSync(path.join(root, "public", "video-fonts"), path.join(dir, "video-fonts"), { recursive: true });
   return dir;
+}
+
+if (kind === "remux") {
+  const job = JSON.parse(JSON.stringify(props).replaceAll("{OUT}", outDir.replaceAll("\\", "/")));
+  for (const input of job.inputs) {
+    if (input.url) {
+      const response = await fetch(input.url, { signal: AbortSignal.timeout(120_000) });
+      if (!response.ok) throw new Error(`download failed ${response.status}`);
+      writeFileSync(input.path, Buffer.from(await response.arrayBuffer()));
+    } else writeFileSync(input.path, Buffer.from(input.base64, "base64"));
+  }
+  await RenderInternals.callFf({ bin: "ffmpeg", args: job.args, indent: false, logLevel: "warn", binariesDirectory: null, cancelSignal: undefined });
+  console.log(JSON.stringify({ files: [job.args[job.args.length - 1]] }));
+  process.exit(0);
 }
 
 const prebuilt = path.join(root, ".remotion-bundle");
