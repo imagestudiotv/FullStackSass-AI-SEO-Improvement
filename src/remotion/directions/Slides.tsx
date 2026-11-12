@@ -74,7 +74,7 @@ function SlideHeader({ brand, pal, index, total, dark }: ProductionSlideProps & 
 function MemeSlide({ part, pal, ...props }: ProductionSlideProps & { part: ProductionPart; pal: Palette }) {
   const bar = part.scene?.overlay?.trim() || part.title;
   const size = fitFontSize(bar, 940, 3, 70, 46, 0.56);
-  const barHeight = Math.min(420, Math.round(Math.ceil((bar.length * size * 0.56) / (940 * 0.9)) * size * 1.2 + 90));
+  const barHeight = Math.min(420, Math.round(Math.ceil((bar.length * size * 0.5) / (940 * 0.92)) * size * 1.2 + 90));
   const media = mediaFor(props as ProductionReelProps, part);
   const reaction = part.scene?.reaction?.trim();
   return (

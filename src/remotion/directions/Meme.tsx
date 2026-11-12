@@ -1,5 +1,6 @@
 import { AbsoluteFill, Freeze, interpolate, random, spring, useCurrentFrame, useVideoConfig } from "remotion";
 
+import type { Transition } from "../../lib/video/formats";
 import { FONT } from "../fonts";
 import type { ProductionPart } from "../production";
 import { fitFontSize } from "../text";
@@ -12,6 +13,14 @@ import { Enter, IllustrativeLabel, LegibilityShade, Parts, SceneVisual, StyledCa
  * timing in every scene: the setup, a beat (freeze-frame, punch-in, a shake),
  * then the payoff with a reaction sticker (ShotScene.reaction).
  */
+
+/**
+ * Memes cut hard: a flash or a glitch can land the beat, but a zoom, slide or
+ * fade would blend two caption bars into each other - those become cuts.
+ */
+function memeCut(transition: Transition | undefined): Transition {
+  return transition === "flash" || transition === "glitch" ? transition : "cut";
+}
 
 /** The white bar's height for its words. */
 function barSize(text: string): { size: number; height: number } {
@@ -28,7 +37,7 @@ export function MemeProduction(props: DirectionProps) {
       <Parts timeline={timeline}>
         {(part, index, duration) =>
           part.role === "cta" ? (
-            <Enter type={part.scene?.transition ?? "cut"}>
+            <Enter type={memeCut(part.scene?.transition)}>
               <AbsoluteFill style={{ background: "#0b0b10" }}>
                 <SceneVisual media={mediaFor(props, part)} duration={duration} motion="still" seed={index} pal={pal} concept={props.concept} />
                 <AbsoluteFill style={{ background: "rgba(5,5,8,0.78)" }} />
@@ -36,7 +45,7 @@ export function MemeProduction(props: DirectionProps) {
               </AbsoluteFill>
             </Enter>
           ) : (
-            <Enter type={part.scene?.transition ?? "cut"}>
+            <Enter type={memeCut(part.scene?.transition)}>
               <MemeScene {...props} part={part} index={index} duration={duration} />
             </Enter>
           )
@@ -110,7 +119,7 @@ function MemeScene(props: DirectionProps & { part: ProductionPart; index: number
           {bar}
         </div>
       </div>
-      {part.title !== bar ? (
+      {part.role !== "hook" && part.title.trim().toLowerCase() !== bar.toLowerCase() ? (
         <div
           style={{
             position: "absolute",
