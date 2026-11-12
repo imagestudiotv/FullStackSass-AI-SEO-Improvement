@@ -3,7 +3,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { inngest } from "@/inngest/client";
 import { db } from "@/lib/db";
 import { videoIdeas, websites } from "@/lib/db/schema";
-import { suggestVideoIdeas } from "@/lib/video/ideas";
+import { suggestVideoIdeas, writeExtraBatch } from "@/lib/video/ideas";
 
 /** Split from videos.ts (2026-11-12) so each part has one owner; docs/videos.md. */
 
@@ -29,18 +29,31 @@ export const videoIdeasDaily = inngest.createFunction(
   },
 );
 
+/**
+ * One website's ideas: the day's batch topped up to its twenty, or - with a
+ * batchId - one of the day's free extra batches, reserved by
+ * requestVideoIdeas (lib/video/batches.ts). One at a time per website.
+ *
+ * A failed try is retried once; each try counts an attempt on the batch row
+ * (never reset), and the last one fails the batch (lib/video/ideas.ts).
+ */
+const RETRIES = 1;
+
 export const suggestVideoIdeasJob = inngest.createFunction(
   {
     id: "suggest-video-ideas",
-    retries: 1,
+    retries: RETRIES,
     concurrency: { key: "event.data.websiteId", limit: 1 },
     triggers: [{ event: "video/ideas.requested" }],
   },
-  async ({ event, step, logger }) => {
+  async ({ event, step, logger, attempt }) => {
     const websiteId = String(event.data.websiteId);
-    const result = await step.run("suggest", () => suggestVideoIdeas(websiteId));
-    logger.info({ step: "suggest", websiteId, created: result.created, reason: result.reason }, "Video ideas written");
+    const batchId = typeof event.data.batchId === "string" ? event.data.batchId : null;
+    const options = { retry: attempt > 0, final: attempt >= RETRIES };
+    const result = await step.run("suggest", () =>
+      batchId ? writeExtraBatch(batchId, new Date(), {}, options) : suggestVideoIdeas(websiteId, new Date(), {}, options),
+    );
+    logger.info({ step: "suggest", websiteId, batchId, created: result.created, reason: result.reason }, "Video ideas written");
     return result;
   },
 );
-
