@@ -348,7 +348,7 @@ describe("connections read back from bundle.social", () => {
     await test.db.insert(socialTeams).values({ websiteId, teamId: "team_sync" });
     // X connected earlier from the Social page.
     await test.db.insert(socialAccounts).values({ websiteId, platform: "x", username: "brand", bundleAccountId: "acc_x", warmupEndsAt: NOW });
-    const team = {
+    const team: { socialAccounts: Record<string, unknown>[] } = {
       socialAccounts: [
         {
           id: "acc_li",
@@ -376,7 +376,7 @@ describe("connections read back from bundle.social", () => {
     // A profile, and a LinkedIn connected without a target chosen yet.
     team.socialAccounts[0] = { ...team.socialAccounts[0], externalId: "urn:li:person:abc" };
     expect((await syncBundleAccounts(websiteId, NOW)).find((account) => account.platform === "linkedin")).toMatchObject({ target: "profile", username: "Jane Doe" });
-    team.socialAccounts[0] = { ...team.socialAccounts[0], externalId: null as unknown as string };
+    team.socialAccounts[0] = { ...team.socialAccounts[0], externalId: null };
     expect((await syncBundleAccounts(websiteId, NOW)).find((account) => account.platform === "linkedin")?.target).toBeNull();
   });
 });
