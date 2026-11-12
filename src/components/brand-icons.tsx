@@ -21,6 +21,7 @@ export type BrandIconName =
   | "tiktok"
   | "youtube"
   | "x"
+  | "linkedin"
   | "threads"
   | "pinterest"
   | "bluesky"
@@ -56,6 +57,7 @@ const PATHS: Record<BrandIconName, ReactElement> = {
     </>
   ),
   facebook: <path fill="currentColor" d="M14.8 22V13h3l.5-4H14.8V6.6c0-1.2.4-2 2.2-2h1.5V1.1a21 21 0 0 0-2.5-.1C12 1 10 3.2 10 6.3V9H7v4h3v9h4.8Z" />,
+  linkedin: <path fill="currentColor" d="M4.98 3.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5ZM3 9.75h4V21H3V9.75Zm6.5 0h3.8v1.6h.06c.53-1 1.84-2.06 3.78-2.06 4.04 0 4.86 2.6 4.86 6V21h-4v-5.1c0-1.22-.02-2.8-1.7-2.8-1.72 0-1.98 1.33-1.98 2.7V21h-4V9.75Z" />,
   tiktok: <path fill="currentColor" d="M15 3.4c.4 2.7 2.2 4.4 5 4.8v3.5c-1.9-.1-3.6-.7-5-1.8v5.9a6.2 6.2 0 1 1-6.2-6.2v3.6a2.6 2.6 0 1 0 2.6 2.6V2h3.6v1.4Z" />,
   youtube: (
     <>
@@ -185,6 +187,7 @@ export const BRAND_NAMES: Record<BrandIconName, string> = {
   tiktok: "TikTok",
   youtube: "YouTube",
   x: "X",
+  linkedin: "LinkedIn",
   threads: "Threads",
   pinterest: "Pinterest",
   bluesky: "Bluesky",

@@ -8,7 +8,7 @@ import { inWarmup } from "@/lib/social/accounts";
 import { BundleError, createMultiPost, getPost, isBundleConfigured, tiktokPostSettings, uploadFromUrl, type BundlePost } from "@/lib/social/bundle";
 
 import { isVideoPlatform, MAX_POSTS_PER_DAY, VIDEO_PLATFORM_SPECS, type VideoPlatform, type VideoScript } from "./formats";
-import { nextPublishTime } from "./make";
+import { nextPublishTime } from "./schedule";
 
 /**
  * Publishing a ready video through bundle.social to the website's connected
@@ -142,6 +142,10 @@ async function platformData(
         ...(carousel ? { photoCoverIndex: 0, autoAddMusic: true } : {}),
       };
     }
+    case "linkedin":
+    case "x":
+      // Payloads come with the LinkedIn and X publishing work (Worker D); until then nothing is sent there.
+      throw new Error(`Publishing videos to ${platform} is not available yet`);
   }
 }
 

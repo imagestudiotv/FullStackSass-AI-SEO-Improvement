@@ -23,7 +23,8 @@ import {
   type MakeVia,
   type VideoScript,
 } from "./formats";
-import { nextPublishTime, spendKey } from "./make";
+import { spendKey } from "./make";
+import { nextPublishTime } from "./schedule";
 import { musicTrack } from "./music";
 import { readVideoSettings, saveVideoSettings, videoAccess, type VideoSettings } from "./settings";
 import { CLIP_TYPES, isVideoStorageConfigured, MAX_CLIP_BYTES, MAX_PHOTO_BYTES, PHOTO_TYPES, signedUpload, videoFilePath } from "./storage";
@@ -343,11 +344,12 @@ export async function saveVideoSettingsAction(websiteId: string, input: Partial<
   if (!checked.ok) return fail(checked.error);
   const current = await readVideoSettings(websiteId);
   const next: VideoSettings = {
+    ...current,
     style: input.style && isVideoStyle(input.style) ? input.style : current.style,
     voice: input.voice === undefined ? current.voice : input.voice && isVoice(input.voice) ? input.voice : null,
     music: input.music ?? current.music,
     captions: input.captions ?? current.captions,
-    publishMode: input.publishMode === "auto" || input.publishMode === "manual" ? input.publishMode : current.publishMode,
+    publishMode: input.publishMode === "auto" || input.publishMode === "manual" || input.publishMode === "draft" ? input.publishMode : current.publishMode,
     platforms: input.platforms ? [...new Set(input.platforms)].filter(isVideoPlatform) : current.platforms,
     logoUrl:
       input.logoUrl === undefined ? current.logoUrl : input.logoUrl && videoFilePath(input.logoUrl, websiteId) ? input.logoUrl : null,

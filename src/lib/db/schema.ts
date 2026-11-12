@@ -3720,8 +3720,84 @@ export const videoSettings = pgTable("video_settings", {
   platforms: jsonb("platforms").$type<string[]>().default(["instagram", "tiktok", "youtube", "facebook"]).notNull(),
   /** The customer's logo for the closing card; null uses the website's icon. */
   logoUrl: text("logo_url"),
+  /*
+    Viral social content (client, 2026-11-12; lib/video/formats.ts). Audience,
+    language, market, tone and avoided topics are NOT here: they are the
+    website's profile (websites) and Brand Voice (brand_voice), shared.
+  */
+  /** Percent of each batch written as viral ideas, 0-100 in steps of 10. */
+  viralMix: integer("viral_mix").default(40).notNull(),
+  /** CONTENT_GOALS: how the non-viral rest is split (NON_VIRAL_SPLIT). */
+  goal: text("goal").default("balanced").notNull(),
+  /** VIRAL_TECHNIQUES chosen. */
+  techniques: jsonb("techniques").$type<string[]>().default(["curiosity_hooks", "trend_inspired", "myth_busting"]).notNull(),
+  /** Trend-inspired concepts from proven formats and niche knowledge; never labelled "currently trending" without data. */
+  trendInspired: boolean("trend_inspired").default(true).notNull(),
+  /** Topics to prioritise (the only audience field the profile did not have). */
+  priorityTopics: text("priority_topics"),
+  /** TONE_PRESETS, applied next to brand_voice.tone (never replacing it). */
+  tonePreset: text("tone_preset").default("professional").notNull(),
+  /** Noncritical creative preferences (HUMOR_LEVELS; controversy; stronger language). */
+  humor: text("humor").default("light").notNull(),
+  allowControversial: boolean("allow_controversial").default(false).notNull(),
+  strongLanguage: boolean("strong_language").default(false).notNull(),
+  /** Brand safety: figures need a person's check, controversial angles need approval, before automatic publishing. */
+  requireFactReview: boolean("require_fact_review").default(true).notNull(),
+  requireControversyReview: boolean("require_controversy_review").default(true).notNull(),
+  /** VIDEO_FORMATS ideas may use. */
+  formats: jsonb("formats").$type<string[]>().default(["reel", "story", "carousel"]).notNull(),
+  /** DURATION_RANGES. */
+  duration: text("duration").default("30-45").notNull(),
+  /** AUDIO_MODES; NARRATION_STYLES; CAPTION_STYLES; MUSIC_DIRECTIONS. */
+  audioMode: text("audio_mode").default("auto").notNull(),
+  narration: text("narration").default("natural").notNull(),
+  captionStyle: text("caption_style").default("bold").notNull(),
+  musicDirection: text("music_direction").default("auto").notNull(),
+  showHook: boolean("show_hook").default(true).notNull(),
+  includeCta: boolean("include_cta").default(true).notNull(),
+  defaultCta: text("default_cta"),
+  /** POSTING_FREQUENCIES for automatic posting; null = as before 2026-11-12 (each made video at the next best hour). */
+  frequency: text("frequency"),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+/**
+ * The batches of ideas a website asked for on a UTC day (client,
+ * 2026-11-12): slot 0 is the free daily batch (DAILY_BATCH_SIZE), slots
+ * 1..EXTRA_BATCHES_PER_DAY the free extra ones (EXTRA_BATCH_SIZE each).
+ * The unique (website, day, slot) is the reservation: two requests at once
+ * never get the same slot, and a skipped idea never gives a slot back.
+ */
+export const videoIdeaBatches = pgTable(
+  "video_idea_batches",
+  {
+    id: pk(),
+    websiteId: websiteId(),
+    day: date("day").notNull(),
+    slot: integer("slot").notNull(),
+    /** BATCH_KINDS */
+    kind: text("kind").notNull(),
+    /** BATCH_STATUSES */
+    status: text("status").default("reserved").notNull(),
+    /** Ideas asked for, and written. */
+    size: integer("size").notNull(),
+    created: integer("created").default(0).notNull(),
+    /** Writing attempts (bounded). */
+    attempts: integer("attempts").default(0).notNull(),
+    requestedBy: text("requested_by"),
+    /** button | chat | job */
+    requestedVia: text("requested_via"),
+    /** The caller's idempotency key: the same key never reserves a second slot. */
+    requestKey: text("request_key"),
+    error: text("error"),
+    finishedAt: timestamp("finished_at"),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("video_idea_batches_slot_uq").on(table.websiteId, table.day, table.slot),
+    uniqueIndex("video_idea_batches_key_uq").on(table.websiteId, table.requestKey),
+  ],
+);
 
 /** The customer's own pictures and clips, used in the videos' scenes. */
 export const videoMedia = pgTable(
@@ -3800,12 +3876,139 @@ export const videoIdeas = pgTable(
     filesDeletedAt: timestamp("files_deleted_at"),
     error: text("error"),
     postedAt: timestamp("posted_at"),
+    /* Viral social content (client, 2026-11-12; types in lib/video/formats.ts). */
+    /** IDEA_CATEGORIES; ideas written before 2026-11-12 are educational. */
+    category: text("category").default("educational").notNull(),
+    /** CREATIVE_DIRECTIONS; "animated" = the original templates (style). */
+    direction: text("direction").default("animated").notNull(),
+    /** The batch it was written in (video_idea_batches); null before 2026-11-12. */
+    batchId: uuid("batch_id").references(() => videoIdeaBatches.id, { onDelete: "set null" }),
+    /** Viral: why it could perform well (never a promise) and its technique tags. */
+    why: text("why"),
+    techniques: jsonb("techniques").$type<string[]>().default([]).notNull(),
+    /** ShotPlan: how each scene is produced. null before 2026-11-12 (animated). */
+    plan: jsonb("plan"),
+    /** ProductionChoices: audio, narration, captions, music, duration, hook/CTA. null = derived from voice/captions/musicTrack. */
+    production: jsonb("production"),
+    /** IdeaOverrides: this video's audience/tone/avoid, never the global profile. */
+    overrides: jsonb("overrides").$type<Record<string, string>>().default({}).notNull(),
+    /** ResolvedAsset[]: the real pictures/clips used, with provenance and licence. */
+    assets: jsonb("assets").$type<Record<string, unknown>[]>().default([]).notNull(),
+    /** FactClaim[]: factual statements and their source; an unsourced one needs review. */
+    claims: jsonb("claims").$type<{ text: string; source: string | null }[]>().default([]).notNull(),
+    /** REVIEW_STATUSES / REVIEW_REASONS; an approval holds only for the content hash it was given on. */
+    reviewStatus: text("review_status").default("none").notNull(),
+    reviewReasons: jsonb("review_reasons").$type<string[]>().default([]).notNull(),
+    reviewedHash: text("reviewed_hash"),
+    reviewedBy: text("reviewed_by"),
+    reviewedAt: timestamp("reviewed_at"),
+    /** CostLedger: internal production cost across every attempt. */
+    cost: jsonb("cost"),
+    /** NativeAudioSelection for Instagram; the video sent there then has no RepGet music (altVideoUrl). */
+    nativeAudio: jsonb("native_audio"),
+    altVideoUrl: text("alt_video_url"),
+    /** Per destination: DestinationState. */
+    destinations: jsonb("destinations").$type<Record<string, unknown>>().default({}).notNull(),
     ...timestamps,
   },
   (table) => [
     index("video_ideas_website_day_idx").on(table.websiteId, table.day),
     index("video_ideas_status_idx").on(table.status),
+    index("video_ideas_batch_idx").on(table.batchId),
   ],
+);
+
+/**
+ * Licensed stock pictures and clips RepGet stored (providers forbid
+ * permanent hotlinking), with provenance and licence: reused across videos.
+ */
+export const videoStockAssets = pgTable(
+  "video_stock_assets",
+  {
+    id: pk(),
+    provider: text("provider").notNull(),
+    providerId: text("provider_id").notNull(),
+    /** image | video */
+    kind: text("kind").notNull(),
+    /** RepGet's stored copy. */
+    url: text("url").notNull(),
+    width: integer("width"),
+    height: integer("height"),
+    durationMs: integer("duration_ms"),
+    licence: text("licence").notNull(),
+    sourceUrl: text("source_url"),
+    author: text("author"),
+    query: text("query"),
+    /** What fetching it cost, when the provider charges (null = free or unknown, see licence notes). */
+    costUsd: numeric("cost_usd", { precision: 10, scale: 6 }),
+    lastUsedAt: timestamp("last_used_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [uniqueIndex("video_stock_assets_provider_uq").on(table.provider, table.providerId, table.kind)],
+);
+
+/**
+ * Automatic posting slots: one video per website per hour. The unique index
+ * reserves a slot atomically, so simultaneous jobs never take the same one.
+ */
+export const videoScheduleSlots = pgTable(
+  "video_schedule_slots",
+  {
+    id: pk(),
+    websiteId: websiteId(),
+    /** UTC, on the hour. */
+    at: timestamp("at").notNull(),
+    ideaId: uuid("idea_id")
+      .notNull()
+      .references(() => videoIdeas.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("video_schedule_slots_uq").on(table.websiteId, table.at),
+    uniqueIndex("video_schedule_slots_idea_uq").on(table.ideaId),
+  ],
+);
+
+/**
+ * Spending limits for metered providers (X posting, 2026-11-12): a monthly
+ * limit, and what is reserved and spent against it. A reservation is one
+ * conditional UPDATE (reserved + spent + amount <= limit), so simultaneous
+ * posts never overspend.
+ */
+export const providerSpend = pgTable(
+  "provider_spend",
+  {
+    id: pk(),
+    /** e.g. "x_posts" */
+    scope: text("scope").notNull(),
+    /** A UTC month, "2026-11". */
+    period: text("period").notNull(),
+    limitUsd: numeric("limit_usd", { precision: 12, scale: 6 }).notNull(),
+    reservedUsd: numeric("reserved_usd", { precision: 12, scale: 6 }).default("0").notNull(),
+    spentUsd: numeric("spent_usd", { precision: 12, scale: 6 }).default("0").notNull(),
+    ...timestamps,
+  },
+  (table) => [uniqueIndex("provider_spend_scope_period_uq").on(table.scope, table.period)],
+);
+
+/** Each reservation against provider_spend: reserved -> charged | released, once per key. */
+export const providerSpendEvents = pgTable(
+  "provider_spend_events",
+  {
+    id: pk(),
+    scope: text("scope").notNull(),
+    period: text("period").notNull(),
+    /** Idempotency key (e.g. "x:<ideaId>:<attempt>"). */
+    key: text("key").notNull(),
+    websiteId: uuid("website_id").references(() => websites.id, { onDelete: "set null" }),
+    ideaId: uuid("idea_id"),
+    amountUsd: numeric("amount_usd", { precision: 12, scale: 6 }).notNull(),
+    /** reserved | charged | released */
+    status: text("status").default("reserved").notNull(),
+    note: text("note"),
+    ...timestamps,
+  },
+  (table) => [uniqueIndex("provider_spend_events_key_uq").on(table.key), index("provider_spend_events_period_idx").on(table.scope, table.period)],
 );
 
 /* ------------------------------------------------------------------------- */

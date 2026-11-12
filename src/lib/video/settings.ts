@@ -8,20 +8,48 @@ import { videoSettings, websites } from "@/lib/db/schema";
 import type { Executor } from "@/lib/db/types";
 
 import {
+  AUDIO_MODES,
+  CAPTION_STYLES,
+  CONTENT_GOALS,
+  DEFAULT_TECHNIQUES,
+  DURATION_RANGES,
+  HUMOR_LEVELS,
+  isVideoFormat,
   isVideoPlatform,
   isVideoStyle,
   isVoice,
-  VIDEO_PLATFORMS,
+  MUSIC_DIRECTIONS,
+  NARRATION_STYLES,
+  ORIGINAL_VIDEO_PLATFORMS,
+  POSTING_FREQUENCIES,
+  PUBLISH_MODES,
+  TONE_PRESETS,
+  VIDEO_FORMATS,
+  VIRAL_TECHNIQUES,
+  type AudioMode,
   type BrandLook,
+  type CaptionStyle,
+  type ContentGoal,
+  type DurationRange,
+  type HumorLevel,
+  type MusicDirection,
+  type NarrationStyle,
+  type PostingFrequency,
   type PublishMode,
+  type TonePreset,
+  type VideoFormat,
   type VideoPlatform,
   type VideoStyle,
+  type ViralTechnique,
   type Voice,
 } from "./formats";
 
 /**
  * A website's video settings, with the defaults where it has no row yet, and
  * who may use videos at all.
+ *
+ * Audience, language, market, tone and avoided topics are not video settings:
+ * they are the website's profile and Brand Voice, read and saved there.
  */
 
 export type VideoSettings = {
@@ -32,6 +60,30 @@ export type VideoSettings = {
   publishMode: PublishMode;
   platforms: VideoPlatform[];
   logoUrl: string | null;
+  /* Content strategy (2026-11-12). */
+  viralMix: number;
+  goal: ContentGoal;
+  techniques: ViralTechnique[];
+  trendInspired: boolean;
+  priorityTopics: string | null;
+  tonePreset: TonePreset;
+  humor: HumorLevel;
+  allowControversial: boolean;
+  strongLanguage: boolean;
+  requireFactReview: boolean;
+  requireControversyReview: boolean;
+  /* Video & audio. */
+  formats: VideoFormat[];
+  duration: DurationRange;
+  audioMode: AudioMode;
+  narration: NarrationStyle;
+  captionStyle: CaptionStyle;
+  musicDirection: MusicDirection;
+  showHook: boolean;
+  includeCta: boolean;
+  defaultCta: string | null;
+  /* Publishing: null = as before 2026-11-12, each made video at the next best hour. */
+  frequency: PostingFrequency | null;
 };
 
 export const DEFAULT_SETTINGS: VideoSettings = {
@@ -40,21 +92,76 @@ export const DEFAULT_SETTINGS: VideoSettings = {
   music: true,
   captions: true,
   publishMode: "manual",
-  platforms: [...VIDEO_PLATFORMS],
+  platforms: [...ORIGINAL_VIDEO_PLATFORMS],
   logoUrl: null,
+  viralMix: 40,
+  goal: "balanced",
+  techniques: [...DEFAULT_TECHNIQUES],
+  trendInspired: true,
+  priorityTopics: null,
+  tonePreset: "professional",
+  humor: "light",
+  allowControversial: false,
+  strongLanguage: false,
+  requireFactReview: true,
+  requireControversyReview: true,
+  formats: [...VIDEO_FORMATS],
+  duration: "30-45",
+  audioMode: "auto",
+  narration: "natural",
+  captionStyle: "bold",
+  musicDirection: "auto",
+  showHook: true,
+  includeCta: true,
+  defaultCta: null,
+  frequency: "5_week",
 };
+
+const oneOf = <T extends string>(list: readonly T[], value: unknown, fallback: T): T =>
+  typeof value === "string" && (list as readonly string[]).includes(value) ? (value as T) : fallback;
+
+/** A stored or submitted viral mix, held to 0-100 in steps of 10. */
+export function normalMix(value: unknown, fallback = DEFAULT_SETTINGS.viralMix): number {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(100, Math.max(0, Math.round(n / 10) * 10));
+}
 
 export async function readVideoSettings(websiteId: string, executor: Executor = db): Promise<VideoSettings> {
   const [row] = await executor.select().from(videoSettings).where(eq(videoSettings.websiteId, websiteId));
-  if (!row) return { ...DEFAULT_SETTINGS };
+  if (!row) return { ...DEFAULT_SETTINGS, platforms: [...DEFAULT_SETTINGS.platforms], techniques: [...DEFAULT_SETTINGS.techniques], formats: [...DEFAULT_SETTINGS.formats] };
+  const d = DEFAULT_SETTINGS;
+  const formats = row.formats.filter(isVideoFormat);
   return {
-    style: isVideoStyle(row.style) ? row.style : DEFAULT_SETTINGS.style,
+    style: isVideoStyle(row.style) ? row.style : d.style,
     voice: row.voice && isVoice(row.voice) ? row.voice : null,
     music: row.music,
     captions: row.captions,
-    publishMode: row.publishMode === "auto" ? "auto" : "manual",
+    publishMode: oneOf(PUBLISH_MODES, row.publishMode, "manual"),
     platforms: row.platforms.filter(isVideoPlatform),
     logoUrl: row.logoUrl,
+    viralMix: normalMix(row.viralMix),
+    goal: oneOf(CONTENT_GOALS, row.goal, d.goal),
+    techniques: row.techniques.filter((t): t is ViralTechnique => (VIRAL_TECHNIQUES as readonly string[]).includes(t)),
+    trendInspired: row.trendInspired,
+    priorityTopics: row.priorityTopics,
+    tonePreset: oneOf(TONE_PRESETS, row.tonePreset, d.tonePreset),
+    humor: oneOf(HUMOR_LEVELS, row.humor, d.humor),
+    allowControversial: row.allowControversial,
+    strongLanguage: row.strongLanguage,
+    requireFactReview: row.requireFactReview,
+    requireControversyReview: row.requireControversyReview,
+    formats: formats.length > 0 ? formats : [...d.formats],
+    duration: oneOf(DURATION_RANGES, row.duration, d.duration),
+    audioMode: oneOf(AUDIO_MODES, row.audioMode, d.audioMode),
+    narration: oneOf(NARRATION_STYLES, row.narration, d.narration),
+    captionStyle: oneOf(CAPTION_STYLES, row.captionStyle, d.captionStyle),
+    musicDirection: oneOf(MUSIC_DIRECTIONS, row.musicDirection, d.musicDirection),
+    showHook: row.showHook,
+    includeCta: row.includeCta,
+    defaultCta: row.defaultCta,
+    // A saved row without a frequency predates it: keep posting as before.
+    frequency: row.frequency ? oneOf(POSTING_FREQUENCIES, row.frequency, d.frequency ?? "5_week") : null,
   };
 }
 
