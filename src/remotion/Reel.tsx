@@ -51,7 +51,8 @@ function ProductionReel(props: ProductionReelProps) {
       {props.direction === "storytelling" ? <StorytellingProduction {...direction} /> : null}
       {props.direction === "text_music" ? <TextMusicProduction {...direction} /> : null}
       {props.direction === "voiceover" ? <VoiceoverProduction {...direction} /> : null}
-      {props.concept ? <ConceptBadge top={safe.top + (props.direction === "meme" ? 0 : 60)} /> : null}
+      {/* A meme's caption bar fills the top: its badge (preview only, never rendered) sits under the text area on the right, clear of the bar and the captions. */}
+      {props.concept ? (props.direction === "meme" ? <ConceptBadge top={safe.bottom + 30} right /> : <ConceptBadge top={safe.top + 60} />) : null}
       {timeline.voiced && props.voiceUrl ? <Audio src={props.voiceUrl} /> : null}
       {props.music ? <Music url={props.music.url} volume={props.music.volume} durationInFrames={timeline.durationInFrames} /> : null}
     </AbsoluteFill>

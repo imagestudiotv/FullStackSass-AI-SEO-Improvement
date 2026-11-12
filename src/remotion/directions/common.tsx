@@ -150,13 +150,13 @@ export function ConceptFrame({ query, seed, pal }: { query?: string; seed: numbe
 }
 
 /** The concept badge: the preview is never presented as the final video. */
-export function ConceptBadge({ top }: { top: number }) {
+export function ConceptBadge({ top, right = false }: { top: number; right?: boolean }) {
   return (
     <div
       style={{
         position: "absolute",
         top,
-        left: 80,
+        ...(right ? { right: 80 } : { left: 80 }),
         padding: "8px 18px",
         borderRadius: 999,
         background: "rgba(0,0,0,0.55)",
