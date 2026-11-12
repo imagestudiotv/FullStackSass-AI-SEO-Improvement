@@ -12,11 +12,34 @@ import { plural } from "@/lib/i18n/format";
 import { VIDEOS_COPY } from "@/lib/i18n/videos";
 import { isBundleConfigured } from "@/lib/social/bundle";
 import { requireWebsitePage } from "@/lib/tenant";
-import { COMPLETE_AFTER, IDEAS_PER_DAY, isVideoPlatform, MAX_REEL_SECONDS, silentTiming, type MediaItem, type ReelProps, type VideoScript, type VideoStyle } from "@/lib/video/formats";
+import {
+  CAPTION_STYLES,
+  COMPLETE_AFTER,
+  DURATION_RANGES,
+  isCreativeDirection,
+  isIdeaCategory,
+  isVideoPlatform,
+  MAX_REEL_SECONDS,
+  MUSIC_DIRECTIONS,
+  NARRATION_STYLES,
+  silentTiming,
+  type DestinationState,
+  type FactClaim,
+  type IdeaOverrides,
+  type MediaItem,
+  type NativeAudioSelection,
+  type ProductionChoices,
+  type ReelProps,
+  type VideoScript,
+  type VideoStyle,
+} from "@/lib/video/formats";
 import { totalViews } from "@/lib/video/followup";
 import { MUSIC_TRACKS } from "@/lib/video/music";
-import { brandLook, readVideoSettings, videoAccess } from "@/lib/video/settings";
+import { brandLook, readVideoSettings, videoAccess, type VideoSettings } from "@/lib/video/settings";
 
+// TODO(viral-integration): ideaAllowance from "@/lib/video/batches", videoProfile from A's profile reader,
+// reviewBlocksAutoPublish from "@/lib/video/review", videoPublishingStatus from "@/lib/video/publish-actions".
+import { ideaAllowance, reviewBlocksAutoPublish, videoProfile, videoPublishingStatus } from "./_pending-server";
 import { VideosPanel, type IdeaView, type VideoAccountView } from "./videos-panel";
 
 export const dynamic = "force-dynamic";
@@ -47,7 +70,7 @@ export default async function WebsiteVideosPage({ params, searchParams }: PagePr
 
   const now = new Date();
   const today = now.toISOString().slice(0, 10);
-  const [level, settings, ideas, made, posted, approvedToday, media, accounts, credits, wallet, { t, locale }, query] = await Promise.all([
+  const [level, settings, ideas, made, posted, approvedToday, media, accounts, credits, wallet, { t, locale }, query, allowance, profile, publishing] = await Promise.all([
     videoAccess(site.id),
     readVideoSettings(site.id),
     db
@@ -61,7 +84,7 @@ export default async function WebsiteVideosPage({ params, searchParams }: PagePr
       .where(
         and(
           eq(videoIdeas.websiteId, site.id),
-          inArray(videoIdeas.status, ["approved", "making", "ready", "scheduled", "posting", "failed"]),
+          inArray(videoIdeas.status, ["approved", "making", "ready", "draft", "scheduled", "posting", "failed"]),
           gte(videoIdeas.updatedAt, new Date(now.getTime() - 30 * DAY_MS)),
         ),
       )
@@ -85,6 +108,9 @@ export default async function WebsiteVideosPage({ params, searchParams }: PagePr
     access === "owner" ? creditOverviewForRequest(ctx.ownerOrgId).catch(() => null) : null,
     getAppMessages(userId),
     searchParams,
+    ideaAllowance(site.id, now),
+    videoProfile(site.id),
+    videoPublishingStatus(site.id),
   ]);
 
   // The first visit of the day: today's ideas are written now (the job tops them up to twenty).
@@ -133,6 +159,18 @@ export default async function WebsiteVideosPage({ params, searchParams }: PagePr
       statsAt: row.statsAt?.toISOString() ?? null,
       views: totalViews(row.stats),
       error: row.error,
+      category: isIdeaCategory(row.category) ? row.category : "educational",
+      direction: isCreativeDirection(row.direction) ? row.direction : "animated",
+      why: row.why,
+      techniques: row.techniques ?? [],
+      production: productionOf(row, settings),
+      overrides: (row.overrides ?? {}) as IdeaOverrides,
+      reviewStatus: row.reviewStatus,
+      reviewReasons: row.reviewReasons ?? [],
+      claims: (row.claims ?? []) as FactClaim[],
+      reviewBlocks: reviewBlocksAutoPublish(row),
+      destinations: (row.destinations ?? {}) as Record<string, DestinationState>,
+      nativeAudio: (row.nativeAudio as NativeAudioSelection | null) ?? null,
     };
   };
 
@@ -165,11 +203,18 @@ export default async function WebsiteVideosPage({ params, searchParams }: PagePr
       writing={writing}
       approvedToday={Number(approvedToday[0]?.n ?? 0)}
       goal={COMPLETE_AFTER}
-      perDay={IDEAS_PER_DAY}
-      writtenToday={Number(todayCount)}
+      allowance={{
+        dailyWritten: allowance.dailyWritten,
+        extraUsed: allowance.extraUsed,
+        extraLeft: allowance.extraLeft,
+        busy: allowance.busy,
+        tooSoon: Boolean(allowance.nextAllowedAt && allowance.nextAllowedAt.getTime() > now.getTime()),
+      }}
       priceLabel={price > 0 ? plural(t.app.credits.creditsCount, price) : t.app.social.free}
       credits={wallet ? { available: wallet.available, label: plural(t.app.credits.creditsCount, wallet.available) } : null}
       settings={settings}
+      profile={profile}
+      publishing={publishing}
       brand={brand}
       media={media.map((item) => ({ id: item.id, url: item.url, kind: item.kind === "video" ? "video" : "image", name: item.name }))}
       accounts={accountViews}
@@ -180,4 +225,28 @@ export default async function WebsiteVideosPage({ params, searchParams }: PagePr
       t={VIDEOS_COPY[locale]}
     />
   );
+}
+
+const pick = <V extends string>(list: readonly V[], value: unknown, fallback: V): V =>
+  typeof value === "string" && (list as readonly string[]).includes(value) ? (value as V) : fallback;
+
+/**
+ * An idea's production choices: its own (written with it since 2026-11-12),
+ * or for an older idea the ones its voice, music and captions already meant.
+ */
+function productionOf(
+  row: { production: unknown; voice: string | null; musicTrack: string | null },
+  settings: VideoSettings,
+): ProductionChoices {
+  const saved = (row.production ?? {}) as Partial<ProductionChoices>;
+  return {
+    audio: saved.audio === "voiceover" || saved.audio === "text_music" ? saved.audio : row.voice ? "voiceover" : "text_music",
+    narration: pick(NARRATION_STYLES, saved.narration, settings.narration),
+    captionStyle: pick(CAPTION_STYLES, saved.captionStyle, settings.captionStyle),
+    music: pick(MUSIC_DIRECTIONS, saved.music, row.musicTrack === "none" ? "none" : "auto"),
+    duration: pick(DURATION_RANGES, saved.duration, settings.duration),
+    showHook: typeof saved.showHook === "boolean" ? saved.showHook : true,
+    includeCta: typeof saved.includeCta === "boolean" ? saved.includeCta : true,
+    ctaText: typeof saved.ctaText === "string" && saved.ctaText.trim() ? saved.ctaText : null,
+  };
 }
