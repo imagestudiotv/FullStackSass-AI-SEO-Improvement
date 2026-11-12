@@ -25,6 +25,12 @@ export const publishVideoJob = inngest.createFunction(
   async ({ event, step, logger }) => {
     const id = String(event.data.ideaId);
     const at = new Date(String(event.data.at));
+    /*
+      The customer's own Publish (lib/video/publish-actions.ts): a review that
+      became required holds only automatic posts. Absent = automatic (the make
+      job's event), the safe side.
+    */
+    const manual = event.data.manual === true;
     if (at.getTime() > Date.now()) await step.sleepUntil("wait-until-due", at);
 
     // A video moved to another time meanwhile: that time's own event publishes it.
@@ -34,9 +40,9 @@ export const publishVideoJob = inngest.createFunction(
     });
     if (!due) return { outcome: "skipped" };
 
-    const first = await step.run("publish", () => publishVideo(id));
+    const first = await step.run("publish", () => publishVideo(id, new Date(), { manual }));
     if (first.outcome === "later" && first.at) {
-      await step.sendEvent("later", { name: "video/publish.scheduled", data: { ideaId: id, at: first.at } });
+      await step.sendEvent("later", { name: "video/publish.scheduled", data: { ideaId: id, at: first.at, manual } });
       return { outcome: "later" };
     }
     let outcome = first.outcome;

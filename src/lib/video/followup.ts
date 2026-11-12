@@ -9,7 +9,8 @@ import { emailVideoViews } from "@/lib/email/lifecycle-triggers";
 import { sendEmail } from "@/lib/email/send";
 import { postStats, type PostStats } from "@/lib/social/bundle";
 
-import { EARLY_MILESTONE_VIEWS, FILE_DAYS, isVideoPlatform, MILESTONE_VIEWS, VIDEO_PLATFORM_SPECS } from "./formats";
+import { readDestinations } from "./destinations";
+import { EARLY_MILESTONE_VIEWS, FILE_DAYS, isVideoPlatform, MILESTONE_VIEWS, VIDEO_PLATFORM_SPECS, type VideoPlatform } from "./formats";
 import { appUrl } from "./make";
 import { deleteVideoFiles } from "./storage";
 
@@ -59,13 +60,32 @@ async function sendMilestone(idea: typeof videoIdeas.$inferSelect, views: number
   await sendEmail({ to, subject, html, text });
 }
 
+/**
+ * Whether a platform's numbers are read daily (bundle.social, 2026-11-12):
+ *  - X: no. bundle.social reads X analytics only on demand and bills each
+ *    read to the prepaid X balance - not worth a metered call a day.
+ *  - a Story: no. It expires after 24 hours and bundle.social does not
+ *    refresh Story analytics.
+ *  - the others, LinkedIn included (views on video posts, likes, comments,
+ *    shares for 30 days), yes.
+ */
+export function followsStats(platform: VideoPlatform, format: string): boolean {
+  return platform !== "x" && format !== "story";
+}
+
 /** Reads one video's numbers; sends the milestone email the first time it is passed. */
 export async function refreshStats(id: string, now: Date = new Date()): Promise<{ views: number }> {
   const [idea] = await db.select().from(videoIdeas).where(eq(videoIdeas.id, id));
   if (!idea?.bundlePostId || idea.status !== "posted") return { views: 0 };
   const stats: Record<string, PostStats> = { ...(idea.stats ?? {}) };
+  const destinations = readDestinations(idea.destinations);
   for (const platform of (idea.platforms ?? []).filter(isVideoPlatform)) {
-    const latest = await postStats(idea.bundlePostId, VIDEO_PLATFORM_SPECS[platform].bundleType).catch(() => null);
+    if (!followsStats(platform, idea.format)) continue;
+    // Each destination's own bundle.social post (X goes apart); before 2026-11-12, the video's one post.
+    const state = destinations[platform];
+    if (state && state.status !== "posted") continue;
+    const postId = state?.bundlePostId ?? idea.bundlePostId;
+    const latest = await postStats(postId, VIDEO_PLATFORM_SPECS[platform].bundleType).catch(() => null);
     if (latest) stats[platform] = latest;
   }
   const views = totalViews(stats);
@@ -115,7 +135,7 @@ export async function deleteOldFiles(now: Date = new Date()): Promise<number> {
     )
     .limit(200);
   for (const row of rows) {
-    await deleteVideoFiles(row.websiteId, [row.videoUrl, row.voiceUrl, ...(row.slideUrls ?? [])]);
+    await deleteVideoFiles(row.websiteId, [row.videoUrl, row.altVideoUrl, row.voiceUrl, ...(row.slideUrls ?? [])]);
     await db.update(videoIdeas).set({ filesDeletedAt: now }).where(eq(videoIdeas.id, row.id));
   }
   return rows.length;
