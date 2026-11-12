@@ -34,8 +34,9 @@ import { syncBundleAccounts } from "@/lib/social/accounts";
 
 import { compatibility, fitCaption, readDestinations } from "./destinations";
 import type { VideoScript } from "./formats";
-import { checkVideoPublished, publishVideo } from "./publish";
+import { checkVideoPublished, publishVideo, stripLinks } from "./publish";
 import { publishVideoIdea, setNativeAudio } from "./publish-actions";
+import { mayCarryLink, xPostCostUsd } from "./x-spend";
 
 let test: TestDb;
 beforeAll(async () => {
@@ -152,6 +153,13 @@ describe("which platforms can take a video", () => {
     // Room for the text and some tags: whole tags only, as many as fit.
     expect(fitCaption(`${"Light sells. ".repeat(20)}#photo #light #ecommerce`, 280)).toBe(`${"Light sells. ".repeat(20).trim()} #photo #light`);
     expect(fitCaption("Short #photo #light", 13)).toBe("Short #photo");
+  });
+
+  it("keeps links off X, and counts a text that still looks linked at X's URL price", () => {
+    expect(stripLinks("Visit imagestudio.com/shop or https://x.example/a and www.site.org today")).toBe("Visit or and today");
+    expect(mayCarryLink("Node.js tips, e.g. three")).toBe(false);
+    expect(xPostCostUsd("Plain words", { enabled: true, limitUsd: 5, costPerPostUsd: 0.02 })).toBe(0.02);
+    expect(xPostCostUsd("see brand.co", { enabled: true, limitUsd: 5, costPerPostUsd: 0.02 })).toBe(0.2);
   });
 });
 

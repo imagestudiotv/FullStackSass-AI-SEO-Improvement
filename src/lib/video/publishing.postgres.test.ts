@@ -118,11 +118,11 @@ describe.skipIf(!available)("publishing on real Postgres", () => {
       expect(await reserveXSpend({ key: "x:c:1", websiteId: null, ideaId: null, now: NOW })).toEqual({ ok: false, reason: "limit_reached" });
 
       const charged = await Promise.all([0, 1, 2].map((i) => on(i, () => chargeXSpend("x:a:1"))));
-      expect(charged.filter(Boolean)).toHaveLength(1);
+      expect(charged.filter((amount) => amount !== null)).toEqual([0.02]);
       const released = await Promise.all([0, 1, 2].map((i) => on(i, () => releaseXSpend("x:b:1", "refused"))));
-      expect(released.filter(Boolean)).toHaveLength(1);
+      expect(released.filter((amount) => amount !== null)).toEqual([0.02]);
       // A charged reservation is never released afterwards.
-      expect(await releaseXSpend("x:a:1")).toBe(false);
+      expect(await releaseXSpend("x:a:1")).toBeNull();
 
       const [row] = await dbs[0].select().from(providerSpend);
       expect(Number(row.spentUsd)).toBeCloseTo(0.02, 6);

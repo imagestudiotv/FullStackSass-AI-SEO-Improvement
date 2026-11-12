@@ -21,7 +21,7 @@ import {
 } from "./formats";
 import { isAudioRefusal, musicSoundInfo, nativeAudioApplies, readNativeAudio } from "./native-audio";
 import { nextPublishTime, releaseScheduleSlot, reviewBlocksAutoPublish } from "./schedule";
-import { chargeXSpend, releaseXSpend, reserveXSpend, trackXPost, xSpendKey, xVideoStatus } from "./x-spend";
+import { chargeXSpend, releaseXSpend, reserveXSpend, trackXPost, xPostCostUsd, xSpendKey, xVideoStatus } from "./x-spend";
 
 /**
  * Publishing a ready video through bundle.social to the website's connected
@@ -216,11 +216,16 @@ export async function platformData(platform: VideoPlatform, input: PlatformDataI
   }
 }
 
-/** A caption without web addresses (X: a post with a URL is billed at the higher rate). */
+/**
+ * A caption without web addresses, bare domains included - X turns
+ * "example.com" into a link, and a post with a URL is billed at the higher
+ * rate (anything left is reserved at that rate: x-spend.ts mayCarryLink).
+ */
 export const stripLinks = (text: string) =>
   text
     .replace(/\bhttps?:\/\/\S+/gi, "")
     .replace(/\bwww\.\S+/gi, "")
+    .replace(/\b[a-z0-9-]+(\.[a-z0-9-]+)*\.(com|net|org|io|co|ai|app|dev|uk|de|fr|es|it|ro|eu|us|ca|au|in|info|biz|shop|store|online|site|me|tv|ly)\b(\/\S*)?/gi, "")
     .replace(/[ \t]{2,}/g, " ")
     .trim();
 
@@ -432,7 +437,8 @@ export async function publishVideo(
   if (x) {
     const tries = attempt("x");
     const key = xSpendKey(id, tries);
-    const reservation = await reserveXSpend({ key, websiteId: row.websiteId, ideaId: id, now });
+    const xText = fitCaption(stripLinks(row.caption), VIDEO_PLATFORM_SPECS.x.captionMax);
+    const reservation = await reserveXSpend({ key, websiteId: row.websiteId, ideaId: id, amountUsd: xPostCostUsd(xText), now });
     if (!reservation.ok) {
       mark("x", { status: "skipped", error: reservation.reason === "limit_reached" ? "x_limit_reached" : "x_not_configured" });
     } else {
@@ -548,17 +554,16 @@ async function settle(id: string, now: Date, posts: Map<string, BundlePost>): Pr
 /** X's reservation for this attempt: charged when posted, released when refused; the metered call recorded. */
 async function settleXSpend(row: Idea, state: DestinationState, failed: boolean) {
   const key = xSpendKey(row.id, Math.max(1, state.attempts));
-  const settled = failed ? await releaseXSpend(key, state.error) : await chargeXSpend(key);
-  if (!settled) return;
+  const amount = failed ? await releaseXSpend(key, state.error) : await chargeXSpend(key);
+  if (amount === null) return;
   const organizationId = await organizationOf(row.websiteId);
   if (!organizationId) return;
-  const status = await xVideoStatus().catch(() => null);
   await trackXPost({
     organizationId,
     websiteId: row.websiteId,
     ideaId: row.id,
     key,
-    amountUsd: failed ? 0 : (status?.costPerPostUsd ?? 0),
+    amountUsd: failed ? 0 : amount,
     outcome: failed ? "failed" : "accepted",
     attempt: state.attempts,
   }).catch((error) => console.error("[video] X usage not recorded", { id: row.id, error }));

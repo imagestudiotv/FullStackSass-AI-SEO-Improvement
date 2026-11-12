@@ -31,13 +31,26 @@ export const X_SPEND_SCOPE = "x_posts";
 
 /**
  * USD one X video post is counted at when X_VIDEO_COST_PER_POST_USD is not
- * set. X's pay-per-use price for creating a post is $0.015 and $0.20 for a
- * post with a link (docs/social-media.md, bundle.social's figures); a video
- * post also uploads media. RepGet sends videos to X without a link, and
- * counts each at the link price so the limit holds whatever the media
- * upload costs: deliberately on the safe side.
+ * set. X's pay-per-use prices (https://docs.x.com/x-api/getting-started/pricing,
+ * read 2026-11-12): "Post: Create" $0.015, "Post: Create (with URL)" $0.200,
+ * "Media Metadata" $0.005; bundle.social passes X's charge through 1:1 from
+ * its prepaid X credits (https://info.bundle.social/api-reference/platforms/twitter.md).
+ * RepGet sends videos to X without a link: $0.015, plus $0.005 kept for a
+ * possible media call - $0.02, on the safe side.
  */
-export const DEFAULT_X_COST_PER_POST_USD = 0.2;
+export const DEFAULT_X_COST_PER_POST_USD = 0.02;
+/** X's price for a post with a URL: what a text that still looks like it has a link is counted at. */
+export const X_URL_POST_USD = 0.2;
+
+/** Whether a post's text could carry a link X bills at the URL rate (an address, or a bare domain X turns into a link). */
+export function mayCarryLink(text: string): boolean {
+  return /\bhttps?:\/\/|\bwww\.|\b[a-z0-9-]+\.(com|net|org|io|co|ai|app|dev|uk|de|fr|es|it|ro|eu|us|ca|au|in|info|biz|shop|store|online|site|me|tv|ly)\b/i.test(text);
+}
+
+/** What one X post with this text is reserved at. */
+export function xPostCostUsd(text: string, config: XVideoConfig = xVideoConfig()): number {
+  return mayCarryLink(text) ? Math.max(config.costPerPostUsd, X_URL_POST_USD) : config.costPerPostUsd;
+}
 
 export type XVideoConfig = { enabled: boolean; limitUsd: number; costPerPostUsd: number };
 
@@ -169,14 +182,14 @@ export async function reserveXSpend(
 }
 
 /** Moves a reservation (reserved -> charged | released) and its amount on the month's row; once per key. */
-async function settleReservation(key: string, to: "charged" | "released", note: string | null, executor: Executor): Promise<boolean> {
+async function settleReservation(key: string, to: "charged" | "released", note: string | null, executor: Executor): Promise<number | null> {
   return executor.transaction(async (tx) => {
     const [event] = await tx
       .update(providerSpendEvents)
       .set({ status: to, note: note?.slice(0, 300) ?? null, updatedAt: new Date() })
       .where(and(eq(providerSpendEvents.key, key), eq(providerSpendEvents.status, "reserved")))
       .returning();
-    if (!event) return false;
+    if (!event) return null;
     await tx
       .update(providerSpend)
       .set({
@@ -185,17 +198,17 @@ async function settleReservation(key: string, to: "charged" | "released", note: 
         updatedAt: new Date(),
       })
       .where(and(eq(providerSpend.scope, event.scope), eq(providerSpend.period, event.period)));
-    return true;
+    return Number(event.amountUsd);
   });
 }
 
-/** bundle.social accepted the post: the reservation becomes spending. */
-export async function chargeXSpend(key: string, executor: Executor = db): Promise<boolean> {
+/** The post is on X: the reservation becomes spending. Returns the amount, or null when there was nothing reserved under the key (already settled). */
+export async function chargeXSpend(key: string, executor: Executor = db): Promise<number | null> {
   return settleReservation(key, "charged", null, executor);
 }
 
-/** The post failed or was never sent: the reservation goes back to the month's room. */
-export async function releaseXSpend(key: string, note: string | null = null, executor: Executor = db): Promise<boolean> {
+/** The post failed or was never sent: the reservation goes back to the month's room. Returns the amount, or null when already settled. */
+export async function releaseXSpend(key: string, note: string | null = null, executor: Executor = db): Promise<number | null> {
   return settleReservation(key, "released", note, executor);
 }
 
