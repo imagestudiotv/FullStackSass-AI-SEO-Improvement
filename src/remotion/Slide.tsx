@@ -6,7 +6,9 @@ import { BrandShapes, KenBurns, MediaShade } from "./components/Media";
 import { PopWords } from "./components/PopWords";
 import { Ring } from "./components/Ring";
 import { AccentBar, ArrowIcon, CheckIcon, DomainPill, LogoTile, QuoteIcon, TEXT_SAFE, cleanDomain } from "./components/ui";
+import { ProductionSlide, productionSlideParts } from "./directions/Slides";
 import { FONT } from "./fonts";
+import { isProduction, type ProductionReelProps } from "./props";
 import { figureWords } from "./scenes/Bold";
 import { BoxedText } from "./scenes/Story";
 import { breakFits, decimalsOf, emphasis, findFigure, fitFontSize, formatNumber, splitHeadline, splitWords } from "./text";
@@ -19,7 +21,15 @@ import { alpha, palette, type Palette } from "./theme";
  * carries the brand and its place ("2/6").
  */
 
-export type SlideProps = ReelProps & { index: number };
+export type SlideProps = ReelProps & Partial<ProductionReelProps> & { index: number };
+
+/**
+ * How many slides a carousel has: a production's parts (no CTA slide when
+ * includeCta is off), else the original cover + points + proof + CTA.
+ */
+export function carouselSlideCount(props: ReelProps & Partial<ProductionReelProps>): number {
+  return isProduction(props) ? productionSlideParts(props as ProductionReelProps).length : slideCount(props.script);
+}
 
 const W = 1080;
 const PADDING = 80;
@@ -28,6 +38,11 @@ const CONTENT = W - PADDING * 2;
 const SETTLED = -600;
 
 export function Slide(props: SlideProps) {
+  if (isProduction(props)) return <ProductionSlide {...(props as ProductionReelProps & { index: number })} />;
+  return <AnimatedSlide {...props} />;
+}
+
+function AnimatedSlide(props: SlideProps) {
   const pal = palette(props.brand, props.style);
   const total = slideCount(props.script);
   const index = Math.max(0, Math.min(total - 1, Math.round(props.index)));
