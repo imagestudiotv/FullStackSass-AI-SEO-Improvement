@@ -8,7 +8,7 @@ import { socialAccounts, socialSuggestions, socialTeams, websites } from "@/lib/
 import type { Executor } from "@/lib/db/types";
 import { VIDEO_PLATFORM_SPECS, VIDEO_PLATFORMS } from "@/lib/video/formats";
 
-import { createTeam, teamAccounts } from "./bundle";
+import { createTeam, teamAccounts, type BundleAccount } from "./bundle";
 import { PLATFORMS, SOCIAL_PLATFORMS, TRIAL_PLATFORMS, WARMUP_DAYS, type SocialPlatform } from "./platforms";
 
 /**
@@ -144,6 +144,43 @@ const PLATFORM_BY_BUNDLE_TYPE = new Map<string, string>([
 ]);
 
 /**
+ * social_accounts.target for the platforms where it is not a board (videos,
+ * 2026-11-12), read back from bundle.social on every sync:
+ *  - LinkedIn: where its posts go - "profile" (the member) or "organization"
+ *    (a company page), "selected" when a target is chosen but its kind is not
+ *    recognisable, null when none is chosen yet (bundle.social's page asks
+ *    for one after LinkedIn's login; posting fails without it).
+ *  - Instagram: how it is connected - "facebook_login" or "instagram_login".
+ *    Instagram's audio API (native music on Reels) needs Facebook Login.
+ * A team holds one account per platform, so a website has one LinkedIn
+ * destination: its profile or one page, as chosen when connecting.
+ */
+export type LinkedinTarget = "profile" | "organization" | "selected";
+export type InstagramLogin = "facebook_login" | "instagram_login";
+
+export function linkedinTargetOf(account: Pick<BundleAccount, "externalId" | "userId">): LinkedinTarget | null {
+  const id = account.externalId?.trim();
+  if (!id) return null;
+  if (/organization|company/i.test(id)) return "organization";
+  if (/person|member/i.test(id) || (account.userId && id === account.userId)) return "profile";
+  return "selected";
+}
+
+export function instagramLoginOf(account: Pick<BundleAccount, "instagramConnectionMethod">): InstagramLogin | null {
+  if (account.instagramConnectionMethod === "FACEBOOK") return "facebook_login";
+  if (account.instagramConnectionMethod === "INSTAGRAM") return "instagram_login";
+  return null;
+}
+
+/** The target to store for a platform read back from bundle.social (Pinterest keeps the customer's board). */
+function syncedTarget(platform: string, account: BundleAccount, existing: string | null | undefined): string | null {
+  if (platform === "pinterest") return existing ?? account.channels.find((channel) => channel.name)?.name ?? null;
+  if (platform === "linkedin") return linkedinTargetOf(account);
+  if (platform === "instagram") return instagramLoginOf(account);
+  return existing ?? null;
+}
+
+/**
  * Reads the accounts connected on bundle.social back into RepGet: a new one
  * starts its warm-up, a known one keeps it, and one disconnected there falls
  * back to a username (own posts become one-click). A Pinterest account gets
@@ -163,8 +200,9 @@ export async function syncBundleAccounts(websiteId: string, now: Date = new Date
       const platform = PLATFORM_BY_BUNDLE_TYPE.get(account.type);
       if (!platform) continue;
       seen.add(platform);
-      const username = account.username || account.displayName || platform;
-      const board = account.channels.find((channel) => channel.name)?.name ?? null;
+      // A LinkedIn company page is shown by its name, not the member who connected it.
+      const page = platform === "linkedin" ? account.channels.find((channel) => channel.id === account.externalId)?.name : null;
+      const username = page || account.username || account.displayName || platform;
       const existing = byPlatform.get(platform);
       if (existing) {
         const sameAccount = existing.bundleAccountId === account.id || existing.username.toLowerCase() === username.toLowerCase();
@@ -173,7 +211,7 @@ export async function syncBundleAccounts(websiteId: string, now: Date = new Date
           .set({
             username,
             bundleAccountId: account.id,
-            target: platform === "pinterest" ? (existing.target ?? board) : existing.target,
+            target: syncedTarget(platform, account, existing.target),
             warmupEndsAt: sameAccount ? existing.warmupEndsAt : warmupEnd(now),
             updatedAt: now,
           })
@@ -184,7 +222,7 @@ export async function syncBundleAccounts(websiteId: string, now: Date = new Date
           platform,
           username,
           bundleAccountId: account.id,
-          target: platform === "pinterest" ? board : null,
+          target: syncedTarget(platform, account, null),
           warmupEndsAt: warmupEnd(now),
         });
       }

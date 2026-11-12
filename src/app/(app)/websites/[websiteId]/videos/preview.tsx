@@ -2,9 +2,9 @@
 
 import { Player, Thumbnail } from "@remotion/player";
 
-import { REEL, SLIDE, slideCount, type ReelProps } from "@/lib/video/formats";
+import { REEL, SLIDE, type ReelProps } from "@/lib/video/formats";
 import { Reel } from "@/remotion/Reel";
-import { Slide } from "@/remotion/Slide";
+import { carouselSlideCount, Slide } from "@/remotion/Slide";
 import { reelTiming } from "@/remotion/timing";
 
 /**
@@ -44,7 +44,7 @@ export function ReelPreview({ props, autoPlay = true, className }: { props: Reel
 
 /** A carousel's slides side by side, as stills. */
 export function CarouselPreview({ props }: { props: ReelProps }) {
-  const count = slideCount(props.script);
+  const count = carouselSlideCount(props);
   return (
     <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2">
       {Array.from({ length: count }, (_, index) => (

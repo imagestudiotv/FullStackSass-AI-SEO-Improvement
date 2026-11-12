@@ -192,6 +192,1870 @@ export type VideosCopy = {
     day_full: string;
     generic: string;
   };
+  /** The viral social content additions (2026-11-12). */
+  viral: ViralCopy;
+};
+
+/**
+ * The viral social content words (client, 2026-11-12; the mockup
+ * RepGet_Social_Content_Viral_Settings.html). Honest by design: ideas are
+ * "trend-inspired", never "currently trending" without data, and nothing
+ * promises views.
+ */
+export type ViralCopy = {
+  /** The New ideas menu: ten free ideas a click, three times a day. */
+  newIdeas: {
+    kinds: Record<"mixed" | "viral" | "website", { title: string; body: string }>;
+    /** "Free · {left} of {total} left today" */
+    left: string;
+    free: string;
+    writing: string;
+    queued: string;
+    busy: string;
+    usedUp: string;
+    tooSoon: string;
+    /** "too_soon" with the server's retryAt: {seconds} to wait. */
+    tooSoonIn: string;
+  };
+  categories: { all: string; viral: string; educational: string; authority: string; promotional: string };
+  categoryHelp: { all: string; viral: string; educational: string; authority: string; promotional: string };
+  filters: { label: string; empty: string; emptyBody: string; clear: string };
+  browse: { previous: string; next: string; hint: string };
+  undoSkip: string;
+  viralBadge: string;
+  formats: { reel: string; story: string; carousel: string; stories: string };
+  directions: { meme: string; footage: string; storytelling: string; text_music: string; voiceover: string; animated: string };
+  audio: { voiceover: string; text_music: string };
+  narration: { natural: string; warm: string; energetic: string };
+  captionStyles: { bold: string; editorial: string; minimal: string };
+  music: { auto: string; cinematic: string; upbeat: string; ambient: string; none: string };
+  durations: { "15-30": string; "30-45": string; "45-60": string; "60-90": string };
+  techniques: {
+    curiosity_hooks: string;
+    trend_inspired: string;
+    myth_busting: string;
+    hot_takes: string;
+    before_after: string;
+    unexpected_facts: string;
+    comparisons: string;
+    storytelling: string;
+  };
+  tonePresets: Record<"professional" | "bold" | "playful", { title: string; body: string }>;
+  frequencies: { "3_week": string; "5_week": string; "1_day": string; "2_day": string; legacy: string };
+  why: { title: string; note: string };
+  /** An idea a person should check before automatic posting. "{reasons}" lists why. */
+  review: {
+    title: string;
+    reasons: { unverified_claim: string; controversial: string; sensitive: string };
+    what: string;
+    note: string;
+    approve: string;
+    done: string;
+    checked: string;
+  };
+  previewConcept: string;
+  noCta: string;
+  edit: {
+    description: string;
+    script: string;
+    making: string;
+    title: string;
+    category: string;
+    direction: string;
+    audio: string;
+    narration: string;
+    captionStyle: string;
+    musicDirection: string;
+    duration: string;
+    showHook: string;
+    includeCta: string;
+    ctaText: string;
+    ctaHint: string;
+    onlyThis: string;
+    onlyThisBody: string;
+    audience: string;
+    tonePreset: string;
+    tone: string;
+    avoid: string;
+    sameAsBrand: string;
+    samePlaceholder: string;
+    rewrite: string;
+    rewriteHelp: string;
+    rewritten: string;
+  };
+  /** Platform checks; {platform} and {length} are filled in. */
+  compat: { title: string; no_story: string; too_long: string; no_carousel: string; other: string; too_short: string; x_not_configured: string };
+  draft: { badge: string; body: string };
+  destinations: { label: string; status: { pending: string; scheduled: string; posting: string; posted: string; failed: string; skipped: string } };
+  nativeAudio: {
+    button: string;
+    title: string;
+    honest: string;
+    unavailable: string;
+    search: string;
+    searchButton: string;
+    none: string;
+    reasons: { not_configured: string; not_connected: string; needs_facebook_login: string };
+    reconnect: string;
+    use: string;
+    update: string;
+    reelsOnly: string;
+    noPreview: string;
+    volume: string;
+    originalVolume: string;
+    remove: string;
+    saved: string;
+    removed: string;
+    /** "Instagram audio: {title} {artist}" */
+    chosen: string;
+  };
+  x: { needsSetup: string; budget: string };
+  linkedin: { help: string; noTarget: string; targets: { profile: string; organization: string; selected: string } };
+  settings: {
+    open: string;
+    sidebar: string;
+    panes: { strategy: string; audience: string; video: string; publishing: string; safety: string; brand: string };
+    save: string;
+    reset: string;
+    resetTitle: string;
+    resetBody: string;
+    resetDone: string;
+    unsaved: string;
+    /** A field the server refused: {field} its label, {pane} its pane. */
+    fieldProblem: string;
+    savedNote: string;
+    brandNote: string;
+    problems: { no_format: string; cta_too_long: string; profile_too_long: string; bad_value: string };
+    strategy: {
+      title: string;
+      body: string;
+      badge: string;
+      mix: string;
+      mixHelp: string;
+      mixBadge: string;
+      mixLow: string;
+      mixMid: string;
+      mixHigh: string;
+      viralCount: string;
+      otherCount: string;
+      goal: string;
+      goalBody: string;
+      goals: Record<"reach" | "balanced" | "leads", { title: string; body: string }>;
+      techniques: string;
+      techniquesBody: string;
+      trends: string;
+      trendsHelp: string;
+      disclaimer: string;
+    };
+    audience: {
+      title: string;
+      body: string;
+      shared: string;
+      targetAudience: string;
+      topics: string;
+      language: string;
+      languageHint: string;
+      languageAuto: string;
+      market: string;
+      global: string;
+      voice: string;
+      voiceBody: string;
+      toneNotes: string;
+      toneNotesHint: string;
+      avoid: string;
+      avoidPlaceholder: string;
+    };
+    video: {
+      title: string;
+      body: string;
+      formats: string;
+      formatsBody: string;
+      formatNames: { reel: string; story: string; carousel: string };
+      audio: string;
+      audioBody: string;
+      audioModes: Record<"auto" | "voiceover" | "text_music", { title: string; body: string }>;
+      duration: string;
+      narration: string;
+      captions: string;
+      captionsHelp: string;
+      music: string;
+      musicNote: string;
+      hook: string;
+      hookHelp: string;
+      cta: string;
+      ctaHelp: string;
+      defaultCta: string;
+      defaultCtaHint: string;
+      defaultCtaPlaceholder: string;
+      animated: string;
+      animatedBody: string;
+    };
+    publishing: {
+      title: string;
+      body: string;
+      platformsBody: string;
+      modes: Record<"manual" | "draft" | "auto", { title: string; body: string }>;
+      autoNote: string;
+      frequency: string;
+      frequencyHint: string;
+    };
+    safety: {
+      title: string;
+      body: string;
+      always: string;
+      clickbait: string;
+      clickbaitHelp: string;
+      facts: string;
+      factsHelp: string;
+      competitors: string;
+      competitorsHelp: string;
+      controversy: string;
+      controversyHelp: string;
+      hint: string;
+      creative: string;
+      creativeBody: string;
+      humor: { none: { title: string; body: string }; light: { title: string; body: string }; bold: { title: string; body: string } };
+      controversial: string;
+      controversialHelp: string;
+      language: string;
+      languageHelp: string;
+      core: string;
+    };
+  };
+  /** Error codes added with the viral content work (the server's VideoError). */
+  errors: {
+    extra_used_up: string;
+    busy: string;
+    too_soon: string;
+    bad_settings: string;
+    bad_profile: string;
+    review_required: string;
+    x_not_configured: string;
+    x_limit_reached: string;
+    no_story: string;
+    too_long: string;
+    no_carousel: string;
+    incompatible: string;
+    bad_language: string;
+    rewrites_used_up: string;
+    ai_failed: string;
+    linkedin_no_target: string;
+    reel_only: string;
+    bad_audio: string;
+    not_connected: string;
+    needs_facebook_login: string;
+    search_failed: string;
+    paused: string;
+    daily_limit: string;
+    too_short: string;
+    native_audio_login: string;
+    native_audio_file: string;
+  };
+};
+
+const viralEn: ViralCopy = {
+  newIdeas: {
+    kinds: {
+      mixed: { title: "New daily ideas", body: "Explore more relevant topics" },
+      viral: { title: "Generate viral ideas", body: "Reach-focused hooks and formats" },
+      website: { title: "Ideas from your website", body: "Showcase products and services" },
+    },
+    left: "Free · {left} of {total} left today",
+    free: "Each click adds 10 ideas. Ideas are free; only making a video uses credits.",
+    writing: "Writing ideas…",
+    queued: "Writing 10 new ideas. They appear here in a minute.",
+    busy: "New ideas are being written. They appear here in a minute.",
+    usedUp: "You have used today's 3 free batches. More ideas arrive tomorrow morning.",
+    tooSoon: "Please wait a moment before asking for more ideas.",
+    tooSoonIn: "Please wait {seconds} seconds before asking for more ideas.",
+  },
+  categories: { all: "All ideas", viral: "Viral", educational: "Educational", authority: "Authority", promotional: "Promotional" },
+  categoryHelp: {
+    all: "Choose the kind of content you want to make",
+    viral: "Curiosity-led content built for discovery and shares",
+    educational: "Useful tips and answers your customers look for",
+    authority: "Your expertise and how you work behind the scenes",
+    promotional: "Your products and services, with a clear next step",
+  },
+  filters: {
+    label: "Content type",
+    empty: "No ideas match these filters",
+    emptyBody: "Try another content type or format, or ask for new ideas.",
+    clear: "Clear filters",
+  },
+  browse: {
+    previous: "Previous idea",
+    next: "Next idea",
+    hint: "‹ › only browse the ideas. Create makes the video; Skip sets the idea aside.",
+  },
+  undoSkip: "The idea is back.",
+  viralBadge: "✦ Viral",
+  formats: { reel: "Reel", story: "Story", carousel: "Carousel", stories: "Stories" },
+  directions: {
+    meme: "Meme",
+    footage: "Real footage",
+    storytelling: "Storytelling",
+    text_music: "Text + music",
+    voiceover: "Voiceover",
+    animated: "Animated",
+  },
+  audio: { voiceover: "Voiceover", text_music: "Text + music" },
+  narration: { natural: "Natural and conversational", warm: "Warm and cinematic", energetic: "Energetic and upbeat" },
+  captionStyles: { bold: "Bold highlighted words", editorial: "Clean editorial subtitles", minimal: "Minimal captions" },
+  music: { auto: "Auto-match content", cinematic: "Cinematic", upbeat: "Upbeat", ambient: "Ambient / minimal", none: "No music" },
+  durations: { "15-30": "15–30 seconds", "30-45": "30–45 seconds", "45-60": "45–60 seconds", "60-90": "60–90 seconds" },
+  techniques: {
+    curiosity_hooks: "Curiosity hooks",
+    trend_inspired: "Trend-inspired formats",
+    myth_busting: "Myth-busting",
+    hot_takes: "Hot takes",
+    before_after: "Before and after",
+    unexpected_facts: "Unexpected facts",
+    comparisons: "Comparisons",
+    storytelling: "Storytelling",
+  },
+  tonePresets: {
+    professional: { title: "Professional", body: "Clear, refined and confident." },
+    bold: { title: "Bold", body: "More energy and stronger openers." },
+    playful: { title: "Playful", body: "Witty, informal and engaging." },
+  },
+  frequencies: {
+    "3_week": "3 times per week",
+    "5_week": "5 times per week",
+    "1_day": "1 post per day",
+    "2_day": "2 posts per day",
+    legacy: "As videos are made (up to 3 a day)",
+  },
+  why: { title: "Why this could perform well", note: "A strong idea helps, but nothing guarantees views." },
+  review: {
+    title: "Needs your check: {reasons}",
+    reasons: { unverified_claim: "figures or facts", controversial: "a controversial angle", sensitive: "a sensitive topic" },
+    what: "Check these against your own information:",
+    note: "This only stops automatic posting. You can still create and publish it yourself.",
+    approve: "I checked this",
+    done: "Checked. It can now be posted automatically.",
+    checked: "Checked by you",
+  },
+  previewConcept: "Concept preview, muted. Footage, voice and music are chosen when the video is made.",
+  noCta: "No call to action",
+  edit: {
+    description: "Change the idea before it is made. Saving is free; only creating uses credits.",
+    script: "Script",
+    making: "How it is made",
+    title: "Title",
+    category: "Content type",
+    direction: "Creative direction",
+    audio: "Audio",
+    narration: "Narration style",
+    captionStyle: "Caption style",
+    musicDirection: "Music direction",
+    duration: "Length",
+    showHook: "Show the opening hook on screen",
+    includeCta: "Include a call to action",
+    ctaText: "Call to action",
+    ctaHint: "Leave empty to use the closing line.",
+    onlyThis: "Only this video",
+    onlyThisBody: "These change this video only. Your business profile and brand voice stay as they are.",
+    audience: "Audience",
+    tonePreset: "Brand voice",
+    tone: "Tone",
+    avoid: "Avoid",
+    sameAsBrand: "Same as your brand voice",
+    samePlaceholder: "Same as your business profile",
+    rewrite: "Rewrite with these",
+    rewriteHelp: "Rewriting is free: RepGet writes the script again with your choices.",
+    rewritten: "Rewritten. The new script is in the idea.",
+  },
+  compat: {
+    title: "Check before publishing",
+    no_story: "{platform} takes no Stories from RepGet, so this Story is not sent there.",
+    too_long: "{platform} does not take videos of {length}.",
+    no_carousel: "{platform} takes no carousels here, so this carousel is not sent there.",
+    other: "{platform} cannot take this video.",
+    too_short: "{platform} takes Stories of at least 3 seconds.",
+    x_not_configured: "X is not set up for videos yet, so nothing is sent there.",
+  },
+  draft: { badge: "Draft", body: "Draft - publish when you are ready." },
+  destinations: {
+    label: "Where it went",
+    status: { pending: "Waiting", scheduled: "Scheduled", posting: "Publishing", posted: "Posted", failed: "Failed", skipped: "Skipped" },
+  },
+  nativeAudio: {
+    button: "Instagram audio",
+    title: "Instagram audio",
+    honest: "The final mix with Instagram's audio can only be heard on Instagram. Other platforms and the download keep RepGet's licensed music.",
+    unavailable: "Instagram's audio is not available for this account yet.",
+    search: "Search Instagram's audio",
+    searchButton: "Search",
+    none: "Nothing found. Try other words.",
+    reasons: { not_configured: "Instagram's own audio is not set up on this RepGet yet.", not_connected: "Connect Instagram first.", needs_facebook_login: "Reconnect Instagram through Facebook Login to use its audio." },
+    reconnect: "Reconnect with Facebook Login",
+    use: "Use",
+    update: "Update",
+    reelsOnly: "Instagram's own audio works on Reels only.",
+    noPreview: "RepGet cannot preview the final mix: Instagram adds the track when it publishes the Reel.",
+    volume: "Track volume",
+    originalVolume: "Video sound volume",
+    remove: "Remove Instagram audio",
+    saved: "Instagram audio chosen for this reel.",
+    removed: "Instagram audio removed.",
+    chosen: "Instagram audio: {title} {artist}",
+  },
+  x: {
+    needsSetup: "X needs setup: RepGet posts there only once X is configured with a spending limit.",
+    budget: "X has reached its spending limit for now. RepGet posts there again when the limit allows.",
+  },
+  linkedin: { help: "Your profile or a company page.", noTarget: "Choose a profile or page: reconnect LinkedIn and pick one.", targets: { profile: "Posts to your LinkedIn profile.", organization: "Posts to your LinkedIn company page.", selected: "Posts to the LinkedIn destination you chose." } },
+  settings: {
+    open: "Content settings",
+    sidebar: "Preferences",
+    panes: {
+      strategy: "Content strategy",
+      audience: "Audience & topics",
+      video: "Video & audio",
+      publishing: "Publishing",
+      safety: "Brand safety",
+      brand: "Brand media",
+    },
+    save: "Save settings",
+    reset: "Reset",
+    resetTitle: "Reset to the suggested settings?",
+    resetBody: "Strategy, video, publishing and safety go back to RepGet's suggestions. Your accounts, logo, pictures and business profile stay as they are.",
+    resetDone: "Settings reset to the suggested defaults.",
+    unsaved: "You have unsaved changes.",
+    fieldProblem: "Check “{field}” in {pane}: this value cannot be saved.",
+    savedNote: "Settings are saved for this website.",
+    brandNote: "Your logo and pictures are saved as soon as you upload them.",
+    problems: {
+      no_format: "Choose at least one format.",
+      cta_too_long: "Keep the call to action under 150 characters.",
+      profile_too_long: "One of the texts is too long.",
+      bad_value: "One of the choices is not valid. Please reload the page.",
+    },
+    strategy: {
+      title: "Content strategy",
+      body: "Choose the kind of social content RepGet should suggest and how much of it should be designed for discovery and sharing.",
+      badge: "NEW · Viral",
+      mix: "Viral content mix",
+      mixHelp: "How many of your daily ideas should use shareable hooks, stories and trend-inspired formats.",
+      mixBadge: "{value}% viral",
+      mixLow: "0% · Business as usual",
+      mixMid: "50% · Balanced",
+      mixHigh: "100% · Reach-first",
+      viralCount: "{count} viral ideas / {total}",
+      otherCount: "{count} other ideas",
+      goal: "Primary content goal",
+      goalBody: "RepGet adapts its suggestions to the outcome you want.",
+      goals: {
+        reach: { title: "Grow reach", body: "Discoverability, views, shares and curiosity." },
+        balanced: { title: "Balanced growth", body: "Useful content, trust and shareability." },
+        leads: { title: "Generate leads", body: "Proof, services and stronger calls to action." },
+      },
+      techniques: "Viral content techniques",
+      techniquesBody: "Choose the formats that suit your business. RepGet uses them to develop ideas, never to invent claims.",
+      trends: "Trend-inspired ideas",
+      trendsHelp: "Ideas use proven formats and knowledge of your field. RepGet never says something is trending without data.",
+      disclaimer: "Viral content is made for engagement and sharing. It does not guarantee views, rankings or a viral result.",
+    },
+    audience: {
+      title: "Audience & topics",
+      body: "Describe who you want to reach and what your customers care about.",
+      shared: "These are your business profile and brand voice. Saving here updates them everywhere in RepGet.",
+      targetAudience: "Target audience",
+      topics: "Topics to prioritize",
+      language: "Content language",
+      languageHint: "The language your videos and posts are written in.",
+      languageAuto: "Your website's language",
+      market: "Target market",
+      global: "Global / international",
+      voice: "Brand voice",
+      voiceBody: "How your content sounds across platforms.",
+      toneNotes: "Your tone in your own words",
+      toneNotesHint: "Kept next to the choice above, as in your brand voice settings.",
+      avoid: "Avoid these topics or phrases",
+      avoidPlaceholder: "Subjects, promises or phrases your brand should avoid",
+    },
+    video: {
+      title: "Video & audio",
+      body: "Formats, length and presentation for your videos and carousels.",
+      formats: "Allowed formats",
+      formatsBody: "Ideas adapt to the formats you choose.",
+      formatNames: { reel: "Reels / Shorts", story: "Stories", carousel: "Photo carousels" },
+      audio: "Audio",
+      audioBody: "How your videos sound.",
+      audioModes: {
+        auto: { title: "Auto (recommended)", body: "RepGet picks voiceover or text and music for each idea." },
+        voiceover: { title: "Voiceover", body: "AI narration with captions and music." },
+        text_music: { title: "Text + music", body: "No narration: strong visuals, animated text and music." },
+      },
+      duration: "Target video length",
+      narration: "Narration style",
+      captions: "Caption style",
+      captionsHelp: "Words on screen as they are said.",
+      music: "Music direction",
+      musicNote: "Music is licensed for commercial use on social platforms.",
+      hook: "Show on-screen opening hook",
+      hookHelp: "Start videos with a clear visual hook in the first seconds.",
+      cta: "Include calls to action",
+      ctaHelp: "Add a short next step at the end of the video.",
+      defaultCta: "Default call to action",
+      defaultCtaHint: "Used when an idea has no closing line of its own.",
+      defaultCtaPlaceholder: "Follow us for more practical tips",
+      animated: "Animated style",
+      animatedBody: "For animated videos made with RepGet's templates.",
+    },
+    publishing: {
+      title: "Publishing",
+      body: "Choose where your videos go and how much you review before they go live.",
+      platformsBody: "New platforms such as LinkedIn and X are never added for you.",
+      modes: {
+        manual: { title: "Review before publishing", body: "Ready videos wait for you to press Publish." },
+        draft: { title: "Save as draft", body: "Made videos stay in Your videos as drafts. Nothing is posted until you publish." },
+        auto: { title: "Auto-publish approved ideas", body: "Each video you make is published at the best available time." },
+      },
+      autoNote: "Automatic posting never creates or charges for videos by itself. It only publishes the videos you make, at most 3 a day.",
+      frequency: "Posting frequency",
+      frequencyHint: "Used for automatic posting. RepGet spreads posts over the best times.",
+    },
+    safety: {
+      title: "Brand safety",
+      body: "Protect your reputation while you make engaging content.",
+      always: "Always on: a core protection",
+      clickbait: "Avoid misleading clickbait",
+      clickbaitHelp: "Hooks can spark curiosity, but must match the video and avoid false promises.",
+      facts: "Check figures before automatic posting",
+      factsHelp: "Figures, rankings and comparisons not found on your website wait for your check.",
+      competitors: "Avoid unverifiable competitor claims",
+      competitorsHelp: "No allegations or unsupported statements about other brands.",
+      controversy: "Approval for controversial angles",
+      controversyHelp: "Sensitive topics and provocative takes wait for your approval.",
+      hint: "Keep these on even with a high viral mix. They only hold back automatic posting.",
+      creative: "Creative preferences",
+      creativeBody: "Adjust these to suit your brand.",
+      humor: {
+        none: { title: "No humor", body: "Serious and to the point." },
+        light: { title: "Light humor", body: "A smile now and then." },
+        bold: { title: "Bold humor", body: "Memes and playful jokes." },
+      },
+      controversial: "Allow controversial topics",
+      controversialHelp: "Debated subjects in your field, handled with care.",
+      language: "Stronger language",
+      languageHelp: "Punchier wording, never offensive.",
+      core: "Copyright, false claims, impersonation and unlawful content are always protected, whatever you choose here.",
+    },
+  },
+  errors: {
+    extra_used_up: "You have used today's 3 free batches of ideas. More arrive tomorrow morning.",
+    busy: "Ideas are already being written. They appear here in a minute.",
+    too_soon: "Please wait a moment before asking for more ideas.",
+    bad_settings: "Some settings could not be saved. Please check them and try again.",
+    bad_profile: "The audience details could not be saved. Please check them and try again.",
+    review_required: "This video needs your check before it can be posted automatically.",
+    x_not_configured: "X is not set up yet.",
+    x_limit_reached: "X spending limit reached",
+    no_story: "Stories are not supported there",
+    too_long: "Too long for this platform",
+    no_carousel: "Carousels are not supported there",
+    incompatible: "A chosen platform cannot take this video. Untick it or change the video.",
+    bad_language: "Choose one of the content languages RepGet writes in.",
+    rewrites_used_up: "You have used today's free rewrites. You can still edit the idea yourself.",
+    ai_failed: "The AI could not write this just now. Please try again in a minute.",
+    linkedin_no_target: "Reconnect LinkedIn and choose your profile or a company page.",
+    reel_only: "Instagram's audio works on Reels only.",
+    bad_audio: "This track cannot be used. Please choose another.",
+    not_connected: "Instagram is not connected.",
+    needs_facebook_login: "Reconnect Instagram through Facebook Login to use its audio.",
+    search_failed: "Instagram's audio could not be searched. Please try again.",
+    paused: "Paused after a refusal: resume it in Settings",
+    daily_limit: "Daily limit reached on this platform",
+    too_short: "Too short for a Story",
+    native_audio_login: "Reconnect Instagram through Facebook Login for its audio",
+    native_audio_file: "The version for Instagram's audio could not be made",
+  },
+};
+
+const viralEs: ViralCopy = {
+  newIdeas: {
+    kinds: {
+      mixed: { title: "Nuevas ideas del día", body: "Explore más temas relevantes" },
+      viral: { title: "Generar ideas virales", body: "Ganchos y formatos pensados para el alcance" },
+      website: { title: "Ideas de su sitio web", body: "Muestre sus productos y servicios" },
+    },
+    left: "Gratis · quedan {left} de {total} hoy",
+    free: "Cada clic añade 10 ideas. Las ideas son gratis; solo crear un vídeo usa créditos.",
+    writing: "Escribiendo ideas…",
+    queued: "Escribiendo 10 ideas nuevas. Aparecerán aquí en un minuto.",
+    busy: "Se están escribiendo ideas nuevas. Aparecerán aquí en un minuto.",
+    usedUp: "Ya ha usado los 3 lotes gratuitos de hoy. Mañana por la mañana llegan más ideas.",
+    tooSoon: "Espere un momento antes de pedir más ideas.",
+    tooSoonIn: "Espere {seconds} segundos antes de pedir más ideas.",
+  },
+  categories: { all: "Todas las ideas", viral: "Virales", educational: "Educativas", authority: "Autoridad", promotional: "Promocionales" },
+  categoryHelp: {
+    all: "Elija el tipo de contenido que quiere crear",
+    viral: "Contenido que despierta curiosidad, pensado para descubrirse y compartirse",
+    educational: "Consejos útiles y respuestas que buscan sus clientes",
+    authority: "Su experiencia y cómo trabaja entre bastidores",
+    promotional: "Sus productos y servicios, con un siguiente paso claro",
+  },
+  filters: {
+    label: "Tipo de contenido",
+    empty: "Ninguna idea coincide con estos filtros",
+    emptyBody: "Pruebe otro tipo de contenido u otro formato, o pida ideas nuevas.",
+    clear: "Quitar filtros",
+  },
+  browse: {
+    previous: "Idea anterior",
+    next: "Idea siguiente",
+    hint: "‹ › solo sirven para ver las ideas. Crear hace el vídeo; Omitir aparta la idea.",
+  },
+  undoSkip: "La idea ha vuelto.",
+  viralBadge: "✦ Viral",
+  formats: { reel: "Reel", story: "Historia", carousel: "Carrusel", stories: "Historias" },
+  directions: {
+    meme: "Meme",
+    footage: "Imágenes reales",
+    storytelling: "Narrativa",
+    text_music: "Texto + música",
+    voiceover: "Voz en off",
+    animated: "Animado",
+  },
+  audio: { voiceover: "Voz en off", text_music: "Texto + música" },
+  narration: { natural: "Natural y cercana", warm: "Cálida y cinematográfica", energetic: "Enérgica y animada" },
+  captionStyles: { bold: "Palabras destacadas", editorial: "Subtítulos editoriales limpios", minimal: "Subtítulos mínimos" },
+  music: { auto: "Adaptada al contenido", cinematic: "Cinematográfica", upbeat: "Animada", ambient: "Ambiental / mínima", none: "Sin música" },
+  durations: { "15-30": "15–30 segundos", "30-45": "30–45 segundos", "45-60": "45–60 segundos", "60-90": "60–90 segundos" },
+  techniques: {
+    curiosity_hooks: "Ganchos de curiosidad",
+    trend_inspired: "Formatos inspirados en tendencias",
+    myth_busting: "Desmentir mitos",
+    hot_takes: "Opiniones atrevidas",
+    before_after: "Antes y después",
+    unexpected_facts: "Datos inesperados",
+    comparisons: "Comparaciones",
+    storytelling: "Narrativa",
+  },
+  tonePresets: {
+    professional: { title: "Profesional", body: "Claro, cuidado y seguro." },
+    bold: { title: "Atrevido", body: "Más energía y comienzos más fuertes." },
+    playful: { title: "Desenfadado", body: "Ingenioso, informal y cercano." },
+  },
+  frequencies: {
+    "3_week": "3 veces por semana",
+    "5_week": "5 veces por semana",
+    "1_day": "1 publicación al día",
+    "2_day": "2 publicaciones al día",
+    legacy: "Según se crean los vídeos (hasta 3 al día)",
+  },
+  why: { title: "Por qué podría funcionar bien", note: "Una buena idea ayuda, pero nada garantiza visualizaciones." },
+  review: {
+    title: "Necesita su revisión: {reasons}",
+    reasons: { unverified_claim: "cifras o datos", controversial: "un enfoque polémico", sensitive: "un tema delicado" },
+    what: "Compruébelos con su propia información:",
+    note: "Esto solo detiene la publicación automática. Puede crearlo y publicarlo usted mismo.",
+    approve: "Lo he comprobado",
+    done: "Comprobado. Ya se puede publicar automáticamente.",
+    checked: "Comprobado por usted",
+  },
+  previewConcept: "Vista previa del concepto, sin sonido. Las imágenes, la voz y la música se eligen al crear el vídeo.",
+  noCta: "Sin llamada a la acción",
+  edit: {
+    description: "Cambie la idea antes de crearla. Guardar es gratis; solo crear usa créditos.",
+    script: "Guion",
+    making: "Cómo se crea",
+    title: "Título",
+    category: "Tipo de contenido",
+    direction: "Dirección creativa",
+    audio: "Audio",
+    narration: "Estilo de narración",
+    captionStyle: "Estilo de subtítulos",
+    musicDirection: "Estilo de música",
+    duration: "Duración",
+    showHook: "Mostrar el gancho inicial en pantalla",
+    includeCta: "Incluir una llamada a la acción",
+    ctaText: "Llamada a la acción",
+    ctaHint: "Déjelo vacío para usar la frase final.",
+    onlyThis: "Solo este vídeo",
+    onlyThisBody: "Esto cambia solo este vídeo. Su perfil de empresa y su Voz de marca no cambian.",
+    audience: "Público",
+    tonePreset: "Voz de marca",
+    tone: "Tono",
+    avoid: "Evitar",
+    sameAsBrand: "Igual que su Voz de marca",
+    samePlaceholder: "Igual que su perfil de empresa",
+    rewrite: "Reescribir con estos cambios",
+    rewriteHelp: "Reescribir es gratis: RepGet vuelve a escribir el guion con sus elecciones.",
+    rewritten: "Reescrito. El nuevo guion está en la idea.",
+  },
+  compat: {
+    title: "Revise antes de publicar",
+    no_story: "{platform} no acepta Historias de RepGet, así que esta Historia no se envía allí.",
+    too_long: "{platform} no acepta vídeos de {length}.",
+    no_carousel: "{platform} no acepta carruseles aquí, así que este carrusel no se envía allí.",
+    other: "{platform} no puede recibir este vídeo.",
+    too_short: "{platform} acepta Historias de al menos 3 segundos.",
+    x_not_configured: "X aún no está configurado para vídeos, así que no se envía nada allí.",
+  },
+  draft: { badge: "Borrador", body: "Borrador: publíquelo cuando quiera." },
+  destinations: {
+    label: "Dónde se publicó",
+    status: { pending: "En espera", scheduled: "Programado", posting: "Publicando", posted: "Publicado", failed: "Error", skipped: "Omitido" },
+  },
+  nativeAudio: {
+    button: "Audio de Instagram",
+    title: "Audio de Instagram",
+    honest: "La mezcla final con el audio de Instagram solo se oye en Instagram. Las demás plataformas y la descarga mantienen la música con licencia de RepGet.",
+    unavailable: "El audio de Instagram aún no está disponible para esta cuenta.",
+    search: "Buscar en el audio de Instagram",
+    searchButton: "Buscar",
+    none: "No se ha encontrado nada. Pruebe con otras palabras.",
+    reasons: { not_configured: "El audio de Instagram aún no está configurado en este RepGet.", not_connected: "Conecte primero Instagram.", needs_facebook_login: "Vuelva a conectar Instagram con Facebook Login para usar su audio." },
+    reconnect: "Volver a conectar con Facebook Login",
+    use: "Usar",
+    update: "Actualizar",
+    reelsOnly: "El audio propio de Instagram solo funciona en Reels.",
+    noPreview: "RepGet no puede mostrar la mezcla final: Instagram añade la pista al publicar el Reel.",
+    volume: "Volumen de la pista",
+    originalVolume: "Volumen del sonido del vídeo",
+    remove: "Quitar el audio de Instagram",
+    saved: "Audio de Instagram elegido para este reel.",
+    removed: "Audio de Instagram quitado.",
+    chosen: "Audio de Instagram: {title} {artist}",
+  },
+  x: {
+    needsSetup: "X necesita configuración: RepGet solo publica allí cuando X está configurado con un límite de gasto.",
+    budget: "X ha alcanzado su límite de gasto por ahora. RepGet volverá a publicar allí cuando el límite lo permita.",
+  },
+  linkedin: { help: "Su perfil o una página de empresa.", noTarget: "Elija un perfil o una página: vuelva a conectar LinkedIn y elija uno.", targets: { profile: "Publica en su perfil de LinkedIn.", organization: "Publica en su página de empresa de LinkedIn.", selected: "Publica en el destino de LinkedIn que eligió." } },
+  settings: {
+    open: "Ajustes de contenido",
+    sidebar: "Preferencias",
+    panes: {
+      strategy: "Estrategia de contenido",
+      audience: "Público y temas",
+      video: "Vídeo y audio",
+      publishing: "Publicación",
+      safety: "Seguridad de marca",
+      brand: "Medios de la marca",
+    },
+    save: "Guardar ajustes",
+    reset: "Restablecer",
+    resetTitle: "¿Volver a los ajustes recomendados?",
+    resetBody: "La estrategia, el vídeo, la publicación y la seguridad vuelven a las recomendaciones de RepGet. Sus cuentas, su logotipo, sus imágenes y su perfil de empresa no cambian.",
+    resetDone: "Ajustes restablecidos a los valores recomendados.",
+    unsaved: "Tiene cambios sin guardar.",
+    fieldProblem: "Revise «{field}» en {pane}: este valor no se puede guardar.",
+    savedNote: "Los ajustes se guardan para este sitio web.",
+    brandNote: "Su logotipo y sus imágenes se guardan en cuanto los sube.",
+    problems: {
+      no_format: "Elija al menos un formato.",
+      cta_too_long: "La llamada a la acción debe tener menos de 150 caracteres.",
+      profile_too_long: "Uno de los textos es demasiado largo.",
+      bad_value: "Una de las opciones no es válida. Vuelva a cargar la página.",
+    },
+    strategy: {
+      title: "Estrategia de contenido",
+      body: "Elija qué tipo de contenido social debe sugerir RepGet y cuánto debe estar pensado para descubrirse y compartirse.",
+      badge: "NUEVO · Viral",
+      mix: "Proporción de contenido viral",
+      mixHelp: "Cuántas de sus ideas diarias deben usar ganchos para compartir, historias y formatos inspirados en tendencias.",
+      mixBadge: "{value}% viral",
+      mixLow: "0% · Como siempre",
+      mixMid: "50% · Equilibrado",
+      mixHigh: "100% · Máximo alcance",
+      viralCount: "{count} ideas virales / {total}",
+      otherCount: "{count} ideas de otro tipo",
+      goal: "Objetivo principal",
+      goalBody: "RepGet adapta sus sugerencias al resultado que busca.",
+      goals: {
+        reach: { title: "Ganar alcance", body: "Visibilidad, visualizaciones, compartidos y curiosidad." },
+        balanced: { title: "Crecimiento equilibrado", body: "Contenido útil, confianza y facilidad para compartir." },
+        leads: { title: "Conseguir clientes", body: "Pruebas, servicios y llamadas a la acción más claras." },
+      },
+      techniques: "Técnicas de contenido viral",
+      techniquesBody: "Elija los formatos que encajan con su negocio. RepGet los usa para desarrollar ideas, nunca para inventar afirmaciones.",
+      trends: "Ideas inspiradas en tendencias",
+      trendsHelp: "Las ideas usan formatos probados y conocimiento de su sector. RepGet nunca dice que algo es tendencia sin datos.",
+      disclaimer: "El contenido viral está pensado para generar interacción y compartirse. No garantiza visualizaciones, posiciones ni un resultado viral.",
+    },
+    audience: {
+      title: "Público y temas",
+      body: "Describa a quién quiere llegar y qué les importa a sus clientes.",
+      shared: "Estos datos son su perfil de empresa y su Voz de marca. Al guardarlos aquí se actualizan en todo RepGet.",
+      targetAudience: "Público objetivo",
+      topics: "Temas prioritarios",
+      language: "Idioma del contenido",
+      languageHint: "El idioma en que se escriben sus vídeos y publicaciones.",
+      languageAuto: "El idioma de su sitio web",
+      market: "Mercado objetivo",
+      global: "Global / internacional",
+      voice: "Voz de marca",
+      voiceBody: "Cómo suena su contenido en todas las plataformas.",
+      toneNotes: "Su tono, con sus palabras",
+      toneNotesHint: "Se mantiene junto a la opción de arriba, como en Voz de marca.",
+      avoid: "Evitar estos temas o frases",
+      avoidPlaceholder: "Temas, promesas o frases que su marca debe evitar",
+    },
+    video: {
+      title: "Vídeo y audio",
+      body: "Formatos, duración y presentación de sus vídeos y carruseles.",
+      formats: "Formatos permitidos",
+      formatsBody: "Las ideas se adaptan a los formatos que elija.",
+      formatNames: { reel: "Reels / Shorts", story: "Historias", carousel: "Carruseles de fotos" },
+      audio: "Audio",
+      audioBody: "Cómo suenan sus vídeos.",
+      audioModes: {
+        auto: { title: "Automático (recomendado)", body: "RepGet elige voz en off o texto y música para cada idea." },
+        voiceover: { title: "Voz en off", body: "Narración con IA, subtítulos y música." },
+        text_music: { title: "Texto + música", body: "Sin narración: imágenes potentes, texto animado y música." },
+      },
+      duration: "Duración del vídeo",
+      narration: "Estilo de narración",
+      captions: "Estilo de subtítulos",
+      captionsHelp: "Las palabras aparecen en pantalla al decirse.",
+      music: "Estilo de música",
+      musicNote: "La música tiene licencia para uso comercial en redes sociales.",
+      hook: "Mostrar el gancho inicial en pantalla",
+      hookHelp: "Empiece los vídeos con un gancho visual claro en los primeros segundos.",
+      cta: "Incluir llamadas a la acción",
+      ctaHelp: "Añada un siguiente paso breve al final del vídeo.",
+      defaultCta: "Llamada a la acción por defecto",
+      defaultCtaHint: "Se usa cuando una idea no tiene frase final propia.",
+      defaultCtaPlaceholder: "Síganos para más consejos prácticos",
+      animated: "Estilo animado",
+      animatedBody: "Para vídeos animados hechos con las plantillas de RepGet.",
+    },
+    publishing: {
+      title: "Publicación",
+      body: "Elija dónde se publican sus vídeos y cuánto los revisa antes de que salgan.",
+      platformsBody: "Las plataformas nuevas, como LinkedIn y X, nunca se añaden por usted.",
+      modes: {
+        manual: { title: "Revisar antes de publicar", body: "Los vídeos listos esperan a que pulse Publicar." },
+        draft: { title: "Guardar como borrador", body: "Los vídeos creados quedan en Sus vídeos como borradores. No se publica nada hasta que usted lo haga." },
+        auto: { title: "Publicar automáticamente las ideas aprobadas", body: "Cada vídeo que crea se publica en el mejor momento disponible." },
+      },
+      autoNote: "La publicación automática nunca crea vídeos ni cobra por sí sola. Solo publica los vídeos que usted crea, como máximo 3 al día.",
+      frequency: "Frecuencia de publicación",
+      frequencyHint: "Para la publicación automática. RepGet reparte las publicaciones en los mejores horarios.",
+    },
+    safety: {
+      title: "Seguridad de marca",
+      body: "Proteja su reputación mientras crea contenido atractivo.",
+      always: "Siempre activa: una protección básica",
+      clickbait: "Evitar el clickbait engañoso",
+      clickbaitHelp: "Los ganchos pueden despertar curiosidad, pero deben coincidir con el vídeo y no hacer falsas promesas.",
+      facts: "Revisar las cifras antes de publicar automáticamente",
+      factsHelp: "Las cifras, clasificaciones y comparaciones que no están en su sitio web esperan su revisión.",
+      competitors: "Evitar afirmaciones no verificables sobre la competencia",
+      competitorsHelp: "Nada de acusaciones ni afirmaciones sin fundamento sobre otras marcas.",
+      controversy: "Aprobación para enfoques polémicos",
+      controversyHelp: "Los temas delicados y las opiniones provocadoras esperan su aprobación.",
+      hint: "Manténgalas activas aunque la proporción viral sea alta. Solo detienen la publicación automática.",
+      creative: "Preferencias creativas",
+      creativeBody: "Ajústelas según su marca.",
+      humor: {
+        none: { title: "Sin humor", body: "Serio y directo." },
+        light: { title: "Humor ligero", body: "Una sonrisa de vez en cuando." },
+        bold: { title: "Humor atrevido", body: "Memes y bromas desenfadadas." },
+      },
+      controversial: "Permitir temas polémicos",
+      controversialHelp: "Temas debatidos de su sector, tratados con cuidado.",
+      language: "Lenguaje más directo",
+      languageHelp: "Frases más contundentes, nunca ofensivas.",
+      core: "Los derechos de autor, las afirmaciones falsas, la suplantación y el contenido ilegal siempre están protegidos, elija lo que elija aquí.",
+    },
+  },
+  errors: {
+    extra_used_up: "Ya ha usado los 3 lotes gratuitos de ideas de hoy. Mañana por la mañana llegan más.",
+    busy: "Ya se están escribiendo ideas. Aparecerán aquí en un minuto.",
+    too_soon: "Espere un momento antes de pedir más ideas.",
+    bad_settings: "No se han podido guardar algunos ajustes. Revíselos e inténtelo de nuevo.",
+    bad_profile: "No se han podido guardar los datos del público. Revíselos e inténtelo de nuevo.",
+    review_required: "Este vídeo necesita su revisión antes de publicarse automáticamente.",
+    x_not_configured: "X aún no está configurado.",
+    x_limit_reached: "Límite de gasto de X alcanzado",
+    no_story: "Allí no se admiten Historias",
+    too_long: "Demasiado largo para esta plataforma",
+    no_carousel: "Allí no se admiten carruseles",
+    incompatible: "Una de las plataformas elegidas no acepta este vídeo. Desmárquela o cambie el vídeo.",
+    bad_language: "Elija uno de los idiomas de contenido en los que escribe RepGet.",
+    rewrites_used_up: "Ya ha usado las reescrituras gratuitas de hoy. Puede seguir editando la idea usted mismo.",
+    ai_failed: "La IA no ha podido escribirlo ahora. Inténtelo de nuevo en un minuto.",
+    linkedin_no_target: "Vuelva a conectar LinkedIn y elija su perfil o una página de empresa.",
+    reel_only: "El audio de Instagram solo funciona en Reels.",
+    bad_audio: "Esta pista no se puede usar. Elija otra.",
+    not_connected: "Instagram no está conectado.",
+    needs_facebook_login: "Vuelva a conectar Instagram con Facebook Login para usar su audio.",
+    search_failed: "No se ha podido buscar en el audio de Instagram. Inténtelo de nuevo.",
+    paused: "En pausa tras un rechazo: reanúdelo en Ajustes",
+    daily_limit: "Límite diario alcanzado en esta plataforma",
+    too_short: "Demasiado corto para una Historia",
+    native_audio_login: "Vuelva a conectar Instagram con Facebook Login para su audio",
+    native_audio_file: "No se ha podido crear la versión para el audio de Instagram",
+  },
+};
+
+const viralFr: ViralCopy = {
+  newIdeas: {
+    kinds: {
+      mixed: { title: "Nouvelles idées du jour", body: "Explorez d’autres sujets pertinents" },
+      viral: { title: "Générer des idées virales", body: "Accroches et formats pensés pour la portée" },
+      website: { title: "Idées tirées de votre site", body: "Mettez en avant vos produits et services" },
+    },
+    left: "Gratuit · encore {left} sur {total} aujourd’hui",
+    free: "Chaque clic ajoute 10 idées. Les idées sont gratuites ; seule la création d’une vidéo utilise des crédits.",
+    writing: "Rédaction des idées…",
+    queued: "Rédaction de 10 nouvelles idées. Elles apparaîtront ici dans une minute.",
+    busy: "De nouvelles idées sont en cours de rédaction. Elles apparaîtront ici dans une minute.",
+    usedUp: "Vous avez utilisé les 3 lots gratuits du jour. De nouvelles idées arrivent demain matin.",
+    tooSoon: "Patientez un instant avant de demander d’autres idées.",
+    tooSoonIn: "Patientez {seconds} secondes avant de demander d’autres idées.",
+  },
+  categories: { all: "Toutes les idées", viral: "Virales", educational: "Pédagogiques", authority: "Expertise", promotional: "Promotionnelles" },
+  categoryHelp: {
+    all: "Choisissez le type de contenu que vous voulez créer",
+    viral: "Du contenu qui éveille la curiosité, pensé pour être découvert et partagé",
+    educational: "Des conseils utiles et les réponses que vos clients cherchent",
+    authority: "Votre savoir-faire et vos coulisses",
+    promotional: "Vos produits et services, avec une prochaine étape claire",
+  },
+  filters: {
+    label: "Type de contenu",
+    empty: "Aucune idée ne correspond à ces filtres",
+    emptyBody: "Essayez un autre type de contenu ou un autre format, ou demandez de nouvelles idées.",
+    clear: "Effacer les filtres",
+  },
+  browse: {
+    previous: "Idée précédente",
+    next: "Idée suivante",
+    hint: "‹ › servent seulement à parcourir les idées. Créer fait la vidéo ; Ignorer met l’idée de côté.",
+  },
+  undoSkip: "L’idée est revenue.",
+  viralBadge: "✦ Virale",
+  formats: { reel: "Reel", story: "Story", carousel: "Carrousel", stories: "Stories" },
+  directions: {
+    meme: "Mème",
+    footage: "Images réelles",
+    storytelling: "Récit",
+    text_music: "Texte + musique",
+    voiceover: "Voix off",
+    animated: "Animé",
+  },
+  audio: { voiceover: "Voix off", text_music: "Texte + musique" },
+  narration: { natural: "Naturelle et conversationnelle", warm: "Chaleureuse et cinématographique", energetic: "Énergique et entraînante" },
+  captionStyles: { bold: "Mots clés mis en avant", editorial: "Sous-titres éditoriaux sobres", minimal: "Sous-titres minimalistes" },
+  music: { auto: "Adaptée au contenu", cinematic: "Cinématographique", upbeat: "Entraînante", ambient: "Ambiance / minimaliste", none: "Sans musique" },
+  durations: { "15-30": "15 à 30 secondes", "30-45": "30 à 45 secondes", "45-60": "45 à 60 secondes", "60-90": "60 à 90 secondes" },
+  techniques: {
+    curiosity_hooks: "Accroches de curiosité",
+    trend_inspired: "Formats inspirés des tendances",
+    myth_busting: "Idées reçues démontées",
+    hot_takes: "Avis tranchés",
+    before_after: "Avant / après",
+    unexpected_facts: "Faits surprenants",
+    comparisons: "Comparaisons",
+    storytelling: "Récit",
+  },
+  tonePresets: {
+    professional: { title: "Professionnel", body: "Clair, soigné et assuré." },
+    bold: { title: "Audacieux", body: "Plus d’énergie et des débuts plus forts." },
+    playful: { title: "Décontracté", body: "Spirituel, informel et engageant." },
+  },
+  frequencies: {
+    "3_week": "3 fois par semaine",
+    "5_week": "5 fois par semaine",
+    "1_day": "1 publication par jour",
+    "2_day": "2 publications par jour",
+    legacy: "Au fil des vidéos créées (jusqu’à 3 par jour)",
+  },
+  why: { title: "Pourquoi cela pourrait bien marcher", note: "Une bonne idée aide, mais rien ne garantit des vues." },
+  review: {
+    title: "À vérifier par vous : {reasons}",
+    reasons: { unverified_claim: "des chiffres ou des faits", controversial: "un angle polémique", sensitive: "un sujet sensible" },
+    what: "Vérifiez-les avec vos propres informations :",
+    note: "Cela bloque seulement la publication automatique. Vous pouvez toujours la créer et la publier vous-même.",
+    approve: "J’ai vérifié",
+    done: "Vérifié. Elle peut maintenant être publiée automatiquement.",
+    checked: "Vérifié par vous",
+  },
+  previewConcept: "Aperçu du concept, sans son. Les images, la voix et la musique sont choisies lors de la création de la vidéo.",
+  noCta: "Pas d’appel à l’action",
+  edit: {
+    description: "Modifiez l’idée avant sa création. Enregistrer est gratuit ; seule la création utilise des crédits.",
+    script: "Script",
+    making: "Comment elle est faite",
+    title: "Titre",
+    category: "Type de contenu",
+    direction: "Direction créative",
+    audio: "Audio",
+    narration: "Style de narration",
+    captionStyle: "Style des sous-titres",
+    musicDirection: "Style de musique",
+    duration: "Durée",
+    showHook: "Afficher l’accroche à l’écran",
+    includeCta: "Ajouter un appel à l’action",
+    ctaText: "Appel à l’action",
+    ctaHint: "Laissez vide pour utiliser la phrase de fin.",
+    onlyThis: "Cette vidéo uniquement",
+    onlyThisBody: "Ces choix ne changent que cette vidéo. Votre profil d’entreprise et le ton de votre marque restent tels quels.",
+    audience: "Public",
+    tonePreset: "Ton de la marque",
+    tone: "Ton",
+    avoid: "À éviter",
+    sameAsBrand: "Comme le ton de votre marque",
+    samePlaceholder: "Comme votre profil d’entreprise",
+    rewrite: "Réécrire avec ces choix",
+    rewriteHelp: "La réécriture est gratuite : RepGet rédige à nouveau le script avec vos choix.",
+    rewritten: "Réécrit. Le nouveau script est dans l’idée.",
+  },
+  compat: {
+    title: "À vérifier avant de publier",
+    no_story: "{platform} n’accepte pas de Stories de RepGet : cette Story n’y est donc pas envoyée.",
+    too_long: "{platform} n’accepte pas de vidéos de {length}.",
+    no_carousel: "{platform} n’accepte pas de carrousels ici : ce carrousel n’y est donc pas envoyé.",
+    other: "{platform} ne peut pas recevoir cette vidéo.",
+    too_short: "{platform} accepte les Stories d’au moins 3 secondes.",
+    x_not_configured: "X n’est pas encore configuré pour les vidéos : rien n’y est envoyé.",
+  },
+  draft: { badge: "Brouillon", body: "Brouillon : publiez-le quand vous êtes prêt." },
+  destinations: {
+    label: "Où elle a été publiée",
+    status: { pending: "En attente", scheduled: "Programmée", posting: "Publication…", posted: "Publiée", failed: "Échec", skipped: "Ignorée" },
+  },
+  nativeAudio: {
+    button: "Audio Instagram",
+    title: "Audio Instagram",
+    honest: "Le mixage final avec l’audio d’Instagram ne s’écoute que sur Instagram. Les autres plateformes et le téléchargement gardent la musique sous licence de RepGet.",
+    unavailable: "L’audio d’Instagram n’est pas encore disponible pour ce compte.",
+    search: "Rechercher dans l’audio d’Instagram",
+    searchButton: "Rechercher",
+    none: "Aucun résultat. Essayez d’autres mots.",
+    reasons: { not_configured: "L’audio d’Instagram n’est pas encore configuré sur ce RepGet.", not_connected: "Connectez d’abord Instagram.", needs_facebook_login: "Reconnectez Instagram via Facebook Login pour utiliser son audio." },
+    reconnect: "Reconnecter via Facebook Login",
+    use: "Utiliser",
+    update: "Mettre à jour",
+    reelsOnly: "L’audio d’Instagram ne fonctionne que sur les Reels.",
+    noPreview: "RepGet ne peut pas faire écouter le mixage final : Instagram ajoute le morceau en publiant le Reel.",
+    volume: "Volume du morceau",
+    originalVolume: "Volume du son de la vidéo",
+    remove: "Retirer l’audio Instagram",
+    saved: "Audio Instagram choisi pour ce reel.",
+    removed: "Audio Instagram retiré.",
+    chosen: "Audio Instagram : {title} {artist}",
+  },
+  x: {
+    needsSetup: "X doit être configuré : RepGet n’y publie qu’une fois X configuré avec une limite de dépenses.",
+    budget: "X a atteint sa limite de dépenses pour le moment. RepGet y publiera de nouveau quand la limite le permettra.",
+  },
+  linkedin: { help: "Votre profil ou une page entreprise.", noTarget: "Choisissez un profil ou une page : reconnectez LinkedIn et choisissez-en un.", targets: { profile: "Publie sur votre profil LinkedIn.", organization: "Publie sur votre page entreprise LinkedIn.", selected: "Publie vers la destination LinkedIn choisie." } },
+  settings: {
+    open: "Réglages du contenu",
+    sidebar: "Préférences",
+    panes: {
+      strategy: "Stratégie de contenu",
+      audience: "Public et sujets",
+      video: "Vidéo et audio",
+      publishing: "Publication",
+      safety: "Sécurité de la marque",
+      brand: "Médias de la marque",
+    },
+    save: "Enregistrer les réglages",
+    reset: "Réinitialiser",
+    resetTitle: "Revenir aux réglages conseillés ?",
+    resetBody: "La stratégie, la vidéo, la publication et la sécurité reviennent aux suggestions de RepGet. Vos comptes, votre logo, vos images et votre profil d’entreprise restent tels quels.",
+    resetDone: "Réglages remis aux valeurs conseillées.",
+    unsaved: "Vous avez des modifications non enregistrées.",
+    fieldProblem: "Vérifiez « {field} » dans {pane} : cette valeur ne peut pas être enregistrée.",
+    savedNote: "Les réglages sont enregistrés pour ce site.",
+    brandNote: "Votre logo et vos images sont enregistrés dès leur envoi.",
+    problems: {
+      no_format: "Choisissez au moins un format.",
+      cta_too_long: "L’appel à l’action doit faire moins de 150 caractères.",
+      profile_too_long: "Un des textes est trop long.",
+      bad_value: "Un des choix n’est pas valide. Rechargez la page.",
+    },
+    strategy: {
+      title: "Stratégie de contenu",
+      body: "Choisissez le type de contenu social que RepGet doit proposer, et quelle part doit être pensée pour être découverte et partagée.",
+      badge: "NOUVEAU · Viral",
+      mix: "Part de contenu viral",
+      mixHelp: "Combien de vos idées du jour doivent utiliser des accroches à partager, des récits et des formats inspirés des tendances.",
+      mixBadge: "{value} % viral",
+      mixLow: "0 % · Comme d’habitude",
+      mixMid: "50 % · Équilibré",
+      mixHigh: "100 % · Portée avant tout",
+      viralCount: "{count} idées virales / {total}",
+      otherCount: "{count} autres idées",
+      goal: "Objectif principal",
+      goalBody: "RepGet adapte ses suggestions au résultat que vous visez.",
+      goals: {
+        reach: { title: "Gagner en portée", body: "Visibilité, vues, partages et curiosité." },
+        balanced: { title: "Croissance équilibrée", body: "Contenu utile, confiance et partage." },
+        leads: { title: "Générer des contacts", body: "Preuves, services et appels à l’action plus forts." },
+      },
+      techniques: "Techniques de contenu viral",
+      techniquesBody: "Choisissez les formats qui conviennent à votre activité. RepGet s’en sert pour développer des idées, jamais pour inventer des affirmations.",
+      trends: "Idées inspirées des tendances",
+      trendsHelp: "Les idées reposent sur des formats éprouvés et la connaissance de votre secteur. RepGet ne dit jamais qu’un sujet est tendance sans données.",
+      disclaimer: "Le contenu viral est conçu pour l’engagement et le partage. Il ne garantit ni vues, ni classement, ni résultat viral.",
+    },
+    audience: {
+      title: "Public et sujets",
+      body: "Décrivez qui vous voulez toucher et ce qui compte pour vos clients.",
+      shared: "Ce sont votre profil d’entreprise et le ton de votre marque. Les enregistrer ici les met à jour partout dans RepGet.",
+      targetAudience: "Public cible",
+      topics: "Sujets prioritaires",
+      language: "Langue du contenu",
+      languageHint: "La langue dans laquelle vos vidéos et publications sont rédigées.",
+      languageAuto: "La langue de votre site",
+      market: "Marché cible",
+      global: "Mondial / international",
+      voice: "Ton de la marque",
+      voiceBody: "Comment votre contenu sonne sur toutes les plateformes.",
+      toneNotes: "Votre ton, avec vos mots",
+      toneNotesHint: "Conservé avec le choix ci-dessus, comme dans le ton de la marque.",
+      avoid: "Sujets ou expressions à éviter",
+      avoidPlaceholder: "Sujets, promesses ou expressions que votre marque doit éviter",
+    },
+    video: {
+      title: "Vidéo et audio",
+      body: "Formats, durée et présentation de vos vidéos et carrousels.",
+      formats: "Formats autorisés",
+      formatsBody: "Les idées s’adaptent aux formats choisis.",
+      formatNames: { reel: "Reels / Shorts", story: "Stories", carousel: "Carrousels photo" },
+      audio: "Audio",
+      audioBody: "Comment vos vidéos sonnent.",
+      audioModes: {
+        auto: { title: "Automatique (conseillé)", body: "RepGet choisit la voix off ou le texte et la musique pour chaque idée." },
+        voiceover: { title: "Voix off", body: "Narration par IA avec sous-titres et musique." },
+        text_music: { title: "Texte + musique", body: "Sans narration : des images fortes, du texte animé et de la musique." },
+      },
+      duration: "Durée visée",
+      narration: "Style de narration",
+      captions: "Style des sous-titres",
+      captionsHelp: "Les mots s’affichent à l’écran quand ils sont prononcés.",
+      music: "Style de musique",
+      musicNote: "La musique est sous licence pour un usage commercial sur les réseaux sociaux.",
+      hook: "Afficher l’accroche à l’écran",
+      hookHelp: "Commencez les vidéos par une accroche visuelle claire dans les premières secondes.",
+      cta: "Ajouter des appels à l’action",
+      ctaHelp: "Ajoutez une courte prochaine étape à la fin de la vidéo.",
+      defaultCta: "Appel à l’action par défaut",
+      defaultCtaHint: "Utilisé quand une idée n’a pas sa propre phrase de fin.",
+      defaultCtaPlaceholder: "Suivez-nous pour plus de conseils pratiques",
+      animated: "Style animé",
+      animatedBody: "Pour les vidéos animées réalisées avec les modèles de RepGet.",
+    },
+    publishing: {
+      title: "Publication",
+      body: "Choisissez où vont vos vidéos et ce que vous relisez avant leur mise en ligne.",
+      platformsBody: "Les nouvelles plateformes comme LinkedIn et X ne sont jamais ajoutées à votre place.",
+      modes: {
+        manual: { title: "Relire avant de publier", body: "Les vidéos prêtes attendent que vous cliquiez sur Publier." },
+        draft: { title: "Enregistrer comme brouillon", body: "Les vidéos créées restent dans Vos vidéos comme brouillons. Rien n’est publié tant que vous ne le faites pas." },
+        auto: { title: "Publier automatiquement les idées approuvées", body: "Chaque vidéo que vous créez est publiée au meilleur moment disponible." },
+      },
+      autoNote: "La publication automatique ne crée ni ne facture jamais de vidéos d’elle-même. Elle publie seulement les vidéos que vous créez, 3 par jour au maximum.",
+      frequency: "Fréquence de publication",
+      frequencyHint: "Pour la publication automatique. RepGet répartit les publications aux meilleurs horaires.",
+    },
+    safety: {
+      title: "Sécurité de la marque",
+      body: "Protégez votre réputation tout en créant du contenu engageant.",
+      always: "Toujours active : une protection de base",
+      clickbait: "Éviter le clickbait trompeur",
+      clickbaitHelp: "Les accroches peuvent éveiller la curiosité, mais doivent correspondre à la vidéo et éviter les fausses promesses.",
+      facts: "Vérifier les chiffres avant la publication automatique",
+      factsHelp: "Les chiffres, classements et comparaisons absents de votre site attendent votre vérification.",
+      competitors: "Éviter les affirmations invérifiables sur les concurrents",
+      competitorsHelp: "Aucune accusation ni affirmation sans fondement sur d’autres marques.",
+      controversy: "Approbation des angles polémiques",
+      controversyHelp: "Les sujets sensibles et les avis provocateurs attendent votre accord.",
+      hint: "Gardez-les actives même avec une forte part virale. Elles bloquent seulement la publication automatique.",
+      creative: "Préférences créatives",
+      creativeBody: "Adaptez-les à votre marque.",
+      humor: {
+        none: { title: "Sans humour", body: "Sérieux et direct." },
+        light: { title: "Humour léger", body: "Un sourire de temps en temps." },
+        bold: { title: "Humour marqué", body: "Mèmes et blagues décalées." },
+      },
+      controversial: "Autoriser les sujets polémiques",
+      controversialHelp: "Des sujets débattus dans votre secteur, traités avec soin.",
+      language: "Langage plus direct",
+      languageHelp: "Des formulations plus percutantes, jamais offensantes.",
+      core: "Le droit d’auteur, les fausses affirmations, l’usurpation d’identité et les contenus illégaux sont toujours protégés, quels que soient vos choix ici.",
+    },
+  },
+  errors: {
+    extra_used_up: "Vous avez utilisé les 3 lots d’idées gratuits du jour. D’autres arrivent demain matin.",
+    busy: "Des idées sont déjà en cours de rédaction. Elles apparaîtront ici dans une minute.",
+    too_soon: "Patientez un instant avant de demander d’autres idées.",
+    bad_settings: "Certains réglages n’ont pas pu être enregistrés. Vérifiez-les et réessayez.",
+    bad_profile: "Les informations sur le public n’ont pas pu être enregistrées. Vérifiez-les et réessayez.",
+    review_required: "Cette vidéo doit être vérifiée par vous avant d’être publiée automatiquement.",
+    x_not_configured: "X n’est pas encore configuré.",
+    x_limit_reached: "Limite de dépenses X atteinte",
+    no_story: "Les Stories n’y sont pas prises en charge",
+    too_long: "Trop longue pour cette plateforme",
+    no_carousel: "Les carrousels n’y sont pas pris en charge",
+    incompatible: "Une plateforme choisie ne peut pas recevoir cette vidéo. Décochez-la ou modifiez la vidéo.",
+    bad_language: "Choisissez une des langues de contenu dans lesquelles RepGet écrit.",
+    rewrites_used_up: "Vous avez utilisé les réécritures gratuites du jour. Vous pouvez toujours modifier l’idée vous-même.",
+    ai_failed: "L’IA n’a pas pu l’écrire pour le moment. Réessayez dans une minute.",
+    linkedin_no_target: "Reconnectez LinkedIn et choisissez votre profil ou une page entreprise.",
+    reel_only: "L’audio d’Instagram ne fonctionne que sur les Reels.",
+    bad_audio: "Ce morceau ne peut pas être utilisé. Choisissez-en un autre.",
+    not_connected: "Instagram n’est pas connecté.",
+    needs_facebook_login: "Reconnectez Instagram via Facebook Login pour utiliser son audio.",
+    search_failed: "La recherche dans l’audio d’Instagram a échoué. Réessayez.",
+    paused: "En pause après un refus : reprenez-le dans Réglages",
+    daily_limit: "Limite quotidienne atteinte sur cette plateforme",
+    too_short: "Trop courte pour une Story",
+    native_audio_login: "Reconnectez Instagram via Facebook Login pour son audio",
+    native_audio_file: "La version pour l’audio d’Instagram n’a pas pu être créée",
+  },
+};
+
+const viralIt: ViralCopy = {
+  newIdeas: {
+    kinds: {
+      mixed: { title: "Nuove idee del giorno", body: "Esplori altri argomenti pertinenti" },
+      viral: { title: "Genera idee virali", body: "Ganci e formati pensati per la copertura" },
+      website: { title: "Idee dal suo sito web", body: "Metta in mostra prodotti e servizi" },
+    },
+    left: "Gratis · ne restano {left} su {total} oggi",
+    free: "Ogni clic aggiunge 10 idee. Le idee sono gratuite; solo creare un video usa crediti.",
+    writing: "Scrittura delle idee…",
+    queued: "Stiamo scrivendo 10 nuove idee. Compariranno qui tra un minuto.",
+    busy: "Si stanno scrivendo nuove idee. Compariranno qui tra un minuto.",
+    usedUp: "Ha già usato i 3 gruppi gratuiti di oggi. Altre idee arrivano domani mattina.",
+    tooSoon: "Attenda un momento prima di chiedere altre idee.",
+    tooSoonIn: "Attenda {seconds} secondi prima di chiedere altre idee.",
+  },
+  categories: { all: "Tutte le idee", viral: "Virali", educational: "Educative", authority: "Autorevolezza", promotional: "Promozionali" },
+  categoryHelp: {
+    all: "Scelga il tipo di contenuto che vuole creare",
+    viral: "Contenuti che stimolano la curiosità, pensati per essere scoperti e condivisi",
+    educational: "Consigli utili e risposte che i suoi clienti cercano",
+    authority: "La sua competenza e il suo lavoro dietro le quinte",
+    promotional: "I suoi prodotti e servizi, con un passo successivo chiaro",
+  },
+  filters: {
+    label: "Tipo di contenuto",
+    empty: "Nessuna idea corrisponde a questi filtri",
+    emptyBody: "Provi un altro tipo di contenuto o un altro formato, oppure chieda nuove idee.",
+    clear: "Rimuovi i filtri",
+  },
+  browse: {
+    previous: "Idea precedente",
+    next: "Idea successiva",
+    hint: "‹ › servono solo a scorrere le idee. Crea realizza il video; Salta mette da parte l’idea.",
+  },
+  undoSkip: "L’idea è tornata.",
+  viralBadge: "✦ Virale",
+  formats: { reel: "Reel", story: "Storia", carousel: "Carosello", stories: "Storie" },
+  directions: {
+    meme: "Meme",
+    footage: "Riprese reali",
+    storytelling: "Racconto",
+    text_music: "Testo + musica",
+    voiceover: "Voce fuori campo",
+    animated: "Animato",
+  },
+  audio: { voiceover: "Voce fuori campo", text_music: "Testo + musica" },
+  narration: { natural: "Naturale e colloquiale", warm: "Calda e cinematografica", energetic: "Energica e vivace" },
+  captionStyles: { bold: "Parole evidenziate", editorial: "Sottotitoli editoriali puliti", minimal: "Sottotitoli minimi" },
+  music: { auto: "Adatta al contenuto", cinematic: "Cinematografica", upbeat: "Vivace", ambient: "Ambient / minimale", none: "Senza musica" },
+  durations: { "15-30": "15–30 secondi", "30-45": "30–45 secondi", "45-60": "45–60 secondi", "60-90": "60–90 secondi" },
+  techniques: {
+    curiosity_hooks: "Ganci di curiosità",
+    trend_inspired: "Formati ispirati alle tendenze",
+    myth_busting: "Sfatare i miti",
+    hot_takes: "Opinioni forti",
+    before_after: "Prima e dopo",
+    unexpected_facts: "Fatti inaspettati",
+    comparisons: "Confronti",
+    storytelling: "Racconto",
+  },
+  tonePresets: {
+    professional: { title: "Professionale", body: "Chiaro, curato e sicuro." },
+    bold: { title: "Deciso", body: "Più energia e aperture più forti." },
+    playful: { title: "Giocoso", body: "Spiritoso, informale e coinvolgente." },
+  },
+  frequencies: {
+    "3_week": "3 volte a settimana",
+    "5_week": "5 volte a settimana",
+    "1_day": "1 post al giorno",
+    "2_day": "2 post al giorno",
+    legacy: "Man mano che i video sono creati (fino a 3 al giorno)",
+  },
+  why: { title: "Perché potrebbe funzionare bene", note: "Una buona idea aiuta, ma nulla garantisce visualizzazioni." },
+  review: {
+    title: "Da controllare: {reasons}",
+    reasons: { unverified_claim: "cifre o fatti", controversial: "un taglio controverso", sensitive: "un tema delicato" },
+    what: "Li verifichi con le sue informazioni:",
+    note: "Questo blocca solo la pubblicazione automatica. Può comunque crearlo e pubblicarlo lei.",
+    approve: "Ho controllato",
+    done: "Controllato. Ora può essere pubblicato automaticamente.",
+    checked: "Controllato da lei",
+  },
+  previewConcept: "Anteprima del concept, senza audio. Riprese, voce e musica vengono scelte quando il video viene creato.",
+  noCta: "Nessun invito all’azione",
+  edit: {
+    description: "Modifichi l’idea prima della creazione. Salvare è gratis; solo creare usa crediti.",
+    script: "Testo",
+    making: "Come viene realizzato",
+    title: "Titolo",
+    category: "Tipo di contenuto",
+    direction: "Direzione creativa",
+    audio: "Audio",
+    narration: "Stile di narrazione",
+    captionStyle: "Stile dei sottotitoli",
+    musicDirection: "Stile musicale",
+    duration: "Durata",
+    showHook: "Mostra il gancio iniziale sullo schermo",
+    includeCta: "Includi un invito all’azione",
+    ctaText: "Invito all’azione",
+    ctaHint: "Lasci vuoto per usare la frase finale.",
+    onlyThis: "Solo questo video",
+    onlyThisBody: "Queste scelte cambiano solo questo video. Il profilo aziendale e la voce del brand restano come sono.",
+    audience: "Pubblico",
+    tonePreset: "Voce del brand",
+    tone: "Tono",
+    avoid: "Da evitare",
+    sameAsBrand: "Come la voce del brand",
+    samePlaceholder: "Come il profilo aziendale",
+    rewrite: "Riscrivi con queste scelte",
+    rewriteHelp: "Riscrivere è gratis: RepGet scrive di nuovo il testo con le sue scelte.",
+    rewritten: "Riscritto. Il nuovo testo è nell’idea.",
+  },
+  compat: {
+    title: "Da controllare prima di pubblicare",
+    no_story: "{platform} non accetta Storie da RepGet, quindi questa Storia non viene inviata lì.",
+    too_long: "{platform} non accetta video di {length}.",
+    no_carousel: "{platform} non accetta caroselli qui, quindi questo carosello non viene inviato lì.",
+    other: "{platform} non può ricevere questo video.",
+    too_short: "{platform} accetta Storie di almeno 3 secondi.",
+    x_not_configured: "X non è ancora configurato per i video, quindi lì non viene inviato nulla.",
+  },
+  draft: { badge: "Bozza", body: "Bozza: la pubblichi quando è pronto." },
+  destinations: {
+    label: "Dove è stato pubblicato",
+    status: { pending: "In attesa", scheduled: "Programmato", posting: "In pubblicazione", posted: "Pubblicato", failed: "Non riuscito", skipped: "Saltato" },
+  },
+  nativeAudio: {
+    button: "Audio di Instagram",
+    title: "Audio di Instagram",
+    honest: "Il mix finale con l’audio di Instagram si sente solo su Instagram. Le altre piattaforme e il download mantengono la musica con licenza di RepGet.",
+    unavailable: "L’audio di Instagram non è ancora disponibile per questo account.",
+    search: "Cerca nell’audio di Instagram",
+    searchButton: "Cerca",
+    none: "Nessun risultato. Provi con altre parole.",
+    reasons: { not_configured: "L’audio di Instagram non è ancora configurato su questo RepGet.", not_connected: "Colleghi prima Instagram.", needs_facebook_login: "Ricolleghi Instagram con Facebook Login per usare il suo audio." },
+    reconnect: "Ricollega con Facebook Login",
+    use: "Usa",
+    update: "Aggiorna",
+    reelsOnly: "L’audio di Instagram funziona solo sui Reel.",
+    noPreview: "RepGet non può far ascoltare il mix finale: Instagram aggiunge la traccia quando pubblica il Reel.",
+    volume: "Volume della traccia",
+    originalVolume: "Volume dell’audio del video",
+    remove: "Rimuovi l’audio di Instagram",
+    saved: "Audio di Instagram scelto per questo reel.",
+    removed: "Audio di Instagram rimosso.",
+    chosen: "Audio di Instagram: {title} {artist}",
+  },
+  x: {
+    needsSetup: "X va configurato: RepGet pubblica lì solo quando X è configurato con un limite di spesa.",
+    budget: "X ha raggiunto il suo limite di spesa per ora. RepGet tornerà a pubblicare lì quando il limite lo permetterà.",
+  },
+  linkedin: { help: "Il suo profilo o una pagina aziendale.", noTarget: "Scelga un profilo o una pagina: ricolleghi LinkedIn e ne scelga uno.", targets: { profile: "Pubblica sul suo profilo LinkedIn.", organization: "Pubblica sulla sua pagina aziendale LinkedIn.", selected: "Pubblica sulla destinazione LinkedIn scelta." } },
+  settings: {
+    open: "Impostazioni dei contenuti",
+    sidebar: "Preferenze",
+    panes: {
+      strategy: "Strategia dei contenuti",
+      audience: "Pubblico e argomenti",
+      video: "Video e audio",
+      publishing: "Pubblicazione",
+      safety: "Sicurezza del brand",
+      brand: "Media del brand",
+    },
+    save: "Salva le impostazioni",
+    reset: "Ripristina",
+    resetTitle: "Tornare alle impostazioni consigliate?",
+    resetBody: "Strategia, video, pubblicazione e sicurezza tornano ai suggerimenti di RepGet. Gli account, il logo, le immagini e il profilo aziendale restano come sono.",
+    resetDone: "Impostazioni riportate ai valori consigliati.",
+    unsaved: "Ci sono modifiche non salvate.",
+    fieldProblem: "Controlli «{field}» in {pane}: questo valore non può essere salvato.",
+    savedNote: "Le impostazioni vengono salvate per questo sito.",
+    brandNote: "Il logo e le immagini vengono salvati appena li carica.",
+    problems: {
+      no_format: "Scelga almeno un formato.",
+      cta_too_long: "L’invito all’azione deve avere meno di 150 caratteri.",
+      profile_too_long: "Uno dei testi è troppo lungo.",
+      bad_value: "Una delle scelte non è valida. Ricarichi la pagina.",
+    },
+    strategy: {
+      title: "Strategia dei contenuti",
+      body: "Scelga quali contenuti social RepGet deve suggerire e quanta parte deve essere pensata per essere scoperta e condivisa.",
+      badge: "NOVITÀ · Virale",
+      mix: "Quota di contenuti virali",
+      mixHelp: "Quante idee del giorno devono usare ganci da condividere, racconti e formati ispirati alle tendenze.",
+      mixBadge: "{value}% virale",
+      mixLow: "0% · Come sempre",
+      mixMid: "50% · Equilibrato",
+      mixHigh: "100% · Massima copertura",
+      viralCount: "{count} idee virali / {total}",
+      otherCount: "{count} altre idee",
+      goal: "Obiettivo principale",
+      goalBody: "RepGet adatta i suggerimenti al risultato che desidera.",
+      goals: {
+        reach: { title: "Aumentare la copertura", body: "Visibilità, visualizzazioni, condivisioni e curiosità." },
+        balanced: { title: "Crescita equilibrata", body: "Contenuti utili, fiducia e condivisione." },
+        leads: { title: "Generare contatti", body: "Prove, servizi e inviti all’azione più forti." },
+      },
+      techniques: "Tecniche per contenuti virali",
+      techniquesBody: "Scelga i formati adatti alla sua attività. RepGet li usa per sviluppare le idee, mai per inventare affermazioni.",
+      trends: "Idee ispirate alle tendenze",
+      trendsHelp: "Le idee usano formati collaudati e la conoscenza del suo settore. RepGet non dice mai che qualcosa è di tendenza senza dati.",
+      disclaimer: "I contenuti virali sono pensati per coinvolgere ed essere condivisi. Non garantiscono visualizzazioni, posizionamenti o un risultato virale.",
+    },
+    audience: {
+      title: "Pubblico e argomenti",
+      body: "Descriva chi vuole raggiungere e che cosa conta per i suoi clienti.",
+      shared: "Sono il suo profilo aziendale e la voce del brand. Salvandoli qui si aggiornano ovunque in RepGet.",
+      targetAudience: "Pubblico di riferimento",
+      topics: "Argomenti prioritari",
+      language: "Lingua dei contenuti",
+      languageHint: "La lingua in cui sono scritti video e post.",
+      languageAuto: "La lingua del suo sito",
+      market: "Mercato di riferimento",
+      global: "Globale / internazionale",
+      voice: "Voce del brand",
+      voiceBody: "Come suonano i suoi contenuti su tutte le piattaforme.",
+      toneNotes: "Il suo tono, con parole sue",
+      toneNotesHint: "Resta insieme alla scelta qui sopra, come in Voce del brand.",
+      avoid: "Argomenti o frasi da evitare",
+      avoidPlaceholder: "Argomenti, promesse o frasi che il suo brand deve evitare",
+    },
+    video: {
+      title: "Video e audio",
+      body: "Formati, durata e presentazione dei suoi video e caroselli.",
+      formats: "Formati consentiti",
+      formatsBody: "Le idee si adattano ai formati scelti.",
+      formatNames: { reel: "Reel / Shorts", story: "Storie", carousel: "Caroselli di foto" },
+      audio: "Audio",
+      audioBody: "Come suonano i suoi video.",
+      audioModes: {
+        auto: { title: "Automatico (consigliato)", body: "RepGet sceglie voce fuori campo oppure testo e musica per ogni idea." },
+        voiceover: { title: "Voce fuori campo", body: "Narrazione IA con sottotitoli e musica." },
+        text_music: { title: "Testo + musica", body: "Senza narrazione: immagini forti, testo animato e musica." },
+      },
+      duration: "Durata del video",
+      narration: "Stile di narrazione",
+      captions: "Stile dei sottotitoli",
+      captionsHelp: "Le parole compaiono sullo schermo mentre vengono dette.",
+      music: "Stile musicale",
+      musicNote: "La musica ha la licenza per l’uso commerciale sui social.",
+      hook: "Mostra il gancio iniziale sullo schermo",
+      hookHelp: "Apra i video con un gancio visivo chiaro nei primi secondi.",
+      cta: "Includi inviti all’azione",
+      ctaHelp: "Aggiunga un breve passo successivo alla fine del video.",
+      defaultCta: "Invito all’azione predefinito",
+      defaultCtaHint: "Usato quando un’idea non ha una propria frase finale.",
+      defaultCtaPlaceholder: "Ci segua per altri consigli pratici",
+      animated: "Stile animato",
+      animatedBody: "Per i video animati realizzati con i modelli di RepGet.",
+    },
+    publishing: {
+      title: "Pubblicazione",
+      body: "Scelga dove vanno i suoi video e quanto li controlla prima che vengano pubblicati.",
+      platformsBody: "Le nuove piattaforme come LinkedIn e X non vengono mai aggiunte al posto suo.",
+      modes: {
+        manual: { title: "Controlla prima di pubblicare", body: "I video pronti aspettano che prema Pubblica." },
+        draft: { title: "Salva come bozza", body: "I video creati restano in I suoi video come bozze. Nulla viene pubblicato finché non lo fa lei." },
+        auto: { title: "Pubblica automaticamente le idee approvate", body: "Ogni video che crea viene pubblicato nel miglior momento disponibile." },
+      },
+      autoNote: "La pubblicazione automatica non crea né addebita mai video da sola. Pubblica solo i video che crea lei, al massimo 3 al giorno.",
+      frequency: "Frequenza di pubblicazione",
+      frequencyHint: "Per la pubblicazione automatica. RepGet distribuisce i post negli orari migliori.",
+    },
+    safety: {
+      title: "Sicurezza del brand",
+      body: "Protegga la sua reputazione mentre crea contenuti coinvolgenti.",
+      always: "Sempre attiva: una protezione di base",
+      clickbait: "Evitare il clickbait ingannevole",
+      clickbaitHelp: "I ganci possono stimolare la curiosità, ma devono corrispondere al video ed evitare false promesse.",
+      facts: "Controllare le cifre prima della pubblicazione automatica",
+      factsHelp: "Cifre, classifiche e confronti che non sono sul suo sito aspettano il suo controllo.",
+      competitors: "Evitare affermazioni non verificabili sui concorrenti",
+      competitorsHelp: "Nessuna accusa né affermazione infondata su altri brand.",
+      controversy: "Approvazione per i tagli controversi",
+      controversyHelp: "Temi delicati e opinioni provocatorie aspettano la sua approvazione.",
+      hint: "Le tenga attive anche con una quota virale alta. Bloccano solo la pubblicazione automatica.",
+      creative: "Preferenze creative",
+      creativeBody: "Le adatti al suo brand.",
+      humor: {
+        none: { title: "Niente umorismo", body: "Serio e diretto." },
+        light: { title: "Umorismo leggero", body: "Un sorriso ogni tanto." },
+        bold: { title: "Umorismo deciso", body: "Meme e battute scherzose." },
+      },
+      controversial: "Consentire temi controversi",
+      controversialHelp: "Argomenti dibattuti nel suo settore, trattati con cura.",
+      language: "Linguaggio più diretto",
+      languageHelp: "Frasi più incisive, mai offensive.",
+      core: "Diritto d’autore, affermazioni false, furto d’identità e contenuti illeciti sono sempre protetti, qualunque cosa scelga qui.",
+    },
+  },
+  errors: {
+    extra_used_up: "Ha già usato i 3 gruppi gratuiti di idee di oggi. Altre arrivano domani mattina.",
+    busy: "Le idee sono già in scrittura. Compariranno qui tra un minuto.",
+    too_soon: "Attenda un momento prima di chiedere altre idee.",
+    bad_settings: "Alcune impostazioni non sono state salvate. Le controlli e riprovi.",
+    bad_profile: "I dati sul pubblico non sono stati salvati. Li controlli e riprovi.",
+    review_required: "Questo video va controllato prima di essere pubblicato automaticamente.",
+    x_not_configured: "X non è ancora configurato.",
+    x_limit_reached: "Limite di spesa di X raggiunto",
+    no_story: "Lì le Storie non sono supportate",
+    too_long: "Troppo lungo per questa piattaforma",
+    no_carousel: "Lì i caroselli non sono supportati",
+    incompatible: "Una delle piattaforme scelte non accetta questo video. La deselezioni o modifichi il video.",
+    bad_language: "Scelga una delle lingue dei contenuti in cui scrive RepGet.",
+    rewrites_used_up: "Ha già usato le riscritture gratuite di oggi. Può comunque modificare l’idea lei.",
+    ai_failed: "L’IA non è riuscita a scriverlo ora. Riprovi tra un minuto.",
+    linkedin_no_target: "Ricolleghi LinkedIn e scelga il suo profilo o una pagina aziendale.",
+    reel_only: "L’audio di Instagram funziona solo sui Reel.",
+    bad_audio: "Questa traccia non si può usare. Ne scelga un’altra.",
+    not_connected: "Instagram non è collegato.",
+    needs_facebook_login: "Ricolleghi Instagram con Facebook Login per usare il suo audio.",
+    search_failed: "Non è stato possibile cercare nell’audio di Instagram. Riprovi.",
+    paused: "In pausa dopo un rifiuto: lo riprenda in Impostazioni",
+    daily_limit: "Limite giornaliero raggiunto su questa piattaforma",
+    too_short: "Troppo breve per una Storia",
+    native_audio_login: "Ricolleghi Instagram con Facebook Login per il suo audio",
+    native_audio_file: "Non è stato possibile creare la versione per l’audio di Instagram",
+  },
+};
+
+const viralDe: ViralCopy = {
+  newIdeas: {
+    kinds: {
+      mixed: { title: "Neue Ideen für heute", body: "Weitere passende Themen entdecken" },
+      viral: { title: "Virale Ideen erzeugen", body: "Aufhänger und Formate für mehr Reichweite" },
+      website: { title: "Ideen aus Ihrer Website", body: "Produkte und Leistungen zeigen" },
+    },
+    left: "Kostenlos · heute noch {left} von {total}",
+    free: "Jeder Klick bringt 10 Ideen. Ideen sind kostenlos; nur das Erstellen eines Videos kostet Credits.",
+    writing: "Ideen werden geschrieben…",
+    queued: "10 neue Ideen werden geschrieben. Sie erscheinen hier in einer Minute.",
+    busy: "Neue Ideen werden gerade geschrieben. Sie erscheinen hier in einer Minute.",
+    usedUp: "Sie haben die 3 kostenlosen Pakete von heute genutzt. Neue Ideen kommen morgen früh.",
+    tooSoon: "Bitte warten Sie einen Moment, bevor Sie weitere Ideen anfordern.",
+    tooSoonIn: "Bitte warten Sie {seconds} Sekunden, bevor Sie weitere Ideen anfordern.",
+  },
+  categories: { all: "Alle Ideen", viral: "Viral", educational: "Lehrreich", authority: "Expertise", promotional: "Werbend" },
+  categoryHelp: {
+    all: "Wählen Sie, welche Art von Inhalt Sie erstellen möchten",
+    viral: "Inhalte, die neugierig machen, gemacht zum Entdecken und Teilen",
+    educational: "Nützliche Tipps und Antworten, die Ihre Kunden suchen",
+    authority: "Ihr Fachwissen und ein Blick hinter die Kulissen",
+    promotional: "Ihre Produkte und Leistungen, mit einem klaren nächsten Schritt",
+  },
+  filters: {
+    label: "Inhaltsart",
+    empty: "Keine Ideen passen zu diesen Filtern",
+    emptyBody: "Versuchen Sie eine andere Inhaltsart oder ein anderes Format, oder fordern Sie neue Ideen an.",
+    clear: "Filter zurücksetzen",
+  },
+  browse: {
+    previous: "Vorherige Idee",
+    next: "Nächste Idee",
+    hint: "‹ › blättern nur durch die Ideen. Erstellen macht das Video; Überspringen legt die Idee beiseite.",
+  },
+  undoSkip: "Die Idee ist zurück.",
+  viralBadge: "✦ Viral",
+  formats: { reel: "Reel", story: "Story", carousel: "Karussell", stories: "Storys" },
+  directions: {
+    meme: "Meme",
+    footage: "Echte Aufnahmen",
+    storytelling: "Storytelling",
+    text_music: "Text + Musik",
+    voiceover: "Sprecherstimme",
+    animated: "Animiert",
+  },
+  audio: { voiceover: "Sprecherstimme", text_music: "Text + Musik" },
+  narration: { natural: "Natürlich und im Gesprächston", warm: "Warm und filmisch", energetic: "Energisch und schwungvoll" },
+  captionStyles: { bold: "Hervorgehobene Wörter", editorial: "Klare redaktionelle Untertitel", minimal: "Dezente Untertitel" },
+  music: { auto: "Passend zum Inhalt", cinematic: "Filmisch", upbeat: "Schwungvoll", ambient: "Ambient / dezent", none: "Keine Musik" },
+  durations: { "15-30": "15–30 Sekunden", "30-45": "30–45 Sekunden", "45-60": "45–60 Sekunden", "60-90": "60–90 Sekunden" },
+  techniques: {
+    curiosity_hooks: "Neugier-Aufhänger",
+    trend_inspired: "Von Trends inspirierte Formate",
+    myth_busting: "Mythen widerlegen",
+    hot_takes: "Steile Thesen",
+    before_after: "Vorher und nachher",
+    unexpected_facts: "Überraschende Fakten",
+    comparisons: "Vergleiche",
+    storytelling: "Storytelling",
+  },
+  tonePresets: {
+    professional: { title: "Professionell", body: "Klar, souverän und gepflegt." },
+    bold: { title: "Mutig", body: "Mehr Energie und stärkere Einstiege." },
+    playful: { title: "Verspielt", body: "Witzig, locker und einnehmend." },
+  },
+  frequencies: {
+    "3_week": "3-mal pro Woche",
+    "5_week": "5-mal pro Woche",
+    "1_day": "1 Beitrag pro Tag",
+    "2_day": "2 Beiträge pro Tag",
+    legacy: "Sobald Videos erstellt sind (bis zu 3 am Tag)",
+  },
+  why: { title: "Warum das gut ankommen könnte", note: "Eine gute Idee hilft, aber nichts garantiert Aufrufe." },
+  review: {
+    title: "Bitte prüfen: {reasons}",
+    reasons: { unverified_claim: "Zahlen oder Fakten", controversial: "ein kontroverser Ansatz", sensitive: "ein heikles Thema" },
+    what: "Prüfen Sie diese anhand Ihrer eigenen Informationen:",
+    note: "Das hält nur das automatische Posten an. Sie können es trotzdem selbst erstellen und veröffentlichen.",
+    approve: "Ich habe es geprüft",
+    done: "Geprüft. Es kann jetzt automatisch gepostet werden.",
+    checked: "Von Ihnen geprüft",
+  },
+  previewConcept: "Konzeptvorschau, ohne Ton. Aufnahmen, Stimme und Musik werden beim Erstellen des Videos gewählt.",
+  noCta: "Kein Handlungsaufruf",
+  edit: {
+    description: "Ändern Sie die Idee, bevor sie erstellt wird. Speichern ist kostenlos; nur das Erstellen kostet Credits.",
+    script: "Skript",
+    making: "So wird es gemacht",
+    title: "Titel",
+    category: "Inhaltsart",
+    direction: "Kreative Richtung",
+    audio: "Ton",
+    narration: "Sprechstil",
+    captionStyle: "Untertitelstil",
+    musicDirection: "Musikrichtung",
+    duration: "Länge",
+    showHook: "Aufhänger am Anfang einblenden",
+    includeCta: "Handlungsaufruf einfügen",
+    ctaText: "Handlungsaufruf",
+    ctaHint: "Leer lassen, um den Schlusssatz zu verwenden.",
+    onlyThis: "Nur dieses Video",
+    onlyThisBody: "Das ändert nur dieses Video. Ihr Unternehmensprofil und Ihre Markenstimme bleiben, wie sie sind.",
+    audience: "Zielgruppe",
+    tonePreset: "Markenstimme",
+    tone: "Tonfall",
+    avoid: "Vermeiden",
+    sameAsBrand: "Wie Ihre Markenstimme",
+    samePlaceholder: "Wie in Ihrem Unternehmensprofil",
+    rewrite: "Damit neu schreiben",
+    rewriteHelp: "Neu schreiben ist kostenlos: RepGet schreibt das Skript mit Ihren Vorgaben neu.",
+    rewritten: "Neu geschrieben. Das neue Skript steht in der Idee.",
+  },
+  compat: {
+    title: "Vor dem Veröffentlichen prüfen",
+    no_story: "{platform} nimmt keine Storys von RepGet an, daher wird diese Story nicht dorthin gesendet.",
+    too_long: "{platform} nimmt keine Videos mit {length} an.",
+    no_carousel: "{platform} nimmt hier keine Karussells an, daher wird dieses Karussell nicht dorthin gesendet.",
+    other: "{platform} kann dieses Video nicht annehmen.",
+    too_short: "{platform} nimmt Storys ab 3 Sekunden an.",
+    x_not_configured: "X ist für Videos noch nicht eingerichtet, daher wird nichts dorthin gesendet.",
+  },
+  draft: { badge: "Entwurf", body: "Entwurf - veröffentlichen Sie ihn, wann Sie möchten." },
+  destinations: {
+    label: "Wohin es ging",
+    status: { pending: "Wartet", scheduled: "Geplant", posting: "Wird veröffentlicht", posted: "Gepostet", failed: "Fehlgeschlagen", skipped: "Ausgelassen" },
+  },
+  nativeAudio: {
+    button: "Instagram-Audio",
+    title: "Instagram-Audio",
+    honest: "Die fertige Mischung mit dem Instagram-Audio ist nur auf Instagram zu hören. Andere Plattformen und der Download behalten die lizenzierte Musik von RepGet.",
+    unavailable: "Instagram-Audio ist für dieses Konto noch nicht verfügbar.",
+    search: "Instagram-Audio durchsuchen",
+    searchButton: "Suchen",
+    none: "Nichts gefunden. Versuchen Sie andere Wörter.",
+    reasons: { not_configured: "Instagram-Audio ist in diesem RepGet noch nicht eingerichtet.", not_connected: "Verbinden Sie zuerst Instagram.", needs_facebook_login: "Verbinden Sie Instagram über Facebook Login neu, um das Audio zu nutzen." },
+    reconnect: "Mit Facebook Login neu verbinden",
+    use: "Verwenden",
+    update: "Aktualisieren",
+    reelsOnly: "Instagram-Audio gibt es nur für Reels.",
+    noPreview: "RepGet kann die fertige Mischung nicht vorspielen: Instagram fügt den Titel beim Veröffentlichen des Reels hinzu.",
+    volume: "Lautstärke des Titels",
+    originalVolume: "Lautstärke des Videotons",
+    remove: "Instagram-Audio entfernen",
+    saved: "Instagram-Audio für dieses Reel gewählt.",
+    removed: "Instagram-Audio entfernt.",
+    chosen: "Instagram-Audio: {title} {artist}",
+  },
+  x: {
+    needsSetup: "X muss eingerichtet werden: RepGet postet dort erst, wenn X mit einem Ausgabenlimit eingerichtet ist.",
+    budget: "X hat sein Ausgabenlimit vorerst erreicht. RepGet postet dort wieder, sobald das Limit es erlaubt.",
+  },
+  linkedin: { help: "Ihr Profil oder eine Unternehmensseite.", noTarget: "Wählen Sie ein Profil oder eine Seite: Verbinden Sie LinkedIn neu und wählen Sie eins.", targets: { profile: "Postet auf Ihr LinkedIn-Profil.", organization: "Postet auf Ihre LinkedIn-Unternehmensseite.", selected: "Postet an das gewählte LinkedIn-Ziel." } },
+  settings: {
+    open: "Inhaltseinstellungen",
+    sidebar: "Präferenzen",
+    panes: {
+      strategy: "Inhaltsstrategie",
+      audience: "Zielgruppe und Themen",
+      video: "Video und Ton",
+      publishing: "Veröffentlichen",
+      safety: "Markensicherheit",
+      brand: "Markenmedien",
+    },
+    save: "Einstellungen speichern",
+    reset: "Zurücksetzen",
+    resetTitle: "Auf die empfohlenen Einstellungen zurücksetzen?",
+    resetBody: "Strategie, Video, Veröffentlichen und Sicherheit gehen auf die Empfehlungen von RepGet zurück. Ihre Konten, Ihr Logo, Ihre Bilder und Ihr Unternehmensprofil bleiben, wie sie sind.",
+    resetDone: "Einstellungen auf die Empfehlungen zurückgesetzt.",
+    unsaved: "Sie haben ungespeicherte Änderungen.",
+    fieldProblem: "Bitte prüfen Sie „{field}“ unter {pane}: Dieser Wert kann nicht gespeichert werden.",
+    savedNote: "Die Einstellungen werden für diese Website gespeichert.",
+    brandNote: "Ihr Logo und Ihre Bilder werden gespeichert, sobald Sie sie hochladen.",
+    problems: {
+      no_format: "Wählen Sie mindestens ein Format.",
+      cta_too_long: "Der Handlungsaufruf darf höchstens 150 Zeichen haben.",
+      profile_too_long: "Einer der Texte ist zu lang.",
+      bad_value: "Eine der Auswahlen ist ungültig. Bitte laden Sie die Seite neu.",
+    },
+    strategy: {
+      title: "Inhaltsstrategie",
+      body: "Wählen Sie, welche Social-Media-Inhalte RepGet vorschlagen soll und wie viel davon auf Entdecken und Teilen ausgelegt ist.",
+      badge: "NEU · Viral",
+      mix: "Anteil viraler Inhalte",
+      mixHelp: "Wie viele Ihrer täglichen Ideen teilbare Aufhänger, Geschichten und von Trends inspirierte Formate nutzen sollen.",
+      mixBadge: "{value} % viral",
+      mixLow: "0 % · Wie gewohnt",
+      mixMid: "50 % · Ausgewogen",
+      mixHigh: "100 % · Reichweite zuerst",
+      viralCount: "{count} virale Ideen / {total}",
+      otherCount: "{count} andere Ideen",
+      goal: "Wichtigstes Ziel",
+      goalBody: "RepGet passt seine Vorschläge an das Ergebnis an, das Sie wollen.",
+      goals: {
+        reach: { title: "Reichweite steigern", body: "Sichtbarkeit, Aufrufe, Teilen und Neugier." },
+        balanced: { title: "Ausgewogenes Wachstum", body: "Nützliche Inhalte, Vertrauen und Teilbarkeit." },
+        leads: { title: "Anfragen gewinnen", body: "Belege, Leistungen und stärkere Handlungsaufrufe." },
+      },
+      techniques: "Techniken für virale Inhalte",
+      techniquesBody: "Wählen Sie die Formate, die zu Ihrem Unternehmen passen. RepGet nutzt sie für Ideen, nie für erfundene Behauptungen.",
+      trends: "Von Trends inspirierte Ideen",
+      trendsHelp: "Die Ideen nutzen bewährte Formate und Wissen aus Ihrer Branche. RepGet sagt nie ohne Daten, dass etwas im Trend liegt.",
+      disclaimer: "Virale Inhalte sind auf Interaktion und Teilen ausgelegt. Sie garantieren keine Aufrufe, Platzierungen oder virale Wirkung.",
+    },
+    audience: {
+      title: "Zielgruppe und Themen",
+      body: "Beschreiben Sie, wen Sie erreichen möchten und was Ihren Kunden wichtig ist.",
+      shared: "Das sind Ihr Unternehmensprofil und Ihre Markenstimme. Wenn Sie hier speichern, ändern sie sich überall in RepGet.",
+      targetAudience: "Zielgruppe",
+      topics: "Themen mit Vorrang",
+      language: "Sprache der Inhalte",
+      languageHint: "Die Sprache, in der Ihre Videos und Beiträge geschrieben werden.",
+      languageAuto: "Die Sprache Ihrer Website",
+      market: "Zielmarkt",
+      global: "Weltweit / international",
+      voice: "Markenstimme",
+      voiceBody: "Wie Ihre Inhalte auf allen Plattformen klingen.",
+      toneNotes: "Ihr Tonfall in Ihren Worten",
+      toneNotesHint: "Bleibt neben der Auswahl oben erhalten, wie bei der Markenstimme.",
+      avoid: "Diese Themen oder Formulierungen vermeiden",
+      avoidPlaceholder: "Themen, Versprechen oder Formulierungen, die Ihre Marke vermeiden soll",
+    },
+    video: {
+      title: "Video und Ton",
+      body: "Formate, Länge und Darstellung Ihrer Videos und Karussells.",
+      formats: "Erlaubte Formate",
+      formatsBody: "Die Ideen richten sich nach den gewählten Formaten.",
+      formatNames: { reel: "Reels / Shorts", story: "Storys", carousel: "Foto-Karussells" },
+      audio: "Ton",
+      audioBody: "Wie Ihre Videos klingen.",
+      audioModes: {
+        auto: { title: "Automatisch (empfohlen)", body: "RepGet wählt für jede Idee Sprecherstimme oder Text und Musik." },
+        voiceover: { title: "Sprecherstimme", body: "KI-Sprecher mit Untertiteln und Musik." },
+        text_music: { title: "Text + Musik", body: "Ohne Sprecher: starke Bilder, animierter Text und Musik." },
+      },
+      duration: "Gewünschte Videolänge",
+      narration: "Sprechstil",
+      captions: "Untertitelstil",
+      captionsHelp: "Die Wörter erscheinen, während sie gesprochen werden.",
+      music: "Musikrichtung",
+      musicNote: "Die Musik ist für die gewerbliche Nutzung in sozialen Netzwerken lizenziert.",
+      hook: "Aufhänger am Anfang einblenden",
+      hookHelp: "Videos mit einem klaren visuellen Aufhänger in den ersten Sekunden beginnen.",
+      cta: "Handlungsaufrufe einfügen",
+      ctaHelp: "Am Ende des Videos einen kurzen nächsten Schritt zeigen.",
+      defaultCta: "Standard-Handlungsaufruf",
+      defaultCtaHint: "Wird verwendet, wenn eine Idee keinen eigenen Schlusssatz hat.",
+      defaultCtaPlaceholder: "Folgen Sie uns für mehr praktische Tipps",
+      animated: "Animierter Stil",
+      animatedBody: "Für animierte Videos aus den Vorlagen von RepGet.",
+    },
+    publishing: {
+      title: "Veröffentlichen",
+      body: "Wählen Sie, wohin Ihre Videos gehen und wie viel Sie vor dem Veröffentlichen prüfen.",
+      platformsBody: "Neue Plattformen wie LinkedIn und X werden nie ohne Ihre Wahl hinzugefügt.",
+      modes: {
+        manual: { title: "Vor dem Veröffentlichen prüfen", body: "Fertige Videos warten, bis Sie auf Veröffentlichen tippen." },
+        draft: { title: "Als Entwurf speichern", body: "Erstellte Videos bleiben als Entwürfe unter Ihre Videos. Nichts wird gepostet, bis Sie veröffentlichen." },
+        auto: { title: "Freigegebene Ideen automatisch veröffentlichen", body: "Jedes Video, das Sie erstellen, wird zur besten freien Zeit veröffentlicht." },
+      },
+      autoNote: "Automatisches Posten erstellt oder berechnet nie selbst Videos. Es veröffentlicht nur die Videos, die Sie erstellen, höchstens 3 am Tag.",
+      frequency: "Posting-Häufigkeit",
+      frequencyHint: "Für automatisches Posten. RepGet verteilt die Beiträge auf die besten Zeiten.",
+    },
+    safety: {
+      title: "Markensicherheit",
+      body: "Schützen Sie Ihren Ruf, während Sie ansprechende Inhalte erstellen.",
+      always: "Immer aktiv: ein Grundschutz",
+      clickbait: "Irreführenden Clickbait vermeiden",
+      clickbaitHelp: "Aufhänger dürfen neugierig machen, müssen aber zum Video passen und dürfen nichts Falsches versprechen.",
+      facts: "Zahlen vor dem automatischen Posten prüfen",
+      factsHelp: "Zahlen, Rankings und Vergleiche, die nicht auf Ihrer Website stehen, warten auf Ihre Prüfung.",
+      competitors: "Unbelegbare Aussagen über Wettbewerber vermeiden",
+      competitorsHelp: "Keine Vorwürfe oder unbelegten Aussagen über andere Marken.",
+      controversy: "Freigabe für kontroverse Ansätze",
+      controversyHelp: "Heikle Themen und provokante Thesen warten auf Ihre Freigabe.",
+      hint: "Lassen Sie diese auch bei hohem viralem Anteil an. Sie halten nur das automatische Posten an.",
+      creative: "Kreative Vorlieben",
+      creativeBody: "Passen Sie diese an Ihre Marke an.",
+      humor: {
+        none: { title: "Kein Humor", body: "Ernst und sachlich." },
+        light: { title: "Leichter Humor", body: "Ab und zu ein Lächeln." },
+        bold: { title: "Kräftiger Humor", body: "Memes und verspielte Witze." },
+      },
+      controversial: "Kontroverse Themen erlauben",
+      controversialHelp: "Umstrittene Themen Ihrer Branche, mit Sorgfalt behandelt.",
+      language: "Deutlichere Sprache",
+      languageHelp: "Pointiertere Formulierungen, nie beleidigend.",
+      core: "Urheberrecht, falsche Behauptungen, Identitätsmissbrauch und rechtswidrige Inhalte sind immer geschützt, egal was Sie hier wählen.",
+    },
+  },
+  errors: {
+    extra_used_up: "Sie haben die 3 kostenlosen Ideenpakete von heute genutzt. Neue kommen morgen früh.",
+    busy: "Ideen werden bereits geschrieben. Sie erscheinen hier in einer Minute.",
+    too_soon: "Bitte warten Sie einen Moment, bevor Sie weitere Ideen anfordern.",
+    bad_settings: "Einige Einstellungen konnten nicht gespeichert werden. Bitte prüfen Sie sie und versuchen Sie es erneut.",
+    bad_profile: "Die Angaben zur Zielgruppe konnten nicht gespeichert werden. Bitte prüfen Sie sie und versuchen Sie es erneut.",
+    review_required: "Dieses Video muss geprüft werden, bevor es automatisch gepostet werden kann.",
+    x_not_configured: "X ist noch nicht eingerichtet.",
+    x_limit_reached: "Ausgabenlimit für X erreicht",
+    no_story: "Storys werden dort nicht unterstützt",
+    too_long: "Zu lang für diese Plattform",
+    no_carousel: "Karussells werden dort nicht unterstützt",
+    incompatible: "Eine gewählte Plattform nimmt dieses Video nicht an. Wählen Sie sie ab oder ändern Sie das Video.",
+    bad_language: "Wählen Sie eine der Inhaltssprachen, in denen RepGet schreibt.",
+    rewrites_used_up: "Sie haben die kostenlosen Neufassungen von heute genutzt. Sie können die Idee weiterhin selbst bearbeiten.",
+    ai_failed: "Die KI konnte das gerade nicht schreiben. Bitte versuchen Sie es in einer Minute erneut.",
+    linkedin_no_target: "Verbinden Sie LinkedIn neu und wählen Sie Ihr Profil oder eine Unternehmensseite.",
+    reel_only: "Instagram-Audio gibt es nur für Reels.",
+    bad_audio: "Dieser Titel kann nicht verwendet werden. Bitte wählen Sie einen anderen.",
+    not_connected: "Instagram ist nicht verbunden.",
+    needs_facebook_login: "Verbinden Sie Instagram über Facebook Login neu, um das Audio zu nutzen.",
+    search_failed: "Die Suche im Instagram-Audio ist fehlgeschlagen. Bitte versuchen Sie es erneut.",
+    paused: "Nach einer Ablehnung pausiert: in den Einstellungen fortsetzen",
+    daily_limit: "Tageslimit auf dieser Plattform erreicht",
+    too_short: "Zu kurz für eine Story",
+    native_audio_login: "Instagram für das Audio über Facebook Login neu verbinden",
+    native_audio_file: "Die Version für das Instagram-Audio konnte nicht erstellt werden",
+  },
 };
 
 const en: VideosCopy = {
@@ -392,6 +2256,7 @@ const en: VideosCopy = {
     day_full: "You have had today's ideas. New ones arrive tomorrow morning.",
     generic: "Something went wrong. Please try again.",
   },
+  viral: viralEn,
 };
 
 const es: VideosCopy = {
@@ -592,6 +2457,7 @@ const es: VideosCopy = {
     day_full: "Ya ha recibido las ideas de hoy. Mañana por la mañana llegan nuevas.",
     generic: "Algo salió mal. Inténtelo de nuevo.",
   },
+  viral: viralEs,
 };
 
 const fr: VideosCopy = {
@@ -792,6 +2658,7 @@ const fr: VideosCopy = {
     day_full: "Vous avez déjà reçu les idées du jour. De nouvelles arrivent demain matin.",
     generic: "Une erreur s’est produite. Veuillez réessayer.",
   },
+  viral: viralFr,
 };
 
 const it: VideosCopy = {
@@ -992,6 +2859,7 @@ const it: VideosCopy = {
     day_full: "Ha già ricevuto le idee di oggi. Le nuove arrivano domani mattina.",
     generic: "Qualcosa è andato storto. Riprovi.",
   },
+  viral: viralIt,
 };
 
 const de: VideosCopy = {
@@ -1192,6 +3060,7 @@ const de: VideosCopy = {
     day_full: "Sie haben die Ideen von heute bereits erhalten. Neue kommen morgen früh.",
     generic: "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
   },
+  viral: viralDe,
 };
 
 /** One full translation per locale; keep the five objects in step when a key changes. */

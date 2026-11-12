@@ -8,6 +8,7 @@ import { articles, socialAccounts, socialSuggestions, videoIdeas, websites } fro
 import { getLaunchState, type LaunchStepId } from "@/lib/onboarding/launch";
 import { socialAccess } from "@/lib/social/accounts";
 import { VIDEO_PLATFORMS } from "@/lib/video/formats";
+import { xVideoConfig } from "@/lib/video/x-spend";
 import { videoAccess } from "@/lib/video/settings";
 
 /**
@@ -146,16 +147,17 @@ export async function getTasks(
   const socialConnected = new Set(
     accounts.filter((a) => socialLevel.platforms.some((p) => p === a.platform)).map((a) => a.platform),
   ).size;
+  // X takes videos only when RepGet has it configured with a spending limit (lib/video/x-spend.ts);
+  // until then the social X account does not count as a video channel.
+  const videoPlatforms: readonly string[] = VIDEO_PLATFORMS.filter((platform) => platform !== "x" || xVideoConfig().enabled);
   const videoConnected = new Set(
-    accounts
-      .filter((a) => a.bundleAccountId && (VIDEO_PLATFORMS as readonly string[]).includes(a.platform))
-      .map((a) => a.platform),
+    accounts.filter((a) => a.bundleAccountId && videoPlatforms.includes(a.platform)).map((a) => a.platform),
   ).size;
   const accountTasks: AccountTask[] = [];
   if (socialLevel.platforms.length > 0)
     accountTasks.push({ id: "social", connected: socialConnected, available: socialLevel.platforms.length, href: `${base}/social` });
   if (videoLevel !== "none")
-    accountTasks.push({ id: "video", connected: videoConnected, available: VIDEO_PLATFORMS.length, href: `${base}/videos` });
+    accountTasks.push({ id: "video", connected: videoConnected, available: videoPlatforms.length, href: `${base}/videos` });
 
   /* An account task is done with one channel: nobody is asked to be on every network. */
   const oneOff = [...setup.map((s) => s.done), ...accountTasks.map((a) => a.connected > 0)];

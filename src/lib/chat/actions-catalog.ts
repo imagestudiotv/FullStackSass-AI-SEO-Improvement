@@ -1,5 +1,7 @@
 import "server-only";
 
+import { randomUUID } from "node:crypto";
+
 import { and, eq, inArray } from "drizzle-orm";
 
 import { generateFromCalendarItem } from "@/lib/articles/actions";
@@ -12,6 +14,8 @@ import { calendarItems, videoIdeas } from "@/lib/db/schema";
 import { addKeywords } from "@/lib/keywords/actions";
 import { findSocialSuggestions } from "@/lib/social/actions";
 import { approveVideoIdea, requestVideoIdeas } from "@/lib/video/actions";
+import { ideaAllowance } from "@/lib/video/batches";
+import { BATCH_KINDS, DAILY_BATCH_SIZE, EXTRA_BATCH_SIZE, EXTRA_BATCHES_PER_DAY, type BatchKind } from "@/lib/video/formats";
 
 import { CHAT_ACTION_KINDS, type ChatActionKind } from "./action-kinds";
 import type { ChatContext } from "./tools";
@@ -106,12 +110,25 @@ export const ACTION_SPECS: Record<ChatActionKind, ActionSpec> = {
     },
   },
   new_video_ideas: {
-    description: "Offer to write today's video ideas now, when there are none yet today (up to 20 a day; free).",
-    input_schema: { type: "object", properties: {} },
-    check: async () => ({ ok: true, input: {}, details: "" }),
-    run: async (websiteId) => {
-      const result = await requestVideoIdeas(websiteId);
-      return result.ok ? { ok: true, note: null } : { ok: false, error: result.error };
+    description: `Offer to write video ideas, free. kind "daily": today's ${DAILY_BATCH_SIZE} ideas, when the day does not have them yet. kind "mixed" (the usual mix), "viral" (all viral) or "website" (about the business's own services and pages): one of the day's ${EXTRA_BATCHES_PER_DAY} extra batches of ${EXTRA_BATCH_SIZE}. get_videos says what is left today; never offer more than that.`,
+    input_schema: { type: "object", properties: { kind: { type: "string", enum: [...BATCH_KINDS] } } },
+    check: async (ctx, input) => {
+      const kind: BatchKind = (BATCH_KINDS as readonly string[]).includes(String(input.kind)) ? (input.kind as BatchKind) : "daily";
+      const allowance = await ideaAllowance(ctx.websiteId);
+      if (kind === "daily" && allowance.dailyWritten >= DAILY_BATCH_SIZE) return { ok: false, reason: "today's ideas are already written; offer an extra batch instead" };
+      if (kind !== "daily" && allowance.extraLeft === 0) return { ok: false, reason: "the day's extra idea batches are used; new ones come tomorrow" };
+      // One key per card: Confirm sent twice reserves one batch.
+      return {
+        ok: true,
+        input: { kind, requestKey: `chat:${randomUUID()}` },
+        details: kind === "daily" ? `${kind} · ${DAILY_BATCH_SIZE - allowance.dailyWritten}` : `${kind} · ${EXTRA_BATCH_SIZE} · ${allowance.extraLeft - 1}/${EXTRA_BATCHES_PER_DAY}`,
+      };
+    },
+    run: async (websiteId, input) => {
+      const kind = (BATCH_KINDS as readonly string[]).includes(String(input.kind)) ? (input.kind as BatchKind) : "daily";
+      const result = await requestVideoIdeas(websiteId, kind, typeof input.requestKey === "string" ? input.requestKey : null, "chat");
+      if (!result.ok) return { ok: false, error: result.error };
+      return { ok: true, note: result.data ? `extra_left:${result.data.extraLeft}` : null };
     },
   },
   snooze_task: {

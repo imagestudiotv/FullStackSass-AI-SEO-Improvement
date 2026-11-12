@@ -3,12 +3,20 @@ import { AbsoluteFill, Audio, Sequence, interpolate, useCurrentFrame, useVideoCo
 
 import type { ReelProps } from "../lib/video/formats";
 import { Captions } from "./components/Captions";
+import { ConceptBadge, type DirectionProps } from "./directions/common";
+import { FootageProduction } from "./directions/Footage";
+import { MemeProduction } from "./directions/Meme";
+import { StorytellingProduction } from "./directions/Storytelling";
+import { TextMusicProduction } from "./directions/TextMusic";
+import { VoiceoverProduction } from "./directions/Voiceover";
 import { Background, LogoTile, PAD, cleanDomain } from "./components/ui";
 import { FONT } from "./fonts";
 import { BoldChecklist, BoldHook, BoldProof } from "./scenes/Bold";
 import { CtaScene } from "./scenes/Cta";
 import { NumbersHook, NumbersPoint, NumbersProof } from "./scenes/Numbers";
 import { StoryBackdrop, StoryHook, StoryPoint, StoryProof } from "./scenes/Story";
+import { productionTimeline, safeArea } from "./production";
+import { isProduction, type ProductionReelProps } from "./props";
 import { palette, type Palette } from "./theme";
 import { reelTiming, sceneEnd, type ReelTiming } from "./timing";
 
@@ -20,7 +28,39 @@ import { reelTiming, sceneEnd, type ReelTiming } from "./timing";
  * Usable both as the "Reel" composition and in @remotion/player - pass the
  * Player `durationInFrames={reelTiming(props).durationInFrames}`.
  */
-export function Reel(props: ReelProps) {
+export function Reel(props: ReelProps | ProductionReelProps) {
+  if (isProduction(props)) return <ProductionReel {...(props as ProductionReelProps)} />;
+  return <AnimatedReel {...props} />;
+}
+
+/**
+ * The new productions (client, 2026-11-12, Option B): each direction its own
+ * structure, pacing, transitions and captions (src/remotion/directions).
+ */
+function ProductionReel(props: ProductionReelProps) {
+  const { fps } = useVideoConfig();
+  const timeline = productionTimeline(props, fps);
+  // Pictures carry the colour: the dark palette, the brand in the accents.
+  const pal = palette(props.brand, "story");
+  const safe = safeArea(props.format === "story");
+  const direction: DirectionProps = { ...props, timeline, pal, safe };
+  return (
+    <AbsoluteFill style={{ fontFamily: FONT, background: "#050508", color: "#fff", overflow: "hidden" }}>
+      {props.direction === "meme" ? <MemeProduction {...direction} /> : null}
+      {props.direction === "footage" ? <FootageProduction {...direction} /> : null}
+      {props.direction === "storytelling" ? <StorytellingProduction {...direction} /> : null}
+      {props.direction === "text_music" ? <TextMusicProduction {...direction} /> : null}
+      {props.direction === "voiceover" ? <VoiceoverProduction {...direction} /> : null}
+      {/* A meme's caption bar fills the top: its badge (preview only, never rendered) sits under the text area on the right, clear of the bar and the captions. */}
+      {props.concept ? (props.direction === "meme" ? <ConceptBadge top={safe.bottom + 30} right /> : <ConceptBadge top={safe.top + 60} />) : null}
+      {timeline.voiced && props.voiceUrl ? <Audio src={props.voiceUrl} /> : null}
+      {props.music ? <Music url={props.music.url} volume={props.music.volume} durationInFrames={timeline.durationInFrames} /> : null}
+    </AbsoluteFill>
+  );
+}
+
+/** The original templates (Bold, Numbers, Story): direction "animated" and every idea written before 2026-11-12. */
+function AnimatedReel(props: ReelProps) {
   const { fps } = useVideoConfig();
   const timing = reelTiming(props, fps);
   const pal = palette(props.brand, props.style);
@@ -229,16 +269,20 @@ function TopBar({ brand, timing, pal, showBrand }: { brand: ReelProps["brand"]; 
 
 /**
  * The music under the voice: ducked to its set volume, faded in and out. Not
- * looped: every track is 75 seconds and a reel at most 60 (MAX_REEL_SECONDS),
- * and a loop has the browser load the whole track first to learn its length.
+ * looped: every track is 75 seconds, and a reel past that (MAX_REEL_SECONDS
+ * is 90) fades the music out at 74 s - a loop has the browser load the whole
+ * track first to learn its length.
  */
 function Music({ url, volume, durationInFrames }: { url: string; volume: number; durationInFrames: number }) {
+  const { fps } = useVideoConfig();
+  // Every track is 75 s: a longer reel lets it end in a fade rather than a cut.
+  const end = Math.min(durationInFrames, Math.round(74.5 * fps));
   return (
     <Audio
       src={url}
       volume={(f) =>
         volume *
-        interpolate(f, [0, 15, durationInFrames - 30, durationInFrames], [0, 1, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })
+        interpolate(f, [0, 15, end - 30, end], [0, 1, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })
       }
     />
   );

@@ -1,4 +1,6 @@
 import { MAX_REEL_SECONDS, REEL, silentTiming, type ReelProps } from "../lib/video/formats";
+import { productionTimeline } from "./production";
+import { isProduction, type ProductionReelProps } from "./props";
 
 /**
  * A reel's length and scene starts, shared by the Remotion composition
@@ -15,7 +17,15 @@ export type ReelTiming = {
   durationInFrames: number;
 };
 
-export function reelTiming(props: Pick<ReelProps, "script" | "voiceMs" | "sceneStartsMs">, fps: number = REEL.fps): ReelTiming {
+export function reelTiming(
+  props: Pick<ReelProps, "script" | "voiceMs" | "sceneStartsMs"> & Partial<ProductionReelProps>,
+  fps: number = REEL.fps,
+): ReelTiming {
+  // A production (meme, footage, ...) has its own timeline: the parts it shows, reading-speed silent timing.
+  if (isProduction(props)) {
+    const timeline = productionTimeline(props as ProductionReelProps, fps);
+    return { starts: timeline.starts, durationInFrames: timeline.durationInFrames };
+  }
   const parts = props.script.points.length + 3;
   const voiced = props.voiceMs > 0 && props.sceneStartsMs.length === parts;
   const silent = silentTiming(props.script);

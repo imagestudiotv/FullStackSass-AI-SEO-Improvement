@@ -34,7 +34,9 @@ export type UsageKind =
   | "embedding"
   | "image"
   | "seo_api"
-  | "geo_query";
+  | "geo_query"
+  /** A metered social network API call (X video posts through bundle.social, lib/video/x-spend.ts). */
+  | "social_api";
 
 /**
  * Provider unit prices in USD. Cost calculation lives here and nowhere else,
