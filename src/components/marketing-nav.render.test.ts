@@ -83,6 +83,23 @@ describe("the footer's program link", () => {
   });
 });
 
+/** The customer directory (client, 2026-11-12), right after Success Stories, in the page's language. */
+describe("the footer's customer directory link", () => {
+  it.each([
+    ["/", "/success-stories", "/discover", "Customer directory"],
+    ["/es", "/es/success-stories", "/es/discover", "Directorio de clientes"],
+    ["/fr", "/fr/success-stories", "/fr/discover", "Annuaire des clients"],
+    ["/it", "/it/success-stories", "/it/discover", "Directory dei clienti"],
+    ["/de", "/de/success-stories", "/de/discover", "Kundenverzeichnis"],
+  ])("on %s follows Success Stories and goes to %s", (pathname, stories, discover, label) => {
+    nav.pathname = pathname;
+    const html = renderToStaticMarkup(createElement(MarketingFooterLinks, { chrome: siteChrome() }));
+    const links = hrefs(html);
+    expect(links.indexOf(discover)).toBe(links.indexOf(stories) + 1);
+    expect(html).toContain(`>${label}</a>`);
+  });
+});
+
 /**
  * The page's language. The root layout's <html lang="en"> is shared by every
  * route, so the frame around the public pages says which language the
