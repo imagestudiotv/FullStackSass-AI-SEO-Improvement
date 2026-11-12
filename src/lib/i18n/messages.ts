@@ -88,6 +88,8 @@ export type Messages = {
     publishers: string;
     /** The cash Affiliate Program (/partners); the credit referral (/affiliate) is not in the footer. */
     partners: string;
+    /** /discover, the customer directory (client, 2026-11-12: "insert this page also on footer"). */
+    discover: string;
     privacy: string;
     terms: string;
     refunds: string;
@@ -3433,6 +3435,7 @@ const en: Messages = {
     backlinkExchange: "Backlink exchange",
     publishers: "Monetize your blog",
     partners: "Affiliate Program",
+    discover: "Customer directory",
     privacy: "Privacy",
     terms: "Terms",
     refunds: "Refunds",
@@ -6693,6 +6696,7 @@ const es: Messages = {
     backlinkExchange: "Intercambio de enlaces",
     publishers: "Rentabilice su blog",
     partners: "Programa de afiliados",
+    discover: "Directorio de clientes",
     privacy: "Privacidad",
     terms: "Términos",
     refunds: "Reembolsos",
@@ -9971,6 +9975,7 @@ const fr: Messages = {
     backlinkExchange: "Échange de liens",
     publishers: "Monétisez votre blog",
     partners: "Programme d’affiliation",
+    discover: "Annuaire des clients",
     privacy: "Confidentialité",
     terms: "Conditions",
     refunds: "Remboursements",
@@ -13249,6 +13254,7 @@ const it: Messages = {
     backlinkExchange: "Scambio di link",
     publishers: "Monetizzi il suo blog",
     partners: "Programma di affiliazione",
+    discover: "Directory dei clienti",
     privacy: "Privacy",
     terms: "Termini",
     refunds: "Rimborsi",
@@ -16527,6 +16533,7 @@ const de: Messages = {
     backlinkExchange: "Linktausch",
     publishers: "Monetarisieren Sie Ihren Blog",
     partners: "Affiliate-Programm",
+    discover: "Kundenverzeichnis",
     privacy: "Datenschutz",
     terms: "AGB",
     refunds: "Rückerstattungen",

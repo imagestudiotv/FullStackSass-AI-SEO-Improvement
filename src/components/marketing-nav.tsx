@@ -464,6 +464,8 @@ export function MarketingFooterLinks({ chrome }: { chrome: SiteChrome }) {
         { href: href("/about"), label: t.footer.about },
         // Also in the header; listed here so the footer stays a full index.
         { href: href("/success-stories"), label: t.nav.successStories },
+        // The customer directory, beside the stories it belongs with (client, 2026-11-12).
+        { href: href("/discover"), label: t.footer.discover },
         { href: href("/blog"), label: t.footer.blog },
         { href: href("/faq"), label: t.footer.faq },
         { href: href("/contact"), label: t.footer.contact },
