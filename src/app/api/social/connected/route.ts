@@ -18,9 +18,12 @@ import { requireEditor } from "@/lib/websites/require-editor";
  * website's own team - a forged link can at most make RepGet re-read what is
  * already there. A new account gets its first suggestions straight away.
  *
- * The video platforms (Instagram, TikTok, YouTube, Facebook, Pinterest:
- * lib/video) come back here too, and go on to the Videos page. Pinterest is
- * both, so it goes back to the page it was connected from (`from=videos`).
+ * The video platforms (Instagram, TikTok, YouTube, Facebook, Pinterest,
+ * LinkedIn, X: lib/video) come back here too, and go on to the Videos page.
+ * Pinterest and X are both - one account, one social_accounts row - so they
+ * go back to the page they were connected from (`from=videos`). The sync
+ * stores LinkedIn's chosen profile or page and Instagram's login method
+ * (social_accounts.target, lib/social/accounts.ts).
  *
  * The Opportunities page is returned to at its "Social connections" panel
  * (lib/social/connect-return.ts; client, 2026-11-11), which toasts the
