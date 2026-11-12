@@ -186,7 +186,10 @@ describe("the day's ideas", () => {
     const rows = await test.db.select().from(videoIdeas).where(eq(videoIdeas.websiteId, websiteId));
     expect(rows).toHaveLength(20);
     expect(rows.filter((row) => row.format === "carousel")).toHaveLength(5);
-    expect(rows[0]).toMatchObject({ status: "new", language: "en", voice: "coral", captions: true });
+    // Rows come back in no set order, and Auto audio makes some ideas Text + Music (no voice).
+    expect(rows.every((row) => row.status === "new" && row.language === "en" && row.captions)).toBe(true);
+    expect(rows.some((row) => row.voice === "coral")).toBe(true);
+    expect(rows.every((row) => row.voice === "coral" || (row.production as { audio?: string } | null)?.audio === "text_music")).toBe(true);
   });
 
   it("follow the website's own style and voice", async () => {
