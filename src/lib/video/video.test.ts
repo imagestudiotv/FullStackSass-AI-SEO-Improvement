@@ -100,14 +100,24 @@ async function site(options: { trial?: boolean; plan?: boolean } = {}) {
 function writer(count = 25) {
   return vi.fn(async (input: IdeaInput) => ({
     ideas: Array.from({ length: Math.min(count, input.count + 3) }, (_, index) => ({
+      slot: index + 1,
       title: `Idea ${index + 1}`,
       article: null,
-      hook: SCRIPT.hook,
+      // The planned direction, narrated where the writer may choose.
+      direction: input.slots[index]?.direction ?? "voiceover",
+      audio: "voiceover" as const,
+      hook: `${SCRIPT.hook} (${index + 1})`,
       points: SCRIPT.points,
       proof: SCRIPT.proof,
       cta: SCRIPT.cta,
       caption: "Light sells.",
       hashtags: ["photography", "#product photos", "ecommerce"],
+      why: null,
+      techniques: [],
+      scenes: [],
+      claims: [],
+      controversial: false,
+      sensitive: false,
     })),
     usage: { inputTokens: 1000, outputTokens: 2000, model: "claude-sonnet-5" },
   }));
@@ -197,17 +207,20 @@ describe("the day's ideas", () => {
   it("New ideas says the day is full once its twenty are used, skipped ones included", async () => {
     const { websiteId } = await site();
     const day = NOW.toISOString().slice(0, 10);
+    vi.useFakeTimers({ toFake: ["Date"], now: NOW });
     // Nineteen used up: made or skipped. One more can still be written.
     for (let i = 0; i < IDEAS_PER_DAY - 1; i++) await idea(websiteId, { day, status: i % 2 ? "dismissed" : "approved" });
-    expect(await requestVideoIdeas(websiteId, NOW)).toEqual({ ok: true, data: null });
+    expect(await requestVideoIdeas(websiteId)).toEqual({ ok: true, data: null });
     expect(queue.queueJob).toHaveBeenCalledWith({ name: "video/ideas.requested", data: { websiteId } });
     queue.queueJob.mockClear();
     // The twentieth skipped too: the job would write nothing, so nothing is promised or queued.
     await idea(websiteId, { day, status: "dismissed" });
-    expect(await requestVideoIdeas(websiteId, NOW)).toEqual({ ok: false, error: "day_full" });
+    expect(await requestVideoIdeas(websiteId)).toEqual({ ok: false, error: "day_full" });
     expect(queue.queueJob).not.toHaveBeenCalled();
     // The next day starts afresh.
-    expect(await requestVideoIdeas(websiteId, new Date(NOW.getTime() + DAY))).toEqual({ ok: true, data: null });
+    vi.setSystemTime(new Date(NOW.getTime() + DAY));
+    expect(await requestVideoIdeas(websiteId)).toEqual({ ok: true, data: null });
+    vi.useRealTimers();
   });
 });
 

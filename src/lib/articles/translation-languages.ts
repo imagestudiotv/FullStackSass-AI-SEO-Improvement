@@ -9,7 +9,7 @@ import { normalizeLanguage } from "@/lib/websites/languages";
  */
 
 const CODES: Record<string, string> = {
-  English: "en", Spanish: "es", French: "fr", Italian: "it", German: "de", Portuguese: "pt", Dutch: "nl", Polish: "pl",
+  English: "en", Spanish: "es", French: "fr", Italian: "it", German: "de", Portuguese: "pt", Dutch: "nl", Polish: "pl", Romanian: "ro",
 };
 
 /** "it" -> "Italian": a language RepGet writes, or null. */
