@@ -11,7 +11,8 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Notice } from "@/components/workspace/notice";
 import { format } from "@/lib/i18n/format";
-import { addMediaToIdea, removeMediaFromIdea } from "@/lib/video/actions";
+import { addMediaToIdea, editVideoIdea, removeMediaFromIdea, rewriteVideoIdea, type IdeaEdit } from "@/lib/video/actions";
+import { compatibility } from "@/lib/video/destinations";
 import {
   CAPTION_STYLES,
   CREATIVE_DIRECTIONS,
@@ -36,8 +37,6 @@ import {
 } from "@/lib/video/formats";
 import type { VideoSettings } from "@/lib/video/settings";
 
-// TODO(viral-integration): editVideoIdea/rewriteVideoIdea from "@/lib/video/actions", compatibility from "@/lib/video/destinations".
-import { compatibility, editVideoIdea, rewriteVideoIdea, type ViralIdeaEdit } from "./_pending";
 import { CarouselPreview, ReelPreview } from "./preview";
 import { Field, MediaThumb, platformName, selectClass, type IdeaView, type MediaView, type Run, type T, type TrackView } from "./shared";
 
@@ -63,7 +62,7 @@ export function EditDialog(props: {
   xAvailable: boolean;
   priceLabel: string;
   onClose: () => void;
-  onApprove: (edit: ViralIdeaEdit) => void;
+  onApprove: (edit: IdeaEdit) => void;
   run: Run;
   pending: boolean;
   t: T;
@@ -96,7 +95,7 @@ export function EditDialog(props: {
     Object.entries(overrides).filter(([, value]) => typeof value === "string" && value.trim() !== ""),
   ) as IdeaOverrides;
 
-  const edit: ViralIdeaEdit = {
+  const edit: IdeaEdit = {
     title: title.trim(),
     script,
     caption,
@@ -151,7 +150,7 @@ export function EditDialog(props: {
             <section className="space-y-4" aria-label={e.script}>
               <h3 className="text-sm font-semibold">{e.script}</h3>
               <Field label={e.title}>
-                <Input value={title} maxLength={130} onChange={(event) => setTitle(event.target.value)} />
+                <Input value={title} maxLength={90} onChange={(event) => setTitle(event.target.value)} />
               </Field>
               <Field label={t.hook}>
                 <Input value={script.hook} maxLength={80} onChange={(event) => setScript({ ...script, hook: event.target.value })} />
@@ -344,7 +343,7 @@ export function EditDialog(props: {
                 </label>
                 {production.includeCta ? (
                   <Field label={e.ctaText} hint={e.ctaHint}>
-                    <Input value={production.ctaText ?? ""} maxLength={120} placeholder={script.cta} onChange={(event) => choose("ctaText", event.target.value)} />
+                    <Input value={production.ctaText ?? ""} maxLength={150} placeholder={script.cta} onChange={(event) => choose("ctaText", event.target.value)} />
                   </Field>
                 ) : null}
               </div>
@@ -356,7 +355,7 @@ export function EditDialog(props: {
                 <p className="text-xs text-muted-foreground">{e.onlyThisBody}</p>
               </div>
               <Field label={e.audience}>
-                <Textarea rows={2} maxLength={500} value={overrides.audience ?? ""} placeholder={e.samePlaceholder} onChange={(event) => setOverrides({ ...overrides, audience: event.target.value })} />
+                <Textarea rows={2} maxLength={300} value={overrides.audience ?? ""} placeholder={e.samePlaceholder} onChange={(event) => setOverrides({ ...overrides, audience: event.target.value })} />
               </Field>
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field label={e.tonePreset}>
@@ -374,7 +373,7 @@ export function EditDialog(props: {
                   </NativeLikeSelect>
                 </Field>
                 <Field label={e.tone}>
-                  <Input value={overrides.tone ?? ""} maxLength={200} placeholder={e.samePlaceholder} onChange={(event) => setOverrides({ ...overrides, tone: event.target.value })} />
+                  <Input value={overrides.tone ?? ""} maxLength={300} placeholder={e.samePlaceholder} onChange={(event) => setOverrides({ ...overrides, tone: event.target.value })} />
                 </Field>
               </div>
               <Field label={e.avoid}>

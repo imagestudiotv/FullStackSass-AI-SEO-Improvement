@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_SETTINGS } from "@/lib/video/settings";
+import { DEFAULT_SETTINGS, validateVideoSettings, type VideoSettings } from "@/lib/video/settings";
 
 import {
   browse,
   categoryCounts,
   isPageUndo,
+  profileChanges,
   settingsChanges,
   settingsProblems,
   splitHashtags,
@@ -125,9 +126,48 @@ describe("settings form", () => {
     expect(settingsChanges(legacy, { ...legacy, frequency: "1_day" })).toEqual({ frequency: "1_day" });
   });
 
+  it("sends only the profile fields that changed, trimmed", () => {
+    expect(profileChanges(profile, { ...profile, targetAudience: "  Couples planning a wedding  " })).toEqual({ targetAudience: "Couples planning a wedding" });
+    expect(profileChanges({ ...profile, language: "spanish" }, { ...profile, language: "spanish", tonePreset: "bold" })).toEqual({ tonePreset: "bold" });
+    expect(profileChanges(profile, { ...profile })).toEqual({});
+  });
+
+  it("sends every new setting in a shape the server stores as it is (end to end with validateVideoSettings)", () => {
+    const form: VideoSettings = {
+      ...DEFAULT_SETTINGS,
+      viralMix: 70,
+      goal: "reach",
+      techniques: ["hot_takes", "storytelling"],
+      trendInspired: false,
+      humor: "bold",
+      allowControversial: true,
+      strongLanguage: true,
+      requireFactReview: false,
+      requireControversyReview: false,
+      formats: ["reel", "story"],
+      duration: "60-90",
+      audioMode: "voiceover",
+      narration: "warm",
+      captionStyle: "minimal",
+      musicDirection: "cinematic",
+      showHook: false,
+      includeCta: false,
+      defaultCta: "Book a call",
+      publishMode: "draft",
+      platforms: ["instagram", "linkedin"],
+      frequency: "2_day",
+      voice: "nova",
+      captions: false,
+      style: "numbers",
+    };
+    const sent = settingsChanges(DEFAULT_SETTINGS, form);
+    const saved = validateVideoSettings(sent, DEFAULT_SETTINGS, { logoAllowed: () => false });
+    expect(saved).toEqual({ ok: true, settings: { ...form, music: true } });
+  });
+
   it("refuses a form without a format, an overlong CTA or an unknown value before sending", () => {
     expect(settingsProblems({ ...DEFAULT_SETTINGS, formats: [] }, profile)).toContain("no_format");
-    expect(settingsProblems({ ...DEFAULT_SETTINGS, defaultCta: "x".repeat(121) }, profile)).toContain("cta_too_long");
+    expect(settingsProblems({ ...DEFAULT_SETTINGS, defaultCta: "x".repeat(151) }, profile)).toContain("cta_too_long");
     expect(settingsProblems({ ...DEFAULT_SETTINGS, goal: "fame" as never }, profile)).toContain("bad_value");
     expect(settingsProblems(DEFAULT_SETTINGS, profile)).toEqual([]);
   });

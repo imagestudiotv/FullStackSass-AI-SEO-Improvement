@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { BrandIcon } from "@/components/brand-icons";
 import { format } from "@/lib/i18n/format";
 import type { VideosCopy } from "@/lib/i18n/videos";
-import { prepareVideoUpload, type VideoResult } from "@/lib/video/actions";
+import { prepareVideoUpload, type VideoError, type VideoResult } from "@/lib/video/actions";
 import {
   isVideoPlatform,
   VIDEO_PLATFORM_SPECS,
@@ -20,8 +20,8 @@ import {
   type ReelProps,
   type VideoPlatform,
 } from "@/lib/video/formats";
-
-import type { VideoPublishingStatus } from "./_pending";
+import type { DestinationCode } from "@/lib/video/destinations";
+import type { PublishError, VideoPublishingStatus } from "@/lib/video/publish-actions";
 
 /** The Social Content page's shared pieces: the idea's view, the error words, the small parts every tab uses. */
 
@@ -78,7 +78,7 @@ export type VideoAccountView = {
 export type MediaView = { id: string; url: string; kind: "image" | "video"; name: string | null };
 export type TrackView = { id: string; title: string; mood: string };
 /** What every action on this page answers: VideoResult (actions.ts) and PublishResult (publish-actions.ts) both fit. */
-export type ActionResult<D = unknown> = { ok: true; data: D } | { ok: false; error: string; available?: number; price?: number };
+export type ActionResult<D = unknown> = { ok: true; data: D } | { ok: false; error: string; available?: number; price?: number; retryAt?: string; field?: string };
 export type Run = (action: () => Promise<ActionResult>, success?: string, after?: () => void) => void;
 
 export const platformName = (platform: string) => (isVideoPlatform(platform) ? VIDEO_PLATFORM_SPECS[platform].name : platform);
@@ -90,9 +90,22 @@ export const selectClass = "data-[size=default]:h-9";
 /** The error words: the original codes, and the ones the viral content work added (t.viral.errors). */
 const errorWords = (t: T): Record<string, string | undefined> => ({ ...t.viral.errors, ...t.errors });
 
+/*
+  Every code the server can answer, or leave on a destination, has words in
+  the five languages: a new code without copy fails the type check here.
+*/
+type ErrorCopyKey = keyof T["errors"] | keyof T["viral"]["errors"];
+type MissingErrorCopy = Exclude<VideoError | PublishError | DestinationCode, ErrorCopyKey>;
+export const ERROR_COPY_COMPLETE: [MissingErrorCopy] extends [never] ? true : MissingErrorCopy = true;
+
 /** An action's error in the reader's language; a code this copy does not know yet reads as the generic one. */
-export function errorText(t: T, result: { ok: false; error: string; available?: number }, price: string): string {
+export function errorText(t: T, result: { ok: false; error: string; available?: number; retryAt?: string }, price: string): string {
   if (result.error === "not_enough_credits") return format(t.errors.not_enough_credits, { price, available: String(result.available ?? 0) });
+  // Asked again too soon: how long to wait, from the server's retryAt (called on an answer, never while rendering).
+  if (result.error === "too_soon" && result.retryAt) {
+    const seconds = Math.max(1, Math.ceil((new Date(result.retryAt).getTime() - Date.now()) / 1000));
+    if (Number.isFinite(seconds)) return format(t.viral.newIdeas.tooSoonIn, { seconds: String(seconds) });
+  }
   return errorWords(t)[result.error] ?? t.errors.generic;
 }
 

@@ -13,12 +13,12 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Notice } from "@/components/workspace/notice";
 import type { Locale } from "@/lib/i18n/config";
 import { format, plural } from "@/lib/i18n/format";
+import { requestVideoIdeas } from "@/lib/video/actions";
+import type { Allowance } from "@/lib/video/batches";
 import { EXTRA_BATCHES_PER_DAY, type BrandLook, type ExtraBatchKind } from "@/lib/video/formats";
+import type { VideoPublishingStatus } from "@/lib/video/publish-actions";
 import type { VideoSettings } from "@/lib/video/settings";
 
-// TODO(viral-integration): requestVideoIdeas(websiteId, kind, requestKey) from "@/lib/video/actions".
-import { requestVideoIdeas, type VideoPublishingStatus } from "./_pending";
-import type { IdeaAllowance } from "./_pending-server";
 import { IdeasDeck } from "./ideas-deck";
 import type { CategoryFilter, FormatFilter, ProfileForm } from "./logic";
 import { MadeList } from "./made-list";
@@ -94,7 +94,7 @@ export function VideosPanel(props: {
   approvedToday: number;
   goal: number;
   /** The free extra batches: used, left, one being written, or asked too soon. */
-  allowance: Omit<IdeaAllowance, "nextAllowedAt"> & { tooSoon: boolean };
+  allowance: Omit<Allowance, "nextAllowedAt"> & { tooSoon: boolean };
   priceLabel: string;
   /** The workspace's balance, for its owner only (null for a guest, or when it could not be read). */
   credits: { available: number; label: string } | null;
