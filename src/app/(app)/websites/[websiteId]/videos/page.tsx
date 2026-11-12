@@ -27,7 +27,7 @@ import {
   type FactClaim,
   type IdeaOverrides,
   type MediaItem,
-  type NativeAudioSelection,
+
   type ProductionChoices,
   type ReelProps,
   type VideoScript,
@@ -38,11 +38,12 @@ import { MUSIC_TRACKS } from "@/lib/video/music";
 import { brandLook, readVideoSettings, videoAccess, type VideoSettings } from "@/lib/video/settings";
 
 import { ideaAllowance } from "@/lib/video/batches";
+import { readDestinations } from "@/lib/video/destinations";
+import { readNativeAudio } from "@/lib/video/native-audio";
+import { videoPublishingStatus } from "@/lib/video/publish-actions";
 import { reviewBlocksAutoPublish } from "@/lib/video/review";
 import { videoProfile } from "@/lib/video/strategy/profile";
 
-// TODO(viral-integration): videoPublishingStatus from "@/lib/video/publish-actions" (Worker D).
-import { videoPublishingStatus } from "./_pending-server";
 import { VideosPanel, type IdeaView, type VideoAccountView } from "./videos-panel";
 
 export const dynamic = "force-dynamic";
@@ -186,8 +187,8 @@ export default async function WebsiteVideosPage({ params, searchParams }: PagePr
       reviewReasons: row.reviewReasons ?? [],
       claims: (row.claims ?? []) as FactClaim[],
       reviewBlocks: reviewBlocksAutoPublish(row),
-      destinations: (row.destinations ?? {}) as Record<string, DestinationState>,
-      nativeAudio: (row.nativeAudio as NativeAudioSelection | null) ?? null,
+      destinations: readDestinations(row.destinations) as Record<string, DestinationState>,
+      nativeAudio: readNativeAudio(row.nativeAudio),
     };
   };
 

@@ -16,10 +16,9 @@ import { format, plural } from "@/lib/i18n/format";
 import { requestVideoIdeas } from "@/lib/video/actions";
 import type { Allowance } from "@/lib/video/batches";
 import { EXTRA_BATCHES_PER_DAY, type BrandLook, type ExtraBatchKind } from "@/lib/video/formats";
+import type { VideoPublishingStatus } from "@/lib/video/publish-actions";
 import type { VideoSettings } from "@/lib/video/settings";
 
-// TODO(viral-integration): VideoPublishingStatus from "@/lib/video/publish-actions" (Worker D).
-import type { VideoPublishingStatus } from "./_pending";
 import { IdeasDeck } from "./ideas-deck";
 import type { CategoryFilter, FormatFilter, ProfileForm } from "./logic";
 import { MadeList } from "./made-list";

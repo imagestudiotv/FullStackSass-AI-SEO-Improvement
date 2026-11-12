@@ -16,15 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Notice } from "@/components/workspace/notice";
 import type { Locale } from "@/lib/i18n/config";
 import { format } from "@/lib/i18n/format";
-import {
-  addVideoMedia,
-  disconnectVideoPlatform,
-  removeVideoMedia,
-  resetVideoSettingsAction,
-  resumeVideoPlatform,
-  saveVideoProfileAction,
-  saveVideoSettingsAction,
-} from "@/lib/video/actions";
+import { addVideoMedia, removeVideoMedia, resetVideoSettingsAction, saveVideoProfileAction, saveVideoSettingsAction } from "@/lib/video/actions";
 import {
   AUDIO_MODES,
   CAPTION_STYLES,
@@ -46,12 +38,11 @@ import {
   type PostingFrequency,
   type VideoPlatform,
 } from "@/lib/video/formats";
+import { connectVideoPlatform, disconnectVideoPlatform, resumeVideoPlatform, type VideoPublishingStatus } from "@/lib/video/publish-actions";
 import type { VideoSettings } from "@/lib/video/settings";
 import { SUPPORTED_LANGUAGES } from "@/lib/websites/languages";
 import { MARKET_GLOBAL, MARKETS } from "@/lib/websites/markets";
 
-// TODO(viral-integration): connectVideoPlatform and VideoPublishingStatus from "@/lib/video/publish-actions" (Worker D).
-import { connectVideoPlatform, type VideoPublishingStatus } from "./_pending";
 import { profileChanged, profileChanges, settingsChanges, settingsProblems, viralSplit, type ProfileForm } from "./logic";
 import { errorText, Field, MediaThumb, opportunitiesHref, selectClass, upload, type MediaView, type Run, type T, type VideoAccountView, xWords } from "./shared";
 
@@ -650,7 +641,11 @@ function PublishingPane(props: {
                       )
                     ) : null}
                     {board ? <p className="mt-0.5 text-xs text-muted-foreground">{t.pinterest.shared}</p> : null}
-                    {platform === "linkedin" ? <p className="mt-0.5 text-xs text-muted-foreground">{v.linkedin.help}</p> : null}
+                    {platform === "linkedin" ? (
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {account?.connected && props.publishing.linkedin.target ? linkedinTargetWords(t, props.publishing.linkedin.target) : v.linkedin.help}
+                      </p>
+                    ) : null}
                     {platform === "linkedin" && linkedinNoTarget ? <p className="text-xs text-amber-700 dark:text-amber-400">{v.linkedin.noTarget}</p> : null}
                   </div>
                 </div>
@@ -898,4 +893,10 @@ export function fieldPlace(t: T, field: string): { pane: SettingsPane; label: st
   };
   const place = places[field];
   return place ? { pane: place[0], label: place[1] } : null;
+}
+
+/** Where LinkedIn posts go (social_accounts.target, lib/social/accounts.ts): the profile, a company page, or the destination chosen. */
+function linkedinTargetWords(t: T, target: string): string {
+  const targets = t.viral.linkedin.targets;
+  return target === "profile" ? targets.profile : target === "organization" ? targets.organization : targets.selected;
 }

@@ -298,7 +298,11 @@ export type ViralCopy = {
     reasons: { not_configured: string; not_connected: string; needs_facebook_login: string };
     reconnect: string;
     use: string;
-    current: string;
+    update: string;
+    reelsOnly: string;
+    noPreview: string;
+    volume: string;
+    originalVolume: string;
     remove: string;
     saved: string;
     removed: string;
@@ -306,7 +310,7 @@ export type ViralCopy = {
     chosen: string;
   };
   x: { needsSetup: string; budget: string };
-  linkedin: { help: string; noTarget: string };
+  linkedin: { help: string; noTarget: string; targets: { profile: string; organization: string; selected: string } };
   settings: {
     open: string;
     sidebar: string;
@@ -587,7 +591,11 @@ const viralEn: ViralCopy = {
     reasons: { not_configured: "Instagram's own audio is not set up on this RepGet yet.", not_connected: "Connect Instagram first.", needs_facebook_login: "Reconnect Instagram through Facebook Login to use its audio." },
     reconnect: "Reconnect with Facebook Login",
     use: "Use",
-    current: "Chosen",
+    update: "Update",
+    reelsOnly: "Instagram's own audio works on Reels only.",
+    noPreview: "RepGet cannot preview the final mix: Instagram adds the track when it publishes the Reel.",
+    volume: "Track volume",
+    originalVolume: "Video sound volume",
     remove: "Remove Instagram audio",
     saved: "Instagram audio chosen for this reel.",
     removed: "Instagram audio removed.",
@@ -597,7 +605,7 @@ const viralEn: ViralCopy = {
     needsSetup: "X needs setup: RepGet posts there only once X is configured with a spending limit.",
     budget: "X has reached its spending limit for now. RepGet posts there again when the limit allows.",
   },
-  linkedin: { help: "Your profile or a company page.", noTarget: "Choose a profile or page: reconnect LinkedIn and pick one." },
+  linkedin: { help: "Your profile or a company page.", noTarget: "Choose a profile or page: reconnect LinkedIn and pick one.", targets: { profile: "Posts to your LinkedIn profile.", organization: "Posts to your LinkedIn company page.", selected: "Posts to the LinkedIn destination you chose." } },
   settings: {
     open: "Content settings",
     sidebar: "Preferences",
@@ -904,7 +912,11 @@ const viralEs: ViralCopy = {
     reasons: { not_configured: "El audio de Instagram aún no está configurado en este RepGet.", not_connected: "Conecte primero Instagram.", needs_facebook_login: "Vuelva a conectar Instagram con Facebook Login para usar su audio." },
     reconnect: "Volver a conectar con Facebook Login",
     use: "Usar",
-    current: "Elegido",
+    update: "Actualizar",
+    reelsOnly: "El audio propio de Instagram solo funciona en Reels.",
+    noPreview: "RepGet no puede mostrar la mezcla final: Instagram añade la pista al publicar el Reel.",
+    volume: "Volumen de la pista",
+    originalVolume: "Volumen del sonido del vídeo",
     remove: "Quitar el audio de Instagram",
     saved: "Audio de Instagram elegido para este reel.",
     removed: "Audio de Instagram quitado.",
@@ -914,7 +926,7 @@ const viralEs: ViralCopy = {
     needsSetup: "X necesita configuración: RepGet solo publica allí cuando X está configurado con un límite de gasto.",
     budget: "X ha alcanzado su límite de gasto por ahora. RepGet volverá a publicar allí cuando el límite lo permita.",
   },
-  linkedin: { help: "Su perfil o una página de empresa.", noTarget: "Elija un perfil o una página: vuelva a conectar LinkedIn y elija uno." },
+  linkedin: { help: "Su perfil o una página de empresa.", noTarget: "Elija un perfil o una página: vuelva a conectar LinkedIn y elija uno.", targets: { profile: "Publica en su perfil de LinkedIn.", organization: "Publica en su página de empresa de LinkedIn.", selected: "Publica en el destino de LinkedIn que eligió." } },
   settings: {
     open: "Ajustes de contenido",
     sidebar: "Preferencias",
@@ -1221,7 +1233,11 @@ const viralFr: ViralCopy = {
     reasons: { not_configured: "L’audio d’Instagram n’est pas encore configuré sur ce RepGet.", not_connected: "Connectez d’abord Instagram.", needs_facebook_login: "Reconnectez Instagram via Facebook Login pour utiliser son audio." },
     reconnect: "Reconnecter via Facebook Login",
     use: "Utiliser",
-    current: "Choisi",
+    update: "Mettre à jour",
+    reelsOnly: "L’audio d’Instagram ne fonctionne que sur les Reels.",
+    noPreview: "RepGet ne peut pas faire écouter le mixage final : Instagram ajoute le morceau en publiant le Reel.",
+    volume: "Volume du morceau",
+    originalVolume: "Volume du son de la vidéo",
     remove: "Retirer l’audio Instagram",
     saved: "Audio Instagram choisi pour ce reel.",
     removed: "Audio Instagram retiré.",
@@ -1231,7 +1247,7 @@ const viralFr: ViralCopy = {
     needsSetup: "X doit être configuré : RepGet n’y publie qu’une fois X configuré avec une limite de dépenses.",
     budget: "X a atteint sa limite de dépenses pour le moment. RepGet y publiera de nouveau quand la limite le permettra.",
   },
-  linkedin: { help: "Votre profil ou une page entreprise.", noTarget: "Choisissez un profil ou une page : reconnectez LinkedIn et choisissez-en un." },
+  linkedin: { help: "Votre profil ou une page entreprise.", noTarget: "Choisissez un profil ou une page : reconnectez LinkedIn et choisissez-en un.", targets: { profile: "Publie sur votre profil LinkedIn.", organization: "Publie sur votre page entreprise LinkedIn.", selected: "Publie vers la destination LinkedIn choisie." } },
   settings: {
     open: "Réglages du contenu",
     sidebar: "Préférences",
@@ -1538,7 +1554,11 @@ const viralIt: ViralCopy = {
     reasons: { not_configured: "L’audio di Instagram non è ancora configurato su questo RepGet.", not_connected: "Colleghi prima Instagram.", needs_facebook_login: "Ricolleghi Instagram con Facebook Login per usare il suo audio." },
     reconnect: "Ricollega con Facebook Login",
     use: "Usa",
-    current: "Scelto",
+    update: "Aggiorna",
+    reelsOnly: "L’audio di Instagram funziona solo sui Reel.",
+    noPreview: "RepGet non può far ascoltare il mix finale: Instagram aggiunge la traccia quando pubblica il Reel.",
+    volume: "Volume della traccia",
+    originalVolume: "Volume dell’audio del video",
     remove: "Rimuovi l’audio di Instagram",
     saved: "Audio di Instagram scelto per questo reel.",
     removed: "Audio di Instagram rimosso.",
@@ -1548,7 +1568,7 @@ const viralIt: ViralCopy = {
     needsSetup: "X va configurato: RepGet pubblica lì solo quando X è configurato con un limite di spesa.",
     budget: "X ha raggiunto il suo limite di spesa per ora. RepGet tornerà a pubblicare lì quando il limite lo permetterà.",
   },
-  linkedin: { help: "Il suo profilo o una pagina aziendale.", noTarget: "Scelga un profilo o una pagina: ricolleghi LinkedIn e ne scelga uno." },
+  linkedin: { help: "Il suo profilo o una pagina aziendale.", noTarget: "Scelga un profilo o una pagina: ricolleghi LinkedIn e ne scelga uno.", targets: { profile: "Pubblica sul suo profilo LinkedIn.", organization: "Pubblica sulla sua pagina aziendale LinkedIn.", selected: "Pubblica sulla destinazione LinkedIn scelta." } },
   settings: {
     open: "Impostazioni dei contenuti",
     sidebar: "Preferenze",
@@ -1855,7 +1875,11 @@ const viralDe: ViralCopy = {
     reasons: { not_configured: "Instagram-Audio ist in diesem RepGet noch nicht eingerichtet.", not_connected: "Verbinden Sie zuerst Instagram.", needs_facebook_login: "Verbinden Sie Instagram über Facebook Login neu, um das Audio zu nutzen." },
     reconnect: "Mit Facebook Login neu verbinden",
     use: "Verwenden",
-    current: "Gewählt",
+    update: "Aktualisieren",
+    reelsOnly: "Instagram-Audio gibt es nur für Reels.",
+    noPreview: "RepGet kann die fertige Mischung nicht vorspielen: Instagram fügt den Titel beim Veröffentlichen des Reels hinzu.",
+    volume: "Lautstärke des Titels",
+    originalVolume: "Lautstärke des Videotons",
     remove: "Instagram-Audio entfernen",
     saved: "Instagram-Audio für dieses Reel gewählt.",
     removed: "Instagram-Audio entfernt.",
@@ -1865,7 +1889,7 @@ const viralDe: ViralCopy = {
     needsSetup: "X muss eingerichtet werden: RepGet postet dort erst, wenn X mit einem Ausgabenlimit eingerichtet ist.",
     budget: "X hat sein Ausgabenlimit vorerst erreicht. RepGet postet dort wieder, sobald das Limit es erlaubt.",
   },
-  linkedin: { help: "Ihr Profil oder eine Unternehmensseite.", noTarget: "Wählen Sie ein Profil oder eine Seite: Verbinden Sie LinkedIn neu und wählen Sie eins." },
+  linkedin: { help: "Ihr Profil oder eine Unternehmensseite.", noTarget: "Wählen Sie ein Profil oder eine Seite: Verbinden Sie LinkedIn neu und wählen Sie eins.", targets: { profile: "Postet auf Ihr LinkedIn-Profil.", organization: "Postet auf Ihre LinkedIn-Unternehmensseite.", selected: "Postet an das gewählte LinkedIn-Ziel." } },
   settings: {
     open: "Inhaltseinstellungen",
     sidebar: "Präferenzen",

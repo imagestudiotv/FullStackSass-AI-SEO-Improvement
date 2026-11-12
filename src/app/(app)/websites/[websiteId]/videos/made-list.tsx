@@ -12,20 +12,20 @@ import { Input } from "@/components/ui/input";
 import { Notice } from "@/components/workspace/notice";
 import type { Locale } from "@/lib/i18n/config";
 import { format, formatDate } from "@/lib/i18n/format";
-import { approveVideoIdea, publishVideoIdea, unscheduleVideoIdea } from "@/lib/video/actions";
+import type { InstagramAudio } from "@/lib/social/bundle";
+import { approveVideoIdea } from "@/lib/video/actions";
+import { compatibility } from "@/lib/video/destinations";
 import { isVideoFormat, isVideoPlatform, REEL, slideCount, VIDEO_PLATFORM_SPECS, type VideoPlatform } from "@/lib/video/formats";
-import type { VideoSettings } from "@/lib/video/settings";
-
-// TODO(viral-integration): connectVideoPlatform/searchInstagramAudio/setNativeAudio and
-// VideoPublishingStatus from "@/lib/video/publish-actions"; compatibility from "@/lib/video/destinations"; InstagramAudio from "@/lib/social/bundle".
 import {
-  compatibility,
   connectVideoPlatform,
+  publishVideoIdea,
   searchInstagramAudio,
   setNativeAudio,
-  type InstagramAudio,
+  unscheduleVideoIdea,
   type VideoPublishingStatus,
-} from "./_pending";
+} from "@/lib/video/publish-actions";
+import type { VideoSettings } from "@/lib/video/settings";
+
 import { compatText } from "./edit-dialog";
 import type { FormatFilter } from "./logic";
 import { reelFrames } from "./preview";
@@ -328,10 +328,19 @@ function PublishDialog(props: {
   // The made video's own length where it is known, else the length chosen for it.
   const length = carousel ? null : idea.videoUrl ? reelSeconds(idea) : idea.production.duration;
   const check = compatibility({ format: isVideoFormat(idea.format) ? idea.format : "reel", duration: length, platforms, xAvailable: props.publishing.x.available });
+  // The server has the last word: an "incompatible" answer names its platforms, and they are blocked here too.
+  const [refused, setRefused] = useState<Partial<Record<VideoPlatform, string>>>({});
   const blocked = new Map<VideoPlatform, string>();
-  for (const [platform, code] of Object.entries(check.problems) as [VideoPlatform, string][]) {
+  for (const [platform, code] of Object.entries({ ...check.problems, ...refused }) as [VideoPlatform, string][]) {
     blocked.set(platform, code === "x_not_configured" ? xWords(t, props.publishing) : compatText(t, { platform, code }, idea.production.duration));
   }
+  // LinkedIn without a profile or page chosen is refused by the server (linkedin_no_target): said here first.
+  if (platforms.includes("linkedin") && !props.publishing.linkedin.target) blocked.set("linkedin", v.linkedin.noTarget);
+  const publish = (when: string) => async () => {
+    const result = await publishVideoIdea(websiteId, idea.id, { platforms: send, when });
+    if (!result.ok && result.problems) setRefused(result.problems);
+    return result;
+  };
   const usable = platforms.filter((platform) => !blocked.has(platform));
   const [chosen, setChosen] = useState<string[]>(() => {
     const wanted = idea.platforms.length > 0 ? idea.platforms : props.settings.platforms;
@@ -394,7 +403,7 @@ function PublishDialog(props: {
             <Button
               size="sm"
               disabled={props.pending || send.length === 0}
-              onClick={() => props.run(() => publishVideoIdea(websiteId, idea.id, { platforms: send, when: "now" }), t.published, props.onClose)}
+              onClick={() => props.run(publish("now"), t.published, props.onClose)}
             >
               {t.publishNow}
             </Button>
@@ -402,7 +411,7 @@ function PublishDialog(props: {
               size="sm"
               variant="outline"
               disabled={props.pending || send.length === 0}
-              onClick={() => startWith(props.run, () => publishVideoIdea(websiteId, idea.id, { platforms: send, when: "best" }), scheduled, props.onClose)}
+              onClick={() => startWith(props.run, publish("best"), scheduled, props.onClose)}
             >
               {t.publishBest}
             </Button>
@@ -413,7 +422,7 @@ function PublishDialog(props: {
               size="sm"
               variant="outline"
               disabled={props.pending || !at || send.length === 0}
-              onClick={() => startWith(props.run, () => publishVideoIdea(websiteId, idea.id, { platforms: send, when: new Date(at).toISOString() }), scheduled, props.onClose)}
+              onClick={() => startWith(props.run, publish(new Date(at).toISOString()), scheduled, props.onClose)}
             >
               {t.schedule}
             </Button>
@@ -425,10 +434,11 @@ function PublishDialog(props: {
 }
 
 /**
- * Instagram's own audio for a reel (bundle.social's Instagram audio, Worker
- * D): searched only when the account can use it; nothing is labelled
- * trending (Instagram's audio API gives no such data). The other platforms and the download keep
- * RepGet's licensed music.
+ * Instagram's own audio for a Reel (bundle.social's Instagram audio): searched
+ * only when the account can use it (Facebook Login), nothing labelled
+ * trending (Instagram's audio API gives no such data), the track's and the
+ * video's volumes 0-100. RepGet cannot preview the final mix: Instagram
+ * mixes it. The other platforms and the download keep RepGet's licensed music.
  */
 function NativeAudioDialog(props: { idea: IdeaView; websiteId: string; publishing: VideoPublishingStatus; run: Run; pending: boolean; locale: Locale; t: T; onClose: () => void }) {
   const { idea, t } = props;
@@ -438,6 +448,9 @@ function NativeAudioDialog(props: { idea: IdeaView; websiteId: string; publishin
   const [tracks, setTracks] = useState<InstagramAudio[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const eligibility = props.publishing.instagramAudio;
+  // NATIVE_VOLUME (lib/video/native-audio.ts, server-only): 0-100, Instagram's default 100.
+  const [volume, setVolume] = useState(idea.nativeAudio?.volume ?? 100);
+  const [originalVolume, setOriginalVolume] = useState(idea.nativeAudio?.originalVolume ?? 100);
 
   async function search() {
     setBusy(true);
@@ -456,7 +469,7 @@ function NativeAudioDialog(props: { idea: IdeaView; websiteId: string; publishin
           props.websiteId,
           idea.id,
           // Instagram's API gives no trending data, so nothing is labelled trending.
-          track ? { audioId: track.audioId, title: track.title, artist: track.artist, trending: false } : null,
+          track ? { audioId: track.audioId, title: track.title, artist: track.artist, volume, originalVolume, trending: false } : null,
         ),
       track ? n.saved : n.removed,
       props.onClose,
@@ -467,8 +480,12 @@ function NativeAudioDialog(props: { idea: IdeaView; websiteId: string; publishin
       <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{n.title}</DialogTitle>
-          <DialogDescription>{n.honest}</DialogDescription>
+          <DialogDescription>{n.reelsOnly}</DialogDescription>
         </DialogHeader>
+        <Notice>
+          <span className="block">{n.noPreview}</span>
+          <span className="mt-1 block text-xs">{n.honest}</span>
+        </Notice>
         {!eligibility.available ? (
           <Notice tone="warning">
             <span className="block">{n.reasons[eligibility.reason]}</span>
@@ -506,6 +523,15 @@ function NativeAudioDialog(props: { idea: IdeaView; websiteId: string; publishin
           </form>
         )}
         {error ? <Notice tone="danger">{error}</Notice> : null}
+        {eligibility.available ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <VolumeField label={n.volume} value={volume} onChange={setVolume} />
+            <VolumeField label={n.originalVolume} value={originalVolume} onChange={setOriginalVolume} />
+          </div>
+        ) : null}
+        {idea.nativeAudio ? (
+          <p className="text-xs text-muted-foreground">{format(n.chosen, { title: idea.nativeAudio.title, artist: idea.nativeAudio.artist ?? "" })}</p>
+        ) : null}
         {tracks ? (
           tracks.length === 0 ? (
             <p className="text-sm text-muted-foreground">{n.none}</p>
@@ -520,7 +546,7 @@ function NativeAudioDialog(props: { idea: IdeaView; websiteId: string; publishin
                     </p>
                   </div>
                   <Button size="sm" variant={idea.nativeAudio?.audioId === track.audioId ? "secondary" : "outline"} disabled={props.pending} onClick={() => pick(track)}>
-                    {idea.nativeAudio?.audioId === track.audioId ? n.current : n.use}
+                    {idea.nativeAudio?.audioId === track.audioId ? n.update : n.use}
                   </Button>
                 </li>
               ))}
@@ -539,5 +565,18 @@ function NativeAudioDialog(props: { idea: IdeaView; websiteId: string; publishin
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** A volume from 0 to 100, as Instagram takes it. */
+function VolumeField({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {
+  return (
+    <label className="block space-y-1">
+      <span className="flex justify-between text-xs font-medium text-muted-foreground">
+        {label}
+        <span className="tabular-nums">{value}</span>
+      </span>
+      <input type="range" min={0} max={100} step={5} value={value} onChange={(event) => onChange(Number(event.target.value))} className="h-2 w-full cursor-pointer accent-primary" />
+    </label>
   );
 }

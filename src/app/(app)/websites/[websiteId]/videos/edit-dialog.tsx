@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Notice } from "@/components/workspace/notice";
 import { format } from "@/lib/i18n/format";
 import { addMediaToIdea, editVideoIdea, removeMediaFromIdea, rewriteVideoIdea, type IdeaEdit } from "@/lib/video/actions";
+import { compatibility } from "@/lib/video/destinations";
 import {
   CAPTION_STYLES,
   CREATIVE_DIRECTIONS,
@@ -36,8 +37,6 @@ import {
 } from "@/lib/video/formats";
 import type { VideoSettings } from "@/lib/video/settings";
 
-// TODO(viral-integration): compatibility from "@/lib/video/destinations" (Worker D).
-import { compatibility } from "./_pending";
 import { CarouselPreview, ReelPreview } from "./preview";
 import { Field, MediaThumb, platformName, selectClass, type IdeaView, type MediaView, type Run, type T, type TrackView } from "./shared";
 

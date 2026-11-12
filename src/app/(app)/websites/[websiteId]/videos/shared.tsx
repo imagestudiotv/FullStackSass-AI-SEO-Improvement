@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { BrandIcon } from "@/components/brand-icons";
 import { format } from "@/lib/i18n/format";
 import type { VideosCopy } from "@/lib/i18n/videos";
-import { prepareVideoUpload, type VideoResult } from "@/lib/video/actions";
+import { prepareVideoUpload, type VideoError, type VideoResult } from "@/lib/video/actions";
 import {
   isVideoPlatform,
   VIDEO_PLATFORM_SPECS,
@@ -20,8 +20,8 @@ import {
   type ReelProps,
   type VideoPlatform,
 } from "@/lib/video/formats";
-
-import type { VideoPublishingStatus } from "./_pending";
+import type { DestinationCode } from "@/lib/video/destinations";
+import type { PublishError, VideoPublishingStatus } from "@/lib/video/publish-actions";
 
 /** The Social Content page's shared pieces: the idea's view, the error words, the small parts every tab uses. */
 
@@ -89,6 +89,14 @@ export const selectClass = "data-[size=default]:h-9";
 
 /** The error words: the original codes, and the ones the viral content work added (t.viral.errors). */
 const errorWords = (t: T): Record<string, string | undefined> => ({ ...t.viral.errors, ...t.errors });
+
+/*
+  Every code the server can answer, or leave on a destination, has words in
+  the five languages: a new code without copy fails the type check here.
+*/
+type ErrorCopyKey = keyof T["errors"] | keyof T["viral"]["errors"];
+type MissingErrorCopy = Exclude<VideoError | PublishError | DestinationCode, ErrorCopyKey>;
+export const ERROR_COPY_COMPLETE: [MissingErrorCopy] extends [never] ? true : MissingErrorCopy = true;
 
 /** An action's error in the reader's language; a code this copy does not know yet reads as the generic one. */
 export function errorText(t: T, result: { ok: false; error: string; available?: number; retryAt?: string }, price: string): string {
