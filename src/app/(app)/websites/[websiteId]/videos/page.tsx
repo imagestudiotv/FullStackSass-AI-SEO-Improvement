@@ -18,6 +18,7 @@ import {
   DURATION_RANGES,
   isCreativeDirection,
   isIdeaCategory,
+  isVideoFormat,
   isVideoPlatform,
   MAX_REEL_SECONDS,
   MUSIC_DIRECTIONS,
@@ -27,15 +28,16 @@ import {
   type FactClaim,
   type IdeaOverrides,
   type MediaItem,
-
   type ProductionChoices,
   type ReelProps,
+  type ShotPlan,
   type VideoScript,
   type VideoStyle,
 } from "@/lib/video/formats";
 import { totalViews } from "@/lib/video/followup";
 import { MUSIC_TRACKS } from "@/lib/video/music";
 import { brandLook, readVideoSettings, videoAccess, type VideoSettings } from "@/lib/video/settings";
+import type { ProductionReelProps } from "@/remotion/props";
 
 import { ideaAllowance } from "@/lib/video/batches";
 import { readDestinations } from "@/lib/video/destinations";
@@ -144,7 +146,7 @@ export default async function WebsiteVideosPage({ params, searchParams }: PagePr
     const script = row.script as VideoScript;
     const timing = row.timing as { words: ReelProps["words"]; sceneStartsMs: number[] } | null;
     const voiced = Boolean(row.voiceUrl && timing);
-    const props: ReelProps = {
+    const props: ProductionReelProps = {
       style: row.style as VideoStyle,
       brand,
       script,
@@ -155,6 +157,14 @@ export default async function WebsiteVideosPage({ params, searchParams }: PagePr
       music: null,
       media: (row.media as MediaItem[]) ?? [],
       captions: row.captions,
+      // The idea's own production (direction, shots, audio, captions), so the preview shows what will be made;
+      // before it is made, footage, voice and music are not chosen yet: the templates say it is a concept.
+      direction: isCreativeDirection(row.direction) ? row.direction : "animated",
+      plan: (row.plan as ShotPlan | null) ?? null,
+      production: (row.production as ProductionChoices | null) ?? null,
+      format: isVideoFormat(row.format) ? row.format : "reel",
+      concept: !voiced,
+      language: row.language,
     };
     return {
       id: row.id,

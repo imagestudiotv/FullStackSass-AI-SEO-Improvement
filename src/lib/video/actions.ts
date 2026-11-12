@@ -298,8 +298,9 @@ function cleanEdit(edit: IdeaEdit, row: IdeaRow, settings: VideoSettings): Parti
     plan = { ...plan, recipe: recipeOf(plan) };
     out.plan = plan;
   }
-  // A voice made for other words, or another voice, is made again.
-  if (out.script || out.voice !== row.voice) Object.assign(out, { voiceUrl: null, timing: null, durationMs: null });
+  // A new script, voice or production choice is voiced again; new words or shots pick their pictures and clips again.
+  if (out.script || out.voice !== row.voice || out.production) Object.assign(out, { voiceUrl: null, timing: null, durationMs: null });
+  if (out.script || out.plan) out.assets = [];
 
   // The review follows the published words only when they changed.
   const before = contentHash({ script: row.script as VideoScript, caption: row.caption, plan: row.plan as ShotPlan | null, production: current });
@@ -423,6 +424,8 @@ export async function approveVideoIdea(websiteId: string, id: string, edit: Idea
         approvedBy: checked.userId,
         approvedVia: isMakeVia(via) ? via : "button",
         creditSpendKey: spent.spendId ? key : null,
+        // Each make renders anew, so the Instagram copy without music is made again too.
+        altVideoUrl: null,
         platforms: settings.platforms,
         // A script or voice changed after a failed attempt is voiced again (cleanEdit clears the old voice).
         error: null,

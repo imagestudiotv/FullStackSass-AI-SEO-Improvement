@@ -109,3 +109,32 @@ Daniel chose genuinely different productions ("Option B"), not catchier scripts 
 - Migration `0092_viral_social_content` (backfill: music off stays off; no voice becomes Text + Music; existing auto customers keep `frequency` null).
 - Resync Inngest (no new functions; the video jobs moved into `videos-ideas.ts`, `videos-make.ts` and `videos-publish.ts`, with the same ids).
 - Optional environment: `X_VIDEO_POSTS_ENABLED`, `X_VIDEO_MONTHLY_LIMIT_USD`, `X_VIDEO_COST_PER_POST_USD`, and the stock footage keys (see Production).
+
+### Production (`lib/video/make.ts`, `assets.ts`, `footage/*`, `cost.ts`, `src/remotion/directions`)
+- **Directions**: each has its own composition with its own structure, pacing, transitions and caption treatment, at 1080×1920 30 fps:
+  - meme: a white "POV" top bar, reaction punch-ins, hard cuts;
+  - footage: full-bleed clips with fast cuts and kinetic captions;
+  - storytelling: chapter markers with a turn and a resolution, editorial captions;
+  - text_music: animated typography timed by reading speed;
+  - voiceover: clips with transitions and the voice;
+  - animated: the original Bold, Numbers and Story templates, unchanged.
+- **Captions**: bold, editorial or minimal, never under 44 px. A Story keeps its top 270 px and bottom 340 px clear. Carousels (1080×1350) get slides per direction.
+- **Pictures and clips** are chosen when the video is made, scene by scene, from the customer's media, then permitted stock, the article's pictures, then AI images (the existing integration, at most 2 a video, only within the budget).
+  - A footage-led video with nothing suitable fails with the reason, and its credit comes back. It never falls back to the old template.
+  - Stock adapters:
+    - Pixabay (`PIXABAY_API_KEY`; results cached 24 h, no permanent hotlinking, files stored in RepGet's bucket);
+    - Pexels (`PEXELS_API_KEY`; new keys are paused at Pexels, so it is only usable with an existing key);
+    - an admin-supplied licensed collection (`VIDEO_FOOTAGE_COLLECTION`).
+  - Licence, source and author are kept in `video_stock_assets` and `video_ideas.assets`. Without a provider no stock request is made, and the page says footage needs setup.
+  - Stock or AI footage paired with words about people is marked illustrative: stock actors are never shown as clients or staff.
+- **Audio**:
+  - Voiceover: OpenAI TTS with a narration style (natural, warm, energetic) and Whisper captions, in the 8 content languages plus Romanian. Any other language fails; there is no English fallback.
+  - Text + Music never calls TTS or Whisper.
+  - Music: 9 Mixkit tracks (Stock Music Free License), with source, licence and date in `lib/video/music.ts`. Tracks are 75 s and fade out on longer videos.
+  - Instagram's no-music copy (`alt_video_url`) is an ffmpeg remux of the rendered picture with the voice only: no second render.
+- **Cost**: internal, never a customer price. Budget is $0.30 a standard video, with a $0.03 margin.
+  - `video_ideas.cost` keeps every attempt's items (planning, narration, transcription, images, footage, render, storage, audio mux), each measured, estimated or unmeasured. Unknown items are never counted as zero.
+  - A paid step is held before it runs and refused when it would exceed the budget. A failed video still keeps its costs, and its credit is refunded.
+  - Render cost comes from the measured sandbox runtime (Vercel Sandbox: $0.128 per vCPU-hour, $0.0212 per GB-hour, 1-minute minimum).
+  - Estimates: about $0.10–0.15 for a 30–45 s video.
+- **Duplicate events**: the make claim is tied to the job run (or a claim stale for 45 minutes), so a repeated event never renders or charges twice.
