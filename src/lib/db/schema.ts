@@ -4165,3 +4165,56 @@ export const emailPreferences = pgTable("email_preferences", {
   signupLocale: text("signup_locale"),
   ...timestamps,
 });
+
+/* ------------------------------------------------------------------------- */
+/* Rewarded ads on Earn Credits (ticket 2026-11-13, area "ads")              */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * One "Watch an ad to earn credits" attempt (lib/earn/rewarded-ads.ts): created
+ * when the member opts in on the card, BEFORE any ad is requested, and closed
+ * once - granted (the credits, in the same transaction, with the ledger key
+ * "rewarded-ad:<id>"), cancelled (closed early, no ad, blocked), rejected
+ * (failed a check at the claim) or expired.
+ *
+ * A grant follows Google Publisher Tag's rewardedSlotGranted event in the
+ * browser: plausibility checks here, not proof (Google offers no per-user
+ * verification for web rewarded ads through GPT). So every bound is enforced
+ * on these rows: one open attempt per person (partial unique index), a daily
+ * limit per person, caps per workspace and across RepGet, a cooldown, a
+ * shortest and a longest time from start to reward.
+ *
+ * Times are written by the application (UTC wall-clock), never defaultNow():
+ * the bounds are compared in the application. `day` is the UTC day the
+ * attempt started, which is the day it counts for.
+ *
+ * `status`: started -> granted | cancelled | rejected | expired.
+ */
+export const rewardedAdViews = pgTable(
+  "rewarded_ad_views",
+  {
+    id: pk(),
+    organizationId: organizationId(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    status: text("status").default("started").notNull(),
+    /** Why it closed without a grant: closed_early, no_fill, unsupported, blocked, superseded, too_early, limit... */
+    reason: text("reason"),
+    /** The reward promised when it started; a later change of the setting does not alter it. */
+    rewardCredits: integer("reward_credits").notNull(),
+    day: date("day").notNull(),
+    startedAt: timestamp("started_at").notNull(),
+    endedAt: timestamp("ended_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("rewarded_ad_views_one_open_uidx")
+      .on(table.userId)
+      .where(sql`${table.status} = 'started'`),
+    index("rewarded_ad_views_user_day_idx").on(table.userId, table.day, table.status),
+    index("rewarded_ad_views_org_day_idx").on(table.organizationId, table.day, table.status),
+    index("rewarded_ad_views_day_idx").on(table.day, table.status),
+    check("rewarded_ad_views_reward_check", sql`${table.rewardCredits} > 0`),
+  ],
+);

@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { rewardedAdsConfig } from "./lib/earn/rewarded-ads-config";
 import { contentSecurityPolicy, cspHeaderName, cspIntegrations, cspMode } from "./lib/security-headers";
 
 let warned = false;
@@ -40,7 +41,9 @@ export function proxy(request: NextRequest) {
     NEXT_PUBLIC_GTM_ID: process.env.NEXT_PUBLIC_GTM_ID,
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
   });
-  const policy = contentSecurityPolicy(integrations, nonce);
+  // Google Publisher Tag, for "Watch an ad to earn credits": on that page only, and only while it is on.
+  const rewardedAds = request.nextUrl.pathname === "/earn-credits" && rewardedAdsConfig(process.env).enabled;
+  const policy = contentSecurityPolicy({ ...integrations, rewardedAds }, nonce);
   const headers = new Headers(request.headers);
   // Never trust a nonce or CSP supplied by a caller. Next reads the request
   // policy to nonce its framework scripts, including in report-only mode.
@@ -63,6 +66,8 @@ export const config = {
     "/dashboard/:path*",
     "/settings/:path*",
     "/billing/:path*",
+    // Earn Credits: per member, never prerendered; its rewarded ads need the nonce policy (Google supports GPT only under one).
+    "/earn-credits",
     "/website-projects/:path*",
     "/setup/:path*",
     "/tasks/:path*",

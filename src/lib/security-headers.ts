@@ -96,6 +96,12 @@ export type CspIntegrations = {
   ads: boolean;
   /** NEXT_PUBLIC_SUPABASE_URL's origin: the videos' voice, reels and clips, played and uploaded there (lib/video/storage.ts). */
   storage?: string;
+  /**
+   * Google Publisher Tag's rewarded ads, for "Watch an ad to earn credits"
+   * (lib/earn/rewarded-ads.ts). Never part of the build-wide policy: only
+   * src/proxy.ts sets it, for /earn-credits, while the feature is on.
+   */
+  rewardedAds?: boolean;
 };
 
 /** Mirrors measurementId()/tagManagerId() in lib/google-analytics.ts, which loads the tags (no imports here). */
@@ -221,6 +227,30 @@ export function contentSecurityPolicy(integrations: CspIntegrations, nonce?: str
     ? ["https://www.google.com", "https://*.g.doubleclick.net", "https://ad.doubleclick.net", "https://pagead2.googlesyndication.com", "https://www.googleadservices.com", assistant]
     : [];
   const adsFrame = ads ? ["https://td.doubleclick.net", tagHost, assistant] : [];
+  /*
+    Rewarded ads (only on /earn-credits, only while the feature is on - see
+    src/proxy.ts). Google supports GPT under a STRICT policy only (nonce and
+    'strict-dynamic', developers.google.com/publisher-tag/guides/content-security-policy)
+    and publishes no host list, because its hosts change: on the nonce page
+    gpt.js is added by the nonced bundle, so 'strict-dynamic' already lets
+    it and what it loads run, and the script hosts below are only for browsers
+    without 'strict-dynamic'. The card asks GPT to render creatives in
+    cross-origin SafeFrames (forceSafeFrame), whose content runs under its
+    own origin's rules. What the page itself still needs: GPT's ad and
+    measurement requests (connect-src), its frames (frame-src) and, for video
+    played in the page, media from Google's video hosts (media-src).
+  */
+  const rewarded = integrations.rewardedAds === true;
+  const gptScript = rewarded
+    ? ["https://securepubads.g.doubleclick.net", "https://pagead2.googlesyndication.com", "https://tpc.googlesyndication.com", "https://*.adtrafficquality.google"]
+    : [];
+  const gptConnect = rewarded
+    ? ["https://securepubads.g.doubleclick.net", "https://*.g.doubleclick.net", "https://pagead2.googlesyndication.com", "https://*.googlesyndication.com", "https://*.adtrafficquality.google", "https://www.google.com"]
+    : [];
+  const gptFrame = rewarded
+    ? ["https://*.safeframe.googlesyndication.com", "https://tpc.googlesyndication.com", "https://securepubads.g.doubleclick.net", "https://googleads.g.doubleclick.net", "https://*.adtrafficquality.google", "https://www.google.com"]
+    : [];
+  const gptMedia = rewarded ? ["https://*.googlevideo.com", "https://*.gstatic.com", "https://*.googlesyndication.com"] : [];
   const sentry = sentryOrigin(integrations.sentryDsn);
   const storage = integrations.storage ? [integrations.storage] : [];
   const report = cspReportUri(integrations.sentryDsn);
@@ -230,16 +260,16 @@ export function contentSecurityPolicy(integrations: CspIntegrations, nonce?: str
     [
       "script-src",
       nonce
-        ? ["'self'", `'nonce-${nonce}'`, THEME_SCRIPT_HASH, LANG_SCRIPT_HASH, "'strict-dynamic'", ...crispScript, ...gaScript, ...adsScript]
-        : ["'self'", "'unsafe-inline'", ...crispScript, ...gaScript, ...adsScript],
+        ? ["'self'", `'nonce-${nonce}'`, THEME_SCRIPT_HASH, LANG_SCRIPT_HASH, "'strict-dynamic'", ...crispScript, ...gaScript, ...adsScript, ...gptScript]
+        : ["'self'", "'unsafe-inline'", ...crispScript, ...gaScript, ...adsScript, ...gptScript],
     ],
     ["script-src-attr", ["'none'"]],
     ["style-src", ["'self'", "'unsafe-inline'", ...crispScript]],
     ["img-src", ["'self'", "data:", "blob:", "https:"]],
     ["font-src", ["'self'", "data:", ...crispScript]],
-    ["connect-src", ["'self'", ...crispConnect, ...gaConnect, ...adsConnect, ...(sentry ? [sentry] : []), ...storage]],
-    ["media-src", ["'self'", "blob:", ...storage, ...crispScript]],
-    ["frame-src", ["'self'", youtube, ...adsFrame]],
+    ["connect-src", unique(["'self'", ...crispConnect, ...gaConnect, ...adsConnect, ...(sentry ? [sentry] : []), ...storage, ...gptConnect])],
+    ["media-src", ["'self'", "blob:", ...storage, ...crispScript, ...gptMedia]],
+    ["frame-src", unique(["'self'", youtube, ...adsFrame, ...gptFrame])],
     ["worker-src", ["'self'", "blob:"]],
     ["manifest-src", ["'self'"]],
     // Nobody else may frame RepGet (click-jacking); X-Frame-Options below
@@ -252,6 +282,11 @@ export function contentSecurityPolicy(integrations: CspIntegrations, nonce?: str
   ];
 
   return directives.map(([name, values]) => `${name} ${values.join(" ")}`).join("; ");
+}
+
+/** Each source once, in first-seen order (Google Ads and rewarded ads share a few hosts). */
+function unique(values: string[]): string[] {
+  return [...new Set(values)];
 }
 
 export type CspMode = "enforce" | "report-only";

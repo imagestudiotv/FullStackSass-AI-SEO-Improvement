@@ -14,11 +14,13 @@ import { creditOverviewForRequest } from "@/lib/credits/overview-request";
 import { TRIAL_CREDIT_DAYS } from "@/lib/credits/prices";
 import { canEnterReferralCode, listEarnClaims } from "@/lib/earn/actions";
 import { loadDiscover, type DiscoverState } from "@/lib/earn/discover";
+import { loadRewardedAdState, type RewardedAdState } from "@/lib/earn/rewarded-ads";
 import { EARN_WAYS } from "@/lib/earn/ways";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { DAILY_CLAIM_COPY, dailyWhen } from "@/lib/i18n/daily-claim";
 import { EARN_COPY } from "@/lib/i18n/earn";
 import { EARN_DISCOVER_COPY } from "@/lib/i18n/earn-discover";
+import { EARN_REWARDED_ADS_COPY } from "@/lib/i18n/earn-rewarded-ads";
 import { EARN_SHARE_COPY } from "@/lib/i18n/earn-share";
 import { format, formatDate, formatNumber, plural } from "@/lib/i18n/format";
 import { getReferralSummary } from "@/lib/referrals/actions";
@@ -30,6 +32,7 @@ import { hasOnlySharedWork } from "@/lib/websites/accessible";
 
 import { DiscoverEarn } from "./discover-earn";
 import { EarnWays, EnterReferralCode, ReferralShare } from "./earn-client";
+import { RewardedAdCard } from "./rewarded-ad-card";
 import { ShareKit } from "./share-kit";
 
 const messagesFor = cache((userId: string) => getAppMessages(userId));
@@ -80,13 +83,18 @@ export default async function EarnCreditsPage() {
   } catch (error) {
     console.error("[earn-credits] could not load the referral summary", error);
   }
-  const [overview, claims, codeOpen, discover] = await Promise.all([
+  const [overview, claims, codeOpen, discover, rewardedAds] = await Promise.all([
     creditOverviewForRequest(orgId).catch(() => null),
     listEarnClaims(),
     canEnterReferralCode(),
     // A failure here hides Discover & earn, never the rest of the page.
     loadDiscover(session.user.id, locale).catch((error: unknown): DiscoverState | null => {
       console.error("[earn-credits] could not load Discover & earn", error);
+      return null;
+    }),
+    // Null while the feature is off (lib/earn/rewarded-ads-config.ts); a failure hides only this card.
+    loadRewardedAdState(session.user.id, orgId).catch((error: unknown): RewardedAdState | null => {
+      console.error("[earn-credits] could not load the rewarded ads card", error);
       return null;
     }),
   ]);
@@ -273,6 +281,9 @@ export default async function EarnCreditsPage() {
           )}
         </section>
       </div>
+
+      {/* Watch an ad to earn credits (ticket 2026-11-13): shown only when the deployment has it fully set up. */}
+      {rewardedAds ? <RewardedAdCard initial={rewardedAds} t={EARN_REWARDED_ADS_COPY[locale]} /> : null}
 
       {discover && discover.businesses.length > 0 ? (
         <DiscoverEarn businesses={discover.businesses} progress={discover.progress} claimed={discover.claimed} t={EARN_DISCOVER_COPY[locale]} />

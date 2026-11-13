@@ -41,6 +41,9 @@ vi.mock("@/lib/earn/discover-actions", () => ({
   discoverDraftAction: discover.draft,
   claimDiscoverBonusAction: discover.claim,
 }));
+const rewarded = vi.hoisted(() => ({ state: null as unknown }));
+vi.mock("@/lib/earn/rewarded-ads", () => ({ loadRewardedAdState: async () => rewarded.state }));
+vi.mock("@/lib/earn/rewarded-ads-actions", () => ({ startRewardedAdAction: vi.fn(), claimRewardedAdAction: vi.fn(), endRewardedAdAction: vi.fn() }));
 vi.mock("@/lib/referrals/actions", () => ({
   getReferralSummary: async () => ({ code: "OWN1CODE", earned: 0, pending: 0, referrals: [] }),
 }));
@@ -73,6 +76,7 @@ beforeEach(() => {
   claimAction.submit.mockClear();
   claimAction.enter.mockClear();
   discover.state = { businesses: [], progress: { upvotes: 0, comments: 0 }, claimed: false };
+  rewarded.state = null;
 });
 
 describe("the Earn Credits page", () => {
@@ -227,5 +231,50 @@ describe("the Earn Credits page", () => {
       expect(html).not.toContain("Claim 0");
       expect(html).not.toContain("With a paid plan you can collect");
     });
+  });
+});
+
+describe("Watch an ad to earn credits (ticket 2026-11-13)", () => {
+  const ready = {
+    rewardCredits: 2,
+    dailyLimit: 10,
+    watchedToday: 3,
+    cooldownUntil: null,
+    capReached: false,
+    attemptsExhausted: false,
+    adUnitPath: "/1234567/repget_rewarded",
+    testMode: false,
+  };
+
+  it("is not shown while the feature is off", async () => {
+    const html = await render({});
+    expect(html).not.toContain("Watch an ad to earn credits");
+    expect(html).not.toContain("googlesyndication");
+  });
+
+  it("discloses the action, the reward and the daily limit before anything loads, and loads no ad script with the page", async () => {
+    rewarded.state = ready;
+    const html = await render({});
+    expect(html).toContain("Watch an ad to earn credits");
+    expect(html).toContain("Watch a short ad to the end and earn 2 credits, up to 10 ads a day.");
+    expect(html).toContain("3 of 10 today");
+    expect(html).toContain("Watch an ad</button>");
+    expect(html).toContain("cannot be transferred, withdrawn or exchanged for money");
+    expect(html).not.toContain("<script");
+    expect(html).not.toContain("Test ads");
+  });
+
+  it("shows the countdown during the cooldown, and says so at the daily limit", async () => {
+    rewarded.state = { ...ready, cooldownUntil: new Date(Date.now() + 125_000).toISOString() };
+    expect(await render({})).toMatch(/Next ad in 2:0[45]/);
+    rewarded.state = { ...ready, watchedToday: 10 };
+    const html = await render({});
+    expect(html).toContain("You have watched today&#x27;s 10 ads. Come back tomorrow.");
+    expect(html).not.toContain("Watch an ad</button>");
+  });
+
+  it("marks test ads", async () => {
+    rewarded.state = { ...ready, testMode: true };
+    expect(await render({})).toContain("Test ads");
   });
 });
