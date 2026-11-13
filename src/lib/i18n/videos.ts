@@ -21,6 +21,8 @@ export type VideosCopy = {
   writingIdeasBody: string;
   noIdeasLeft: string;
   noIdeasLeftBody: string;
+  ideasFailed: string;
+  ideasFailedBody: string;
   ideaOf: string;
   reel: string;
   carousel: string;
@@ -2072,6 +2074,8 @@ const en: VideosCopy = {
   writingIdeasBody: "RepGet is reading your website and writing 20 video ideas. This takes about a minute.",
   noIdeasLeft: "You have seen all of today's ideas",
   noIdeasLeftBody: "New ideas arrive every morning.",
+  ideasFailed: "Today's ideas could not be written",
+  ideasFailedBody: "Something went wrong on our side. Use New ideas to write more now, or new ideas arrive tomorrow morning.",
   ideaOf: "Idea {index} of {count}",
   reel: "Reel",
   carousel: "Carousel",
@@ -2273,6 +2277,8 @@ const es: VideosCopy = {
   writingIdeasBody: "RepGet está leyendo su sitio web y escribiendo 20 ideas de vídeo. Tarda alrededor de un minuto.",
   noIdeasLeft: "Ha visto todas las ideas de hoy",
   noIdeasLeftBody: "Cada mañana llegan nuevas ideas.",
+  ideasFailed: "No se pudieron escribir las ideas de hoy",
+  ideasFailedBody: "Algo falló por nuestra parte. Use Nuevas ideas para escribir más ahora, o mañana por la mañana llegarán ideas nuevas.",
   ideaOf: "Idea {index} de {count}",
   reel: "Reel",
   carousel: "Carrusel",
@@ -2474,6 +2480,8 @@ const fr: VideosCopy = {
   writingIdeasBody: "RepGet lit votre site et rédige 20 idées de vidéos. Cela prend environ une minute.",
   noIdeasLeft: "Vous avez vu toutes les idées du jour",
   noIdeasLeftBody: "De nouvelles idées arrivent chaque matin.",
+  ideasFailed: "Les idées du jour n'ont pas pu être écrites",
+  ideasFailedBody: "Un problème est survenu de notre côté. Utilisez Nouvelles idées pour en écrire maintenant, ou de nouvelles idées arriveront demain matin.",
   ideaOf: "Idée {index} sur {count}",
   reel: "Reel",
   carousel: "Carrousel",
@@ -2675,6 +2683,8 @@ const it: VideosCopy = {
   writingIdeasBody: "RepGet sta leggendo il suo sito e scrivendo 20 idee per video. Ci vuole circa un minuto.",
   noIdeasLeft: "Ha visto tutte le idee di oggi",
   noIdeasLeftBody: "Nuove idee arrivano ogni mattina.",
+  ideasFailed: "Non è stato possibile scrivere le idee di oggi",
+  ideasFailedBody: "Qualcosa è andato storto da parte nostra. Usi Nuove idee per scriverne altre ora, oppure domattina arriveranno nuove idee.",
   ideaOf: "Idea {index} di {count}",
   reel: "Reel",
   carousel: "Carosello",
@@ -2876,6 +2886,8 @@ const de: VideosCopy = {
   writingIdeasBody: "RepGet liest Ihre Website und schreibt 20 Videoideen. Das dauert etwa eine Minute.",
   noIdeasLeft: "Sie haben alle Ideen von heute gesehen",
   noIdeasLeftBody: "Jeden Morgen kommen neue Ideen.",
+  ideasFailed: "Die heutigen Ideen konnten nicht geschrieben werden",
+  ideasFailedBody: "Bei uns ist etwas schiefgelaufen. Mit Neue Ideen können Sie jetzt weitere schreiben lassen, sonst kommen morgen früh neue Ideen.",
   ideaOf: "Idee {index} von {count}",
   reel: "Reel",
   carousel: "Karussell",

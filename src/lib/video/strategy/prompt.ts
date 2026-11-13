@@ -251,5 +251,9 @@ export function userContent(input: IdeaInput): string {
     .join("\n\n");
 }
 
-/** Output tokens for a batch: enough for each idea's script, shots and claims, bounded by the batch size. */
-export const maxTokensFor = (count: number) => Math.min(32_000, 2_000 + count * 1_100);
+/**
+ * Output tokens for one call: enough for each idea's script, shots and claims.
+ * 1,100 an idea ran out with the shot plans (live 2026-11-12: "did not finish"),
+ * so a call is given 2,500 an idea; calls are WRITE_CHUNK ideas (ideas.ts).
+ */
+export const maxTokensFor = (count: number) => Math.min(32_000, 2_000 + count * 2_500);

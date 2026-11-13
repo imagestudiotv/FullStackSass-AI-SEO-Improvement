@@ -53,6 +53,7 @@ export function IdeasDeck(props: {
   focus: boolean;
   onFocus: (on: boolean) => void;
   writing: boolean;
+  ideasFailed: boolean;
   complete: boolean;
   goal: number;
   priceLabel: string;
@@ -216,6 +217,9 @@ export function IdeasDeck(props: {
 
   if (props.writing && props.ideas.length === 0) {
     return <EmptyState icon={<Loader2 className="size-6 animate-spin" aria-hidden="true" />} title={t.writingIdeas} body={t.writingIdeasBody} />;
+  }
+  if (props.ideasFailed && props.ideas.length === 0) {
+    return <EmptyState icon={<Clapperboard className="size-6" aria-hidden="true" />} title={t.ideasFailed} body={t.ideasFailedBody} />;
   }
   if (!current) {
     // Ideas left under other filters: the filters hide them, they are not used up.
