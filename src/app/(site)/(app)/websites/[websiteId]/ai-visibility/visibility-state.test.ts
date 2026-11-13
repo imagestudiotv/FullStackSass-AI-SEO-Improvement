@@ -344,7 +344,7 @@ describe("localiseGeoError", () => {
   const de = getMessages("de").app;
 
   it("translates every refusal the geo actions and their guards can return", () => {
-    const root = path.resolve(__dirname, "../../../../../..");
+    const root = path.resolve(__dirname, "../../../../../../..");
     const sources = ["src/lib/geo/actions.ts", "src/lib/websites/require-editor.ts", "src/lib/billing/entitled.ts"]
       .map((file) => readFileSync(path.join(root, file), "utf8"))
       .join("\n");
