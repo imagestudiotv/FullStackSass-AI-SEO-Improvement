@@ -36,7 +36,7 @@ export function Features({ locale }: SectionProps) {
             </h2>
             <span>{f.hint}</span>
           </div>
-          <TopFeaturesTabs items={f.items} labelledBy={HEADING_ID} note={f.note} noteDetail={f.noteDetail} next={f.next}>
+          <TopFeaturesTabs items={f.items} labelledBy={HEADING_ID} note={f.note} next={f.next}>
             <div className={styles["hp-center-mascot"]}>
               <Image src="/images/home/mascot.webp" width={217} height={189} alt={f.mascotAlt} />
             </div>
