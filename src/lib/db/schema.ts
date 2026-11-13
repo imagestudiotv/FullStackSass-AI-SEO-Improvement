@@ -18,6 +18,7 @@ import {
   check,
   customType,
   date,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -2951,6 +2952,17 @@ export const blogPosts = pgTable(
      */
     translationOf: uuid("translation_of").references((): AnyPgColumn => blogPosts.id, { onDelete: "set null" }),
     /**
+     * Nov 13 engagement (client, 2026-11-13: "Upvote and comments on blogs and
+     * companies should reflect on all languages"). The discussion this post's
+     * upvotes and comments belong to, the same for an original and all its
+     * translations: the original's id. Set by the database when the row is
+     * inserted (trigger blog_posts_discussion: the translated post's
+     * discussion, else the row's own id) and never changed after, so deleting
+     * the original (translation_of set null) keeps its translations together.
+     * The default is only a placeholder the trigger always replaces.
+     */
+    discussionId: uuid("discussion_id").default(sql`gen_random_uuid()`).notNull(),
+    /**
      * A translation drafted by AI (or copied to translate by hand) that no
      * person has checked yet. It cannot be published until an administrator
      * confirms a native speaker has read and corrected it (lib/admin/blog.ts).
@@ -2969,13 +2981,18 @@ export const blogPosts = pgTable(
     uniqueIndex("blog_posts_business_slug_locale_uidx")
       .on(table.locale, table.businessSlug)
       .where(sql`${table.businessSlug} is not null`),
+    // Nov 13 engagement: a discussion's versions, and the target of the votes' and comments' (post, discussion) keys.
+    index("blog_posts_discussion_idx").on(table.discussionId),
+    uniqueIndex("blog_posts_id_discussion_uidx").on(table.id, table.discussionId),
   ],
 );
 
 /**
- * Upvotes on blog posts (client, 2026-11-11): any signed-in user, one per
- * user and post (the unique index decides), toggled on and off
- * (lib/blog/engagement.ts).
+ * Upvotes on blog posts (client, 2026-11-11): any signed-in user, toggled on
+ * and off (lib/blog/engagement.ts). Since Nov 13 one per user and DISCUSSION
+ * (an article and all its translations: blog_posts.discussion_id) - the
+ * unique index decides, so an upvote on the Italian version is the English
+ * version's too. post_id is the version it was given on.
  */
 export const blogPostUpvotes = pgTable(
   "blog_post_upvotes",
@@ -2984,14 +3001,22 @@ export const blogPostUpvotes = pgTable(
     postId: uuid("post_id")
       .notNull()
       .references(() => blogPosts.id, { onDelete: "cascade" }),
+    /** Nov 13 engagement: the post's discussion (held equal to it by the (post, discussion) key below). */
+    discussionId: uuid("discussion_id").notNull(),
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [
-    uniqueIndex("blog_post_upvotes_post_user_uidx").on(table.postId, table.userId),
+    uniqueIndex("blog_post_upvotes_discussion_user_uidx").on(table.discussionId, table.userId),
+    index("blog_post_upvotes_post_idx").on(table.postId),
     index("blog_post_upvotes_user_idx").on(table.userId),
+    foreignKey({
+      name: "blog_post_upvotes_post_discussion_fk",
+      columns: [table.postId, table.discussionId],
+      foreignColumns: [blogPosts.id, blogPosts.discussionId],
+    }).onDelete("cascade"),
   ],
 );
 
@@ -3007,9 +3032,12 @@ export const blogComments = pgTable(
   "blog_comments",
   {
     id: pk(),
+    /** The version it was written on (its language). It is listed on every version of the discussion. */
     postId: uuid("post_id")
       .notNull()
       .references(() => blogPosts.id, { onDelete: "cascade" }),
+    /** Nov 13 engagement: the post's discussion (blog_posts.discussion_id), where it is listed. */
+    discussionId: uuid("discussion_id").notNull(),
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
@@ -3026,9 +3054,50 @@ export const blogComments = pgTable(
     index("blog_comments_post_created_idx").on(table.postId, table.createdAt),
     index("blog_comments_user_created_idx").on(table.userId, table.createdAt),
     index("blog_comments_created_idx").on(table.createdAt),
+    index("blog_comments_discussion_created_idx").on(table.discussionId, table.createdAt),
     check("blog_comments_body_length_check", sql`char_length(${table.body}) between 1 and 750`),
+    foreignKey({
+      name: "blog_comments_post_discussion_fk",
+      columns: [table.postId, table.discussionId],
+      foreignColumns: [blogPosts.id, blogPosts.discussionId],
+    }).onDelete("cascade"),
   ],
 );
+
+/* ---- Nov 13 engagement (client, 2026-11-13): one discussion across languages ---- */
+
+/**
+ * The upvotes that became duplicates when upvotes moved from one per post to
+ * one per discussion (migration drizzle-drafts/nov13/engagement.sql): a
+ * member who had upvoted two language versions of the same article keeps
+ * their FIRST upvote; each later one is recorded here as it was, with the
+ * upvote kept in its place, instead of being dropped silently. Written only
+ * by that migration; nothing in the app reads it.
+ */
+export const blogPostUpvoteDuplicates = pgTable(
+  "blog_post_upvote_duplicates",
+  {
+    /** The duplicate upvote's own id, as it was in blog_post_upvotes. */
+    id: uuid("id").primaryKey(),
+    postId: uuid("post_id")
+      .notNull()
+      .references(() => blogPosts.id, { onDelete: "cascade" }),
+    discussionId: uuid("discussion_id").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    /** When the duplicate was given. */
+    createdAt: timestamp("created_at").notNull(),
+    /** The member's upvote that counts (blog_post_upvotes.id). */
+    keptUpvoteId: uuid("kept_upvote_id").notNull(),
+    /** "same_discussion". */
+    reason: text("reason").default("same_discussion").notNull(),
+    recordedAt: timestamp("recorded_at").defaultNow().notNull(),
+  },
+  (table) => [index("blog_post_upvote_duplicates_discussion_user_idx").on(table.discussionId, table.userId)],
+);
+
+/* ---- end Nov 13 engagement ---- */
 
 /** Upvotes on blog comments: one per user and comment, toggled like a post's. */
 export const blogCommentUpvotes = pgTable(
