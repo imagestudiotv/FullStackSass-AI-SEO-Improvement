@@ -5,6 +5,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 
 import * as schema from "@/lib/db/schema";
+import { draftStatements } from "@/test/drafts";
 
 /**
  * A disposable Postgres for tests: PGlite, in-process, built by replaying the
@@ -53,6 +54,7 @@ export async function createTestDb(
     }
     if (options.through === tag) break;
   }
+  if (!options.through) for (const statement of draftStatements()) await client.exec(statement);
 
   const db = drizzle(client, { schema });
   return { client, db };

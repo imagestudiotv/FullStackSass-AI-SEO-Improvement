@@ -98,13 +98,13 @@ describe("the directory", () => {
     const loud = await story({ businessSlug: "count-loud", businessName: "Loud" });
     const [a, b] = [await member(), await member()];
     await test.db.insert(blogPostUpvotes).values([
-      { postId: loud.id, userId: a },
-      { postId: loud.id, userId: b },
+      { postId: loud.id, discussionId: loud.id, userId: a },
+      { postId: loud.id, discussionId: loud.id, userId: b },
     ]);
     await test.db.insert(blogComments).values([
-      { postId: loud.id, userId: a, body: "Great" },
-      { postId: loud.id, userId: b, body: "Removed", removedAt: new Date() },
-      { postId: loud.id, userId: b, body: "Deleted", deletedAt: new Date() },
+      { postId: loud.id, discussionId: loud.id, userId: a, body: "Great" },
+      { postId: loud.id, discussionId: loud.id, userId: b, body: "Removed", removedAt: new Date() },
+      { postId: loud.id, discussionId: loud.id, userId: b, body: "Deleted", deletedAt: new Date() },
     ]);
     await test.db.insert(blogPostViews).values([
       { postId: loud.id, day: "2026-01-01", views: 5 },
@@ -165,9 +165,9 @@ describe("this week", () => {
     const { id } = await story({ businessSlug: "week-studio" });
     const [a, b, c] = [await member(), await member(), await member()];
     await test.db.insert(blogPostUpvotes).values([
-      { postId: id, userId: a, createdAt: new Date("2026-11-11T08:00:00Z") },
-      { postId: id, userId: b, createdAt: new Date("2026-11-05T00:00:00Z") },
-      { postId: id, userId: c, createdAt: new Date("2026-11-04T23:59:00Z") },
+      { postId: id, discussionId: id, userId: a, createdAt: new Date("2026-11-11T08:00:00Z") },
+      { postId: id, discussionId: id, userId: b, createdAt: new Date("2026-11-05T00:00:00Z") },
+      { postId: id, discussionId: id, userId: c, createdAt: new Date("2026-11-04T23:59:00Z") },
     ]);
     await test.db.insert(blogPostViews).values([
       { postId: id, day: "2026-11-11", views: 3 },
