@@ -33,10 +33,18 @@ export const MAX_TOPUP_CENTS = 99_999_999;
 export type CreditRate = { priceCents: number; credits: number; currency: string };
 
 /**
+ * The rate a quote's top-up is sold at: EUR 490 for 1,000 credits (owner,
+ * 2026-11-13: "reset the 1000 credit pack price to 490"), so 49 cents a
+ * credit. Fixed here, not taken from the credit packs, which keep their own
+ * prices; it applies only to a quote's shortfall.
+ */
+export const QUOTE_TOPUP_RATE: CreditRate = { priceCents: 49_000, credits: 1_000, currency: "eur" };
+
+/**
  * The price of `credits` at `rate`, in cents, ROUNDED UP to the cent so a
- * top-up is never sold below the rate. At today's rate (the smallest pack, EUR
- * 79 for 100 credits) every whole credit is a whole 79 cents, so nothing is
- * rounded: 1,000 credits are EUR 790.
+ * top-up is never sold below the rate. At QUOTE_TOPUP_RATE (EUR 490 for 1,000
+ * credits) every whole credit is a whole 49 cents, so nothing is rounded:
+ * 1,000 credits are EUR 490.
  *
  * Integer arithmetic: credits * cents fits a double exactly at these bounds.
  */
@@ -110,7 +118,7 @@ export type QuoteTopUpRefusal =
   | "stale"
   /** The workspace already has enough credits: the quote can be paid now. */
   | "covered"
-  /** No credit pack on sale to take the rate from. */
+  /** The top-up's add-on is missing, so credits cannot be sold now. */
   | "no_rate"
   /** The amount is outside what a single payment can be. */
   | "out_of_bounds";

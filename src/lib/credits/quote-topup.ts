@@ -11,13 +11,13 @@ import { format, formatNumber } from "@/lib/i18n/format";
 import { QUOTE_CREDITS_COPY } from "@/lib/i18n/quote-credits";
 import { isWebsiteProjectKind } from "@/lib/website-projects/shared";
 
-import { smallestCreditPack } from "./pack-rate";
 import {
   MAX_TOPUP_CENTS,
   MAX_TOPUP_CREDITS,
   MIN_TOPUP_CENTS,
   MIN_TOPUP_CREDITS,
   QUOTE_CREDITS_SLUG,
+  QUOTE_TOPUP_RATE,
   quoteCancelPath,
   quoteReturnPath,
   quoteRevisionOf,
@@ -35,7 +35,7 @@ import {
  * EVERYTHING IS DECIDED HERE, ON THE SERVER, FROM THE DATABASE. The browser
  * names a quote and its revision and says which amount it was shown; the quote
  * is read in the caller's own workspace, the shortfall from the workspace's
- * wallet, and the price from the smallest credit pack's rate. A shown amount
+ * wallet, and the price from QUOTE_TOPUP_RATE. A shown amount
  * that differs is refused ("changed") rather than charged.
  *
  * THE CREDITS ARE A CREDIT PACK'S, AND GRANTED THE SAME WAY. A credit_topups
@@ -81,8 +81,7 @@ export async function checkQuoteTopUp(
   const credits = quoteShortfall(project.creditCost, wallet.available);
   if (credits <= 0) return { ok: false, reason: "covered" };
 
-  const rate = await smallestCreditPack(database);
-  if (!rate) return { ok: false, reason: "no_rate" };
+  const rate = QUOTE_TOPUP_RATE;
   if (credits < MIN_TOPUP_CREDITS || credits > MAX_TOPUP_CREDITS) return { ok: false, reason: "out_of_bounds" };
   const priceCents = topUpPriceCents(credits, rate);
   if (priceCents < MIN_TOPUP_CENTS || priceCents > MAX_TOPUP_CENTS) return { ok: false, reason: "out_of_bounds" };
