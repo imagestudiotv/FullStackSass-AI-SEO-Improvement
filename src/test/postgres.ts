@@ -7,6 +7,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "@/vendor/postgres";
 
 import * as schema from "@/lib/db/schema";
+import { draftStatements } from "@/test/drafts";
 
 /**
  * A disposable database on a REAL Postgres server, for tests that need
@@ -66,12 +67,15 @@ export async function createPostgresTestDb(
      * Supabase's roles and default privileges (src/lib/db/rls.postgres.test.ts).
      */
     beforeMigrations?: (sql: ReturnType<typeof postgres>) => Promise<void>;
+    /** The new database's name prefix (default billing_test). */
+    prefix?: string;
   } = {},
 ) {
   const adminUrl = testPostgresUrl();
   if (!adminUrl) throw new Error("TEST_POSTGRES_URL is not set");
 
-  const name = `billing_test_${randomBytes(6).toString("hex")}`;
+  const prefix = options.prefix && /^[a-z][a-z0-9_]{0,40}$/.test(options.prefix) ? options.prefix : "billing_test";
+  const name = `${prefix}_${randomBytes(6).toString("hex")}`;
   const admin = postgres(adminUrl, { max: 1, onnotice: () => {} });
   await admin.unsafe(`create database ${name}`);
 
@@ -107,6 +111,7 @@ export async function createPostgresTestDb(
       await setup.unsafe(statement);
     }
   }
+  if (options.throughIndex === undefined) for (const statement of draftStatements(hasVector)) await setup.unsafe(statement);
 
   /** One client per connection, each pinned to a single socket. */
   const clients = Array.from({ length: connections }, () =>

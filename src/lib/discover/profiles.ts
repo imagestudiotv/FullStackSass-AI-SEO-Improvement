@@ -5,7 +5,7 @@ import { createHmac } from "node:crypto";
 import { and, count, desc, eq, gte, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
 
 import { businessWebsite } from "@/lib/blog/business";
-import { customerStoriesCategory, isUuid } from "@/lib/blog/engagement";
+import { customerStoriesCategory, discussionsOf, isUuid } from "@/lib/blog/engagement";
 import { blogLocale, blogPath } from "@/lib/blog/locale";
 import { db, isDatabaseConfigured } from "@/lib/db";
 import { blogComments, blogPosts, blogPostUpvotes, blogPostViewKeys, blogPostViews } from "@/lib/db/schema";
@@ -21,7 +21,11 @@ import { isDiscoverSlug, profileParagraphs } from "./profile-fields";
  * category whose Business section has a profile address (blog_posts.
  * business_slug, set in Admin -> Blog). Its upvotes and comments are the
  * post's own (lib/blog/engagement.ts), so they are the same on the profile,
- * on the story's page and in Earn Credits' Discover & earn.
+ * on the story's page and in Earn Credits' Discover & earn. Since Nov 13
+ * they are its DISCUSSION's (lib/blog/engagement.ts): the original and its
+ * translations count together, so /discover/<slug> and /it/discover/<slug>
+ * show the same upvotes, comments and views, and the directory ranks each
+ * business by all of them.
  *
  * LANGUAGES. A translation keeps its original's address (Admin -> Blog
  * copies it), so /it/discover/<slug> is the Italian story's profile. Where a
@@ -175,26 +179,35 @@ function pickVersions(rows: Row[], locale: Locale): Row[] {
   return [...bySlug.values()];
 }
 
-/** Upvotes, shown comments and views per post. */
+/** Upvotes, shown comments and views per post: its discussion's, every language version together. */
 async function totals(ids: string[]): Promise<Map<string, { upvotes: number; comments: number; views: number }>> {
   const out = new Map(ids.map((id) => [id, { upvotes: 0, comments: 0, views: 0 }]));
-  if (ids.length === 0) return out;
+  const discussionOf = await discussionsOf(ids);
+  const discussions = [...new Set(discussionOf.values())];
+  if (discussions.length === 0) return out;
   const [upvotes, comments, views] = await Promise.all([
-    db.select({ postId: blogPostUpvotes.postId, n: count() }).from(blogPostUpvotes).where(inArray(blogPostUpvotes.postId, ids)).groupBy(blogPostUpvotes.postId),
     db
-      .select({ postId: blogComments.postId, n: count() })
+      .select({ discussionId: blogPostUpvotes.discussionId, n: count() })
+      .from(blogPostUpvotes)
+      .where(inArray(blogPostUpvotes.discussionId, discussions))
+      .groupBy(blogPostUpvotes.discussionId),
+    db
+      .select({ discussionId: blogComments.discussionId, n: count() })
       .from(blogComments)
-      .where(and(inArray(blogComments.postId, ids), shownComment))
-      .groupBy(blogComments.postId),
+      .where(and(inArray(blogComments.discussionId, discussions), shownComment))
+      .groupBy(blogComments.discussionId),
     db
-      .select({ postId: blogPostViews.postId, n: sql<number>`coalesce(sum(${blogPostViews.views}), 0)::int` })
+      .select({ discussionId: blogPosts.discussionId, n: sql<number>`coalesce(sum(${blogPostViews.views}), 0)::int` })
       .from(blogPostViews)
-      .where(inArray(blogPostViews.postId, ids))
-      .groupBy(blogPostViews.postId),
+      .innerJoin(blogPosts, eq(blogPosts.id, blogPostViews.postId))
+      .where(inArray(blogPosts.discussionId, discussions))
+      .groupBy(blogPosts.discussionId),
   ]);
-  for (const row of upvotes) out.get(row.postId)!.upvotes = Number(row.n);
-  for (const row of comments) out.get(row.postId)!.comments = Number(row.n);
-  for (const row of views) out.get(row.postId)!.views = Number(row.n);
+  const byDiscussion = new Map(discussions.map((id) => [id, { upvotes: 0, comments: 0, views: 0 }]));
+  for (const row of upvotes) byDiscussion.get(row.discussionId)!.upvotes = Number(row.n);
+  for (const row of comments) byDiscussion.get(row.discussionId)!.comments = Number(row.n);
+  for (const row of views) byDiscussion.get(row.discussionId)!.views = Number(row.n);
+  for (const [postId, discussionId] of discussionOf) out.set(postId, { ...byDiscussion.get(discussionId)! });
   return out;
 }
 
@@ -236,24 +249,27 @@ export async function listDiscoverProfiles(locale: Locale): Promise<DiscoverEntr
   }
 }
 
-/** Upvotes given to a post in the last WEEK_DAYS days. */
+/** Upvotes given to a post's discussion (any language version) in the last WEEK_DAYS days. */
 export async function upvotesThisWeek(postId: string, now: Date = new Date()): Promise<number> {
-  if (!isUuid(postId)) return 0;
+  const discussionId = (await discussionsOf([postId])).get(postId);
+  if (!discussionId) return 0;
   const since = new Date(`${weekStartDay(now)}T00:00:00Z`);
   const [row] = await db
     .select({ n: count() })
     .from(blogPostUpvotes)
-    .where(and(eq(blogPostUpvotes.postId, postId), gte(blogPostUpvotes.createdAt, since)));
+    .where(and(eq(blogPostUpvotes.discussionId, discussionId), gte(blogPostUpvotes.createdAt, since)));
   return Number(row?.n ?? 0);
 }
 
-/** Views of a post in the last WEEK_DAYS days. */
+/** Views of a post's discussion (every language version) in the last WEEK_DAYS days. */
 export async function impressionsThisWeek(postId: string, now: Date = new Date()): Promise<number> {
-  if (!isUuid(postId)) return 0;
+  const discussionId = (await discussionsOf([postId])).get(postId);
+  if (!discussionId) return 0;
   const [row] = await db
     .select({ n: sql<number>`coalesce(sum(${blogPostViews.views}), 0)::int` })
     .from(blogPostViews)
-    .where(and(eq(blogPostViews.postId, postId), gte(blogPostViews.day, weekStartDay(now))));
+    .innerJoin(blogPosts, eq(blogPosts.id, blogPostViews.postId))
+    .where(and(eq(blogPosts.discussionId, discussionId), gte(blogPostViews.day, weekStartDay(now))));
   return Number(row?.n ?? 0);
 }
 
@@ -327,9 +343,13 @@ export function isLikelyRobot(userAgent: string | null | undefined): boolean {
   return ua.length === 0 || ROBOT.test(ua);
 }
 
-/** The keyed hash one visitor is counted as for one post on one day. */
-export function viewKey(input: { postId: string; day: string; visitor: string; userAgent: string }, secret: string): string {
-  return createHmac("sha256", secret).update(`${input.day}\n${input.postId}\n${input.visitor}\n${input.userAgent}`).digest("hex").slice(0, 40);
+/**
+ * The keyed hash one visitor is counted as for one profile on one day. The
+ * profile is its discussion (every language version), so opening the
+ * English and the Italian page the same day is one view.
+ */
+export function viewKey(input: { discussionId: string; day: string; visitor: string; userAgent: string }, secret: string): string {
+  return createHmac("sha256", secret).update(`${input.day}\n${input.discussionId}\n${input.visitor}\n${input.userAgent}`).digest("hex").slice(0, 40);
 }
 
 function viewSecret(): string {
@@ -346,13 +366,13 @@ export async function recordProfileView(input: { postId: string; visitor: string
   if (!isUuid(input.postId) || isLikelyRobot(input.userAgent)) return false;
   const now = input.now ?? new Date();
   const [post] = await db
-    .select({ id: blogPosts.id })
+    .select({ id: blogPosts.id, discussionId: blogPosts.discussionId })
     .from(blogPosts)
     .where(and(eq(blogPosts.id, input.postId), published, isNotNull(blogPosts.businessSlug)))
     .limit(1);
   if (!post) return false;
   const day = viewDay(now);
-  const key = viewKey({ postId: input.postId, day, visitor: input.visitor, userAgent: String(input.userAgent).slice(0, 300) }, viewSecret());
+  const key = viewKey({ discussionId: post.discussionId, day, visitor: input.visitor, userAgent: String(input.userAgent).slice(0, 300) }, viewSecret());
   return db.transaction(async (tx) => {
     // The unique key decides: of two requests at once, one counts.
     const fresh = await tx.insert(blogPostViewKeys).values({ key, day }).onConflictDoNothing().returning({ id: blogPostViewKeys.id });
