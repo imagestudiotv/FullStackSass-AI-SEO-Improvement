@@ -97,6 +97,17 @@ BEGIN
 	RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;--> statement-breakpoint
+REVOKE ALL ON FUNCTION blog_post_discussion() FROM PUBLIC;--> statement-breakpoint
+DO $$
+DECLARE api_role text;
+BEGIN
+	-- Trigger-only function: the Supabase API roles must not be able to call it (rls.postgres.test.ts, migration 0056).
+	FOREACH api_role IN ARRAY ARRAY['anon', 'authenticated'] LOOP
+		IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = api_role) THEN
+			EXECUTE format('REVOKE ALL ON FUNCTION blog_post_discussion() FROM %I', api_role);
+		END IF;
+	END LOOP;
+END $$;--> statement-breakpoint
 DROP TRIGGER IF EXISTS "blog_posts_discussion" ON "blog_posts";--> statement-breakpoint
 CREATE TRIGGER "blog_posts_discussion" BEFORE INSERT OR UPDATE OF "discussion_id" ON "blog_posts"
 	FOR EACH ROW EXECUTE FUNCTION blog_post_discussion();--> statement-breakpoint
@@ -179,6 +190,17 @@ BEGIN
 	RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;--> statement-breakpoint
+REVOKE ALL ON FUNCTION blog_engagement_discussion() FROM PUBLIC;--> statement-breakpoint
+DO $$
+DECLARE api_role text;
+BEGIN
+	-- Trigger-only function: the Supabase API roles must not be able to call it (rls.postgres.test.ts, migration 0056).
+	FOREACH api_role IN ARRAY ARRAY['anon', 'authenticated'] LOOP
+		IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = api_role) THEN
+			EXECUTE format('REVOKE ALL ON FUNCTION blog_engagement_discussion() FROM %I', api_role);
+		END IF;
+	END LOOP;
+END $$;--> statement-breakpoint
 DROP TRIGGER IF EXISTS "blog_post_upvotes_discussion" ON "blog_post_upvotes";--> statement-breakpoint
 CREATE TRIGGER "blog_post_upvotes_discussion" BEFORE INSERT ON "blog_post_upvotes"
 	FOR EACH ROW EXECUTE FUNCTION blog_engagement_discussion();--> statement-breakpoint
