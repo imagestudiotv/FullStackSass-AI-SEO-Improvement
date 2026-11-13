@@ -133,6 +133,37 @@ export async function track(orgId: string, event: TrackInput): Promise<void> {
   });
 }
 
+/**
+ * A model call made for a visitor WITHOUT an account (the free AI Social
+ * Media Post Generator, lib/tools/social-posts.ts).
+ *
+ * usage_events rows belong to an organization, and a guest has none, so the
+ * call is recorded on the spend reservations that admitted it instead:
+ * spend_reservations.metadata.usage, next to the row's `operation`. Summing
+ * those for one operation gives the tool's real token use and cost. Never
+ * throws: the visitor's posts are not lost because a ledger write failed.
+ */
+export async function trackGuestUsage(
+  reservationIds: string[],
+  event: { purpose: string; provider: string; model: string; inputTokens: number; outputTokens: number },
+): Promise<void> {
+  if (reservationIds.length === 0) return;
+  const price = PRICING.llm[event.model as keyof typeof PRICING.llm];
+  const costUsd = price ? (event.inputTokens / 1000) * price.inputPer1k + (event.outputTokens / 1000) * price.outputPer1k : null;
+  const usage = { kind: "llm" satisfies UsageKind, ...event, costUsd: costUsd === null ? null : Number(costUsd.toFixed(6)) };
+  try {
+    await db
+      .update(spendReservations)
+      .set({
+        metadata: sql`coalesce(${spendReservations.metadata}, '{}'::jsonb) || ${JSON.stringify({ usage })}::jsonb`,
+        updatedAt: new Date(),
+      })
+      .where(inArray(spendReservations.id, reservationIds));
+  } catch (error) {
+    console.error("[usage] could not record guest usage", error);
+  }
+}
+
 export type LimitKind = "articles" | "keywords" | UsageKind;
 
 // Defined in usage-shared.ts so client components can import them without
