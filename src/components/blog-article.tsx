@@ -6,6 +6,7 @@ import { BlogCover } from "@/components/blog-cover";
 import { ARTICLE_TABLE_CLASSES } from "@/lib/articles/table-styles";
 import { sanitizeHtml } from "@/lib/articles/sanitize";
 import { BLOG_CHROME, blogDate, fill } from "@/lib/blog/locale";
+import { blogSiteHosts } from "@/lib/blog/site-hosts";
 import { isTeamAuthor, TEAM_AUTHOR_PATH, tableOfContents, withHeadingIds, type BlogPost } from "@/lib/blog/shared";
 import { localePath } from "@/lib/i18n/config";
 
@@ -20,6 +21,12 @@ import { localePath } from "@/lib/i18n/config";
  *
  * The words around the post follow its language (lib/blog/locale.ts), and
  * the article says which language it is in (`lang`) when not English.
+ *
+ * Links to RepGet itself stay followed: the drawing-time sanitise is given the
+ * site's hosts, as the save is. Without them every absolute
+ * https://www.repget.com link in a post went out as rel="nofollow" (Ahrefs,
+ * 2026-11-13: "nofollow outgoing internal links" on 273 posts) although the
+ * stored HTML had it right.
  */
 export function BlogArticle({
   post,
@@ -29,7 +36,8 @@ export function BlogArticle({
   /** The "Get Featured in This Article" button, on the public page only (not the admin preview). */
   sponsorship?: ReactNode;
 }) {
-  const cleanBody = sanitizeHtml(post.body);
+  const siteHosts = blogSiteHosts();
+  const cleanBody = sanitizeHtml(post.body, { siteHosts });
   const toc = tableOfContents(cleanBody);
   const body = withHeadingIds(cleanBody);
   const locale = post.locale ?? "en";
@@ -173,7 +181,7 @@ export function BlogArticle({
                   */}
                   <div
                     className="mt-3 space-y-3 leading-7 text-muted-foreground [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-4 [&_em]:italic [&_li]:my-1 [&_ol]:list-decimal [&_ol]:pl-6 [&_strong]:font-semibold [&_ul]:list-disc [&_ul]:pl-6"
-                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(faq.answer) }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(faq.answer, { siteHosts }) }}
                   />
                 </details>
               </li>

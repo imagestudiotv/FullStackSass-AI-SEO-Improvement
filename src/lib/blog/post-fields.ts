@@ -15,7 +15,6 @@ import {
   type BlogSource,
 } from "@/lib/blog/shared";
 import { SEARCH_LIMITS, secondaryKeywordList } from "@/lib/blog/keywords";
-import { siteUrl } from "@/lib/site-url";
 
 /**
  * The rules every blog post's fields pass before they are stored - the same
@@ -70,10 +69,7 @@ export const RESERVED_SLUGS = new Set(["category", "author", "sponsorship"]);
 export class BlogPostError extends Error {}
 
 /** Links to RepGet's own site stay followed internal links (see sanitize.ts). */
-export function blogSiteHosts(): Set<string> {
-  const host = new URL(siteUrl()).hostname.toLowerCase();
-  return new Set([host, host.startsWith("www.") ? host.slice(4) : `www.${host}`]);
-}
+export { blogSiteHosts } from "@/lib/blog/site-hosts";
 
 export type CleanBlogPost = {
   title: string;
