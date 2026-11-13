@@ -92,7 +92,7 @@ const EMAIL_SHAPE = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
 
 /**
  * What the page itself would have read, had ?ref= not sent the visitor through
- * /go/<code>: sign-up's destination and pre-filled address (app/(auth)/sign-up/
+ * /go/<code>: sign-up's destination and pre-filled address (app/(site)/(auth)/sign-up/
  * page.tsx), the website the free audit is asked to check (audit-page.tsx), and
  * the project type and address the website creation page reads, in any language
  * (website-start.tsx). Only for those pages, so an address never reaches any

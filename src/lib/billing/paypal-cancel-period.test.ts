@@ -21,7 +21,7 @@ vi.mock("@/lib/paypal/subscriptions", async (importOriginal) => ({
   cancelSubscription: vi.fn(),
 }));
 
-import { paymentOptions } from "@/app/(app)/billing/billing-view";
+import { paymentOptions } from "@/app/(site)/(app)/billing/billing-view";
 import { beginCheckout, type CheckoutProviderOps } from "@/lib/billing/checkouts";
 import { endPayPalCancellations, syncPayPalSubscription } from "@/lib/billing/paypal-events";
 import { payPalCheckoutPaused } from "@/lib/paypal/client";

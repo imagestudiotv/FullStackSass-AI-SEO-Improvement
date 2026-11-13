@@ -101,9 +101,9 @@ describe("the footer's customer directory link", () => {
 });
 
 /**
- * The page's language. The root layout's <html lang="en"> is shared by every
- * route, so the frame around the public pages says which language the
- * address is in - from the same source as the menu's words.
+ * The page's language, on the frame around the public pages too (their
+ * <html lang> is set by their root layout) - from the same source as the
+ * menu's words.
  */
 describe("the frame's language", () => {
   it.each([

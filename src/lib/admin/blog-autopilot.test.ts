@@ -35,7 +35,7 @@ import {
   suggestBlogAutopilotTopics,
   writeBlogAutopilotNow,
 } from "@/lib/admin/blog-autopilot";
-import { parseEntityLines, parseTopicLines } from "@/app/admin/blog/autopilot/autopilot-topics";
+import { parseEntityLines, parseTopicLines } from "@/app/(site)/admin/blog/autopilot/autopilot-topics";
 import { DEFAULT_AUTOPILOT, readAutopilotSettings, romeHourLabel } from "@/lib/blog/autopilot/settings";
 
 let test: TestDb;

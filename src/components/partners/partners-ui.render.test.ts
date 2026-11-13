@@ -15,7 +15,7 @@ vi.mock("@/lib/partners/presentation/actions", () => ({
 vi.mock("@/lib/auth/confirm-email-actions", () => ({ confirmEmail: vi.fn() }));
 vi.mock("@/lib/auth-client", () => ({ authClient: { emailOtp: { sendVerificationOtp: vi.fn() } } }));
 
-import PartnerError from "@/app/(partner)/partner/error";
+import PartnerError from "@/app/(site)/(partner)/partner/error";
 import { PartnersContent } from "@/app/(marketing)/partners-content";
 import { LOCALES, localePath } from "@/lib/i18n/config";
 import { APPLICATION_LIMITS } from "@/lib/partners/domain/entities/application";

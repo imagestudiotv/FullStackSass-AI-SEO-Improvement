@@ -44,7 +44,7 @@ vi.mock("@/lib/blog/posts", async () => {
 import { BlogArticle } from "@/components/blog-article";
 import { BLOG_PAGE_SIZE } from "@/lib/blog/pagination";
 
-import LocaleTeamAuthorPage, { generateMetadata as localeAuthorMetadata } from "../../[locale]/blog/author/repget-team/page";
+import LocaleTeamAuthorPage, { generateMetadata as localeAuthorMetadata } from "@/app/(localized)/[locale]/(pages)/blog/author/repget-team/page";
 import { BlogPostView } from "../post-view";
 import TeamAuthorPage, { generateMetadata as englishAuthorMetadata } from "./repget-team/page";
 

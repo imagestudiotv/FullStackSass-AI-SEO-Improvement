@@ -3491,7 +3491,7 @@ export const feedback = pgTable(
  * not one), in the order they were added. Each is re-encoded as WebP, at
  * most 1,600 px wide. Kept here rather than in the public picture bucket: a
  * screenshot of someone's dashboard is private. Served to administrators
- * alone (app/admin/feedback/[id]/screenshots/[n]); deleted with the message.
+ * alone (app/(site)/admin/feedback/[id]/screenshots/[n]); deleted with the message.
  */
 export const feedbackScreenshots = pgTable(
   "feedback_screenshots",

@@ -765,7 +765,7 @@ function sniffImageType(data: Buffer): (typeof ALLOWED_IMAGE_TYPES)[number] | nu
 
 /**
  * The first half of uploading a blog picture straight from the browser
- * (app/admin/blog/upload-picture.ts): checks what the browser says it is
+ * (app/(site)/admin/blog/upload-picture.ts): checks what the browser says it is
  * sending and returns a signed address for one new file in the pending
  * folder (lib/images/storage.ts BLOG_PENDING_FOLDER). The picture never
  * passes through this server, whose request body is limited far below

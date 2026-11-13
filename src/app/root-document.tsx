@@ -1,0 +1,163 @@
+import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+import { DeferredToaster } from "@/components/deferred-toaster";
+import { SiteAnalytics } from "@/components/site-analytics";
+import "./globals.css";
+import { isPreviewDeployment } from "@/lib/deployment";
+import type { Locale } from "@/lib/i18n/config";
+import { siteUrl as canonicalSiteUrl } from "@/lib/site-url";
+import { SITE_OPEN_GRAPH } from "@/lib/seo/page-metadata";
+import { THEME_SCRIPT } from "@/lib/theme";
+
+/**
+ * The document every page is drawn in - <html>, <head>, <body> - and the
+ * metadata every page starts from, shared by the site's three root layouts:
+ *
+ *  - app/(marketing)/layout.tsx           the English public pages, lang="en";
+ *  - app/(localized)/[locale]/layout.tsx  /es, /fr, /it, /de, lang="es" ...;
+ *  - app/(site)/layout.tsx                the app, admin, sign-in, onboarding
+ *                                         and partner portal, lang="en".
+ *
+ * WHY THREE. There used to be one root layout, app/layout.tsx, above every
+ * page. A layout cannot read the [locale] segment beneath it, so it sent
+ * lang="en" on the German pages too and a script corrected it in the browser.
+ * Crawlers that read the HTML as sent (Ahrefs: "Hreflang and HTML lang
+ * mismatch" on 378 URLs, 2026-11-13) saw English. A root layout that sits
+ * under [locale] receives it, so the translated pages now leave the server
+ * with their own language - while still prerendered: the locale comes from
+ * the address, never from the request.
+ *
+ * The cost is Next's rule for multiple root layouts: moving between two of
+ * them is a full page load rather than an in-app navigation - switching
+ * language, and stepping from the public site into sign-in or the app.
+ * Within each (the app and onboarding, admin, the partner portal; all English
+ * public pages; all translated ones) nothing changes.
+ *
+ * This file is not a route: Next only gives meaning to layout, page and the
+ * other convention names.
+ */
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+/*
+  Not preloaded: only code-like text (the tools, audit results, the app) uses
+  it, never the first screen of a public page. A preload made every page fetch
+  it (24 KB) before its first paint; now a page that uses it fetches it then,
+  shown meanwhile in the size-matched fallback (font-display: swap).
+*/
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+  preload: false,
+});
+
+/**
+ * Absolute base for canonical, hreflang and og:url addresses.
+ *
+ * Without this Next emits them relative ("/es/pricing"), and search engines
+ * ignore a relative hreflang entirely — the translations would be treated as
+ * duplicates of each other rather than alternates, which is the exact problem
+ * hreflang exists to prevent.
+ *
+ * Falls back to the production domain rather than localhost so a missing env
+ * var cannot publish canonical tags pointing at a developer machine.
+ */
+function siteUrl(): URL {
+  return new URL(canonicalSiteUrl());
+}
+
+/** Every root layout exports this as its `metadata`. */
+export const ROOT_METADATA: Metadata = {
+  metadataBase: siteUrl(),
+  title: {
+    default: "RepGet",
+    template: "%s | RepGet",
+  },
+  description:
+    "Automated SEO analysis, AI content generation, publishing and backlinks for small businesses.",
+
+  /**
+   * Sharing defaults for every page. The picture itself is app/opengraph-
+   * image.tsx; these say whose site it is and ask X for the large card.
+   *
+   * A page that sets its own `openGraph` replaces this object (Next merges
+   * metadata one key deep). Every public page does, through
+   * publicPageMetadata (lib/seo/page-metadata.ts), because og:url is
+   * different on each page and cannot be set here; it starts from the same
+   * SITE_OPEN_GRAPH. The pages that keep this object (signed-in, sign-in
+   * and 404 pages, all noindex) have no canonical for an og:url to repeat.
+   */
+  openGraph: SITE_OPEN_GRAPH,
+  twitter: {
+    card: "summary_large_image",
+  },
+
+  /**
+   * Site ownership checks, as meta tags in every page's <head>. Pinterest
+   * (client, 2026-10-09: the RepGet account claims www.repget.com) reads it
+   * from the homepage; the value is the one Pinterest's "Claim your website"
+   * screen gave.
+   */
+  verification: {
+    other: { "p:domain_verify": "8355c73131e6c2c7991fcb97d610f4f8" },
+  },
+
+  /**
+   * A preview deployment is never a search result: noindex on every page, for
+   * crawlers that read the page rather than the X-Robots-Tag header that
+   * next.config also sends. Production sets nothing here, so each page's own
+   * robots setting (or none) applies as before. See lib/deployment.ts.
+   */
+  ...(isPreviewDeployment() ? { robots: { index: false, follow: false } } : {}),
+
+  /**
+   * Icons are declared against their literal paths in public/ rather than
+   * left to the app/ file convention, which serves them from hashed URLs
+   * (/icon?abc123). Those change whenever the file does, and Google asks
+   * specifically that a favicon URL stay put so it can keep serving the one
+   * it has already crawled. These paths are permanent.
+   *
+   * 48px is the size Google's own guidance asks for (a multiple of 48);
+   * 192 and 512 cover Android home screens and the manifest.
+   */
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon-48.png", type: "image/png", sizes: "48x48" },
+      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
+      { url: "/icon-512.png", type: "image/png", sizes: "512x512" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
+  },
+  manifest: "/manifest.webmanifest",
+};
+
+/** <html> and <body> for a root layout, in the page's language. */
+export function RootDocument({ lang, children }: { lang: Locale; children: React.ReactNode }) {
+  return (
+    <html
+      lang={lang}
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
+    >
+      <head>
+        {/*
+          Night mode, before anything is drawn (lib/theme.ts). Inline and
+          first in <head> so a dark page never flashes white; the nonce pages
+          allow it by its hash (lib/security-headers.ts). It adds a class to
+          <html> that the server did not render - suppressHydrationWarning
+          above is what lets React accept that.
+        */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
+      <body className="min-h-full flex flex-col">
+        {children}
+        <DeferredToaster />
+        <SiteAnalytics />
+      </body>
+    </html>
+  );
+}

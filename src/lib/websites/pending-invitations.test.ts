@@ -55,8 +55,8 @@ vi.mock("next/cache", () => ({
 
 import { eq } from "drizzle-orm";
 
-import { acceptPendingInvitationAction } from "@/app/(app)/dashboard/invitation-actions";
-import { acceptInvitationAction } from "@/app/invite/[token]/actions";
+import { acceptPendingInvitationAction } from "@/app/(site)/(app)/dashboard/invitation-actions";
+import { acceptInvitationAction } from "@/app/(site)/invite/[token]/actions";
 import {
   member,
   organization,
