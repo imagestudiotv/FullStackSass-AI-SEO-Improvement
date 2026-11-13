@@ -308,7 +308,7 @@ describe("article allowance windows", () => {
       createdAt: d("2026-10-01T18:50:40Z"),
     });
     await useArticles(websiteId, d("2026-10-02T09:00:00Z"), 2);
-    expect(await checkLimit(websiteId, "articles")).toMatchObject({ used: 2, limit: 3, allowed: true, trial: true });
+    expect(await checkLimit(websiteId, "articles")).toMatchObject({ used: 2, limit: 3, allowed: true, trial: true, monthlyLimit: 30 });
 
     // Converted: the provider moves the period to start at the trial's end.
     await test.db

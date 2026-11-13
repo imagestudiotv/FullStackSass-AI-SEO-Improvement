@@ -321,7 +321,10 @@ async function resolvePlan(
         ? sub!.currentPeriodStart
         : periodStart(sub!);
 
-  return { ok: true as const, orgId, planLimits, from, freeArticles, paypalFreeArticles, trial };
+  // The plan's monthly article allowance, unchanged by the trial: what pacing and planning read.
+  const monthlyArticles = agency ? agency.articles : sub!.articleLimit!;
+
+  return { ok: true as const, orgId, planLimits, monthlyArticles, from, freeArticles, paypalFreeArticles, trial };
 }
 
 /** Ledger key for a website's monthly article allowance. */
@@ -484,7 +487,7 @@ export async function checkLimit(
   if (!plan.ok) {
     return { allowed: false, used: 0, limit: 0, reason: plan.reason };
   }
-  const { orgId, planLimits, from, freeArticles, paypalFreeArticles, trial } = plan;
+  const { orgId, planLimits, monthlyArticles, from, freeArticles, paypalFreeArticles, trial } = plan;
 
   let used: number;
   let limit: number;
@@ -526,6 +529,7 @@ export async function checkLimit(
     freeArticles,
     paypalFreeArticles,
     trial,
+    ...(kind === "articles" ? { monthlyLimit: trial ? monthlyArticles : limit } : {}),
   };
 }
 

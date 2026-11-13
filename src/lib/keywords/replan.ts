@@ -75,7 +75,8 @@ export async function articlesToPlan(
   const count = Math.max(allowance.limit - allowance.used, 0);
   return {
     count,
-    perMonth: allowance.limit,
+    // The plan's pace, also in the free trial (lib/usage-shared.ts monthlyLimit).
+    perMonth: allowance.monthlyLimit ?? allowance.limit,
     // A site with no plan has a limit of 0; that is not "used up".
     usedUp: allowance.limit > 0 && count === 0,
     limit: allowance.limit,
