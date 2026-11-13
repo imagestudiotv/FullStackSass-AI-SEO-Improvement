@@ -76,12 +76,13 @@ export const FREE_ARTICLES_ONLY_PAYPAL =
   "This is included once your plan starts. Start it now in Billing, or it starts by itself when your free days end.";
 
 /**
- * Card checkout's refusal while the free articles would be given to an
- * address nobody has confirmed (lib/stripe/actions.ts). The plan step asks
- * for the code first, so this is only seen by a request that skipped it.
+ * Checkout's refusal while the free trial would be given to an address
+ * nobody has confirmed (lib/stripe/actions.ts, lib/paypal/actions.ts). The
+ * plan step asks for the code first, so this is only seen by a request that
+ * skipped it.
  */
 export const CONFIRM_EMAIL_FIRST =
-  "Confirm your email address first - your free articles are given to it.";
+  "Confirm your email address first - your free trial is given to it.";
 
 /** The subset of a plan row these helpers need. */
 export type PickerPlan = {

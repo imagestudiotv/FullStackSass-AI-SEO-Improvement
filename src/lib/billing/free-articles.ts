@@ -5,6 +5,14 @@ import { subscriptions } from "@/lib/db/schema";
 import { FREE_ARTICLES } from "@/lib/plans/features";
 
 /**
+ * LEGACY since 2026-11-13 (client: "3-day free trial is good instead of 3
+ * free articles"): new checkouts give the free trial instead (lib/plans/
+ * features.ts TRIAL_DAYS) - the plan's normal service for its free days, at
+ * the plan's daily pace (lib/usage.ts), never ended early. Everything below
+ * stays for the free-articles trials still running, told apart by their
+ * longer trial (isFreeArticlesTrial / onFreeArticles: more than 7 days),
+ * until the last of them ends.
+ *
  * A new account's free articles (client, 2026-10-09: "Create 3 Articles for
  * Free"; the owner chose the terms the same day).
  *
@@ -55,6 +63,17 @@ export function freeArticlesUsedMessage(paypal?: { startsOn: Date | null }): str
   return paypal
     ? `Your ${FREE_ARTICLES} free articles have been used. ${payPalPlanWaits(paypal.startsOn)}`
     : `Your ${FREE_ARTICLES} free articles have been used. Your plan starts once the last of them is written, and then you can write more.`;
+}
+
+/**
+ * Why a new article is refused in the free trial (TRIAL_DAYS, not the legacy
+ * free articles) once its share of the plan's monthly articles is used
+ * (lib/usage.ts trialAllowance). Nothing ends the trial early: the plan, and
+ * its full month, start when the trial ends.
+ */
+export function trialArticlesUsedMessage(limit: number): string {
+  const articles = limit === 1 ? "1 article" : `${limit} articles`;
+  return `Your free trial includes ${articles}, and they have all been used. Your plan starts with its full monthly articles when the trial ends.`;
 }
 
 /** Through PayPal, what starts the plan once the free articles are written: the customer, or the end of the free days. */

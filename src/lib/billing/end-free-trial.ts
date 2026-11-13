@@ -13,7 +13,10 @@ import { stripe } from "@/lib/stripe/client";
 
 /*
   Starting the plan once a new account's free articles are written - the
-  offer is described in lib/billing/free-articles.ts. Kept apart from it so
+  offer is described in lib/billing/free-articles.ts. LEGACY ONLY: a
+  free-articles trial (isFreeArticlesTrial, longer than a week). The free
+  trial that replaced it (TRIAL_DAYS, 2026-11-13) runs its days whatever is
+  written, and is never ended here ("not_on_free_articles"). Kept apart so
   the review gate and the queue can ask "is this website on its free
   articles" without importing Stripe.
 */

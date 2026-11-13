@@ -112,7 +112,7 @@ vi.mock("@/lib/tenant", () => {
 
 import { deleteOrganization } from "@/lib/admin/operations";
 import { CHECKOUT_IN_FLIGHT_MS } from "@/lib/billing/checkouts";
-import { CONFIRM_EMAIL_FIRST, FREE_ARTICLES_DAYS } from "@/lib/plans/features";
+import { CONFIRM_EMAIL_FIRST, TRIAL_DAYS } from "@/lib/plans/features";
 import { runReconciliation } from "@/lib/billing/reconciliation";
 import { createPayPalCheckout } from "@/lib/paypal/actions";
 import { createCheckoutSession } from "@/lib/stripe/actions";
@@ -248,7 +248,7 @@ describe("the REPGET offer, applied automatically (2026-11-11)", () => {
     await createCheckoutSession(await growPlan(), site.id);
     expect(params().discounts).toEqual([{ coupon: "LP40_GROW_M" }]);
     expect(params().allow_promotion_codes).toBeUndefined();
-    expect(params().subscription_data.trial_period_days).toBe(FREE_ARTICLES_DAYS);
+    expect(params().subscription_data.trial_period_days).toBe(TRIAL_DAYS);
     expect(params().subscription_data.metadata.repget_offer).toBe("REPGET");
     const [checkout] = await checkouts();
     expect(checkout.requestParams).toMatchObject({ offer: "REPGET" });
@@ -1316,11 +1316,12 @@ describe("trial eligibility", () => {
   const trialOf = (call: number) =>
     stripeMock.sessionsCreate.mock.calls[call][0].subscription_data.trial_period_days;
 
-  it("offers the free articles' trial to a workspace that has never subscribed", async () => {
+  it("offers the 3-day free trial (TRIAL_DAYS, 2026-11-13) to a workspace that has never subscribed", async () => {
     const site = await addSite();
     await createCheckoutSession(planId, site.id);
-    expect(trialOf(0)).toBe(FREE_ARTICLES_DAYS);
-    expect((await checkouts())[0].trialDays).toBe(FREE_ARTICLES_DAYS);
+    expect(trialOf(0)).toBe(TRIAL_DAYS);
+    expect(TRIAL_DAYS).toBe(3);
+    expect((await checkouts())[0].trialDays).toBe(TRIAL_DAYS);
   });
 
   it("refuses it to an unconfirmed address, before anything is recorded or sent to Stripe", async () => {
@@ -1331,7 +1332,7 @@ describe("trial eligibility", () => {
     expect(await checkouts()).toHaveLength(0);
   });
 
-  it("lets an unconfirmed address pay when there are no free articles to give", async () => {
+  it("lets an unconfirmed address pay when there is no free trial to give", async () => {
     state.emailVerified = false;
     await test.db.insert(subscriptions).values({
       organizationId: "org_a",
@@ -1371,7 +1372,7 @@ describe("trial eligibility", () => {
 
     await createCheckoutSession(planId, one.id);
     await createCheckoutSession(planId, two.id);
-    expect([trialOf(0), trialOf(1)]).toEqual([FREE_ARTICLES_DAYS, undefined]);
+    expect([trialOf(0), trialOf(1)]).toEqual([TRIAL_DAYS, undefined]);
   });
 
   it("never offers one through PayPal", async () => {
