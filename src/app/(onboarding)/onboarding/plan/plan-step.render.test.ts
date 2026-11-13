@@ -83,6 +83,22 @@ describe("REPGET, applied automatically (2026-11-11)", () => {
     expect(html).not.toMatch(/<input[^>]*maxLength="24"/i);
   });
 
+  it("shows the regular price struck through beside the launch price, and quotes the launch price in the terms (2026-11-13)", () => {
+    const html = render({ monthlyPlans: [GROW_2], offerCopy: OFFER_CODE.en, trialEligible: true });
+    expect(html).toMatch(/<del[^>]*>€149<\/del>/);
+    expect(html).toContain(">€89<");
+    expect(html).toContain("then €89");
+    // Off: the regular price alone, nothing struck.
+    const plain = render({ monthlyPlans: [GROW_2] });
+    expect(plain).not.toContain("<del");
+    expect(plain).toContain("then €149");
+  });
+
+  it("lists the pricing page's benefits when the server passes them", () => {
+    const html = render({ monthlyPlans: [GROW_2], benefits: { [GROW_2.id]: ["**AI Growth Copilot** with insights from your website data"] } });
+    expect(html).toContain("<strong class=\"font-semibold\">AI Growth Copilot</strong> with insights from your website data");
+  });
+
   it("says nothing for a plan it does not cover, or while the offer is off (no copy passed)", () => {
     expect(render({ offerCopy: OFFER_CODE.en })).not.toContain(OFFER_CODE.en.label);
     expect(render({ monthlyPlans: [GROW_2] })).not.toContain(OFFER_CODE.en.label);
@@ -102,5 +118,7 @@ describe("a direct purchase on the plan step (Grow + Visibility)", () => {
     expect(html).not.toContain("Email me a code");
     expect(html).not.toContain(OFFER_CODE.en.label);
     expect(paypalButton(html)).not.toMatch(/disabled=""/);
+    // Its list value struck through, as /pricing shows it; the charge stays EUR 99.
+    expect(html).toMatch(/<del[^>]*>€299<\/del>/);
   });
 });

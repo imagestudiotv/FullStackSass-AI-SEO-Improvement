@@ -18,7 +18,10 @@ import {
   listWebsiteSubscriptions,
   type PaymentRow,
 } from "@/lib/billing";
-import { hasUnfinishedPayPalApproval, planScreenOffer } from "@/lib/billing/checkouts";
+import { hasUnfinishedPayPalApproval, isTrialEligible, planScreenOffer } from "@/lib/billing/checkouts";
+import { repgetOfferEnabled } from "@/lib/billing/repget-offer";
+import { checkQuoteTopUp } from "@/lib/credits/quote-topup";
+import { QUOTE_CREDITS_SLUG } from "@/lib/credits/quote-topup-shared";
 import { db } from "@/lib/db";
 import { billingCustomers, websites } from "@/lib/db/schema";
 import { getAppMessages } from "@/lib/i18n/app-locale";
@@ -27,6 +30,7 @@ import { PAYPAL_PENDING_COPY } from "@/lib/i18n/paypal-pending";
 import { PAYPAL_PLAN_CHANGE_COPY } from "@/lib/i18n/paypal-plan-change";
 import { planChangeNoticeForWebsite } from "@/lib/paypal/plan-changes";
 import { PAYPAL_PURCHASE_COPY } from "@/lib/i18n/paypal-purchase";
+import { QUOTE_CREDITS_COPY } from "@/lib/i18n/quote-credits";
 import { localisedWebsiteProjectName, WEBSITE_PROJECT_COPY } from "@/lib/i18n/website-projects";
 import { websiteProjectKindOf } from "@/lib/website-projects/shared";
 import { isPayPalAvailable } from "@/lib/paypal/actions";
@@ -38,6 +42,8 @@ import { AddonsPanel } from "./addons-panel";
 import { BillingClient } from "./billing-client";
 import { lacksCardInvoice, paymentOptions, type InvoicePortal } from "./billing-view";
 import { PaymentsPanel } from "./payments-panel";
+import { planCardsFor } from "./plan-cards";
+import { QuoteCreditsCard } from "./quote-credits-card";
 
 /** One read of the reader's language per request, shared by the title and the page. */
 const messagesFor = cache((userId: string) => getAppMessages(userId));
@@ -200,6 +206,47 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
   // The discount checkout applies by itself, said on screen: REPGET, else the win-back offer (lib/billing/winback-offer.ts).
   const screenOffer = await planScreenOffer(db, orgId);
 
+  /*
+    The plan cards' prices, terms and benefits (plan-cards.ts): the price
+    checkout charges, struck against the regular one only where checkout
+    really discounts it, and the free articles only where checkout gives them.
+  */
+  const planCards = planCardsFor(plans, {
+    offerOn: repgetOfferEnabled(),
+    trialEligible: await isTrialEligible(db, orgId),
+    switching: isEntitled(current?.status),
+    locale,
+    t: t.app.billing,
+  });
+
+  /*
+    "Buy credits" on a quote (lib/credits/quote-topup.ts): the quote and its
+    revision in the address, checked here in this workspace and priced by the
+    server; the card at the top says what is missing and what it costs.
+  */
+  const quoteProject = typeof params.project === "string" ? params.project : null;
+  const quoteRevision = typeof params.revision === "string" ? params.revision : null;
+  const quoteCheck =
+    quoteProject && quoteRevision
+      ? await checkQuoteTopUp(db, { organizationId: orgId, projectId: quoteProject, revision: quoteRevision })
+      : null;
+  const quoteCopy = QUOTE_CREDITS_COPY[locale];
+  const quoteCard =
+    quoteProject && quoteCheck ? (
+      <QuoteCreditsCard
+        check={quoteCheck}
+        projectId={quoteProject}
+        kindLabel={quoteCheck.ok ? WEBSITE_PROJECT_COPY[locale].kind[quoteCheck.offer.kind] : null}
+        copy={quoteCopy}
+        locale={locale}
+        paypalAvailable={paypalAvailable}
+      />
+    ) : null;
+  // A quote's credits are one purchase among the packs: named as such, in the reader's language.
+  const purchaseRows = purchases.map((purchase) =>
+    purchase.slug === QUOTE_CREDITS_SLUG ? { ...purchase, name: quoteCopy.title } : localisedWebsiteProjectName(purchase, locale),
+  );
+
   return (
     /*
       Wide, like the website pages, so the settings strip keeps one width
@@ -235,6 +282,8 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
         t={t.app.billing}
         locale={locale}
         tCommon={t.app.common}
+        planCards={planCards}
+        top={quoteCard}
       />
 
       {/*
@@ -248,7 +297,7 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
           const kind = websiteProjectKindOf(addon.slug);
           return kind ? { ...addon, ...WEBSITE_PROJECT_COPY[locale].addons[kind] } : addon;
         })}
-        purchases={purchases.map((purchase) => localisedWebsiteProjectName(purchase, locale))}
+        purchases={purchaseRows}
         canBuy
         locale={locale}
         t={t.app.addons}

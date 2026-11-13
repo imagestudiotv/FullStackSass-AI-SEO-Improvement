@@ -21,6 +21,7 @@ import { DIRECT_PURCHASE } from "@/lib/i18n/direct-purchase";
 import { db } from "@/lib/db";
 import { getOnboardingState } from "@/lib/onboarding/steps";
 import { isPayPalAvailable } from "@/lib/paypal/actions";
+import { planBenefits } from "@/lib/plans/benefits";
 import { FREE_ARTICLES, FREE_ARTICLES_DAYS, isDirectPurchaseTier, toPickerPlan } from "@/lib/plans/features";
 import { requireOrg } from "@/lib/tenant";
 import { CheckoutPending } from "./checkout-pending";
@@ -148,6 +149,13 @@ export default async function OnboardingPlanPage({
     : allPlans.filter((plan) => plan.interval === "year" && !isDirectPurchaseTier(plan.tier)).map(toPickerPlan);
   // REPGET is applied by itself (2026-11-11): the launch price, said on screen while it is on; else the win-back offer, for an account that was sent it.
   const offerOn = await planScreenOffer(db, orgId);
+  // What each plan includes, in the reader's language: the pricing page's own lists (lib/plans/benefits.ts).
+  const benefits: Record<string, string[]> = {};
+  for (const plan of [...monthlyPlans, ...annualPlans]) {
+    const listed = planBenefits(plan, locale);
+    // The visibility perks too, as lines: on this screen they are part of what is bought.
+    if (listed) benefits[plan.id] = [...listed.features, ...listed.perks.map((perk) => `**${perk.strong}** - ${perk.small}`)];
+  }
   // The plans a PayPal subscription can be started for: mirrored into PayPal.
   const paypalPlanIds = allPlans.filter((plan) => plan.paypalPlanId).map((plan) => plan.id);
   // ...and those whose PayPal checkout gives the free articles too (2026-10-22).
@@ -209,6 +217,7 @@ export default async function OnboardingPlanPage({
               trialEligible={trialEligible}
               emailVerified={session.user.emailVerified === true}
               email={session.user.email}
+              benefits={benefits}
             />
             {/*
               What the free trial gives and what the plan adds (client,

@@ -229,6 +229,8 @@ async function fulfilSettledAddon(session: Stripe.Checkout.Session): Promise<voi
     stripeSessionId: session.id,
     amountTotal: session.amount_total,
     currency: session.currency,
+    // Credits bought for a quote (lib/credits/quote-topup.ts): the row that says how many.
+    topupId: session.metadata?.topupId ?? null,
   });
 }
 
@@ -299,7 +301,9 @@ async function processBillingEvent(event: Stripe.Event): Promise<void> {
       if (session.mode !== "payment" || isSponsorshipSession(session)) return;
       const organizationId = session.metadata?.organizationId;
       const addonId = session.metadata?.addonId;
-      if (organizationId && addonId) await addonPaymentFailed({ organizationId, addonId, stripeSessionId: session.id });
+      if (organizationId && addonId) {
+        await addonPaymentFailed({ organizationId, addonId, stripeSessionId: session.id, topupId: session.metadata?.topupId ?? null });
+      }
       return;
     }
 

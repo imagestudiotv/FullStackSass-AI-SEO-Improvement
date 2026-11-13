@@ -1,7 +1,9 @@
 import { eq } from "drizzle-orm";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { topUpOfPayPalOrder } from "@/lib/addons/fulfil";
 import { blogPath } from "@/lib/blog/locale";
+import { quoteCancelPath, quoteReturnPath } from "@/lib/credits/quote-topup-shared";
 import { sponsorshipThanksPath } from "@/lib/blog/sponsorship";
 import { db } from "@/lib/db";
 import { blogSponsorships, paypalOrders, paypalPlanChanges } from "@/lib/db/schema";
@@ -34,7 +36,13 @@ export async function GET(request: NextRequest) {
 
   if (!UUID.test(rowId)) return to("/billing");
   const [row] = await db
-    .select({ id: paypalOrders.id, purpose: paypalOrders.purpose, referenceId: paypalOrders.referenceId, status: paypalOrders.status })
+    .select({
+      id: paypalOrders.id,
+      purpose: paypalOrders.purpose,
+      referenceId: paypalOrders.referenceId,
+      status: paypalOrders.status,
+      organizationId: paypalOrders.organizationId,
+    })
     .from(paypalOrders)
     .where(eq(paypalOrders.id, rowId))
     .limit(1);
@@ -76,6 +84,18 @@ export async function GET(request: NextRequest) {
   }
 
   if (row.purpose === "addon_credits") {
+    /*
+      Credits bought for a quote (lib/credits/quote-topup.ts): paid, or still
+      clearing, back to the quote, whose page says which; not paid, back to
+      the same offer on Billing.
+    */
+    const topUp = row.organizationId ? await topUpOfPayPalOrder(row.referenceId, row.organizationId) : null;
+    if (topUp?.websiteProjectId) {
+      if (state === "voided" || state === "failed") {
+        return to(quoteCancelPath(topUp.websiteProjectId, topUp.quoteRevision, state === "voided" ? "cancelled" : "failed", "paypal"));
+      }
+      return to(quoteReturnPath(topUp.websiteProjectId, topUp.topupId));
+    }
     const addon = state === "completed" ? "success" : state === "voided" ? "cancelled" : state === "failed" ? "failed" : "pending";
     return to(`/billing?addon=${addon}&via=paypal`);
   }

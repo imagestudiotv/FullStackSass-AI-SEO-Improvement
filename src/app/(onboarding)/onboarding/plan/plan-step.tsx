@@ -2,7 +2,7 @@
 
 import { ArrowRight, Check, Loader2, MailCheck, ShieldCheck, Star } from "lucide-react";
 import { getMessages, type Messages } from "@/lib/i18n/messages";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { PayPalMark } from "@/components/paypal-mark";
 import { authClient } from "@/lib/auth-client";
 import { confirmEmail, type ConfirmEmailResult } from "@/lib/auth/confirm-email-actions";
 import { formatPrice } from "@/lib/billing-shared";
+import { perMonthOfYear, planDisplayPrice } from "@/lib/billing/display-prices";
 import { format } from "@/lib/i18n/format";
 import {
   FREE_ARTICLES,
@@ -75,7 +76,14 @@ export function PlanStep({
   emailVerified = true,
   email = "",
   t = getMessages("en").app.onboarding,
+  benefits = {},
 }: {
+  /**
+   * What each plan includes, by plan id, in the reader's language - the
+   * pricing page's lists (lib/plans/benefits.ts), worked out on the server.
+   * A plan without one keeps the English list (lib/plans/features.ts).
+   */
+  benefits?: Record<string, string[]>;
   /** The tier whose button was pressed on the way here, if it is on sale. */
   initialTier?: string;
   monthlyPlans: PickerPlan[];
@@ -215,10 +223,18 @@ export function PlanStep({
    * comparable at a glance. Quoting one as 99 and the other as 912 invites the
    * customer to read the cheaper number as the better deal.
    */
-  const perMonthCents =
-    annual && annualForTier
-      ? Math.round(annualForTier.priceCents / 12)
-      : (monthlyForTier?.priceCents ?? 0);
+  /*
+    The price checkout charges, and the regular one struck beside it only
+    when checkout really takes something off (lib/billing/display-prices.ts,
+    the same function /pricing and Billing read): REPGET's launch price while
+    its notice is on screen, and the Grow + Visibility bundle against EUR 299.
+  */
+  const repgetOn = Boolean(offerCopy) && offerCopy?.offer !== "winback";
+  const shown = plan ? planDisplayPrice(plan, repgetOn) : null;
+  const chargedCents = shown?.chargedCents ?? plan?.priceCents ?? 0;
+  const yearly = Boolean(annual && annualForTier);
+  const perMonthCents = yearly ? perMonthOfYear(chargedCents) : chargedCents;
+  const strikeCents = shown?.strikeCents ? (yearly ? perMonthOfYear(shown.strikeCents) : shown.strikeCents) : null;
 
   /**
    * NO CALENDAR DATE IS COMPUTED HERE, deliberately.
@@ -275,7 +291,7 @@ export function PlanStep({
     );
   }
 
-  const features = planFeatures(plan);
+  const features = benefits[plan.id] ?? planFeatures(plan);
   /*
     PayPal for THIS plan: configured, and the plan mirrored into PayPal. A
     plan without a PayPal plan id used to show the button and answer the
@@ -387,7 +403,7 @@ export function PlanStep({
               <span className="block sm:inline">{option.name}</span>
               <span className="hidden sm:inline"> &middot; </span>
               <span className="block text-xs sm:inline sm:text-sm">
-                {formatPrice(option.priceCents, option.currency)}
+                {formatPrice(planDisplayPrice(option, repgetOn).chargedCents, option.currency)}
               </span>
             </button>
           ))}
@@ -421,6 +437,9 @@ export function PlanStep({
         </p>
 
         <div className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          {strikeCents !== null ? (
+            <del className="text-2xl text-muted-foreground tabular-nums">{formatPrice(strikeCents, plan.currency)}</del>
+          ) : null}
           <span className="text-5xl font-semibold tracking-tight">
             {formatPrice(perMonthCents, plan.currency)}
           </span>
@@ -428,8 +447,9 @@ export function PlanStep({
           {/*
             The struck figure, only on the yearly option and only when it is
             real: twelve monthly payments, which is what paying yearly avoids.
+            With a discount the regular price is the struck one instead.
           */}
-          {annual && annualForTier && monthlyForTier ? (
+          {annual && annualForTier && monthlyForTier && strikeCents === null ? (
             <span className="text-muted-foreground line-through">
               {formatPrice(monthlyForTier.priceCents * 12, plan.currency)}
               {" a year"}
@@ -563,14 +583,14 @@ export function PlanStep({
               {" "}
               &middot; your plan starts after your {FREE_ARTICLES} free
               articles are written (in {FREE_ARTICLES_DAYS} days at the
-              latest), then {formatPrice(plan.priceCents, plan.currency)}{" "}
+              latest), then {formatPrice(chargedCents, plan.currency)}{" "}
               {annual ? "a year" : "a month"}. Cancel before then and you are
               not charged.
             </span>
           </p>
         ) : (
           <p className="mt-3 text-center text-sm text-muted-foreground">
-            {formatPrice(plan.priceCents, plan.currency)}{" "}
+            {formatPrice(chargedCents, plan.currency)}{" "}
             {annual ? "a year" : "a month"}, charged today. This workspace has
             already had its free articles.
           </p>
@@ -648,7 +668,7 @@ export function PlanStep({
                 >
                   <Check className="size-2.5 text-primary-foreground" />
                 </span>
-                <span className="min-w-0">{feature}</span>
+                <span className="min-w-0">{marks(feature)}</span>
               </li>
             ))}
           </ul>
@@ -671,4 +691,11 @@ export function PlanStep({
         </p>
     </div>
   );
+}
+
+/** The pricing copy's one mark, `**words**` in bold. Never HTML. */
+function marks(text: string): ReactNode {
+  const parts = text.split(/\*\*([^*]+)\*\*/g);
+  if (parts.length === 1) return text;
+  return parts.map((part, index) => (index % 2 === 1 ? <strong key={index} className="font-semibold">{part}</strong> : part));
 }

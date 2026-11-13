@@ -3,7 +3,8 @@ import "server-only";
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 
 import { recordCredit } from "@/lib/backlinks/credits";
-import { addons, member, organization, partnerCreditGrants, partnerProfiles } from "@/lib/db/schema";
+import { smallestCreditPack } from "@/lib/credits/pack-rate";
+import { member, organization, partnerCreditGrants, partnerProfiles } from "@/lib/db/schema";
 import type { Executor } from "@/lib/db/types";
 
 import type { PartnerCreditRepository } from "../../../application/ports/repositories";
@@ -26,13 +27,8 @@ export function partnerCreditRepository(db: Executor): PartnerCreditRepository {
         .orderBy(asc(organization.createdAt));
     },
     async smallestPack() {
-      const [pack] = await db
-        .select({ priceCents: addons.priceCents, credits: addons.creditsGranted, currency: addons.currency })
-        .from(addons)
-        .where(and(eq(addons.kind, "credits"), eq(addons.isActive, true), sql`${addons.creditsGranted} > 0 and ${addons.priceCents} > 0`))
-        .orderBy(asc(addons.creditsGranted), asc(addons.priceCents))
-        .limit(1);
-      return pack ? { priceCents: pack.priceCents, credits: pack.credits, currency: pack.currency.toLowerCase() } : null;
+      // One rule for every "credit at the pack rate" (a quote's top-up uses it too).
+      return smallestCreditPack(db);
     },
     async grantedAtRate(partnerId, environment, currency, packCents, packCredits) {
       const [row] = await db
