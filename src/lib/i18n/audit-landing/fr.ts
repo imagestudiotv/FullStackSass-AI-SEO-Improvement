@@ -139,8 +139,8 @@ export const fr: AuditLandingCopy = {
   },
   offer: {
     kicker: "Quand vous créez un compte",
-    title: ["Votre premier article est gratuit", "Vos {count} premiers articles sont gratuits"],
-    body: "Confirmez votre e-mail, choisissez une formule et ajoutez un moyen de paiement. Rien n’est débité avant le début de votre formule : une fois les articles gratuits rédigés, ou au plus tard après {days} jours. Les backlinks et le suivi de la visibilité IA commencent avec la formule.",
+    title: ["Votre premier jour est gratuit", "Vos {count} premiers jours sont gratuits"],
+    body: "Confirmez votre e-mail, choisissez une formule et ajoutez une carte ou PayPal. Rien n’est débité aujourd’hui : pendant {days} jours, vous profitez du service complet de votre formule, toutes fonctions comprises. Votre formule démarre ensuite, et est facturée, sauf si vous résiliez avant la fin de l’essai.",
     link: "Lancer votre audit",
   },
   next: {
@@ -229,8 +229,8 @@ export const fr: AuditLandingCopy = {
       {
         q: "Que se passe-t-il une fois l’audit terminé ?",
         a: [
-          "Vous pouvez utiliser les constats par vous-même. Si vous voulez de l’aide, créez un compte : votre premier article est gratuit, et les formules payantes de RepGet ajoutent le contenu SEO, les backlinks, le suivi de la visibilité IA et la publication sur les réseaux sociaux.",
-          "Vous pouvez utiliser les constats par vous-même. Si vous voulez de l’aide, créez un compte : vos {count} premiers articles sont gratuits, et les formules payantes de RepGet ajoutent le contenu SEO, les backlinks, le suivi de la visibilité IA et la publication sur les réseaux sociaux.",
+          "Vous pouvez utiliser les constats par vous-même. Si vous voulez de l’aide, créez un compte : votre premier jour est gratuit, avec le service complet des formules RepGet : contenu SEO, backlinks, suivi de la visibilité IA et publication sur les réseaux sociaux.",
+          "Vous pouvez utiliser les constats par vous-même. Si vous voulez de l’aide, créez un compte : vos {count} premiers jours sont gratuits, avec le service complet des formules RepGet : contenu SEO, backlinks, suivi de la visibilité IA et publication sur les réseaux sociaux.",
         ],
       },
     ],

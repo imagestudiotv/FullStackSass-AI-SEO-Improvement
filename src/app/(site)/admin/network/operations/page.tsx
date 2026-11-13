@@ -433,7 +433,7 @@ export default async function NetworkOperationsPage() {
             </div>
             <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground marker:text-muted-foreground/60">
               <li>
-                Step 1: every new article, on every website and the free articles of new customers too, comes to the{" "}
+                Step 1: every new article, on every website and the free trials of new customers too, comes to the{" "}
                 <Link href="/admin/network" className="text-primary underline underline-offset-2">
                   review queue
                 </Link>

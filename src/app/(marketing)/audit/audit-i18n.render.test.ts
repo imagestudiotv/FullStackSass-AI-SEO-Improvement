@@ -52,7 +52,7 @@ const RESULT: PublicAuditResult = {
   previewImage: null,
 };
 
-const OFFER = { price: "€29", freeArticles: 3 };
+const OFFER = { price: "€29", trialDays: 3 };
 const render = (locale: (typeof LOCALES)[number]) => renderToStaticMarkup(createElement(AuditResult, { result: RESULT, offer: OFFER, locale }));
 const text = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/&#x27;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, "&");
 
@@ -61,7 +61,7 @@ describe("the free check's result", () => {
     const html = text(render("en"));
     expect(html).toContain("Title is 82 characters and will be cut off after about 60.");
     expect(html).toContain("Plans start at €29 a month.");
-    expect(html).toContain("your first 3 articles are free");
+    expect(html).toContain("your first 3 days are free, with your plan's full service");
     expect(html).toContain("duplicate page titles, internal linking");
   });
 
@@ -126,14 +126,14 @@ describe("how the report ends (client's design, 2026-11-05)", () => {
     expect(words).toContain(AUDIT_COPY[locale].result.plansStart.replace("{price}", "€29").trim());
     expect(words).not.toMatch(/\{(count|pages|freePages|price)\}/);
     expect(words).not.toContain("**");
-    // The design's stale offer, in any language.
-    expect(words).not.toMatch(/3[- ](day|días|jours|giorni|Tage)/i);
+    // The 3-day trial (2026-11-13), never the free articles it replaced.
+    expect(words).not.toMatch(/free articles?|artículos? gratis|articles? gratuits?|articoli gratis|kostenlose[nr]? Artikel/i);
   });
 
-  it("follows the configured offer, not the number 3", () => {
-    const words = text(renderToStaticMarkup(createElement(AuditResult, { result: RESULT, offer: { price: null, freeArticles: 1 }, locale: "en" })));
-    expect(words).toContain("your first article is free");
-    expect(words).toContain("1 free article");
+  it("follows the configured trial, not the number 3", () => {
+    const words = text(renderToStaticMarkup(createElement(AuditResult, { result: RESULT, offer: { price: null, trialDays: 1 }, locale: "en" })));
+    expect(words).toContain("your first day is free");
+    expect(words).toContain("1-day free trial");
     expect(words).not.toContain("Plans start at");
   });
 

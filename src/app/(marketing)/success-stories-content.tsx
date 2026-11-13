@@ -14,7 +14,7 @@ import { localePath, type Locale } from "@/lib/i18n/config";
 import { format, formatDate, formatNumber } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
 import { CASE_STUDY_COPY, CASE_STUDY_PATH, IMAGE_STUDIO } from "@/lib/marketing/case-study-image-studio";
-import { FREE_ARTICLES } from "@/lib/plans/features";
+import { TRIAL_DAYS } from "@/lib/plans/features";
 
 /**
  * Success stories.
@@ -150,7 +150,7 @@ export function SuccessStoriesContent({ t, locale }: { t: Messages; locale: Loca
             {copy.ctaTitle}
           </h2>
           {/* The offer checkout applies (lib/plans/features.ts); a price written here outlived its offer (it said EUR 1). */}
-          <p className="mt-3 max-w-2xl text-muted-foreground">{format(copy.ctaBody, { count: FREE_ARTICLES })}</p>
+          <p className="mt-3 max-w-2xl text-muted-foreground">{format(copy.ctaBody, { days: TRIAL_DAYS })}</p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Button asChild>
               <Link href={localePath(locale, "/audit")}>

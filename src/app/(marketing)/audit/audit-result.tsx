@@ -194,8 +194,8 @@ export function AuditResult({
   locale = "en",
 }: {
   result: PublicAuditResult;
-  /** The live starting price and the free articles (lib/billing.ts startingOffer). */
-  offer: { price: string | null; freeArticles: number };
+  /** The live starting price and the free trial's days (lib/billing.ts startingOffer). */
+  offer: { price: string | null; trialDays: number };
   locale?: Locale;
 }) {
   const copy = AUDIT_COPY[locale];

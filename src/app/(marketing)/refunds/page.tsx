@@ -30,8 +30,8 @@ export default function RefundsPage() {
       </p>
       <p>
         This applies to your first payment on a new subscription. It does not
-        apply to later renewals. If you started with free articles, your first
-        payment is the one taken when your plan starts.
+        apply to later renewals. If you started with a free trial, your first
+        payment is the one taken when your plan starts at the end of the trial.
       </p>
 
       <h2>After the first 3 days</h2>

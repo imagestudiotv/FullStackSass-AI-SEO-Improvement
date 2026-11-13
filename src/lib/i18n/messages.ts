@@ -368,27 +368,6 @@ export type Messages = {
     unavailable: string;
     annualNote: string;
     refundPolicy: string;
-    /**
-     * Free trial vs paid plan (client, 2026-10-27: "this difference must be
-     * represented"), under the plans and on the plan step. {articles} and
-     * {days} are FREE_ARTICLES and FREE_ARTICLES_DAYS; {count}/{days} in
-     * creditsTrial the trial's daily credits and TRIAL_CREDIT_DAYS.
-     */
-    trial: {
-      title: string;
-      intro: string;
-      trialName: string;
-      paidName: string;
-      articlesTrial: string;
-      articlesPaid: string;
-      check: string;
-      creditsTrial: string;
-      creditsPaid: string;
-      aiVisibility: string;
-      backlinks: string;
-      /** Screen-reader label for a crossed-out line. */
-      notIncluded: string;
-    };
     features: {
       articles: string;
       keywords: string;
@@ -572,7 +551,7 @@ export type Messages = {
       overLimit: string;
       /** Shown to a viewer instead of editable controls. */
       viewOnly: string;
-      /** A paid feature during a new account's free articles (lib/billing/entitled.ts). */
+      /** LEGACY (30-day free-articles trials still running): a paid feature during them (lib/billing/entitled.ts). */
       freeArticlesOnly: string;
       /** ...during free articles through PayPal, whose plan the customer starts in Billing. */
       freeArticlesOnlyPayPal: string;
@@ -1086,7 +1065,7 @@ export type Messages = {
       /** billedByPayPal once it was cancelled in PayPal and its paid time still runs: {date} is the day it ends. */
       billedByPayPalEnding: string;
       /**
-       * On its free articles through PayPal, which cannot cut free days short:
+       * On its free trial through PayPal, which cannot cut free days short:
        * the plan section's notice and its button. {plan} and {date}: the plan,
        * and the day PayPal starts it anyway.
        */
@@ -3352,7 +3331,7 @@ export type Messages = {
       plan: string;
       payYearly: string;
       paypalNoTrial: string;
-      /** PayPal with the free articles (a plan with its free-articles PayPal plan): {n} articles, {days} free days, or sooner from Billing. */
+      /** PayPal with the free trial (a plan with its PayPal trial plan): {days} is TRIAL_DAYS ({n} no longer quoted). */
       paypalFreeArticles: string;
       cancelAnyTime: string;
       whatsIncluded: string;
@@ -3714,7 +3693,7 @@ const en: Messages = {
     planArticles: "{n} article each month|{n} articles each month",
     planBacklinks: "Backlinks from our partner network",
     planPublishing: "Auto-publish to WordPress, Shopify and more",
-    createFreeArticles: "Create 3 Articles for Free",
+    createFreeArticles: "Start your 3-day free trial",
     closingTitle: "Your website could be growing faster.",
     closingTitleAccent: "growing faster.",
     closingSub:
@@ -3738,20 +3717,6 @@ const en: Messages = {
     annualNote:
       "Annual plans are available once you sign up, at two months free. Cancel any time - see our",
     refundPolicy: "refund policy",
-    trial: {
-      title: "Free trial or paid plan",
-      intro: "Nothing is charged today. Your plan starts after your {articles} free articles are written, or after {days} days at the latest.",
-      trialName: "Free trial",
-      paidName: "Paid plan",
-      articlesTrial: "{articles} free articles, researched, illustrated and published",
-      articlesPaid: "All your plan's articles, every month",
-      check: "Website check",
-      creditsTrial: "{count} credits a day for your first {days} days",
-      creditsPaid: "Credits every month, plus more on each day you check in",
-      aiVisibility: "AI visibility in ChatGPT, Claude, Gemini and Perplexity",
-      backlinks: "Backlinks from our partner network",
-      notIncluded: "Not included",
-    },
     features: {
       articles: "{n} article written each month|{n} articles written each month",
       keywords: "{n} search terms tracked",
@@ -3828,7 +3793,7 @@ const en: Messages = {
     ],
     ctaTitle: "Your site could be the next story.",
     ctaBody:
-      "Start with a free check of your site - it takes a minute and costs nothing. If what we find is worth acting on, new accounts get their first {count} articles free.",
+      "Start with a free check of your site - it takes a minute and costs nothing. If what we find is worth acting on, new accounts get a {days}-day free trial with their plan's full service.",
     ctaPrimary: "Check my website",
     ctaSecondary: "See pricing",
   },
@@ -4539,7 +4504,7 @@ const en: Messages = {
       upgradeBody: "The {plan} plan includes {articles}, {terms} and {credits}.",
       upgradeLink: "See what {plan} offers",
       statusActive: "Active",
-      statusTrialing: "Free articles",
+      statusTrialing: "Free trial",
       statusPastDue: "Payment overdue",
       statusUnpaid: "Unpaid",
       statusIncomplete: "Payment incomplete",
@@ -4555,9 +4520,9 @@ const en: Messages = {
       billedByCardEnding: "This website's card subscription ends on {date}. You can choose PayPal once it has ended.",
       billedByPayPalEnding: "This website's PayPal subscription is cancelled and its plan runs until {date}. You can choose a plan again, by card or PayPal, once it has ended.",
       paypalFreeTitle: "Your {plan} plan starts on {date}",
-      paypalFreeBody: "Until then, this website is on its free articles. To write more articles and use every feature now, start the plan today: PayPal charges it now, and the free subscription is cancelled with nothing charged on it.",
+      paypalFreeBody: "Until then, this website is on its free trial. To start the full monthly service of your plan now, start it today: PayPal charges it now, and the trial subscription is cancelled with nothing charged on it.",
       startPlanNow: "Start my plan now",
-      paypalFreePlans: "Choosing a plan below starts it today with PayPal, in place of the free articles.",
+      paypalFreePlans: "Choosing a plan below starts it today with PayPal, in place of the free trial.",
       noPlanChange: "Plan changes are not available for this website right now.",
       paypalApproved: "PayPal approval received - confirming your subscription…",
       paypalCancelled: "PayPal checkout cancelled.",
@@ -6611,8 +6576,8 @@ const en: Messages = {
       growthEngineReady: "Your growth engine is ready",
       plan: "Plan",
       payYearly: "Pay yearly",
-      paypalNoTrial: "PayPal starts your plan straight away, without the free articles.",
-      paypalFreeArticles: "With PayPal too, your {n} free articles come first and nothing is charged today. Your plan starts after {days} days, or sooner if you start it in Billing.",
+      paypalNoTrial: "PayPal starts your plan straight away, without the free trial.",
+      paypalFreeArticles: "Start your {days}-day free trial with PayPal too. No charge today. Your paid plan starts after the trial unless you cancel before it ends.",
       cancelAnyTime: "Cancel any time. A promotion code can be entered at checkout.",
       whatsIncluded: "What\u2019s included",
       secureByStripe: "Secure checkout by Stripe. Your card details never reach us.",
@@ -6989,7 +6954,7 @@ const es: Messages = {
     planArticles: "{n} artículo al mes|{n} artículos al mes",
     planBacklinks: "Backlinks de nuestra red de socios",
     planPublishing: "Publicación automática en WordPress, Shopify y más",
-    createFreeArticles: "Cree 3 artículos gratis",
+    createFreeArticles: "Empiece su prueba gratuita de 3 días",
     closingTitle: "Su sitio web podría estar creciendo más rápido.",
     closingTitleAccent: "creciendo más rápido.",
     closingSub:
@@ -7013,20 +6978,6 @@ const es: Messages = {
     annualNote:
       "Los planes anuales están disponibles al registrarse, con dos meses gratis. Cancele cuando quiera: consulte nuestra",
     refundPolicy: "política de reembolsos",
-    trial: {
-      title: "Prueba gratuita o plan de pago",
-      intro: "Hoy no se cobra nada. Su plan empieza cuando se hayan escrito sus {articles} artículos gratis, o a los {days} días como máximo.",
-      trialName: "Prueba gratuita",
-      paidName: "Plan de pago",
-      articlesTrial: "{articles} artículos gratis, investigados, ilustrados y publicados",
-      articlesPaid: "Todos los artículos de su plan, cada mes",
-      check: "Revisión del sitio web",
-      creditsTrial: "{count} créditos al día durante sus primeros {days} días",
-      creditsPaid: "Créditos cada mes, y más cada día que registra su visita",
-      aiVisibility: "Visibilidad en IA en ChatGPT, Claude, Gemini y Perplexity",
-      backlinks: "Backlinks de nuestra red de socios",
-      notIncluded: "No incluido",
-    },
     features: {
       articles: "{n} artículo escrito al mes|{n} artículos escritos al mes",
       keywords: "{n} términos de búsqueda monitorizados",
@@ -7104,7 +7055,7 @@ const es: Messages = {
     ],
     ctaTitle: "Su sitio podría ser el próximo caso.",
     ctaBody:
-      "Empiece con un análisis gratuito de su web: tarda un minuto y no cuesta nada. Si lo que encontramos merece la pena, las cuentas nuevas reciben sus primeros {count} artículos gratis.",
+      "Empiece con un análisis gratuito de su web: tarda un minuto y no cuesta nada. Si lo que encontramos merece la pena, las cuentas nuevas tienen una prueba gratuita de {days} días con el servicio completo de su plan.",
     ctaPrimary: "Analizar mi web",
     ctaSecondary: "Ver precios",
   },
@@ -7816,7 +7767,7 @@ const es: Messages = {
       upgradeBody: "El plan {plan} incluye {articles}, {terms} y {credits}.",
       upgradeLink: "Vea lo que ofrece {plan}",
       statusActive: "Activa",
-      statusTrialing: "Artículos gratis",
+      statusTrialing: "Prueba gratuita",
       statusPastDue: "Pago vencido",
       statusUnpaid: "Impagada",
       statusIncomplete: "Pago incompleto",
@@ -7832,9 +7783,9 @@ const es: Messages = {
       billedByCardEnding: "La suscripción con tarjeta de este sitio web finaliza el {date}. Podrá elegir PayPal cuando haya finalizado.",
       billedByPayPalEnding: "La suscripción de PayPal de este sitio web está cancelada y su plan sigue activo hasta el {date}. Podrá elegir un plan de nuevo, con tarjeta o PayPal, cuando haya finalizado.",
       paypalFreeTitle: "Su plan {plan} empieza el {date}",
-      paypalFreeBody: "Hasta entonces, este sitio web está con sus artículos gratis. Para escribir más artículos y usar todas las funciones ya, inicie el plan hoy: PayPal lo cobra ahora y la suscripción gratuita se cancela sin ningún cargo.",
+      paypalFreeBody: "Hasta entonces, este sitio web está en su prueba gratuita. Para empezar ya el servicio mensual completo de su plan, inicie el plan hoy: PayPal lo cobra ahora y la suscripción de prueba se cancela sin ningún cargo.",
       startPlanNow: "Iniciar mi plan ahora",
-      paypalFreePlans: "Si elige un plan abajo, empieza hoy con PayPal, en lugar de los artículos gratis.",
+      paypalFreePlans: "Si elige un plan abajo, empieza hoy con PayPal, en lugar de la prueba gratuita.",
       noPlanChange: "Ahora mismo no se puede cambiar el plan de este sitio web.",
       paypalApproved: "Aprobación de PayPal recibida - confirmando su suscripción…",
       paypalCancelled: "Pago con PayPal cancelado.",
@@ -9889,8 +9840,8 @@ const es: Messages = {
       growthEngineReady: "Su motor de crecimiento está listo",
       plan: "Plan",
       payYearly: "Pago anual",
-      paypalNoTrial: "PayPal inicia su plan de inmediato, sin los artículos gratis.",
-      paypalFreeArticles: "Con PayPal también, primero sus {n} artículos gratis y hoy no se cobra nada. Su plan empieza a los {days} días, o antes si lo inicia en Facturación.",
+      paypalNoTrial: "PayPal inicia su plan de inmediato, sin la prueba gratuita.",
+      paypalFreeArticles: "Empiece su prueba gratuita de {days} días también con PayPal. Hoy no se cobra nada. Su plan de pago empieza después de la prueba, salvo que cancele antes de que termine.",
       cancelAnyTime: "Cancele cuando quiera. Puede introducir un código promocional al pagar.",
       whatsIncluded: "Qué incluye",
       secureByStripe: "Pago seguro con Stripe. Los datos de su tarjeta nunca llegan a nosotros.",
@@ -10268,7 +10219,7 @@ const fr: Messages = {
     planArticles: "{n} article par mois|{n} articles par mois",
     planBacklinks: "Backlinks issus de notre réseau de partenaires",
     planPublishing: "Publication automatique sur WordPress, Shopify et plus",
-    createFreeArticles: "Créez 3 articles gratuitement",
+    createFreeArticles: "Commencez votre essai gratuit de 3 jours",
     closingTitle: "Votre site pourrait se développer plus vite.",
     closingTitleAccent: "se développer plus vite.",
     closingSub:
@@ -10292,20 +10243,6 @@ const fr: Messages = {
     annualNote:
       "Les formules annuelles sont proposées après votre inscription, avec deux mois offerts. Annulez à tout moment : consultez notre",
     refundPolicy: "politique de remboursement",
-    trial: {
-      title: "Essai gratuit ou forfait payant",
-      intro: "Rien n’est facturé aujourd’hui. Votre forfait commence une fois vos {articles} articles gratuits rédigés, ou au plus tard après {days} jours.",
-      trialName: "Essai gratuit",
-      paidName: "Forfait payant",
-      articlesTrial: "{articles} articles gratuits, documentés, illustrés et publiés",
-      articlesPaid: "Tous les articles de votre forfait, chaque mois",
-      check: "Vérification du site",
-      creditsTrial: "{count} crédits par jour pendant vos {days} premiers jours",
-      creditsPaid: "Des crédits chaque mois, et d’autres chaque jour où vous faites votre check-in",
-      aiVisibility: "Visibilité IA dans ChatGPT, Claude, Gemini et Perplexity",
-      backlinks: "Backlinks de notre réseau de partenaires",
-      notIncluded: "Non inclus",
-    },
     features: {
       articles: "{n} article rédigé par mois|{n} articles rédigés par mois",
       keywords: "{n} termes de recherche suivis",
@@ -10382,7 +10319,7 @@ const fr: Messages = {
     ],
     ctaTitle: "Votre site pourrait être la prochaine étude de cas.",
     ctaBody:
-      "Commencez par une analyse gratuite de votre site : une minute, sans frais. Si ce que nous trouvons mérite d'agir, les nouveaux comptes reçoivent leurs {count} premiers articles gratuitement.",
+      "Commencez par une analyse gratuite de votre site : une minute, sans frais. Si ce que nous trouvons mérite d'agir, les nouveaux comptes profitent d'un essai gratuit de {days} jours avec le service complet de leur forfait.",
     ctaPrimary: "Analyser mon site",
     ctaSecondary: "Voir les tarifs",
   },
@@ -11096,7 +11033,7 @@ const fr: Messages = {
       upgradeBody: "Le forfait {plan} comprend {articles}, {terms} et {credits}.",
       upgradeLink: "Découvrir {plan}",
       statusActive: "Actif",
-      statusTrialing: "Articles gratuits",
+      statusTrialing: "Essai gratuit",
       statusPastDue: "Paiement en retard",
       statusUnpaid: "Impayé",
       statusIncomplete: "Paiement incomplet",
@@ -11112,9 +11049,9 @@ const fr: Messages = {
       billedByCardEnding: "L’abonnement par carte de ce site prend fin le {date}. Vous pourrez choisir PayPal une fois qu’il aura pris fin.",
       billedByPayPalEnding: "L’abonnement PayPal de ce site est annulé et son forfait reste actif jusqu’au {date}. Vous pourrez de nouveau choisir un forfait, par carte ou PayPal, une fois qu’il aura pris fin.",
       paypalFreeTitle: "Votre forfait {plan} démarre le {date}",
-      paypalFreeBody: "D’ici là, ce site profite de ses articles gratuits. Pour écrire plus d’articles et utiliser toutes les fonctionnalités dès maintenant, démarrez le forfait aujourd’hui : PayPal le débite maintenant, et l’abonnement gratuit est annulé sans aucun débit.",
+      paypalFreeBody: "D’ici là, ce site est en essai gratuit. Pour profiter dès maintenant du service mensuel complet de votre forfait, démarrez-le aujourd’hui : PayPal le débite maintenant, et l’abonnement d’essai est annulé sans aucun débit.",
       startPlanNow: "Démarrer mon forfait maintenant",
-      paypalFreePlans: "Choisir un forfait ci-dessous le démarre aujourd’hui avec PayPal, à la place des articles gratuits.",
+      paypalFreePlans: "Choisir un forfait ci-dessous le démarre aujourd’hui avec PayPal, à la place de l’essai gratuit.",
       noPlanChange: "Le changement de forfait n’est pas disponible pour ce site pour le moment.",
       paypalApproved: "Autorisation PayPal reçue - confirmation de votre abonnement…",
       paypalCancelled: "Paiement PayPal annulé.",
@@ -13168,8 +13105,8 @@ const fr: Messages = {
       growthEngineReady: "Votre moteur de croissance est prêt",
       plan: "Forfait",
       payYearly: "Paiement annuel",
-      paypalNoTrial: "PayPal démarre votre forfait immédiatement, sans les articles gratuits.",
-      paypalFreeArticles: "Avec PayPal aussi, vos {n} articles gratuits d’abord, et rien n’est débité aujourd’hui. Votre forfait démarre au bout de {days} jours, ou plus tôt si vous le démarrez dans Facturation.",
+      paypalNoTrial: "PayPal démarre votre forfait immédiatement, sans l’essai gratuit.",
+      paypalFreeArticles: "Commencez aussi votre essai gratuit de {days} jours avec PayPal. Rien n’est débité aujourd’hui. Votre forfait payant démarre après l’essai, sauf si vous résiliez avant sa fin.",
       cancelAnyTime: "Annulez à tout moment. Un code promo peut être saisi au paiement.",
       whatsIncluded: "Ce qui est inclus",
       secureByStripe: "Paiement sécurisé par Stripe. Vos données bancaires ne nous parviennent jamais.",
@@ -13548,7 +13485,7 @@ const it: Messages = {
     planArticles: "{n} articolo al mese|{n} articoli al mese",
     planBacklinks: "Backlink dalla nostra rete di partner",
     planPublishing: "Pubblicazione automatica su WordPress, Shopify e altro",
-    createFreeArticles: "Crei 3 articoli gratis",
+    createFreeArticles: "Inizi la sua prova gratuita di 3 giorni",
     closingTitle: "Il suo sito potrebbe crescere più velocemente.",
     closingTitleAccent: "crescere più velocemente.",
     closingSub:
@@ -13572,20 +13509,6 @@ const it: Messages = {
     annualNote:
       "I piani annuali sono disponibili dopo la registrazione, con due mesi gratis. Può disdire quando vuole: consulti la nostra",
     refundPolicy: "politica di rimborso",
-    trial: {
-      title: "Prova gratuita o piano a pagamento",
-      intro: "Oggi non viene addebitato nulla. Il piano inizia dopo che i suoi {articles} articoli gratuiti sono stati scritti, o al più tardi dopo {days} giorni.",
-      trialName: "Prova gratuita",
-      paidName: "Piano a pagamento",
-      articlesTrial: "{articles} articoli gratuiti, documentati, illustrati e pubblicati",
-      articlesPaid: "Tutti gli articoli del suo piano, ogni mese",
-      check: "Controllo del sito",
-      creditsTrial: "{count} crediti al giorno per i primi {days} giorni",
-      creditsPaid: "Crediti ogni mese, e altri ogni giorno in cui fa il check-in",
-      aiVisibility: "Visibilità nelle IA su ChatGPT, Claude, Gemini e Perplexity",
-      backlinks: "Backlink dalla nostra rete di partner",
-      notIncluded: "Non incluso",
-    },
     features: {
       articles: "{n} articolo scritto al mese|{n} articoli scritti al mese",
       keywords: "{n} termini di ricerca monitorati",
@@ -13662,7 +13585,7 @@ const it: Messages = {
     ],
     ctaTitle: "Il suo sito potrebbe essere il prossimo caso.",
     ctaBody:
-      "Inizi con un controllo gratuito del sito: un minuto e nessun costo. Se ciò che troviamo merita, i nuovi account ricevono gratis i primi {count} articoli.",
+      "Inizi con un controllo gratuito del sito: un minuto e nessun costo. Se ciò che troviamo merita, i nuovi account hanno una prova gratuita di {days} giorni con il servizio completo del loro piano.",
     ctaPrimary: "Controlla il mio sito",
     ctaSecondary: "Vedi i prezzi",
   },
@@ -14373,7 +14296,7 @@ const it: Messages = {
       upgradeBody: "Il piano {plan} include {articles}, {terms} e {credits}.",
       upgradeLink: "Scopra cosa offre {plan}",
       statusActive: "Attivo",
-      statusTrialing: "Articoli gratuiti",
+      statusTrialing: "Prova gratuita",
       statusPastDue: "Pagamento in ritardo",
       statusUnpaid: "Non pagato",
       statusIncomplete: "Pagamento incompleto",
@@ -14389,9 +14312,9 @@ const it: Messages = {
       billedByCardEnding: "L’abbonamento con carta di questo sito web termina il {date}. Potrà scegliere PayPal quando sarà terminato.",
       billedByPayPalEnding: "L’abbonamento PayPal di questo sito web è annullato e il suo piano resta attivo fino al {date}. Potrà scegliere di nuovo un piano, con carta o PayPal, quando sarà terminato.",
       paypalFreeTitle: "Il suo piano {plan} parte il {date}",
-      paypalFreeBody: "Fino ad allora, questo sito web usa i suoi articoli gratuiti. Per scrivere altri articoli e usare subito tutte le funzioni, avvii il piano oggi: PayPal lo addebita ora e l’abbonamento gratuito viene annullato senza alcun addebito.",
+      paypalFreeBody: "Fino ad allora, questo sito web è in prova gratuita. Per avere subito il servizio mensile completo del suo piano, avvii il piano oggi: PayPal lo addebita ora e l’abbonamento di prova viene annullato senza alcun addebito.",
       startPlanNow: "Avvia ora il mio piano",
-      paypalFreePlans: "Scegliendo un piano qui sotto, parte oggi con PayPal, al posto degli articoli gratuiti.",
+      paypalFreePlans: "Scegliendo un piano qui sotto, parte oggi con PayPal, al posto della prova gratuita.",
       noPlanChange: "Al momento non è possibile cambiare il piano di questo sito web.",
       paypalApproved: "Approvazione PayPal ricevuta - stiamo confermando il suo abbonamento…",
       paypalCancelled: "Pagamento PayPal annullato.",
@@ -16446,8 +16369,8 @@ const it: Messages = {
       growthEngineReady: "Il suo motore di crescita è pronto",
       plan: "Piano",
       payYearly: "Pagamento annuale",
-      paypalNoTrial: "PayPal avvia subito il suo piano, senza gli articoli gratuiti.",
-      paypalFreeArticles: "Anche con PayPal, prima i suoi {n} articoli gratuiti e oggi non viene addebitato nulla. Il suo piano parte dopo {days} giorni, o prima se lo avvia in Fatturazione.",
+      paypalNoTrial: "PayPal avvia subito il suo piano, senza la prova gratuita.",
+      paypalFreeArticles: "Inizi la sua prova gratuita di {days} giorni anche con PayPal. Oggi non viene addebitato nulla. Il suo piano a pagamento parte dopo la prova, a meno che non disdica prima della fine.",
       cancelAnyTime: "Disdica quando vuole. Al pagamento può inserire un codice promozionale.",
       whatsIncluded: "Che cosa include",
       secureByStripe: "Pagamento sicuro con Stripe. I dati della sua carta non arrivano mai a noi.",
@@ -16821,7 +16744,7 @@ const de: Messages = {
     planBacklinks: "Backlinks aus unserem Partnernetzwerk",
     planPublishing:
       "Automatisch veröffentlichen auf WordPress, Shopify und mehr",
-    createFreeArticles: "3 Artikel kostenlos erstellen",
+    createFreeArticles: "3 Tage kostenlos testen",
     closingTitle: "Ihre Website könnte schneller wachsen.",
     closingTitleAccent: "schneller wachsen.",
     closingSub:
@@ -16845,20 +16768,6 @@ const de: Messages = {
     annualNote:
       "Jahrestarife sind nach der Anmeldung verfügbar, mit zwei Freimonaten. Jederzeit kündbar - siehe unsere",
     refundPolicy: "Rückerstattungsrichtlinie",
-    trial: {
-      title: "Kostenloser Test oder kostenpflichtiger Tarif",
-      intro: "Heute wird nichts berechnet. Ihr Tarif beginnt, sobald Ihre {articles} kostenlosen Artikel geschrieben sind, spätestens nach {days} Tagen.",
-      trialName: "Kostenloser Test",
-      paidName: "Kostenpflichtiger Tarif",
-      articlesTrial: "{articles} kostenlose Artikel, recherchiert, bebildert und veröffentlicht",
-      articlesPaid: "Alle Artikel Ihres Tarifs, jeden Monat",
-      check: "Website-Prüfung",
-      creditsTrial: "{count} Credits pro Tag in Ihren ersten {days} Tagen",
-      creditsPaid: "Credits jeden Monat, dazu weitere an jedem Tag, an dem Sie einchecken",
-      aiVisibility: "KI-Sichtbarkeit in ChatGPT, Claude, Gemini und Perplexity",
-      backlinks: "Backlinks aus unserem Partnernetzwerk",
-      notIncluded: "Nicht enthalten",
-    },
     features: {
       articles: "{n} Artikel pro Monat geschrieben|{n} Artikel pro Monat geschrieben",
       keywords: "{n} Suchbegriffe überwacht",
@@ -16936,7 +16845,7 @@ const de: Messages = {
     ],
     ctaTitle: "Ihre Website könnte die nächste Geschichte sein.",
     ctaBody:
-      "Starten Sie mit einer kostenlosen Prüfung Ihrer Website - eine Minute, kostenlos. Wenn sich das Ergebnis lohnt, erhalten neue Konten ihre ersten {count} Artikel kostenlos.",
+      "Starten Sie mit einer kostenlosen Prüfung Ihrer Website - eine Minute, kostenlos. Wenn sich das Ergebnis lohnt, erhalten neue Konten eine {days}-tägige kostenlose Testphase mit dem vollen Service ihres Tarifs.",
     ctaPrimary: "Website prüfen",
     ctaSecondary: "Preise ansehen",
   },
@@ -17649,7 +17558,7 @@ const de: Messages = {
       upgradeBody: "Der Tarif {plan} umfasst {articles}, {terms} und {credits}.",
       upgradeLink: "Mehr zu {plan}",
       statusActive: "Aktiv",
-      statusTrialing: "Kostenlose Artikel",
+      statusTrialing: "Kostenlose Testphase",
       statusPastDue: "Zahlung überfällig",
       statusUnpaid: "Unbezahlt",
       statusIncomplete: "Zahlung unvollständig",
@@ -17665,9 +17574,9 @@ const de: Messages = {
       billedByCardEnding: "Das Kartenabonnement dieser Website endet am {date}. Sobald es beendet ist, können Sie PayPal wählen.",
       billedByPayPalEnding: "Das PayPal-Abonnement dieser Website ist gekündigt, ihr Tarif läuft noch bis zum {date}. Sobald er beendet ist, können Sie wieder einen Tarif wählen, per Karte oder PayPal.",
       paypalFreeTitle: "Ihr Tarif {plan} beginnt am {date}",
-      paypalFreeBody: "Bis dahin nutzt diese Website ihre kostenlosen Artikel. Um weitere Artikel zu schreiben und alle Funktionen sofort zu nutzen, starten Sie den Tarif heute: PayPal bucht ihn jetzt ab, und das kostenlose Abonnement wird ohne Abbuchung gekündigt.",
+      paypalFreeBody: "Bis dahin läuft für diese Website die kostenlose Testphase. Um den vollen monatlichen Service Ihres Tarifs sofort zu nutzen, starten Sie den Tarif heute: PayPal bucht ihn jetzt ab, und das Testabonnement wird ohne Abbuchung gekündigt.",
       startPlanNow: "Meinen Tarif jetzt starten",
-      paypalFreePlans: "Ein Tarif, den Sie unten wählen, beginnt heute mit PayPal - anstelle der kostenlosen Artikel.",
+      paypalFreePlans: "Ein Tarif, den Sie unten wählen, beginnt heute mit PayPal - anstelle der kostenlosen Testphase.",
       noPlanChange: "Ein Tarifwechsel ist für diese Website derzeit nicht möglich.",
       paypalApproved: "PayPal-Freigabe erhalten - Ihr Abonnement wird bestätigt…",
       paypalCancelled: "PayPal-Bezahlvorgang abgebrochen.",
@@ -19721,8 +19630,8 @@ const de: Messages = {
       growthEngineReady: "Ihr Wachstumsmotor steht bereit",
       plan: "Tarif",
       payYearly: "Jährlich zahlen",
-      paypalNoTrial: "PayPal startet Ihren Tarif sofort, ohne die kostenlosen Artikel.",
-      paypalFreeArticles: "Auch mit PayPal zuerst Ihre {n} kostenlosen Artikel, und heute wird nichts abgebucht. Ihr Tarif beginnt nach {days} Tagen oder früher, wenn Sie ihn unter Abrechnung starten.",
+      paypalNoTrial: "PayPal startet Ihren Tarif sofort, ohne die kostenlose Testphase.",
+      paypalFreeArticles: "Starten Sie Ihre {days}-tägige kostenlose Testphase auch mit PayPal. Heute wird nichts abgebucht. Ihr kostenpflichtiger Tarif beginnt nach der Testphase, sofern Sie nicht vor deren Ende kündigen.",
       cancelAnyTime: "Jederzeit kündbar. Einen Gutscheincode können Sie beim Bezahlen eingeben.",
       whatsIncluded: "Was enthalten ist",
       secureByStripe: "Sichere Zahlung über Stripe. Ihre Kartendaten erreichen uns nie.",
