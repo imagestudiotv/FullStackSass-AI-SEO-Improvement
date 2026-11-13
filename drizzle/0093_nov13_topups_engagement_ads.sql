@@ -167,6 +167,24 @@ DO $$ BEGIN
 END $$;
 
 --> statement-breakpoint
+-- Compatibility (coordinator, 2026-11-13): this migration runs BEFORE the new code is deployed, and must
+-- survive a code rollback. The previous code inserts upvotes and comments without discussion_id (and with
+-- onConflictDoNothing(), which honours the new unique index too). This fills it from the post, so those
+-- inserts keep working; a value the new code sets is kept (the composite foreign key still checks it).
+CREATE OR REPLACE FUNCTION blog_engagement_discussion() RETURNS trigger AS $$
+BEGIN
+	IF NEW."discussion_id" IS NULL THEN
+		NEW."discussion_id" := (SELECT p."discussion_id" FROM "blog_posts" AS p WHERE p."id" = NEW."post_id");
+	END IF;
+	RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;--> statement-breakpoint
+DROP TRIGGER IF EXISTS "blog_post_upvotes_discussion" ON "blog_post_upvotes";--> statement-breakpoint
+CREATE TRIGGER "blog_post_upvotes_discussion" BEFORE INSERT ON "blog_post_upvotes"
+	FOR EACH ROW EXECUTE FUNCTION blog_engagement_discussion();--> statement-breakpoint
+DROP TRIGGER IF EXISTS "blog_comments_discussion" ON "blog_comments";--> statement-breakpoint
+CREATE TRIGGER "blog_comments_discussion" BEFORE INSERT ON "blog_comments"
+	FOR EACH ROW EXECUTE FUNCTION blog_engagement_discussion();--> statement-breakpoint
 -- Nov 13 ticket, area "ads": rewarded ads on Earn Credits (lib/earn/rewarded-ads.ts).
 -- Hand-written draft. Additive and idempotent. The coordinator numbers it and
 -- regenerates it with drizzle-kit; this file only has to match schema.ts.
