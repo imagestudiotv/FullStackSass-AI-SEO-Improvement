@@ -9,6 +9,7 @@ import { categoryAlternates } from "@/lib/blog/locale";
 import { blogPage, blogPageHref, pageSuffix } from "@/lib/blog/pagination";
 import { listPostPage, publishedCategoryLocales } from "@/lib/blog/posts";
 import { jsonLdScript } from "@/lib/blog/shared";
+import { metaDescription, pagedDescription } from "@/lib/seo/meta-description";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
 import { siteUrl } from "@/lib/site-url";
 import { breadcrumbList } from "@/lib/structured-data";
@@ -39,7 +40,8 @@ export async function generateMetadata({
   const languages = locales.includes("en") ? categoryAlternates(category.slug, locales) : undefined;
   return {
     title: `${category.name}${pageSuffix(page)}`,
-    description: page > 1 ? `${category.blurb.replace(/\.$/, "")}${pageSuffix(page)}.` : category.blurb,
+    // The blurb is also the page's intro; only the meta is shortened (lib/seo/meta-description.ts).
+    description: page > 1 ? pagedDescription(category.blurb, pageSuffix(page)) : metaDescription(category.blurb),
     ...base,
     alternates: languages ? { ...base.alternates, languages } : base.alternates,
   };

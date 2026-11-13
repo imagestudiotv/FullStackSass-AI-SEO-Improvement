@@ -11,6 +11,7 @@ import { listPostPage, publishedCategoryLocales } from "@/lib/blog/posts";
 import { categoryText, jsonLdScript } from "@/lib/blog/shared";
 import { isLocale, localePath, type Locale } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
+import { metaDescription, pagedDescription } from "@/lib/seo/meta-description";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
 import { siteUrl } from "@/lib/site-url";
 import { breadcrumbList } from "@/lib/structured-data";
@@ -62,7 +63,8 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const languages = page === 1 && !empty ? categoryAlternates(category.slug, locales) : undefined;
   return {
     title: `${text.name}${pageSuffix(page, t.pageN)}`,
-    description: page > 1 ? `${text.blurb.replace(/\.$/, "")}${pageSuffix(page, t.pageN)}.` : text.blurb,
+    // The blurb is also the page's intro; only the meta is shortened (lib/seo/meta-description.ts).
+    description: page > 1 ? pagedDescription(text.blurb, pageSuffix(page, t.pageN)) : metaDescription(text.blurb),
     ...base,
     alternates: languages ? { ...base.alternates, languages } : base.alternates,
     // Nothing in this language yet: only the English posts, which have their own page.
