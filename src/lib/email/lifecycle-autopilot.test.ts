@@ -126,6 +126,14 @@ describe("the free period's day-2 email", () => {
     expect(mail.text).toContain("/unsubscribe/");
   });
 
+  it("goes to the 3-day free trial too (TRIAL_DAYS, 2026-11-13)", async () => {
+    const { orgId, websiteId } = await account();
+    const start = new Date(Date.now() - 25 * HOUR);
+    await subscription(orgId, websiteId, { status: "trialing", start, end: new Date(start.getTime() + 3 * DAY) });
+    await emailTrialsProgress();
+    expect(await rowsOf("trial_progress", `org:${orgId}`)).toHaveLength(1);
+  });
+
   it("not before a day, not once cancelled, not once the plan has started", async () => {
     const early = await account();
     const young = await subscription(early.orgId, early.websiteId, { status: "trialing", start: new Date(Date.now() - 2 * HOUR) });
@@ -135,7 +143,7 @@ describe("the free period's day-2 email", () => {
     expect((await emailTrialProgress(stopped)).status).toBe("skipped");
     const paid = await account();
     const started = await subscription(paid.orgId, paid.websiteId, { status: "active" });
-    expect(await emailTrialProgress(started)).toEqual({ status: "skipped", reason: "not_on_free_articles" });
+    expect(await emailTrialProgress(started)).toEqual({ status: "skipped", reason: "not_on_trial" });
     expect(sent.sendEmail).not.toHaveBeenCalled();
   });
 

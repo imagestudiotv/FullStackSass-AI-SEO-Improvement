@@ -62,7 +62,7 @@ import {
 } from "@/lib/billing/spend-quota";
 import { requireEntitledForSpend } from "@/lib/billing/entitled";
 import { endFreeTrialIfUsed } from "@/lib/billing/end-free-trial";
-import { freeArticlesDailyRule, freeArticlesUsedMessage } from "@/lib/billing/free-articles";
+import { freeArticlesDailyRule, freeArticlesUsedMessage, trialArticlesUsedMessage } from "@/lib/billing/free-articles";
 import { FREE_ARTICLES_ONLY, FREE_ARTICLES_ONLY_PAYPAL } from "@/lib/plans/features";
 import { deliverNow, enqueueJob } from "@/lib/jobs/outbox";
 
@@ -1263,11 +1263,13 @@ export const generateArticle = inngest.createFunction(
     });
 
     /*
-      A new account's last free article starts its plan (lib/billing/
-      free-articles.ts) - by card; through PayPal the customer is told the
-      plan now waits for them. After the notification, and never failing the
-      run: the article is written whatever billing says, and the trial ends
-      by itself if this cannot reach Stripe.
+      A LEGACY free-articles trial's last free article starts its plan (lib/
+      billing/free-articles.ts) - by card; through PayPal the customer is
+      told the plan now waits for them. The free trial (TRIAL_DAYS) is never
+      ended early: endFreeTrialIfUsed does nothing for it. After the
+      notification, and never failing the run: the article is written
+      whatever billing says, and the trial ends by itself if this cannot
+      reach Stripe.
     */
     await step.run("end-free-trial", () => endFreeTrialIfUsed(brief.websiteId));
 
@@ -1471,7 +1473,9 @@ export async function queueArticleForCalendarItem(
         ok: false as const,
         error: allowance.freeArticles
           ? freeArticlesUsedMessage()
-          : `Your plan includes ${allowance.rule.limit} articles per month, and they have all been used.`,
+          : allowance.trial
+            ? trialArticlesUsedMessage(allowance.rule.limit)
+            : `Your plan includes ${allowance.rule.limit} articles per month, and they have all been used.`,
         freeArticlesUsed: allowance.freeArticles,
       };
     }

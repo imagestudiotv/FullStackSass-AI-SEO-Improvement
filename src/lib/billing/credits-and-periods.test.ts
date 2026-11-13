@@ -290,9 +290,10 @@ describe("article allowance windows", () => {
   /*
     The paid month after a trial starts fresh (2026-10-09; it was "the trial
     is part of the first month" from 2026-10-05). Display (checkLimit) and
-    enforcement (the reservation rule) must agree on it. A 3-day trial from
-    before the change keeps its plan's allowance during the trial; the free
-    articles' trial is tested in free-articles.test.ts.
+    enforcement (the reservation rule) must agree on it. The 3-day free trial
+    (TRIAL_DAYS, 2026-11-13) has its plan's allowance pro-rated to it - 3 of
+    a 30-article month; the legacy free articles' trial is tested in
+    free-articles.test.ts.
   */
   it("does not count a trial's articles again in the paid month", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
@@ -306,8 +307,8 @@ describe("article allowance windows", () => {
       periodEnd: d("2026-10-04T18:50:18Z"),
       createdAt: d("2026-10-01T18:50:40Z"),
     });
-    await useArticles(websiteId, d("2026-10-02T09:00:00Z"), 10);
-    expect(await checkLimit(websiteId, "articles")).toMatchObject({ used: 10, limit: 30, allowed: true });
+    await useArticles(websiteId, d("2026-10-02T09:00:00Z"), 2);
+    expect(await checkLimit(websiteId, "articles")).toMatchObject({ used: 2, limit: 3, allowed: true, trial: true });
 
     // Converted: the provider moves the period to start at the trial's end.
     await test.db

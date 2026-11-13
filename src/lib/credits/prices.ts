@@ -73,7 +73,7 @@ export const MAX_ADDON_PRICE = 100_000;
 
 export const DAILY_FREE_KEY = "daily_free";
 /**
- * Daily credits during the free-articles trial (client, 2026-10-27: 15 a day,
+ * Daily credits during a trial - the free trial, or a legacy free-articles one (client, 2026-10-27: 15 a day,
  * so a trial can try what credits buy), on its first TRIAL_CREDIT_DAYS days
  * only - "the 4th day the free credit is not given" (lib/credits/daily.ts).
  */

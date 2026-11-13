@@ -287,9 +287,13 @@ async function snapshotOf(
   */
   if (planId && custom) planId = (await heldPlan(reader, subscriptionId, planId, live, now)) ?? planId;
   /*
-    In its free days, a free-articles plan is "trialing", as a card trial is
-    (2026-10-22): the free articles, the features that wait for the plan and
-    the managed network's wait all read that status.
+    In its free days, a trial plan is "trialing", as a card trial is
+    (2026-10-22), and "active" once PayPal has moved on to its paid cycle. Its
+    period runs from the start to the first charge (next_billing_time): 3 days
+    on a TRIAL_DAYS plan - the free trial, its allowances pro-rated (lib/
+    usage.ts) - and 30 on a free-articles plan replaced since, still matched
+    through its history, whose subscribers keep the free articles
+    (isFreeArticlesTrial: a period longer than a week).
   */
   const status = freeArticlesPlan && inFreeDays(live, now) ? "trialing" : mapStatus(live.status, live.billing_info);
   if (!custom) {

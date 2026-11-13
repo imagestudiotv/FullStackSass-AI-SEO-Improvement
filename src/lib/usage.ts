@@ -8,8 +8,10 @@ import {
   allowanceWindowStart,
   calendarMonth,
   isFreeArticlesTrial,
+  isTrialPeriod,
+  trialAllowance,
 } from "@/lib/billing/entitlement-period";
-import { FREE_ARTICLES } from "@/lib/plans/features";
+import { FREE_ARTICLES, TRIAL_DAYS } from "@/lib/plans/features";
 import {
   articles,
   keywords,
@@ -175,7 +177,7 @@ export type { LimitCheck } from "@/lib/usage-shared";
  * Statuses that grant access. Stripe keeps a subscription alive through
  * payment retries as "past_due", so treating any non-"active" value as
  * cancelled would lock out customers mid-dunning; "trialing" is a new
- * customer on their free articles (card given, plan chosen). Anything else
+ * customer in their free trial (card given, plan chosen). Anything else
  * (canceled, unpaid, incomplete*) does not grant access.
  */
 const ENTITLED_STATUSES = new Set(["active", "trialing", "past_due"]);
@@ -279,8 +281,21 @@ async function resolvePlan(
   const freeArticles = !agency && isFreeArticlesTrial(sub!);
   // Through PayPal the plan does not start by itself after the last of them (free-articles.ts).
   const paypalFreeArticles = freeArticles && sub!.provider === "paypal";
+  /*
+    The free trial (lib/plans/features.ts TRIAL_DAYS, 2026-11-13): the plan's
+    normal service at the plan's daily pace - every MONTHLY allowance
+    pro-rated to the trial (Grow's 60 articles: 6 in 3 days). Articles are the
+    one monthly count kept here. The keyword limit is not monthly (topics
+    kept, not used up), so it is the plan's; social posts and videos are paid
+    in credits, which the trial's daily credits cover (lib/credits/daily.ts).
+  */
+  const trial = !agency && isTrialPeriod(sub!);
   const planLimits = agency ?? {
-    articles: freeArticles ? FREE_ARTICLES : sub!.articleLimit!,
+    articles: freeArticles
+      ? FREE_ARTICLES
+      : trial
+        ? trialAllowance(sub!.articleLimit!, TRIAL_DAYS)
+        : sub!.articleLimit!,
     keywords: sub!.keywordLimit!,
   };
 
@@ -294,13 +309,19 @@ async function resolvePlan(
     30-day trial is longer than February, and a second month opening inside
     it would hand out the free articles twice.
   */
+  /*
+    The free trial's articles are counted from its start as well, and the
+    paid month after it starts in full (lib/billing/entitlement-period.ts).
+  */
   const from = agency
     ? calendarMonth().start
     : freeArticles
       ? sub!.currentPeriodStart!
-      : periodStart(sub!);
+      : trial && sub!.currentPeriodStart
+        ? sub!.currentPeriodStart
+        : periodStart(sub!);
 
-  return { ok: true as const, orgId, planLimits, from, freeArticles, paypalFreeArticles };
+  return { ok: true as const, orgId, planLimits, from, freeArticles, paypalFreeArticles, trial };
 }
 
 /** Ledger key for a website's monthly article allowance. */
@@ -408,7 +429,14 @@ export async function articleAllowanceRule(
   websiteId: string,
   executor: Pick<typeof db, "select" | "execute"> = db,
 ): Promise<
-  | { ok: true; rule: QuotaRule; organizationId: string; freeArticles: boolean }
+  | {
+      ok: true;
+      rule: QuotaRule;
+      organizationId: string;
+      freeArticles: boolean;
+      /** In the free trial (TRIAL_DAYS): rule.limit is the plan's allowance pro-rated to it. */
+      trial: boolean;
+    }
   | { ok: false; reason: "no_active_plan" | "subscription_inactive" }
 > {
   const plan = await resolvePlan(websiteId, executor);
@@ -417,6 +445,7 @@ export async function articleAllowanceRule(
     ok: true,
     organizationId: plan.orgId,
     freeArticles: plan.freeArticles,
+    trial: plan.trial,
     rule: {
       key: articleAllowanceKey(websiteId),
       limit: plan.planLimits.articles,
@@ -455,7 +484,7 @@ export async function checkLimit(
   if (!plan.ok) {
     return { allowed: false, used: 0, limit: 0, reason: plan.reason };
   }
-  const { orgId, planLimits, from, freeArticles, paypalFreeArticles } = plan;
+  const { orgId, planLimits, from, freeArticles, paypalFreeArticles, trial } = plan;
 
   let used: number;
   let limit: number;
@@ -496,6 +525,7 @@ export async function checkLimit(
     reason: allowed ? null : "limit_reached",
     freeArticles,
     paypalFreeArticles,
+    trial,
   };
 }
 

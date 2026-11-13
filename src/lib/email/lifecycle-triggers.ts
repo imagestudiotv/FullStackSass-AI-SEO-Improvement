@@ -4,7 +4,6 @@ import { and, asc, count, eq, gt, gte, inArray, isNotNull, isNull, lte, sql, typ
 
 import { customerTitleSql } from "@/lib/articles/review";
 
-import { isFreeArticlesTrial } from "@/lib/billing/entitlement-period";
 import { WINBACK_BONUS_CREDITS, WINBACK_PERCENT_OFF, winbackOfferEnabled } from "@/lib/billing/winback-offer";
 import { db } from "@/lib/db";
 import {
@@ -139,7 +138,8 @@ export type PreviousSubscription = { status: string; cancelAtPeriodEnd: boolean 
  * customer is told once, when it happens, and turning the emails on never
  * sends anything about a change that happened before:
  *
- *  - trial_started: now on its free articles, and was not.
+ *  - trial_started: now in a free trial (the TRIAL_DAYS trial, or a legacy
+ *    free-articles one), and was not.
  *  - trial_ended: the free period ended, unpaid, without the customer having
  *    cancelled it (that was confirmed already).
  *  - cancellation_confirmed: set to end at the period's end, with that date;
@@ -148,7 +148,7 @@ export type PreviousSubscription = { status: string; cancelAtPeriodEnd: boolean 
  *
  * Called by syncProviderSubscription after its transaction commits, for both
  * Stripe and PayPal. A row with no website attached emails nobody - that is
- * a deleted site, or free articles that a plan started in place of.
+ * a deleted site, or a PayPal trial that a plan started in place of.
  */
 export async function emailsAfterSubscriptionSync(
   executor: Executor,
@@ -165,8 +165,7 @@ export async function emailsAfterSubscriptionSync(
   if (
     row.status === "trialing" &&
     previous?.status !== "trialing" &&
-    row.currentPeriodEnd &&
-    isFreeArticlesTrial(row)
+    row.currentPeriodEnd
   ) {
     const endsOn = row.currentPeriodEnd;
     await sendLifecycleEmail(
@@ -395,8 +394,9 @@ export async function emailFirstPayment(
 }
 
 /**
- * The free periods ending in the next 24 hours: still on their free articles,
- * not cancelled, attached to a website. Read from the stored trial end by the
+ * The free trials ending in the next 24 hours (every trial: the TRIAL_DAYS
+ * one, and a legacy free-articles one): still trialing, not cancelled,
+ * attached to a website. Read from the stored trial end by the
  * hourly job, so the reminder goes about a day before, and every condition is
  * checked again at that moment - a trial that has started its plan, been
  * cancelled or been moved is simply no longer in this list.
@@ -426,7 +426,7 @@ export async function emailTrialsEnding(now: Date = new Date(), executor: Execut
 /**
  * "Fingers crossed!" (client, 2026-11-11, "Email Autopilot"): about a day into
  * a website's free period, its journey and its first figures. The free
- * periods that started 24 to 48 hours ago, still on their free articles, not
+ * periods that started 24 to 48 hours ago, still trialing (any trial), not
  * cancelled, attached to a website - read by the hourly job from the stored
  * period start, and checked again when sent. Once per subscription.
  */
@@ -483,8 +483,8 @@ export async function emailTrialProgress(
 ): Promise<LifecycleOutcome> {
   const row = await subscriptionFacts(executor, eq(subscriptions.id, subscriptionId));
   if (!row?.websiteId || !row.currentPeriodStart) return { status: "skipped", reason: "no_website" };
-  if (row.status !== "trialing" || row.cancelAtPeriodEnd || !isFreeArticlesTrial(row)) {
-    return { status: "skipped", reason: "not_on_free_articles" };
+  if (row.status !== "trialing" || row.cancelAtPeriodEnd) {
+    return { status: "skipped", reason: "not_on_trial" };
   }
   if (now.getTime() - row.currentPeriodStart.getTime() < DAY_MS) return { status: "skipped", reason: "too_early" };
   const websiteId = row.websiteId;
@@ -514,8 +514,8 @@ export async function emailTrialProgress(
 export async function emailTrialEnding(subscriptionId: string, executor: Executor = db): Promise<LifecycleOutcome> {
   const row = await subscriptionFacts(executor, eq(subscriptions.id, subscriptionId));
   if (!row?.websiteId || !row.currentPeriodEnd) return { status: "skipped", reason: "no_website" };
-  if (row.status !== "trialing" || row.cancelAtPeriodEnd || !isFreeArticlesTrial(row)) {
-    return { status: "skipped", reason: "not_on_free_articles" };
+  if (row.status !== "trialing" || row.cancelAtPeriodEnd) {
+    return { status: "skipped", reason: "not_on_trial" };
   }
   const websiteId = row.websiteId;
   const endsOn = row.currentPeriodEnd;
@@ -655,7 +655,7 @@ export function isoWeek(date: Date): string {
   return `${day.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
 }
 
-/** The workspaces the summary goes to: a website on a plan or on its free articles. */
+/** The workspaces the summary goes to: a website on a plan or in its free trial. */
 export async function weeklySummaryOrganizations(executor: Executor = db): Promise<string[]> {
   const rows = await executor
     .selectDistinct({ organizationId: subscriptions.organizationId })

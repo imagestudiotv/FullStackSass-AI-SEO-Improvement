@@ -268,8 +268,17 @@ describe("the free period ending", () => {
   it("is skipped once the plan is paid", async () => {
     const { orgId, websiteId } = await account({ website: true });
     const row = await subscription(orgId, websiteId!, { status: "active" });
-    expect(await emailTrialEnding(row.id)).toEqual({ status: "skipped", reason: "not_on_free_articles" });
+    expect(await emailTrialEnding(row.id)).toEqual({ status: "skipped", reason: "not_on_trial" });
     expect(sent.sendEmail).not.toHaveBeenCalled();
+  });
+
+  it("goes to the 3-day free trial too (TRIAL_DAYS, 2026-11-13), not only to free articles", async () => {
+    const { orgId, websiteId } = await account({ website: true });
+    const end = new Date(Date.now() + 20 * 60 * 60 * 1000);
+    const row = await subscription(orgId, websiteId!, { status: "trialing", start: new Date(end.getTime() - 3 * DAY), end });
+    await emailTrialsEnding();
+    expect(await rowsOf("trial_ending", `org:${orgId}`)).toHaveLength(1);
+    expect(await emailTrialEnding(row.id)).toEqual({ status: "duplicate" });
   });
 
   it("is skipped once cancelled, and never sent for a trial further away", async () => {
@@ -302,6 +311,20 @@ describe("billing changes", () => {
     const trialRow = await subscription(trial.orgId, trial.websiteId!, { status: "canceled" });
     await emailsAfterSubscriptionSync(test.db, trialRow.id, { status: "trialing", cancelAtPeriodEnd: false });
     expect(sent.sendEmail.mock.calls[2][0].subject).toBe("Your free period has ended");
+  });
+
+  it("emails the start of a trial - the 3-day free trial as well as a legacy free-articles one - once", async () => {
+    const short = await account({ website: true });
+    const end = new Date(Date.now() + 3 * DAY);
+    const shortRow = await subscription(short.orgId, short.websiteId!, { status: "trialing", start: new Date(), end });
+    await emailsAfterSubscriptionSync(test.db, shortRow.id, null);
+    await emailsAfterSubscriptionSync(test.db, shortRow.id, { status: "trialing", cancelAtPeriodEnd: false });
+    expect(await rowsOf("trial_started", `org:${short.orgId}`)).toHaveLength(1);
+
+    const legacy = await account({ website: true });
+    const legacyRow = await subscription(legacy.orgId, legacy.websiteId!, { status: "trialing", start: new Date(), end: new Date(Date.now() + 30 * DAY) });
+    await emailsAfterSubscriptionSync(test.db, legacyRow.id, null);
+    expect(await rowsOf("trial_started", `org:${legacy.orgId}`)).toHaveLength(1);
   });
 
   it("gives a scheduled cancellation's own date, not the period's end (Stripe cancel_at)", async () => {

@@ -23,7 +23,7 @@ const sync = vi.hoisted(() => ({ syncStripeSubscription: vi.fn() }));
 vi.mock("@/lib/billing/stripe-events", () => sync);
 
 import { endFreeTrialIfUsed } from "@/lib/billing/end-free-trial";
-import { FREE_ARTICLES } from "@/lib/plans/features";
+import { FREE_ARTICLES, TRIAL_DAYS } from "@/lib/plans/features";
 
 let test: TestDb;
 const DAY = 24 * 60 * 60 * 1000;
@@ -96,6 +96,26 @@ describe("starting the plan after the free articles", () => {
     expect(await endFreeTrialIfUsed(websiteId)).toBe("ended");
     expect(stripeMock.update).not.toHaveBeenCalled();
     expect(sync.syncStripeSubscription).toHaveBeenCalledWith(subscriptionId);
+  });
+
+  it("never ends the 3-day free trial (TRIAL_DAYS), however many articles it has written - by card or PayPal", async () => {
+    const card = await onFreeArticles(TRIAL_DAYS);
+    await written(card.websiteId, 10);
+    expect(await endFreeTrialIfUsed(card.websiteId)).toBe("not_on_free_articles");
+
+    const paypal = await onFreeArticles(TRIAL_DAYS);
+    await test.db
+      .update(subscriptions)
+      .set({ provider: "paypal", stripeSubscriptionId: null, paypalSubscriptionId: `I-${paypal.websiteId.slice(0, 8)}` })
+      .where(eq(subscriptions.websiteId, paypal.websiteId));
+    await written(paypal.websiteId, 10);
+    expect(await endFreeTrialIfUsed(paypal.websiteId)).toBe("not_on_free_articles");
+
+    expect(stripeMock.retrieve).not.toHaveBeenCalled();
+    expect(stripeMock.update).not.toHaveBeenCalled();
+    expect(await test.db.select().from(notifications)).toEqual(
+      expect.not.arrayContaining([expect.objectContaining({ type: "billing.free_articles_written", organizationId: paypal.orgId })]),
+    );
   });
 
   it("leaves paying websites and older 3-day trials alone", async () => {

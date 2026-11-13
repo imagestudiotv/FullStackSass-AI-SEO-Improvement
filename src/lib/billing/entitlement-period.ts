@@ -30,6 +30,14 @@
  *    month of its own: the credit grant uses it so a trial granted credits
  *    under the old rule (a 3-day trial running when this shipped) is not
  *    granted them a second time at its conversion.
+ *  - SINCE 2026-11-13 A NEW TRIAL IS TRIAL_DAYS OF NORMAL SERVICE (client:
+ *    "3-day free trial is good instead of 3 free articles"). The same
+ *    mechanics: the trial is its own period, its articles are counted from
+ *    its start against the plan's allowance pro-rated to the trial
+ *    (trialAllowance), it earns no monthly or link credits, and converting
+ *    moves the anchor to its end, where the paid month starts in full. The
+ *    free-articles trials still running keep their terms until they end
+ *    (isFreeArticlesTrial).
  *  - Upgrading within the same interval keeps the anchor (Stripe prorates
  *    in place): the new plan's limit applies to the current period's usage.
  *    Changing interval moves the billing anchor, and a new period starts
@@ -223,7 +231,7 @@ export function allowanceWindowStart(
   return entitlementPeriod(anchor, now).start;
 }
 
-/** Longer than any trial that was not the free articles (the old one lasted 3 days). */
+/** Longer than any trial that was not the free articles (the old 3-day trial, and TRIAL_DAYS since 2026-11-13). */
 const FREE_ARTICLES_TRIAL_MIN_MS = 7 * DAY_MS;
 
 /**
@@ -245,4 +253,37 @@ export function isFreeArticlesTrial(sub: {
     sub.currentPeriodEnd !== null &&
     sub.currentPeriodEnd.getTime() - sub.currentPeriodStart.getTime() > FREE_ARTICLES_TRIAL_MIN_MS
   );
+}
+
+/**
+ * Whether a subscription is in the free trial (lib/plans/features.ts
+ * TRIAL_DAYS, client 2026-11-13: "3-day free trial is good instead of 3 free
+ * articles"): trialing, and not a legacy free-articles trial (above). It has
+ * the plan's normal service, at the plan's daily pace: its monthly
+ * allowances pro-rated to the trial (trialAllowance; lib/usage.ts).
+ *
+ * A trialing row without its dates is taken as this trial, the smaller
+ * allowance, never as the legacy one (which asks for both dates).
+ */
+export function isTrialPeriod(sub: {
+  status: string | null;
+  currentPeriodStart: Date | null;
+  currentPeriodEnd: Date | null;
+}): boolean {
+  return sub.status === "trialing" && !isFreeArticlesTrial(sub);
+}
+
+/** The month the trial's allowances are pro-rated against: 30 days. */
+const ALLOWANCE_MONTH_DAYS = 30;
+
+/**
+ * A monthly allowance pro-rated to the free trial: ceil(monthly x TRIAL_DAYS
+ * / 30), at least 1 - Grow's 60 articles a month are 6 in a 3-day trial, so
+ * the trial runs at the plan's daily pace and cannot use a whole month. An
+ * allowance that is not a positive count (0, or UNLIMITED = -1) is left as it
+ * is.
+ */
+export function trialAllowance(monthly: number, trialDays: number): number {
+  if (!Number.isFinite(monthly) || monthly <= 0) return monthly;
+  return Math.max(1, Math.ceil((monthly * trialDays) / ALLOWANCE_MONTH_DAYS));
 }

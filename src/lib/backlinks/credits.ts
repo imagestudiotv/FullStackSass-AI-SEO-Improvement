@@ -210,7 +210,10 @@ function grantPeriodStart(subscriptionId: string, key: string | null): Date | nu
  * account's free articles, and backlinks wait for the plan - lib/billing/
  * free-articles.ts). It replaces the 2026-10-05 rule that the trial was part
  * of the first month and was granted that month's credits. The paid period
- * after a trial is therefore granted in full at the conversion.
+ * after a trial is therefore granted in full at the conversion. The same for
+ * the free trial that replaced the free articles (TRIAL_DAYS, 2026-11-13):
+ * it has the trial's daily credits (lib/credits/daily.ts), and the monthly
+ * credits start with the plan.
  *
  * THE FIRST-MONTH TOP-UP is kept for one case: a 3-day trial that was
  * granted credits under the old rule and converts after this shipped. Its

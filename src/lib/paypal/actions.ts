@@ -185,10 +185,10 @@ export async function createPayPalCheckout(
   }
 
   /*
-    The free articles go to a PROVEN address, as with card (lib/stripe/
-    actions.ts): a workspace that would be given them cannot check out until
-    its email is confirmed. Only where PayPal can give them - a plan without
-    its free-articles PayPal plan charges at once, and needs nothing.
+    The free trial goes to a PROVEN address, as with card (lib/stripe/
+    actions.ts): a workspace that would be given it cannot check out until
+    its email is confirmed. Only where PayPal can give it - a plan without
+    its trial PayPal plan charges at once, and needs nothing.
   */
   if (plan.paypalTrialPlanId && !isDirectPurchaseTier(plan.tier)) {
     const session = await requireSession();
@@ -269,10 +269,10 @@ export async function createPayPalCheckout(
     return { error: `The welcome-back discount is not available with PayPal for "${plan.name}" yet. Please pay by card to get it.` };
   }
   /*
-    The free articles (2026-10-22): the checkout granted them, so the plan
-    with its free days first (scripts/paypal-plans.mjs); otherwise the plan
-    itself, charged at once - as when a plan is started now, in place of
-    the free articles.
+    The free trial (TRIAL_DAYS since 2026-11-13; the free articles before):
+    the checkout granted it, so the plan with its free days first (scripts/
+    paypal-plans.mjs); otherwise the plan itself, charged at once - as when
+    a plan is started now, in place of the trial.
   */
   const withFreeDays = trialDays > 0 && Boolean(plan.paypalTrialPlanId);
   const winback = discount !== null && !launchPrice;

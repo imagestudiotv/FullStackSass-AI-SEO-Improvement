@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { billingCheckouts, organization, plans, subscriptions, websites } from "@/lib/db/schema";
+import { billingCheckouts, organization, paypalPlanVersions, plans, subscriptions, websites } from "@/lib/db/schema";
 import { createTestDb, type TestDb } from "@/test/db";
 
 /**
@@ -22,9 +22,10 @@ vi.mock("@/lib/paypal/subscriptions", async (importOriginal) => ({
 }));
 
 import { beginCheckout, type CheckoutProviderOps } from "@/lib/billing/checkouts";
-import { isFreeArticlesTrial } from "@/lib/billing/entitlement-period";
+import { isFreeArticlesTrial, isTrialPeriod } from "@/lib/billing/entitlement-period";
 import { syncPayPalSubscription } from "@/lib/billing/paypal-events";
-import { FREE_ARTICLES_DAYS } from "@/lib/plans/features";
+import { TRIAL_DAYS } from "@/lib/plans/features";
+import { checkLimit } from "@/lib/usage";
 
 let test: TestDb;
 const REGULAR = "P-GROW";
@@ -80,7 +81,7 @@ const onFreeDays = (overrides: Record<string, unknown> = {}, billing: Record<str
 
 const row = async () => (await test.db.select().from(subscriptions).where(eq(subscriptions.paypalSubscriptionId, "I-FREE")))[0];
 
-describe("a PayPal subscription with the free articles", () => {
+describe("a PayPal subscription with the free articles (legacy: a 30-day plan)", () => {
   it("is on its free articles while its free days run: trialing, over the free days, as a card trial", async () => {
     state.paypal = onFreeDays();
     await syncPayPalSubscription("I-FREE");
@@ -152,8 +153,9 @@ describe("a PayPal subscription with the free articles", () => {
 describe("a PayPal checkout", () => {
   const begin = (provider: "stripe" | "paypal" = "paypal") => beginCheckout(test.db as never, { organizationId: "org_a", websiteId: siteId, provider, planId }, ops);
 
-  it("gives a first-time workspace the free articles when the plan has its free-articles PayPal plan", async () => {
-    expect(await begin()).toMatchObject({ kind: "create", trialDays: FREE_ARTICLES_DAYS });
+  it("gives a first-time workspace the free trial (TRIAL_DAYS) when the plan has its trial PayPal plan", async () => {
+    expect(await begin()).toMatchObject({ kind: "create", trialDays: TRIAL_DAYS });
+    expect(TRIAL_DAYS).toBe(3);
   });
 
   it("gives none for a plan without one: PayPal charges at once", async () => {
@@ -171,5 +173,64 @@ describe("a PayPal checkout", () => {
     expect(await begin()).toMatchObject({ kind: "create", trialDays: 0 });
     const [checkout] = await test.db.select().from(billingCheckouts).where(eq(billingCheckouts.websiteId, siteId));
     expect(checkout).toMatchObject({ provider: "paypal", replacesSubscriptionId: "I-FREE", trialDays: 0 });
+  });
+});
+
+/*
+  The 3-day free trial through PayPal (TRIAL_DAYS, 2026-11-13): the plan's
+  trial PayPal plan now has TRIAL_DAYS free (scripts/paypal-plans.mjs). Its
+  free days are "trialing" with the trial as the period, so its allowances
+  are pro-rated and the trial emails find it; PayPal's first charge starts
+  the plan and its full month.
+*/
+describe("a PayPal subscription to a TRIAL_DAYS trial plan", () => {
+  const threeDays = (billing: Record<string, unknown> = {}) =>
+    onFreeDays({}, { next_billing_time: "2026-10-25T11:00:00Z", ...billing });
+
+  it("is trialing for its free days, the trial as its period, with the plan's articles pro-rated", async () => {
+    state.paypal = threeDays();
+    await syncPayPalSubscription("I-FREE");
+    const recorded = await row();
+    expect(recorded).toMatchObject({
+      status: "trialing",
+      currentPeriodStart: new Date("2026-10-22T11:00:00Z"),
+      currentPeriodEnd: new Date("2026-10-25T11:00:00Z"),
+    });
+    expect(isFreeArticlesTrial(recorded)).toBe(false);
+    expect(isTrialPeriod(recorded)).toBe(true);
+    // 30 articles a month: 3 in the 3 days.
+    expect(await checkLimit(siteId, "articles")).toMatchObject({ limit: 3, trial: true, freeArticles: false });
+  });
+
+  it("is active from its first payment, with the paid month's full allowance", async () => {
+    state.paypal = threeDays({
+      next_billing_time: "2026-11-25T11:00:00Z",
+      last_payment: { time: "2026-10-25T11:00:00Z", amount: { value: "99.00", currency_code: "EUR" } },
+      cycle_executions: [
+        { tenure_type: "TRIAL", sequence: 1, cycles_completed: 1, cycles_remaining: 0, total_cycles: 1 },
+        { tenure_type: "REGULAR", sequence: 2, cycles_completed: 1, cycles_remaining: 0, total_cycles: 0 },
+      ],
+    });
+    vi.setSystemTime(new Date("2026-10-25T11:05:00Z"));
+    await syncPayPalSubscription("I-FREE");
+    expect(await row()).toMatchObject({
+      status: "active",
+      currentPeriodStart: new Date("2026-10-25T11:00:00Z"),
+      currentPeriodEnd: new Date("2026-11-25T11:00:00Z"),
+    });
+    expect(await checkLimit(siteId, "articles")).toMatchObject({ limit: 30, trial: false });
+  });
+
+  it("keeps a subscriber on the replaced 30-day plan on the free articles, through the plan's history", async () => {
+    await test.db.update(plans).set({ paypalTrialPlanId: "P-GROW-3DAY" }).where(eq(plans.id, planId));
+    await test.db.insert(paypalPlanVersions).values([
+      { planId, environment: null, kind: "trial", paypalPlanId: FREE, priceCents: 9900, currency: "eur", retiredAt: new Date() },
+      { planId, environment: null, kind: "trial", paypalPlanId: "P-GROW-3DAY", priceCents: 9900, currency: "eur" },
+    ]);
+    state.paypal = onFreeDays();
+    await syncPayPalSubscription("I-FREE");
+    const recorded = await row();
+    expect(recorded).toMatchObject({ planId, status: "trialing", currentPeriodEnd: new Date("2026-11-21T10:00:00Z") });
+    expect(isFreeArticlesTrial(recorded)).toBe(true);
   });
 });

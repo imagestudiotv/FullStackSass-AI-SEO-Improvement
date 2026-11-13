@@ -354,11 +354,12 @@ export function movedMoney(payment?: { amount?: { value?: string } }): boolean {
 }
 
 /**
- * Whether a subscription to a free-articles plan (scripts/paypal-plans.mjs)
- * is still in its free days: active, nothing failed, no paid cycle billed
- * yet, and the first charge still ahead. Stored as "trialing", as a card
- * trial is, so the free articles and everything that waits for the plan
- * follow the same rules (lib/billing/free-articles.ts).
+ * Whether a subscription to a trial plan (scripts/paypal-plans.mjs: TRIAL_DAYS
+ * free, or the 30 of a legacy free-articles plan) is still in its free days:
+ * active, nothing failed, no paid cycle billed yet, and the first charge
+ * still ahead. Stored as "trialing", as a card trial is, so the trial follows
+ * the same rules by either provider (lib/usage.ts, lib/billing/
+ * free-articles.ts).
  *
  * The paid cycle's count decides, not the free one's: PayPal counts the free
  * cycle as run from its first day.

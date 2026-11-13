@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 import { articles, geoPrompts, websites } from "@/lib/db/schema";
 import { getSubscription } from "@/lib/billing";
 import { isAgencyWorkspace } from "@/lib/agency/core";
-import { FREE_ARTICLES } from "@/lib/plans/features";
+import { TRIAL_DAYS } from "@/lib/plans/features";
 
 /**
  * Where a new customer is in setting up.
@@ -65,8 +65,10 @@ export type OnboardingState = {
    */
   hasPlan: boolean;
   /**
-   * The website is on its free articles (lib/billing/free-articles.ts): the
-   * AI visibility step waits for the plan, so it is not one of the steps.
+   * The website is on its LEGACY free articles (lib/billing/free-articles.ts):
+   * the AI visibility step waits for the plan, so it is not one of the steps.
+   * The free trial that replaced them (TRIAL_DAYS) has the plan's normal
+   * service, AI visibility included, so it keeps the step.
    */
   freeArticles: boolean;
 };
@@ -174,7 +176,7 @@ export const getOnboardingState = cache(async function getOnboardingState(
       title: "Choose a plan",
       description: agency
         ? "This workspace is set up by us - no plan needed."
-        : `Each website has its own plan. New accounts get their first ${FREE_ARTICLES} articles free.`,
+        : `Each website has its own plan. New accounts get a ${TRIAL_DAYS}-day free trial.`,
       done: hasPlan,
       /*
         The onboarding plan screen, not /billing. /billing carries the
