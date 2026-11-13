@@ -105,8 +105,8 @@ describe("localePath", () => {
   });
 
   /** The list and the folders must agree, or a link 404s or a translation is never linked. */
-  it("knows exactly the pages app/(marketing)/[locale] has", () => {
-    const root = path.resolve(__dirname, "../../app/(marketing)/[locale]");
+  it("knows exactly the pages app/(localized)/[locale] has", () => {
+    const root = path.resolve(__dirname, "../../app/(localized)/[locale]/(pages)");
     // A dynamic folder stands for the pages its generateStaticParams lists. Blog posts and blog
     // categories are database pages with their own addresses in each language (lib/blog/locale.ts),
     // not here.

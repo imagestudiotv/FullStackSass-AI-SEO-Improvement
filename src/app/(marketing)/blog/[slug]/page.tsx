@@ -15,7 +15,7 @@ import { BlogPostView, postMetadata } from "../post-view";
  * homepage renders the same way for its live prices.
  *
  * English posts only; the other languages are at /<locale>/blog/<slug>
- * (app/(marketing)/[locale]/blog). Both draw the post with post-view.tsx.
+ * (app/(localized)/[locale]/(pages)/blog). Both draw the post with post-view.tsx.
  */
 export const dynamic = "force-dynamic";
 

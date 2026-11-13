@@ -20,17 +20,17 @@ import footer from "./site-footer.module.css";
 
 /**
  * The public site's frame: the floating header with the nav, the page, the
- * footer and the live chat. The (marketing) layout wraps every public page in
- * it, and app/not-found.tsx wraps the 404 for addresses that match no route
- * at all - which render outside every route group's layout.
+ * footer and the live chat. The two public root layouts - app/(marketing)
+ * for English, app/(localized)/[locale] for the translations - wrap every
+ * public page in it, and app/(site)/not-found.tsx wraps the 404 of the parts
+ * of the app that have none of their own.
  *
- * The frame itself is MarketingFrame, which sets lang to the address's
- * language (/es -> "es"), because the root layout's <html lang="en"> is
- * shared by every page and cannot be told it (see marketing-nav.tsx).
+ * The frame itself is MarketingFrame, which repeats the address's language
+ * (/es -> "es") that <html lang> already carries (see marketing-nav.tsx).
  *
  * `banner` is the administrators' offer bar above the header
- * (components/promo-banner.tsx), read by the (marketing) layout; the 404 for
- * addresses that match no route goes without it.
+ * (components/promo-banner.tsx), read by those two layouts; the app's 404
+ * goes without it.
  */
 export function MarketingShell({ children, banner = null }: { children: React.ReactNode; banner?: LiveBanner | null }) {
   // The header and footer words, picked out here so the browser never loads

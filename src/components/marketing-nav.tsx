@@ -44,12 +44,11 @@ import footer from "./site-footer.module.css";
  * Declares the address's language around the banner, header, page and
  * footer, so /es is read as Spanish rather than English.
  *
- * <html lang> comes from the shared root layout, which cannot know the
- * address without making every prerendered page dynamic, so it says "en"
- * everywhere; this nearer lang overrides it for everything inside. It reads
- * the same source as the menu's words (splitLocale of the pathname), so the
- * server and the browser agree - including on "/index", the name the cached
- * home page is regenerated under.
+ * <html lang> already says it on every public page (each root layout is
+ * given its language: app/root-document.tsx); this repeats it on the frame,
+ * from the same source as the menu's words (splitLocale of the pathname), so
+ * the server and the browser agree - including on "/index", the name the
+ * cached home page is regenerated under.
  */
 export function MarketingFrame({ className, children }: { className?: string; children: ReactNode }) {
   const { locale } = splitLocale(usePathname());

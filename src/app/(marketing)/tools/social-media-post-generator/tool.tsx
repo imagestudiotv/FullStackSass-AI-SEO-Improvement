@@ -12,7 +12,7 @@ const HREF = "/tools/social-media-post-generator";
 
 /**
  * Where "Sign up" and "Sign in" lead: the sign-up flow, then the signed-in
- * app's Social Distribution section (app/(app)/social), where more posts
+ * app's Social Distribution section (app/(site)/(app)/social), where more posts
  * follow the account's own plan. Sign-up and sign-in are English-only pages,
  * like the header's links to them.
  */

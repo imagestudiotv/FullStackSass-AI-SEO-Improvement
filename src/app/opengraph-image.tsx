@@ -60,7 +60,7 @@ export default function Image() {
         <div style={{ display: "flex", flexDirection: "column", maxWidth: 1040 }}>
           {/*
             Two set lines rather than one wrapped string. Left to wrap, the
-            renderer broke it as "...Content &" / "Backlinks" with a stray wide
+            renderer broke a long title mid-phrase with a stray wide
             gap mid-line; negative letter-spacing made that worse, so there is
             none.
           */}
@@ -74,10 +74,10 @@ export default function Image() {
             }}
           >
             <span>AI SEO Platform</span>
-            <span>for Content &amp; Backlinks</span>
+            <span>Articles, Posts &amp; Videos</span>
           </div>
           <div style={{ marginTop: 30, fontSize: 30, lineHeight: 1.45, color: MUTED }}>
-            {"Research keywords, publish optimized content, build quality backlinks and track rankings in Google and AI search."}
+            {"SEO articles, social posts and videos, published automatically - with Growth Copilot planning your next steps."}
           </div>
         </div>
 

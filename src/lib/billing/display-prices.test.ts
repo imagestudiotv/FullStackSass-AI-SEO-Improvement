@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
 
 import { cardPrices } from "@/app/(marketing)/pricing/prices";
-import { planCardsFor } from "@/app/(app)/billing/plan-cards";
-import { formatMoney } from "@/app/(app)/billing/billing-view";
+import { planCardsFor } from "@/app/(site)/(app)/billing/plan-cards";
+import { formatMoney } from "@/app/(site)/(app)/billing/billing-view";
 import type { PlanRow } from "@/lib/billing-shared";
 import { automaticRepgetCoupon } from "@/lib/billing/checkouts";
 import { bundleCouponFor, repgetFirstPaymentCents } from "@/lib/billing/repget-offer";

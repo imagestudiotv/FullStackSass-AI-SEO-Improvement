@@ -83,7 +83,7 @@ export function splitLocale(pathname: string): {
 
 /**
  * The pages that exist in every language: the home page and the folders
- * under app/(marketing)/[locale] (config.test.ts keeps the two in step).
+ * under app/(localized)/[locale] (config.test.ts keeps the two in step).
  * Everything else - the legal pages - is English-only and has no /es/...
  * address. The blog's front page and the team's author page are here
  * (/it/blog and /it/blog/author/repget-team list the Italian posts, then

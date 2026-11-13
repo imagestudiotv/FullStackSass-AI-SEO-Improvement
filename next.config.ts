@@ -77,9 +77,13 @@ const nextConfig: NextConfig = {
     streamed metadata, so the app's loading screens are not held back.
     Pinterest is added too (2026-10-09): its site check and its pins read the
     head like the other link previews do.
+    The SEO auditors and AI search crawlers are added too (2026-11-13):
+    Ahrefs' audit and GPTBot/ClaudeBot/PerplexityBot read the HTML as sent,
+    and on the dynamic blog pages they could get the title, description,
+    canonical and hreflang streamed after </head> (live audit).
   */
   htmlLimitedBots:
-    /Googlebot|Pinterest|[\w-]+-Google|Google-[\w-]+|Chrome-Lighthouse|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview|Yeti|googleweblight/i,
+    /Googlebot|Pinterest|[\w-]+-Google|Google-[\w-]+|Chrome-Lighthouse|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview|Yeti|googleweblight|AhrefsBot|AhrefsSiteAudit|SemrushBot|GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-SearchBot|Claude-User|PerplexityBot|Perplexity-User/i,
   reactCompiler: true,
 
   compiler: {

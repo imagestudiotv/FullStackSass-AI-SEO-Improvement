@@ -9,6 +9,7 @@ import type { PostVersion } from "@/lib/blog/posts";
 import { isTeamAuthor, TEAM_AUTHOR_PATH, jsonLdScript, plainText, type BlogPost } from "@/lib/blog/shared";
 import { DEFAULT_LOCALE, localePath, type Locale } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
+import { metaDescription } from "@/lib/seo/meta-description";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
 import { SHARE_IMAGE } from "@/lib/share-image";
 import { siteUrl } from "@/lib/site-url";
@@ -57,7 +58,8 @@ export function postMetadata(post: BlogPost, versions: PostVersion[]): Metadata 
   const alternates = languages(versions);
   return {
     title: post.seoTitle ? { absolute: post.seoTitle } : post.title,
-    description: post.description,
+    // Shown whole in search results (lib/seo/meta-description.ts); the card and share text keep it all.
+    description: metaDescription(post.description),
     /*
       An article rather than a website, titled without the "| RepGet" suffix.
       The helper keeps the site picture unless the post has a featured image,

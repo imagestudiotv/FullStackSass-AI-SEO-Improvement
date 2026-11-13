@@ -4,7 +4,6 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { LANG_SCRIPT } from "./i18n/document-lang";
 import { THEME_SCRIPT } from "./theme";
 import {
   ALL_INTEGRATIONS,
@@ -15,7 +14,6 @@ import {
   cspReportUri,
   hasTagManager,
   securityHeaders,
-  LANG_SCRIPT_HASH,
   THEME_SCRIPT_HASH,
   type CspIntegrations,
 } from "./security-headers";
@@ -260,11 +258,9 @@ describe("contentSecurityPolicy", () => {
     expect(csp["script-src"]).not.toContain(hash);
   });
 
-  it("allows the page-language script by its hash on the nonce pages, and only there", () => {
-    const hash = `'sha256-${createHash("sha256").update(LANG_SCRIPT, "utf8").digest("base64")}'`;
-    expect(LANG_SCRIPT_HASH).toBe(hash);
-    expect(directives(contentSecurityPolicy(ALL, NONCE))["script-src"]).toContain(hash);
-    expect(csp["script-src"]).not.toContain(hash);
+  it("allows no other inline script by hash: <html lang> comes from the server (app/root-document.tsx)", () => {
+    const hashes = directives(contentSecurityPolicy(ALL, NONCE))["script-src"].filter((source) => source.startsWith("'sha256-"));
+    expect(hashes).toEqual([THEME_SCRIPT_HASH]);
   });
 
   it("reports violations to the Sentry project in the DSN", () => {

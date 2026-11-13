@@ -5,8 +5,9 @@ import { useEffect, useState, type ComponentType } from "react";
 /**
  * The app's one toaster, mounted once the page has loaded.
  *
- * In the root layout so a toast survives moving between parts of the site
- * (an accepted invitation announces itself on the dashboard), as before. But
+ * In every root layout (app/root-document.tsx) so a toast survives moving
+ * between pages of the same root - the app, onboarding, admin - (an accepted
+ * invitation announces itself on the dashboard), as before. But
  * imported directly it made every public page download sonner before its
  * first paint (about 10 KB) for notifications public pages never show, and
  * PageSpeed counts those bytes against the mobile LCP.

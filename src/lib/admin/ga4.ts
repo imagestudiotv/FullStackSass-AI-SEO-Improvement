@@ -4,7 +4,7 @@ import { createPrivateKey, createSign } from "node:crypto";
 
 /**
  * Google Analytics 4 for RepGet's OWN website, read by the admin Site
- * analytics page (app/admin/analytics).
+ * analytics page (app/(site)/admin/analytics).
  *
  * Not the customers' Google connection (lib/analytics/*). That one is OAuth
  * per website, consented to by each customer, with tokens stored encrypted in

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
-import { acceptPendingInvitationAction } from "@/app/(app)/dashboard/invitation-actions";
+import { acceptPendingInvitationAction } from "@/app/(site)/(app)/dashboard/invitation-actions";
 import { Button } from "@/components/ui/button";
 import { format } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";

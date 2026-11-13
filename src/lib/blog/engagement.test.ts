@@ -27,6 +27,7 @@ import {
   COMMENT_RATE,
   deleteOwnComment,
   discoverProgress,
+  homeCustomerStories,
   listCustomerStories,
   postEngagement,
   setCommentUpvote,
@@ -197,6 +198,11 @@ describe("customer stories", () => {
     expect((await listCustomerStories("it")).map((s) => [s.postId, s.href])).toEqual([[it1.id, `/it/blog/${it1.slug}`]]);
     // German has none: the English ones.
     expect((await listCustomerStories("de")).map((s) => s.postId)).toEqual([en2.id, en1.id, old.id]);
+
+    // "View all": the page in the language when it has stories, else the English page (not an empty, noindex one).
+    expect((await homeCustomerStories("it"))?.viewAllHref).toBe("/it/blog/category/customer-stories");
+    expect((await homeCustomerStories("de"))?.viewAllHref).toBe("/blog/category/customer-stories");
+    expect((await homeCustomerStories("en"))?.viewAllHref).toBe("/blog/category/customer-stories");
   });
 
   it("progress counts distinct published stories upvoted and with a shown comment, in any language", async () => {

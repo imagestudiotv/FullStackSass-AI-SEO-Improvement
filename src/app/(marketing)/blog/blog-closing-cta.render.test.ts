@@ -63,9 +63,9 @@ describe("the old panel", () => {
     for (const path of [
       "src/app/(marketing)/blog/post-view.tsx",
       "src/app/(marketing)/blog/page.tsx",
-      "src/app/(marketing)/[locale]/blog/page.tsx",
+      "src/app/(localized)/[locale]/(pages)/blog/page.tsx",
       "src/app/(marketing)/blog/category/[category]/page.tsx",
-      "src/app/(marketing)/[locale]/blog/category/[category]/page.tsx",
+      "src/app/(localized)/[locale]/(pages)/blog/category/[category]/page.tsx",
       "src/app/(marketing)/blog/author/team-author.tsx",
     ]) {
       const source = readFileSync(path, "utf8");

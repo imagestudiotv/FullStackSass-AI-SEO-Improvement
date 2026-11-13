@@ -62,7 +62,6 @@ export type FeaturesCopy = {
   hint: string;
   mascotAlt: string;
   note: string;
-  noteDetail: string;
   next: string;
   items: FeatureItem[];
 };
@@ -76,7 +75,6 @@ type Words = {
   hint: string;
   mascotAlt: string;
   note: string;
-  noteDetail: string;
   next: string;
   videos: { nav: string; kicker: string; desc: string; main: string; mainText: string; side: string; sideText: string };
   conversations: { nav: string; kicker: string; desc: string; main: string; rows: [Pair, Pair, Pair]; side: string; tags: string[] };
@@ -96,7 +94,6 @@ function build(w: Words): FeaturesCopy {
     hint: w.hint,
     mascotAlt: w.mascotAlt,
     note: w.note,
-    noteDetail: w.noteDetail,
     next: w.next,
     items: [
       {
@@ -208,7 +205,6 @@ const en: Words = {
   hint: "Select the RepGet capabilities you want to highlight",
   mascotAlt: "RepGet gecko and owl mascots",
   note: "Feature-focused preview.",
-  noteDetail: "Show the strongest capabilities instead of exposing the whole dashboard.",
   next: "Next feature",
   videos: {
     nav: "20 videos and slideshows a day",
@@ -316,7 +312,6 @@ const es: Words = {
   hint: "Seleccione las capacidades de RepGet que desea destacar",
   mascotAlt: "Las mascotas de RepGet, el geco y el búho",
   note: "Vista previa centrada en las funciones.",
-  noteDetail: "Muestre las capacidades más potentes en lugar de todo el panel.",
   next: "Siguiente función",
   videos: {
     nav: "20 vídeos y presentaciones al día",
@@ -424,7 +419,6 @@ const fr: Words = {
   hint: "Sélectionnez les fonctionnalités RepGet que vous souhaitez mettre en avant",
   mascotAlt: "Les mascottes RepGet, le gecko et le hibou",
   note: "Aperçu centré sur les fonctionnalités.",
-  noteDetail: "Montrez les capacités les plus fortes plutôt que tout le tableau de bord.",
   next: "Fonctionnalité suivante",
   videos: {
     nav: "20 vidéos et diaporamas par jour",
@@ -532,7 +526,6 @@ const it: Words = {
   hint: "Selezioni le funzionalità di RepGet che desidera mettere in evidenza",
   mascotAlt: "Le mascotte di RepGet, il geco e il gufo",
   note: "Anteprima centrata sulle funzionalità.",
-  noteDetail: "Mostri le capacità più forti invece dell’intera dashboard.",
   next: "Funzionalità successiva",
   videos: {
     nav: "20 video e slideshow al giorno",
@@ -640,7 +633,6 @@ const de: Words = {
   hint: "Wählen Sie die RepGet-Funktionen, die Sie hervorheben möchten",
   mascotAlt: "Die RepGet-Maskottchen Gecko und Eule",
   note: "Funktionsorientierte Vorschau.",
-  noteDetail: "Zeigen Sie die stärksten Funktionen statt des gesamten Dashboards.",
   next: "Nächste Funktion",
   videos: {
     nav: "20 Videos und Slideshows pro Tag",

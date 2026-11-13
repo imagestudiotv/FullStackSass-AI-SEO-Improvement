@@ -681,10 +681,6 @@
 .hp-product-bottom strong {
   font-size: 11px;
 }
-.hp-product-bottom > span {
-  font-size: 10px;
-  color: #756f68;
-}
 .hp-product-bottom button {
   margin-left: auto;
   border: 0;
@@ -774,9 +770,6 @@
     align-items: flex-start;
     padding: 10px 12px;
   }
-  .hp-product-bottom > span {
-    display: none;
-  }
   .hp-product-bottom button {
     font-size: 9px;
   }
@@ -785,4 +778,3 @@
 /* Dark mode: the text colours darkened for light mode above would not read here. */
 :global(.dark) .rfs-stat small { color: #9d958b; }
 :global(.dark) .rfs-kicker { color: #a0958a; }
-:global(.dark) .hp-product-bottom > span { color: #a39b91; }

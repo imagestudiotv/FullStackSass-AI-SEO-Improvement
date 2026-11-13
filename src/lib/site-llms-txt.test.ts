@@ -24,7 +24,7 @@ const lines = file.split("\n");
 describe("buildSiteLlmsTxt", () => {
   it("opens with the name and a one-line summary, as the format requires", () => {
     expect(lines[0]).toBe("# RepGet");
-    expect(lines[2]).toMatch(/^> RepGet is an AI SEO platform for content and backlinks\. /);
+    expect(lines[2]).toMatch(/^> RepGet is an AI SEO platform for articles, social posts and videos\. /);
   });
 
   it("has the sections in order", () => {

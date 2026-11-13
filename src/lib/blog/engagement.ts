@@ -183,12 +183,18 @@ export async function listCustomerStories(locale: Locale, limit = 3): Promise<Cu
  * latest three in the visitor's language with the English fallback, and
  * "View all customer stories" - the category's page in that language. Null
  * when there are none: the section is hidden.
+ *
+ * When the stories shown are the English fallback, "View all" goes to the
+ * English page too: the category's page in a language with no stories of its
+ * own is empty and noindex, and /de linked it from every German homepage
+ * (live audit, 2026-11-13).
  */
 export async function homeCustomerStories(locale: Locale): Promise<{ stories: CustomerStory[]; viewAllHref: string } | null> {
   const stories = await listCustomerStories(locale, 3);
   if (stories.length === 0) return null;
   const category = await customerStoriesCategory();
-  return { stories, viewAllHref: customerStoriesPath(locale, category?.slug ?? CUSTOMER_STORIES_SLUG) };
+  const pageLocale = stories.some((story) => story.locale === locale) ? locale : DEFAULT_LOCALE;
+  return { stories, viewAllHref: customerStoriesPath(pageLocale, category?.slug ?? CUSTOMER_STORIES_SLUG) };
 }
 
 /* ------------------------------------------------------------------------- */

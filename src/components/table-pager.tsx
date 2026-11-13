@@ -35,7 +35,7 @@ export type TablePagerLabels = {
  *
  * Buttons, not links: the rows are client-side, and a page number in the URL
  * would mean a server round trip to show rows the browser already holds. The
- * admin lists page on the server (app/admin/pagination.tsx) because they do
+ * admin lists page on the server (app/(site)/admin/pagination.tsx) because they do
  * not.
  *
  * On a phone the numbered buttons give way to "Page 3 of 13": seven numbers

@@ -26,7 +26,6 @@ export function TopFeaturesTabs({
   items,
   labelledBy,
   note,
-  noteDetail,
   next,
   children,
 }: {
@@ -34,7 +33,6 @@ export function TopFeaturesTabs({
   /** id of the section heading that names the tablist. */
   labelledBy: string;
   note: string;
-  noteDetail: string;
   next: string;
   /** The mascot, drawn by the server on the box's top edge. */
   children?: ReactNode;
@@ -126,7 +124,6 @@ export function TopFeaturesTabs({
       <div className={c("hp-product-bottom")}>
         <Icon name="spark" />
         <strong>{note}</strong>
-        <span>{noteDetail}</span>
         <button type="button" onClick={() => setActive((i) => (i + 1) % count)}>
           {next} ↗
         </button>
