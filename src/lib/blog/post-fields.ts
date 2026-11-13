@@ -1,6 +1,7 @@
 import "server-only";
 
 import { sanitizeHtml } from "@/lib/articles/sanitize";
+import { blogSiteHosts } from "@/lib/blog/site-hosts";
 import { BUSINESS_LIMITS, businessWebsite, type BlogBusiness } from "@/lib/blog/business";
 import { BLOG_IMAGE_ALT_MAX, isBlogImageUrl } from "@/lib/blog/image-files";
 import { discoverSlug, PROFILE_LIMITS, profileLines, RESERVED_DISCOVER_SLUGS, type BusinessProfile } from "@/lib/discover/profile-fields";
@@ -69,7 +70,7 @@ export const RESERVED_SLUGS = new Set(["category", "author", "sponsorship"]);
 export class BlogPostError extends Error {}
 
 /** Links to RepGet's own site stay followed internal links (see sanitize.ts). */
-export { blogSiteHosts } from "@/lib/blog/site-hosts";
+export { blogSiteHosts };
 
 export type CleanBlogPost = {
   title: string;
