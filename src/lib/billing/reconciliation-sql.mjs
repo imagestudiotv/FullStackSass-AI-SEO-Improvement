@@ -101,7 +101,8 @@ export const RECONCILIATION_SQL = {
            a.slug as addon, a.credits_granted, p.created_at
     from addon_purchases p
     join addons a on a.id = p.addon_id
-    where a.kind = 'credits' and a.credits_granted > 0
+    -- A quote's credits (credits_custom, lib/credits/quote-topup.ts) grant their top-up's count, not the add-on's 0.
+    where a.kind = 'credits' and (a.credits_granted > 0 or a.slug = 'credits_custom')
       and not exists (
         select 1 from credit_ledger c
         where c.type = 'purchase'

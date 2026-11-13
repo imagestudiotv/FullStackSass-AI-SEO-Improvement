@@ -8,11 +8,13 @@ import { Button } from "@/components/ui/button";
 import { PageHeader, PageShell } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/states";
 import { requireSession } from "@/lib/auth-guard";
+import { topUpForReturn } from "@/lib/credits/quote-topup";
 import { walletOf } from "@/lib/credits/spend";
 import { db } from "@/lib/db";
 import { websites } from "@/lib/db/schema";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { format, formatNumber } from "@/lib/i18n/format";
+import { QUOTE_CREDITS_COPY } from "@/lib/i18n/quote-credits";
 import { WEBSITE_PROJECT_COPY } from "@/lib/i18n/website-projects";
 import { requireOrg } from "@/lib/tenant";
 import { hasOnlySharedWork } from "@/lib/websites/accessible";
@@ -62,8 +64,10 @@ export default async function WebsiteProjectsPage({ searchParams }: PageProps<"/
     db.select({ id: websites.id }).from(websites).where(eq(websites.organizationId, orgId)).limit(1),
   ]);
 
-  const { type } = await searchParams;
+  const { type, topup } = await searchParams;
   const chosen = isWebsiteProjectKind(type) ? type : null;
+  // Back from buying a quote's credits: that top-up, in this workspace only (lib/credits/quote-topup.ts).
+  const returned = typeof topup === "string" ? await topUpForReturn(orgId, topup) : null;
 
   return (
     <PageShell>
@@ -97,6 +101,8 @@ export default async function WebsiteProjectsPage({ searchParams }: PageProps<"/
         chosen={chosen}
         defaultName={session.user.name ?? ""}
         defaultEmail={session.user.email}
+        returned={returned ? { projectId: returned.websiteProjectId, status: returned.status, credits: returned.credits } : null}
+        quoteCopy={QUOTE_CREDITS_COPY[locale]}
       />
 
       {/* Not a dead end for someone who does have a website, and the way into setup from here. */}

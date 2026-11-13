@@ -2662,6 +2662,69 @@ export const websiteProjects = pgTable(
     ),
   ],
 );
+
+/* ------------------------------------------------------------------------- */
+/* Nov 13 billing: credits bought for a quote (drizzle-drafts/nov13/billing.sql) */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * Credits bought for one quote: exactly what the workspace lacked to pay it
+ * (Daniel, 2026-11-13). lib/credits/quote-topup.ts.
+ *
+ * Written BEFORE the payment starts, with the amount and the credits the
+ * server chose, so the payment carries only this row's id (Stripe metadata,
+ * paypal_orders.reference_id) and the grant reads the credits from here,
+ * never from the browser or the provider. The grant itself is the credit
+ * pack's: one addon_purchases row per Stripe session or PayPal order, under
+ * the inactive "credits_custom" add-on, and one ledger entry keyed
+ * "purchase:<purchase id>" (lib/addons/fulfil.ts).
+ *
+ * The quote is named for the way back to it; paying grants credits only and
+ * never pays or changes the quote.
+ */
+export const creditTopups = pgTable(
+  "credit_topups",
+  {
+    id: pk(),
+    organizationId: organizationId(),
+    /** Who started it. */
+    userId: userId(),
+    /** The quote it was bought for. Kept if the project is ever deleted: the money is not. */
+    websiteProjectId: uuid("website_project_id").references(() => websiteProjects.id, { onDelete: "set null" }),
+    /** The quote's revision when it was bought (lib/credits/quote-topup-shared.ts quoteRevisionOf). */
+    quoteRevision: text("quote_revision").notNull(),
+    /** The quote's price in credits then, and what the workspace could spend then. */
+    quoteCredits: integer("quote_credits").notNull(),
+    availableCredits: integer("available_credits").notNull(),
+    /** What this sells: quote_credits - available_credits. */
+    credits: integer("credits").notNull(),
+    amountCents: integer("amount_cents").notNull(),
+    currency: text("currency").notNull(),
+    /** The rate it was priced at: rate_credits for rate_cents (the smallest credit pack's, when bought). */
+    rateCents: integer("rate_cents").notNull(),
+    rateCredits: integer("rate_credits").notNull(),
+    /** "stripe" | "paypal". */
+    provider: text("provider").notNull(),
+    /** The Stripe Checkout session, once created. */
+    stripeSessionId: text("stripe_session_id"),
+    /** "open" until "paid" (credits granted) or "failed" (a delayed payment that did not clear). */
+    status: text("status").default("open").notNull(),
+    /** The purchase that granted the credits. */
+    addonPurchaseId: uuid("addon_purchase_id").references(() => addonPurchases.id, { onDelete: "set null" }),
+    paidAt: timestamp("paid_at"),
+    ...timestamps,
+  },
+  (table) => [
+    index("credit_topups_org_idx").on(table.organizationId, table.createdAt),
+    index("credit_topups_project_idx").on(table.websiteProjectId),
+    uniqueIndex("credit_topups_session_key").on(table.stripeSessionId),
+    uniqueIndex("credit_topups_purchase_key").on(table.addonPurchaseId),
+    check("credit_topups_amounts_check", sql`${table.credits} > 0 and ${table.amountCents} > 0 and ${table.rateCents} > 0 and ${table.rateCredits} > 0`),
+    check("credit_topups_provider_check", sql`${table.provider} in ('stripe', 'paypal')`),
+    check("credit_topups_status_check", sql`${table.status} in ('open', 'paid', 'failed')`),
+  ],
+);
+/* End of Nov 13 billing block. */
 /* Agency workspaces                                                          */
 /* ------------------------------------------------------------------------- */
 

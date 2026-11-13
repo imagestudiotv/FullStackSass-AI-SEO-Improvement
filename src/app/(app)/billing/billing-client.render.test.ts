@@ -18,9 +18,11 @@ vi.mock("@/lib/stripe/portal", () => ({ createPortalSession: vi.fn() }));
 import type { CurrentSubscription, PlanRow } from "@/lib/billing-shared";
 import { getMessages } from "@/lib/i18n/messages";
 
+import { format } from "@/lib/i18n/format";
 import { OFFER_CODE } from "@/lib/i18n/offer-code";
 
 import { BillingClient } from "./billing-client";
+import { planCardsFor } from "./plan-cards";
 
 const messages = getMessages("en");
 const t = messages.app.billing;
@@ -117,10 +119,23 @@ describe("the Grow + Visibility bundle in Billing", () => {
   const BUNDLE = plan("plan_bundle", "Grow + Visibility", "grow_visibility", 9900, 10);
   const none = null as unknown as CurrentSubscription;
 
-  it("is not offered in the plan list: it is sold from its own button on /pricing", () => {
-    const html = render(none, { plans: [GROW, SCALE, BUNDLE], entitled: false, websiteSubscriptions: [] });
+  it("is offered in the plan list with its own terms: a direct purchase, EUR 99 against EUR 299, no free trial (2026-11-13)", () => {
+    const plans = [GROW, SCALE, BUNDLE];
+    const planCards = planCardsFor(plans, { offerOn: true, trialEligible: true, locale: "en", t });
+    const html = render(none, { plans, entitled: false, websiteSubscriptions: [], planCards });
     expect(html).toContain("Scale");
-    expect(html).not.toContain("Grow + Visibility");
+    expect(html).toContain("Grow + Visibility");
+    expect(html).toContain("Direct purchase");
+    expect(html).toContain("<del");
+    expect(html).toContain("€299");
+    expect(html).toContain("€99 billed at checkout, then monthly. The 3-day free trial does not apply to this offer.");
+    // The free articles are said for the other plans only.
+    expect(html.split("Your first 3 articles are free").length - 1).toBe(2);
+  });
+
+  it("is not a rung of the upgrade ladder", () => {
+    const onScale = { ...onPayPal("active"), planId: SCALE.id, planName: SCALE.name, tier: SCALE.tier };
+    expect(render(onScale, { plans: [GROW, SCALE, BUNDLE] })).not.toContain(format(t.upgradeLink, { plan: BUNDLE.name }));
   });
 
   it("is shown to the website on it, as its current plan", () => {

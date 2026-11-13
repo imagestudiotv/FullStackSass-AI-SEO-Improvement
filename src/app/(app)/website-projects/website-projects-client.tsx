@@ -3,7 +3,7 @@
 import { Check, Globe, Loader2, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useId, useRef, useState, useTransition, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, useTransition, type FormEvent } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -14,10 +14,12 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Textarea } from "@/components/ui/textarea";
 import { WorkspaceSection } from "@/components/workspace/section";
 import { Notice } from "@/components/workspace/notice";
+import { projectAnchor, quoteRevisionOf, quoteTopUpHref, type TopUpStatus } from "@/lib/credits/quote-topup-shared";
 import type { Locale } from "@/lib/i18n/config";
 import { format, formatDate, plural } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
 import type { WebsiteProjectCopy } from "@/lib/i18n/website-projects";
+import { creditsIn, type QuoteCreditsCopy } from "@/lib/i18n/quote-credits";
 import { cn } from "@/lib/utils";
 import { payWebsiteProject, requestWebsiteQuote } from "@/lib/website-projects/actions";
 import type { WebsiteProjectField, WebsiteProjectKind, WebsiteProjectRow, WebsiteProjectStatus } from "@/lib/website-projects/shared";
@@ -25,6 +27,9 @@ import type { WebsiteProjectField, WebsiteProjectKind, WebsiteProjectRow, Websit
 type CreditsWord = Messages["app"]["credits"]["creditsCount"];
 
 const KIND_ICON = { new: Globe, redesign: RefreshCw } as const;
+
+/** Back from paying for a quote's credits (lib/credits/quote-topup.ts): that top-up, as the server read it. */
+export type TopUpReturn = { projectId: string | null; status: TopUpStatus; credits: number };
 
 export function WebsiteProjectsClient({
   copy,
@@ -35,7 +40,13 @@ export function WebsiteProjectsClient({
   chosen,
   defaultName,
   defaultEmail,
+  returned = null,
+  quoteCopy,
 }: {
+  /** Set when the customer came back from buying credits for a quote. */
+  returned?: TopUpReturn | null;
+  /** The words for that, and for buying them. */
+  quoteCopy: QuoteCreditsCopy;
   copy: WebsiteProjectCopy;
   locale: Locale;
   creditsWord: CreditsWord;
@@ -95,7 +106,16 @@ export function WebsiteProjectsClient({
         ) : (
           <ul className="space-y-4">
             {projects.map((project) => (
-              <ProjectCard key={project.id} project={project} copy={copy} locale={locale} creditsWord={creditsWord} available={available} />
+              <ProjectCard
+                key={project.id}
+                project={project}
+                copy={copy}
+                locale={locale}
+                creditsWord={creditsWord}
+                available={available}
+                returned={returned?.projectId === project.id ? returned : null}
+                quoteCopy={quoteCopy}
+              />
             ))}
           </ul>
         )}
@@ -240,12 +260,16 @@ function ProjectCard({
   locale,
   creditsWord,
   available,
+  returned,
+  quoteCopy,
 }: {
   project: WebsiteProjectRow;
   copy: WebsiteProjectCopy;
   locale: Locale;
   creditsWord: CreditsWord;
   available: number;
+  returned: TopUpReturn | null;
+  quoteCopy: QuoteCreditsCopy;
 }) {
   const credits = (count: number) => plural(creditsWord, count);
   const words = copy.status[project.status];
@@ -254,7 +278,8 @@ function ProjectCard({
   const payable = project.status === "quoted" && project.creditCost !== null;
 
   return (
-    <li className="space-y-4 rounded-lg border p-4">
+    <li id={projectAnchor(project.id)} className={cn("scroll-mt-20 space-y-4 rounded-lg border p-4", returned && "border-primary/40")}>
+      {returned ? <TopUpNotice returned={returned} copy={quoteCopy} locale={locale} /> : null}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="text-sm font-semibold text-foreground">{copy.kind[project.kind]}</h3>
@@ -297,7 +322,17 @@ function ProjectCard({
         </p>
       ) : null}
 
-      {payable ? <PayQuote project={project} cost={project.creditCost as number} copy={copy} credits={credits} available={available} /> : null}
+      {payable ? (
+        <PayQuote
+          project={project}
+          cost={project.creditCost as number}
+          copy={copy}
+          credits={credits}
+          available={available}
+          // Credits awaiting confirmation for this quote: not offered again.
+          awaitingCredits={returned?.status === "open"}
+        />
+      ) : null}
 
       <details className="text-sm">
         <summary className="cursor-pointer text-xs font-medium text-muted-foreground">{copy.yourBrief}</summary>
@@ -333,17 +368,20 @@ function PayQuote({
   copy,
   credits,
   available,
+  awaitingCredits = false,
 }: {
   project: WebsiteProjectRow;
   cost: number;
   copy: WebsiteProjectCopy;
   credits: (count: number) => string;
   available: number;
+  awaitingCredits?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
   const covered = available >= cost;
+  const revision = quoteRevisionOf(project.quotedAt ? new Date(project.quotedAt) : null);
 
   function pay() {
     start(async () => {
@@ -378,9 +416,12 @@ function PayQuote({
       ) : (
         <div className="flex flex-wrap items-center gap-3">
           <p className="text-sm text-muted-foreground">{format(copy.short, { price: credits(cost), available: credits(available) })}</p>
-          <Button asChild>
-            <Link href="/billing#addons">{copy.buyToPay}</Link>
-          </Button>
+          {awaitingCredits ? null : (
+            <Button asChild>
+              {/* To Billing, which offers exactly what is missing for THIS quote, at the server's price. */}
+              <Link href={revision ? quoteTopUpHref(project.id, revision) : "/billing#addons"}>{copy.buyToPay}</Link>
+            </Button>
+          )}
         </div>
       )}
 
@@ -402,5 +443,47 @@ function PayQuote({
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+/**
+ * Back from paying for this quote's credits. Only what the server recorded is
+ * said: "added" once the payment is confirmed and the credits granted (the
+ * provider's webhook or capture, lib/addons/fulfil.ts), "confirming" until
+ * then - the page reads it again every few seconds for a minute - or "did not
+ * go through". The quote itself is never paid from here.
+ */
+function TopUpNotice({ returned, copy, locale }: { returned: TopUpReturn; copy: QuoteCreditsCopy; locale: Locale }) {
+  const router = useRouter();
+  const waiting = returned.status === "open";
+  useEffect(() => {
+    if (!waiting) return;
+    let tries = 0;
+    const timer = window.setInterval(() => {
+      tries += 1;
+      if (tries > 20) window.clearInterval(timer);
+      else router.refresh();
+    }, 3000);
+    return () => window.clearInterval(timer);
+  }, [waiting, router]);
+
+  if (returned.status === "paid") {
+    return (
+      <Notice tone="success" role="status" title={format(copy.returned.paidTitle, { credits: creditsIn(copy, returned.credits, locale) })}>
+        {copy.returned.paidBody}
+      </Notice>
+    );
+  }
+  if (returned.status === "failed") {
+    return (
+      <Notice tone="warning" role="alert" title={copy.returned.failedTitle}>
+        {copy.returned.failedBody}
+      </Notice>
+    );
+  }
+  return (
+    <Notice tone="info" role="status" title={copy.returned.pendingTitle}>
+      {copy.returned.pendingBody}
+    </Notice>
   );
 }

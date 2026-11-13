@@ -13,6 +13,7 @@ import {
   Layers,
   Loader2,
   Plus,
+  Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -47,6 +48,7 @@ import { createCheckoutSession } from "@/lib/stripe/actions";
 import { createPortalSession, type PortalFlow } from "@/lib/stripe/portal";
 import { cn } from "@/lib/utils";
 
+import type { PlanCardView } from "./plan-cards";
 import {
   annualSaving,
   formatMoney,
@@ -101,6 +103,13 @@ type BillingClientProps = {
   paypalIntervalNote?: string;
   /** Shared words used on several screens. */
   tCommon: Messages["app"]["common"];
+  /**
+   * Each plan card's price, terms and benefits, worked out on the server
+   * (plan-cards.ts). A plan without one keeps the plain price and lines.
+   */
+  planCards?: Record<string, PlanCardView>;
+  /** Shown first under the title: the credits a quote needs (quote-credits-card.tsx). */
+  top?: ReactNode;
 };
 
 /** Stored timestamps in one zone on server and browser, so the two renders agree. */
@@ -132,12 +141,15 @@ export function BillingClient({
   offerCopy = null,
   paypalIntervalNote,
   tCommon,
+  planCards = {},
+  top = null,
 }: BillingClientProps) {
   /*
-    A plan bought outright (the Grow + Visibility bundle) is sold from its own
-    button on /pricing, not in this list: shown here only to the website on it.
+    Every plan on sale, the Grow + Visibility bundle included (Daniel,
+    2026-11-13): it is bought outright - no free articles, no REPGET, the
+    first payment at checkout (beginCheckout) - and its card says so.
   */
-  const plans = allPlans.filter((plan) => !isDirectPurchaseTier(plan.tier) || plan.id === subscription?.planId);
+  const plans = allPlans;
   const [interval, setBillingInterval] = useState<"month" | "year">(
     subscription?.interval === "year" ? "year" : "month",
   );
@@ -328,7 +340,8 @@ export function BillingClient({
     says the product is not paying attention.
   */
   const monthlyLadder = plans
-    .filter((plan) => plan.interval === "month")
+    // The bundle is not a rung: it is Grow with perks, sold on its own terms.
+    .filter((plan) => plan.interval === "month" && !isDirectPurchaseTier(plan.tier))
     .sort((a, b) => a.sortOrder - b.sortOrder);
   const currentRung = subscription?.tier
     ? monthlyLadder.findIndex((plan) => plan.tier === subscription.tier)
@@ -360,6 +373,7 @@ export function BillingClient({
     const saving = plan.interval === "year" ? annualSaving(monthlyByTier.get(plan.tier), plan) : 0;
     const busy = pending?.planId === plan.id;
     const headingId = `plan-${plan.id}`;
+    const view = planCards[plan.id] ?? null;
 
     return (
       <article
@@ -382,6 +396,11 @@ export function BillingClient({
               {t.tryItFirst}
             </Badge>
           ) : null}
+          {view?.directBadge ? (
+            <Badge variant="outline" className="border-primary/40 text-primary">
+              {view.directBadge}
+            </Badge>
+          ) : null}
           {saving > 0 ? (
             <Badge variant="secondary" className="ml-auto">
               {format(t.saveBadge, { n: saving })}
@@ -389,23 +408,44 @@ export function BillingClient({
           ) : null}
         </div>
 
-        <p className="mt-3 flex flex-wrap items-baseline gap-x-1.5">
-          <span className="text-3xl font-semibold tracking-tight tabular-nums text-foreground">
-            {formatMoney(plan.priceCents, plan.currency, locale)}
-          </span>
-          <span className="text-sm text-muted-foreground">
-            {plan.interval === "year" ? t.perYear : t.perMonth}
-          </span>
-        </p>
+        {view ? (
+          <PlanPrice view={view} />
+        ) : (
+          <p className="mt-3 flex flex-wrap items-baseline gap-x-1.5">
+            <span className="text-3xl font-semibold tracking-tight tabular-nums text-foreground">
+              {formatMoney(plan.priceCents, plan.currency, locale)}
+            </span>
+            <span className="text-sm text-muted-foreground">
+              {plan.interval === "year" ? t.perYear : t.perMonth}
+            </span>
+          </p>
+        )}
 
         <ul className="mt-4 flex-1 space-y-2 border-t pt-4 text-sm">
-          {planFeatures(plan, t, locale).map((feature) => (
+          {(view?.features ?? planFeatures(plan, t, locale)).map((feature) => (
             <li key={feature} className="flex items-start gap-2">
               <Check className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-              <span className="min-w-0">{feature}</span>
+              <span className="min-w-0">{marks(feature)}</span>
             </li>
           ))}
         </ul>
+
+        {view?.perksTitle && view.perks.length > 0 ? (
+          <div className="mt-4 rounded-md border border-primary/20 bg-primary/5 p-3">
+            <p className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+              <Sparkles className="size-3.5 shrink-0 text-primary" aria-hidden="true" />
+              {view.perksTitle}
+            </p>
+            <ul className="mt-2 space-y-1.5 text-xs">
+              {view.perks.map((perk) => (
+                <li key={perk.strong}>
+                  <span className="font-medium text-foreground">{perk.strong}</span>
+                  <span className="text-muted-foreground"> - {perk.small}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
 
         <div className="mt-4 space-y-2">
           {isCurrent ? (
@@ -455,6 +495,7 @@ export function BillingClient({
                   )}
                 </Button>
               ) : null}
+              {paypal && view?.paypalNote ? <p className="text-xs leading-5 text-muted-foreground">{view.paypalNote}</p> : null}
               {intervalBlocked && paypalIntervalNote ? (
                 <p className="text-xs leading-5 text-muted-foreground">{paypalIntervalNote}</p>
               ) : !options.card && !paypal ? (
@@ -547,6 +588,8 @@ export function BillingClient({
         approval released) for the website this page buys for. Renders nothing.
       */}
       <PayPalReturn outcome={paypalResult} websiteId={websiteId} />
+
+      {top}
 
       {viewingSharedDomain ? (
         <Notice tone="info">{format(t.viewingSharedNote, { shared: viewingSharedDomain })}</Notice>
@@ -865,5 +908,50 @@ function ManagedForYou({ template }: { template: string }) {
       </a>
       {after}
     </p>
+  );
+}
+
+/**
+ * The price as /pricing shows it (plan-cards.ts): the charged figure, the
+ * regular one struck through beside it when checkout really takes something
+ * off, how it is billed, and when money is taken.
+ */
+function PlanPrice({ view }: { view: PlanCardView }) {
+  return (
+    <div className="mt-3 space-y-1">
+      {view.strike ? (
+        <p className="flex flex-wrap items-center gap-2 text-sm">
+          {view.badge ? (
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">{view.badge}</span>
+          ) : null}
+          <del className="text-muted-foreground tabular-nums">{view.strike}</del>
+        </p>
+      ) : null}
+      <p className="flex flex-wrap items-baseline gap-x-1.5">
+        <span className="text-3xl font-semibold tracking-tight tabular-nums text-foreground">{view.price}</span>
+        <span className="text-sm text-muted-foreground">{view.per}</span>
+      </p>
+      <p className="text-xs text-muted-foreground">{view.caption}</p>
+      {view.terms.map((line) => (
+        <p key={line} className="text-xs leading-5 text-muted-foreground">
+          {line}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+/** The copy's one mark, `**words**` in bold (lib/i18n/pricing-page.ts). Never HTML. */
+function marks(text: string): ReactNode {
+  const parts = text.split(/\*\*([^*]+)\*\*/g);
+  if (parts.length === 1) return text;
+  return parts.map((part, index) =>
+    index % 2 === 1 ? (
+      <strong key={index} className="font-semibold text-foreground">
+        {part}
+      </strong>
+    ) : (
+      part
+    ),
   );
 }
