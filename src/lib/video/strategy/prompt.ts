@@ -252,8 +252,9 @@ export function userContent(input: IdeaInput): string {
 }
 
 /**
- * Output tokens for one call: enough for each idea's script, shots and claims.
- * 1,100 an idea ran out with the shot plans (live 2026-11-12: "did not finish"),
- * so a call is given 2,500 an idea; calls are WRITE_CHUNK ideas (ideas.ts).
+ * Output tokens for one call: each idea's script, shots and claims (about 700
+ * tokens written) plus the model's own thinking, which counts against the limit.
+ * 1,100 and then 2,500 an idea ran out ("did not finish (max_tokens)"), so a call
+ * is given 5,000 an idea; calls are WRITE_CHUNK ideas and streamed (ideas.ts).
  */
-export const maxTokensFor = (count: number) => Math.min(32_000, 2_000 + count * 2_500);
+export const maxTokensFor = (count: number) => Math.min(32_000, 2_000 + count * 5_000);
