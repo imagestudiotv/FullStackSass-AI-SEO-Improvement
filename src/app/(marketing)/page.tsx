@@ -7,6 +7,7 @@ import { listPublishedTestimonials } from "@/lib/marketing/testimonials-db";
 import { HomePageSections } from "./home-page";
 import { OrganizationSchema } from "./organization-schema";
 import { siteUrl as canonicalSiteUrl } from "@/lib/site-url";
+import { HOME_META } from "@/lib/seo/home-metadata";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
 /**
@@ -32,16 +33,15 @@ export const revalidate = 3600;
  *
  * It had none, so it inherited the root layout's: the title was the bare
  * word "RepGet" and the description an old one-liner - which is what Google
- * showed for the site's most important page. Wording from the client's launch
- * review (2026-10-03).
+ * showed for the site's most important page. The wording, in every language,
+ * is in lib/seo/home-metadata.ts (client, 2026-11-13).
  *
  * `absolute` because the root layout's template appends "| RepGet" to every
  * title, and this one already ends with it.
  */
 export const metadata: Metadata = {
-  title: { absolute: "AI SEO Platform for Content & Backlinks | RepGet" },
-  description:
-    "Automate SEO with RepGet. Research keywords, publish optimized content, build quality backlinks, track rankings and grow visibility in Google and AI search.",
+  title: { absolute: HOME_META.en.title },
+  description: HOME_META.en.description,
   ...publicPageMetadata("/"),
 };
 

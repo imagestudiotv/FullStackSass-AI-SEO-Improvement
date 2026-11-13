@@ -5,7 +5,7 @@ import { countContentCreated } from "@/lib/marketing/content-count";
 import { listPublishedTestimonials } from "@/lib/marketing/testimonials-db";
 import { listPlansForPrebuiltPage } from "@/lib/billing";
 import { isLocale, localePath } from "@/lib/i18n/config";
-import { getMessages } from "@/lib/i18n/messages";
+import { HOME_META } from "@/lib/seo/home-metadata";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
 import { HomePageSections } from "../home-page";
 
@@ -35,11 +35,10 @@ export async function generateMetadata({ params }: PageProps<"/[locale]">) {
   const { locale } = await params;
   if (!isLocale(locale)) return {};
 
-  const t = getMessages(locale);
-
+  // The same wording as the English homepage, translated (lib/seo/home-metadata.ts).
   return {
-    title: t.home.title,
-    description: t.home.subtitle,
+    title: { absolute: HOME_META[locale].title },
+    description: HOME_META[locale].description,
     ...publicPageMetadata("/", { locale }),
   };
 }

@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import path from "node:path";
-
 import { describe, expect, it } from "vitest";
 
 import { AUDIT_COPY } from "@/app/(marketing)/audit/copy";
@@ -23,6 +20,7 @@ import { CASE_STUDY_COPY, CASE_STUDY_PATH } from "@/lib/marketing/case-study-ima
 import { partnerCopy } from "@/lib/partners/presentation/copy";
 import { featurePageContent } from "@/lib/marketing/feature-pages";
 import { docsUi, integrationDocs } from "@/lib/publishing/docs";
+import { HOME_META } from "@/lib/seo/home-metadata";
 import { buildSiteLlmsTxt, PAGE_NOTES } from "@/lib/site-llms-txt";
 import { TOOLS_COMMON } from "@/lib/tools/i18n/common";
 
@@ -53,10 +51,9 @@ function pagesIn(locale: Locale): Meta[] {
   const pages: Meta[] = [];
   const add = (page: string, title: string | null, description: string) => pages.push({ page: `${locale} ${page}`, title, description });
 
-  if (locale !== "en") {
-    add("/", t.home.title, t.home.subtitle);
-    add("/pricing", t.pricing.title, t.pricing.metaDescription);
-  }
+  // The home page's titles are absolute, " | RepGet" already in them; checked as the others are.
+  add("/", HOME_META[locale].title.slice(0, -SUFFIX.length), HOME_META[locale].description);
+  if (locale !== "en") add("/pricing", t.pricing.title, t.pricing.metaDescription);
   for (const [page, section] of [
     ["/about", t.about],
     ["/faq", t.faq],
@@ -139,20 +136,28 @@ describe("titles and descriptions of the public pages", () => {
     expect(off).toEqual([]);
   });
 
-  describe("the English home page (its metadata is written in app/(marketing)/page.tsx)", () => {
-    const source = readFileSync(path.resolve(__dirname, "../../app/(marketing)/page.tsx"), "utf8");
-    const title: string = JSON.parse(source.match(/title: \{ absolute: ("[^"]+") \}/)?.[1] ?? '""');
-    const description: string = JSON.parse(source.match(/\bdescription:\s*("[^"]+")/)?.[1] ?? '""');
+  describe("the home page (lib/seo/home-metadata.ts, absolute titles)", () => {
+    const { title, description } = HOME_META.en;
 
-    it("has an absolute title that already ends in \" | RepGet\" and is within the limits as it stands", () => {
-      expect(title.endsWith(SUFFIX)).toBe(true);
-      expect(title.length).toBeLessThanOrEqual(LIMITS.titleMax);
-      expect(title.length).toBeGreaterThanOrEqual(LIMITS.titleMin);
+    it.each(LOCALES)("%s: the title already ends in \" | RepGet\" and is within the limits as it stands", (locale) => {
+      const meta = HOME_META[locale];
+      expect(meta.title.endsWith(SUFFIX)).toBe(true);
+      expect(meta.title.length).toBeLessThanOrEqual(LIMITS.titleMax);
+      expect(meta.title.length).toBeGreaterThanOrEqual(LIMITS.titleMin);
     });
 
-    it(`has a description of ${LIMITS.metaMin}-${LIMITS.metaMax} characters`, () => {
-      expect(description.length).toBeLessThanOrEqual(LIMITS.metaMax);
-      expect(description.length).toBeGreaterThanOrEqual(LIMITS.metaMin);
+    it.each(LOCALES)("%s: the description is 140-155 characters, short of what Ahrefs calls too long", (locale) => {
+      expect(HOME_META[locale].description.length).toBeGreaterThanOrEqual(140);
+      expect(HOME_META[locale].description.length).toBeLessThanOrEqual(155);
+    });
+
+    it("names the same product in every language: SEO, backlinks and Growth Copilot", () => {
+      for (const locale of LOCALES) {
+        const text = `${HOME_META[locale].title} ${HOME_META[locale].description}`;
+        expect(text, locale).toMatch(/SEO/);
+        expect(text, locale).toMatch(/backlink/i);
+        expect(text, locale).toMatch(/Growth Copilot/);
+      }
     });
 
     it("never says \"analysis\": a Google removal of the old vercel.app result relies on the word being gone", () => {
@@ -161,7 +166,7 @@ describe("titles and descriptions of the public pages", () => {
 
     it("is what /llms.txt repeats as its summary", () => {
       const summary = buildSiteLlmsTxt("https://www.repget.com", []).split("\n")[2];
-      expect(summary).toBe(`> RepGet is an AI SEO platform for content and backlinks. ${description}`);
+      expect(summary).toBe(`> RepGet is an AI SEO platform for articles, social posts and videos. ${description}`);
     });
   });
 });
