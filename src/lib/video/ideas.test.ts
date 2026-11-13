@@ -33,7 +33,11 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 const queue = vi.hoisted(() => ({ queueJob: vi.fn(async () => true) }));
 vi.mock("@/inngest/send", () => queue);
 vi.mock("@/lib/ai/client", () => ({
-  anthropic: { messages: { create: vi.fn() } },
+  // stream() answers through create(), so a test mocks one function for both.
+  anthropic: (() => {
+    const create = vi.fn();
+    return { messages: { create, stream: (body: unknown, options: unknown) => ({ finalMessage: () => create(body, options) }) } };
+  })(),
   isAiConfigured: () => true,
   MODELS: { GENERATION: "claude-sonnet-5" },
 }));
@@ -48,7 +52,8 @@ import {
   saveVideoSettingsAction,
 } from "./actions";
 import type { ProductionChoices, ShotPlan, VideoScript } from "./formats";
-import { suggestVideoIdeas, writeExtraBatch, type IdeaInput } from "./ideas";
+import { suggestVideoIdeas, WRITE_CHUNK, writeChunks, writeExtraBatch, type IdeaInput } from "./ideas";
+import { maxTokensFor } from "./strategy/prompt";
 import { contentHash, reviewBlocksAutoPublish } from "./review";
 import { readVideoSettings } from "./settings";
 
@@ -305,5 +310,22 @@ describe("settings", () => {
     const [voice] = await test.db.select().from(brandVoice).where(eq(brandVoice.websiteId, websiteId));
     expect(voice).toMatchObject({ tone: "Friendly", facts: ["Since 2015"] });
     expect(await readVideoSettings(websiteId)).toMatchObject({ priorityTopics: "Lighting", tonePreset: "bold" });
+  });
+});
+
+describe("writing a batch", () => {
+  const input = (count: number) => ({ count, slots: Array.from({ length: count }, (_, i) => ({ slot: i + 1 })) }) as unknown as IdeaInput;
+
+  it("splits a day's twenty into calls of five that keep their slot numbers", () => {
+    const chunks = writeChunks(input(20));
+    expect(chunks.map((chunk) => chunk.count)).toEqual([5, 5, 5, 5]);
+    expect(chunks.flatMap((chunk) => chunk.slots.map((slot) => slot.slot))).toEqual(Array.from({ length: 20 }, (_, i) => i + 1));
+    expect(writeChunks(input(12)).map((chunk) => chunk.count)).toEqual([5, 5, 2]);
+    expect(writeChunks(input(3))).toHaveLength(1);
+  });
+
+  it("asks one call for less than the SDK allows without streaming", () => {
+    // @anthropic-ai/sdk refuses a non-streamed max_tokens above about 21,333 (its ten-minute estimate).
+    expect(maxTokensFor(WRITE_CHUNK)).toBeLessThan(21_333);
   });
 });

@@ -91,6 +91,8 @@ export function VideosPanel(props: {
   made: IdeaView[];
   posted: IdeaView[];
   writing: boolean;
+  /** Today's ideas could not be written (all attempts used, none written). */
+  ideasFailed: boolean;
   approvedToday: number;
   goal: number;
   /** The free extra batches: used, left, one being written, or asked too soon. */

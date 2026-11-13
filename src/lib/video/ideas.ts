@@ -724,18 +724,52 @@ export async function rewriteIdea(websiteId: string, ideaId: string, now: Date =
   return updated ? { ok: true } : { ok: false, reason: "already_handled" };
 }
 
+/** Slots one model call writes. A day's twenty in one answer ran past its output limit and past the SDK's ten-minute non-streaming cap. */
+export const WRITE_CHUNK = 5;
+
+/** Splits a batch into calls of WRITE_CHUNK slots, keeping each slot's number (acceptIdeas matches ideas to slots by it). */
+export function writeChunks(input: IdeaInput): IdeaInput[] {
+  if (input.rewrite || input.slots.length <= WRITE_CHUNK) return [input];
+  const chunks: IdeaInput[] = [];
+  for (let i = 0; i < input.slots.length; i += WRITE_CHUNK) {
+    const slots = input.slots.slice(i, i + WRITE_CHUNK);
+    chunks.push({ ...input, count: slots.length, slots });
+  }
+  return chunks;
+}
+
+/**
+ * Writes a batch's ideas: the chunks in parallel, each answer streamed (the SDK
+ * refuses a long answer that is not), so a day's batch takes about as long as
+ * five ideas. One chunk that fails fails the batch, as before.
+ */
 export async function writeIdeas(input: IdeaInput): Promise<{ ideas: WrittenIdea[]; usage: Usage }> {
-  const response = await anthropic.messages.create(
-    {
+  const parts = await Promise.all(writeChunks(input).map(writeChunk));
+  return {
+    ideas: parts.flatMap((part) => part.ideas),
+    usage: {
+      inputTokens: parts.reduce((sum, part) => sum + part.usage.inputTokens, 0),
+      outputTokens: parts.reduce((sum, part) => sum + part.usage.outputTokens, 0),
       model: MODELS.GENERATION,
-      max_tokens: maxTokensFor(input.count),
-      output_config: { format: zodOutputFormat(ideaSchema) },
-      system: systemPrompt(input),
-      messages: [{ role: "user", content: userContent(input) }],
     },
-    { maxRetries: 0 },
-  );
-  if (response.stop_reason !== "end_turn") throw new Error("Video ideas did not finish");
+  };
+}
+
+async function writeChunk(input: IdeaInput): Promise<{ ideas: WrittenIdea[]; usage: Usage }> {
+  const response = await anthropic.messages
+    .stream(
+      {
+        model: MODELS.GENERATION,
+        max_tokens: maxTokensFor(input.count),
+        output_config: { format: zodOutputFormat(ideaSchema) },
+        system: systemPrompt(input),
+        messages: [{ role: "user", content: userContent(input) }],
+      },
+      { maxRetries: 0 },
+    )
+    .finalMessage();
+  // The stop reason is kept: "max_tokens" and "refusal" need different fixes.
+  if (response.stop_reason !== "end_turn") throw new Error(`Video ideas did not finish (${response.stop_reason})`);
   const ideas = ideaSchema.parse(JSON.parse(response.content.find((block) => block.type === "text")?.text ?? "")).ideas;
   return {
     ideas,

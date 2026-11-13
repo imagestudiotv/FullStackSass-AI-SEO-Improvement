@@ -6,7 +6,7 @@ import { requireWebsitePlan } from "@/lib/billing/require-plan";
 import { creditOverviewForRequest } from "@/lib/credits/overview-request";
 import { readCreditSettings } from "@/lib/credits/prices";
 import { db } from "@/lib/db";
-import { socialAccounts, videoIdeas, videoMedia } from "@/lib/db/schema";
+import { socialAccounts, videoIdeaBatches, videoIdeas, videoMedia } from "@/lib/db/schema";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { plural } from "@/lib/i18n/format";
 import { VIDEOS_COPY } from "@/lib/i18n/videos";
@@ -39,7 +39,7 @@ import { MUSIC_TRACKS } from "@/lib/video/music";
 import { brandLook, readVideoSettings, videoAccess, type VideoSettings } from "@/lib/video/settings";
 import type { ProductionReelProps } from "@/remotion/props";
 
-import { ideaAllowance } from "@/lib/video/batches";
+import { DAILY_MAX_ATTEMPTS, ideaAllowance } from "@/lib/video/batches";
 import { readDestinations } from "@/lib/video/destinations";
 import { readNativeAudio } from "@/lib/video/native-audio";
 import { videoPublishingStatus } from "@/lib/video/publish-actions";
@@ -124,7 +124,14 @@ export default async function WebsiteVideosPage({ params, searchParams }: PagePr
     .select({ n: sql<number>`count(*)::int` })
     .from(videoIdeas)
     .where(and(eq(videoIdeas.websiteId, site.id), eq(videoIdeas.day, today)));
-  const writing = Number(todayCount) === 0 && level !== "none" && site.status === "ready";
+  // A day whose batch used all its writing attempts with nothing written: say so, instead of
+  // "Writing..." for the rest of the day (every job would answer "busy"; New ideas still work).
+  const [daily] = await db
+    .select({ attempts: videoIdeaBatches.attempts, status: videoIdeaBatches.status })
+    .from(videoIdeaBatches)
+    .where(and(eq(videoIdeaBatches.websiteId, site.id), eq(videoIdeaBatches.day, today), eq(videoIdeaBatches.slot, 0)));
+  const ideasFailed = Number(todayCount) === 0 && !!daily && daily.status !== "writing" && daily.attempts >= DAILY_MAX_ATTEMPTS;
+  const writing = Number(todayCount) === 0 && !ideasFailed && level !== "none" && site.status === "ready";
   if (writing && access !== "viewer") await queueJob({ name: "video/ideas.requested", data: { websiteId: site.id } }).catch(() => false);
 
   // Without the status, nothing optional is offered (X, Instagram's own audio).
@@ -229,6 +236,7 @@ export default async function WebsiteVideosPage({ params, searchParams }: PagePr
       made={made.map(view)}
       posted={posted.map(view)}
       writing={writing}
+      ideasFailed={ideasFailed}
       approvedToday={Number(approvedToday[0]?.n ?? 0)}
       goal={COMPLETE_AFTER}
       allowance={{
