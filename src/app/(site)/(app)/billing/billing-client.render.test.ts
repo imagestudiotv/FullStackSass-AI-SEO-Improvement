@@ -20,6 +20,8 @@ import { getMessages } from "@/lib/i18n/messages";
 
 import { format } from "@/lib/i18n/format";
 import { OFFER_CODE } from "@/lib/i18n/offer-code";
+import { PLAN_CARDS_COPY } from "@/lib/i18n/plan-cards";
+import { TRIAL_DAYS } from "@/lib/plans/features";
 
 import { BillingClient } from "./billing-client";
 import { planCardsFor } from "./plan-cards";
@@ -129,8 +131,9 @@ describe("the Grow + Visibility bundle in Billing", () => {
     expect(html).toContain("<del");
     expect(html).toContain("€299");
     expect(html).toContain("€99 billed at checkout, then monthly. The 3-day free trial does not apply to this offer.");
-    // The free articles are said for the other plans only.
-    expect(html.split("Your first 3 articles are free").length - 1).toBe(2);
+    // The free trial is said for the other plans only, with the trial's days (TRIAL_DAYS).
+    const trialLine = renderToStaticMarkup(createElement("i", null, format(PLAN_CARDS_COPY.en.trial, { n: TRIAL_DAYS, days: TRIAL_DAYS }))).slice(3, -4);
+    expect(html.split(trialLine).length - 1).toBe(2);
   });
 
   it("is not a rung of the upgrade ladder", () => {
