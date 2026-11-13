@@ -32,7 +32,7 @@ import type { ActionResult } from "@/lib/websites/actions";
  *    never got must not look sent.
  *  - Pictures are never part of a list, only their number; each is served to
  *    administrators alone, by its own route
- *    (app/admin/feedback/[id]/screenshots/[n]).
+ *    (app/(site)/admin/feedback/[id]/screenshots/[n]).
  */
 
 export type FeedbackView = FeedbackStatus | "all";

@@ -1,0 +1,99 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+
+import { BrandLogo } from "@/components/brand-logo";
+import { AuthAside } from "@/components/auth-aside";
+import { AuthShowcase } from "@/components/auth-showcase";
+import { ConsentBanner } from "@/components/consent-banner";
+import { SignUpShowcase } from "@/components/signup-showcase";
+import { getAuthMessages } from "@/lib/i18n/app-locale";
+
+/**
+ * Sign-in and sign-up, following the reference design: the form on the left,
+ * a panel on the right (each page's own: AuthAside).
+ *
+ * Sign-in's panel collapses below lg. On a phone it would push the form below
+ * the fold, and the form is the only reason anyone is on this page. Sign-up's
+ * follows the form instead, so the form still comes first.
+ *
+ * Sign-in and sign-up read the session to redirect a user who is already
+ * logged in, so they cannot be prerendered — doing so would demand the auth
+ * secrets at build time.
+ */
+export const dynamic = "force-dynamic";
+
+/**
+ * Sign-in and sign-up are not search results.
+ *
+ * /sign-up was showing in Google (client's launch review, 2026-10-03). noindex
+ * keeps both pages out while `follow` still lets crawlers pass through their
+ * links. Deliberately NOT disallowed in robots.ts: a crawler blocked from the
+ * page never reads the noindex, and the URL can stay listed from links alone.
+ */
+export const metadata: Metadata = { robots: { index: false, follow: true } };
+
+export default async function AuthLayout({ children }: LayoutProps<"/">) {
+  // The language these pages use: the site page they came from, or the browser's.
+  const { locale, t } = await getAuthMessages();
+  return (
+    // That language declared for the page (its root layout's <html> says "en": the address cannot say).
+    <div lang={locale} className="grid min-h-svh lg:grid-cols-2">
+      {/*
+        The analytics cookie banner: sign-in and sign-up count as public pages
+        (components/consent-banner.tsx). First, so it is read before the form.
+      */}
+      <ConsentBanner copy={{ [locale]: t.consent }} locale={locale} />
+      {/*
+        Form side.
+
+        NOT `justify-center`. Centred flex content that overflows is pushed out
+        past the container's START edge, and that overflow cannot be scrolled
+        back to — setting scrollTop to 0 does not help, because the content
+        begins at a negative offset. On a 700px-tall laptop the logo sat at
+        -25px and the "Create your account" line was cut in half; at 560px the
+        logo was 95px above the top. Adding overflow-y-auto did not fix it,
+        which is what proved the centring itself was the cause.
+
+        `my-auto` on the inner block centres it the safe way: auto margins
+        collapse to zero once there is no spare room, so short content sits in
+        the middle of the viewport and tall content simply starts at the top
+        and scrolls normally.
+      */}
+      <div
+        /*
+          THE KEY: this element is no longer its own scroll container.
+
+          It was `lg:max-h-svh lg:overflow-y-auto`, which made the form column
+          scroll independently of the window. Next scrolls the WINDOW to the
+          top on navigation — and the window had never moved, so moving
+          between sign-in and sign-up left this column exactly where it was,
+          with the logo and heading scrolled off above. The client hit it
+          twice: "from sign up to sign in, and sign in to sign up is not
+          showing the full body logo".
+
+          Without the overflow the page scrolls as one document, which is
+          what Next's scroll restoration already handles correctly. `sticky`
+          goes with it: a sticky element inside a normally-scrolling page
+          would pin the form while the showcase moved, which is not what the
+          design asks for on a page this short.
+        */
+        id="auth-form-column"
+        className="flex flex-col px-6 py-12 sm:px-12 lg:px-16"
+      >
+        <div className="mx-auto my-auto w-full max-w-sm">
+          {/*
+            The mark links home. This is often the first page a customer sees,
+            and a logo that goes nowhere is a dead end on a page with no nav.
+          */}
+          <Link href="/" aria-label={t.app.common.brandHome} className="mb-10 inline-flex">
+            <BrandLogo height={30} priority />
+          </Link>
+
+          {children}
+        </div>
+      </div>
+
+      <AuthAside signIn={<AuthShowcase />} signUp={<SignUpShowcase locale={locale} />} />
+    </div>
+  );
+}

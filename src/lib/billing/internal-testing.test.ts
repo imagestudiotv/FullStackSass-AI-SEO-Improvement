@@ -267,8 +267,8 @@ describe("the scope", () => {
     };
     walk(root);
     expect(found.sort()).toEqual([
-      "app/(app)/websites/[websiteId]/page.tsx",
-      "app/(app)/websites/[websiteId]/social/page.tsx",
+      "app/(site)/(app)/websites/[websiteId]/page.tsx",
+      "app/(site)/(app)/websites/[websiteId]/social/page.tsx",
       "inngest/functions/audit-website.ts",
       "lib/audit/actions.ts",
       "lib/social/accounts.ts",

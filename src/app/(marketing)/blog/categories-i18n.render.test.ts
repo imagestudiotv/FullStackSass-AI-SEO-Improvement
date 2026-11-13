@@ -71,8 +71,8 @@ vi.mock("@/lib/blog/posts", async () => {
 import { PostCard } from "@/components/post-card";
 import { BLOG_PAGE_SIZE } from "@/lib/blog/pagination";
 
-import LocaleBlogCategoryPage, { generateMetadata as localeCategoryMetadata } from "../[locale]/blog/category/[category]/page";
-import LocaleBlogIndexPage from "../[locale]/blog/page";
+import LocaleBlogCategoryPage, { generateMetadata as localeCategoryMetadata } from "@/app/(localized)/[locale]/(pages)/blog/category/[category]/page";
+import LocaleBlogIndexPage from "@/app/(localized)/[locale]/(pages)/blog/page";
 import { generateMetadata as englishCategoryMetadata } from "./category/[category]/page";
 import { CategoryChips } from "./category-chips";
 import { BlogPostView } from "./post-view";

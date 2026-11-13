@@ -29,6 +29,7 @@ import { RobotsTool } from "./robots-checker/tool";
 import { SitemapTool } from "./sitemap-checker/tool";
 import { SnippetTool } from "./snippet-preview/tool";
 import { GrowthCopilotTool } from "./growth-copilot/tool";
+import { SocialPostGeneratorTool } from "./social-media-post-generator/tool";
 
 type Render = (locale: Locale) => Promise<ReactElement> | ReactElement;
 
@@ -43,6 +44,7 @@ const TOOLS: [string, Render][] = [
   ["/tools/meta-description-generator", (locale) => MetaDescriptionTool({ locale, searchParams: {} })],
   ["/tools/snippet-preview", (locale) => SnippetTool({ locale })],
   ["/tools/growth-copilot", (locale) => GrowthCopilotTool({ locale })],
+  ["/tools/social-media-post-generator", (locale) => SocialPostGeneratorTool({ locale })],
 ];
 
 const html = async (render: Render, locale: Locale) => renderToStaticMarkup(await render(locale));

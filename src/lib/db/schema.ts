@@ -18,6 +18,7 @@ import {
   check,
   customType,
   date,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -2662,6 +2663,69 @@ export const websiteProjects = pgTable(
     ),
   ],
 );
+
+/* ------------------------------------------------------------------------- */
+/* Nov 13 billing: credits bought for a quote (migration 0093) */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * Credits bought for one quote: exactly what the workspace lacked to pay it
+ * (Daniel, 2026-11-13). lib/credits/quote-topup.ts.
+ *
+ * Written BEFORE the payment starts, with the amount and the credits the
+ * server chose, so the payment carries only this row's id (Stripe metadata,
+ * paypal_orders.reference_id) and the grant reads the credits from here,
+ * never from the browser or the provider. The grant itself is the credit
+ * pack's: one addon_purchases row per Stripe session or PayPal order, under
+ * the inactive "credits_custom" add-on, and one ledger entry keyed
+ * "purchase:<purchase id>" (lib/addons/fulfil.ts).
+ *
+ * The quote is named for the way back to it; paying grants credits only and
+ * never pays or changes the quote.
+ */
+export const creditTopups = pgTable(
+  "credit_topups",
+  {
+    id: pk(),
+    organizationId: organizationId(),
+    /** Who started it. */
+    userId: userId(),
+    /** The quote it was bought for. Kept if the project is ever deleted: the money is not. */
+    websiteProjectId: uuid("website_project_id").references(() => websiteProjects.id, { onDelete: "set null" }),
+    /** The quote's revision when it was bought (lib/credits/quote-topup-shared.ts quoteRevisionOf). */
+    quoteRevision: text("quote_revision").notNull(),
+    /** The quote's price in credits then, and what the workspace could spend then. */
+    quoteCredits: integer("quote_credits").notNull(),
+    availableCredits: integer("available_credits").notNull(),
+    /** What this sells: quote_credits - available_credits. */
+    credits: integer("credits").notNull(),
+    amountCents: integer("amount_cents").notNull(),
+    currency: text("currency").notNull(),
+    /** The rate it was priced at: rate_credits for rate_cents (the smallest credit pack's, when bought). */
+    rateCents: integer("rate_cents").notNull(),
+    rateCredits: integer("rate_credits").notNull(),
+    /** "stripe" | "paypal". */
+    provider: text("provider").notNull(),
+    /** The Stripe Checkout session, once created. */
+    stripeSessionId: text("stripe_session_id"),
+    /** "open" until "paid" (credits granted) or "failed" (a delayed payment that did not clear). */
+    status: text("status").default("open").notNull(),
+    /** The purchase that granted the credits. */
+    addonPurchaseId: uuid("addon_purchase_id").references(() => addonPurchases.id, { onDelete: "set null" }),
+    paidAt: timestamp("paid_at"),
+    ...timestamps,
+  },
+  (table) => [
+    index("credit_topups_org_idx").on(table.organizationId, table.createdAt),
+    index("credit_topups_project_idx").on(table.websiteProjectId),
+    uniqueIndex("credit_topups_session_key").on(table.stripeSessionId),
+    uniqueIndex("credit_topups_purchase_key").on(table.addonPurchaseId),
+    check("credit_topups_amounts_check", sql`${table.credits} > 0 and ${table.amountCents} > 0 and ${table.rateCents} > 0 and ${table.rateCredits} > 0`),
+    check("credit_topups_provider_check", sql`${table.provider} in ('stripe', 'paypal')`),
+    check("credit_topups_status_check", sql`${table.status} in ('open', 'paid', 'failed')`),
+  ],
+);
+/* End of Nov 13 billing block. */
 /* Agency workspaces                                                          */
 /* ------------------------------------------------------------------------- */
 
@@ -2951,6 +3015,17 @@ export const blogPosts = pgTable(
      */
     translationOf: uuid("translation_of").references((): AnyPgColumn => blogPosts.id, { onDelete: "set null" }),
     /**
+     * Nov 13 engagement (client, 2026-11-13: "Upvote and comments on blogs and
+     * companies should reflect on all languages"). The discussion this post's
+     * upvotes and comments belong to, the same for an original and all its
+     * translations: the original's id. Set by the database when the row is
+     * inserted (trigger blog_posts_discussion: the translated post's
+     * discussion, else the row's own id) and never changed after, so deleting
+     * the original (translation_of set null) keeps its translations together.
+     * The default is only a placeholder the trigger always replaces.
+     */
+    discussionId: uuid("discussion_id").default(sql`gen_random_uuid()`).notNull(),
+    /**
      * A translation drafted by AI (or copied to translate by hand) that no
      * person has checked yet. It cannot be published until an administrator
      * confirms a native speaker has read and corrected it (lib/admin/blog.ts).
@@ -2969,13 +3044,18 @@ export const blogPosts = pgTable(
     uniqueIndex("blog_posts_business_slug_locale_uidx")
       .on(table.locale, table.businessSlug)
       .where(sql`${table.businessSlug} is not null`),
+    // Nov 13 engagement: a discussion's versions, and the target of the votes' and comments' (post, discussion) keys.
+    index("blog_posts_discussion_idx").on(table.discussionId),
+    uniqueIndex("blog_posts_id_discussion_uidx").on(table.id, table.discussionId),
   ],
 );
 
 /**
- * Upvotes on blog posts (client, 2026-11-11): any signed-in user, one per
- * user and post (the unique index decides), toggled on and off
- * (lib/blog/engagement.ts).
+ * Upvotes on blog posts (client, 2026-11-11): any signed-in user, toggled on
+ * and off (lib/blog/engagement.ts). Since Nov 13 one per user and DISCUSSION
+ * (an article and all its translations: blog_posts.discussion_id) - the
+ * unique index decides, so an upvote on the Italian version is the English
+ * version's too. post_id is the version it was given on.
  */
 export const blogPostUpvotes = pgTable(
   "blog_post_upvotes",
@@ -2984,14 +3064,22 @@ export const blogPostUpvotes = pgTable(
     postId: uuid("post_id")
       .notNull()
       .references(() => blogPosts.id, { onDelete: "cascade" }),
+    /** Nov 13 engagement: the post's discussion (held equal to it by the (post, discussion) key below). */
+    discussionId: uuid("discussion_id").notNull(),
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [
-    uniqueIndex("blog_post_upvotes_post_user_uidx").on(table.postId, table.userId),
+    uniqueIndex("blog_post_upvotes_discussion_user_uidx").on(table.discussionId, table.userId),
+    index("blog_post_upvotes_post_idx").on(table.postId),
     index("blog_post_upvotes_user_idx").on(table.userId),
+    foreignKey({
+      name: "blog_post_upvotes_post_discussion_fk",
+      columns: [table.postId, table.discussionId],
+      foreignColumns: [blogPosts.id, blogPosts.discussionId],
+    }).onDelete("cascade"),
   ],
 );
 
@@ -3007,9 +3095,12 @@ export const blogComments = pgTable(
   "blog_comments",
   {
     id: pk(),
+    /** The version it was written on (its language). It is listed on every version of the discussion. */
     postId: uuid("post_id")
       .notNull()
       .references(() => blogPosts.id, { onDelete: "cascade" }),
+    /** Nov 13 engagement: the post's discussion (blog_posts.discussion_id), where it is listed. */
+    discussionId: uuid("discussion_id").notNull(),
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
@@ -3026,9 +3117,50 @@ export const blogComments = pgTable(
     index("blog_comments_post_created_idx").on(table.postId, table.createdAt),
     index("blog_comments_user_created_idx").on(table.userId, table.createdAt),
     index("blog_comments_created_idx").on(table.createdAt),
+    index("blog_comments_discussion_created_idx").on(table.discussionId, table.createdAt),
     check("blog_comments_body_length_check", sql`char_length(${table.body}) between 1 and 750`),
+    foreignKey({
+      name: "blog_comments_post_discussion_fk",
+      columns: [table.postId, table.discussionId],
+      foreignColumns: [blogPosts.id, blogPosts.discussionId],
+    }).onDelete("cascade"),
   ],
 );
+
+/* ---- Nov 13 engagement (client, 2026-11-13): one discussion across languages ---- */
+
+/**
+ * The upvotes that became duplicates when upvotes moved from one per post to
+ * one per discussion (migration 0093): a
+ * member who had upvoted two language versions of the same article keeps
+ * their FIRST upvote; each later one is recorded here as it was, with the
+ * upvote kept in its place, instead of being dropped silently. Written only
+ * by that migration; nothing in the app reads it.
+ */
+export const blogPostUpvoteDuplicates = pgTable(
+  "blog_post_upvote_duplicates",
+  {
+    /** The duplicate upvote's own id, as it was in blog_post_upvotes. */
+    id: uuid("id").primaryKey(),
+    postId: uuid("post_id")
+      .notNull()
+      .references(() => blogPosts.id, { onDelete: "cascade" }),
+    discussionId: uuid("discussion_id").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    /** When the duplicate was given. */
+    createdAt: timestamp("created_at").notNull(),
+    /** The member's upvote that counts (blog_post_upvotes.id). */
+    keptUpvoteId: uuid("kept_upvote_id").notNull(),
+    /** "same_discussion". */
+    reason: text("reason").default("same_discussion").notNull(),
+    recordedAt: timestamp("recorded_at").defaultNow().notNull(),
+  },
+  (table) => [index("blog_post_upvote_duplicates_discussion_user_idx").on(table.discussionId, table.userId)],
+);
+
+/* ---- end Nov 13 engagement ---- */
 
 /** Upvotes on blog comments: one per user and comment, toggled like a post's. */
 export const blogCommentUpvotes = pgTable(
@@ -3491,7 +3623,7 @@ export const feedback = pgTable(
  * not one), in the order they were added. Each is re-encoded as WebP, at
  * most 1,600 px wide. Kept here rather than in the public picture bucket: a
  * screenshot of someone's dashboard is private. Served to administrators
- * alone (app/admin/feedback/[id]/screenshots/[n]); deleted with the message.
+ * alone (app/(site)/admin/feedback/[id]/screenshots/[n]); deleted with the message.
  */
 export const feedbackScreenshots = pgTable(
   "feedback_screenshots",
@@ -4165,3 +4297,56 @@ export const emailPreferences = pgTable("email_preferences", {
   signupLocale: text("signup_locale"),
   ...timestamps,
 });
+
+/* ------------------------------------------------------------------------- */
+/* Rewarded ads on Earn Credits (ticket 2026-11-13, area "ads")              */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * One "Watch an ad to earn credits" attempt (lib/earn/rewarded-ads.ts): created
+ * when the member opts in on the card, BEFORE any ad is requested, and closed
+ * once - granted (the credits, in the same transaction, with the ledger key
+ * "rewarded-ad:<id>"), cancelled (closed early, no ad, blocked), rejected
+ * (failed a check at the claim) or expired.
+ *
+ * A grant follows Google Publisher Tag's rewardedSlotGranted event in the
+ * browser: plausibility checks here, not proof (Google offers no per-user
+ * verification for web rewarded ads through GPT). So every bound is enforced
+ * on these rows: one open attempt per person (partial unique index), a daily
+ * limit per person, caps per workspace and across RepGet, a cooldown, a
+ * shortest and a longest time from start to reward.
+ *
+ * Times are written by the application (UTC wall-clock), never defaultNow():
+ * the bounds are compared in the application. `day` is the UTC day the
+ * attempt started, which is the day it counts for.
+ *
+ * `status`: started -> granted | cancelled | rejected | expired.
+ */
+export const rewardedAdViews = pgTable(
+  "rewarded_ad_views",
+  {
+    id: pk(),
+    organizationId: organizationId(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    status: text("status").default("started").notNull(),
+    /** Why it closed without a grant: closed_early, no_fill, unsupported, blocked, superseded, too_early, limit... */
+    reason: text("reason"),
+    /** The reward promised when it started; a later change of the setting does not alter it. */
+    rewardCredits: integer("reward_credits").notNull(),
+    day: date("day").notNull(),
+    startedAt: timestamp("started_at").notNull(),
+    endedAt: timestamp("ended_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("rewarded_ad_views_one_open_uidx")
+      .on(table.userId)
+      .where(sql`${table.status} = 'started'`),
+    index("rewarded_ad_views_user_day_idx").on(table.userId, table.day, table.status),
+    index("rewarded_ad_views_org_day_idx").on(table.organizationId, table.day, table.status),
+    index("rewarded_ad_views_day_idx").on(table.day, table.status),
+    check("rewarded_ad_views_reward_check", sql`${table.rewardCredits} > 0`),
+  ],
+);

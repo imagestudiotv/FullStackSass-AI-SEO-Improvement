@@ -23,7 +23,7 @@ vi.mock("@/lib/email/send", () => ({ sendEmail: mail.send }));
 
 import { getAttention } from "@/lib/admin/dashboard";
 import { deleteFeedback, getFeedbackAdmin, listFeedbackAdmin, replyToFeedback, setFeedbackStatus } from "@/lib/admin/feedback";
-import { GET as screenshot } from "@/app/admin/feedback/[id]/screenshots/[n]/route";
+import { GET as screenshot } from "@/app/(site)/admin/feedback/[id]/screenshots/[n]/route";
 
 let test: TestDb;
 const ADMIN = "admin@repget.test";

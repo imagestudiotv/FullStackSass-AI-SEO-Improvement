@@ -1,8 +1,6 @@
 import { formatPrice } from "@/lib/billing-shared";
-import { offerDisplayCents } from "@/lib/billing/repget-offer";
-
-/** What a plan row gives the price display. */
-type Priced = { priceCents: number; currency: string };
+import { perMonthOfYear, planDisplayPrice } from "@/lib/billing/display-prices";
+import type { OfferPlan } from "@/lib/billing/repget-offer";
 
 export type CardPrices = {
   monthly: { regular: string; price: string };
@@ -13,23 +11,25 @@ export type CardPrices = {
 /**
  * The figures on a plan card, from the plan's own rows (the prices checkout
  * charges). With the REPGET launch price, 40% off every payment as the design
- * shows it, and exactly what its coupon charges (lib/billing/repget-offer.ts
- * offerDisplayCents): EUR 99 -> 59 a month, and EUR 990 -> 590 a year, quoted
- * as 49.17 a month against 82.50.
+ * shows it, and exactly what its coupon charges - through planDisplayPrice
+ * (lib/billing/display-prices.ts), which Billing and the onboarding plan step
+ * read too: EUR 99 -> 59 a month, and EUR 990 -> 590 a year, quoted as 49.17 a
+ * month against 82.50. A price no coupon covers shows no discount, as checkout
+ * gives none.
  */
-export function cardPrices(monthly: Priced, annual: Priced | null, offer: boolean): CardPrices {
+export function cardPrices(monthly: OfferPlan, annual: OfferPlan | null, offer: boolean): CardPrices {
   const money = (cents: number) => formatPrice(cents, monthly.currency);
-  const month = monthly.priceCents;
+  const month = planDisplayPrice(monthly, offer);
   const result: CardPrices = {
-    monthly: { regular: money(month), price: money(offer ? offerDisplayCents(month, "month") : month) },
+    monthly: { regular: money(monthly.priceCents), price: money(month.chargedCents) },
     yearly: null,
   };
   if (annual) {
     const year = annual.priceCents;
-    const charged = offer ? offerDisplayCents(year, "year") : year;
+    const charged = planDisplayPrice(annual, offer).chargedCents;
     result.yearly = {
-      regular: money(Math.round(year / 12)),
-      price: money(Math.round(charged / 12)),
+      regular: money(perMonthOfYear(year)),
+      price: money(perMonthOfYear(charged)),
       total: money(charged),
       regularTotal: money(year),
     };

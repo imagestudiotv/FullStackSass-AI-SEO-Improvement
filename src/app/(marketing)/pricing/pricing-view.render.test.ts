@@ -53,7 +53,9 @@ const render = (props: Partial<Parameters<typeof PricingView>[0]> = {}) =>
   renderToStaticMarkup(createElement(PricingView, { locale: "en", plans: PLANS, testimonials: [] as Testimonial[], offer: true, ...props }));
 
 describe("the price display", () => {
-  const month = (cents: number) => ({ priceCents: cents, currency: "eur" });
+  const TIER: Record<number, string> = { 9900: "launch", 14900: "grow", 34900: "scale" };
+  const month = (cents: number) => ({ tier: TIER[cents] ?? "other", interval: "month", priceCents: cents, currency: "eur" });
+  const year = (cents: number) => ({ tier: TIER[cents / 10] ?? "other", interval: "year", priceCents: cents, currency: "eur" });
 
   it("monthly: 40% off rounded down to the euro, against the regular price", () => {
     expect([9900, 14900, 34900].map((cents) => cardPrices(month(cents), null, true).monthly)).toEqual([
@@ -64,13 +66,20 @@ describe("the price display", () => {
   });
 
   it("yearly: per month as the design quotes it, and the first year's total", () => {
-    expect(cardPrices(month(9900), month(99000), true).yearly).toEqual({ regular: "€82.50", price: "€49.17", total: "€590", regularTotal: "€990" });
-    expect(cardPrices(month(14900), month(149000), true).yearly).toEqual({ regular: "€124.17", price: "€74.17", total: "€890", regularTotal: "€1,490" });
-    expect(cardPrices(month(34900), month(349000), true).yearly).toEqual({ regular: "€290.83", price: "€174.17", total: "€2,090", regularTotal: "€3,490" });
+    expect(cardPrices(month(9900), year(99000), true).yearly).toEqual({ regular: "€82.50", price: "€49.17", total: "€590", regularTotal: "€990" });
+    expect(cardPrices(month(14900), year(149000), true).yearly).toEqual({ regular: "€124.17", price: "€74.17", total: "€890", regularTotal: "€1,490" });
+    expect(cardPrices(month(34900), year(349000), true).yearly).toEqual({ regular: "€290.83", price: "€174.17", total: "€2,090", regularTotal: "€3,490" });
+  });
+
+  it("only the discounts checkout applies: a price no coupon covers is shown as it is", () => {
+    expect(cardPrices(month(12300), year(123000), true)).toEqual({
+      monthly: { regular: "€123", price: "€123" },
+      yearly: { regular: "€102.50", price: "€102.50", total: "€1,230", regularTotal: "€1,230" },
+    });
   });
 
   it("without the offer, the regular prices only", () => {
-    expect(cardPrices(month(9900), month(99000), false)).toEqual({
+    expect(cardPrices(month(9900), year(99000), false)).toEqual({
       monthly: { regular: "€99", price: "€99" },
       yearly: { regular: "€82.50", price: "€82.50", total: "€990", regularTotal: "€990" },
     });

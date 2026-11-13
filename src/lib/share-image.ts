@@ -12,5 +12,5 @@ export const SHARE_IMAGE = {
   url: "/opengraph-image",
   width: 1200,
   height: 630,
-  alt: "RepGet - AI SEO Platform for Content & Backlinks",
+  alt: "RepGet - AI SEO platform for articles, social posts and videos",
 } as const;

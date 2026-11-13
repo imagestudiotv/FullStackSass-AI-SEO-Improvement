@@ -35,7 +35,7 @@ export function isProductionDeployment(
  * A header rather than robots.txt: a crawler blocked by robots.txt never
  * fetches the page, so never sees a noindex, and the URL can stay listed from
  * links alone - the same reason /sign-up is noindexed rather than disallowed
- * (app/(auth)/layout.tsx). A header also covers files a meta tag cannot, such
+ * (app/(site)/(auth)/layout.tsx). A header also covers files a meta tag cannot, such
  * as llms.txt and images.
  */
 export const PREVIEW_ROBOTS_HEADER = { key: "X-Robots-Tag", value: "noindex, nofollow" };

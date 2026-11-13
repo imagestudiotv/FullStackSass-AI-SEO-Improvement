@@ -2,7 +2,7 @@ import "server-only";
 
 import { and, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
 
-import { fulfilAddonPurchase } from "@/lib/addons/fulfil";
+import { fulfilAddonPurchase, topUpOfPayPalOrder } from "@/lib/addons/fulfil";
 import { db as appDb } from "@/lib/db";
 import { payments, paypalOrders } from "@/lib/db/schema";
 import type { Database } from "@/lib/db/types";
@@ -282,12 +282,18 @@ export async function settleOrder(
   return { kind: "completed", granted: true };
 }
 
-/** A credit pack's grant: the add-on purchase, keyed by our order row, with its credits once. */
+/**
+ * A credit pack's grant: the add-on purchase, keyed by our order row, with its credits once.
+ * Credits bought for a quote are the same purchase; their order names the top-up
+ * row (lib/credits/quote-topup.ts), which says how many.
+ */
 export const fulfilCreditPack: Fulfilment = async (row) => {
   if (!row.organizationId) return false;
+  const topUp = await topUpOfPayPalOrder(row.referenceId, row.organizationId);
   await fulfilAddonPurchase({
     organizationId: row.organizationId,
-    addonId: row.referenceId,
+    addonId: topUp ? topUp.addonId : row.referenceId,
+    topupId: topUp?.topupId ?? null,
     paypalOrderId: row.id,
     amountTotal: row.amountCents,
     currency: row.currency,

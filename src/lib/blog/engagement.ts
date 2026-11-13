@@ -1,11 +1,12 @@
 import "server-only";
 
-import { and, count, desc, eq, gte, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, isNull, ne, or, sql } from "drizzle-orm";
 
 import { blogLocale, blogPath, categoryPath } from "@/lib/blog/locale";
 import { db, isDatabaseConfigured } from "@/lib/db";
 import { user } from "@/lib/db/auth-tables";
-import { blogCategories, blogCommentUpvotes, blogComments, blogPosts, blogPostUpvotes } from "@/lib/db/schema";
+import { blogCategories, blogCommentUpvotes, blogComments, blogPosts, blogPostUpvotes, blogPostViews } from "@/lib/db/schema";
+import { discoverPath } from "@/lib/discover/paths";
 import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/config";
 
 /**
@@ -23,6 +24,22 @@ import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/config";
  *   once, a few per user per window (COMMENT_RATE). An administrator can
  *   remove and restore one (lib/admin/blog-comments.ts); its author can
  *   delete their own. Either hides it everywhere and it stops counting.
+ *
+ * ONE DISCUSSION IN EVERY LANGUAGE (client, 2026-11-13: "Upvote and
+ * comments on blogs and companies should reflect on all languages, without
+ * inserting for each language separately"). An article and its
+ * translations share one discussion (blog_posts.discussion_id: the
+ * original's id, set by the database when a post is made). Upvotes and
+ * comments are stored under it, with the version they were given on:
+ * - one upvote per member and discussion (the unique index decides, so an
+ *   upvote on the Italian version and one on the English at the same moment
+ *   are one upvote), the same count on every version;
+ * - every version lists all the discussion's comments, each as its author
+ *   wrote it (never translated); removing, restoring or deleting one, or
+ *   upvoting it, is the one row, so every version agrees;
+ * - the customer directory's counts and Earn Credits' progress count
+ *   discussions, so two versions of a story are one story.
+ * Each version keeps its own text, address, canonical and hreflang.
  *
  * Server-only: user ids come from the caller's session, checked in the
  * actions (lib/blog/engagement-actions.ts) - nothing here trusts a browser.
@@ -166,47 +183,91 @@ export async function listCustomerStories(locale: Locale, limit = 3): Promise<Cu
  * latest three in the visitor's language with the English fallback, and
  * "View all customer stories" - the category's page in that language. Null
  * when there are none: the section is hidden.
+ *
+ * When the stories shown are the English fallback, "View all" goes to the
+ * English page too: the category's page in a language with no stories of its
+ * own is empty and noindex, and /de linked it from every German homepage
+ * (live audit, 2026-11-13).
  */
 export async function homeCustomerStories(locale: Locale): Promise<{ stories: CustomerStory[]; viewAllHref: string } | null> {
   const stories = await listCustomerStories(locale, 3);
   if (stories.length === 0) return null;
   const category = await customerStoriesCategory();
-  return { stories, viewAllHref: customerStoriesPath(locale, category?.slug ?? CUSTOMER_STORIES_SLUG) };
+  const pageLocale = stories.some((story) => story.locale === locale) ? locale : DEFAULT_LOCALE;
+  return { stories, viewAllHref: customerStoriesPath(pageLocale, category?.slug ?? CUSTOMER_STORIES_SLUG) };
 }
 
 /* ------------------------------------------------------------------------- */
 /* Upvotes                                                                    */
 /* ------------------------------------------------------------------------- */
 
-async function isPublishedPost(postId: string): Promise<boolean> {
-  if (!isUuid(postId)) return false;
-  const [row] = await db.select({ id: blogPosts.id }).from(blogPosts).where(and(eq(blogPosts.id, postId), published)).limit(1);
-  return Boolean(row);
+/** A published post's discussion (see the top), or null when the post is not published or does not exist. */
+async function publishedDiscussion(postId: string): Promise<string | null> {
+  if (!isUuid(postId)) return null;
+  const [row] = await db
+    .select({ discussionId: blogPosts.discussionId })
+    .from(blogPosts)
+    .where(and(eq(blogPosts.id, postId), published))
+    .limit(1);
+  return row?.discussionId ?? null;
 }
 
-async function postUpvoteCount(postId: string): Promise<number> {
-  const [row] = await db.select({ n: count() }).from(blogPostUpvotes).where(eq(blogPostUpvotes.postId, postId));
+/** Each post's discussion (any status); posts that do not exist are left out. */
+export async function discussionsOf(postIds: string[]): Promise<Map<string, string>> {
+  const ids = [...new Set(postIds.filter(isUuid))];
+  if (ids.length === 0) return new Map();
+  const rows = await db.select({ id: blogPosts.id, discussionId: blogPosts.discussionId }).from(blogPosts).where(inArray(blogPosts.id, ids));
+  return new Map(rows.map((row) => [row.id, row.discussionId]));
+}
+
+/**
+ * Every public address showing a discussion's upvotes and comments: each
+ * published version's post, and its customer-directory profile when it has
+ * one - so a change made on one language's page refreshes them all.
+ */
+export async function discussionPaths(discussionId: string): Promise<string[]> {
+  if (!isUuid(discussionId)) return [];
+  const rows = await db
+    .select({ slug: blogPosts.slug, locale: blogPosts.locale, businessSlug: blogPosts.businessSlug })
+    .from(blogPosts)
+    .where(and(eq(blogPosts.discussionId, discussionId), published));
+  const paths = new Set<string>();
+  for (const row of rows) {
+    const locale = blogLocale(row.locale);
+    paths.add(blogPath(locale, row.slug));
+    if (row.businessSlug) paths.add(discoverPath(locale, row.businessSlug));
+  }
+  return [...paths];
+}
+
+async function discussionUpvoteCount(discussionId: string): Promise<number> {
+  const [row] = await db.select({ n: count() }).from(blogPostUpvotes).where(eq(blogPostUpvotes.discussionId, discussionId));
   return row?.n ?? 0;
 }
 
 /**
- * Turns the user's upvote on a published post on or off. Idempotent: on
- * twice is one upvote (the unique index decides, so two presses at once
- * cannot make two). Throws BlogEngagementNotFound for a post that is not
- * published.
+ * Turns the user's upvote on a published post's discussion on or off: one
+ * per user for the article and all its translations, whichever version it
+ * is given on. Idempotent: on twice is one upvote (the unique index decides,
+ * so two presses at once - on one version or two - cannot make two). Throws
+ * BlogEngagementNotFound for a post that is not published.
  */
 export async function setPostUpvote(userId: string, postId: string, on: boolean): Promise<{ upvoted: boolean; count: number }> {
-  if (!(await isPublishedPost(postId))) throw new BlogEngagementNotFound();
+  const discussionId = await publishedDiscussion(postId);
+  if (!discussionId) throw new BlogEngagementNotFound();
   if (on) {
-    await db.insert(blogPostUpvotes).values({ postId, userId }).onConflictDoNothing();
+    await db.insert(blogPostUpvotes).values({ postId, discussionId, userId }).onConflictDoNothing();
   } else {
-    await db.delete(blogPostUpvotes).where(and(eq(blogPostUpvotes.postId, postId), eq(blogPostUpvotes.userId, userId)));
+    await db.delete(blogPostUpvotes).where(and(eq(blogPostUpvotes.discussionId, discussionId), eq(blogPostUpvotes.userId, userId)));
   }
-  return { upvoted: on, count: await postUpvoteCount(postId) };
+  return { upvoted: on, count: await discussionUpvoteCount(discussionId) };
 }
 
-/** A comment that is shown: neither removed nor deleted, on a published post. */
+/** A comment that is shown: neither removed nor deleted. */
 const shownComment = and(isNull(blogComments.removedAt), isNull(blogComments.deletedAt));
+
+/** The comment's discussion has a published version: a post's comments are public while any of its versions is. */
+const discussionLive = and(eq(blogPosts.discussionId, blogComments.discussionId), published);
 
 /** Turns the user's upvote on a shown comment on or off, like a post's. */
 export async function setCommentUpvote(userId: string, commentId: string, on: boolean): Promise<{ upvoted: boolean; count: number }> {
@@ -214,8 +275,8 @@ export async function setCommentUpvote(userId: string, commentId: string, on: bo
   const [comment] = await db
     .select({ id: blogComments.id })
     .from(blogComments)
-    .innerJoin(blogPosts, eq(blogPosts.id, blogComments.postId))
-    .where(and(eq(blogComments.id, commentId), shownComment, published))
+    .innerJoin(blogPosts, discussionLive)
+    .where(and(eq(blogComments.id, commentId), shownComment))
     .limit(1);
   if (!comment) throw new BlogEngagementNotFound();
   if (on) {
@@ -267,7 +328,8 @@ export async function addComment(input: { userId: string; postId: string; body: 
   const body = cleanCommentBody(input.body);
   if (!body) return { ok: false, reason: "empty" };
   if (commentLength(body) > COMMENT_MAX) return { ok: false, reason: "too_long" };
-  if (!(await isPublishedPost(input.postId))) return { ok: false, reason: "not_found" };
+  const discussionId = await publishedDiscussion(input.postId);
+  if (!discussionId) return { ok: false, reason: "not_found" };
 
   return db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`blog_comment:${input.userId}`}))`);
@@ -281,7 +343,7 @@ export async function addComment(input: { userId: string; postId: string; body: 
     }
     const [created] = await tx
       .insert(blogComments)
-      .values({ postId: input.postId, userId: input.userId, body })
+      .values({ postId: input.postId, discussionId, userId: input.userId, body })
       .returning({ id: blogComments.id });
     return { ok: true as const, commentId: created.id };
   });
@@ -327,24 +389,26 @@ function displayName(name: string | null): string {
 }
 
 /**
- * A published post's upvotes and shown comments (newest first), with the
- * viewer's own state when `viewerId` is given. Throws
- * BlogEngagementNotFound for a post that is not published.
+ * A published post's upvotes and shown comments (newest first) - its
+ * discussion's, so the same on every language version - with the viewer's
+ * own state when `viewerId` is given. Throws BlogEngagementNotFound for a
+ * post that is not published.
  */
 export async function postEngagement(postId: string, viewerId: string | null): Promise<PostEngagement> {
-  if (!(await isPublishedPost(postId))) throw new BlogEngagementNotFound();
+  const discussionId = await publishedDiscussion(postId);
+  if (!discussionId) throw new BlogEngagementNotFound();
   const commentUpvotes = db
     .select({ commentId: blogCommentUpvotes.commentId, n: count().as("n") })
     .from(blogCommentUpvotes)
     .groupBy(blogCommentUpvotes.commentId)
     .as("comment_upvotes");
   const [upvotes, mine, rows] = await Promise.all([
-    postUpvoteCount(postId),
+    discussionUpvoteCount(discussionId),
     viewerId
       ? db
           .select({ id: blogPostUpvotes.id })
           .from(blogPostUpvotes)
-          .where(and(eq(blogPostUpvotes.postId, postId), eq(blogPostUpvotes.userId, viewerId)))
+          .where(and(eq(blogPostUpvotes.discussionId, discussionId), eq(blogPostUpvotes.userId, viewerId)))
           .limit(1)
       : Promise.resolve([]),
     db
@@ -359,7 +423,7 @@ export async function postEngagement(postId: string, viewerId: string | null): P
       .from(blogComments)
       .innerJoin(user, eq(user.id, blogComments.userId))
       .leftJoin(commentUpvotes, eq(commentUpvotes.commentId, blogComments.id))
-      .where(and(eq(blogComments.postId, postId), shownComment))
+      .where(and(eq(blogComments.discussionId, discussionId), shownComment))
       .orderBy(desc(blogComments.createdAt), desc(blogComments.id))
       .limit(COMMENTS_SHOWN),
   ]);
@@ -393,47 +457,83 @@ export async function postEngagement(postId: string, viewerId: string | null): P
 
 /**
  * The user's upvote and comment on each of the posts (any status; a post
- * with neither is listed as false/false). `commented` is a shown comment.
+ * with neither is listed as false/false) - on its discussion, so an upvote
+ * given on the Italian version marks the English one too. `commented` is a
+ * shown comment.
  */
 export async function viewerEngagement(userId: string, postIds: string[]): Promise<Record<string, { upvoted: boolean; commented: boolean }>> {
-  const ids = [...new Set(postIds.filter(isUuid))];
   const result: Record<string, { upvoted: boolean; commented: boolean }> = {};
   for (const id of postIds) result[id] = { upvoted: false, commented: false };
+  const discussions = await discussionsOf(postIds);
+  const ids = [...new Set(discussions.values())];
   if (ids.length === 0) return result;
   const [upvoted, commented] = await Promise.all([
     db
-      .select({ postId: blogPostUpvotes.postId })
+      .select({ discussionId: blogPostUpvotes.discussionId })
       .from(blogPostUpvotes)
-      .where(and(eq(blogPostUpvotes.userId, userId), inArray(blogPostUpvotes.postId, ids))),
+      .where(and(eq(blogPostUpvotes.userId, userId), inArray(blogPostUpvotes.discussionId, ids))),
     db
-      .selectDistinct({ postId: blogComments.postId })
+      .selectDistinct({ discussionId: blogComments.discussionId })
       .from(blogComments)
-      .where(and(eq(blogComments.userId, userId), inArray(blogComments.postId, ids), shownComment)),
+      .where(and(eq(blogComments.userId, userId), inArray(blogComments.discussionId, ids), shownComment)),
   ]);
-  for (const row of upvoted) result[row.postId] = { ...result[row.postId], upvoted: true };
-  for (const row of commented) result[row.postId] = { ...result[row.postId], commented: true };
+  const up = new Set(upvoted.map((row) => row.discussionId));
+  const said = new Set(commented.map((row) => row.discussionId));
+  for (const [postId, discussionId] of discussions) {
+    result[postId] = { upvoted: up.has(discussionId), commented: said.has(discussionId) };
+  }
   return result;
 }
 
 /**
- * How many distinct published customer stories (any language) the user has
- * upvoted, and has a shown comment on: Earn Credits' "Discover businesses".
+ * How many distinct customer stories the user has upvoted, and has a shown
+ * comment on: Earn Credits' "Discover businesses". A story is a discussion
+ * with a published version in the Customer stories category, so a story's
+ * versions in two languages count once - an upvote or comment cannot earn
+ * twice by being given on another language's page.
  */
 export async function discoverProgress(userId: string): Promise<{ upvotes: number; comments: number }> {
   const category = await customerStoriesCategory();
   if (!category) return { upvotes: 0, comments: 0 };
-  const story = and(published, eq(blogPosts.category, category.name));
+  const liveStory = (discussion: typeof blogPostUpvotes.discussionId | typeof blogComments.discussionId) =>
+    sql`exists (select 1 from ${blogPosts} where ${blogPosts.discussionId} = ${discussion} and ${blogPosts.status} = 'published' and ${blogPosts.category} = ${category.name})`;
   const [[upvotes], [comments]] = await Promise.all([
     db
-      .select({ n: sql<number>`count(distinct ${blogPostUpvotes.postId})::int` })
+      .select({ n: sql<number>`count(distinct ${blogPostUpvotes.discussionId})::int` })
       .from(blogPostUpvotes)
-      .innerJoin(blogPosts, eq(blogPosts.id, blogPostUpvotes.postId))
-      .where(and(eq(blogPostUpvotes.userId, userId), story)),
+      .where(and(eq(blogPostUpvotes.userId, userId), liveStory(blogPostUpvotes.discussionId))),
     db
-      .select({ n: sql<number>`count(distinct ${blogComments.postId})::int` })
+      .select({ n: sql<number>`count(distinct ${blogComments.discussionId})::int` })
       .from(blogComments)
-      .innerJoin(blogPosts, eq(blogPosts.id, blogComments.postId))
-      .where(and(eq(blogComments.userId, userId), shownComment, story)),
+      .where(and(eq(blogComments.userId, userId), shownComment, liveStory(blogComments.discussionId))),
   ]);
   return { upvotes: upvotes?.n ?? 0, comments: comments?.n ?? 0 };
+}
+
+/**
+ * Before a post is deleted (Admin -> Blog, lib/admin/blog.ts): the upvotes
+ * and comments given on it belong to its discussion, so when another
+ * version of it remains they move to that version (published first) and
+ * stay shown there and on every other version; its views are added to that
+ * version's. With no other version they go with the post, as before.
+ * Returns what moved, for the audit log. Run inside the deleting transaction.
+ */
+export async function keepDiscussionOnDelete(
+  tx: Pick<typeof db, "select" | "update" | "execute">,
+  post: { id: string; discussionId: string },
+): Promise<{ to: string; upvotes: number; comments: number } | null> {
+  const [heir] = await tx
+    .select({ id: blogPosts.id })
+    .from(blogPosts)
+    .where(and(eq(blogPosts.discussionId, post.discussionId), ne(blogPosts.id, post.id)))
+    .orderBy(sql`(${blogPosts.status} = 'published') desc`, blogPosts.createdAt, blogPosts.id)
+    .limit(1);
+  if (!heir) return null;
+  const upvotes = await tx.update(blogPostUpvotes).set({ postId: heir.id }).where(eq(blogPostUpvotes.postId, post.id)).returning({ id: blogPostUpvotes.id });
+  const comments = await tx.update(blogComments).set({ postId: heir.id }).where(eq(blogComments.postId, post.id)).returning({ id: blogComments.id });
+  await tx.execute(sql`
+    insert into ${blogPostViews} (post_id, day, views)
+    select ${heir.id}::uuid, day, views from ${blogPostViews} where post_id = ${post.id}::uuid
+    on conflict (post_id, day) do update set views = ${blogPostViews}.views + excluded.views`);
+  return { to: heir.id, upvotes: upvotes.length, comments: comments.length };
 }

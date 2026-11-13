@@ -1,6 +1,7 @@
 import { getMessages } from "@/lib/i18n/messages";
 import { CASE_STUDY_COPY, CASE_STUDY_PATH } from "@/lib/marketing/case-study-image-studio";
 import { DOCS_UI_EN, INTEGRATION_DOCS } from "@/lib/publishing/docs";
+import { HOME_META } from "@/lib/seo/home-metadata";
 import { TOOLS_COMMON } from "@/lib/tools/i18n/common";
 import { TOOLS } from "@/lib/tools/registry";
 
@@ -32,9 +33,8 @@ export type LlmsPost = { slug: string; title: string; description: string };
 
 type Link = { label: string; path: string; note?: string | null };
 
-/** Homepage title + description (app/(marketing)/page.tsx), as one summary. */
-const SUMMARY =
-  "RepGet is an AI SEO platform for content and backlinks. Automate SEO with RepGet. Research keywords, publish optimized content, build quality backlinks, track rankings and grow visibility in Google and AI search.";
+/** The homepage's title, as a sentence, and its description (lib/seo/home-metadata.ts), as one summary. */
+const SUMMARY = `RepGet is an AI SEO platform for articles, social posts and videos. ${HOME_META.en.description}`;
 
 /**
  * Notes for pages whose description is written in the page itself rather than

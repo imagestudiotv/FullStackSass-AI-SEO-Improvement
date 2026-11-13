@@ -7,7 +7,7 @@ import { format } from "@/lib/i18n/format";
 import { getMessages } from "@/lib/i18n/messages";
 import { CASE_STUDY_COPY, IMAGE_STUDIO } from "@/lib/marketing/case-study-image-studio";
 
-import LocalisedImageStudioCaseStudyPage from "../../[locale]/success-stories/image-studio/page";
+import LocalisedImageStudioCaseStudyPage from "@/app/(localized)/[locale]/(pages)/success-stories/image-studio/page";
 import { SuccessStoriesContent } from "../../success-stories-content";
 import { CaseStudyPage, caseStudyMetadata, clicksChart, dates } from "./case-study";
 

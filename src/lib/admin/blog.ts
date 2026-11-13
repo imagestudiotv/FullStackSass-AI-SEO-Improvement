@@ -20,7 +20,7 @@ import {
 import { removeAddedLinks } from "@/lib/blog/autopilot/links";
 import type { BlogBusiness } from "@/lib/blog/business";
 import type { BusinessProfile } from "@/lib/discover/profile-fields";
-import { customerStoriesCategory } from "@/lib/blog/engagement";
+import { customerStoriesCategory, keepDiscussionOnDelete } from "@/lib/blog/engagement";
 import { translateBlogPost, type TranslatableFields } from "@/lib/blog/translate";
 import { blogLinkTargets, localizeLinks } from "@/lib/blog/translation-links";
 import { db } from "@/lib/db";
@@ -529,6 +529,8 @@ export async function deleteBlogPost(input: { id: string; expectedVersion: numbe
         page: a post that was once live was reported when it was unpublished.
       */
       if (current.status === "published") throw new BlogError("Unpublish the post before deleting it");
+      // Its upvotes and comments are its article's, in every language: another version of it keeps them.
+      const kept = await keepDiscussionOnDelete(tx, current);
       await tx.delete(blogPosts).where(eq(blogPosts.id, current.id));
       await recordAdminAction(
         {
@@ -537,7 +539,11 @@ export async function deleteBlogPost(input: { id: string; expectedVersion: numbe
           targetType: "blog_post",
           targetId: current.id,
           summary: `Deleted the blog post "${current.title}"`,
-          detail: { slug: current.slug, everPublished: current.publishedAt !== null },
+          detail: {
+            slug: current.slug,
+            everPublished: current.publishedAt !== null,
+            ...(kept ? { engagementMovedTo: kept.to, upvotesMoved: kept.upvotes, commentsMoved: kept.comments } : {}),
+          },
         },
         tx,
       );
@@ -765,7 +771,7 @@ function sniffImageType(data: Buffer): (typeof ALLOWED_IMAGE_TYPES)[number] | nu
 
 /**
  * The first half of uploading a blog picture straight from the browser
- * (app/admin/blog/upload-picture.ts): checks what the browser says it is
+ * (app/(site)/admin/blog/upload-picture.ts): checks what the browser says it is
  * sending and returns a signed address for one new file in the pending
  * folder (lib/images/storage.ts BLOG_PENDING_FOLDER). The picture never
  * passes through this server, whose request body is limited far below

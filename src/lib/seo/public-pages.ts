@@ -4,7 +4,7 @@ import { TOOLS } from "@/lib/tools/registry";
 /**
  * The public marketing pages, in English - one list for the sitemap
  * (app/sitemap.ts) and for the addresses that send an old language-prefixed
- * link to its English page (app/(marketing)/[locale]/[...rest]).
+ * link to its English page (app/(localized)/[locale]/(pages)/[...rest]).
  *
  * Blog posts and categories are not here: they come from the database.
  */

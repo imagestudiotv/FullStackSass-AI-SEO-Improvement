@@ -84,6 +84,26 @@ describe("a blog post's title, for search engines and on the page", () => {
     expect(html).not.toContain("/blog/author/");
     expect(html).toContain("Jane Doe");
   });
+
+  it("keeps links to RepGet followed, in the body and the FAQ; only other sites get nofollow", () => {
+    const repget = "https://www.repget.com/audit";
+    const html = renderToStaticMarkup(
+      createElement(BlogArticle, {
+        post: {
+          ...post,
+          body: `<p><a href="${repget}">Free audit</a> <a href="https://repget.com/tools">Tools</a> <a href="https://example.com/">Elsewhere</a></p>`,
+          faqs: [{ question: "Where?", answer: `<p><a href="${repget}">Here</a></p>` }],
+        },
+      }),
+    );
+    const found = links(html).filter((link) => link.href !== undefined && /^https:/.test(link.href));
+    expect(found.filter((link) => /repget\.com/.test(link.href)).map((link) => [link.href, link.rel])).toEqual([
+      [repget, undefined],
+      ["https://repget.com/tools", undefined],
+      [repget, undefined],
+    ]);
+    expect(found.find((link) => link.href === "https://example.com/")?.rel).toBe("noopener nofollow");
+  });
 });
 
 describe("the blog's pages of 30", () => {

@@ -60,8 +60,8 @@ vi.mock("@/lib/i18n/app-locale", async () => {
 });
 vi.mock("@/components/switch-account", () => ({ SwitchAccount: () => null }));
 
-import ConnectWordPressPage from "@/app/connect/wordpress/page";
-import { approveConnection, cancelConnection } from "@/app/connect/wordpress/actions";
+import ConnectWordPressPage from "@/app/(site)/connect/wordpress/page";
+import { approveConnection, cancelConnection } from "@/app/(site)/connect/wordpress/actions";
 import { POST as disconnect } from "@/app/api/plugin/disconnect/route";
 import { POST as start } from "@/app/api/plugin/connect/start/route";
 import { POST as token } from "@/app/api/plugin/connect/token/route";

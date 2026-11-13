@@ -93,6 +93,14 @@ export const TOOLS: Tool[] = [
 
   /* --- Content & meta --------------------------------------------------- */
   {
+    // The free AI Social Media Post Generator (client, 2026-11-13).
+    href: "/tools/social-media-post-generator",
+    title: "AI Social Media Post Generator",
+    blurb: "Turn one page into 3 posts to edit and share.",
+    emoji: "📣",
+    category: "Content & meta",
+  },
+  {
     href: "/tools/snippet-preview",
     title: "SEO Title Checker",
     blurb: "Score your title for SERP CTR, live.",

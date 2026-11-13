@@ -30,7 +30,7 @@ vi.mock("next/link", () => ({
 vi.mock("@/lib/websites/actions", () => ({
   selectWebsite: async () => ({ ok: true, data: null }),
 }));
-vi.mock("@/app/(app)/dashboard/invitation-actions", () => ({
+vi.mock("@/app/(site)/(app)/dashboard/invitation-actions", () => ({
   acceptPendingInvitationAction: async () => ({ ok: false, error: "" }),
 }));
 vi.mock("sonner", () => ({ toast: { error: () => {} } }));

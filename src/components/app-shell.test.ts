@@ -119,11 +119,11 @@ vi.mock("@/components/live-chat", () => ({ LiveChat: () => null }));
 vi.mock("@/components/user-menu", () => ({ UserMenu: () => null }));
 vi.mock("@/components/referral-claim", () => ({ ReferralClaim: () => null }));
 vi.mock("@/components/settings-nav", () => ({ SettingsNav: () => null }));
-vi.mock("@/app/(app)/settings/personal-details", () => ({
+vi.mock("@/app/(site)/(app)/settings/personal-details", () => ({
   PersonalDetails: () => null,
 }));
-vi.mock("@/app/(app)/settings/referral-card", () => ({ ReferralCard: () => null }));
-vi.mock("@/app/(app)/settings/website-members", () => ({
+vi.mock("@/app/(site)/(app)/settings/referral-card", () => ({ ReferralCard: () => null }));
+vi.mock("@/app/(site)/(app)/settings/website-members", () => ({
   WebsiteMembers: () => null,
 }));
 
@@ -145,11 +145,11 @@ import { ResearchWatcher } from "@/components/research-watcher";
 import { SidebarNav } from "@/components/sidebar-nav";
 import { SidebarCredits, SidebarUsage } from "@/components/sidebar-usage";
 import { WebsiteSwitcher } from "@/components/dashboard/website-switcher";
-import { WebsiteMembers } from "@/app/(app)/settings/website-members";
+import { WebsiteMembers } from "@/app/(site)/(app)/settings/website-members";
 import { listWebsiteMembers } from "@/lib/websites/members";
 
-import AppLayout from "@/app/(app)/layout";
-import SettingsPage from "@/app/(app)/settings/page";
+import AppLayout from "@/app/(site)/(app)/layout";
+import SettingsPage from "@/app/(site)/(app)/settings/page";
 
 let test: TestDb;
 

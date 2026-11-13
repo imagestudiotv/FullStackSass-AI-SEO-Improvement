@@ -51,7 +51,7 @@ vi.mock("./posts", () => {
 
 import { listPlacements, setPlacementStatus } from "@/lib/admin/blog-sponsorships";
 import { processStripeEvent } from "@/lib/billing/stripe-events";
-import LocaleSponsorshipThanksPage from "@/app/(marketing)/[locale]/blog/sponsorship/thanks/page";
+import LocaleSponsorshipThanksPage from "@/app/(localized)/[locale]/(pages)/blog/sponsorship/thanks/page";
 import SponsorshipThanksPage from "@/app/(marketing)/blog/sponsorship/thanks/page";
 import { LOCALES } from "@/lib/i18n/config";
 

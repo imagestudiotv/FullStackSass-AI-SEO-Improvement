@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { THEME_KEY, THEME_SCRIPT } from "@/lib/theme";
 
 /**
- * The night mode script that runs before the first paint (app/layout.tsx), run
+ * The night mode script that runs before the first paint (app/root-document.tsx), run
  * here against a stand-in page: dark only when "dark" was chosen, and never an
  * error - a script that throws there would stop nothing else, but a page that
  * cannot read storage must still open.

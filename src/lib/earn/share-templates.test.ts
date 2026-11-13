@@ -138,8 +138,8 @@ describe("the addresses", () => {
 });
 
 describe("copying and sharing earn nothing", () => {
-  const kit = readFileSync(path.resolve(__dirname, "../../app/(app)/earn-credits/share-kit.tsx"), "utf8");
-  const copy = readFileSync(path.resolve(__dirname, "../../app/(app)/earn-credits/copy-text.ts"), "utf8");
+  const kit = readFileSync(path.resolve(__dirname, "../../app/(site)/(app)/earn-credits/share-kit.tsx"), "utf8");
+  const copy = readFileSync(path.resolve(__dirname, "../../app/(site)/(app)/earn-credits/copy-text.ts"), "utf8");
   const templatesModule = readFileSync(path.resolve(__dirname, "./share-templates.ts"), "utf8");
 
   it("the kit reaches no server action, route or database: only the clipboard and an address", () => {

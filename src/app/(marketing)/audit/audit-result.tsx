@@ -16,7 +16,7 @@ import {
   X,
 } from "lucide-react";
 
-import { issueText, notAssessed as localisedNotAssessed, rowDetail } from "@/app/(app)/websites/[websiteId]/health-model";
+import { issueText, notAssessed as localisedNotAssessed, rowDetail } from "@/app/(site)/(app)/websites/[websiteId]/health-model";
 import { Card, CardContent } from "@/components/ui/card";
 import { fixFor } from "@/lib/audit/fixes";
 import { ISSUE_LABELS, type AuditSummary } from "@/lib/audit/rules";

@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 
 import { recordAdminAction } from "@/lib/admin/audit";
 import { requireAdmin } from "@/lib/admin/guard";
-import { isUuid } from "@/lib/blog/engagement";
+import { discussionPaths, isUuid } from "@/lib/blog/engagement";
 import { blogLocale, blogPath } from "@/lib/blog/locale";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/auth-tables";
@@ -20,6 +20,11 @@ import type { ActionResult } from "@/lib/websites/actions";
  * where they are moderated. Removing is a soft delete (removed_at,
  * removed_by); every change is in the admin audit log. A comment its author
  * deleted is listed as such and cannot be restored.
+ *
+ * A comment is written on one language version (the post listed here) and
+ * shown on every version of the article (its discussion,
+ * lib/blog/engagement.ts), so removing or restoring it here does so in
+ * every language at once.
  */
 
 export type CommentView = "shown" | "removed" | "all";
@@ -105,17 +110,24 @@ export async function setCommentRemoved(input: { id: string; removed: boolean })
   const admin = await requireAdmin();
   if (!isUuid(input.id)) return { ok: false, error: "Comment not found" };
   const removed = input.removed === true;
-  const result = await db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx): Promise<{ ok: false; error: string } | { ok: true; discussionId: string | null }> => {
     const [current] = await tx
-      .select({ id: blogComments.id, body: blogComments.body, removedAt: blogComments.removedAt, deletedAt: blogComments.deletedAt, postTitle: blogPosts.title })
+      .select({
+        id: blogComments.id,
+        body: blogComments.body,
+        removedAt: blogComments.removedAt,
+        deletedAt: blogComments.deletedAt,
+        discussionId: blogComments.discussionId,
+        postTitle: blogPosts.title,
+      })
       .from(blogComments)
       .innerJoin(blogPosts, eq(blogPosts.id, blogComments.postId))
       .where(eq(blogComments.id, input.id))
       .for("update", { of: blogComments })
       .limit(1);
-    if (!current) return "Comment not found";
-    if (!removed && current.deletedAt) return "Its author deleted this comment - it cannot be restored";
-    if ((current.removedAt !== null) === removed) return null;
+    if (!current) return { ok: false, error: "Comment not found" };
+    if (!removed && current.deletedAt) return { ok: false, error: "Its author deleted this comment - it cannot be restored" };
+    if ((current.removedAt !== null) === removed) return { ok: true, discussionId: null };
     await tx
       .update(blogComments)
       .set(removed ? { removedAt: new Date(), removedBy: admin.email } : { removedAt: null, removedBy: null })
@@ -131,9 +143,11 @@ export async function setCommentRemoved(input: { id: string; removed: boolean })
       },
       tx,
     );
-    return null;
+    return { ok: true, discussionId: current.discussionId };
   });
-  if (result) return { ok: false, error: result };
+  if (!result.ok) return { ok: false, error: result.error };
   revalidatePath("/admin/blog/comments");
+  // Every language version's page and profile shows it (they render per request; this keeps any cached copy honest too).
+  if (result.discussionId) for (const path of await discussionPaths(result.discussionId)) revalidatePath(path);
   return { ok: true, data: null };
 }

@@ -1,0 +1,701 @@
+"use client";
+
+import { ArrowRight, Check, Loader2, MailCheck, ShieldCheck, Star } from "lucide-react";
+import { getMessages, type Messages } from "@/lib/i18n/messages";
+import { useState, type ReactNode } from "react";
+import { toast } from "sonner";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { PayPalMark } from "@/components/paypal-mark";
+import { authClient } from "@/lib/auth-client";
+import { confirmEmail, type ConfirmEmailResult } from "@/lib/auth/confirm-email-actions";
+import { formatPrice } from "@/lib/billing-shared";
+import { perMonthOfYear, planDisplayPrice } from "@/lib/billing/display-prices";
+import { format } from "@/lib/i18n/format";
+import {
+  FREE_ARTICLES,
+  FREE_ARTICLES_DAYS,
+  planFeatures,
+  type PickerPlan,
+} from "@/lib/plans/features";
+import { OfferApplied } from "@/components/billing/offer-code-field";
+import type { DirectPurchaseCopy } from "@/lib/i18n/direct-purchase";
+import type { OfferCodeCopy } from "@/lib/i18n/offer-code";
+import { createPayPalCheckout } from "@/lib/paypal/actions";
+import { createCheckoutSession } from "@/lib/stripe/actions";
+import { WIZARD_STEPS, wizardStepIndex } from "@/lib/onboarding/wizard";
+
+/**
+ * The last step before payment, following the client's reference exactly.
+ *
+ * "Can we just having again a nice design without dashboard menu, and only 2
+ * packages Grow plan monthly and yearly option with discount. And scale
+ * package with monthly and yearly option with discount."
+ *
+ * So: ONE plan on screen at a time with a monthly/yearly switch inside its
+ * card, and a link to the other plan underneath — not a row of cards to
+ * compare. That is the reference's shape and it is the right one here. This
+ * screen is the end of a sequence someone has already invested five minutes
+ * in; a comparison table at that moment reopens a decision they came here
+ * having made, and the tier that suits almost everyone is the default.
+ *
+ * THE FREE ARTICLES ARE REAL (client, 2026-10-09: "Create 3 Articles for
+ * Free"). Card checkout gives a new workspace a Stripe trial of
+ * FREE_ARTICLES_DAYS, its first FREE_ARTICLES articles are free, and the plan
+ * starts once the last of them is written (lib/billing/free-articles.ts). An
+ * offer claimed here but not applied at checkout would be a false statement
+ * about money on the screen where the card is entered. The exact first-charge
+ * date is left to Stripe's own Checkout page — see the note further down.
+ *
+ * The email is confirmed first, with a code, when the free articles are on
+ * offer: checkout refuses without it (lib/stripe/actions.ts), so nobody can
+ * collect them again under a made-up address.
+ *
+ * WHAT IS STILL NOT COPIED FROM THE REFERENCE: its "€99 ~~€247~~"
+ * strike-through and its "90-day money-back guarantee if traffic doesn't
+ * grow". A struck price we never charged is a misleading pricing claim, and
+ * the guarantee is a commitment the client has not made — cheap to write here
+ * and expensive to honour later. The struck figure we DO show on the yearly
+ * option is real: it is twelve of our own monthly payments.
+ *
+ * Testimonials and the review score come from lib/marketing/testimonials.ts,
+ * which is empty until there are real ones. See TestimonialRail.
+ */
+export function PlanStep({
+  initialTier,
+  monthlyPlans,
+  annualPlans,
+  paypalAvailable,
+  offerCopy = null,
+  directPurchase = null,
+  paypalPlanIds,
+  paypalFreeArticlePlanIds = [],
+  websiteId,
+  trialEligible = true,
+  emailVerified = true,
+  email = "",
+  t = getMessages("en").app.onboarding,
+  benefits = {},
+}: {
+  /**
+   * What each plan includes, by plan id, in the reader's language - the
+   * pricing page's lists (lib/plans/benefits.ts), worked out on the server.
+   * A plan without one keeps the English list (lib/plans/features.ts).
+   */
+  benefits?: Record<string, string[]>;
+  /** The tier whose button was pressed on the way here, if it is on sale. */
+  initialTier?: string;
+  monthlyPlans: PickerPlan[];
+  annualPlans: PickerPlan[];
+  /** Whether PayPal can complete a checkout at all (lib/paypal/client.ts). */
+  paypalAvailable: boolean;
+  /** The REPGET notice's words (applied automatically, on every payment), or null while the offer is off. */
+  offerCopy?: OfferCodeCopy | null;
+  /**
+   * Set when the plan on screen is bought outright (the Grow + Visibility
+   * bundle, lib/plans/features.ts DIRECT_PURCHASE_TIERS): no free articles,
+   * no email code, the first payment taken at checkout.
+   */
+  directPurchase?: DirectPurchaseCopy | null;
+  /** The plans that exist in PayPal; any other gets no PayPal button. */
+  paypalPlanIds: string[];
+  /**
+   * The plans whose PayPal checkout can give the free articles: those with
+   * their free-articles PayPal plan (plans.paypal_trial_plan_id, 2026-10-22).
+   */
+  paypalFreeArticlePlanIds?: string[];
+  /**
+   * Whether checkout will actually give the free articles: only a workspace
+   * that has never subscribed (lib/billing/checkouts.ts isTrialEligible).
+   * Promising an offer checkout will not give would be a false statement
+   * about money on the screen where the card is entered.
+   */
+  trialEligible?: boolean;
+  /** Whether the signed-in address is confirmed; the free articles need it. */
+  emailVerified?: boolean;
+  /** The signed-in address, where the confirmation code is sent. */
+  email?: string;
+  /** The website this plan pays for. Always present: step one created it. */
+  websiteId: string;
+  /** This step's copy, defaulting to English. */
+  t?: Messages["app"]["onboarding"];
+}) {
+  const [annual, setAnnual] = useState(false);
+  /**
+   * Which tier is on screen. The mid tier by default — the reference opens on
+   * Grow and offers Scale through a link, which is the same judgement: most
+   * customers want the middle one, and the cheapest is not the one to lead a
+   * paid product with. Unless they pressed a plan's button to get here: then
+   * the plan they read about is the one on screen.
+   */
+  const [tier, setTier] = useState(
+    () =>
+      monthlyPlans.find((plan) => plan.tier === initialTier)?.tier ??
+      monthlyPlans.find((plan) => plan.tier === "grow")?.tier ??
+      monthlyPlans[0]?.tier ??
+      "",
+  );
+  const [pending, setPending] = useState<string | null>(null);
+  const [verified, setVerified] = useState(emailVerified);
+  const [codeSent, setCodeSent] = useState(false);
+  const [code, setCode] = useState("");
+  const [checking, setChecking] = useState<"send" | "confirm" | null>(null);
+
+  /**
+   * The free articles, as checkout will give them: never on a plan bought
+   * outright (lib/billing/checkouts.ts beginCheckout).
+   */
+  const freeArticles = trialEligible && !directPurchase;
+  /** The code step stands between a new workspace and card checkout. */
+  const needsEmail = freeArticles && !verified;
+
+  async function sendCode() {
+    setChecking("send");
+    // Better Auth's own route: rate limited, and the code is hashed and expires (lib/auth.ts).
+    const { error } = await authClient.emailOtp.sendVerificationOtp({
+      email,
+      type: "email-verification",
+    });
+    setChecking(null);
+    if (error) {
+      toast.error("We could not send the code. Please try again in a minute.");
+      return;
+    }
+    setCodeSent(true);
+    setCode("");
+    toast.success(`We sent a 6-digit code to ${email}.`);
+  }
+
+  async function submitCode(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setChecking("confirm");
+    const result: ConfirmEmailResult = await confirmEmail(code);
+    setChecking(null);
+    if (result.ok) {
+      setVerified(true);
+      toast.success("Email confirmed.");
+      return;
+    }
+    toast.error(
+      result.error === "INVALID"
+        ? "That code is not right. Check the email and try again."
+        : result.error === "EXPIRED" || result.error === "TOO_MANY"
+          ? "That code no longer works. Send a new one."
+          : "We could not check the code. Please try again.",
+    );
+  }
+
+  const monthlyForTier =
+    monthlyPlans.find((plan) => plan.tier === tier) ?? null;
+  const annualForTier = annualPlans.find((plan) => plan.tier === tier) ?? null;
+
+  /**
+   * The plan actually being bought.
+   *
+   * Falls back to the monthly one when a tier has no annual price configured,
+   * so the yearly switch cannot leave the button pointing at nothing.
+   */
+  const plan = (annual ? annualForTier : monthlyForTier) ?? monthlyForTier;
+
+  /**
+   * Whether there is more than one tier to choose between. With a single
+   * configured plan the switcher would be one inert button.
+   */
+  const hasChoice = monthlyPlans.length > 1;
+
+  /**
+   * The real saving from paying yearly for THIS tier, worked out from the two
+   * prices we charge rather than a round number written on the toggle.
+   */
+  const saving = (() => {
+    if (!monthlyForTier || !annualForTier) return null;
+    const full = monthlyForTier.priceCents * 12;
+    if (full <= annualForTier.priceCents) return null;
+    return Math.round(((full - annualForTier.priceCents) / full) * 100);
+  })();
+
+  /**
+   * The price shown, always per month.
+   *
+   * A yearly plan is quoted as its monthly equivalent with "billed yearly"
+   * beside it, which is how the reference reads and how the two options become
+   * comparable at a glance. Quoting one as 99 and the other as 912 invites the
+   * customer to read the cheaper number as the better deal.
+   */
+  /*
+    The price checkout charges, and the regular one struck beside it only
+    when checkout really takes something off (lib/billing/display-prices.ts,
+    the same function /pricing and Billing read): REPGET's launch price while
+    its notice is on screen, and the Grow + Visibility bundle against EUR 299.
+  */
+  const repgetOn = Boolean(offerCopy) && offerCopy?.offer !== "winback";
+  const shown = plan ? planDisplayPrice(plan, repgetOn) : null;
+  const chargedCents = shown?.chargedCents ?? plan?.priceCents ?? 0;
+  const yearly = Boolean(annual && annualForTier);
+  const perMonthCents = yearly ? perMonthOfYear(chargedCents) : chargedCents;
+  const strikeCents = shown?.strikeCents ? (yearly ? perMonthOfYear(shown.strikeCents) : shown.strikeCents) : null;
+
+  /**
+   * NO CALENDAR DATE IS COMPUTED HERE, deliberately.
+   *
+   * The obvious version — `new Date(Date.now() + FREE_ARTICLES_DAYS * 86400e3)` — is
+   * impure in render: the server produces one date and the browser another,
+   * which is a hydration mismatch on the screen where somebody is entering a
+   * card, and the result depends on a clock and timezone the server does not
+   * know.
+   *
+   * It is also unnecessary. Stripe's own Checkout page states the exact first
+   * charge date ("Then EUR 99.00 per month starting 21 September"), computed
+   * from the real subscription in the customer's own locale. Repeating it here
+   * would be a second copy that can disagree with the one that actually
+   * governs the charge.
+   *
+   * So this page states the RULE — the free articles, when the plan starts,
+   * then the price — and Stripe states the date.
+   */
+
+  async function handleCheckout(provider: "stripe" | "paypal") {
+    if (!plan) return;
+    // REPGET is applied by the server by itself (2026-11-11), card or PayPal; nothing to send.
+    setPending(provider);
+
+    /*
+      "onboarding" so paying returns HERE rather than to the dashboard's
+      billing page. This page forwards a paid customer to the next step, so
+      the flow carries on where it left off instead of ending in a screen full
+      of the app chrome that setup deliberately hides.
+    */
+    const result =
+      provider === "paypal"
+        ? await createPayPalCheckout(plan.id, websiteId, "onboarding")
+        : await createCheckoutSession(plan.id, websiteId, "onboarding");
+
+    if ("error" in result) {
+      setPending(null);
+      toast.error(result.error);
+      return;
+    }
+    // assign() rather than `location.href = …`: the React Compiler treats the
+    // latter as mutating a value it does not own.
+    window.location.assign(result.url);
+  }
+
+  if (!plan) {
+    // Real state, not a placeholder: with no plans configured we say so rather
+    // than showing prices checkout would not honour.
+    return (
+      <div className="rounded-2xl border bg-card p-6 text-sm text-muted-foreground">
+        {t.plansUnavailable}
+        </div>
+    );
+  }
+
+  const features = benefits[plan.id] ?? planFeatures(plan);
+  /*
+    PayPal for THIS plan: configured, and the plan mirrored into PayPal. A
+    plan without a PayPal plan id used to show the button and answer the
+    click with an error.
+  */
+  const paypal = paypalAvailable && paypalPlanIds.includes(plan.id);
+  /*
+    PayPal gives the free articles too when this plan has its free-articles
+    PayPal plan - the same offer, so the same confirmed address first
+    (createPayPalCheckout refuses without it, as card checkout does).
+  */
+  const paypalFree = paypal && freeArticles && paypalFreeArticlePlanIds.includes(plan.id);
+
+  /**
+   * The badge on the card, per the design.
+   *
+   * Named by tier rather than by position: an index-based rule silently moves
+   * to the wrong plan the first time the line-up changes, which is exactly how
+   * the pricing page once highlighted the wrong tier.
+   */
+  const badge = directPurchase
+    ? directPurchase.badge
+    : plan.tier === "grow"
+      ? "Most popular plan"
+      : plan.tier === "scale"
+        ? "Best value"
+        : null;
+
+  return (
+    <div>
+      {/*
+        Derived from WIZARD_STEPS, never written out.
+
+        This read "Step 03 / 03" while the progress bar directly above it
+        showed step 2 of 5 — the same screen contradicting itself about where
+        the customer is and how much is left, on the page that asks for money.
+        A hardcoded pair cannot survive a step being added or reordered, and
+        this one had already not survived it.
+      */}
+      <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">
+        Step {String(wizardStepIndex("plan") + 1).padStart(2, "0")}{" "}
+        <span className="text-muted-foreground">
+          / {String(WIZARD_STEPS.length).padStart(2, "0")}
+        </span>
+      </p>
+      <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
+        {t.growthEngineReady}
+      </h1>
+
+      {/*
+        Tier switcher, shown only when there is more than one tier. The
+        reference puts a two-tab switch above the card once you follow its
+        "See the Scale plan" link; this is that switch, shown from the start
+        because hiding a tier behind a link makes the cheaper one feel like the
+        only option.
+      */}
+      {hasChoice ? (
+        /*
+          A grid, not one unwrapping flex row.
+
+          Four tiers reading "Starter · €1" through "Scale · €299" share a
+          320px iPhone SE at about 70px each, which crushes the name against
+          the price. Two per row below `sm` gives each one half the screen and
+          the pill shape survives; from `sm` up all four sit on one row as
+          drawn.
+        */
+        <div
+          role="radiogroup"
+          aria-label="Plan"
+          className={`mt-4 grid ${monthlyPlans.length === 3 ? "grid-cols-3" : "grid-cols-2"} gap-1 rounded-2xl border bg-muted/50 p-1 sm:flex sm:rounded-full`}
+        >
+          {monthlyPlans.map((option) => (
+            <button
+              key={option.tier}
+              type="button"
+              role="radio"
+              aria-checked={option.tier === tier}
+              onClick={() => setTier(option.tier)}
+              /*
+                The selected tab carries the brand colour, not just a white
+                pill. "bg-background shadow-sm" on a muted track is a
+                difference you have to look for — the client did, and asked
+                to "highlight the box grow plan when you are on that plan".
+                On the screen where someone picks what to pay for, which
+                option is selected should be unmissable.
+
+                THE UNSELECTED TAB IS text-foreground, NOT text-muted-
+                foreground. Muted grey on this near-white track measures
+                around 3.3:1, under the 4.5:1 minimum for normal text — the
+                client read the two tabs as "the same letters" because the
+                unselected one was barely there. Both options are real
+                choices with real prices, and the price you are NOT on is
+                the one somebody is trying to read when they compare.
+
+                The selection is carried by the filled pill, which is
+                unmistakable on its own; dimming the other label adds
+                nothing to that and costs legibility.
+              */
+              className={`rounded-full px-3 py-2 text-sm font-medium transition-colors sm:flex-1 sm:px-4 ${
+                option.tier === tier
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-foreground hover:bg-background/70"
+              }`}
+            >
+              {/*
+                The price wraps under the name rather than beside it on a
+                phone: a nowrap "Scale · €299" is what forced the row wide.
+              */}
+              <span className="block sm:inline">{option.name}</span>
+              <span className="hidden sm:inline"> &middot; </span>
+              <span className="block text-xs sm:inline sm:text-sm">
+                {formatPrice(planDisplayPrice(option, repgetOn).chargedCents, option.currency)}
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {/*
+        The card is ringed in the brand colour so the tab and the card read as
+        one selected thing. Without it the switcher moved but the card below
+        looked identical either way, so nothing on screen confirmed the
+        choice had taken effect.
+      */}
+      <div className="mt-5 rounded-3xl border-2 border-primary bg-card p-5 shadow-sm sm:p-6">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <p className="text-lg font-semibold">{plan.name} plan</p>
+          {/*
+            The badge from the design: "Most popular plan" on Grow, "Best
+            value" on Scale. Read from the tier rather than position, so it
+            cannot follow array order if the line-up changes.
+          */}
+          {badge ? (
+            <span className="flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+              <Star className="size-3 fill-primary" aria-hidden="true" />
+              {badge}
+            </span>
+          ) : null}
+        </div>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Everything you need to grow organic traffic from Google and AI search,
+          on autopilot.
+        </p>
+
+        <div className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          {strikeCents !== null ? (
+            <del className="text-2xl text-muted-foreground tabular-nums">{formatPrice(strikeCents, plan.currency)}</del>
+          ) : null}
+          <span className="text-5xl font-semibold tracking-tight">
+            {formatPrice(perMonthCents, plan.currency)}
+          </span>
+          <span className="text-muted-foreground">/month</span>
+          {/*
+            The struck figure, only on the yearly option and only when it is
+            real: twelve monthly payments, which is what paying yearly avoids.
+            With a discount the regular price is the struck one instead.
+          */}
+          {annual && annualForTier && monthlyForTier && strikeCents === null ? (
+            <span className="text-muted-foreground line-through">
+              {formatPrice(monthlyForTier.priceCents * 12, plan.currency)}
+              {" a year"}
+            </span>
+          ) : null}
+        </div>
+
+        {/* The billing switch from the design: a toggle, not two radio pills. */}
+        {annualForTier ? (
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={annual}
+              aria-label={t.payYearly}
+              onClick={() => setAnnual((current) => !current)}
+              className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
+                annual ? "bg-primary" : "bg-muted-foreground/25"
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 size-5 rounded-full bg-background shadow transition-[left] ${
+                  annual ? "left-5.5" : "left-0.5"
+                }`}
+                aria-hidden="true"
+              />
+            </button>
+            <span className="text-sm">
+              {t.payYearly}
+              {saving ? (
+                <span className="ml-1.5 font-semibold text-primary">
+                  &middot; save {saving}%
+                </span>
+              ) : null}
+            </span>
+            <span className="ml-auto text-sm text-muted-foreground">
+              {annual ? "Billed yearly" : "Billed monthly"}
+            </span>
+          </div>
+        ) : null}
+
+        {/*
+          The email code, before card checkout gives the free articles. Sent
+          only when asked for, so nobody receives a code for a page they
+          merely looked at.
+        */}
+        {needsEmail ? (
+          <div className="mt-4 rounded-2xl border bg-muted/40 p-4">
+            <p className="flex items-center gap-2 text-sm font-medium">
+              <MailCheck className="size-4 shrink-0 text-primary" aria-hidden="true" />
+              Confirm your email to get your {FREE_ARTICLES} free articles
+            </p>
+            {codeSent ? (
+              <form onSubmit={submitCode} className="mt-3 flex flex-wrap gap-2">
+                <Input
+                  value={code}
+                  onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  placeholder="6-digit code"
+                  aria-label="Confirmation code"
+                  className="h-11 min-w-0 flex-1 rounded-full bg-background px-4 tracking-[0.3em]"
+                />
+                <Button type="submit" disabled={checking !== null || code.length !== 6} className="h-11 rounded-full px-5">
+                  {checking === "confirm" ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
+                  Confirm
+                </Button>
+                <p className="w-full text-xs text-muted-foreground">
+                  Sent to {email}.{" "}
+                  <button
+                    type="button"
+                    onClick={sendCode}
+                    disabled={checking !== null}
+                    className="font-medium text-foreground underline underline-offset-2"
+                  >
+                    Send a new code
+                  </button>
+                </p>
+              </form>
+            ) : (
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <Button type="button" variant="outline" onClick={sendCode} disabled={checking !== null} className="h-11 rounded-full px-5">
+                  {checking === "send" ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
+                  Email me a code
+                </Button>
+                <span className="min-w-0 text-xs text-muted-foreground">We send it to {email}.</span>
+              </div>
+            )}
+          </div>
+        ) : null}
+
+        {offerCopy && !directPurchase ? <OfferApplied copy={offerCopy} plan={plan} className="mt-4" /> : null}
+
+        <Button
+          onClick={() => handleCheckout("stripe")}
+          disabled={pending !== null || needsEmail}
+          className="mt-4 h-14 w-full rounded-full text-base font-semibold"
+        >
+          {pending === "stripe" ? (
+            <>
+              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+              Starting checkout&hellip;
+            </>
+          ) : (
+            <>
+              {directPurchase ? directPurchase.button : freeArticles ? `Start with ${FREE_ARTICLES} free articles` : "Continue to payment"}
+              <ArrowRight className="size-4" aria-hidden="true" />
+            </>
+          )}
+        </Button>
+
+        {/*
+          The offer's terms, spelled out under the button.
+
+          FREE_ARTICLES and FREE_ARTICLES_DAYS are the constants the checkout
+          and the article limit use, so the promise and the charge cannot
+          drift apart. When the plan starts is stated plainly rather than left
+          as "cancel any time": someone entering a card is owed when money
+          leaves their account, not a reassuring phrase.
+        */}
+        {directPurchase ? (
+          <p className="mt-3 text-center text-sm text-muted-foreground">
+            {format(directPurchase.note, { price: formatPrice(plan.priceCents, plan.currency) })}
+          </p>
+        ) : freeArticles ? (
+          <p className="mt-3 text-center text-sm">
+            <span className="font-medium">
+              {formatPrice(0, plan.currency)} today
+            </span>
+            <span className="text-muted-foreground">
+              {" "}
+              &middot; your plan starts after your {FREE_ARTICLES} free
+              articles are written (in {FREE_ARTICLES_DAYS} days at the
+              latest), then {formatPrice(chargedCents, plan.currency)}{" "}
+              {annual ? "a year" : "a month"}. Cancel before then and you are
+              not charged.
+            </span>
+          </p>
+        ) : (
+          <p className="mt-3 text-center text-sm text-muted-foreground">
+            {formatPrice(chargedCents, plan.currency)}{" "}
+            {annual ? "a year" : "a month"}, charged today. This workspace has
+            already had its free articles.
+          </p>
+        )}
+
+        {/*
+          PayPal, per the brief: "We include also PayPal payments, not just
+          Cards". Shown only when it can complete — a button that answers "not
+          configured" is worse than no button.
+        */}
+        {paypal ? (
+          <Button
+            variant="outline"
+            onClick={() => handleCheckout("paypal")}
+            disabled={pending !== null || (paypalFree && needsEmail)}
+            className="mt-2 h-12 w-full rounded-full"
+          >
+            {pending === "paypal" ? (
+              <>
+                <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                Redirecting to PayPal&hellip;
+              </>
+            ) : (
+              <>
+                {/*
+                  The real mark, not a generic wallet icon. This is the one
+                  screen where a customer is deciding whether to hand over
+                  money, and a stand-in logo reads as an imitation.
+                */}
+                <PayPalMark className="size-6" />
+                Pay with PayPal
+              </>
+            )}
+          </Button>
+        ) : null}
+
+        {/*
+          What PayPal does with the free articles, said plainly: the same
+          offer when this plan has its free-articles PayPal plan (its first
+          charge comes when its free days end), otherwise charged at once.
+          Nothing to add for a workspace that has had its free articles:
+          card and PayPal both charge today, as the line above says.
+        */}
+        {paypal && freeArticles ? (
+          <p className="mt-2 text-center text-xs text-muted-foreground">
+            {paypalFree
+              ? format(t.paypalFreeArticles, { n: FREE_ARTICLES, days: FREE_ARTICLES_DAYS })
+              : t.paypalNoTrial}
+          </p>
+        ) : null}
+
+        <p className="mt-3 text-center text-xs text-muted-foreground">
+          {t.cancelAnyTime}
+          </p>
+
+        <div className="mt-6 border-t pt-6">
+          <p className="text-xs font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+            {t.whatsIncluded}
+          </p>
+          {/*
+            Two columns from `sm` up, as the design draws it. Below that they
+            stack: two columns of small print on a phone is two unreadable
+            columns.
+          */}
+          <ul className="mt-4 grid gap-x-6 gap-y-3 sm:grid-cols-2">
+            {features.map((feature) => (
+              <li key={feature} className="flex items-start gap-2.5 text-sm">
+                {/*
+                  A filled circle rather than a bare tick, matching the
+                  design's orange check marks.
+                */}
+                <span
+                  className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full bg-primary"
+                  aria-hidden="true"
+                >
+                  <Check className="size-2.5 text-primary-foreground" />
+                </span>
+                <span className="min-w-0">{marks(feature)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      {/*
+        The reference's "Need more volume? See the Scale plan" line is NOT
+        repeated here.
+
+        It exists on that design because its plan is otherwise the only one on
+        screen. Ours already lists every tier in the switcher above the card,
+        so a row of "See the … plan" links underneath is the same set of
+        choices a second time — and four of them, where the reference has one.
+        The switcher is the better control: it shows the prices.
+      */}
+      <p className="mt-4 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+        <ShieldCheck className="size-3.5" aria-hidden="true" />
+        {t.secureByStripe}
+        </p>
+    </div>
+  );
+}
+
+/** The pricing copy's one mark, `**words**` in bold. Never HTML. */
+function marks(text: string): ReactNode {
+  const parts = text.split(/\*\*([^*]+)\*\*/g);
+  if (parts.length === 1) return text;
+  return parts.map((part, index) => (index % 2 === 1 ? <strong key={index} className="font-semibold">{part}</strong> : part));
+}

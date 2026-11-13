@@ -83,7 +83,7 @@ export function splitLocale(pathname: string): {
 
 /**
  * The pages that exist in every language: the home page and the folders
- * under app/(marketing)/[locale] (config.test.ts keeps the two in step).
+ * under app/(localized)/[locale] (config.test.ts keeps the two in step).
  * Everything else - the legal pages - is English-only and has no /es/...
  * address. The blog's front page and the team's author page are here
  * (/it/blog and /it/blog/author/repget-team list the Italian posts, then
@@ -111,6 +111,8 @@ export const TOOL_SLUGS = [
   "meta-description-generator",
   // The guest Growth Copilot as a free tool (client, 2026-11-11).
   "growth-copilot",
+  // The free AI Social Media Post Generator (client, 2026-11-13).
+  "social-media-post-generator",
 ] as const;
 
 export const TRANSLATED_PATHS: ReadonlySet<string> = new Set([

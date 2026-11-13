@@ -32,7 +32,7 @@ vi.mock("@/lib/blog/posts", () => ({
   relatedPosts: async () => [],
 }));
 
-import LocaleBlogPostPage from "../../[locale]/blog/[slug]/page";
+import LocaleBlogPostPage from "@/app/(localized)/[locale]/(pages)/blog/[slug]/page";
 import BlogPostPage from "../[slug]/page";
 
 beforeAll(() => {

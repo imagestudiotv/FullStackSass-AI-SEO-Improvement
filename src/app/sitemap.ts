@@ -87,7 +87,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   /**
    * Translated pages. Listed so search engines find them without having to
    * discover the prefix by following a switcher link, which they may not.
-   * Every page with an app/(marketing)/[locale] route: TRANSLATED_PATHS, the
+   * Every page with an app/(localized)/[locale] route: TRANSLATED_PATHS, the
    * same list that declares hreflang alternates (lib/i18n/config.ts), so a
    * newly translated page is listed without anyone remembering to.
    */

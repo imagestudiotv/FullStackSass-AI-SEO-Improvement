@@ -4,7 +4,6 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { LANG_SCRIPT } from "./i18n/document-lang";
 import { THEME_SCRIPT } from "./theme";
 import {
   ALL_INTEGRATIONS,
@@ -15,7 +14,6 @@ import {
   cspReportUri,
   hasTagManager,
   securityHeaders,
-  LANG_SCRIPT_HASH,
   THEME_SCRIPT_HASH,
   type CspIntegrations,
 } from "./security-headers";
@@ -260,11 +258,9 @@ describe("contentSecurityPolicy", () => {
     expect(csp["script-src"]).not.toContain(hash);
   });
 
-  it("allows the page-language script by its hash on the nonce pages, and only there", () => {
-    const hash = `'sha256-${createHash("sha256").update(LANG_SCRIPT, "utf8").digest("base64")}'`;
-    expect(LANG_SCRIPT_HASH).toBe(hash);
-    expect(directives(contentSecurityPolicy(ALL, NONCE))["script-src"]).toContain(hash);
-    expect(csp["script-src"]).not.toContain(hash);
+  it("allows no other inline script by hash: <html lang> comes from the server (app/root-document.tsx)", () => {
+    const hashes = directives(contentSecurityPolicy(ALL, NONCE))["script-src"].filter((source) => source.startsWith("'sha256-"));
+    expect(hashes).toEqual([THEME_SCRIPT_HASH]);
   });
 
   it("reports violations to the Sentry project in the DSN", () => {
@@ -295,5 +291,43 @@ describe("the pages' policy (src/proxy.ts)", () => {
     expect(used).toContain("NEXT_PUBLIC_SUPABASE_URL");
     const proxy = read("proxy.ts");
     for (const name of used) expect(proxy, name).toContain(`${name}: process.env.${name}`);
+  });
+});
+
+describe("rewarded ads (Earn Credits, ticket 2026-11-13)", () => {
+  /*
+    Google Publisher Tag is supported under a strict policy only (nonce and
+    'strict-dynamic'); the hosts it uses are allowed on /earn-credits alone,
+    and only while the feature is on (src/proxy.ts decides).
+  */
+  const GPT_HOSTS = /securepubads|googlesyndication|adtrafficquality|googlevideo/;
+
+  it("adds Google Publisher Tag's hosts only when asked for", () => {
+    for (const policy of [contentSecurityPolicy(ALL), contentSecurityPolicy(ALL, NONCE), contentSecurityPolicy(NONE, NONCE)]) {
+      expect(policy.replace("https://pagead2.googlesyndication.com", "")).not.toMatch(GPT_HOSTS);
+    }
+    const page = directives(contentSecurityPolicy({ ...NONE, rewardedAds: true }, NONCE));
+    expect(page["script-src"]).toEqual(expect.arrayContaining(["'strict-dynamic'", `'nonce-${NONCE}'`, "https://securepubads.g.doubleclick.net", "https://pagead2.googlesyndication.com"]));
+    expect(page["script-src"]).not.toContain("'unsafe-inline'");
+    expect(page["script-src"]).not.toContain("'unsafe-eval'");
+    expect(page["connect-src"]).toEqual(expect.arrayContaining(["https://securepubads.g.doubleclick.net", "https://pagead2.googlesyndication.com", "https://*.adtrafficquality.google"]));
+    expect(page["frame-src"]).toEqual(expect.arrayContaining(["https://*.safeframe.googlesyndication.com", "https://tpc.googlesyndication.com"]));
+    // Nothing else loosens: no wildcard source anywhere, the rest as before.
+    for (const [name, values] of Object.entries(page)) {
+      if (name !== "img-src") expect(values, name).not.toContain("https:");
+      expect(values, name).not.toContain("*");
+    }
+    expect(page["object-src"]).toEqual(["'none'"]);
+    expect(page["frame-ancestors"]).toEqual(["'self'"]);
+  });
+
+  it("never reaches the build-wide policy of the cached pages", () => {
+    const headers = securityHeaders({ production: true, integrations: cspIntegrations({ REWARDED_ADS_ENABLED: "1" }) });
+    expect(header(headers, "Content-Security-Policy")).not.toMatch(/securepubads|safeframe|adtrafficquality/);
+  });
+
+  it("lists each source once where Google Ads and rewarded ads share a host", () => {
+    const page = directives(contentSecurityPolicy({ ...ALL, rewardedAds: true }, NONCE));
+    for (const name of ["connect-src", "frame-src"]) expect(new Set(page[name]).size, name).toBe(page[name].length);
   });
 });
