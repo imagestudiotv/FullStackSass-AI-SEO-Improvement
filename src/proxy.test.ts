@@ -96,3 +96,32 @@ describe("build and runtime CSP mode", () => {
     expect(() => effectiveCspMode(undefined, "enforced")).toThrow(/CSP_MODE/);
   });
 });
+
+describe("Earn Credits' rewarded ads (ticket 2026-11-13)", () => {
+  const ENABLED = {
+    REWARDED_ADS_ENABLED: "1",
+    REWARDED_AD_UNIT_PATH: "/1234567/repget_rewarded",
+    REWARDED_ADS_CREDITS: "2",
+    REWARDED_ADS_DAILY_LIMIT: "5",
+  };
+
+  it("puts /earn-credits under the nonce policy", () => {
+    expect(unstable_doesProxyMatch({ config, nextConfig: {}, url: "/earn-credits" })).toBe(true);
+  });
+
+  it("allows Google Publisher Tag on /earn-credits only, and only while the feature is on", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    for (const [name, value] of Object.entries(ENABLED)) vi.stubEnv(name, value);
+    const policy = (url: string) => proxy(new NextRequest(url)).headers.get("Content-Security-Policy") ?? "";
+    expect(policy("https://repget.test/earn-credits")).toContain("https://securepubads.g.doubleclick.net");
+    expect(policy("https://repget.test/earn-credits")).toContain("'strict-dynamic'");
+    expect(policy("https://repget.test/dashboard")).not.toContain("securepubads");
+    expect(policy("https://repget.test/credits/earn-credits")).not.toContain("securepubads");
+
+    vi.stubEnv("REWARDED_ADS_CREDITS", "");
+    expect(policy("https://repget.test/earn-credits")).not.toContain("securepubads");
+    vi.stubEnv("REWARDED_ADS_CREDITS", "2");
+    vi.stubEnv("REWARDED_ADS_ENABLED", "");
+    expect(policy("https://repget.test/earn-credits")).not.toContain("securepubads");
+  });
+});
