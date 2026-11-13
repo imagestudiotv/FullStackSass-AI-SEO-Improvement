@@ -8,7 +8,7 @@ import path from "node:path";
  * When a draft becomes a numbered migration in drizzle/, its entry here is
  * removed (each draft is also safe to run twice, should it be left in).
  */
-export const DRAFT_MIGRATIONS: string[] = ["drizzle-drafts/nov13/engagement.sql"];
+export const DRAFT_MIGRATIONS: string[] = [];
 
 const root = path.resolve(__dirname, "../..");
 

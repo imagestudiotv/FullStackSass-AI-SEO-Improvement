@@ -1,8 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
-import path from "node:path";
 
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { createPostgresTestDb, testPostgresUrl } from "@/test/postgres";
@@ -25,7 +23,6 @@ import { claimRewardedAd, startRewardedAd } from "@/lib/earn/rewarded-ads";
 import { rewardedAdsConfig } from "@/lib/earn/rewarded-ads-config";
 
 const available = Boolean(testPostgresUrl());
-const ROOT = path.resolve(__dirname, "../../..");
 const T0 = new Date("2026-11-13T10:00:00.000Z");
 const at = (ms: number) => new Date(T0.getTime() + ms);
 const config = (extra: Record<string, string> = {}) =>
@@ -40,11 +37,8 @@ describe.skipIf(!available)("rewarded ads on real Postgres", () => {
     const created = await createPostgresTestDb(3);
     dbs = created.dbs as unknown as Db[];
     dispose = created.dispose;
+    // rewarded_ad_views comes from migration 0093.
     state.db = dbs[0];
-    const draft = readFileSync(path.join(ROOT, "drizzle-drafts/nov13/ads.sql"), "utf8");
-    for (const statement of draft.split("--> statement-breakpoint").map((s) => s.trim()).filter(Boolean)) {
-      await dbs[0].execute(sql.raw(statement));
-    }
   }, 400_000);
 
   afterAll(async () => {

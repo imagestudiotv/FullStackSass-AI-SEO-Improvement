@@ -1,10 +1,12 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import { createTestDb } from "@/test/db";
-import { draftStatements } from "@/test/drafts";
 
 /**
- * The Nov 13 engagement migration (drizzle-drafts/nov13/engagement.sql) on
+ * The Nov 13 engagement migration (drizzle/0093, its engagement part) on
  * rows made before it: every post gets its article's discussion, upvotes and
  * comments are attached to it, a member's duplicate upvotes across language
  * versions become one - the first - with the others recorded, never dropped
@@ -43,8 +45,23 @@ async function seeded() {
   return test;
 }
 
+/** The engagement part of migration 0093 (between its "-- Nov 13 engagement" and "-- Nov 13 ticket, area \"ads\"" headers): idempotent on its own. */
+function engagementStatements(): string[] {
+  const file = readFileSync(path.resolve(__dirname, "../../../drizzle/0093_nov13_topups_engagement_ads.sql"), "utf8");
+  const start = file.indexOf("-- Nov 13 engagement");
+  const end = file.indexOf('-- Nov 13 ticket, area "ads"');
+  expect(start).toBeGreaterThanOrEqual(0);
+  expect(end).toBeGreaterThan(start);
+  return file
+    .slice(start, end)
+    .replace(/vector\(\d+\)/g, "text")
+    .split("--> statement-breakpoint")
+    .map((statement) => statement.trim())
+    .filter(Boolean);
+}
+
 async function migrate(client: Awaited<ReturnType<typeof seeded>>["client"]) {
-  for (const statement of draftStatements()) await client.exec(statement);
+  for (const statement of engagementStatements()) await client.exec(statement);
 }
 
 describe("the engagement migration", () => {

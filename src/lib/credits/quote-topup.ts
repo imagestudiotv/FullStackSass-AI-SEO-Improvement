@@ -162,7 +162,7 @@ export async function startQuoteTopUp(
     return { ok: false, reason: "changed", error: copy.refusal.changed };
   }
 
-  // Recorded under its own inactive add-on (drizzle-drafts/nov13/billing.sql); without it the grant would have nowhere to go.
+  // Recorded under its own inactive add-on (migration 0093); without it the grant would have nowhere to go.
   const [addon] = await database.select({ id: addons.id }).from(addons).where(eq(addons.slug, QUOTE_CREDITS_SLUG)).limit(1);
   if (!addon) return { ok: false, reason: "no_rate", error: copy.refusal.no_rate };
 

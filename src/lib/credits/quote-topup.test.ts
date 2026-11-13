@@ -1,6 +1,4 @@
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
-import path from "node:path";
 
 import { and, eq } from "drizzle-orm";
 import type Stripe from "stripe";
@@ -39,10 +37,8 @@ let test: TestDb;
 let customAddonId: string;
 
 beforeAll(async () => {
+  // credit_topups and the inactive credits_custom add-on come from migration 0093.
   test = await createTestDb();
-  // The draft migration, as the coordinator will apply it (drizzle-drafts/nov13/billing.sql).
-  const draft = readFileSync(path.resolve(__dirname, "../../../drizzle-drafts/nov13/billing.sql"), "utf8");
-  for (const statement of draft.split("--> statement-breakpoint").map((s) => s.trim()).filter(Boolean)) await test.client.exec(statement);
   state.db = test.db;
   await test.db.insert(addons).values([
     { slug: "credits_10", name: "100 credits", priceCents: 7900, creditsGranted: 100, kind: "credits", stripePriceId: "price_100", sortOrder: 1 },

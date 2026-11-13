@@ -2665,7 +2665,7 @@ export const websiteProjects = pgTable(
 );
 
 /* ------------------------------------------------------------------------- */
-/* Nov 13 billing: credits bought for a quote (drizzle-drafts/nov13/billing.sql) */
+/* Nov 13 billing: credits bought for a quote (migration 0093) */
 /* ------------------------------------------------------------------------- */
 
 /**
@@ -3131,7 +3131,7 @@ export const blogComments = pgTable(
 
 /**
  * The upvotes that became duplicates when upvotes moved from one per post to
- * one per discussion (migration drizzle-drafts/nov13/engagement.sql): a
+ * one per discussion (migration 0093): a
  * member who had upvoted two language versions of the same article keeps
  * their FIRST upvote; each later one is recorded here as it was, with the
  * upvote kept in its place, instead of being dropped silently. Written only

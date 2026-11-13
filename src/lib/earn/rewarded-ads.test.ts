@@ -40,11 +40,8 @@ const config = (extra: Record<string, string> = {}): RewardedAdsConfig => reward
 
 let test: TestDb;
 beforeAll(async () => {
+  // rewarded_ad_views comes from migration 0093.
   test = await createTestDb();
-  const draft = readFileSync(path.join(ROOT, "drizzle-drafts/nov13/ads.sql"), "utf8");
-  for (const statement of draft.split("--> statement-breakpoint").map((s) => s.trim()).filter(Boolean)) await test.client.exec(statement);
-  // Twice: the draft is idempotent.
-  for (const statement of draft.split("--> statement-breakpoint").map((s) => s.trim()).filter(Boolean)) await test.client.exec(statement);
   state.db = test.db;
 }, 120_000);
 
