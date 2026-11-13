@@ -300,11 +300,11 @@ const en: PricingPageCopy = {
         items: [
           {
             q: "What happens after the free trial?",
-            a: "After your free trial, you can continue with the paid subscription selected during signup. The exact start date, charges and renewal terms are shown in your checkout. Paid plans enable AI visibility tracking and access to the backlink partner network.",
+            a: "When your 3-day free trial ends, the plan you chose during signup starts and the first payment is taken, unless you cancel before the trial ends. The exact start date, charges and renewal terms are shown in your checkout.",
           },
           {
             q: "What is included in the free trial?",
-            a: "Your free trial includes 3 free researched articles, a website check and 15 credits per day during the first three days for social distribution and content creation features. AI visibility tracking and backlink network features become available with a paid plan.",
+            a: "Your free trial gives you your plan's full, normal service for three days: every feature of the plan, at the plan's daily pace, plus 15 credits per day for social distribution and content creation features. Nothing is charged today, by card or PayPal.",
           },
           {
             q: "Do I need SEO experience to get started?",
@@ -426,8 +426,8 @@ const en: PricingPageCopy = {
   trial: {
     eyebrow: "Try it before your first payment",
     titleLines: ["Start with proof.", "Not promises."],
-    body: "Your free trial includes 3 free researched articles, a website check and 15 credits per day during the first three days for social distribution and content creation features. AI visibility and backlink network features activate with following paid plan.",
-    points: ["3 free articles", "Website check", "No charge today"],
+    body: "For three days you get your plan's full, normal service: every feature, at the plan's daily pace, plus 15 credits per day for social distribution and content creation features. Nothing is charged today, and your plan starts after the trial unless you cancel before it ends.",
+    points: ["3 days free", "Every plan feature", "No charge today"],
     cta: "Get started with RepGet",
     card1Kicker: "YOUR CONTENT WORKSPACE",
     card1Title: "How customers discover your business online",
@@ -618,11 +618,11 @@ const es: PricingPageCopy = {
         items: [
           {
             q: "¿Qué ocurre después de la prueba gratuita?",
-            a: "Después de su prueba gratuita, puede continuar con la suscripción de pago elegida al registrarse. La fecha de inicio exacta, los cargos y las condiciones de renovación se muestran al pagar. Los planes de pago activan el seguimiento de la visibilidad en IA y el acceso a la red de socios de backlinks.",
+            a: "Cuando termina su prueba gratuita de 3 días, empieza el plan que eligió al registrarse y se cobra el primer pago, salvo que cancele antes de que termine la prueba. La fecha de inicio exacta, los cargos y las condiciones de renovación se muestran al pagar.",
           },
           {
             q: "¿Qué incluye la prueba gratuita?",
-            a: "Su prueba gratuita incluye 3 artículos investigados gratis, una revisión de su sitio web y 15 créditos al día durante los tres primeros días para las funciones de distribución en redes y creación de contenido. El seguimiento de la visibilidad en IA y la red de backlinks están disponibles con un plan de pago.",
+            a: "Su prueba gratuita le da el servicio completo y normal de su plan durante tres días: todas las funciones del plan, a su ritmo diario, más 15 créditos al día para las funciones de distribución en redes y creación de contenido. Hoy no se cobra nada, con tarjeta o con PayPal.",
           },
           {
             q: "¿Necesito experiencia en SEO para empezar?",
@@ -744,8 +744,8 @@ const es: PricingPageCopy = {
   trial: {
     eyebrow: "Pruébelo antes de su primer pago",
     titleLines: ["Empiece con pruebas.", "No con promesas."],
-    body: "Su prueba gratuita incluye 3 artículos investigados gratis, una revisión de su sitio web y 15 créditos al día durante los tres primeros días para las funciones de distribución en redes y creación de contenido. La visibilidad en IA y la red de backlinks se activan con el plan de pago posterior.",
-    points: ["3 artículos gratis", "Revisión del sitio web", "Sin cargo hoy"],
+    body: "Durante tres días tiene el servicio completo y normal de su plan: todas las funciones, a su ritmo diario, más 15 créditos al día para las funciones de distribución en redes y creación de contenido. Hoy no se cobra nada, y su plan empieza después de la prueba salvo que cancele antes de que termine.",
+    points: ["3 días gratis", "Todas las funciones del plan", "Sin cargo hoy"],
     cta: "Empezar con RepGet",
     card1Kicker: "SU ESPACIO DE CONTENIDO",
     card1Title: "Cómo descubren los clientes su negocio en línea",
@@ -936,11 +936,11 @@ const fr: PricingPageCopy = {
         items: [
           {
             q: "Que se passe-t-il après l'essai gratuit ?",
-            a: "Après votre essai gratuit, vous pouvez poursuivre avec l'abonnement payant choisi à l'inscription. La date de début exacte, les montants et les conditions de renouvellement sont indiqués lors du paiement. Les formules payantes activent le suivi de la visibilité dans l'IA et l'accès au réseau de partenaires de backlinks.",
+            a: "À la fin de votre essai gratuit de 3 jours, la formule choisie à l'inscription démarre et le premier paiement est prélevé, sauf si vous résiliez avant la fin de l'essai. La date de début exacte, les montants et les conditions de renouvellement sont indiqués lors du paiement.",
           },
           {
             q: "Que comprend l'essai gratuit ?",
-            a: "Votre essai gratuit comprend 3 articles documentés offerts, une vérification de votre site web et 15 crédits par jour pendant les trois premiers jours pour les fonctions de diffusion sur les réseaux et de création de contenu. Le suivi de la visibilité dans l'IA et le réseau de backlinks sont disponibles avec une formule payante.",
+            a: "Votre essai gratuit vous donne le service complet et normal de votre formule pendant trois jours : toutes les fonctions de la formule, à son rythme quotidien, plus 15 crédits par jour pour les fonctions de diffusion sur les réseaux et de création de contenu. Rien n'est facturé aujourd'hui, par carte ou PayPal.",
           },
           {
             q: "Faut-il une expérience du SEO pour commencer ?",
@@ -1062,8 +1062,8 @@ const fr: PricingPageCopy = {
   trial: {
     eyebrow: "Essayez avant votre premier paiement",
     titleLines: ["Des preuves.", "Pas des promesses."],
-    body: "Votre essai gratuit comprend 3 articles documentés offerts, une vérification de votre site web et 15 crédits par jour pendant les trois premiers jours pour les fonctions de diffusion sur les réseaux et de création de contenu. La visibilité dans l'IA et le réseau de backlinks s'activent avec la formule payante qui suit.",
-    points: ["3 articles offerts", "Vérification du site", "Aucun paiement aujourd'hui"],
+    body: "Pendant trois jours, vous profitez du service complet et normal de votre formule : toutes les fonctions, à son rythme quotidien, plus 15 crédits par jour pour les fonctions de diffusion sur les réseaux et de création de contenu. Rien n'est facturé aujourd'hui, et votre formule démarre après l'essai, sauf si vous résiliez avant sa fin.",
+    points: ["3 jours offerts", "Toutes les fonctions", "Aucun paiement aujourd'hui"],
     cta: "Commencer avec RepGet",
     card1Kicker: "VOTRE ESPACE DE CONTENU",
     card1Title: "Comment les clients découvrent votre entreprise en ligne",
@@ -1254,11 +1254,11 @@ const it: PricingPageCopy = {
         items: [
           {
             q: "Che cosa succede dopo la prova gratuita?",
-            a: "Dopo la prova gratuita può proseguire con l'abbonamento a pagamento scelto in fase di registrazione. La data di inizio esatta, gli addebiti e le condizioni di rinnovo sono indicati al pagamento. I piani a pagamento attivano il monitoraggio della visibilità nell'IA e l'accesso alla rete di partner per i backlink.",
+            a: "Al termine della prova gratuita di 3 giorni, il piano scelto in fase di registrazione inizia e viene addebitato il primo pagamento, a meno che non disdica prima della fine della prova. La data di inizio esatta, gli addebiti e le condizioni di rinnovo sono indicati al pagamento.",
           },
           {
             q: "Che cosa include la prova gratuita?",
-            a: "La prova gratuita include 3 articoli con ricerca gratuiti, un controllo del suo sito web e 15 crediti al giorno nei primi tre giorni per le funzioni di distribuzione sui social e di creazione di contenuti. Il monitoraggio della visibilità nell'IA e la rete di backlink sono disponibili con un piano a pagamento.",
+            a: "La prova gratuita le offre per tre giorni il servizio completo e normale del suo piano: tutte le funzioni del piano, al suo ritmo giornaliero, più 15 crediti al giorno per le funzioni di distribuzione sui social e di creazione di contenuti. Oggi non viene addebitato nulla, con carta o PayPal.",
           },
           {
             q: "Serve esperienza di SEO per iniziare?",
@@ -1380,8 +1380,8 @@ const it: PricingPageCopy = {
   trial: {
     eyebrow: "Provi prima del primo pagamento",
     titleLines: ["Inizi con i fatti.", "Non con le promesse."],
-    body: "La prova gratuita include 3 articoli con ricerca gratuiti, un controllo del suo sito web e 15 crediti al giorno nei primi tre giorni per le funzioni di distribuzione sui social e di creazione di contenuti. La visibilità nell'IA e la rete di backlink si attivano con il successivo piano a pagamento.",
-    points: ["3 articoli gratuiti", "Controllo del sito", "Nessun addebito oggi"],
+    body: "Per tre giorni ha il servizio completo e normale del suo piano: tutte le funzioni, al suo ritmo giornaliero, più 15 crediti al giorno per le funzioni di distribuzione sui social e di creazione di contenuti. Oggi non viene addebitato nulla e il piano parte dopo la prova, a meno che non disdica prima della fine.",
+    points: ["3 giorni gratis", "Tutte le funzioni del piano", "Nessun addebito oggi"],
     cta: "Inizi con RepGet",
     card1Kicker: "IL SUO SPAZIO PER I CONTENUTI",
     card1Title: "Come i clienti scoprono la sua attività online",
@@ -1572,11 +1572,11 @@ const de: PricingPageCopy = {
         items: [
           {
             q: "Was passiert nach der kostenlosen Testphase?",
-            a: "Nach Ihrer kostenlosen Testphase können Sie mit dem bei der Anmeldung gewählten kostenpflichtigen Abonnement fortfahren. Das genaue Startdatum, die Beträge und die Verlängerungsbedingungen werden beim Bezahlen angezeigt. Kostenpflichtige Tarife schalten das KI-Sichtbarkeits-Tracking und den Zugang zum Backlink-Partnernetzwerk frei.",
+            a: "Wenn Ihre 3-tägige kostenlose Testphase endet, beginnt der bei der Anmeldung gewählte Tarif und die erste Zahlung wird eingezogen, sofern Sie nicht vor dem Ende der Testphase kündigen. Das genaue Startdatum, die Beträge und die Verlängerungsbedingungen werden beim Bezahlen angezeigt.",
           },
           {
             q: "Was ist in der kostenlosen Testphase enthalten?",
-            a: "Ihre kostenlose Testphase umfasst 3 kostenlose recherchierte Artikel, einen Website-Check und 15 Credits pro Tag während der ersten drei Tage für Funktionen zur Verbreitung in sozialen Netzwerken und zur Erstellung von Inhalten. KI-Sichtbarkeits-Tracking und das Backlink-Netzwerk stehen mit einem kostenpflichtigen Tarif zur Verfügung.",
+            a: "Ihre kostenlose Testphase bietet Ihnen drei Tage lang den vollen, normalen Service Ihres Tarifs: alle Funktionen des Tarifs in seinem täglichen Tempo, dazu 15 Credits pro Tag für Funktionen zur Verbreitung in sozialen Netzwerken und zur Erstellung von Inhalten. Heute wird nichts berechnet, per Karte oder PayPal.",
           },
           {
             q: "Brauche ich SEO-Erfahrung, um zu starten?",
@@ -1698,8 +1698,8 @@ const de: PricingPageCopy = {
   trial: {
     eyebrow: "Testen Sie vor Ihrer ersten Zahlung",
     titleLines: ["Beweise statt", "Versprechen."],
-    body: "Ihre kostenlose Testphase umfasst 3 kostenlose recherchierte Artikel, einen Website-Check und 15 Credits pro Tag während der ersten drei Tage für Funktionen zur Verbreitung in sozialen Netzwerken und zur Erstellung von Inhalten. KI-Sichtbarkeit und das Backlink-Netzwerk werden mit dem anschließenden kostenpflichtigen Tarif aktiviert.",
-    points: ["3 kostenlose Artikel", "Website-Check", "Heute keine Kosten"],
+    body: "Drei Tage lang erhalten Sie den vollen, normalen Service Ihres Tarifs: alle Funktionen in seinem täglichen Tempo, dazu 15 Credits pro Tag für Funktionen zur Verbreitung in sozialen Netzwerken und zur Erstellung von Inhalten. Heute wird nichts berechnet, und Ihr Tarif beginnt nach der Testphase, sofern Sie nicht vor deren Ende kündigen.",
+    points: ["3 Tage kostenlos", "Alle Tarif-Funktionen", "Heute keine Kosten"],
     cta: "Mit RepGet starten",
     card1Kicker: "IHR CONTENT-ARBEITSBEREICH",
     card1Title: "Wie Kunden Ihr Unternehmen online entdecken",

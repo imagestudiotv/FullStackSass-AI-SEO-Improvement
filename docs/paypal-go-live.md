@@ -25,6 +25,13 @@ Added on 2026-10-22 (the client: PayPal "as same as the case of Stripe"):
 - **Cancelling during the free days** ends it at once. Nothing was paid, so there is no time left to keep.
 - During the free days the website cannot switch to card. The customer cancels the PayPal free subscription first; the workspace has then had its free articles, so card charges at once.
 
+Changed on 2026-11-13 (the client): **the 3-day free trial replaces the free articles, on PayPal as by card.**
+- A workspace that has never had a plan, with a confirmed email, subscribes to a PayPal plan whose first cycle is `TRIAL_DAYS` (3) free days, then the plan's price. Nothing is charged that day.
+- During the 3 days the website has the plan's full service, at the plan's pace: every monthly allowance pro-rated to the trial (docs/credits.md, `lib/usage.ts`). Monthly and backlink credits start with the plan.
+- When the 3 days end, PayPal moves the subscription from its TRIAL cycle to the regular one by itself and takes the first payment, unless it was cancelled before. Nothing ends the trial early after a number of articles.
+- These are new PayPal trial plans, provided by the billing work (`scripts/paypal-plans.mjs`). Until they exist in live PayPal (to be created), see the release steps below.
+- Legacy: free-articles subscriptions started before 2026-11-13 keep their 30 free days and the rules above (Start my plan now, `replacedFreeArticlesToRefund`) until they end. New checkouts never create them.
+
 Added on 2026-11-07, branch `feature/payment-s1-p11`: **not released. Every PayPal call below is checked only against stubbed answers, not the sandbox.**
 - **Refunds from the admin** (review P6). Admin, Payments refunds PayPal payments as it does card payments:
   - a subscription payment through PayPal's sale refund, a one-off purchase through its capture refund;
@@ -39,7 +46,11 @@ Added on 2026-11-07, branch `feature/payment-s1-p11`: **not released. Every PayP
 - **PayPal prices are NOT immutable** (P2). This file and `paypal-setup.mjs` used to say they were. PayPal's price update applies to EXISTING subscribers too, except payments within 10 days. `scripts/paypal-pricing.mjs` reports prices read-only, and changes one plan only with `--apply --confirm <id>`. Do not use it to change prices for new customers: that is a new catalog row (docs/plan-catalog.md).
 - **Partners paid through PayPal:** see docs/partner-program.md, "Partners paid through PayPal". Off unless `PARTNER_PAYPAL_PAYOUTS` is set.
 
-## Releasing the free articles with PayPal (owner steps, in order)
+## Releasing the 3-day trial with PayPal (2026-11-13)
+
+The PayPal trial plans (first cycle `TRIAL_DAYS` free days, then the plan's price) are to be created in live PayPal for each Launch, Grow and Scale plan before PayPal offers the trial; the billing work provides how. Grow + Visibility has no trial and needs none. Then test with step 8, "The 3-day trial with PayPal".
+
+## Releasing the free articles with PayPal (2026-10-22, done; legacy since 2026-11-13)
 
 Steps 1 to 7 below were done before this. These four steps add the free articles:
 
@@ -180,7 +191,7 @@ Old sandbox approvals in `billing_checkouts` need nothing. The maintenance job a
 
 There is no cheap plan. Pay one Grow monthly (EUR 99) and refund it. The cost is about PayPal's fixed fee.
 
-A workspace that has never had a plan gets the free articles instead of paying at once (2026-10-22). For the EUR 99 payment, use either "Start my plan now" in the free-articles test below, or a workspace that has had a plan before.
+A workspace that has never had a plan gets the 3-day free trial instead of paying at once (since 2026-11-13; the free articles from 2026-10-22). For the EUR 99 payment, use a workspace that has had a plan before.
 
 1. Use a personal PayPal account that is **not** the business account. PayPal refuses payments to yourself.
 2. On www.repget.com, use a test workspace and website. Billing (or onboarding), Pay with PayPal, approve.
@@ -194,7 +205,15 @@ A workspace that has never had a plan gets the free articles instead of paying a
 6. Check "Cancel and return": on a second test website, click Pay with PayPal, then "Cancel and return" on PayPal's page. Pay by card must now be possible for that website (you can stop at Stripe's page).
 7. Delete the test websites and workspace.
 
-**Free articles with PayPal** (after the release steps above):
+**The 3-day trial with PayPal** (after the trial plans exist):
+
+1. Sign up with a **new** email address, so the workspace has never had a plan, and enter the code from the email. Add a test website and choose a plan.
+2. Pay with PayPal and approve with the personal PayPal account. PayPal's page should show nothing to pay for 3 days, then the plan's price (the wording is PayPal's).
+3. Back on RepGet, within a minute, Billing shows the trial and when the plan starts (3 days later); nothing paid in Admin, Payments (at most a "No charge" line).
+4. To spend nothing, cancel the subscription in PayPal before the 3 days end. Otherwise PayPal takes the first payment when they end: refund and cancel it as in steps 4-5 above.
+5. Delete the test website and workspace.
+
+**Free articles with PayPal** (legacy, 2026-10-22 to 2026-11-13; new checkouts no longer create them):
 
 1. Sign up with a **new** email address, so the workspace has never had a plan, and enter the code from the email. Add a test website and choose Grow.
 2. The line under "Pay with PayPal" says the 3 free articles come first and nothing is charged today. Press it and approve with the personal PayPal account. PayPal's page should show nothing to pay for 30 days, then EUR 99 a month (the wording is PayPal's).
@@ -222,7 +241,7 @@ Every day:
 
 **Refunds you must make by hand.** A customer can walk away from PayPal ("Cancel and return"), pay by card, and later approve the old PayPal page anyway. The app then cancels the PayPal subscription by itself. But PayPal takes the first payment when it activates. You will see it in `releasedApprovalsToRefund`, and in the logs as `REFUND its first payment in PayPal`. Refund that sale in full in PayPal (Activity, the payment, Refund). It then drops off the report.
 
-The same goes for `replacedFreeArticlesToRefund`, which should stay empty. It lists a payment PayPal took on a free-articles subscription that "Start my plan now" replaced. That happens only if the customer starts the plan at the very end of the 30 days, and PayPal bills the free subscription before the new one is active. The customer then paid twice: refund the sale listed there, in full, in PayPal.
+The same goes for `replacedFreeArticlesToRefund`, which should stay empty (legacy free-articles subscriptions only). It lists a payment PayPal took on a free-articles subscription that "Start my plan now" replaced. That happens only if the customer starts the plan at the very end of the 30 days, and PayPal bills the free subscription before the new one is active. The customer then paid twice: refund the sale listed there, in full, in PayPal.
 
 Other rules:
 - PayPal refunds: before the 2026-11-07 branch, they are made in PayPal, not in the RepGet admin. With it, use Admin, Payments; a refund made in PayPal is still recorded. Either way, cancel the subscription separately if the customer is leaving.
@@ -240,6 +259,7 @@ These come from PayPal's documentation, not a test. The code takes the safe path
   - the first charge coming when the 30 days end.
 
   The free-articles test in step 8 is the first real check: Billing must say "Free articles" on day 1.
+- The 3-day trial plans (2026-11-13): the same structure with `TRIAL_DAYS` free days, so the same points apply, with the first charge when the 3 days end. The 3-day trial test in step 8 is the first real check.
 - How long PayPal takes from approving "Start my plan now" to activating it. RepGet waits for activation, keeps asking, and the free articles carry on meanwhile.
 
 ## Plan changes and REPGET with PayPal (2026-11-07 branch)
@@ -255,7 +275,7 @@ These come from PayPal's documentation, not a test. The code takes the safe path
 - **Not possible through PayPal:** monthly↔yearly switches, and changes while a payment is failing.
 
 **REPGET, the launch price (2026-11-11; review P5 before it):**
-- 40% off the regular price on EVERY payment, as by card: EUR 59 / 89 / 209 a month, EUR 590 / 890 / 2,090 a year. The subscription is on the plan's own PayPal plan (or its free-articles plan), with the regular cycle priced at the launch price on that one subscription only (PayPal's per-subscription override). The PayPal plans keep the regular price for everyone else, and no offer plan is needed.
+- 40% off the regular price on EVERY payment, as by card: EUR 59 / 89 / 209 a month, EUR 590 / 890 / 2,090 a year. The subscription is on the plan's own PayPal plan (or its trial plan), with the regular cycle priced at the launch price on that one subscription only (PayPal's per-subscription override). The PayPal plans keep the regular price for everyone else, and no offer plan is needed.
 - A plan change through PayPal sets the launch price again on the new plan (PayPal does not carry the override over to the revised plan).
 - No limit per account: anyone starting a plan while the offer is on gets it, as by card.
 - The win-back discount (first payment only) still uses the offer plans made by `npm run paypal:setup`: ONE intro cycle in front of the regular plan, after the free days if there are any, priced per subscription. A plan without its offer plans gives the win-back discount by card only, and the customer is told so.
@@ -266,5 +286,5 @@ These come from PayPal's documentation, not a test. The code takes the safe path
 - Downgrade: Billing shows the date, and the lower plan applies from that date.
 - REPGET with PayPal, monthly and annual:
   - the first payment and the second are both the launch price;
-  - with the free articles, the first charge after the free days is the launch price;
+  - with a trial, the first charge after the free days is the launch price;
   - after an upgrade, the next payment is the new plan's launch price.

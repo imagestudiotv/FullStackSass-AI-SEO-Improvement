@@ -185,7 +185,7 @@ describe("payment options per website", () => {
 describe("statuses, prices and allowances", () => {
   it("translates every subscription status and keeps past_due a warning", () => {
     expect(subscriptionStatus("past_due", en.billing)).toMatchObject({ label: "Payment overdue", tone: "warning" });
-    expect(subscriptionStatus("trialing", de.billing).label).toBe("Kostenlose Artikel");
+    expect(subscriptionStatus("trialing", de.billing).label).toBe("Kostenlose Testphase");
     expect(subscriptionStatus("canceled", en.billing).label).toBe("Cancelled");
     expect(subscriptionStatus("something_new", en.billing)).toMatchObject({ label: "Something new", tone: "neutral" });
   });

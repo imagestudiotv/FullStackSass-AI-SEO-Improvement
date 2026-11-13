@@ -12,7 +12,7 @@ RepGet's own blog editorial and translation review is a separate pipeline and is
 
 ### 1. The team
 
-Every new draft goes to the review queue (`/admin/network`): every website, Partner Network or not, and the free articles of new customers too. A new customer's first article is marked **First article** and listed first; articles whose sources are flagged are marked **Check sources**. The team edits, places links, and approves once.
+Every new draft goes to the review queue (`/admin/network`): every website, Partner Network or not, and the trial articles of new customers too. A new customer's first article is marked **First article** and listed first; articles whose sources are flagged are marked **Check sources**. The team edits, places links, and approves once.
 
 Their approval stores that exact revision and its hash (`articles.approved_revision`), and covers the sources too. The customer approves nothing, ever.
 

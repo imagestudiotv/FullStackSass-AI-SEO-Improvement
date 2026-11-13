@@ -321,7 +321,7 @@ describe("closing panel's words", () => {
       "growing faster.",
       "Discover what’s holding your website back with a free SEO audit. No account required.",
       "Check my website for free",
-      "Create 3 Articles for Free",
+      "Start your 3-day free trial",
       "Cancel any time",
       "Set up in minutes",
     ]);

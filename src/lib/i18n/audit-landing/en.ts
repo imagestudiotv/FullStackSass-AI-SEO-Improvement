@@ -139,8 +139,8 @@ export const en: AuditLandingCopy = {
   },
   offer: {
     kicker: "When you create an account",
-    title: ["Your first article is free", "Your first {count} articles are free"],
-    body: "Confirm your email, choose a plan and add a payment method. Nothing is charged until your plan starts: once the free articles are written, or after {days} days at the latest. Backlinks and AI visibility tracking start with the plan.",
+    title: ["Your first day is free", "Your first {count} days are free"],
+    body: "Confirm your email, choose a plan and add a card or PayPal. Nothing is charged today: for {days} days you get your plan's full service, every feature included. Your plan then starts, and is charged, unless you cancel before the trial ends.",
     link: "Start your audit",
   },
   next: {
@@ -229,8 +229,8 @@ export const en: AuditLandingCopy = {
       {
         q: "What happens after I finish the audit?",
         a: [
-          "You can use the findings on your own. If you want help, create an account: your first article is free, and RepGet's paid plans add SEO content, backlinks, AI visibility tracking and social publishing.",
-          "You can use the findings on your own. If you want help, create an account: your first {count} articles are free, and RepGet's paid plans add SEO content, backlinks, AI visibility tracking and social publishing.",
+          "You can use the findings on your own. If you want help, create an account: your first day is free, with the full service of RepGet's plans: SEO content, backlinks, AI visibility tracking and social publishing.",
+          "You can use the findings on your own. If you want help, create an account: your first {count} days are free, with the full service of RepGet's plans: SEO content, backlinks, AI visibility tracking and social publishing.",
         ],
       },
     ],

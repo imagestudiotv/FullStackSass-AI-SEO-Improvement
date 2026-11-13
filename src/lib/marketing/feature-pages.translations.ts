@@ -50,7 +50,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
       accent: "sin enviar un solo correo.",
       intro:
         "RepGet coloca enlaces a su web dentro de artículos nuevos publicados en las webs de otros negocios de un sector relacionado. Cada enlace aparece en su panel y se comprueba en la página publicada.",
-      primaryCta: "Cree 3 artículos gratis",
+      primaryCta: "Empiece su prueba gratuita de 3 días",
       secondaryCta: { label: "Ver precios", href: "/pricing" },
       benefitsTitle: "Lo que obtiene",
       benefits: [
@@ -159,7 +159,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
         },
       ],
       closingTitle: "Consiga sus primeros backlinks sin enviar un correo",
-      closingBody: "Empiece con tres artículos gratis y vea su panel por sí mismo.",
+      closingBody: "Empiece con una prueba gratuita de tres días y vea su panel por sí mismo.",
       ui: { published: "Publicado", minRead: "{n} min de lectura", compared: "Comparación", newTab: "(se abre en una pestaña nueva)" },
     },
     chatgpt: {
@@ -172,7 +172,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
       accent: "recomiende su negocio.",
       intro:
         "Hoy la gente pregunta a los asistentes de IA qué negocio elegir. RepGet comprueba que los asistentes puedan leer su web, publica artículos claros que responden a las preguntas de sus clientes, consigue menciones en webs relacionadas y sigue si su negocio aparece nombrado.",
-      primaryCta: "Cree 3 artículos gratis",
+      primaryCta: "Empiece su prueba gratuita de 3 días",
       secondaryCta: { label: "Hacer la auditoría gratuita", href: "/audit" },
       benefitsTitle: "Cómo le ayuda RepGet a que le nombren",
       benefits: [
@@ -268,7 +268,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
         },
       ],
       closingTitle: "Descubra qué dicen los asistentes de IA sobre su negocio",
-      closingBody: "Empiece con tres artículos gratis o haga primero la auditoría gratuita.",
+      closingBody: "Empiece con una prueba gratuita de tres días o haga primero la auditoría gratuita.",
       ui: { published: "Publicado", minRead: "{n} min de lectura", compared: "Comparación", newTab: "(se abre en una pestaña nueva)" },
     },
   },
@@ -295,7 +295,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
       accent: "sans un seul e-mail de prospection.",
       intro:
         "RepGet place des liens vers votre site dans de nouveaux articles publiés sur les sites d’autres entreprises d’un secteur proche. Chaque lien figure dans votre tableau de bord et est vérifié sur la page en ligne.",
-      primaryCta: "Créez 3 articles gratuitement",
+      primaryCta: "Commencez votre essai gratuit de 3 jours",
       secondaryCta: { label: "Voir les tarifs", href: "/pricing" },
       benefitsTitle: "Ce que vous obtenez",
       benefits: [
@@ -404,7 +404,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
         },
       ],
       closingTitle: "Obtenez vos premiers backlinks sans envoyer un e-mail",
-      closingBody: "Commencez avec trois articles gratuits, et découvrez votre tableau de bord par vous-même.",
+      closingBody: "Commencez par un essai gratuit de trois jours, et découvrez votre tableau de bord par vous-même.",
       ui: { published: "Publié", minRead: "{n} min de lecture", compared: "Comparaison", newTab: "(s’ouvre dans un nouvel onglet)" },
     },
     chatgpt: {
@@ -417,7 +417,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
       accent: "par ChatGPT.",
       intro:
         "Aujourd’hui, on demande aux assistants d’IA quelle entreprise choisir. RepGet vérifie que les assistants peuvent lire votre site, publie des articles clairs qui répondent aux questions de vos clients, obtient des mentions sur des sites proches et suit si votre entreprise est citée.",
-      primaryCta: "Créez 3 articles gratuitement",
+      primaryCta: "Commencez votre essai gratuit de 3 jours",
       secondaryCta: { label: "Lancer l’audit gratuit", href: "/audit" },
       benefitsTitle: "Comment RepGet vous aide à être cité",
       benefits: [
@@ -513,7 +513,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
         },
       ],
       closingTitle: "Découvrez ce que les assistants d’IA disent de votre entreprise",
-      closingBody: "Commencez avec trois articles gratuits, ou lancez d’abord l’audit gratuit.",
+      closingBody: "Commencez par un essai gratuit de trois jours, ou lancez d’abord l’audit gratuit.",
       ui: { published: "Publié", minRead: "{n} min de lecture", compared: "Comparaison", newTab: "(s’ouvre dans un nouvel onglet)" },
     },
   },
@@ -540,7 +540,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
       accent: "senza inviare una sola email.",
       intro:
         "RepGet inserisce link al suo sito in nuovi articoli pubblicati sui siti di altre aziende di un settore affine. Ogni link compare nella sua dashboard e viene verificato sulla pagina online.",
-      primaryCta: "Crei 3 articoli gratis",
+      primaryCta: "Inizi la sua prova gratuita di 3 giorni",
       secondaryCta: { label: "Vedi i prezzi", href: "/pricing" },
       benefitsTitle: "Cosa ottiene",
       benefits: [
@@ -649,7 +649,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
         },
       ],
       closingTitle: "Ottenga i primi backlink senza inviare un’email",
-      closingBody: "Inizi con tre articoli gratuiti e veda la dashboard con i suoi occhi.",
+      closingBody: "Inizi con una prova gratuita di tre giorni e veda la dashboard con i suoi occhi.",
       ui: { published: "Pubblicato", minRead: "{n} min di lettura", compared: "Confronto", newTab: "(si apre in una nuova scheda)" },
     },
     chatgpt: {
@@ -662,7 +662,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
       accent: "da ChatGPT.",
       intro:
         "Oggi le persone chiedono agli assistenti AI quale attività scegliere. RepGet verifica che gli assistenti possano leggere il suo sito, pubblica articoli chiari che rispondono alle domande dei suoi clienti, ottiene menzioni su siti affini e controlla se la sua attività viene nominata.",
-      primaryCta: "Crei 3 articoli gratis",
+      primaryCta: "Inizi la sua prova gratuita di 3 giorni",
       secondaryCta: { label: "Avvia l’audit gratuito", href: "/audit" },
       benefitsTitle: "Come RepGet la aiuta a essere nominato",
       benefits: [
@@ -758,7 +758,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
         },
       ],
       closingTitle: "Scopra cosa dicono gli assistenti AI della sua attività",
-      closingBody: "Inizi con tre articoli gratuiti, oppure avvii prima l’audit gratuito.",
+      closingBody: "Inizi con una prova gratuita di tre giorni, oppure avvii prima l’audit gratuito.",
       ui: { published: "Pubblicato", minRead: "{n} min di lettura", compared: "Confronto", newTab: "(si apre in una nuova scheda)" },
     },
   },
@@ -785,7 +785,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
       accent: "ohne eine einzige Outreach-E-Mail.",
       intro:
         "RepGet platziert Links zu Ihrer Website in neuen Artikeln, die auf den Websites anderer Unternehmen aus einer verwandten Branche erscheinen. Jeder Link steht in Ihrem Dashboard und wird auf der Live-Seite geprüft.",
-      primaryCta: "3 Artikel kostenlos erstellen",
+      primaryCta: "3 Tage kostenlos testen",
       secondaryCta: { label: "Preise ansehen", href: "/pricing" },
       benefitsTitle: "Was Sie bekommen",
       benefits: [
@@ -894,7 +894,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
         },
       ],
       closingTitle: "Ihre ersten Backlinks, ohne eine E-Mail zu schreiben",
-      closingBody: "Starten Sie mit drei kostenlosen Artikeln und sehen Sie sich Ihr Dashboard selbst an.",
+      closingBody: "Starten Sie mit einer dreitägigen kostenlosen Testphase und sehen Sie sich Ihr Dashboard selbst an.",
       ui: { published: "Veröffentlicht", minRead: "{n} Min. Lesezeit", compared: "Verglichen", newTab: "(öffnet in einem neuen Tab)" },
     },
     chatgpt: {
@@ -907,7 +907,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
       accent: "von ChatGPT empfehlen.",
       intro:
         "Heute fragen Menschen KI-Assistenten, welches Unternehmen sie wählen sollen. RepGet prüft, ob Assistenten Ihre Website lesen können, veröffentlicht klare Artikel, die die Fragen Ihrer Kunden beantworten, sorgt für Erwähnungen auf verwandten Websites und verfolgt, ob Ihr Unternehmen genannt wird.",
-      primaryCta: "3 Artikel kostenlos erstellen",
+      primaryCta: "3 Tage kostenlos testen",
       secondaryCta: { label: "Kostenloses Audit starten", href: "/audit" },
       benefitsTitle: "Wie RepGet Ihnen hilft, genannt zu werden",
       benefits: [
@@ -1003,7 +1003,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
         },
       ],
       closingTitle: "Finden Sie heraus, was KI-Assistenten über Ihr Unternehmen sagen",
-      closingBody: "Starten Sie mit drei kostenlosen Artikeln oder zuerst mit dem kostenlosen Audit.",
+      closingBody: "Starten Sie mit einer dreitägigen kostenlosen Testphase oder zuerst mit dem kostenlosen Audit.",
       ui: { published: "Veröffentlicht", minRead: "{n} Min. Lesezeit", compared: "Verglichen", newTab: "(öffnet in einem neuen Tab)" },
     },
   },

@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { auditLandingCopy } from "@/lib/i18n/audit-landing";
 import { LOCALES, localePath, splitLocale } from "@/lib/i18n/config";
-import { FREE_ARTICLES } from "@/lib/plans/features";
+import { TRIAL_DAYS } from "@/lib/plans/features";
 
 /**
  * The free audit's landing page (client's design, 2026-11-05). What must hold:
@@ -81,14 +81,16 @@ describe("the audit landing page", () => {
     expect(html.match(/hidden=""/g)).toHaveLength(3);
   });
 
-  it.each(LOCALES)("in %s promises no free backlink and no timed trial, and quotes the real offer", (locale) => {
+  it.each(LOCALES)("in %s promises no free backlink, and quotes the real offer: the 3-day trial", (locale) => {
     const t = auditLandingCopy(locale);
     // Backlinks are named only as what paid plans and the plan-starting offer say they are.
     for (const inclusion of t.hero.inclusions) expect(`${inclusion.title} ${inclusion.body}`.toLowerCase()).not.toContain("backlink");
     expect(`${t.hero.includedTitle} ${t.hero.assurances.join(" ")}`.toLowerCase()).not.toContain("backlink");
     const words = text(render(locale));
-    expect(words).toContain(t.offer.title[1].replace("{count}", String(FREE_ARTICLES)));
-    expect(words).not.toMatch(/3[- ](day|días|jours|giorni|Tage)/i);
+    expect(words).toContain(t.offer.title[1].replace("{count}", String(TRIAL_DAYS)));
+    expect(words).toContain(t.offer.body.replace("{days}", String(TRIAL_DAYS)));
+    // Never the free articles the trial replaced (2026-11-13).
+    expect(words).not.toMatch(/free articles?|artículos? gratis|articles? gratuits?|articoli gratis|kostenlose[nr]? Artikel/i);
   });
 
   it.each(LOCALES)("in %s stays in the language wherever the page exists in it", (locale) => {

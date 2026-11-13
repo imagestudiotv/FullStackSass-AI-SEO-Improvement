@@ -139,8 +139,8 @@ export const it: AuditLandingCopy = {
   },
   offer: {
     kicker: "Quando crea un account",
-    title: ["Il suo primo articolo è gratis", "I suoi primi {count} articoli sono gratis"],
-    body: "Confermi l’e-mail, scelga un piano e aggiunga un metodo di pagamento. Nessun addebito fino all’avvio del piano: quando gli articoli gratuiti sono scritti o, al più tardi, dopo {days} giorni. I backlink e il monitoraggio della visibilità AI iniziano con il piano.",
+    title: ["Il suo primo giorno è gratis", "I suoi primi {count} giorni sono gratis"],
+    body: "Confermi l’e-mail, scelga un piano e aggiunga una carta o PayPal. Oggi non viene addebitato nulla: per {days} giorni ha il servizio completo del suo piano, con tutte le funzioni. Poi il piano parte, con il relativo addebito, a meno che non disdica prima della fine della prova.",
     link: "Inizi il suo audit",
   },
   next: {
@@ -229,8 +229,8 @@ export const it: AuditLandingCopy = {
       {
         q: "Cosa succede quando ho finito l’audit?",
         a: [
-          "Può usare le segnalazioni per conto suo. Se vuole aiuto, crei un account: il suo primo articolo è gratis, e i piani a pagamento di RepGet aggiungono contenuti SEO, backlink, monitoraggio della visibilità AI e pubblicazione sui social.",
-          "Può usare le segnalazioni per conto suo. Se vuole aiuto, crei un account: i suoi primi {count} articoli sono gratis, e i piani a pagamento di RepGet aggiungono contenuti SEO, backlink, monitoraggio della visibilità AI e pubblicazione sui social.",
+          "Può usare le segnalazioni per conto suo. Se vuole aiuto, crei un account: il suo primo giorno è gratis, con il servizio completo dei piani RepGet: contenuti SEO, backlink, monitoraggio della visibilità AI e pubblicazione sui social.",
+          "Può usare le segnalazioni per conto suo. Se vuole aiuto, crei un account: i suoi primi {count} giorni sono gratis, con il servizio completo dei piani RepGet: contenuti SEO, backlink, monitoraggio della visibilità AI e pubblicazione sui social.",
         ],
       },
     ],

@@ -30,7 +30,7 @@ Client decisions of 2026-10-31. A chat on the Home page (Dashboard), above the t
 
 ## Who can use it
 
-Owners and editors of the website, with a paid plan or the free-articles trial (client: trials get the chat, with the same 5 free messages). A viewer sees a note instead: messages spend the owner's credits.
+Owners and editors of the website, with a paid plan or a trial (the 3-day free trial since 2026-11-13, or a legacy free-articles trial; client: trials get the chat, with the same 5 free messages). A viewer sees a note instead: messages spend the owner's credits.
 
 ## Costs
 

@@ -20,7 +20,7 @@ import { Fragment, type ReactNode } from "react";
 import { PUBLIC_AUDIT_MAX_PAGES } from "@/lib/audit/limits";
 import { auditLandingCopy, type AuditLandingCopy } from "@/lib/i18n/audit-landing";
 import { localePath, type Locale } from "@/lib/i18n/config";
-import { FREE_ARTICLES, FREE_ARTICLES_DAYS } from "@/lib/plans/features";
+import { TRIAL_DAYS } from "@/lib/plans/features";
 
 import styles from "./audit-landing.module.css";
 import { AuditSampleTabs } from "./audit-sample-tabs";
@@ -329,7 +329,7 @@ export function AuditLanding({ locale }: { locale: Locale }) {
   const scopeIcons = [Search, Bot, AppWindow, List];
   const checkIcons = [Search, Bot, FileText, List];
   const taskIcons = [Search, FileText, Link2, BarChart3];
-  const facts = (text: string) => text.replaceAll("{pages}", String(PUBLIC_AUDIT_MAX_PAGES)).replaceAll("{days}", String(FREE_ARTICLES_DAYS));
+  const facts = (text: string) => text.replaceAll("{pages}", String(PUBLIC_AUDIT_MAX_PAGES)).replaceAll("{days}", String(TRIAL_DAYS));
 
   return (
     <div className={styles.page}>
@@ -499,7 +499,7 @@ export function AuditLanding({ locale }: { locale: Locale }) {
             </span>
             <div className={styles.offerCopy}>
               <small>{t.offer.kicker}</small>
-              <strong>{plural(t.offer.title, FREE_ARTICLES)}</strong>
+              <strong>{plural(t.offer.title, TRIAL_DAYS)}</strong>
               <p>{facts(t.offer.body)}</p>
             </div>
             <AuditFocusLink className={styles.offerLink}>
@@ -611,7 +611,7 @@ export function AuditLanding({ locale }: { locale: Locale }) {
                   {item.q}
                   <span aria-hidden="true">+</span>
                 </summary>
-                <p>{facts(typeof item.a === "string" ? item.a : plural(item.a, FREE_ARTICLES))}</p>
+                <p>{facts(typeof item.a === "string" ? item.a : plural(item.a, TRIAL_DAYS))}</p>
               </details>
             ))}
           </div>
