@@ -324,8 +324,8 @@ describe("writing a batch", () => {
     expect(writeChunks(input(3))).toHaveLength(1);
   });
 
-  it("asks one call for less than the SDK allows without streaming", () => {
-    // @anthropic-ai/sdk refuses a non-streamed max_tokens above about 21,333 (its ten-minute estimate).
-    expect(maxTokensFor(WRITE_CHUNK)).toBeLessThan(21_333);
+  it("gives a call of five room for thinking and the answer, within the cap", () => {
+    expect(maxTokensFor(WRITE_CHUNK)).toBe(27_000);
+    expect(maxTokensFor(20)).toBe(32_000);
   });
 });

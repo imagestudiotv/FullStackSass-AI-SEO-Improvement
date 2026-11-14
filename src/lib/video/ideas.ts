@@ -741,10 +741,15 @@ export function writeChunks(input: IdeaInput): IdeaInput[] {
 /**
  * Writes a batch's ideas: the chunks in parallel, each answer streamed (the SDK
  * refuses a long answer that is not), so a day's batch takes about as long as
- * five ideas. One chunk that fails fails the batch, as before.
+ * five ideas. A chunk that fails costs only its own ideas; the batch fails
+ * only when every chunk did (the first error is thrown).
  */
 export async function writeIdeas(input: IdeaInput): Promise<{ ideas: WrittenIdea[]; usage: Usage }> {
-  const parts = await Promise.all(writeChunks(input).map(writeChunk));
+  const settled = await Promise.allSettled(writeChunks(input).map(writeChunk));
+  const parts = settled.flatMap((result) => (result.status === "fulfilled" ? [result.value] : []));
+  const failures = settled.flatMap((result) => (result.status === "rejected" ? [result.reason] : []));
+  if (!parts.length) throw failures[0];
+  for (const failure of failures) console.error("Video ideas: a chunk failed;", failure instanceof Error ? failure.message : failure);
   return {
     ideas: parts.flatMap((part) => part.ideas),
     usage: {
@@ -755,13 +760,18 @@ export async function writeIdeas(input: IdeaInput): Promise<{ ideas: WrittenIdea
   };
 }
 
+/** The ideas schema as JSON Schema, without the SDK's own parse step (it hides the answer when it throws). */
+const IDEAS_FORMAT = { type: "json_schema" as const, schema: zodOutputFormat(ideaSchema).schema };
+
 async function writeChunk(input: IdeaInput): Promise<{ ideas: WrittenIdea[]; usage: Usage }> {
   const response = await anthropic.messages
     .stream(
       {
         model: MODELS.GENERATION,
         max_tokens: maxTokensFor(input.count),
-        output_config: { format: zodOutputFormat(ideaSchema) },
+        // The model thinks by default (adaptive) and its thinking counts against max_tokens:
+        // without an effort a chunk of five thought through most of 14,500 tokens (local run 2026-11-14).
+        output_config: { effort: "medium", format: IDEAS_FORMAT },
         system: systemPrompt(input),
         messages: [{ role: "user", content: userContent(input) }],
       },
@@ -770,9 +780,16 @@ async function writeChunk(input: IdeaInput): Promise<{ ideas: WrittenIdea[]; usa
     .finalMessage();
   // The stop reason is kept: "max_tokens" and "refusal" need different fixes.
   if (response.stop_reason !== "end_turn") throw new Error(`Video ideas did not finish (${response.stop_reason})`);
-  const ideas = ideaSchema.parse(JSON.parse(response.content.find((block) => block.type === "text")?.text ?? "")).ideas;
+  const text = response.content.flatMap((block) => (block.type === "text" ? [block.text] : [])).join("");
+  let json: unknown;
+  try {
+    json = JSON.parse(text);
+  } catch (error) {
+    const at = Number(/position (\d+)/.exec(String(error))?.[1] ?? -1);
+    throw new Error(`Video ideas: the answer is not valid JSON (${String(error).slice(0, 120)}; ${text.length} chars; near: ${JSON.stringify(text.slice(Math.max(0, at - 60), at + 60))})`);
+  }
   return {
-    ideas,
+    ideas: ideaSchema.parse(json).ideas,
     usage: { inputTokens: response.usage.input_tokens, outputTokens: response.usage.output_tokens, model: MODELS.GENERATION },
   };
 }
