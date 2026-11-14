@@ -34,7 +34,7 @@ export function AuditEnding({
 }: {
   domain: string;
   hiddenIssues: number;
-  offer: { price: string | null; freeArticles: number };
+  offer: { price: string | null; trialDays: number };
   locale: Locale;
 }) {
   const t = auditEndingCopy(locale);
@@ -45,7 +45,7 @@ export function AuditEnding({
 
   const unlocks = [
     { icon: Files, title: t.deeperAudit.title, body: pages(t.deeperAudit.body) },
-    { icon: TrendingUp, title: plural(t.freeArticles.title, offer.freeArticles), body: t.freeArticles.body },
+    { icon: TrendingUp, title: plural(t.trial.title, offer.trialDays), body: t.trial.body },
     { icon: Share2, title: t.withPlan.title, body: t.withPlan.body },
   ];
 
@@ -57,7 +57,7 @@ export function AuditEnding({
             <p className={styles.overline}>{t.overline}</p>
             <h2 className={styles.title}>{t.title}</h2>
             <p className={styles.copy}>
-              <Bold text={pages(plural(t.body, offer.freeArticles))} />
+              <Bold text={pages(plural(t.body, offer.trialDays))} />
             </p>
             {/* A real number from the real crawl, never an invented "47 issues found". */}
             {hiddenIssues > 0 ? (
@@ -72,7 +72,7 @@ export function AuditEnding({
                 <ArrowRight aria-hidden="true" />
               </Link>
               <span className={styles.note}>
-                <b>{plural(t.noteOffer, offer.freeArticles)}</b> · {t.noteTerms}
+                <b>{plural(t.noteOffer, offer.trialDays)}</b> · {t.noteTerms}
               </span>
             </div>
           </div>
@@ -115,7 +115,7 @@ export function AuditEnding({
         </div>
         <div className={styles.finalButtons}>
           <Link prefetch={false} className={styles.finalPrimary} href={signUp}>
-            {plural(t.finalCta, offer.freeArticles)}
+            {plural(t.finalCta, offer.trialDays)}
             <ArrowRight aria-hidden="true" />
           </Link>
           <Link prefetch={false} className={styles.finalSecondary} href={localePath(locale, "/pricing")}>

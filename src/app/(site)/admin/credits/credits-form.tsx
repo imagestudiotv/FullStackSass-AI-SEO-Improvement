@@ -141,8 +141,8 @@ export function CreditsForm({
               Trial daily credits
             </label>
             <p id={`${id}-trial-daily-help`} className="text-xs text-muted-foreground">
-              A workspace on its free articles can claim these on each of its first {trialDays} days - nothing from
-              day {trialDays + 1} until its plan starts. They never expire. 0 turns them off.
+              A workspace on its free trial can claim these on each of its first {trialDays} days (a legacy
+              free-articles trial gets nothing from day {trialDays + 1} until its plan starts). They never expire. 0 turns them off.
             </p>
           </div>
           <Input

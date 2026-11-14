@@ -37,7 +37,7 @@ import { grantMonthlyCredits } from "@/lib/backlinks/credits";
 import { isEntitledToSpend } from "@/lib/billing/entitled";
 import { FREE_ARTICLES_PER_DAY } from "@/lib/billing/free-articles";
 import { getOnboardingState } from "@/lib/onboarding/steps";
-import { FREE_ARTICLES, FREE_ARTICLES_ONLY, FREE_ARTICLES_ONLY_PAYPAL } from "@/lib/plans/features";
+import { FREE_ARTICLES, FREE_ARTICLES_ONLY, FREE_ARTICLES_ONLY_PAYPAL, TRIAL_DAYS } from "@/lib/plans/features";
 import { checkLimit } from "@/lib/usage";
 import {
   queueArticleForCalendarItem,
@@ -91,9 +91,14 @@ describe("what the free articles allow", () => {
     });
   });
 
-  it("leaves a 3-day trial from before the offer on its plan's allowance", async () => {
-    const { websiteId } = await onTrial(3);
-    expect(await checkLimit(websiteId, "articles")).toMatchObject({ limit: 30, freeArticles: false });
+  it("is not the 3-day free trial, which has its plan's allowance pro-rated (below)", async () => {
+    const { websiteId } = await onTrial(TRIAL_DAYS);
+    expect(await checkLimit(websiteId, "articles")).toMatchObject({ limit: 3, freeArticles: false, trial: true });
+  });
+
+  it("stays the free articles on a 30-day trial still running, whatever TRIAL_DAYS is", async () => {
+    const { websiteId } = await onTrial(30, 20);
+    expect(await checkLimit(websiteId, "articles")).toMatchObject({ limit: FREE_ARTICLES, freeArticles: true, trial: false });
   });
 
   it("counts them over the whole trial, even when a month ends inside it", async () => {
@@ -279,5 +284,93 @@ describe("writing the free articles", () => {
       ok: true,
       articleId: failed.id,
     });
+  });
+});
+
+/*
+  The 3-day free trial that replaced the free articles (TRIAL_DAYS, client
+  2026-11-13: "3-day free trial is good instead of 3 free articles"; during
+  it, "normal service"): every feature of the plan, its monthly articles
+  pro-rated to the trial, and nothing that ends it early.
+*/
+describe("the free trial (TRIAL_DAYS)", () => {
+  async function onGrowTrial() {
+    const site = await onTrial(TRIAL_DAYS);
+    const [sub] = await test.db
+      .select({ planId: subscriptions.planId })
+      .from(subscriptions)
+      .where(eq(subscriptions.websiteId, site.websiteId));
+    await test.db.update(plans).set({ articleLimit: 60 }).where(eq(plans.id, sub.planId!));
+    return site;
+  }
+
+  it("pro-rates the plan's monthly articles to the trial: Grow's 60 are 6", async () => {
+    const { websiteId } = await onGrowTrial();
+    expect(await checkLimit(websiteId, "articles")).toMatchObject({
+      limit: 6,
+      used: 0,
+      allowed: true,
+      freeArticles: false,
+      paypalFreeArticles: false,
+      trial: true,
+    });
+  });
+
+  it("is entitled to every paid feature, as the plan is", async () => {
+    const { websiteId } = await onGrowTrial();
+    expect(await isEntitledToSpend(websiteId)).toEqual({ ok: true });
+    expect(await isEntitledToSpend(websiteId, { freeArticles: true })).toEqual({ ok: true });
+  });
+
+  it("is in the Partner Network's review and keeps the AI visibility step", async () => {
+    await test.db.insert(platformControls).values({ key: "managed_review", enabled: true, updatedBy: "test" });
+    const trial = await onGrowTrial();
+    await test.db.insert(networkSites).values({ websiteId: trial.websiteId, acceptingLinks: true, monthlyCap: 3 });
+    expect(await inManagedNetwork(trial.websiteId)).toBe(true);
+    await test.client.exec("delete from platform_controls");
+
+    const state = await getOnboardingState(trial.orgId);
+    expect(state.steps.map((step) => step.id)).toEqual(["website", "plan", "visibility", "content"]);
+    expect(state.freeArticles).toBe(false);
+  });
+
+  it("writes its share at the plan's pace, never ends the trial, and is not held by the free articles' daily cap", async () => {
+    const { websiteId } = await onGrowTrial();
+    for (let i = 0; i < 6; i++) {
+      expect(await queueNew(websiteId)).toMatchObject({ ok: true });
+    }
+    const event = inngestMock.send.mock.calls[0][0];
+    expect(event.data.reservations.map((r: { key: string }) => r.key)).toEqual([`articles:${websiteId}`]);
+
+    expect(await queueNew(websiteId)).toEqual({
+      ok: false,
+      error: "Your free trial includes 6 articles, and they have all been used. Your plan starts with its full monthly articles when the trial ends.",
+    });
+    expect(endTrial.endFreeTrialIfUsed).not.toHaveBeenCalled();
+  });
+
+  it("grants no monthly or link credits until the plan starts", async () => {
+    const { orgId, websiteId } = await onGrowTrial();
+    const [sub] = await test.db
+      .select({ planId: subscriptions.planId })
+      .from(subscriptions)
+      .where(eq(subscriptions.websiteId, websiteId));
+    await test.db.update(plans).set({ monthlyCredits: 25 }).where(eq(plans.id, sub.planId!));
+    expect(await grantMonthlyCredits(orgId)).toBe(0);
+  });
+
+  it("has the paid month's full allowance once the plan starts", async () => {
+    const { websiteId } = await onGrowTrial();
+    for (let i = 0; i < 6; i++) await queueNew(websiteId);
+    // Converted when the trial ends: the provider's period now starts there.
+    const [sub] = await test.db.select().from(subscriptions).where(eq(subscriptions.websiteId, websiteId));
+    const trialEnd = sub.currentPeriodEnd!;
+    await test.db
+      .update(subscriptions)
+      .set({ status: "active", currentPeriodStart: trialEnd, currentPeriodEnd: new Date(trialEnd.getTime() + 30 * DAY) })
+      .where(eq(subscriptions.websiteId, websiteId));
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(trialEnd.getTime() + 60 * 60 * 1000));
+    expect(await checkLimit(websiteId, "articles")).toMatchObject({ limit: 60, used: 0, allowed: true, trial: false });
   });
 });

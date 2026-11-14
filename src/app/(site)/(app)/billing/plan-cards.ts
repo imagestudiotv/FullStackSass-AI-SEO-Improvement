@@ -7,7 +7,7 @@ import type { Messages } from "@/lib/i18n/messages";
 import { PLAN_CARDS_COPY } from "@/lib/i18n/plan-cards";
 import { pricingPageCopy, type PerkItem } from "@/lib/i18n/pricing-page";
 import { planBenefits } from "@/lib/plans/benefits";
-import { FREE_ARTICLES, FREE_ARTICLES_DAYS, isDirectPurchaseTier } from "@/lib/plans/features";
+import { isDirectPurchaseTier, TRIAL_DAYS } from "@/lib/plans/features";
 
 import { formatMoney, planFeatures } from "./billing-view";
 
@@ -24,7 +24,7 @@ import { formatMoney, planFeatures } from "./billing-view";
  * EUR 299 -> 99 (REPGET_GV_M). A yearly plan is quoted per month with the
  * year's total beside it, as /pricing quotes it.
  *
- * THE TERMS ARE CHECKOUT'S: the free articles only for a workspace that has
+ * THE TERMS ARE CHECKOUT'S: the TRIAL_DAYS free trial only for a workspace that has
  * never subscribed (lib/billing/checkouts.ts isTrialEligible) and never on a
  * plan bought outright; otherwise charged at checkout. Then the price each
  * payment is, which with REPGET stays the launch price (a `forever` coupon).
@@ -42,7 +42,7 @@ export type PlanCardView = {
   caption: string;
   /** When money is taken and how it renews. */
   terms: string[];
-  /** Under the PayPal button, when PayPal cannot give this plan's free articles. */
+  /** Under the PayPal button, when PayPal cannot give this plan's free trial. */
   paypalNote: string | null;
   /** Bought outright (Grow + Visibility): its badge. */
   directBadge: string | null;
@@ -56,7 +56,7 @@ export function planCardsFor(
   context: {
     /** REPGET_OFFER_ENABLED: the launch price on every Launch/Grow/Scale checkout. */
     offerOn: boolean;
-    /** The workspace has never subscribed: card checkout gives the free articles. */
+    /** The workspace has never subscribed: card checkout gives the free trial. */
     trialEligible: boolean;
     /**
      * The website on screen already has a plan: choosing another changes it
@@ -89,12 +89,13 @@ export function planCardsFor(
         : page.card.plainMonthlyCaption;
 
     const trial = context.trialEligible && !direct;
+    // The trial line: n and days are both TRIAL_DAYS, so it reads right in its old ({n}) and new ({days}) wording.
     const terms = context.switching && !direct
       ? []
       : direct
       ? [format(DIRECT_PURCHASE[locale].note, { price: charged })]
       : trial
-        ? [format(words.trial, { n: FREE_ARTICLES, days: FREE_ARTICLES_DAYS }), format(yearly ? words.renewYear : words.renewMonth, { price: charged })]
+        ? [format(words.trial, { n: TRIAL_DAYS, days: TRIAL_DAYS }), format(yearly ? words.renewYear : words.renewMonth, { price: charged })]
         : [format(yearly ? words.chargedYear : words.chargedMonth, { price: charged })];
 
     const creditsLine = plural(t.creditsEachMonth, plan.monthlyCredits, {
@@ -114,7 +115,7 @@ export function planCardsFor(
       per: page.card.perMonth,
       caption,
       terms,
-      // PayPal gives the free articles only through the plan's free-articles PayPal plan (beginCheckout).
+      // PayPal gives the free trial only through the plan's trial PayPal plan (beginCheckout).
       paypalNote: trial && !plan.paypalTrialPlanId ? words.paypalNoTrial : null,
       directBadge: direct ? DIRECT_PURCHASE[locale].badge : null,
       features: benefits?.features ?? planFeatures(plan, t, locale),

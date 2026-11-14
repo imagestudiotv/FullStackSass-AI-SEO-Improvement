@@ -8,10 +8,10 @@
  * included with the audit". Nothing grants that: backlinks wait for a paid plan
  * (lib/billing/entitled.ts). The third inclusion is what the check really
  * returns, AI crawler access (lib/audit/ai-crawlers.ts), and the extra is the
- * real offer, the free articles (lib/plans/features.ts). Its FAQ answers
+ * real offer, the 3-day free trial (lib/plans/features.ts TRIAL_DAYS). Its FAQ answers
  * describe what the crawl reads (lib/audit/rules.ts).
  *
- * Plurals are [one, other]. {count} is FREE_ARTICLES, {days} FREE_ARTICLES_DAYS
+ * Plurals are [one, other]. {count} and {days} are TRIAL_DAYS
  * and {pages} the free check's page limit (lib/audit/limits.ts). Text between
  * ** is set in bold.
  */
@@ -167,7 +167,7 @@ export type AuditLandingCopy = {
     titleAccent: string;
     lead: string;
     foot: string;
-    /** An answer may be [one, other] when it quotes the free articles. */
+    /** An answer may be [one, other] when it quotes the free trial's days. */
     items: { q: string; a: string | [string, string] }[];
   };
   closing: {

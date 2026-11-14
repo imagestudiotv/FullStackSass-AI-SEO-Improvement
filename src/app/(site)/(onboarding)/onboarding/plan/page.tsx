@@ -5,7 +5,6 @@ import { TestimonialRail } from "@/components/onboarding/testimonial-rail";
 import { listPublishedTestimonials } from "@/lib/marketing/testimonials-db";
 import { PayPalPendingNotice } from "@/components/paypal-pending-notice";
 import { PayPalReturn } from "@/components/paypal-return";
-import { TrialComparison } from "@/components/trial-comparison";
 import { WizardProgress } from "@/components/wizard-progress";
 import { requireSession } from "@/lib/auth-guard";
 import { twoStepArticles } from "@/lib/articles/review";
@@ -14,15 +13,14 @@ import { OFFER_CODE, WINBACK_OFFER_CODE } from "@/lib/i18n/offer-code";
 import { ARTICLE_DELIVERY } from "@/lib/i18n/article-delivery";
 import { PAYPAL_PENDING_COPY } from "@/lib/i18n/paypal-pending";
 import { listPlans } from "@/lib/billing";
-import { readCreditSettings, TRIAL_CREDIT_DAYS } from "@/lib/credits/prices";
-import { getMessages } from "@/lib/i18n/messages";
 import { hasUnfinishedPayPalApproval, isTrialEligible, planScreenOffer } from "@/lib/billing/checkouts";
 import { DIRECT_PURCHASE } from "@/lib/i18n/direct-purchase";
+import { pricingPageCopy, type PricingTierId } from "@/lib/i18n/pricing-page";
 import { db } from "@/lib/db";
 import { getOnboardingState } from "@/lib/onboarding/steps";
 import { isPayPalAvailable } from "@/lib/paypal/actions";
 import { planBenefits } from "@/lib/plans/benefits";
-import { FREE_ARTICLES, FREE_ARTICLES_DAYS, isDirectPurchaseTier, toPickerPlan } from "@/lib/plans/features";
+import { isDirectPurchaseTier, toPickerPlan } from "@/lib/plans/features";
 import { requireOrg } from "@/lib/tenant";
 import { CheckoutPending } from "./checkout-pending";
 import { PlanStep } from "./plan-step";
@@ -49,7 +47,7 @@ export default async function OnboardingPlanPage({
   const session = await requireSession();
   const { t, locale } = await getAppMessages(session.user.id);
   const { orgId } = await requireOrg();
-  // Whether checkout will really give the free articles the page offers.
+  // Whether checkout will really give the free trial the page offers.
   const trialEligible = await isTrialEligible(db, orgId);
 
   const params = await searchParams;
@@ -58,11 +56,10 @@ export default async function OnboardingPlanPage({
   /** The plan whose button was pressed (lib/plans/features.ts signUpForPlan). Only a choice on screen: nothing is bought from the address. */
   const chosenTier = typeof params.plan === "string" ? params.plan : undefined;
 
-  const [state, paypalAvailable, allPlans, credits] = await Promise.all([
+  const [state, paypalAvailable, allPlans] = await Promise.all([
     getOnboardingState(orgId, siteParam),
     isPayPalAvailable(),
     listPlans(),
-    readCreditSettings(),
   ]);
 
   if (!state.websiteId) redirect("/onboarding/website");
@@ -156,10 +153,21 @@ export default async function OnboardingPlanPage({
     // The visibility perks too, as lines: on this screen they are part of what is bought.
     if (listed) benefits[plan.id] = [...listed.features, ...listed.perks.map((perk) => `**${perk.strong}** - ${perk.small}`)];
   }
+  /*
+    Each plan's one line and the usage note under its list, in the reader's
+    language: the pricing page's own words (lib/i18n/pricing-page.ts), as
+    Daniel's checkout card places them. The bundle's line is its banner's.
+  */
+  const page = pricingPageCopy(locale);
+  const descriptions: Record<string, string> = {};
+  for (const plan of [...monthlyPlans, ...annualPlans]) {
+    const words = isDirectPurchaseTier(plan.tier) ? page.bundle.lede : page.plans[plan.tier as PricingTierId]?.desc;
+    if (words) descriptions[plan.id] = words;
+  }
   // The plans a PayPal subscription can be started for: mirrored into PayPal.
   const paypalPlanIds = allPlans.filter((plan) => plan.paypalPlanId).map((plan) => plan.id);
-  // ...and those whose PayPal checkout gives the free articles too (2026-10-22).
-  const paypalFreeArticlePlanIds = allPlans.filter((plan) => plan.paypalPlanId && plan.paypalTrialPlanId).map((plan) => plan.id);
+  // ...and those whose PayPal checkout gives the free trial too (their trial PayPal plan).
+  const paypalTrialPlanIds = allPlans.filter((plan) => plan.paypalPlanId && plan.paypalTrialPlanId).map((plan) => plan.id);
   // A PayPal payment started and never finished blocks paying by card (review H1): offer to cancel it.
   const unfinishedPayPal = await hasUnfinishedPayPalApproval(db, { organizationId: orgId, websiteId: state.websiteId });
 
@@ -212,27 +220,23 @@ export default async function OnboardingPlanPage({
               offerCopy={offerOn === "repget" ? OFFER_CODE[locale] : offerOn === "winback" ? WINBACK_OFFER_CODE[locale] : null}
               directPurchase={direct ? DIRECT_PURCHASE[locale] : null}
               paypalPlanIds={paypalPlanIds}
-              paypalFreeArticlePlanIds={paypalFreeArticlePlanIds}
+              paypalTrialPlanIds={paypalTrialPlanIds}
               websiteId={state.websiteId}
               trialEligible={trialEligible}
               emailVerified={session.user.emailVerified === true}
               email={session.user.email}
               benefits={benefits}
+              descriptions={descriptions}
+              usageNote={page.compare.usageNote}
             />
             {/*
-              What the free trial gives and what the plan adds (client,
-              2026-10-27), for a workspace that will get the trial.
+              No "free trial or paid plan" comparison here any more (it was
+              under the card from 2026-10-27): the 3-day trial IS the plan,
+              with every feature (client, 2026-11-13: "normal service"), so
+              the two columns would be the same list. The card says the one
+              true thing - "€0 today · 3 days free", then the price - and its
+              "What's included" list is what the trial gives.
             */}
-            {trialEligible && !direct ? (
-              <TrialComparison
-                t={getMessages(locale).pricing.trial}
-                freeArticles={FREE_ARTICLES}
-                freeDays={FREE_ARTICLES_DAYS}
-                trialDailyCredits={credits.trialDailyFree}
-                trialCreditDays={TRIAL_CREDIT_DAYS}
-                className="mt-6"
-              />
-            ) : null}
           </div>
 
           <OnboardingAside

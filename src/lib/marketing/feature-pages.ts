@@ -134,7 +134,7 @@ export const CHATGPT_EXAMPLE: FeatureExample = {
   placedLink: null,
 };
 
-const SIGN_UP_CTA = "Create 3 articles for free";
+const SIGN_UP_CTA = "Start your 3-day free trial";
 
 export const BACKLINKS_PAGE: FeaturePage = {
   path: "/backlinks",
@@ -255,7 +255,7 @@ export const BACKLINKS_PAGE: FeaturePage = {
     },
   ],
   closingTitle: "Get your first backlinks without sending an email",
-  closingBody: "Start with three free articles, and see your dashboard for yourself.",
+  closingBody: "Start with a three-day free trial, and see your dashboard for yourself.",
   ui: ENGLISH_UI,
 };
 
@@ -365,7 +365,7 @@ export const CHATGPT_PAGE: FeaturePage = {
     },
   ],
   closingTitle: "Find out what AI assistants say about your business",
-  closingBody: "Start with three free articles, or run the free audit first.",
+  closingBody: "Start with a three-day free trial, or run the free audit first.",
   ui: ENGLISH_UI,
 };
 

@@ -15,6 +15,8 @@ For whoever deploys this work: the client's requests of 8 October 2026 (RepGet b
 
 **New customers: "Create 3 Articles for Free"** (replaces the 3-day free trial)
 
+> **Superseded on 2026-11-13 (the client):** new accounts get a real 3-day free trial again (`TRIAL_DAYS`, `lib/plans/features.ts`), by card and PayPal, with nothing charged today: the plan's full service at the plan's pace (every monthly allowance pro-rated to the 3 days, docs/credits.md), then the plan starts and the first payment is taken automatically unless cancelled before. Nothing ends it early after a number of articles. What follows describes the offer as released in October; it now applies only to legacy 30-day free-articles trials started before 2026-11-13, which keep working until they end (`lib/billing/free-articles.ts`).
+
 - They confirm their email with a 6-digit code, choose a plan and add a card. Nothing is charged.
 - Their first 3 articles are free: the research that plans them, the writing, the pictures and publishing. Audits, AI visibility, backlink credits and the Partner Network start with the plan.
 - The plan starts, and is charged, right after the 3rd article is written, or 30 days after sign-up if they did not use all three. Cancelling before then costs nothing.
@@ -31,7 +33,7 @@ For whoever deploys this work: the client's requests of 8 October 2026 (RepGet b
   - Breadcrumb label: optional, the article title when empty.
   - Saving only these fields does not mark the article "Updated". Search engines are told the page changed (IndexNow).
 - **Admin → Blog → Featured placements** (`/admin/blog/sponsorships`): paid requests first. Add the mention to the article by hand, then mark it published, or decline it. Everyone in `ADMIN_EMAILS` gets an email when a request is paid. A refund, if the owner decides on one, is made in Stripe.
-- **Stripe dashboard**: a new customer's subscription shows as "Trialing" with a 30-day trial. It turns active by itself after their 3rd article.
+- **Stripe dashboard**: a new customer's subscription shows as "Trialing" with a 30-day trial. It turns active by itself after their 3rd article. (Since 2026-11-13: a 3-day trial, which turns active when the 3 days end; the 30-day one is legacy.)
 
 ## Release steps
 

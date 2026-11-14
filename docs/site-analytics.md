@@ -17,7 +17,7 @@ This document is about the second one. It is not the customers' own Google conne
 | Decline / withdraw | the banner | Silences GA and deletes `_ga` and `_ga_<ID>`. |
 | Admin page | `lib/admin/ga4.ts`, `lib/admin/site-traffic.ts`, `app/admin/analytics` | Reads the property through the GA4 Data API as a read-only service account. Nothing is stored in the database. |
 | CSP | `lib/security-headers.ts` | `*.googletagmanager.com` (script), plus `*.google-analytics.com` and `*.analytics.google.com` (connect). Google Ads' hosts only when `NEXT_PUBLIC_GTM_ID` is set. |
-| Conversions | `lib/conversions/conversions.ts`, `components/conversion-events.tsx` | Sign-up, start of the free articles, first real payment. See "Google Ads" below. |
+| Conversions | `lib/conversions/conversions.ts`, `components/conversion-events.tsx` | Sign-up, start of the free trial, first real payment. See "Google Ads" below. |
 
 Expect lower figures than Vercel's: only visitors who accept are counted, and only on public pages.
 
@@ -85,12 +85,12 @@ Added 2026-10-10 for the client's request to measure sign-ups, free trials and p
 | Event | When | Sent by | Details |
 |---|---|---|---|
 | `sign_up` | The first signed-in page in the hour after an account is created | the browser | `method`: `email` or `google` |
-| `start_trial` | The first signed-in page in the hour after a checkout with free articles completes | the browser | `plan` |
-| `purchase` | A subscription's **first** payment for money, by Stripe or PayPal: at once for a checkout paid at once, otherwise when the free articles end (by card: all three written, or after 30 days; through PayPal: "Start my plan now", or after 30 days) | the server (GA4 Measurement Protocol) | `value`, `currency`, `transaction_id`, `items` (the plan), `payment_type` |
+| `start_trial` | The first signed-in page in the hour after a checkout with a free trial completes | the browser | `plan` |
+| `purchase` | A subscription's **first** payment for money, by Stripe or PayPal: at once for a checkout paid at once, otherwise when the 3-day free trial ends (by card and through PayPal; legacy free-articles trials from before 2026-11-13: by card all three written or after 30 days, through PayPal "Start my plan now" or after 30 days) | the server (GA4 Measurement Protocol) | `value`, `currency`, `transaction_id`, `items` (the plan), `payment_type` |
 
 Renewals are not reported as new conversions. The browser remembers which conversions it has sent, so a reload does not count one twice. Signed-in pages send them with the title "RepGet" and a cleaned address, then silence GA again.
 
-`purchase` comes from the server because, for most customers, the money arrives after they have left the site: when their third free article is written, or after 30 days. When they start paying, the checkout keeps their GA identity (the `_ga` cookie's client id, nothing else), and only if they had accepted.
+`purchase` comes from the server because, for most customers, the money arrives after they have left the site: when their 3-day trial ends. When they start paying, the checkout keeps their GA identity (the `_ga` cookie's client id, nothing else), and only if they had accepted.
 
 - **Tag Manager** (optional, `NEXT_PUBLIC_GTM_ID`). The container is loaded **beside** GA, never instead of it. It receives the consent signals and `sign_up` / `start_trial` as dataLayer events with a `transaction_id`. `purchase` is not in the dataLayer, because it happens on the server.
 
@@ -117,8 +117,8 @@ Renewals are not reported as new conversions. The browser remembers which conver
 1. In a private window, open `https://www.repget.com/?utm_source=test&utm_medium=cpc&utm_campaign=setup-test` and press **Accept**.
 2. In GA, go to Reports > Realtime. You appear, with source `test`.
 3. Sign up with a new email address and finish the first onboarding screen. Within a minute, Realtime > "Event count by Event name" shows `sign_up`.
-4. Choose a plan with free articles and complete the Stripe page (nothing is charged). On the next screen, Realtime shows `start_trial`.
-5. To test `purchase`, either let the test account's three free articles be written (the plan then starts and is charged), or buy a plan with a workspace that has had one before (it gets no free articles, so it pays at once). Then refund it from Admin > Payments. Within a few minutes of the charge, Realtime shows `purchase` with the amount.
+4. Choose a plan with the free trial and complete the Stripe page (nothing is charged). On the next screen, Realtime shows `start_trial`.
+5. To test `purchase`, either let the test account's 3-day trial end (the plan then starts and is charged), or buy a plan with a workspace that has had one before (it gets no trial, so it pays at once). Then refund it from Admin > Payments. Within a few minutes of the charge, Realtime shows `purchase` with the amount.
 6. Footer > Cookie settings > Decline. The `_ga` and `_gcl_` cookies disappear, and no more `collect` requests are sent.
 7. With Tag Manager: use its **Preview** button (Tag Assistant) on www.repget.com and repeat steps 3-4. The Ads conversion tags fire on `sign_up` and `start_trial`.
 8. In Google Ads, the imported conversions show "Recording conversions" within 24-48 hours.

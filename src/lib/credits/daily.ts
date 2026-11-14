@@ -3,7 +3,6 @@ import "server-only";
 import { and, asc, desc, eq, inArray, isNotNull, min, notLike } from "drizzle-orm";
 
 import { recordCredit } from "@/lib/backlinks/credits";
-import { isFreeArticlesTrial } from "@/lib/billing/entitlement-period";
 import { db } from "@/lib/db";
 import { creditLedger, subscriptions } from "@/lib/db/schema";
 import type { Executor } from "@/lib/db/types";
@@ -29,11 +28,12 @@ import { readCreditSettings, TRIAL_CREDIT_DAYS } from "./prices";
  *
  * A TRIAL (client, 2026-10-27) gets its own amount ("trial_daily_free", 15)
  * so it can try what credits buy - the website check again, social posts -
- * but only on the first TRIAL_CREDIT_DAYS days of its free articles: "the 4th
- * day the free credit is not given". Those days are counted from the trial's
- * start in whole 24-hour days, not UTC days, so a trial started at 23:00
- * still has three grants, never four. After them nothing more is given until
- * the plan starts; the free articles themselves carry on as before.
+ * but only on the first TRIAL_CREDIT_DAYS days of its trial: "the 4th day the
+ * free credit is not given". Every trial: the free trial (TRIAL_DAYS, since
+ * 2026-11-13), and the free-articles trials still running. Those days are
+ * counted from the trial's start in whole 24-hour days, not UTC days, so a
+ * trial started at 23:00 still has three grants, never four. After them nothing more is given until
+ * the plan starts; a legacy free-articles trial carries on as before.
  */
 
 /** Statuses that earn daily credits: a paid plan, as for the monthly credits (lib/backlinks/credits.ts). */
@@ -59,9 +59,9 @@ export function trialGrantKey(organizationId: string, trialDay: number): string 
 /**
  * Which daily credits a workspace earns now:
  *  - "paid": it pays for a plan on at least one website;
- *  - "trial": a website is on its free articles, in day `day` (0-based) of
- *    the trial's first TRIAL_CREDIT_DAYS;
- *  - "trial_over": on its free articles, after those days;
+ *  - "trial": a website is in its trial (the free trial, or legacy free
+ *    articles), in day `day` (0-based) of the trial's first TRIAL_CREDIT_DAYS;
+ *  - "trial_over": in its trial, after those days;
  *  - "none": anything else.
  * A paid plan wins over a trial on another website.
  */
@@ -94,8 +94,8 @@ export async function dailyEarning(
 
   if (rows.some((row) => DAILY_CREDIT_STATUSES.includes(row.status ?? ""))) return { kind: "paid" };
 
-  // One trial per workspace, ever (isTrialEligible), so the first is the one.
-  const trial = rows.find(isFreeArticlesTrial);
+  // One trial per workspace, ever (isTrialEligible), so the first is the one: any trialing website.
+  const trial = rows.find((row) => row.status === "trialing");
   const start = trial?.currentPeriodStart;
   if (!start) return { kind: "none" };
 
@@ -135,7 +135,7 @@ export type DailyCredits = {
   streak: number;
   /** The strip: seven days cycling on a paid plan, the trial's own days on a trial. Empty when there is nothing to claim. */
   progress: DailyProgressDay[];
-  /** On the free articles: when the trial's daily credits stop (or stopped). Null otherwise. */
+  /** In a trial: when the trial's daily credits stop (or stopped). Null otherwise. */
   trialEndsAt: Date | null;
 };
 

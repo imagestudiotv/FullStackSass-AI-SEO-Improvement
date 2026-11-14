@@ -40,7 +40,7 @@ The video platforms are `social_accounts` rows (`instagram`, `tiktok`, `youtube`
 
 ## Trials
 
-Videos are included in the free-articles trial (client: "to convince people to stay"), with the trial's daily credits.
+Videos are included in the trial (client: "to convince people to stay"), with the trial's daily credits. Since 2026-11-13 that is the 3-day free trial, with the plan's monthly video allowance pro-rated to it (`lib/usage.ts`); before, the free-articles trial.
 
 ## Costs
 

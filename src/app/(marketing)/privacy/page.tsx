@@ -107,7 +107,7 @@ export default function PrivacyPage() {
       </p>
       <p>
         <strong>Sign-ups and payments, if you accepted.</strong> When you
-        create an account, start your free articles, or make the first
+        create an account, start your free trial, or make the first
         payment of a subscription, we tell Google Analytics that this
         happened - for a payment, the plan, the amount and the currency -
         linked to the Google Analytics cookie of the browser in which you

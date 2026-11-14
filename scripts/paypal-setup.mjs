@@ -1,9 +1,11 @@
 /**
  * Creates PayPal products and plans from the seeded plans, then writes each
  * plan id back to plans.paypal_plan_id - and, for each, the same plan with
- * the free articles first to plans.paypal_trial_plan_id (2026-10-22; the
- * bodies are in scripts/paypal-plans.mjs). A database that has its plans
- * already gets only the missing free-articles plans: no --switch-mode.
+ * the free trial first to plans.paypal_trial_plan_id (2026-10-22; TRIAL_DAYS
+ * since 2026-11-13; the bodies are in scripts/paypal-plans.mjs). A database
+ * that has its plans already gets only the missing trial plans: no
+ * --switch-mode. A stored 30-day trial plan (the free articles) is left
+ * alone here, with a warning: scripts/paypal-trial-3day.mjs replaces it.
  *
  * RUN THIS AFTER `npm run db:seed`, once PAYPAL_CLIENT_ID and
  * PAYPAL_CLIENT_SECRET are set. Mirrors scripts/stripe-setup.mjs: it covers the
@@ -49,7 +51,7 @@ import nextEnv from "@next/env";
 import postgres from "postgres";
 
 import { CATALOG_VERSION, isBundleTier } from "./plan-catalog.mjs";
-import { planBody } from "./paypal-plans.mjs";
+import { freeTrialDays, planBody, TRIAL_DAYS } from "./paypal-plans.mjs";
 
 nextEnv.loadEnvConfig(process.cwd());
 
@@ -175,26 +177,26 @@ const rows = await sql`
 
 /*
   PayPal plans per RepGet plan (scripts/paypal-plans.mjs): the plan itself,
-  the same plan with the free articles first (2026-10-22), and both again
+  the same plan with the free trial first (2026-10-22), and both again
   with an intro cycle (review P5) - those two only once their columns exist
   (migration 0088). The intro cycle is for a first-payment discount, the
   win-back one now; the REPGET launch price (2026-11-11, every payment) is
   set on the plan itself per subscription (lib/paypal/actions.ts).
 */
 const KINDS = [
-  { key: "regular", column: "paypal_plan_id", label: "plan", freeArticles: false, offer: false },
-  { key: "trial", column: "paypal_trial_plan_id", label: "free-articles plan", freeArticles: true, offer: false },
+  { key: "regular", column: "paypal_plan_id", label: "plan", trial: false, offer: false },
+  { key: "trial", column: "paypal_trial_plan_id", label: "trial plan", trial: true, offer: false },
   ...(HAS_OFFER_COLUMNS
     ? [
-        { key: "offer", column: "paypal_offer_plan_id", label: "offer plan", freeArticles: false, offer: true },
-        { key: "trial_offer", column: "paypal_trial_offer_plan_id", label: "free-articles offer plan", freeArticles: true, offer: true },
+        { key: "offer", column: "paypal_offer_plan_id", label: "offer plan", trial: false, offer: true },
+        { key: "trial_offer", column: "paypal_trial_offer_plan_id", label: "trial offer plan", trial: true, offer: true },
       ]
     : []),
 ];
 
 /*
   A bundle (Grow + Visibility, plan-catalog.mjs BUNDLES) is bought outright:
-  no free articles and no discount, so only its plan itself is made.
+  no free trial and no discount, so only its plan itself is made.
 
   The REPGET launch price, monthly and yearly (2026-11-11: EUR 59 / 89 / 209,
   590 / 890 / 2,090), needs no PayPal plan of its own: each checkout prices
@@ -216,6 +218,8 @@ if (rows.length === 0) {
 */
 const storedState = new Map();
 const otherMode = [];
+/** Stored trial plans whose free days are not TRIAL_DAYS: the 30-day free-articles plans. */
+const oldTrials = [];
 for (const plan of rows) {
   for (const kind of kindsFor(plan)) {
     const storedId = plan[kind.column];
@@ -223,6 +227,9 @@ for (const plan of rows) {
     try {
       const existing = await api(`/v1/billing/plans/${storedId}`);
       storedState.set(`${plan.id}:${kind.key}`, existing.status === "ACTIVE" ? "active" : "inactive");
+      if (kind.trial && freeTrialDays(existing) !== TRIAL_DAYS) {
+        oldTrials.push(`${plan.name} (${kind.label}): ${storedId}, ${freeTrialDays(existing) ?? "?"} free days`);
+      }
     } catch (error) {
       if (error.status === 404 || SWITCH_MODE) {
         storedState.set(`${plan.id}:${kind.key}`, "missing");
@@ -321,7 +328,7 @@ for (const plan of rows) {
     const product = await productFor(plan.tier, plan.name);
     const created = await api("/v1/billing/plans", {
       method: "POST",
-      body: JSON.stringify(planBody(plan, product.id, { freeArticles: kind.freeArticles, offer: kind.offer })),
+      body: JSON.stringify(planBody(plan, product.id, { trial: kind.trial, offer: kind.offer })),
     });
 
     // The replaced id stays mapped for the subscribers still on it; the new one is current.
@@ -342,9 +349,16 @@ console.table(final.map((r) => ({ ...r })));
 const missing = final.filter((r) => !r.paypal_plan_id || (!isBundleTier(r.tier) && !r.paypal_trial_plan_id));
 console.log(
   missing.length === 0
-    ? "\nAll plans have a PayPal plan and a free-articles plan. PayPal checkout is ready."
-    : `\n${missing.length} plan(s) still missing a PayPal plan or free-articles plan id.`,
+    ? "\nAll plans have a PayPal plan and a trial plan. PayPal checkout is ready."
+    : `\n${missing.length} plan(s) still missing a PayPal plan or trial plan id.`,
 );
+if (oldTrials.length > 0) {
+  console.warn(
+    `\n${oldTrials.length} stored trial plan(s) do not have ${TRIAL_DAYS} free days (left unchanged here):\n` +
+      oldTrials.map((line) => `  ${line}`).join("\n") +
+      "\nReplace them with: node scripts/paypal-trial-3day.mjs   (a dry run; add --apply to make the change)",
+  );
+}
 if (HAS_OFFER_COLUMNS) {
   const noOffer = final.filter((r) => !isBundleTier(r.tier) && (!r.paypal_offer_plan_id || !r.paypal_trial_offer_plan_id));
   console.log(

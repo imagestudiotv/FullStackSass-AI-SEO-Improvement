@@ -19,7 +19,7 @@ import {
   winbackDiscountCents,
   winbackOfferEnabled,
 } from "@/lib/billing/winback-offer";
-import { FREE_ARTICLES_DAYS, isDirectPurchaseTier } from "@/lib/plans/features";
+import { isDirectPurchaseTier, TRIAL_DAYS } from "@/lib/plans/features";
 
 /**
  * Checkouts we have sent a customer to, and what became of them.
@@ -604,7 +604,8 @@ export type BeginCheckoutResult =
  *  - A website already paying is sent to a plan CHANGE on its existing
  *    subscription (same provider), never a second subscription. Switching
  *    provider while one is live is refused: cancel first.
- *  - The one exception: a website on its free articles through PayPal
+ *  - The one exception: a website in its free trial (or legacy free
+ *    articles) through PayPal
  *    starts the plan it picks NOW, with a second PayPal subscription that
  *    takes over from the free one and has it cancelled (replacesSubscriptionId).
  *  - An open checkout for the same provider and plan is REUSED rather than a
@@ -722,7 +723,8 @@ export async function beginCheckout(
       }
       if (current.provider === "paypal" && current.status === "trialing") {
         /*
-          On its free articles through PayPal (2026-10-22). PayPal moves a
+          In its free trial through PayPal (2026-10-22; the 3-day trial since
+          2026-11-13, and the free articles before it). PayPal moves a
           subscription to another plan only from its next billing cycle, so
           the free days cannot be cut short: choosing a plan - the same one
           or another - STARTS it now instead. A new PayPal subscription to
@@ -841,10 +843,10 @@ export async function beginCheckout(
     /*
       Trial eligibility from durable history, under a per-workspace lock so
       two sites' simultaneous checkouts cannot both be offered a trial. A
-      PayPal checkout offers it too when the plan has its free-articles
-      PayPal plan (plans.paypal_trial_plan_id, 2026-10-22); the caller then
-      subscribes to that one. Never when starting the plan now: that is the
-      end of the free articles.
+      PayPal checkout offers it too when the plan has its trial PayPal plan
+      (plans.paypal_trial_plan_id, 2026-10-22); the caller then subscribes to
+      that one. Never when starting the plan now: that is the end of the
+      trial.
     */
     await tx.execute(
       sql`select pg_advisory_xact_lock(hashtextextended(${`trial:${org.id}`}, 0))`,
@@ -878,16 +880,19 @@ export async function beginCheckout(
     }
 
     /*
-      The free articles: never when starting the plan now, and never on a plan
-      bought outright (the Grow + Visibility bundle, lib/plans/features.ts
-      DIRECT_PURCHASE_TIERS) - its first payment is taken at checkout.
+      The free trial (TRIAL_DAYS, 2026-11-13 - it replaced the free articles,
+      whose trials still running keep their 30 days): never when starting the
+      plan now, and never on a plan bought outright (the Grow + Visibility
+      bundle, lib/plans/features.ts DIRECT_PURCHASE_TIERS) - its first
+      payment is taken at checkout. Through PayPal only where the plan has
+      its trial PayPal plan (scripts/paypal-plans.mjs).
     */
     const chosen = await planForCheckout(tx, input.planId);
-    const freeArticlesPossible =
+    const trialPossible =
       replaces === null &&
       !isDirectPurchaseTier(chosen?.tier) &&
       (input.provider === "stripe" || (input.provider === "paypal" && Boolean(chosen?.paypalTrialPlanId)));
-    const trialDays = freeArticlesPossible && (await isTrialEligible(tx, org.id)) ? FREE_ARTICLES_DAYS : 0;
+    const trialDays = trialPossible && (await isTrialEligible(tx, org.id)) ? TRIAL_DAYS : 0;
 
     const [row] = await tx
       .insert(billingCheckouts)

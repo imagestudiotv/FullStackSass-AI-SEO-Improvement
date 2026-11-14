@@ -15,6 +15,24 @@
 export const STARTER_TIER = "starter";
 
 /**
+ * The free trial for a new account (client, 2026-11-13: "3-day free trial is
+ * good instead of 3 free articles"; during it, "normal service").
+ *
+ * A new workspace picks its plan and adds a card at Stripe, or approves a
+ * PayPal plan whose first cycle is these free days; nothing is charged. For
+ * TRIAL_DAYS it has its plan's normal service, at the plan's daily pace (its
+ * monthly allowances pro-rated to the trial: lib/usage.ts), and its plan
+ * starts, and is charged, when the trial ends, unless cancelled before.
+ * One trial per workspace, with a confirmed email (lib/billing/checkouts.ts
+ * isTrialEligible). Grow + Visibility (a direct purchase) has no trial.
+ *
+ * Passed to Stripe as trial_period_days (lib/stripe/actions.ts) and used as
+ * the PayPal trial plans' free cycle (scripts/paypal-plans.mjs).
+ */
+export const TRIAL_DAYS = 3;
+
+/**
+ * LEGACY (until the last of them ends): the offer before TRIAL_DAYS.
  * The offer for a new account: its first articles free (client, 2026-10-09:
  * "Create 3 Articles for Free" - replacing the 3-day trial).
  *
@@ -58,12 +76,13 @@ export const FREE_ARTICLES_ONLY_PAYPAL =
   "This is included once your plan starts. Start it now in Billing, or it starts by itself when your free days end.";
 
 /**
- * Card checkout's refusal while the free articles would be given to an
- * address nobody has confirmed (lib/stripe/actions.ts). The plan step asks
- * for the code first, so this is only seen by a request that skipped it.
+ * Checkout's refusal while the free trial would be given to an address
+ * nobody has confirmed (lib/stripe/actions.ts, lib/paypal/actions.ts). The
+ * plan step asks for the code first, so this is only seen by a request that
+ * skipped it.
  */
 export const CONFIRM_EMAIL_FIRST =
-  "Confirm your email address first - your free articles are given to it.";
+  "Confirm your email address first - your free trial is given to it.";
 
 /** The subset of a plan row these helpers need. */
 export type PickerPlan = {

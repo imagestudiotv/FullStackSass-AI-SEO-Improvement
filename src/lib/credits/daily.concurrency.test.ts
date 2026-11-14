@@ -72,8 +72,8 @@ describe.skipIf(!available)("the daily check-in on real Postgres", () => {
     ]);
   });
 
-  /** A workspace on `status` (null for no subscription); a trial's free articles start at `trialStart`. */
-  async function workspace(status: string | null = "active", trialStart?: Date) {
+  /** A workspace on `status` (null for no subscription); a trial starts at `trialStart` and lasts `days` (30: the legacy free articles). */
+  async function workspace(status: string | null = "active", trialStart?: Date, days = 30) {
     const orgId = `org_${randomUUID().slice(0, 8)}`;
     await dbs[0].insert(organization).values({ id: orgId, name: "W", slug: orgId, createdAt: new Date() });
     const [site] = await dbs[0]
@@ -87,7 +87,7 @@ describe.skipIf(!available)("the daily check-in on real Postgres", () => {
         planId,
         status,
         currentPeriodStart: trialStart ?? new Date("2026-10-01T00:00:00Z"),
-        currentPeriodEnd: new Date((trialStart ?? new Date("2026-10-01T00:00:00Z")).getTime() + 30 * DAY),
+        currentPeriodEnd: new Date((trialStart ?? new Date("2026-10-01T00:00:00Z")).getTime() + days * DAY),
       });
     }
     return orgId;
@@ -365,6 +365,17 @@ describe.skipIf(!available)("the daily check-in on real Postgres", () => {
       // The next opening is the trial's next 24 hours, not UTC midnight.
       expect(claim.status.nextAt).toEqual(at(24));
       expect((await grantsOf(orgId)).map((row) => row.idempotencyKey)).toEqual([trialGrantKey(orgId, 0)]);
+    });
+
+    it("the 3-day free trial (TRIAL_DAYS, 2026-11-13) gets the same trial credits as the free articles did", async () => {
+      const orgId = await workspace("trialing", START, 3);
+      expect(await readDailyStatus(orgId, at(1))).toMatchObject({ plan: "trial", perDay: 15, claimable: true, trialEndsAt: at(72) });
+      expect(await claimDailyCredits(orgId, at(1))).toMatchObject({ outcome: "claimed", amount: 15 });
+      expect(await claimDailyCredits(orgId, at(49))).toMatchObject({ outcome: "claimed", amount: 15 });
+      expect((await grantsOf(orgId)).map((row) => row.idempotencyKey).sort()).toEqual([trialGrantKey(orgId, 0), trialGrantKey(orgId, 2)].sort());
+      // Once the plan starts it is a paid plan's daily credits.
+      await dbs[0].update(subscriptions).set({ status: "active" }).where(eq(subscriptions.organizationId, orgId));
+      expect(await readDailyStatus(orgId, at(80))).toMatchObject({ plan: "paid", perDay: 3 });
     });
 
     it("a new UTC day inside the same trial day is not a new claim", async () => {

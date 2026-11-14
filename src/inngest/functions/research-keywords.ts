@@ -563,7 +563,9 @@ export const researchKeywords = inngest.createFunction(
        * shape of the clusters has to know it first.
        */
       const articles = await checkLimit(websiteId, "articles");
-      const target = articles.limit === UNLIMITED ? 12 : articles.limit;
+      // The plan's monthly allowance, also in the free trial (lib/usage-shared.ts monthlyLimit).
+      const monthly = articles.monthlyLimit ?? articles.limit;
+      const target = monthly === UNLIMITED ? 12 : monthly;
 
       const result = await spend(() =>
         clusterKeywords(

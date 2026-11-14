@@ -117,7 +117,9 @@ export default async function OnboardingContentPage({
           hasKeywords={keywordCount.length > 0}
           hasPlan={plannedCount.length > 0}
           articlesPerMonth={
-            articleLimit.limit === UNLIMITED ? null : articleLimit.limit
+            (articleLimit.monthlyLimit ?? articleLimit.limit) === UNLIMITED
+              ? null
+              : (articleLimit.monthlyLimit ?? articleLimit.limit)
           }
         />
       </div>

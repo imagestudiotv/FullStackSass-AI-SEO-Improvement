@@ -11,7 +11,7 @@ Settings, else their browser's at sign-up, else English.
 They are **off** until an administrator switches them on: **Admin -> Emails**
 (`/admin/emails`). Deploying sends nothing. While off nothing is sent and
 nothing is logged; once on, they follow what happens from then on (plus
-reminders still due, such as a free period ending tomorrow). The same page
+reminders still due, such as a trial ending tomorrow). The same page
 shows what was sent, skipped (and why) and failed in the last 30 days.
 
 Not affected by the switch: sign-in codes, invitations, feedback replies, the
@@ -23,10 +23,10 @@ administrators' own emails and the existing 1,000-views video email.
 | --- | --- | --- |
 | Welcome | Right after sign-up (Better Auth hook, `src/lib/auth.ts` -> `lifecycle-signup` job) | Essential |
 | Setup reminder | 3 hours after sign-up, if the person still has no website (re-checked then; never for someone invited to a shared site) | Tips and reports |
-| Free articles started | A website's subscription becomes `trialing` on its free articles (Stripe or PayPal) | Essential |
-| Fingers crossed (free period, day 2) | Hourly job: trialing on its free articles, not cancelled, started 24-48 hours ago (re-checked at send time); "{domain} has started its journey with RepGet" plus its first real figures (articles written, articles live, topics planned - only non-zero ones); once per subscription | Tips and reports |
-| Free period ends tomorrow: continue growing | Hourly job: trialing, not cancelled, stored trial end within 24 hours (re-checked at send time). The billing facts (end date, plan starts and first payment is taken, change or cancel in Billing before then) plus "Continue growing with RepGet": a blog post about the business, a mention on RepGet's social channels, a dofollow link from a DR 60+ site | Essential |
-| Free period ended | `trialing` -> ended, without the customer having cancelled first | Essential |
+| Trial started | A website's subscription becomes `trialing` (Stripe or PayPal), on any trial; the words describe the 3-day free trial | Essential |
+| Fingers crossed (trial, day 2) | Hourly job: trialing (any trial), not cancelled, started 24-48 hours ago (re-checked at send time); "{domain} has started its journey with RepGet" plus its first real figures (articles written, articles live, topics planned - only non-zero ones); once per subscription | Tips and reports |
+| Trial ends tomorrow: continue growing | Hourly job: trialing, not cancelled, stored trial end within 24 hours (re-checked at send time). The billing facts (end date, plan starts and first payment is taken, change or cancel in Billing before then) plus "Continue growing with RepGet": a blog post about the business, a mention on RepGet's social channels, a dofollow link from a DR 60+ site | Essential |
+| Trial ended | `trialing` -> ended, without the customer having cancelled first | Essential |
 | Welcome to your plan | The subscription's first payment of real money (Stripe `invoice.paid`, PayPal `PAYMENT.SALE.COMPLETED`) | Essential |
 | Payment failed | The subscription becomes `past_due` / `unpaid`; once per billing period | Essential |
 | Cancellation confirmed | Set to cancel at period end (with that date), or ended at once from a paid plan | Essential |
@@ -34,13 +34,18 @@ administrators' own emails and the existing 1,000-views video email.
 | Article not published | Publishing fails for good (publish job's last retry, or the plugin reports a failure); at most one a day per website | Essential |
 | Video passed 500 views | The daily video follow-up sees 500+ (and under 1,000) views; once per video | Tips and reports |
 | Referral reward | Referral credits are added to the referrer (`convertReferral`) | Essential |
-| Weekly summary | Monday 08:00 UTC, workspaces on a plan or free articles that published something that week; only non-zero real figures | Tips and reports |
-| Win-back offer | About 2 days after a subscription the customer LEFT has ended (a free period cancelled or ended without a plan, a paid plan set to cancel, or ended at once from active; never an unpaid plan ended by the provider) - queued by `emailsAfterSubscriptionSync`, sent by the `lifecycle-winback` job after re-checking that it is still ended and the owner has no subscription running anywhere; once per PERSON ever. 20% off the first payment of a restarted Launch/Grow/Scale plan plus 100 credits after that payment (see below). Only while `WINBACK_OFFER_ENABLED=1` | Tips and reports |
+| Weekly summary | Monday 08:00 UTC, workspaces on a plan or a trial that published something that week; only non-zero real figures | Tips and reports |
+| Win-back offer | About 2 days after a subscription the customer LEFT has ended (a trial cancelled or ended without a plan, a paid plan set to cancel, or ended at once from active; never an unpaid plan ended by the provider) - queued by `emailsAfterSubscriptionSync`, sent by the `lifecycle-winback` job after re-checking that it is still ended and the owner has no subscription running anywhere; once per PERSON ever. 20% off the first payment of a restarted Launch/Grow/Scale plan plus 100 credits after that payment (see below). Only while `WINBACK_OFFER_ENABLED=1` | Tips and reports |
+
+The trial emails (`trial_started`, `trial_progress`, `trial_ending`) go to every
+trial since 2026-11-13, when the 3-day free trial replaced the free articles
+(before, the first two went to free-articles trials only); their words describe
+the 3-day trial. Legacy 30-day free-articles trials still running get them too.
 
 Billing emails are decided in one place for both providers: after
 `syncProviderSubscription` commits, from the row before and after the change
 (`emailsAfterSubscriptionSync`). A subscription not attached to a website (a
-deleted site, free articles replaced by a plan) emails nobody. Stripe may also
+deleted site, a trial replaced by a plan) emails nobody. Stripe may also
 send its own receipts and failed-payment emails; ours link to the app's
 Billing page.
 
@@ -85,7 +90,7 @@ RepGet has no pause feature, so "leave or pause" means a subscription that ended
 - `src/lib/email/lifecycle-triggers.ts` - one function per moment.
 - `src/inngest/functions/lifecycle-emails.ts` - sign-up (welcome, wait, reminder),
   win-back (wait 2 days, then send),
-  hourly (free period day 2, free period ending), weekly summary.
+  hourly (trial day 2, trial ending), weekly summary.
 - Unsubscribe: every tips-and-reports email has a signed link
   (`unsubscribe-token.ts`, HMAC with `BETTER_AUTH_SECRET`, no expiry) to
   `/unsubscribe/<token>` and a one-click `List-Unsubscribe` header

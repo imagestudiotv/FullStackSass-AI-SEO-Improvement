@@ -28,4 +28,17 @@ export type LimitCheck = {
    * free days end.
    */
   paypalFreeArticles?: boolean;
+  /**
+   * The website is in its free trial (lib/plans/features.ts TRIAL_DAYS): the
+   * article limit is the plan's monthly allowance pro-rated to the trial
+   * (lib/usage.ts), counted from the trial's start.
+   */
+  trial?: boolean;
+  /**
+   * Articles only: the plan's MONTHLY allowance, even in the free trial, where
+   * `limit` is pro-rated to it. Pacing and planning (the daily queue, the
+   * calendar's cadence, the topic clusters) read this, so a trial runs at
+   * the plan's daily pace; what may be written still stops at `limit`.
+   */
+  monthlyLimit?: number;
 };

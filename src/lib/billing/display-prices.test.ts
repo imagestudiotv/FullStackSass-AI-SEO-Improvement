@@ -7,7 +7,9 @@ import type { PlanRow } from "@/lib/billing-shared";
 import { automaticRepgetCoupon } from "@/lib/billing/checkouts";
 import { bundleCouponFor, repgetFirstPaymentCents } from "@/lib/billing/repget-offer";
 import { getMessages } from "@/lib/i18n/messages";
-import { GROW_VISIBILITY_COMPARE_AT_CENTS } from "@/lib/plans/features";
+import { format } from "@/lib/i18n/format";
+import { PLAN_CARDS_COPY } from "@/lib/i18n/plan-cards";
+import { GROW_VISIBILITY_COMPARE_AT_CENTS, TRIAL_DAYS } from "@/lib/plans/features";
 
 import { BUNDLE_STRIPE_COUPONS, catalogRows, REPGET_STRIPE_COUPONS, stripeAmountFor } from "../../../scripts/plan-catalog.mjs";
 import { perMonthOfYear, planDisplayPrice } from "./display-prices";
@@ -117,17 +119,20 @@ describe("the plan cards' terms", () => {
   const launch = rows.find((row) => row.tier === "launch" && row.interval === "month")!;
   const bundle = rows.find((row) => row.tier === "grow_visibility")!;
 
-  it("the free articles only for a workspace that has never subscribed, then the price charged on every payment", () => {
+  it("the TRIAL_DAYS free trial only for a workspace that has never subscribed, then the price charged on every payment", () => {
     const [plan] = [asPlanRow(launch, 0)];
     const card = planCardsFor([plan], { offerOn: true, trialEligible: true, locale: "en", t })[plan.id];
     expect(card.terms).toEqual([
-      "Your first 3 articles are free: nothing is charged until they are written (30 days at most).",
+      // The trial line in its words (lib/i18n/plan-cards.ts), with the trial's days for both {n} and {days}.
+      format(PLAN_CARDS_COPY.en.trial, { n: TRIAL_DAYS, days: TRIAL_DAYS }),
       "Then €59 a month, renewing until you cancel.",
     ]);
     expect(card.strike).toBe("€99");
     expect(card.badge).toBe("40% OFF");
-    // PayPal without its free-articles plan starts at once, and says so.
-    expect(card.paypalNote).toBe("PayPal starts this plan straight away, without the free articles.");
+    // PayPal without its trial plan starts at once, and says so.
+    expect(card.paypalNote).toBe(PLAN_CARDS_COPY.en.paypalNoTrial);
+    // Every placeholder filled, and no longer the legacy offer's 30 days.
+    expect(card.terms[0]).not.toMatch(/\{\w+\}|30 days/);
     const later = planCardsFor([plan], { offerOn: false, trialEligible: false, locale: "en", t })[plan.id];
     expect(later.terms).toEqual(["€99 charged today, then every month until you cancel."]);
     expect(later.strike).toBeNull();

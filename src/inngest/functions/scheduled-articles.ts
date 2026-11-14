@@ -390,10 +390,12 @@ export const scheduledArticles = inngest.createFunction(
          * stay the same number of days ahead; Scale's 100 a month is at most
          * 7 over two days (4 + 3).
          */
+        // The plan's monthly pace, also in the free trial (whose limit is pro-rated).
+        const monthly = limit.monthlyLimit ?? limit.limit;
         const batch =
-          limit.limit === UNLIMITED
+          monthly === UNLIMITED
             ? BATCH_DAYS
-            : articlesInDays(limit.limit, BATCH_DAYS);
+            : articlesInDays(monthly, BATCH_DAYS);
 
         /**
          * ONE article on a website's very first run, whatever the plan size.

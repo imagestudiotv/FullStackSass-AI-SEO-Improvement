@@ -111,7 +111,7 @@ const SWITCH_COPY: Record<
       title: "Turn on two-step articles?",
       body: (
         <>
-          Every new article, on every website and the free articles of new customers too, comes to the review queue first, and the
+          Every new article, on every website and the free trials of new customers too, comes to the review queue first, and the
           customer reads none of it until you approve. Your approval stores that exact version as ready: they press Publish and
           approve nothing. A later change by them or by you stays private until approved, while they keep the approved version. A first
           article no longer goes live by itself. Automatic publishing a customer chose still runs, for approved articles only. Every

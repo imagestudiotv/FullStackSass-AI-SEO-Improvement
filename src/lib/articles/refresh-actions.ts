@@ -97,7 +97,9 @@ export async function refreshArticle(
       ok: false,
       error:
         limit.reason === "limit_reached"
-          ? `Your plan includes ${limit.limit} articles per month (${limit.used} used)`
+          ? limit.trial
+            ? `Your free trial includes ${limit.limit} articles (${limit.used} used). Your plan's full allowance starts when the trial ends.`
+            : `Your plan includes ${limit.limit} articles per month (${limit.used} used)`
           : "This workspace has no active subscription",
     };
   }

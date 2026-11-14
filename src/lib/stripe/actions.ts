@@ -117,13 +117,13 @@ export async function createCheckoutSession(
   }
 
   /*
-    The free articles go to a PROVEN address (lib/billing/free-articles.ts):
-    a workspace that would be given them cannot check out until its email is
-    confirmed, so one person cannot collect them again with made-up
-    addresses. Refused rather than charged without them - the page said
-    "0 today", and changing the terms silently would make that untrue.
+    The free trial (TRIAL_DAYS) goes to a PROVEN address: a workspace that
+    would be given it cannot check out until its email is confirmed, so one
+    person cannot collect it again with made-up addresses. Refused rather
+    than charged without it - the page said "0 today", and changing the
+    terms silently would make that untrue.
   */
-  // Not for a plan bought outright: it gives no free articles (lib/plans/features.ts DIRECT_PURCHASE_TIERS).
+  // Not for a plan bought outright: it has no trial (lib/plans/features.ts DIRECT_PURCHASE_TIERS).
   const session = await requireSession();
   if (!isDirectPurchaseTier(plan.tier) && session.user.emailVerified !== true && (await isTrialEligible(db, orgId))) {
     return { error: CONFIRM_EMAIL_FIRST };

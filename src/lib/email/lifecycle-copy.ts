@@ -1,12 +1,12 @@
 import { emailButton, emailFallback, emailLayout, emailNote, emailText, escapeHtml } from "@/lib/email/layout";
 import type { Locale } from "@/lib/i18n/config";
 import { format, formatDate, formatNumber } from "@/lib/i18n/format";
-import { FREE_ARTICLES } from "@/lib/plans/features";
+import { TRIAL_DAYS } from "@/lib/plans/features";
 
 /**
  * The lifecycle emails' words and templates (docs/emails.md), in the five
  * languages the app speaks - formal address throughout (usted / vous / Lei /
- * Sie), the same vocabulary as the dashboard ("free articles", "Billing",
+ * Sie), the same vocabulary as the dashboard ("free trial", "Billing",
  * "plan" / "forfait" / "piano" / "Tarif").
  *
  * KEPT AS DATA. Every sentence is a template with {placeholders} filled by
@@ -138,9 +138,9 @@ type Copy = {
     heading: string;
     preheader: string;
     intro: string;
-    /** By card: the plan starts after the last free article, or on the date. */
+    /** By card: the plan starts, and is charged, on the date the trial ends ({days} is TRIAL_DAYS). */
     card: string;
-    /** Through PayPal: the plan starts on the date, or earlier from Billing. */
+    /** Through PayPal: the plan starts on the date the trial ends, or earlier from Billing. */
     paypal: string;
     cancel: string;
     button: string;
@@ -241,11 +241,11 @@ export const LIFECYCLE_COPY: Record<Locale, Copy> = {
       button: "Add your website",
     },
     trial_started: {
-      subject: "Your free articles have started",
-      heading: "Your free articles have started",
-      preheader: "{count} free articles for {domain}.",
-      intro: "Your {count} free articles for {domain} are ready to be written.",
-      card: "Your {plan} plan starts, and is first charged, when the last free article is written or on {date}, whichever comes first.",
+      subject: "Your free trial has started",
+      heading: "Your free trial has started",
+      preheader: "{days} days of your plan's full service for {domain}.",
+      intro: "Your free trial for {domain} has started: for {days} days you get your plan's full, normal service.",
+      card: "Your {plan} plan starts, and is first charged, on {date}.",
       paypal: "Your {plan} plan starts, and is first charged, on {date}. You can start it earlier in Billing.",
       cancel: "If you cancel in Billing before then, you pay nothing.",
       button: "Write your first article",
@@ -255,7 +255,7 @@ export const LIFECYCLE_COPY: Record<Locale, Copy> = {
       heading: "Your journey with RepGet has started",
       preheader: "The first updates and stats for {domain}.",
       intro: "Fingers crossed! {domain} has started its journey with RepGet. We will share its updates and stats with you here.",
-      statsIntro: "So far, during the free period:",
+      statsIntro: "So far, during the free trial:",
       articlesWritten: "Articles written: {count}",
       articlesLive: "Articles live on your website: {count}",
       topicsPlanned: "Topics planned: {count}",
@@ -263,10 +263,10 @@ export const LIFECYCLE_COPY: Record<Locale, Copy> = {
       button: "Open your website",
     },
     trial_ending: {
-      subject: "Your free period ends tomorrow: continue growing with RepGet",
+      subject: "Your free trial ends tomorrow: continue growing with RepGet",
       heading: "Continue growing with RepGet",
       preheader: "Your {plan} plan for {domain} starts on {date}.",
-      body: "The free period for {domain} ends on {date}. Your {plan} plan then starts and the first payment is taken.",
+      body: "The free trial for {domain} ends on {date}. Your {plan} plan then starts and the first payment is taken.",
       growth: "Continue growing with RepGet. With your plan:",
       blogPost: "We publish and share a great blog post about your business.",
       social: "We mention you on RepGet's social channels for a brand boost.",
@@ -303,7 +303,7 @@ export const LIFECYCLE_COPY: Record<Locale, Copy> = {
       preheader: "Your {plan} plan for {domain} is cancelled.",
       paid: "Your {plan} plan for {domain} is cancelled. You keep everything in it until {date}, and you will not be charged again.",
       ended: "Your {plan} plan for {domain} is cancelled and has ended. You will not be charged again.",
-      trial: "Your free period for {domain} is cancelled: your plan will not start and nothing will be charged. Your free articles stay available until {date}.",
+      trial: "Your free trial for {domain} is cancelled: your plan will not start and nothing will be charged. You can keep using it until {date}.",
       comeBack: "If you change your mind, you can choose a plan again in Billing at any time.",
       button: "Open Billing",
     },
@@ -388,11 +388,11 @@ export const LIFECYCLE_COPY: Record<Locale, Copy> = {
       button: "Añadir su sitio web",
     },
     trial_started: {
-      subject: "Sus artículos gratis han empezado",
-      heading: "Sus artículos gratis han empezado",
-      preheader: "{count} artículos gratis para {domain}.",
-      intro: "Sus {count} artículos gratis para {domain} están listos para escribirse.",
-      card: "Su plan {plan} empieza, y se cobra por primera vez, cuando se escriba el último artículo gratis o el {date}, lo que ocurra antes.",
+      subject: "Su prueba gratuita ha empezado",
+      heading: "Su prueba gratuita ha empezado",
+      preheader: "{days} días con el servicio completo de su plan para {domain}.",
+      intro: "Su prueba gratuita para {domain} ha empezado: durante {days} días tiene el servicio completo y normal de su plan.",
+      card: "Su plan {plan} empieza, y se cobra por primera vez, el {date}.",
       paypal: "Su plan {plan} empieza, y se cobra por primera vez, el {date}. Puede empezarlo antes en Facturación.",
       cancel: "Si cancela en Facturación antes de esa fecha, no paga nada.",
       button: "Escribir su primer artículo",
@@ -402,7 +402,7 @@ export const LIFECYCLE_COPY: Record<Locale, Copy> = {
       heading: "Su camino con RepGet ha empezado",
       preheader: "Las primeras novedades y estadísticas de {domain}.",
       intro: "¡Crucemos los dedos! {domain} ha empezado su camino con RepGet. Aquí le compartiremos sus novedades y estadísticas.",
-      statsIntro: "Hasta ahora, durante el periodo gratuito:",
+      statsIntro: "Hasta ahora, durante la prueba gratuita:",
       articlesWritten: "Artículos escritos: {count}",
       articlesLive: "Artículos publicados en su sitio web: {count}",
       topicsPlanned: "Temas planificados: {count}",
@@ -410,10 +410,10 @@ export const LIFECYCLE_COPY: Record<Locale, Copy> = {
       button: "Abrir su sitio web",
     },
     trial_ending: {
-      subject: "Su periodo gratuito termina mañana: siga creciendo con RepGet",
+      subject: "Su prueba gratuita termina mañana: siga creciendo con RepGet",
       heading: "Siga creciendo con RepGet",
       preheader: "Su plan {plan} para {domain} empieza el {date}.",
-      body: "El periodo gratuito de {domain} termina el {date}. Entonces empieza su plan {plan} y se cobra el primer pago.",
+      body: "La prueba gratuita de {domain} termina el {date}. Entonces empieza su plan {plan} y se cobra el primer pago.",
       growth: "Siga creciendo con RepGet. Con su plan:",
       blogPost: "Publicamos y difundimos un excelente artículo de blog sobre su negocio.",
       social: "Le mencionamos en las redes sociales de RepGet para impulsar su marca.",
@@ -450,7 +450,7 @@ export const LIFECYCLE_COPY: Record<Locale, Copy> = {
       preheader: "Su plan {plan} para {domain} está cancelado.",
       paid: "Su plan {plan} para {domain} está cancelado. Conserva todo lo incluido hasta el {date} y no se le volverá a cobrar.",
       ended: "Su plan {plan} para {domain} está cancelado y ha terminado. No se le volverá a cobrar.",
-      trial: "Su periodo gratuito de {domain} está cancelado: su plan no empezará y no se cobrará nada. Sus artículos gratis siguen disponibles hasta el {date}.",
+      trial: "Su prueba gratuita de {domain} está cancelada: su plan no empezará y no se cobrará nada. Puede seguir usándola hasta el {date}.",
       comeBack: "Si cambia de opinión, puede volver a elegir un plan en Facturación en cualquier momento.",
       button: "Abrir Facturación",
     },
@@ -535,11 +535,11 @@ export const LIFECYCLE_COPY: Record<Locale, Copy> = {
       button: "Ajouter votre site",
     },
     trial_started: {
-      subject: "Vos articles gratuits ont commencé",
-      heading: "Vos articles gratuits ont commencé",
-      preheader: "{count} articles gratuits pour {domain}.",
-      intro: "Vos {count} articles gratuits pour {domain} sont prêts à être rédigés.",
-      card: "Votre forfait {plan} démarre, et est facturé pour la première fois, lorsque le dernier article gratuit est rédigé ou le {date}, selon ce qui arrive en premier.",
+      subject: "Votre essai gratuit a commencé",
+      heading: "Votre essai gratuit a commencé",
+      preheader: "{days} jours avec le service complet de votre forfait pour {domain}.",
+      intro: "Votre essai gratuit pour {domain} a commencé : pendant {days} jours, vous profitez du service complet et normal de votre forfait.",
+      card: "Votre forfait {plan} démarre, et est facturé pour la première fois, le {date}.",
       paypal: "Votre forfait {plan} démarre, et est facturé pour la première fois, le {date}. Vous pouvez le démarrer plus tôt dans Facturation.",
       cancel: "Si vous annulez dans Facturation avant cette date, vous ne payez rien.",
       button: "Rédiger votre premier article",
@@ -549,7 +549,7 @@ export const LIFECYCLE_COPY: Record<Locale, Copy> = {
       heading: "Votre parcours avec RepGet a commencé",
       preheader: "Les premières nouvelles et statistiques de {domain}.",
       intro: "Croisons les doigts ! {domain} a commencé son parcours avec RepGet. Nous vous communiquerons ici ses nouvelles et ses statistiques.",
-      statsIntro: "Jusqu’à présent, pendant la période gratuite :",
+      statsIntro: "Jusqu’à présent, pendant l’essai gratuit :",
       articlesWritten: "Articles rédigés : {count}",
       articlesLive: "Articles en ligne sur votre site : {count}",
       topicsPlanned: "Sujets planifiés : {count}",
@@ -557,10 +557,10 @@ export const LIFECYCLE_COPY: Record<Locale, Copy> = {
       button: "Ouvrir votre site",
     },
     trial_ending: {
-      subject: "Votre période gratuite se termine demain : continuez à grandir avec RepGet",
+      subject: "Votre essai gratuit se termine demain : continuez à grandir avec RepGet",
       heading: "Continuez à grandir avec RepGet",
       preheader: "Votre forfait {plan} pour {domain} démarre le {date}.",
-      body: "La période gratuite de {domain} se termine le {date}. Votre forfait {plan} démarre alors et le premier paiement est prélevé.",
+      body: "L’essai gratuit de {domain} se termine le {date}. Votre forfait {plan} démarre alors et le premier paiement est prélevé.",
       growth: "Continuez à grandir avec RepGet. Avec votre forfait :",
       blogPost: "Nous publions et diffusons un excellent article de blog sur votre entreprise.",
       social: "Nous vous mentionnons sur les réseaux sociaux de RepGet pour donner de la visibilité à votre marque.",
@@ -597,7 +597,7 @@ export const LIFECYCLE_COPY: Record<Locale, Copy> = {
       preheader: "Votre forfait {plan} pour {domain} est résilié.",
       paid: "Votre forfait {plan} pour {domain} est résilié. Vous gardez tout ce qu’il comprend jusqu’au {date}, et vous ne serez plus facturé.",
       ended: "Votre forfait {plan} pour {domain} est résilié et a pris fin. Vous ne serez plus facturé.",
-      trial: "Votre période gratuite pour {domain} est annulée : votre forfait ne démarrera pas et rien ne sera facturé. Vos articles gratuits restent disponibles jusqu’au {date}.",
+      trial: "Votre essai gratuit pour {domain} est annulé : votre forfait ne démarrera pas et rien ne sera facturé. Vous pouvez continuer à l’utiliser jusqu’au {date}.",
       comeBack: "Si vous changez d’avis, vous pouvez à tout moment choisir à nouveau un forfait dans Facturation.",
       button: "Ouvrir Facturation",
     },
@@ -682,11 +682,11 @@ export const LIFECYCLE_COPY: Record<Locale, Copy> = {
       button: "Aggiungi il Suo sito",
     },
     trial_started: {
-      subject: "I Suoi articoli gratuiti sono iniziati",
-      heading: "I Suoi articoli gratuiti sono iniziati",
-      preheader: "{count} articoli gratuiti per {domain}.",
-      intro: "I Suoi {count} articoli gratuiti per {domain} sono pronti per essere scritti.",
-      card: "Il Suo piano {plan} inizia, e viene addebitato per la prima volta, quando viene scritto l’ultimo articolo gratuito oppure il {date}, a seconda di quale avviene prima.",
+      subject: "La Sua prova gratuita è iniziata",
+      heading: "La Sua prova gratuita è iniziata",
+      preheader: "{days} giorni con il servizio completo del Suo piano per {domain}.",
+      intro: "La Sua prova gratuita per {domain} è iniziata: per {days} giorni ha il servizio completo e normale del Suo piano.",
+      card: "Il Suo piano {plan} inizia, e viene addebitato per la prima volta, il {date}.",
       paypal: "Il Suo piano {plan} inizia, e viene addebitato per la prima volta, il {date}. Può avviarlo prima in Fatturazione.",
       cancel: "Se annulla in Fatturazione prima di quella data, non paga nulla.",
       button: "Scrivi il primo articolo",
@@ -696,7 +696,7 @@ export const LIFECYCLE_COPY: Record<Locale, Copy> = {
       heading: "Il Suo percorso con RepGet è iniziato",
       preheader: "I primi aggiornamenti e le prime statistiche di {domain}.",
       intro: "Incrociamo le dita! {domain} ha iniziato il suo percorso con RepGet. Qui Le condivideremo i suoi aggiornamenti e le sue statistiche.",
-      statsIntro: "Finora, durante il periodo gratuito:",
+      statsIntro: "Finora, durante la prova gratuita:",
       articlesWritten: "Articoli scritti: {count}",
       articlesLive: "Articoli online sul Suo sito web: {count}",
       topicsPlanned: "Argomenti pianificati: {count}",
@@ -704,10 +704,10 @@ export const LIFECYCLE_COPY: Record<Locale, Copy> = {
       button: "Apri il Suo sito",
     },
     trial_ending: {
-      subject: "Il Suo periodo gratuito termina domani: continui a crescere con RepGet",
+      subject: "La Sua prova gratuita termina domani: continui a crescere con RepGet",
       heading: "Continui a crescere con RepGet",
       preheader: "Il Suo piano {plan} per {domain} inizia il {date}.",
-      body: "Il periodo gratuito di {domain} termina il {date}. Poi inizia il Suo piano {plan} e viene addebitato il primo pagamento.",
+      body: "La prova gratuita di {domain} termina il {date}. Poi inizia il Suo piano {plan} e viene addebitato il primo pagamento.",
       growth: "Continui a crescere con RepGet. Con il Suo piano:",
       blogPost: "Pubblichiamo e condividiamo un ottimo articolo di blog sulla Sua attività.",
       social: "La menzioniamo sui canali social di RepGet per dare slancio al Suo marchio.",
@@ -744,7 +744,7 @@ export const LIFECYCLE_COPY: Record<Locale, Copy> = {
       preheader: "Il Suo piano {plan} per {domain} è disdetto.",
       paid: "Il Suo piano {plan} per {domain} è disdetto. Mantiene tutto ciò che include fino al {date} e non Le verrà addebitato altro.",
       ended: "Il Suo piano {plan} per {domain} è disdetto ed è terminato. Non Le verrà addebitato altro.",
-      trial: "Il Suo periodo gratuito per {domain} è annullato: il piano non inizierà e non verrà addebitato nulla. I Suoi articoli gratuiti restano disponibili fino al {date}.",
+      trial: "La Sua prova gratuita per {domain} è annullata: il piano non inizierà e non verrà addebitato nulla. Può continuare a usarla fino al {date}.",
       comeBack: "Se cambia idea, può scegliere di nuovo un piano in Fatturazione in qualsiasi momento.",
       button: "Apri Fatturazione",
     },
@@ -829,11 +829,11 @@ export const LIFECYCLE_COPY: Record<Locale, Copy> = {
       button: "Website hinzufügen",
     },
     trial_started: {
-      subject: "Ihre kostenlosen Artikel haben begonnen",
-      heading: "Ihre kostenlosen Artikel haben begonnen",
-      preheader: "{count} kostenlose Artikel für {domain}.",
-      intro: "Ihre {count} kostenlosen Artikel für {domain} können jetzt geschrieben werden.",
-      card: "Ihr Tarif {plan} beginnt und wird zum ersten Mal abgerechnet, sobald der letzte kostenlose Artikel geschrieben ist oder am {date}, je nachdem, was zuerst eintritt.",
+      subject: "Ihre kostenlose Testphase hat begonnen",
+      heading: "Ihre kostenlose Testphase hat begonnen",
+      preheader: "{days} Tage mit dem vollen Service Ihres Tarifs für {domain}.",
+      intro: "Ihre kostenlose Testphase für {domain} hat begonnen: {days} Tage lang erhalten Sie den vollen, normalen Service Ihres Tarifs.",
+      card: "Ihr Tarif {plan} beginnt und wird zum ersten Mal abgerechnet am {date}.",
       paypal: "Ihr Tarif {plan} beginnt und wird zum ersten Mal abgerechnet am {date}. Sie können ihn unter Abrechnung früher starten.",
       cancel: "Wenn Sie vorher unter Abrechnung kündigen, zahlen Sie nichts.",
       button: "Ersten Artikel schreiben",
@@ -843,7 +843,7 @@ export const LIFECYCLE_COPY: Record<Locale, Copy> = {
       heading: "Ihre Reise mit RepGet hat begonnen",
       preheader: "Die ersten Neuigkeiten und Zahlen zu {domain}.",
       intro: "Daumen drücken! {domain} hat seine Reise mit RepGet begonnen. Hier teilen wir Ihnen die Neuigkeiten und Zahlen dazu mit.",
-      statsIntro: "Bisher, im kostenlosen Zeitraum:",
+      statsIntro: "Bisher, in der kostenlosen Testphase:",
       articlesWritten: "Geschriebene Artikel: {count}",
       articlesLive: "Artikel online auf Ihrer Website: {count}",
       topicsPlanned: "Geplante Themen: {count}",
@@ -851,10 +851,10 @@ export const LIFECYCLE_COPY: Record<Locale, Copy> = {
       button: "Website öffnen",
     },
     trial_ending: {
-      subject: "Ihr kostenloser Zeitraum endet morgen: Wachsen Sie weiter mit RepGet",
+      subject: "Ihre kostenlose Testphase endet morgen: Wachsen Sie weiter mit RepGet",
       heading: "Wachsen Sie weiter mit RepGet",
       preheader: "Ihr Tarif {plan} für {domain} beginnt am {date}.",
-      body: "Der kostenlose Zeitraum für {domain} endet am {date}. Danach beginnt Ihr Tarif {plan} und die erste Zahlung wird eingezogen.",
+      body: "Die kostenlose Testphase für {domain} endet am {date}. Danach beginnt Ihr Tarif {plan} und die erste Zahlung wird eingezogen.",
       growth: "Wachsen Sie weiter mit RepGet. Mit Ihrem Tarif:",
       blogPost: "Wir veröffentlichen und teilen einen starken Blogartikel über Ihr Unternehmen.",
       social: "Wir erwähnen Sie auf den Social-Media-Kanälen von RepGet, um Ihre Marke zu stärken.",
@@ -891,7 +891,7 @@ export const LIFECYCLE_COPY: Record<Locale, Copy> = {
       preheader: "Ihr Tarif {plan} für {domain} ist gekündigt.",
       paid: "Ihr Tarif {plan} für {domain} ist gekündigt. Sie behalten alle Leistungen bis zum {date}, und es wird nichts mehr abgerechnet.",
       ended: "Ihr Tarif {plan} für {domain} ist gekündigt und beendet. Es wird nichts mehr abgerechnet.",
-      trial: "Ihr kostenloser Zeitraum für {domain} ist gekündigt: Ihr Tarif beginnt nicht und es wird nichts abgerechnet. Ihre kostenlosen Artikel bleiben bis zum {date} verfügbar.",
+      trial: "Ihre kostenlose Testphase für {domain} ist gekündigt: Ihr Tarif beginnt nicht und es wird nichts abgerechnet. Sie können sie bis zum {date} weiter nutzen.",
       comeBack: "Wenn Sie es sich anders überlegen, können Sie jederzeit unter Abrechnung wieder einen Tarif wählen.",
       button: "Abrechnung öffnen",
     },
@@ -1018,7 +1018,7 @@ function parts(email: LifecycleEmail, locale: Locale): Parts {
     }
     case "trial_started": {
       const c = copy.trial_started;
-      const values = { count: FREE_ARTICLES, domain: email.domain, plan: email.plan, date: longDate(email.endsOn, locale) };
+      const values = { days: TRIAL_DAYS, domain: email.domain, plan: email.plan, date: longDate(email.endsOn, locale) };
       return {
         subject: c.subject,
         heading: c.heading,

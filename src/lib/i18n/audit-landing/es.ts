@@ -139,8 +139,8 @@ export const es: AuditLandingCopy = {
   },
   offer: {
     kicker: "Cuando crea una cuenta",
-    title: ["Su primer artículo es gratis", "Sus primeros {count} artículos son gratis"],
-    body: "Confirme su correo, elija un plan y añada un método de pago. No se cobra nada hasta que empiece su plan: cuando los artículos gratuitos estén escritos o, como máximo, a los {days} días. Los backlinks y el seguimiento de visibilidad en IA empiezan con el plan.",
+    title: ["Su primer día es gratis", "Sus primeros {count} días son gratis"],
+    body: "Confirme su correo, elija un plan y añada una tarjeta o PayPal. Hoy no se cobra nada: durante {days} días tiene el servicio completo de su plan, con todas sus funciones. Después su plan empieza, y se cobra, salvo que cancele antes de que termine la prueba.",
     link: "Empezar su auditoría",
   },
   next: {
@@ -229,8 +229,8 @@ export const es: AuditLandingCopy = {
       {
         q: "¿Qué pasa cuando termino la auditoría?",
         a: [
-          "Puede usar los hallazgos por su cuenta. Si quiere ayuda, cree una cuenta: su primer artículo es gratis, y los planes de pago de RepGet añaden contenido SEO, backlinks, seguimiento de visibilidad en IA y publicación en redes sociales.",
-          "Puede usar los hallazgos por su cuenta. Si quiere ayuda, cree una cuenta: sus primeros {count} artículos son gratis, y los planes de pago de RepGet añaden contenido SEO, backlinks, seguimiento de visibilidad en IA y publicación en redes sociales.",
+          "Puede usar los hallazgos por su cuenta. Si quiere ayuda, cree una cuenta: su primer día es gratis, con el servicio completo de los planes de RepGet: contenido SEO, backlinks, seguimiento de visibilidad en IA y publicación en redes sociales.",
+          "Puede usar los hallazgos por su cuenta. Si quiere ayuda, cree una cuenta: sus primeros {count} días son gratis, con el servicio completo de los planes de RepGet: contenido SEO, backlinks, seguimiento de visibilidad en IA y publicación en redes sociales.",
         ],
       },
     ],

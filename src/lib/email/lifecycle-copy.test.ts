@@ -129,7 +129,7 @@ describe("the Email Autopilot additions (2026-11-11)", () => {
     expect(empty.text).not.toContain("So far");
   });
 
-  it("the free period ending keeps every billing fact, beside the growth message", () => {
+  it("the free trial ending keeps every billing fact, beside the growth message", () => {
     for (const locale of LOCALES) {
       const email = renderLifecycleEmail(
         { kind: "trial_ending", websiteId: "w1", domain: "example.com", plan: "Grow", endsOn: new Date("2026-12-01T00:00:00Z") },
@@ -145,7 +145,7 @@ describe("the Email Autopilot additions (2026-11-11)", () => {
       { kind: "trial_ending", websiteId: "w1", domain: "example.com", plan: "Grow", endsOn: new Date("2026-12-01T00:00:00Z") },
       { ...context, unsubscribeUrl: null },
     );
-    expect(en.text).toMatch(/The free period for example.com ends on .*2026. Your Grow plan then starts and the first payment is taken./);
+    expect(en.text).toMatch(/The free trial for example.com ends on .*2026. Your Grow plan then starts and the first payment is taken./);
     expect(en.text).toContain("Continue growing with RepGet");
     expect(en.text).toContain("DR 60+");
     expect(ESSENTIAL.trial_ending).toBe(true);

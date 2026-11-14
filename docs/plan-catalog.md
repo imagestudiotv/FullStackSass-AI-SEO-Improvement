@@ -40,7 +40,7 @@ Monthly and yearly prices share a product, so the product limit does not separat
 
 | Customer | What happens |
 |---|---|
-| With or without a free period | The plan's coupon is on the Checkout. The free period stays free; the discount starts with the first paid invoice and stays on every invoice after it |
+| With or without a free trial (the 3-day trial, or a legacy free-articles trial) | The plan's coupon is on the Checkout. The trial stays free; the discount starts with the first paid invoice and stays on every invoice after it |
 | A returning customer | Gets it too: there is no limit per account while the offer is on |
 | Plan changed (another tier, or monthly <-> yearly) | Keeps the launch price on the new plan, at any time: **Change plan** in Billing carries the new price's coupon in the same Stripe request; a refused coupon stops the change. A change made elsewhere, in Stripe's dashboard, is handled by `lib/billing/repget-subscription.ts` |
 | A price other than the coupon's (an older catalogue's) | No discount |

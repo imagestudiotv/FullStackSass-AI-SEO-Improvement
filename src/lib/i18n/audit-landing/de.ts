@@ -139,8 +139,8 @@ export const de: AuditLandingCopy = {
   },
   offer: {
     kicker: "Wenn Sie ein Konto erstellen",
-    title: ["Ihr erster Artikel ist kostenlos", "Ihre ersten {count} Artikel sind kostenlos"],
-    body: "Bestätigen Sie Ihre E-Mail-Adresse, wählen Sie einen Tarif und hinterlegen Sie eine Zahlungsmethode. Es wird nichts berechnet, bis Ihr Tarif beginnt: sobald die kostenlosen Artikel geschrieben sind, spätestens nach {days} Tagen. Backlinks und die Verfolgung der KI-Sichtbarkeit beginnen mit dem Tarif.",
+    title: ["Ihr erster Tag ist kostenlos", "Ihre ersten {count} Tage sind kostenlos"],
+    body: "Bestätigen Sie Ihre E-Mail-Adresse, wählen Sie einen Tarif und hinterlegen Sie eine Karte oder PayPal. Heute wird nichts berechnet: {days} Tage lang erhalten Sie den vollen Service Ihres Tarifs, mit allen Funktionen. Danach beginnt Ihr Tarif und wird berechnet, sofern Sie nicht vor dem Ende der Testphase kündigen.",
     link: "Ihr Audit starten",
   },
   next: {
@@ -229,8 +229,8 @@ export const de: AuditLandingCopy = {
       {
         q: "Was passiert nach dem Audit?",
         a: [
-          "Sie können die Ergebnisse selbst nutzen. Wenn Sie Hilfe möchten, erstellen Sie ein Konto: Ihr erster Artikel ist kostenlos, und die bezahlten Tarife von RepGet ergänzen SEO-Inhalte, Backlinks, die Verfolgung der KI-Sichtbarkeit und das Veröffentlichen in sozialen Netzwerken.",
-          "Sie können die Ergebnisse selbst nutzen. Wenn Sie Hilfe möchten, erstellen Sie ein Konto: Ihre ersten {count} Artikel sind kostenlos, und die bezahlten Tarife von RepGet ergänzen SEO-Inhalte, Backlinks, die Verfolgung der KI-Sichtbarkeit und das Veröffentlichen in sozialen Netzwerken.",
+          "Sie können die Ergebnisse selbst nutzen. Wenn Sie Hilfe möchten, erstellen Sie ein Konto: Ihr erster Tag ist kostenlos, mit dem vollen Service der RepGet-Tarife: SEO-Inhalte, Backlinks, die Verfolgung der KI-Sichtbarkeit und das Veröffentlichen in sozialen Netzwerken.",
+          "Sie können die Ergebnisse selbst nutzen. Wenn Sie Hilfe möchten, erstellen Sie ein Konto: Ihre ersten {count} Tage sind kostenlos, mit dem vollen Service der RepGet-Tarife: SEO-Inhalte, Backlinks, die Verfolgung der KI-Sichtbarkeit und das Veröffentlichen in sozialen Netzwerken.",
         ],
       },
     ],

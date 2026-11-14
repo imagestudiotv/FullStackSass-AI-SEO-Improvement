@@ -26,7 +26,7 @@ vi.mock("@/lib/paypal/subscriptions", async (importOriginal) => ({
   createSubscription: paypal.create,
 }));
 
-import { CONFIRM_EMAIL_FIRST, FREE_ARTICLES_DAYS } from "@/lib/plans/features";
+import { CONFIRM_EMAIL_FIRST, TRIAL_DAYS } from "@/lib/plans/features";
 
 import { createPayPalCheckout } from "./actions";
 
@@ -65,11 +65,11 @@ afterEach(() => {
 
 const checkout = async () => (await test.db.select().from(billingCheckouts).where(eq(billingCheckouts.websiteId, siteId)))[0];
 
-describe("paying with PayPal, with the free articles", () => {
-  it("subscribes a first-time workspace to the free-articles plan, and records the free days", async () => {
+describe("paying with PayPal, with the 3-day free trial (TRIAL_DAYS)", () => {
+  it("subscribes a first-time workspace to the trial plan, and records the TRIAL_DAYS free days", async () => {
     expect(await createPayPalCheckout(planId, siteId)).toEqual({ url: "https://paypal.test/approve/I-NEW" });
     expect(paypal.create).toHaveBeenCalledWith(expect.objectContaining({ planId: "P-GROW-FREE" }));
-    expect(await checkout()).toMatchObject({ provider: "paypal", trialDays: FREE_ARTICLES_DAYS, providerSubscriptionId: "I-NEW" });
+    expect(await checkout()).toMatchObject({ provider: "paypal", trialDays: TRIAL_DAYS, providerSubscriptionId: "I-NEW" });
   });
 
   it("asks for a confirmed address first, as card checkout does - nothing is sent to PayPal", async () => {
@@ -78,7 +78,7 @@ describe("paying with PayPal, with the free articles", () => {
     expect(paypal.create).not.toHaveBeenCalled();
   });
 
-  it("subscribes a workspace that has had its free articles to the plan itself, address or not", async () => {
+  it("subscribes a workspace that has had its trial to the plan itself, address or not", async () => {
     state.verified = false;
     await test.db.insert(subscriptions).values({ organizationId: "org_a", websiteId: null, provider: "stripe", stripeSubscriptionId: "sub_old", status: "canceled", planId });
     expect(await createPayPalCheckout(planId, siteId)).toEqual({ url: "https://paypal.test/approve/I-NEW" });
@@ -86,7 +86,7 @@ describe("paying with PayPal, with the free articles", () => {
     expect(await checkout()).toMatchObject({ trialDays: 0 });
   });
 
-  it("charges at once for a plan without its free-articles PayPal plan, and needs no confirmed address", async () => {
+  it("charges at once for a plan without its trial PayPal plan, and needs no confirmed address", async () => {
     state.verified = false;
     await test.db.update(plans).set({ paypalTrialPlanId: null }).where(eq(plans.id, planId));
     expect(await createPayPalCheckout(planId, siteId)).toEqual({ url: "https://paypal.test/approve/I-NEW" });
