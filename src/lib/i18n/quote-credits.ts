@@ -20,7 +20,7 @@ export type QuoteCreditsCopy = {
   balance: string;
   shortfall: string;
   price: string;
-  /** "{rate}" per credit; "{pack}" the pack it is taken from ("100 credits for €79"). */
+  /** "{rate}" per credit; "{pack}" the rate in full ("1,000 credits · €490"). */
   rateNote: string;
   terms: string;
   /** The card button: "{credits}" and "{price}". */
@@ -53,7 +53,7 @@ const en: QuoteCreditsCopy = {
   balance: "Your balance",
   shortfall: "You need",
   price: "Price",
-  rateNote: "{rate} per credit, the rate of our smallest credit pack ({pack}).",
+  rateNote: "{rate} per credit ({pack}).",
   terms: "One-time payment. Credits never expire.",
   payByCard: "Buy {credits} for {price}",
   payWithPayPal: "Pay with PayPal",
@@ -89,7 +89,7 @@ const es: QuoteCreditsCopy = {
   balance: "Su saldo",
   shortfall: "Le faltan",
   price: "Precio",
-  rateNote: "{rate} por crédito, la tarifa de nuestro paquete de créditos más pequeño ({pack}).",
+  rateNote: "{rate} por crédito ({pack}).",
   terms: "Pago único. Los créditos no caducan.",
   payByCard: "Comprar {credits} por {price}",
   payWithPayPal: "Pagar con PayPal",
@@ -125,7 +125,7 @@ const fr: QuoteCreditsCopy = {
   balance: "Votre solde",
   shortfall: "Il vous manque",
   price: "Prix",
-  rateNote: "{rate} par crédit, le tarif de notre plus petit pack de crédits ({pack}).",
+  rateNote: "{rate} par crédit ({pack}).",
   terms: "Paiement unique. Les crédits n’expirent jamais.",
   payByCard: "Acheter {credits} pour {price}",
   payWithPayPal: "Payer avec PayPal",
@@ -161,7 +161,7 @@ const it: QuoteCreditsCopy = {
   balance: "Il Suo saldo",
   shortfall: "Le mancano",
   price: "Prezzo",
-  rateNote: "{rate} per credito, la tariffa del nostro pacchetto di crediti più piccolo ({pack}).",
+  rateNote: "{rate} per credito ({pack}).",
   terms: "Pagamento unico. I crediti non scadono.",
   payByCard: "Acquista {credits} a {price}",
   payWithPayPal: "Paga con PayPal",
@@ -197,7 +197,7 @@ const de: QuoteCreditsCopy = {
   balance: "Ihr Guthaben",
   shortfall: "Es fehlen",
   price: "Preis",
-  rateNote: "{rate} pro Credit, der Preis unseres kleinsten Credit-Pakets ({pack}).",
+  rateNote: "{rate} pro Credit ({pack}).",
   terms: "Einmalige Zahlung. Credits verfallen nicht.",
   payByCard: "{credits} für {price} kaufen",
   payWithPayPal: "Mit PayPal bezahlen",

@@ -11,9 +11,9 @@ import type { CreditRate } from "./quote-topup-shared";
  * The rate one credit is sold at outside a pack: the SMALLEST credit pack on
  * sale, its price for its credits (EUR 79 for 100 today, so 79 cents a
  * credit). The owner chose it for partners paid in credits (2026-11-07,
- * lib/partners/application/use-cases/partner-credits.ts), and a quote's
- * top-up uses the same rule (lib/credits/quote-topup.ts): no bulk discount is
- * invented, and the bigger packs keep their own better value per credit.
+ * lib/partners/application/use-cases/partner-credits.ts): no bulk discount is
+ * invented, and the bigger packs keep their own better value per credit. A
+ * quote's top-up has its own fixed rate (QUOTE_TOPUP_RATE).
  *
  * Read from the add-ons table each time, so a pack's new price is the new
  * rate without a deploy. Active credit packs with a price and credits only;

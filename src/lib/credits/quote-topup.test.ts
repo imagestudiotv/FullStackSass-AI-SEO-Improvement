@@ -31,7 +31,7 @@ import { processStripeEvent } from "@/lib/billing/stripe-events";
 import { fulfilCreditPack } from "@/lib/paypal/orders";
 
 import { checkQuoteTopUp, startQuoteTopUp, topUpForReturn, type TopUpProviders } from "./quote-topup";
-import { quoteCancelPath, quoteReturnPath, quoteRevisionOf, quoteShortfall, quoteTopUpHref, topUpPriceCents } from "./quote-topup-shared";
+import { QUOTE_TOPUP_RATE, quoteCancelPath, quoteReturnPath, quoteRevisionOf, quoteShortfall, quoteTopUpHref, topUpPriceCents } from "./quote-topup-shared";
 
 let test: TestDb;
 let customAddonId: string;
@@ -105,7 +105,7 @@ function fakeProviders() {
 const start = (s: Scene, providers: TopUpProviders, overrides: Partial<Parameters<typeof startQuoteTopUp>[1]> = {}) =>
   startQuoteTopUp(
     test.db,
-    { organizationId: s.organizationId, userId: null as unknown as string, projectId: s.projectId, revision: s.revision, expectedCredits: 1000, expectedPriceCents: 79000, provider: "stripe", locale: "en", ...overrides },
+    { organizationId: s.organizationId, userId: null as unknown as string, projectId: s.projectId, revision: s.revision, expectedCredits: 1000, expectedPriceCents: 49000, provider: "stripe", locale: "en", ...overrides },
     providers,
   );
 
@@ -114,7 +114,7 @@ const sessionEvent = (
   sessionId: string,
   metadata: Record<string, string>,
   paymentStatus: "paid" | "unpaid",
-  amount = 79000,
+  amount = 49000,
 ) =>
   ({
     id: `evt_${randomUUID()}`,
@@ -134,7 +134,13 @@ async function quote(projectId: string) {
 }
 
 describe("the price", () => {
-  it("is the smallest pack's rate, rounded up to the cent, with no bulk discount", () => {
+  it("is EUR 490 for 1,000 credits at the fixed quote rate", () => {
+    expect(QUOTE_TOPUP_RATE).toEqual({ priceCents: 49000, credits: 1000, currency: "eur" });
+    expect(topUpPriceCents(1000, QUOTE_TOPUP_RATE)).toBe(49000);
+    expect(topUpPriceCents(1, QUOTE_TOPUP_RATE)).toBe(49);
+  });
+
+  it("is rounded up to the cent", () => {
     const rate = { priceCents: 7900, credits: 100 };
     expect(topUpPriceCents(1000, rate)).toBe(79000);
     expect(topUpPriceCents(1, rate)).toBe(79);
@@ -143,19 +149,19 @@ describe("the price", () => {
     expect(() => topUpPriceCents(1.5, rate)).toThrow();
   });
 
-  it("is for exactly the shortfall: 1,000 credits at EUR 790 for a 1,000-credit quote and an empty wallet", async () => {
+  it("is for exactly the shortfall: 1,000 credits at EUR 490 for a 1,000-credit quote and an empty wallet", async () => {
     const s = await seed();
     const checked = await checkQuoteTopUp(test.db, s);
     expect(checked).toMatchObject({
       ok: true,
-      offer: { projectId: s.projectId, quoteCredits: 1000, available: 0, credits: 1000, priceCents: 79000, currency: "eur", rate: { priceCents: 7900, credits: 100 } },
+      offer: { projectId: s.projectId, quoteCredits: 1000, available: 0, credits: 1000, priceCents: 49000, currency: "eur", rate: { priceCents: 49000, credits: 1000 } },
     });
   });
 
   it("counts the balance: 250 credits held leave 750 to buy", async () => {
     const s = await seed({ balance: 250 });
     expect(quoteShortfall(1000, 250)).toBe(750);
-    expect(await checkQuoteTopUp(test.db, s)).toMatchObject({ ok: true, offer: { available: 250, credits: 750, priceCents: 59250 } });
+    expect(await checkQuoteTopUp(test.db, s)).toMatchObject({ ok: true, offer: { available: 250, credits: 750, priceCents: 36750 } });
   });
 });
 
@@ -203,9 +209,9 @@ describe("starting the payment", () => {
     const { providers, sessions } = fakeProviders();
     expect(await start(s, providers)).toEqual({ ok: true, url: "https://checkout.stripe.test/pay" });
     const [row] = await topUpRows(s.organizationId);
-    expect(row).toMatchObject({ websiteProjectId: s.projectId, quoteRevision: s.revision, credits: 1000, amountCents: 79000, currency: "eur", rateCents: 7900, rateCredits: 100, provider: "stripe", status: "open" });
+    expect(row).toMatchObject({ websiteProjectId: s.projectId, quoteRevision: s.revision, credits: 1000, amountCents: 49000, currency: "eur", rateCents: 49000, rateCredits: 1000, provider: "stripe", status: "open" });
     expect(sessions[0]).toMatchObject({
-      amountCents: 79000,
+      amountCents: 49000,
       currency: "eur",
       name: "1,000 RepGet credits",
       metadata: { organizationId: s.organizationId, addonId: customAddonId, topupId: row.id, websiteProjectId: s.projectId, quoteRevision: s.revision, credits: "1000" },
@@ -224,7 +230,7 @@ describe("starting the payment", () => {
     const { providers, orders } = fakeProviders();
     expect(await start(s, providers, { provider: "paypal" })).toEqual({ ok: true, url: "https://paypal.test/approve" });
     const [row] = await topUpRows(s.organizationId);
-    expect(orders[0]).toMatchObject({ referenceId: row.id, amountCents: 79000, currency: "eur", organizationId: s.organizationId });
+    expect(orders[0]).toMatchObject({ referenceId: row.id, amountCents: 49000, currency: "eur", organizationId: s.organizationId });
   });
 
   it("links Billing from the quote with its id and revision", () => {
@@ -299,7 +305,7 @@ describe("the credits are granted once, by the confirmed payment, and the quote 
     const [topUp] = await topUpRows(s.organizationId);
     const [order] = await test.db
       .insert(paypalOrders)
-      .values({ organizationId: s.organizationId, purpose: "addon_credits", referenceId: topUp.id, amountCents: 79000, currency: "eur", description: "1,000 RepGet credits", status: "completed" })
+      .values({ organizationId: s.organizationId, purpose: "addon_credits", referenceId: topUp.id, amountCents: 49000, currency: "eur", description: "1,000 RepGet credits", status: "completed" })
       .returning();
     const capture = { id: "CAP-1", status: "COMPLETED" } as never;
     await fulfilCreditPack(order, capture);
