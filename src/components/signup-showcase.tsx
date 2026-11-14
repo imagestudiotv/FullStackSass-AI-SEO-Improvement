@@ -1,117 +1,79 @@
-import { CalendarDays, Check, Sparkles, TrendingUp } from "lucide-react";
 import Image from "next/image";
 
-import { BRAND_NAMES, BrandIcon, type BrandIconName } from "@/components/brand-icons";
 import type { Locale } from "@/lib/i18n/config";
 import { signupShowcaseCopy } from "@/lib/i18n/signup-showcase";
 
 import styles from "./signup-showcase.module.css";
 
-/**
- * The channels under the panel. Beside "Social content & distribution" this
- * reads as where RepGet gets a customer seen, so it lists where the product
- * really reaches: the design's LinkedIn has no publishing connector
- * (lib/social/platforms.ts, lib/video/formats.ts), and TikTok, which has one,
- * takes its place. PENDING the client's review: the homepage's channel graphics
- * do show LinkedIn, and sharing a referral link there is a different matter.
- */
-const CHANNELS: BrandIconName[] = ["google", "chatgpt", "gemini", "instagram", "tiktok", "youtube", "pinterest", "x"];
-
-const ROW_ICONS = [TrendingUp, CalendarDays, Sparkles];
+/** The three signals around the mascots, with the design's marks. */
+const NODES = [
+  { mark: "⌕", className: styles.nodeSearch },
+  { mark: "✦", className: styles.nodeAi },
+  { mark: "↗", className: styles.nodeSocial },
+];
 
 /**
- * The right-hand panel of the sign-up page (client's design, 2026-11-05,
- * RepGet-Signup-Official-Logo.html): one dark, unchanging panel, whichever
- * theme the page is in. Nothing rotates, so nothing shifts while someone is
- * typing.
+ * The right-hand panel of the sign-up page (client's design, 2026-11-15,
+ * repget-signup-inline-owl.html: "replace the right panel only"). One dark
+ * panel in both themes: the gecko waves, the owl stands with both wings open,
+ * and three signals sit around them. Only the gecko's hand moves, so nothing
+ * shifts while someone is typing; reduced motion stops it.
  *
- * From lg it fills the column beside the form. Below that it comes after the
- * form in the document, so the form is still what a phone opens on and the
- * panel is only met by scrolling past it.
+ * From lg it fills the column beside the form. Below that it is not shown,
+ * as in the design: on a phone the form is the page.
  */
 export function SignUpShowcase({ locale }: { locale: Locale }) {
   const t = signupShowcaseCopy(locale);
 
   return (
     <section className={styles.cell} aria-labelledby="signup-showcase-title">
-      <div className={styles.showcase}>
-        <div className={styles.body}>
-          <header className={styles.top}>
-            <p className={styles.eyebrow}>{t.eyebrow}</p>
-            <h2 id="signup-showcase-title" className={styles.title}>
-              {t.titleLead}
-              <br />
-              <span className={styles.accent}>{t.titleAccent}</span>
-            </h2>
-            <p className={styles.lead}>{t.lead}</p>
-          </header>
+      <div className={styles.promo}>
+        <header className={styles.top}>
+          <p className={styles.kicker}>{t.kicker}</p>
+          <h2 id="signup-showcase-title" className={styles.heading}>
+            {t.titleLead}
+            <em>{t.titleAccent}</em>
+          </h2>
+          <p className={styles.lead}>{t.lead}</p>
+        </header>
 
-          <div className={styles.panel}>
-            <div className={styles.display} role="img" aria-label={t.previewLabel}>
-              <div className={styles.glow} />
-              <div className={styles.window}>
-                <div className={styles.windowHeader}>
-                  <span className={styles.windowLabel}>
-                    <Image src="/images/repget-mark.png" alt="" width={14} height={14} className={styles.windowMark} />
-                    {t.windowTitle}
-                  </span>
-                  <span className={styles.windowDots}>
-                    <i />
-                    <i />
-                    <i />
-                  </span>
-                </div>
-                <div className={styles.chart}>
-                  {[27, 48, 40, 62, 51, 72, 94].map((height) => (
-                    <span key={height} style={{ height: `${height}%` }} />
-                  ))}
-                </div>
-                <div className={styles.rows}>
-                  {t.windowRows.map(([name, status], index) => {
-                    const Icon = ROW_ICONS[index];
-                    return (
-                      <div key={name} className={styles.row}>
-                        <span className={styles.rowIcon}>
-                          <Icon />
-                        </span>
-                        <span>{name}</span>
-                        <strong>{status}</strong>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-
-            <div className={styles.copy}>
-              <p className={styles.kicker}>{t.kicker}</p>
-              <h3 className={styles.panelTitle}>{t.panelTitle}</h3>
-              <p className={styles.panelBody}>{t.panelBody}</p>
-              <ul className={styles.features}>
-                {t.features.map((feature) => (
-                  <li key={feature}>
-                    <span className={styles.featureCheck} aria-hidden="true">
-                      <Check />
-                    </span>
-                    {feature}
-                  </li>
-                ))}
-              </ul>
-            </div>
+        <div className={styles.scene} role="img" aria-label={t.sceneLabel}>
+          <svg className={styles.connect} viewBox="0 0 720 440" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+            <defs>
+              <linearGradient id="signup-showcase-line" x1="0" x2="1">
+                <stop stopColor="#ee6e28" stopOpacity="0" />
+                <stop offset=".5" stopColor="#ff9c52" stopOpacity=".82" />
+                <stop offset="1" stopColor="#ff8c42" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            <path d="M114 225c92-165 346-162 458-42" fill="none" stroke="url(#signup-showcase-line)" strokeWidth="2" />
+            <path d="M173 311c140 102 363 58 435-71" fill="none" stroke="url(#signup-showcase-line)" strokeWidth="1.7" />
+            <circle cx="205" cy="123" r="3.2" fill="#ff9347" />
+            <circle cx="567" cy="260" r="3.5" fill="#ff9347" />
+            <path d="M339 50l5 12 12 5-12 5-5 12-5-12-12-5 12-5z" fill="#ff9959" opacity=".75" />
+            <path d="M642 114l2 6 6 2-6 2-2 6-2-6-6-2 6-2z" fill="#ff9959" />
+          </svg>
+          <div className={`${styles.character} ${styles.gecko}`}>
+            <Image className={styles.geckoPhoto} src="/images/signup/gecko-photo.webp" alt="" width={292} height={292} unoptimized />
+            <Image className={styles.geckoHand} src="/images/signup/gecko-hand.webp" alt="" width={292} height={292} unoptimized />
           </div>
-
-          <footer className={styles.footer}>
-            <p className={styles.caption}>{t.channelsCaption}</p>
-            <ul className={styles.channels} aria-label={t.channelsLabel}>
-              {CHANNELS.map((name) => (
-                <li key={name}>
-                  <BrandIcon name={name} className={styles.channelIcon} />
-                  {BRAND_NAMES[name]}
-                </li>
-              ))}
-            </ul>
-          </footer>
+          <div className={`${styles.character} ${styles.owl}`}>
+            <Image className={styles.owlPhoto} src="/images/signup/owl.webp" alt="" width={640} height={577} unoptimized />
+          </div>
+          {NODES.map((node, index) => (
+            <div key={node.mark} className={`${styles.node} ${node.className}`}>
+              <b aria-hidden="true">{node.mark}</b> {t.nodes[index]}
+            </div>
+          ))}
         </div>
+
+        <footer className={styles.bottom}>
+          <div className={styles.footLabel}>
+            {t.footLead} <em>{t.footAccent}</em>
+            <div className={styles.footNote}>{t.footNote}</div>
+          </div>
+          <div className={styles.footTag}>{t.tag}</div>
+        </footer>
       </div>
     </section>
   );

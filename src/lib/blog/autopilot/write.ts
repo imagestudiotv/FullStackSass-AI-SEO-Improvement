@@ -22,6 +22,7 @@ import {
   comparisonTopicLines,
   readComparisonPlan,
   researchBlock,
+  UnsupportedComparisonError,
   type ComparisonResearch,
   type PlannedComparison,
 } from "./comparison";
@@ -458,7 +459,8 @@ export async function planArticle(
     return { plan: { ...read.plan, comparison }, warnings: [...read.warnings, ...warnings], usage };
   } catch (error) {
     // Refused by the checks, but answered: the run still counts what it cost.
-    throw new SpentError(error instanceof Error ? error.message : "The plan could not be used. Try again.", usage);
+    // Sources that do not support the comparison stay the same on a retry: that refusal is final.
+    throw new SpentError(error instanceof Error ? error.message : "The plan could not be used. Try again.", usage, error instanceof UnsupportedComparisonError);
   }
 }
 

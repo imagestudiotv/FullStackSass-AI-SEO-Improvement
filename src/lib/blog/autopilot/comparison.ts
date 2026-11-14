@@ -70,12 +70,14 @@ export type ResearchDeps = {
   canSearch?: () => boolean;
 };
 
+const ACCESS_GATE = /^(?:just a moment|access denied|attention required|verify (?:you are|you're) human|sign in|log in)(?:\b|[.!])/i;
+
 /** One page the administrator named, through the SSRF-safe layer, as customer research reads a page. */
 async function readPage(url: string, topic: string): Promise<FoundPage | null> {
   const response = await safeFetch(assertPublicHttpUrl(url).href, {
     timeoutMs: 20_000,
     maxBytes: 4_000_000,
-    headers: { accept: "text/html", "accept-encoding": "gzip, br", "user-agent": "RepGetResearch/1.0" },
+    headers: { accept: "text/html", "accept-language": "en", "accept-encoding": "gzip, br", "user-agent": "RepGetResearch/1.0" },
   });
   if (!response.ok || !response.headers.get("content-type")?.includes("text/html")) {
     await response.arrayBuffer().catch(() => undefined);
@@ -83,6 +85,8 @@ async function readPage(url: string, topic: string): Promise<FoundPage | null> {
   }
   const $ = load(await response.text());
   const title = $("title").first().text().trim().slice(0, 250) || url;
+  // A bot wall or a sign-in page answers 200 too, and its words are not the product's (as customer research: lib/articles/research.ts).
+  if (ACCESS_GATE.test(title)) return null;
   const { excerpt } = researchPageContent($, title, topic);
   return excerpt.length < MIN_READABLE_CHARS ? null : { url: response.url || url, title, retrievedAt: new Date().toISOString(), excerpt };
 }
@@ -256,6 +260,50 @@ export type ComparisonFact = { entity: string; claim: string; sourceId: string; 
 export type PlannedComparison = { entities: string[]; criteria: string[]; facts: ComparisonFact[]; unverified: string[] };
 
 const folded = (text: string) => text.normalize("NFKC").replace(/\p{Cf}/gu, "").replace(/\s+/g, " ").trim().toLowerCase();
+
+/**
+ * A quotation compared with its page as a reader would: the model tidies what
+ * it copies (2026-11-13, "RepGet vs Semrush": 0 of 5 kept). Curly quotes,
+ * dashes and "…" become plain ones, and the spaces the page's markup puts
+ * around punctuation and prices ("$139.95 /month") are dropped - on both
+ * sides. The words themselves must still be the page's.
+ */
+export function quoteKey(text: string): string {
+  return folded(text)
+    .replace(/[‘’‚‛′`´]/g, "'")
+    .replace(/[“”„‟″«»]/g, '"')
+    .replace(/[‐-―−]/g, "-")
+    .replace(/…/g, "...")
+    .replace(/\s+([,.;:!?)\]%/'"-])/g, "$1")
+    .replace(/([(\[/$€£'"-])\s+/g, "$1");
+}
+
+/**
+ * Whether the page (already a quoteKey) says the quotation: whole, or - where
+ * the model left words out with "..." - every piece of 15 characters or more,
+ * in order.
+ */
+export function pageSays(page: string, quote: string): boolean {
+  const key = quoteKey(quote);
+  if (page.includes(key)) return true;
+  const pieces = key.split(/\.{3,}/).map((piece) => piece.trim()).filter(Boolean);
+  if (pieces.length < 2 || pieces.some((piece) => piece.length < 15)) return false;
+  let from = 0;
+  for (const piece of pieces) {
+    const at = page.indexOf(piece, from);
+    if (at < 0) return false;
+    from = at + piece.length;
+  }
+  return true;
+}
+
+/** Refused because the sources do not support the comparison: trying again with the same sources fails the same way. */
+export class UnsupportedComparisonError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "UnsupportedComparisonError";
+  }
+}
 const oneLine = (value: unknown) => String(value ?? "").replace(/\s+/g, " ").trim();
 
 /**
@@ -266,25 +314,55 @@ const oneLine = (value: unknown) => String(value ?? "").replace(/\s+/g, " ").tri
 export function readComparisonPlan(value: Record<string, unknown>, brief: ComparisonBrief, research: ComparisonResearch): { comparison: PlannedComparison; warnings: string[] } {
   const entities = brief.entities.map((entity) => entity.name);
   const named = new Map(entities.map((name) => [folded(name), name]));
-  const pages = new Map(research.sources.map((source) => [source.id, { entity: folded(source.entity), text: folded(source.excerpt) }]));
+  const pages = new Map(research.sources.map((source) => [source.id, { entity: folded(source.entity), text: quoteKey(source.excerpt) }]));
   const raw = Array.isArray(value.facts) ? value.facts : [];
   const facts: ComparisonFact[] = [];
+  // Why facts were thrown out, for the refusal: without it nobody can tell what to fix.
+  const rejected = { notCompared: 0, short: 0, unknownSource: 0, notInPage: 0, otherThing: 0 };
   for (const item of raw) {
     const fact = (item ?? {}) as Record<string, unknown>;
     const entity = named.get(folded(oneLine(fact.entity)));
     const claim = oneLine(fact.claim);
     const sourceId = oneLine(fact.sourceId);
     const quote = oneLine(fact.quote);
-    if (!entity || !claim || quote.length < 15) continue;
+    if (!entity || !claim) {
+      rejected.notCompared++;
+      continue;
+    }
+    if (quote.length < 15) {
+      rejected.short++;
+      continue;
+    }
     const page = pages.get(sourceId);
-    if (!page?.text.includes(folded(quote))) continue;
+    if (!page) {
+      rejected.unknownSource++;
+      continue;
+    }
+    if (!pageSays(page.text, quote)) {
+      rejected.notInPage++;
+      continue;
+    }
     // A page about another of the things compared supports this one only where the quotation names it: another's price is not its price.
-    if (page.entity !== folded(entity) && !folded(quote).includes(folded(entity))) continue;
+    if (page.entity !== folded(entity) && !folded(quote).includes(folded(entity))) {
+      rejected.otherThing++;
+      continue;
+    }
     facts.push({ entity, claim, sourceId, quote });
   }
   const withFacts = entities.filter((name) => facts.some((fact) => fact.entity === name));
   if (withFacts.length < 2) {
-    throw new Error(`The sources do not support this comparison: only ${withFacts.length} of the ${entities.length} things have a fact their source really says. Nothing was invented. Give better addresses, then try again.`);
+    const why = [
+      rejected.notInPage && `${rejected.notInPage} quoted words that are not in the page they name`,
+      rejected.otherThing && `${rejected.otherThing} were about another of the things compared`,
+      rejected.unknownSource && `${rejected.unknownSource} named no source that was read`,
+      rejected.short && `${rejected.short} quoted too little`,
+      rejected.notCompared && `${rejected.notCompared} were not about one of the things listed`,
+    ].filter(Boolean);
+    throw new UnsupportedComparisonError(
+      `The sources do not support this comparison: only ${withFacts.length} of the ${entities.length} things have a fact their source really says` +
+        (raw.length ? ` (of ${raw.length} facts found, ${why.join(", ")})` : " (no facts were found in the sources)") +
+        `. Nothing was invented. Give each thing the address of its own pricing or features page, one line each as "Name | https://address", then try again.`,
+    );
   }
 
   const without = entities.filter((name) => !withFacts.includes(name));

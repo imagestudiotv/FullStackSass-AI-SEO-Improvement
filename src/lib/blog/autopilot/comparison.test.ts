@@ -16,8 +16,11 @@ import {
   checkComparisonEvidence,
   comparisonChecks,
   comparisonRules,
+  pageSays,
+  quoteKey,
   readComparisonPlan,
   researchBlock,
+  UnsupportedComparisonError,
   researchComparison,
   researchProvenance,
   researchShortfall,
@@ -57,6 +60,10 @@ describe("the brief", () => {
     expect(cleanComparison({ entities: [{ name: "A" }, { name: "a" }] })).toMatch(/twice/);
     expect(cleanComparison({ entities: "A,B,C,D,E,F".split(",").map((name) => ({ name })) })).toMatch(/at most 5/);
     expect(cleanComparison({ entities: [{ name: "A", url: "ftp://x.example" }, { name: "B" }] })).toMatch(/not a web address/);
+    // An address on a line of its own is not a thing to compare (2026-11-13).
+    expect(cleanComparison({ entities: [{ name: "Semrush" }, { name: "https://www.semrush.com" }] })).toMatch(/is an address, not a name.*Name \| https:\/\/www\.semrush\.com/);
+    expect(cleanComparison({ entities: [{ name: "Semrush" }, { name: "www.semrush.com" }] })).toMatch(/is an address/);
+    expect(cleanComparison({ entities: [{ name: "Booking.com" }, { name: "Expedia" }] })).not.toBeTypeOf("string");
     expect(cleanComparison(null)).toMatch(/at least 2/);
     expect(readComparison({ entities: [] })).toBeNull();
   });
@@ -195,6 +202,61 @@ describe("the plan's facts", () => {
 
   it("are refused when fewer than two things are left with one: the sources do not support a comparison", () => {
     expect(() => readComparisonPlan({ facts: [fact("Acme SEO", "S1", "costs $29 a month on the Starter plan"), fact("Beta Rank", "S2", "made up words that are not in the page")] }, BRIEF, RESEARCH)).toThrow(/only 1 of the 3 .*Nothing was invented/);
+  });
+
+  it("are refused with why each fact was thrown out, as an error no retry can change", () => {
+    let thrown: unknown;
+    try {
+      readComparisonPlan({ facts: [fact("Acme SEO", "S1", "costs $29 a month on the Starter plan"), fact("Beta Rank", "S2", "made up words that are not in the page"), fact("Beta Rank", "S9", "includes rank tracking for 100 keywords"), fact("Beta Rank", "S2", "100")] }, BRIEF, RESEARCH);
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(UnsupportedComparisonError);
+    expect((thrown as Error).message).toContain("(of 4 facts found, 1 quoted words that are not in the page they name, 1 named no source that was read, 1 quoted too little)");
+    expect((thrown as Error).message).toContain('one line each as "Name | https://address"');
+    expect(() => readComparisonPlan({ facts: [] }, BRIEF, RESEARCH)).toThrow(/only 0 of the 3 things have a fact their source really says \(no facts were found in the sources\)/);
+  });
+
+  describe("are matched with their page as a reader would (2026-11-13: RepGet vs Semrush kept 0 of 5)", () => {
+    const PAGE: ComparisonResearch = {
+      ...RESEARCH,
+      sources: [
+        { ...RESEARCH.sources[0], excerpt: "Acme SEO’s Pro plan costs $139.95 /month – billed yearly. It includes “AI visibility” tracking and site audits for 500 pages." },
+        RESEARCH.sources[1],
+      ],
+    };
+    const beta = fact("Beta Rank", "S2", "includes rank tracking for 100 keywords");
+    // Beta Rank alone cannot make a comparison, so a quotation thrown out refuses the plan.
+    const kept = (quote: string) => {
+      try {
+        return readComparisonPlan({ facts: [fact("Acme SEO", "S1", quote), beta] }, BRIEF, PAGE).comparison.facts.some((item) => item.entity === "Acme SEO");
+      } catch (error) {
+        if (error instanceof UnsupportedComparisonError) return false;
+        throw error;
+      }
+    };
+
+    it.each([
+      ["a straight apostrophe for a curly one", "Acme SEO's Pro plan costs $139.95"],
+      ["no space the page's markup added before a slash", "costs $139.95/month - billed yearly"],
+      ["straight quotes for curly ones", 'It includes "AI visibility" tracking'],
+      ["words left out with an ellipsis", "Acme SEO’s Pro plan costs … AI visibility” tracking and site audits"],
+    ])("keeps a quotation with %s", (_case, quote) => {
+      expect(kept(quote)).toBe(true);
+    });
+
+    it.each([
+      ["a changed number", "Acme SEO's Pro plan costs $149.95"],
+      ["pieces out of order", "tracking and site audits for 500 pages ... Acme SEO's Pro plan costs"],
+      ["a piece too short to mean anything", "Acme SEO's Pro plan costs ... 500 pages"],
+    ])("still throws out %s", (_case, quote) => {
+      expect(kept(quote)).toBe(false);
+    });
+
+    it("shares one key between a page and its quotations", () => {
+      expect(quoteKey("Price:  $139.95 /month — “Pro” … ( yearly )")).toBe('price: $139.95/month-"pro"... (yearly)');
+      expect(pageSays(quoteKey("one two three four five six seven eight"), "one two three ... six seven eight")).toBe(false);
+    });
   });
 });
 

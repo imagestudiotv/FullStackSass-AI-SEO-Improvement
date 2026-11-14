@@ -24,12 +24,9 @@ const SCENES = [styles["scene-one"], styles["scene-two"], styles["scene-three"]]
  */
 export function HeroMascot({
   notes,
-  search,
 }: {
   /** What the gecko says, once, in three steps. */
   notes: readonly (readonly [string, string])[];
-  /** "Search", in the page's language, on the owl's banner. */
-  search: string;
 }) {
   const [phase, setPhase] = useState<"intro" | "soft">("intro");
   const [hopping, setHopping] = useState(false);
@@ -75,28 +72,6 @@ export function HeroMascot({
         <Image className={`${styles.wing} ${styles["wing-left"]}`} src="/images/home/hero/owl-wing-left.webp" alt="" width={224} height={224} unoptimized loading="eager" />
         <Image className={`${styles.wing} ${styles["wing-right"]}`} src="/images/home/hero/owl-wing-right.webp" alt="" width={224} height={224} unoptimized loading="eager" />
         <Image className={styles.body} src="/images/home/hero/owl-body.webp" alt="" width={224} height={224} unoptimized loading="eager" />
-        <span className={styles.banner}>
-          <span className={styles["banner-inner"]}>
-            <span className={styles["banner-topline"]} />
-            <span className={styles["banner-row"]}>
-              {[
-                [["google", "Google"], ["search", search]],
-                [["chatgpt", "ChatGPT"], ["perplexity", "Perplexity"]],
-                [["facebook", "Facebook"], ["instagram", "Instagram"]],
-              ].map((pair) => (
-                <span key={pair[0][0]} className={styles["banner-card"]}>
-                  <span className={styles.chips}>
-                    {pair.map(([key, label]) => (
-                      <span key={key} className={`${styles.chip} ${styles[`chip-${key}`]}`}>
-                        {label}
-                      </span>
-                    ))}
-                  </span>
-                </span>
-              ))}
-            </span>
-          </span>
-        </span>
       </span>
       <span className={styles.star}>✳</span>
       <span className={`${styles.star} ${styles["star-two"]}`}>✦</span>

@@ -55,7 +55,7 @@ export function Hero({ locale, href }: SectionProps) {
         <h1 id={TITLE_ID} className={c("rgx-title")}>
           {/* The spaces keep the heading's words apart for a screen reader; the line's layout ignores them. */}
           <span className={c("rgx-name")} style={titleChars}>
-            <span>{t.meet}</span> <HeroMascot notes={t.mascotNotes} search={t.mascotSearch} />{" "}
+            <span>{t.meet}</span> <HeroMascot notes={t.mascotNotes} />{" "}
             <span className={c("rgx-brand")}>{BRAND}</span>
           </span>{" "}
           <span className={c("rgx-subtitle")}>

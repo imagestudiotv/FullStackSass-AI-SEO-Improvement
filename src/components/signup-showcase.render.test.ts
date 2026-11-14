@@ -6,7 +6,7 @@ import { LOCALES } from "@/lib/i18n/config";
 import { signupShowcaseCopy } from "@/lib/i18n/signup-showcase";
 
 /**
- * Sign-up's right-hand panel (client's design, 2026-11-05). Only sign-up's:
+ * Sign-up's right-hand panel (client's design, 2026-11-15). Only sign-up's:
  * sign-in keeps the panel it had, and the two share one layout.
  */
 
@@ -45,18 +45,19 @@ describe("the sign-up panel", () => {
   it.each(LOCALES)("in %s says everything in that language", (locale) => {
     const html = panel(locale);
     const t = signupShowcaseCopy(locale);
-    expect(html).toContain(t.titleAccent);
-    for (const feature of t.features) expect(html).toContain(feature.replace("&", "&amp;"));
-    if (locale !== "en") expect(html).not.toContain(signupShowcaseCopy("en").panelTitle);
+    for (const text of [t.kicker, t.titleLead, t.titleAccent, t.lead, ...t.nodes, t.footLead, t.footAccent, t.footNote, t.tag]) {
+      expect(html).toContain(text.replace(/&/g, "&amp;").replace(/'/g, "&#x27;"));
+    }
+    if (locale !== "en") expect(html).not.toContain(signupShowcaseCopy("en").titleLead);
   });
 
-  it("names itself an illustration, and carries no control that could take focus from the form", () => {
+  it("shows the design's gecko and owl, as one named illustration", () => {
     const html = panel("en");
-    expect(html).toContain('role="img" aria-label="Illustrative RepGet dashboard preview"');
-    expect(html).not.toMatch(/<(a|button|input)\b/);
+    expect(html).toContain('role="img" aria-label="RepGet&#x27;s gecko and owl mascots, surrounded by search, AI and social signals"');
+    for (const picture of ["gecko-photo.webp", "gecko-hand.webp", "owl.webp"]) expect(html).toContain(`/images/signup/${picture}`);
   });
 
-  it("lists only channels the product works with", () => {
-    expect(panel("en")).not.toContain("LinkedIn");
+  it("carries no control that could take focus from the form", () => {
+    expect(panel("en")).not.toMatch(/<(a|button|input)/);
   });
 });

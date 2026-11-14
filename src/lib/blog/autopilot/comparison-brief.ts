@@ -56,6 +56,8 @@ export function cleanComparison(input: unknown): ComparisonBrief | string {
     const name = line((row as { name?: unknown } | null)?.name);
     if (!name) continue;
     if (name.length > COMPARISON_LIMITS.entity) return `Keep each thing to compare under ${COMPARISON_LIMITS.entity} characters`;
+    // An address on a line of its own becomes a "thing" with no page (2026-11-13: five things for a two-product title).
+    if (/^(?:https?:\/\/|www\.)/i.test(name)) return `"${name}" is an address, not a name: put it after the name on the same line, as "Name | ${name}"`;
     const key = name.toLowerCase();
     if (seen.has(key)) return `"${name}" is listed twice`;
     seen.add(key);

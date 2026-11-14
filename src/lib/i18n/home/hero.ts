@@ -23,8 +23,6 @@ export type HeroCopy = {
     subtitleLine2: string;
     /** What the gecko says, once, in three steps: a bold line and a small one each. */
     mascotNotes: [[string, string], [string, string], [string, string]];
-    /** "Search" on the owl's banner (the other labels there are brand names). */
-    mascotSearch: string;
     /** The description's first line (`**bold**` allowed) and its second. */
     descriptionLead: string;
     descriptionRest: string;
@@ -64,7 +62,6 @@ const en: HeroCopy = {
       ["I help you show up", "in AI search."],
       ["I strengthen your", "Google visibility."],
     ],
-    mascotSearch: "Search",
     descriptionLead: "Your AI growth team for **SEO, content, backlinks and social.**",
     descriptionRest: "Create once, get discovered, and reach customers everywhere.",
     websiteLabel: "Your website address",
@@ -100,7 +97,6 @@ const es: HeroCopy = {
       ["Le ayudo a aparecer", "en la búsqueda con IA."],
       ["Refuerzo su", "visibilidad en Google."],
     ],
-    mascotSearch: "Búsqueda",
     descriptionLead: "Su equipo de crecimiento con IA para **SEO, contenido, backlinks y redes sociales.**",
     descriptionRest: "Cree una vez, hágase visible y llegue a sus clientes en todas partes.",
     websiteLabel: "La dirección de su sitio web",
@@ -136,7 +132,6 @@ const fr: HeroCopy = {
       ["Je vous aide à apparaître", "dans la recherche IA."],
       ["Je renforce votre", "visibilité sur Google."],
     ],
-    mascotSearch: "Recherche",
     descriptionLead: "Votre équipe de croissance IA pour **le SEO, le contenu, les backlinks et les réseaux sociaux.**",
     descriptionRest: "Créez une fois, gagnez en visibilité et touchez vos clients partout.",
     websiteLabel: "L’adresse de votre site",
@@ -172,7 +167,6 @@ const it: HeroCopy = {
       ["La aiuto a comparire", "nella ricerca IA."],
       ["Rafforzo la Sua", "visibilità su Google."],
     ],
-    mascotSearch: "Ricerca",
     descriptionLead: "Il Suo team di crescita con IA per **SEO, contenuti, backlink e social.**",
     descriptionRest: "Crei una volta, si faccia trovare e raggiunga i clienti ovunque.",
     websiteLabel: "L’indirizzo del Suo sito",
@@ -208,7 +202,6 @@ const de: HeroCopy = {
       ["Ich helfe Ihnen,", "in der KI-Suche aufzutauchen."],
       ["Ich stärke Ihre", "Sichtbarkeit bei Google."],
     ],
-    mascotSearch: "Suche",
     descriptionLead: "Ihr KI-Wachstumsteam für **SEO, Inhalte, Backlinks und Social Media.**",
     descriptionRest: "Einmal erstellen, gefunden werden und Kunden überall erreichen.",
     websiteLabel: "Ihre Website-Adresse",
