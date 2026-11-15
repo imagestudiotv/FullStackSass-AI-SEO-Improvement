@@ -6,8 +6,7 @@
  * (`repget-articulated-mascots` ... `repget-gecko-one-time-messages`); this is
  * what the browser ends up running, one rule per element and breakpoint:
  *
- *  - the owl flies once (7.4s) carrying an orange banner with the search, AI
- *    and social platforms, then hovers softly ("soft" phase, hero-mascot.tsx);
+ *  - the owl flies once (7.4s), then hovers softly ("soft" phase, hero-mascot.tsx);
  *  - the gecko waves all along, and says three things once (12.2s), then
  *    nothing;
  *  - a click, once the owl hovers, makes both hop.
@@ -121,9 +120,6 @@
 }
 .mascot[data-phase="soft"] .wing-right {
   animation: wing-soft-right 3.8s ease-in-out infinite;
-}
-.mascot[data-phase="soft"] .banner {
-  display: none;
 }
 
 /* A click: both hop. */
@@ -242,136 +238,6 @@
   animation: note-three 12.2s ease-in-out 1 both;
 }
 
-/* ---------- The banner the owl carries ---------- */
-
-.banner {
-  position: absolute;
-  left: 49%;
-  top: 113%;
-  z-index: 7;
-  display: grid;
-  place-items: center;
-  min-width: 157px;
-  min-height: 41px;
-  padding: 5px 12px 6px;
-  border: 1px solid rgba(244, 117, 59, 0.38);
-  border-radius: 9px;
-  background: linear-gradient(115deg, #fb813e 0%, #ef5f2b 100%);
-  box-shadow:
-    0 10px 22px rgba(233, 95, 43, 0.23),
-    0 2px 5px rgba(66, 31, 25, 0.08);
-  pointer-events: none;
-  transform-origin: 50% -14px;
-  opacity: 0;
-  animation: banner 7.4s ease-in-out 1 both;
-}
-/* The two strings it hangs from. */
-.banner::before,
-.banner::after {
-  content: "";
-  position: absolute;
-  top: -11px;
-  width: 1.4px;
-  height: 11px;
-  background: linear-gradient(to bottom, rgba(143, 84, 64, 0.75), rgba(220, 171, 130, 0.35));
-}
-.banner::before {
-  left: 24%;
-  transform: rotate(-13deg);
-}
-.banner::after {
-  right: 24%;
-  transform: rotate(13deg);
-}
-.banner-inner {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 128px;
-}
-.banner-topline {
-  position: relative;
-  display: block;
-  height: 8px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.22);
-  overflow: hidden;
-}
-.banner-topline::after {
-  content: "";
-  position: absolute;
-  left: 10px;
-  top: 2px;
-  width: 44%;
-  height: 4px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.86);
-}
-.banner-row {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 7px;
-}
-.banner-card {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 38px;
-  padding: 4px 5px;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.12);
-  opacity: 0.92;
-}
-/* Search is the one in front, as in the design. */
-.banner-card:first-child {
-  background: rgba(255, 255, 255, 0.28);
-  border-color: rgba(255, 255, 255, 0.42);
-  opacity: 1;
-  transform: translateY(-2px) scale(1.03);
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.14);
-}
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 4px;
-}
-.chip {
-  display: inline-flex;
-  align-items: center;
-  height: 14px;
-  padding: 0 6px;
-  border-radius: 999px;
-  font-size: 7px;
-  font-weight: 900;
-  letter-spacing: -0.01em;
-}
-.chip-google {
-  background: #fff3eb;
-  color: #c24d00;
-}
-.chip-search {
-  background: #fff8ef;
-  color: #70462d;
-}
-.chip-chatgpt {
-  background: #eef8f3;
-  color: #1f6b4f;
-}
-.chip-perplexity {
-  background: #eef6ff;
-  color: #2c5f99;
-}
-.chip-facebook {
-  background: #eef4ff;
-  color: #2856a8;
-}
-.chip-instagram {
-  background: #fff0f7;
-  color: #a23a7d;
-}
-
 /* ---------- Smaller screens ---------- */
 
 @media (max-width: 760px) {
@@ -390,40 +256,6 @@
   }
   .scene small {
     font-size: 7px;
-  }
-  .banner {
-    left: 45%;
-    top: 137%;
-    min-width: 124px;
-    min-height: 30px;
-    padding: 5px 8px;
-    border-radius: 7px;
-  }
-  .banner-inner {
-    min-width: 102px;
-    gap: 5px;
-  }
-  .banner-topline {
-    height: 6px;
-  }
-  .banner-topline::after {
-    top: 1px;
-  }
-  .banner-row {
-    gap: 5px;
-  }
-  .banner-card {
-    height: 30px;
-    padding: 3px 4px;
-    border-radius: 8px;
-  }
-  .chips {
-    gap: 3px;
-  }
-  .chip {
-    height: 12px;
-    padding: 0 5px;
-    font-size: 5.8px;
   }
 }
 
@@ -448,18 +280,6 @@
   .scene small {
     font-size: 6.7px;
   }
-  .banner {
-    left: 47%;
-    top: 148%;
-    min-width: 108px;
-    min-height: 27px;
-    padding: 4px 6px;
-  }
-  .chip {
-    height: 11px;
-    padding: 0 4px;
-    font-size: 5.3px;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -473,8 +293,7 @@
   .mascot[data-phase="soft"] .wing-right {
     animation: none;
   }
-  .note,
-  .banner {
+  .note {
     display: none;
   }
 }
@@ -599,32 +418,6 @@
   }
   79% {
     transform: rotate(0deg);
-  }
-}
-@keyframes banner {
-  0%,
-  11%,
-  19%,
-  74%,
-  100% {
-    opacity: 0;
-    transform: translate(-50%, 9px) rotate(-8deg) scale(0.86);
-  }
-  26% {
-    opacity: 1;
-    transform: translate(-50%, 0) rotate(3deg) scale(1);
-  }
-  39% {
-    opacity: 1;
-    transform: translate(-50%, 0) rotate(-3deg) scale(1);
-  }
-  54% {
-    opacity: 1;
-    transform: translate(-50%, 0) rotate(2deg) scale(1);
-  }
-  66% {
-    opacity: 1;
-    transform: translate(-50%, 1px) rotate(-1deg) scale(1);
   }
 }
 @keyframes owl-soft {

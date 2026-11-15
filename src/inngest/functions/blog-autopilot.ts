@@ -129,7 +129,11 @@ export const blogAutopilotRun = inngest.createFunction(
       : undefined;
 
     const planned = await step.run("plan-article", async () => {
-      const result = await counted("plan-article", async () => planArticle(claim, await loadWriterContext(asOf), research));
+      const result = await counted("plan-article", async () => planArticle(claim, await loadWriterContext(asOf), research)).catch((error: unknown) => {
+        // Counted above; a refusal no retry can change (sources that do not support the comparison) ends the run now.
+        if (error instanceof SpentError && error.final) throw new NonRetriableError(error.message);
+        throw error;
+      });
       await noteCost(runId, "plan-article", result.usage.costUsd);
       logger.info(
         { step: "plan-article", runId, sections: result.plan.sections.length, warnings: result.warnings.length, costUsd: result.usage.costUsd },

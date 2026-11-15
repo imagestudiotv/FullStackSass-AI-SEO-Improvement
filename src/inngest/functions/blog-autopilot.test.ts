@@ -639,11 +639,15 @@ describe("a comparison article", () => {
     expect((await test.db.select().from(blogPosts)).length).toBe(0);
   });
 
-  it("refuses a plan whose quotations are not in the sources, counting what it cost", async () => {
+  it("refuses a plan whose quotations are not in the sources, counting what it cost, and does not pay for it again", async () => {
     await languages();
     const claim = await queuedComparison();
     modelWrites(message({ ...COMPARE_PLAN(), facts: [{ entity: "Acme SEO", claim: "Invented", sourceId: "S1", quote: "Acme SEO won every benchmark we ran last year" }] }));
-    await expect(invoke(claim.runId, memoisedStep())).rejects.toThrow(/do not support this comparison/);
+    // Not retried: the same sources would be refused the same way (2026-11-13: three tries, $0.87).
+    await expect(invoke(claim.runId, memoisedStep())).rejects.toMatchObject({
+      name: "NonRetriableError",
+      message: expect.stringContaining("do not support this comparison"),
+    });
     const [run] = await test.db.select().from(blogAutopilotRuns).where(eq(blogAutopilotRuns.id, claim.runId));
     expect(Object.keys((run.detail as { costs: Record<string, number> }).costs)).toContain("plan-article-refused-1");
   });

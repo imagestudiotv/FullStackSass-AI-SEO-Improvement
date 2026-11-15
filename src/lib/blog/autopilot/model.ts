@@ -57,9 +57,17 @@ function priced(usage: Anthropic.Usage, model: string): CallUsage {
  * used: cut off, refused, not the expected shape, or refused by a check
  * after it (a part with missing sections, a translation that changed the
  * links). Carries what the call cost, so the run still counts it.
+ *
+ * `final`: asking again cannot help (a comparison its sources do not
+ * support), so the run fails at once instead of paying for the same
+ * refusal on every retry.
  */
 export class SpentError extends Error {
-  constructor(message: string, readonly usage: CallUsage) {
+  constructor(
+    message: string,
+    readonly usage: CallUsage,
+    readonly final = false,
+  ) {
     super(message);
     this.name = "SpentError";
   }
