@@ -91,6 +91,27 @@ export function comparisonKey(brief: Pick<ComparisonBrief, "entities">): string 
     .join("|");
 }
 
+const folded = (value: string) => value.normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ");
+
+/**
+ * What is wrong when a title says "A vs B" but names none of the things to compare,
+ * or null. 2026-11-16: "RepGet vs Semrush: ..." was saved with its five criteria as
+ * the things to compare, so every fact the research found was about something not
+ * on the list, and the run was paid for and failed.
+ */
+export function comparisonTitleMismatch(title: string, brief: Pick<ComparisonBrief, "entities">): string | null {
+  const split = /\s+(?:vs\.?|versus)\s+/i;
+  if (!split.test(title)) return null;
+  const heading = folded(title);
+  if (brief.entities.some((entity) => heading.includes(folded(entity.name)))) return null;
+  const named = title
+    .split(/[:?|]/)[0]
+    .split(split)
+    .map((name) => name.trim())
+    .filter(Boolean);
+  return `The title compares ${named.map((name) => `"${name}"`).join(" and ")}, but "What to compare" names none of them. Put each product or option there, one per line as "Name | https://its-pricing-page", and what to compare them on under "Compare them on"`;
+}
+
 /** "Semrush vs Ahrefs vs Moz". */
 export function comparisonLabel(brief: Pick<ComparisonBrief, "entities">): string {
   return brief.entities.map((entity) => entity.name).join(" vs ");

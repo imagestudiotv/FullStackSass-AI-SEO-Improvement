@@ -202,6 +202,25 @@ describe("a comparison topic (client, 2026-11-05)", () => {
     expect(await addBlogAutopilotTopics({ topics: [bad] })).toEqual({ ok: false, error: 'The address for "Acme" is not a web address' });
   });
 
+  it("is refused when its title compares things that are not on the list, and a failed one is fixed by editing it (2026-11-16)", async () => {
+    const title = "RepGet vs Semrush: Which Is Better for Small Business SEO and AI Visibility?";
+    expect(await addBlogAutopilotTopics({ topics: [compare(title, "Pricing and value", "Keyword research")] })).toEqual({
+      ok: false,
+      error: expect.stringContaining('The title compares "RepGet" and "Semrush", but "What to compare" names none of them'),
+    });
+
+    // One saved before the check, then failed: trying it again unchanged is refused; edited, it can be.
+    const [{ id }] = await test.db
+      .insert(blogAutopilotTopics)
+      .values({ topic: title, articleType: "comparison", comparison: comparison("Pricing and value", "Keyword research"), status: "failed", error: "The sources do not support this comparison", sortOrder: 1, source: "admin" })
+      .returning({ id: blogAutopilotTopics.id });
+    expect(await retryBlogAutopilotTopic(id)).toEqual({ ok: false, error: expect.stringMatching(/names none of them.*Edit the topic first$/) });
+    expect(await saveBlogAutopilotTopic({ id, ...compare(title, "RepGet", "Semrush") })).toEqual({ ok: true, data: null });
+    const [edited] = await test.db.select().from(blogAutopilotTopics).where(eq(blogAutopilotTopics.id, id));
+    expect(edited).toMatchObject({ status: "failed", error: null });
+    expect(await retryBlogAutopilotTopic(id)).toEqual({ ok: true, data: null });
+  });
+
   it("cannot be added twice however it is worded: A vs B and B vs A are one article", async () => {
     await addBlogAutopilotTopics({ topics: [compare("Acme or Beta for a small shop", "Acme", "Beta")] });
     expect(await addBlogAutopilotTopics({ topics: [compare("Beta versus Acme, a guide", "BETA", "acme")] })).toEqual({ ok: true, data: { added: 0, skipped: ["Beta versus Acme, a guide"] } });
