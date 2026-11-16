@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { recordAdminAction } from "@/lib/admin/audit";
 import { requireAdmin } from "@/lib/admin/guard";
 import { isAiConfigured } from "@/lib/ai/client";
-import { cleanComparison, comparisonKey, readComparison, type ArticleType, type ComparisonBrief } from "@/lib/blog/autopilot/comparison-brief";
+import { cleanComparison, comparisonKey, comparisonTitleMismatch, readComparison, type ArticleType, type ComparisonBrief } from "@/lib/blog/autopilot/comparison-brief";
 import { startAutopilotRun } from "@/lib/blog/autopilot/run";
 import { SuggestError, suggestTopics } from "@/lib/blog/autopilot/suggest";
 import {
@@ -137,6 +137,8 @@ function cleanTopic(input: TopicInput): CleanTopic | string {
   if (input.articleType === "comparison") {
     const comparison = cleanComparison(input.comparison);
     if (typeof comparison === "string") return comparison;
+    const mismatch = comparisonTitleMismatch(topic, comparison);
+    if (mismatch) return mismatch;
     return { topic, keyword: keyword || null, notes: notes || null, articleType: "comparison", comparison };
   }
   return { topic, keyword: keyword || null, notes: notes || null, articleType: "informative", comparison: null };
@@ -411,7 +413,11 @@ export async function saveBlogAutopilotTopic(input: TopicInput & { id: string })
       .limit(1);
     if (clash) return "Another topic already says that";
     if (clean.comparison && (await comparisonsTaken(tx, current.id)).has(comparisonKey(clean.comparison))) return "Another topic already compares those";
-    await tx.update(blogAutopilotTopics).set({ ...clean, updatedAt: new Date() }).where(eq(blogAutopilotTopics.id, current.id));
+    // A failed topic's old error was about what it said before: it goes with the edit.
+    await tx
+      .update(blogAutopilotTopics)
+      .set({ ...clean, ...(current.status === "failed" ? { error: null } : {}), updatedAt: new Date() })
+      .where(eq(blogAutopilotTopics.id, current.id));
     await recordAdminAction(
       {
         actorEmail: admin.email,
@@ -498,6 +504,9 @@ export async function retryBlogAutopilotTopic(id: string): Promise<ActionResult<
     if (current.status !== "failed") return "Only a topic that could not be written can be tried again";
     // The same comparison may have been added since this one failed: trying again would pay for it twice.
     const comparison = current.articleType === "comparison" ? readComparison(current.comparison) : null;
+    // Saved before titles were checked: trying it again as it is would fail the same way, and be paid for again.
+    const mismatch = comparison ? comparisonTitleMismatch(current.topic, comparison) : null;
+    if (mismatch) return `${mismatch}. Edit the topic first`;
     if (comparison && (await comparisonsTaken(tx, current.id)).has(comparisonKey(comparison))) {
       return "Another topic already compares those, waiting or written. Remove this one instead of trying it again";
     }

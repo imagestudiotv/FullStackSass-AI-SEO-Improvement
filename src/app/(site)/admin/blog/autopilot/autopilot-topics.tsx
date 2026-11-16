@@ -324,6 +324,22 @@ function QueuedRow({ topic, place, first, last }: { topic: AdminAutopilotTopic; 
 
 function FailedRow({ topic }: { topic: AdminAutopilotTopic }) {
   const { pending, run } = useRun();
+  // A failed topic is usually fixed by changing what it says (its addresses, what it compares) before trying again.
+  const [editing, setEditing] = useState(false);
+
+  if (editing) {
+    return (
+      <li className="px-4 py-3 sm:px-5">
+        <TopicForm
+          initial={topic}
+          submitLabel="Save topic"
+          pending={pending}
+          onCancel={() => setEditing(false)}
+          onSubmit={(values) => run(() => saveBlogAutopilotTopic({ id: topic.id, ...topicInput(values) }), "Topic saved. Press Try again to write it", () => setEditing(false))}
+        />
+      </li>
+    );
+  }
   return (
     <li className="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-5">
       <div className="min-w-60 flex-1">
@@ -331,6 +347,10 @@ function FailedRow({ topic }: { topic: AdminAutopilotTopic }) {
         {topic.error ? <p className="mt-1 text-xs text-danger">{topic.error}</p> : null}
       </div>
       <div className="flex shrink-0 items-center gap-1">
+        <Button variant="outline" size="sm" disabled={pending} onClick={() => setEditing(true)}>
+          <Pencil aria-hidden="true" />
+          Edit
+        </Button>
         <Button variant="outline" size="sm" disabled={pending} onClick={() => run(() => retryBlogAutopilotTopic(topic.id), "Queued first")}>
           <RotateCcw aria-hidden="true" />
           Try again
@@ -437,17 +457,17 @@ function TopicForm({
         <div className="grid gap-3 rounded-lg border bg-muted/30 p-3">
           <div className="space-y-1.5">
             <label htmlFor={`${id}-entities`} className="text-sm font-medium">
-              What to compare, one per line
+              What to compare: the products or options, one per line
             </label>
             <Textarea
               id={`${id}-entities`}
               value={values.entities}
               rows={3}
-              placeholder={"First product | https://its-own-page.example\nSecond product | https://its-own-page.example"}
+              placeholder={"RepGet | https://www.repget.com/pricing\nSemrush | https://www.semrush.com/pricing/"}
               onChange={(event) => setValues({ ...values, entities: event.target.value })}
             />
             <p className="text-xs text-muted-foreground">
-              2 to 5. An address after &ldquo;|&rdquo; is read first as research. The article only states what its sources say, and with sources for fewer than two the run stops without writing anything.
+              2 to 5, named as in the title. An address after &ldquo;|&rdquo; (its pricing or features page) is read first as research. The article only states what its sources say, and with sources for fewer than two the run stops without writing anything. Price, features and the like go under &ldquo;Compare them on&rdquo;.
             </p>
           </div>
           <div className="space-y-1.5">
@@ -458,7 +478,7 @@ function TopicForm({
               id={`${id}-criteria`}
               value={values.criteria}
               rows={2}
-              placeholder={"Price\nWho it suits"}
+              placeholder={"Pricing and value\nKeyword research"}
               onChange={(event) => setValues({ ...values, criteria: event.target.value })}
             />
           </div>

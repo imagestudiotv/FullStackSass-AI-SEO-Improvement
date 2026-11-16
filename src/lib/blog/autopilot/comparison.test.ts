@@ -11,7 +11,7 @@ vi.mock("@/lib/db", () => ({ db: {} }));
 
 import { message } from "@/test/blog-autopilot";
 
-import { cleanComparison, comparisonKey, comparisonLabel, readComparison, type ComparisonBrief } from "./comparison-brief";
+import { cleanComparison, comparisonKey, comparisonLabel, comparisonTitleMismatch, readComparison, type ComparisonBrief } from "./comparison-brief";
 import {
   checkComparisonEvidence,
   comparisonChecks,
@@ -64,6 +64,21 @@ describe("the brief", () => {
     expect(cleanComparison({ entities: [{ name: "Semrush" }, { name: "https://www.semrush.com" }] })).toMatch(/is an address, not a name.*Name \| https:\/\/www\.semrush\.com/);
     expect(cleanComparison({ entities: [{ name: "Semrush" }, { name: "www.semrush.com" }] })).toMatch(/is an address/);
     expect(cleanComparison({ entities: [{ name: "Booking.com" }, { name: "Expedia" }] })).not.toBeTypeOf("string");
+  });
+
+  it("is refused when the title compares things that are not on the list (2026-11-16: the criteria were typed as the things to compare)", () => {
+    const things = (...names: string[]) => ({ entities: names.map((name) => ({ name, url: null })) });
+    const title = "RepGet vs Semrush: Which Is Better for Small Business SEO and AI Visibility?";
+    expect(comparisonTitleMismatch(title, things("Pricing and value", "Keyword research", "SEO automation"))).toBe(
+      'The title compares "RepGet" and "Semrush", but "What to compare" names none of them. Put each product or option there, one per line as "Name | https://its-pricing-page", and what to compare them on under "Compare them on"',
+    );
+    expect(comparisonTitleMismatch(title, things("RepGet", "Semrush"))).toBeNull();
+    // Any case, accents and spacing; one name in the title is enough ("Hiring an agency vs doing it yourself").
+    expect(comparisonTitleMismatch("REPGET versus  semrush", things("Repget", "Ahrefs"))).toBeNull();
+    expect(comparisonTitleMismatch("Café Pro vs. Tea Plus", things("cafe pro", "Other"))).toBeNull();
+    // A title that does not say "vs" is not judged: "Acme or Beta for a small shop".
+    expect(comparisonTitleMismatch("Which SEO tool for a small shop?", things("Acme", "Beta"))).toBeNull();
+    expect(comparisonTitleMismatch("Canvas tips", things("Acme", "Beta"))).toBeNull();
     expect(cleanComparison(null)).toMatch(/at least 2/);
     expect(readComparison({ entities: [] })).toBeNull();
   });
