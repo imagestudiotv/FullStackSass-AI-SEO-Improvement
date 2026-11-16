@@ -1,8 +1,10 @@
 "use client";
 
 import { Analytics } from "@vercel/analytics/next";
+import { useEffect } from "react";
 
 import { analyticsBeforeSend } from "@/lib/site-analytics";
+import { startConsentWithdrawalSync } from "@/lib/consent-withdrawal";
 
 /**
  * Visit statistics: Vercel Web Analytics, mounted once in the root layout so
@@ -31,5 +33,7 @@ import { analyticsBeforeSend } from "@/lib/site-analytics";
  * which logs page views to the console rather than sending them.
  */
 export function SiteAnalytics() {
+  // Mounted in every root document, including signed-in routes and router transitions.
+  useEffect(() => startConsentWithdrawalSync(), []);
   return <Analytics beforeSend={analyticsBeforeSend} />;
 }

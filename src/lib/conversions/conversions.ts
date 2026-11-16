@@ -1,14 +1,19 @@
-import { createHash } from "node:crypto";
+import { randomBytes } from "node:crypto";
 
 import { and, eq, gt, gte, sql } from "drizzle-orm";
 import { cookies } from "next/headers";
 
-import { CONSENT_COOKIE, parseConsent } from "@/lib/consent";
+import { CONSENT_COOKIE, CONSENT_MAX_AGE, parseConsent } from "@/lib/consent";
 import { account, billingCheckouts, plans } from "@/lib/db/schema";
 import type { Database } from "@/lib/db/types";
 import { measurementId, tagManagerId, type BrowserConversion } from "@/lib/google-analytics";
 
 import { gaClientId, gaSessionCookie, gaSessionId } from "./ga-identity";
+import { ANALYTICS_CONSENT_COOKIE, conversionId, validConsentKey } from "./config";
+import { revokeCheckoutConsent } from "./paid-acquisitions";
+
+export { conversionId, gaApiSecret } from "./config";
+export { reportFirstPayment } from "./paid-acquisitions";
 
 /**
  * The three conversions the client wants measured before any Google Ads
@@ -21,31 +26,17 @@ import { gaClientId, gaSessionCookie, gaSessionId } from "./ga-identity";
  *    lib/google-analytics.ts says how). Only for a visitor who accepted the
  *    cookie banner; the page asks the server for nothing else.
  *  - A PAID SUBSCRIPTION mostly happens with nobody there: the free articles
- *    end and Stripe charges the card 30 days later. So the FIRST real payment
- *    of a subscription is reported by the server, from the payment webhook,
+ *    end and the provider charges the card. The first paid workspace payment
+ *    is queued durably by the server from the payment ledger,
  *    through GA4's Measurement Protocol (reportFirstPayment), as a `purchase`
  *    for the GA identity the payer had when they started paying
  *    (rememberCheckoutVisitor). The same path covers a checkout paid at once
  *    and PayPal, so there is one source and nothing is counted twice.
- *    Google Ads imports these from GA4 (docs/site-analytics.md).
+ *    Google Ads must import the validated paid event from GA4 (docs/site-analytics.md).
  */
 
 /** How long after it happens a conversion is still reported from the browser. */
 export const BROWSER_WINDOW_MS = 60 * 60 * 1000;
-
-/** The Measurement Protocol secret (GA4 > Data streams > the stream > Measurement Protocol API secrets). Server only. */
-export function gaApiSecret(raw: string | undefined = process.env.GA4_API_SECRET): string | null {
-  const secret = raw?.trim();
-  return secret && /^[A-Za-z0-9_-]{8,100}$/.test(secret) ? secret : null;
-}
-
-/**
- * A conversion's id for Google: stable, so it is counted once, and opaque,
- * so none of our record ids leave as they are.
- */
-export function conversionId(kind: string, id: string): string {
-  return createHash("sha256").update(`repget:${kind}:${id}`).digest("hex").slice(0, 32);
-}
 
 /**
  * The conversions this person's browser should report now: their sign-up,
@@ -97,6 +88,9 @@ export type CheckoutVisitor = {
   clientId: string;
   sessionId: string | null;
   capturedAt: string;
+  /** First-party revocation proof, issued by rememberPayer after consent. Never sent to Google. */
+  consentKey?: string;
+  /** Legacy marker only; new delivery state lives in paid_acquisitions. */
   purchaseSentAt?: string;
 };
 
@@ -144,99 +138,23 @@ export async function rememberPayer(database: Database, checkoutId: string): Pro
   } catch {
     return;
   }
-  await rememberCheckoutVisitor(database, checkoutId, checkoutVisitor((name) => jar.get(name)?.value));
-}
-
-type Send = (url: string, init: RequestInit) => Promise<Response>;
-
-/**
- * Reports a subscription's FIRST real payment to GA4 as a `purchase`, once.
- *
- * Called by the Stripe and PayPal payment webhooks for every payment; it
- * does something only when the payment is for money, GA4_API_SECRET is set,
- * and the subscription's checkout kept the payer's GA identity (they had
- * accepted the cookie banner). The checkout row is CLAIMED before sending
- * (purchaseSentAt), so a replayed webhook or a renewal never reports again.
- * A failure is logged, never thrown: the payment is recorded either way.
- */
-export async function reportFirstPayment(
-  database: Database,
-  payment: {
-    provider: "stripe" | "paypal";
-    providerSubscriptionId: string;
-    externalId: string;
-    amountCents: number;
-    currency: string;
-    paidAt?: Date | null;
-  },
-  send: Send = fetch,
-  now: Date = new Date(),
-): Promise<"sent" | "skipped" | "failed"> {
-  const id = measurementId();
-  const secret = gaApiSecret();
-  if (!id || !secret || payment.amountCents <= 0) return "skipped";
-
+  const visitor = checkoutVisitor((name) => jar.get(name)?.value);
   try {
-    const claimed = await database
-      .update(billingCheckouts)
-      .set({
-        analytics: sql`${billingCheckouts.analytics} || jsonb_build_object('purchaseSentAt', ${now.toISOString()}::text)`,
-        updatedAt: sql`${billingCheckouts.updatedAt}`,
-      })
-      .where(
-        and(
-          eq(billingCheckouts.provider, payment.provider),
-          eq(billingCheckouts.providerSubscriptionId, payment.providerSubscriptionId),
-          sql`${billingCheckouts.analytics}->>'clientId' is not null`,
-          sql`${billingCheckouts.analytics}->>'purchaseSentAt' is null`,
-        ),
-      )
-      .returning({ analytics: billingCheckouts.analytics, planId: billingCheckouts.planId });
-    const row = claimed[0];
-    if (!row) return "skipped";
-    const visitor = row.analytics as CheckoutVisitor;
-
-    const [plan] = row.planId
-      ? await database.select({ name: plans.name }).from(plans).where(eq(plans.id, row.planId)).limit(1)
-      : [];
-    const value = Math.round(payment.amountCents) / 100;
-    // The visit it came from, only when the money came with it (a checkout paid at once).
-    const sameVisit = visitor.sessionId && now.getTime() - new Date(visitor.capturedAt).getTime() < 30 * 60 * 1000;
-    const paidAt = payment.paidAt && now.getTime() - payment.paidAt.getTime() < 72 * 60 * 60 * 1000 ? payment.paidAt : null;
-
-    const body = {
-      client_id: visitor.clientId,
-      ...(paidAt ? { timestamp_micros: paidAt.getTime() * 1000 } : {}),
-      consent: { ad_user_data: "GRANTED", ad_personalization: "GRANTED" },
-      events: [
-        {
-          name: "purchase",
-          params: {
-            transaction_id: conversionId("purchase", `${payment.provider}:${payment.externalId}`),
-            value,
-            currency: payment.currency.toUpperCase(),
-            payment_type: payment.provider,
-            ...(sameVisit ? { session_id: visitor.sessionId } : {}),
-            engagement_time_msec: 1,
-            items: [{ item_id: row.planId ?? "plan", item_name: plan?.name ?? "Subscription", price: value, quantity: 1 }],
-          },
-        },
-      ],
-    };
-    const url = `https://www.google-analytics.com/mp/collect?measurement_id=${encodeURIComponent(id)}&api_secret=${encodeURIComponent(secret)}`;
-    const response = await send(url, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(5000),
-    });
-    if (!response.ok) {
-      console.error(`[analytics] GA4 refused the purchase for ${payment.provider} ${payment.externalId}: HTTP ${response.status}`);
-      return "failed";
+    const existing = jar.get(ANALYTICS_CONSENT_COOKIE)?.value;
+    // A resumed checkout must honor the current refusal even if the browser's
+    // first-party withdrawal request has not reached the server yet.
+    if (parseConsent(`${CONSENT_COOKIE}=${jar.get(CONSENT_COOKIE)?.value ?? ""}`) === "denied" && validConsentKey(existing)) {
+      await revokeCheckoutConsent(database, existing);
+      return;
     }
-    return "sent";
-  } catch (error) {
-    console.error(`[analytics] could not report the purchase for ${payment.provider} ${payment.externalId}`, error);
-    return "failed";
+    if (!visitor) return;
+    const key = validConsentKey(existing) ? existing : randomBytes(16).toString("hex");
+    jar.set(ANALYTICS_CONSENT_COOKIE, key, {
+      httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: CONSENT_MAX_AGE,
+    });
+    await rememberCheckoutVisitor(database, checkoutId, { ...visitor, consentKey: key });
+  } catch {
+    // No revocation proof means no server conversion; never stop a customer's checkout.
+    console.error("[analytics] could not keep revocable checkout consent");
   }
 }

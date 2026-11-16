@@ -4,6 +4,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   billingCheckouts,
   organization,
+  paidAcquisitions,
   payments,
   plans,
   providerCancellations,
@@ -77,6 +78,7 @@ import { recoverWebhookEvents } from "@/lib/billing/webhook-recovery";
 import { cancellationOps } from "@/lib/billing/checkout-providers";
 import { POST as stripeWebhook } from "@/app/api/stripe/webhook/route";
 import { convertReferral, reverseReferralReward } from "@/lib/referrals/core";
+import { recoverPaidAcquisitions } from "@/lib/conversions/paid-acquisitions";
 
 let test: TestDb;
 let eventCounter = 0;
@@ -222,6 +224,57 @@ async function sendPayPal(
 async function subscriptionRows() {
   return test.db.select().from(subscriptions);
 }
+
+describe("paid acquisition end to end through verified webhook routes", () => {
+  it.each(["stripe", "paypal"] as const)("%s: ledger commit survives Analytics outage and recovers once", async provider => {
+    vi.stubEnv("NEXT_PUBLIC_GA4_MEASUREMENT_ID", "G-ABC123XYZ");
+    vi.stubEnv("GA4_API_SECRET", "test_secret");
+    const send = vi.fn(async () => new Response(null, { status: 503 }));
+    vi.stubGlobal("fetch", send);
+    const paidAt = new Date(Math.floor(Date.now() / 1000) * 1000);
+    const sub = provider === "stripe" ? "sub_acquisition" : "I-ACQUISITION";
+    try {
+      const site = await addSite();
+      await test.db.insert(billingCheckouts).values({
+        organizationId: "org_a", websiteId: site.id, provider, providerSubscriptionId: sub, status: "completed",
+        analytics: { clientId: "111.222", sessionId: "1700000000", capturedAt: new Date(paidAt.getTime() - 300_000).toISOString(), consentKey: "a".repeat(32) },
+      });
+      let status: number;
+      if (provider === "stripe") {
+        state.subscription = stripeSubscription(sub, "active", { organizationId: "org_a", websiteId: site.id });
+        expect(await sendStripe("invoice.payment_failed", {
+          id: "in_acquisition", amount_paid: 0, amount_due: 9900, currency: "eur",
+          parent: { subscription_details: { subscription: sub } }, lines: { data: [] },
+        }, { keepProviderState: true })).toBe(200);
+        status = await sendStripe("invoice.paid", {
+          id: "in_acquisition", amount_paid: 4900, currency: "eur", status_transitions: { paid_at: paidAt.getTime() / 1000 },
+          parent: { subscription_details: { subscription: sub } }, lines: { data: [] },
+        }, { keepProviderState: true });
+      } else {
+        expect(await sendPayPal("PAYMENT.SALE.DENIED", {
+          id: "sale_acquisition", billing_agreement_id: sub, amount: { total: "99.00", currency: "EUR" },
+          update_time: new Date(paidAt.getTime() - 86_400_000).toISOString(),
+        }, { id: sub, status: "ACTIVE", custom_id: `org_a:${site.id}` })).toBe(200);
+        status = await sendPayPal("PAYMENT.SALE.COMPLETED", {
+          id: "sale_acquisition", billing_agreement_id: sub, amount: { total: "49.00", currency: "EUR" }, update_time: paidAt.toISOString(),
+        }, { id: sub, status: "ACTIVE", custom_id: `org_a:${site.id}` });
+      }
+      expect(status).toBe(200); // Payment handling must not fail because Analytics is unavailable.
+      const [payment] = await test.db.select().from(payments);
+      expect(payment).toMatchObject({ provider, status: "paid", amountCents: 4900, paidAt });
+      expect((await test.db.select().from(paidAcquisitions))[0]).toMatchObject({ status: "pending", paymentId: payment.id, deliveredAt: null });
+      expect(send).toHaveBeenCalledTimes(1);
+      send.mockResolvedValue(new Response(null, { status: 204 }));
+      expect((await recoverPaidAcquisitions(test.db, send, new Date(paidAt.getTime() + 60_000))).delivered).toBe(1);
+      expect((await recoverPaidAcquisitions(test.db, send, new Date(paidAt.getTime() + 120_000))).delivered).toBe(0);
+      expect(send).toHaveBeenCalledTimes(2); // Initial failure, then one successful retry.
+    } finally {
+      vi.unstubAllGlobals();
+      vi.stubEnv("NEXT_PUBLIC_GA4_MEASUREMENT_ID", "");
+      vi.stubEnv("GA4_API_SECRET", "");
+    }
+  });
+});
 
 describe("Stripe: checkout opened before deletion, completed after", () => {
   it("records the subscription unattached, cancels it, and answers 200", async () => {

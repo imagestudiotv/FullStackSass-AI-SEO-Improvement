@@ -4,8 +4,15 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 import { account, billingCheckouts, organization, plans, user } from "@/lib/db/schema";
 import { createTestDb, type TestDb } from "@/test/db";
 
-import { checkoutVisitor, conversionId, pendingConversions, rememberCheckoutVisitor, reportFirstPayment } from "./conversions";
+import { checkoutVisitor, conversionId, pendingConversions, rememberCheckoutVisitor, rememberPayer } from "./conversions";
+import { ANALYTICS_CONSENT_COOKIE } from "./config";
 import { gaClientId, gaSessionId } from "./ga-identity";
+
+const jarState = vi.hoisted(() => ({ values: {} as Record<string, string>, set: vi.fn() }));
+vi.mock("next/headers", () => ({ cookies: async () => ({
+  get: (name: string) => jarState.values[name] ? { value: jarState.values[name] } : undefined,
+  set: jarState.set,
+}) }));
 
 /**
  * The three conversions for Google Ads (client, 2026-10-09): which sign-ups
@@ -38,6 +45,8 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
+  jarState.values = {};
+  jarState.set.mockClear();
   vi.stubEnv("NEXT_PUBLIC_GA4_MEASUREMENT_ID", "G-ABC123XYZ");
   vi.stubEnv("NEXT_PUBLIC_GTM_ID", "");
   vi.stubEnv("GA4_API_SECRET", "secret_ABCDEFGH");
@@ -124,91 +133,22 @@ describe("the payer's GA identity", () => {
     expect(after.analytics).toEqual({ clientId: "111.222", sessionId: null, capturedAt: NOW.toISOString() });
     expect(after.updatedAt).toEqual(row.updatedAt);
   });
-});
 
-describe("reportFirstPayment", () => {
-  const PAYMENT = {
-    provider: "stripe" as const,
-    providerSubscriptionId: "sub_1",
-    externalId: "in_1",
-    amountCents: 4900,
-    currency: "eur",
-    paidAt: minutesAgo(1),
-  };
-
-  async function paying(capturedMinutesAgo = 5) {
-    return checkout({
-      providerSubscriptionId: "sub_1",
-      analytics: { clientId: "111.222", sessionId: "1700000000", capturedAt: minutesAgo(capturedMinutesAgo).toISOString() },
-    });
-  }
-
-  it("sends the first payment for money as a purchase, once", async () => {
-    const row = await paying();
-    const send = vi.fn(async () => new Response(null, { status: 204 }));
-    expect(await reportFirstPayment(test.db, PAYMENT, send, NOW)).toBe("sent");
-
-    const [url, init] = send.mock.calls[0] as unknown as [string, RequestInit];
-    expect(url).toBe("https://www.google-analytics.com/mp/collect?measurement_id=G-ABC123XYZ&api_secret=secret_ABCDEFGH");
-    expect(JSON.parse(init.body as string)).toEqual({
-      client_id: "111.222",
-      timestamp_micros: PAYMENT.paidAt.getTime() * 1000,
-      consent: { ad_user_data: "GRANTED", ad_personalization: "GRANTED" },
-      events: [
-        {
-          name: "purchase",
-          params: {
-            transaction_id: conversionId("purchase", "stripe:in_1"),
-            value: 49,
-            currency: "EUR",
-            payment_type: "stripe",
-            session_id: "1700000000",
-            engagement_time_msec: 1,
-            items: [{ item_id: planId, item_name: "Growth", price: 49, quantity: 1 }],
-          },
-        },
-      ],
-    });
-
-    // A replayed webhook, or next month's renewal: nothing more.
-    expect(await reportFirstPayment(test.db, PAYMENT, send, NOW)).toBe("skipped");
-    expect(await reportFirstPayment(test.db, { ...PAYMENT, externalId: "in_2" }, send, NOW)).toBe("skipped");
-    expect(send).toHaveBeenCalledTimes(1);
+  it("issues an HttpOnly first-party withdrawal proof only for an accepted checkout", async () => {
+    const row = await checkout({});
+    jarState.values = { repget_consent: "2.granted", _ga: "GA1.1.111.222", _ga_ABC123XYZ: "GS2.1.s1700000000$o1" };
+    await rememberPayer(test.db, row.id);
+    expect(jarState.set).toHaveBeenCalledWith(ANALYTICS_CONSENT_COOKIE, expect.stringMatching(/^[0-9a-f]{32}$/), expect.objectContaining({ httpOnly: true, path: "/", sameSite: "lax" }));
     const [after] = await test.db.select().from(billingCheckouts).where(eq(billingCheckouts.id, row.id));
-    expect(after.analytics).toMatchObject({ purchaseSentAt: NOW.toISOString() });
-    expect(after.updatedAt).toEqual(row.updatedAt);
+    expect(after.analytics).toMatchObject({ clientId: "111.222", consentKey: jarState.set.mock.calls[0][1] });
   });
 
-  it("after the free articles, leaves out the visit they started paying in", async () => {
-    await paying(30 * 24 * 60);
-    const send = vi.fn(async () => new Response(null, { status: 204 }));
-    await reportFirstPayment(test.db, PAYMENT, send, NOW);
-    const body = JSON.parse((send.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
-    expect(body.events[0].params.session_id).toBeUndefined();
-    expect(body.client_id).toBe("111.222");
-  });
-
-  it("sends nothing for a free period, without the secret, or for a payer who did not accept", async () => {
-    await paying();
-    const send = vi.fn(async () => new Response(null, { status: 204 }));
-    expect(await reportFirstPayment(test.db, { ...PAYMENT, amountCents: 0 }, send, NOW)).toBe("skipped");
-    vi.stubEnv("GA4_API_SECRET", "");
-    expect(await reportFirstPayment(test.db, PAYMENT, send, NOW)).toBe("skipped");
-    vi.stubEnv("GA4_API_SECRET", "secret_ABCDEFGH");
-    expect(await reportFirstPayment(test.db, { ...PAYMENT, providerSubscriptionId: "sub_other" }, send, NOW)).toBe("skipped");
-    expect(await reportFirstPayment(test.db, { ...PAYMENT, provider: "paypal" }, send, NOW)).toBe("skipped");
-    expect(send).not.toHaveBeenCalled();
-  });
-
-  it("logs a failure instead of failing the webhook", async () => {
-    await paying();
-    const log = vi.spyOn(console, "error").mockImplementation(() => {});
-    expect(await reportFirstPayment(test.db, PAYMENT, async () => new Response("no", { status: 500 }), NOW)).toBe("failed");
-    await checkout({ providerSubscriptionId: "sub_2", analytics: { clientId: "1.2", sessionId: null, capturedAt: NOW.toISOString() } });
-    const thrown = async () => {
-      throw new Error("network");
-    };
-    expect(await reportFirstPayment(test.db, { ...PAYMENT, providerSubscriptionId: "sub_2" }, thrown, NOW)).toBe("failed");
-    log.mockRestore();
+  it("a declined resumed checkout clears its saved identity even before browser synchronization", async () => {
+    const key = "a".repeat(32);
+    const row = await checkout({ analytics: { clientId: "111.222", sessionId: null, capturedAt: NOW.toISOString(), consentKey: key } });
+    jarState.values = { repget_consent: "2.denied", [ANALYTICS_CONSENT_COOKIE]: key };
+    await rememberPayer(test.db, row.id);
+    expect(jarState.set).not.toHaveBeenCalled();
+    expect((await test.db.select().from(billingCheckouts).where(eq(billingCheckouts.id, row.id)))[0].analytics).toBeNull();
   });
 });

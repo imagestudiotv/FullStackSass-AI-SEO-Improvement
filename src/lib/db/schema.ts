@@ -363,8 +363,9 @@ export const billingCheckouts = pgTable(
      * The payer's Google Analytics identity when they started paying, kept
      * ONLY for a visitor who had accepted the cookie banner
      * (lib/conversions/conversions.ts): { clientId, sessionId, capturedAt },
-     * plus purchaseSentAt once the subscription's first real payment has
-     * been reported to GA. Null for everyone else.
+     * plus a first-party consentKey for revocation. purchaseSentAt is a
+     * legacy marker only: delivery now lives in paid_acquisitions. Null for
+     * visitors without consent; withdrawal clears both saved identities.
      */
     analytics: jsonb("analytics"),
     ...timestamps,
@@ -2485,6 +2486,38 @@ export const payments = pgTable(
       "payments_refunded_check",
       sql`${table.refundedCents} >= 0 and ${table.refundedCents} <= greatest(${table.amountCents}, 0)`,
     ),
+  ],
+);
+
+/** One new-paying-workspace event, delivered independently of payment handling. */
+export const paidAcquisitions = pgTable(
+  "paid_acquisitions",
+  {
+    id: pk(),
+    organizationId: organizationId(),
+    paymentId: uuid("payment_id").references(() => payments.id, { onDelete: "set null" }),
+    checkoutId: uuid("checkout_id").references(() => billingCheckouts.id, { onDelete: "set null" }),
+    /** Immutable checkout identity for retries; erased when consent is withdrawn. */
+    visitor: jsonb("visitor"),
+    /** Pin the destination: changing deployment configuration must not silently reattribute queued work. */
+    measurementId: text("measurement_id"),
+    /** pending | delivered | suppressed | legacy | expired */
+    status: text("status").default("pending").notNull(),
+    occurredAt: timestamp("occurred_at").notNull(),
+    attempts: integer("attempts").default(0).notNull(),
+    nextAttemptAt: timestamp("next_attempt_at").defaultNow().notNull(),
+    claimToken: uuid("claim_token"),
+    claimedUntil: timestamp("claimed_until"),
+    deliveredAt: timestamp("delivered_at"),
+    /** Fixed internal reason/status only; never a provider URL or secret. */
+    lastError: text("last_error"),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("paid_acquisitions_org_uidx").on(table.organizationId),
+    index("paid_acquisitions_due_idx").on(table.status, table.nextAttemptAt),
+    check("paid_acquisitions_status_check", sql`${table.status} in ('pending', 'delivered', 'suppressed', 'legacy', 'expired')`),
+    check("paid_acquisitions_attempts_check", sql`${table.attempts} >= 0`),
   ],
 );
 

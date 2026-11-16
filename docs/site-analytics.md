@@ -14,7 +14,7 @@ This document is about the second one. It is not the customers' own Google conne
 | Cookie banner | `components/consent-banner.tsx`, mounted in the marketing shell and the auth layout | Asks once and remembers the answer for 6 months in the `repget_consent` cookie. Accept and Decline carry equal weight. "Cookie settings" in the footer, and on the privacy page, opens it again. |
 | Tag | `lib/google-analytics.ts` | Google Consent Mode v2: every signal denied before anything else, then the visitor's answer. Loads `gtag.js` only after Accept (or, in advanced consent mode, cookieless before an answer). Otherwise it loads at the visitor's first scroll, tap or key press, or after 20 seconds, because Google's scripts are most of the page's JavaScript. Everything queued is sent then, so only a visitor who does nothing for 20 seconds goes uncounted. It sends our own `page_view` with a **cleaned** address: no query string, no fragment, invite codes and record IDs replaced (`lib/site-analytics.ts`, the same rules as Vercel). Another site's referrer is cut to its origin. Google signals and ad personalisation are off. GA cookies last 13 months. |
 | Where it counts | the banner component's lifetime | Leaving the public pages (into the signed-in app or admin) unmounts the banner and silences GA with Google's `ga-disable-<ID>` flag. Signed-in page titles name customers' articles, so they are never sent. |
-| Decline / withdraw | the banner | Silences GA and deletes `_ga` and `_ga_<ID>`. |
+| Decline / withdraw | the banner and `lib/consent-withdrawal.ts` | Silences Google tags, deletes their cookies and posts a first-party withdrawal. Saved checkout identities and pending paid events for that browser are cleared. Offline requests retry while the page is open and on the next page/reconnect. An already in-flight Google request cannot be recalled. |
 | Admin page | `lib/admin/ga4.ts`, `lib/admin/site-traffic.ts`, `app/admin/analytics` | Reads the property through the GA4 Data API as a read-only service account. Nothing is stored in the database. |
 | CSP | `lib/security-headers.ts` | `*.googletagmanager.com` (script), plus `*.google-analytics.com` and `*.analytics.google.com` (connect). Google Ads' hosts only when `NEXT_PUBLIC_GTM_ID` is set. |
 | Conversions | `lib/conversions/conversions.ts`, `components/conversion-events.tsx` | Sign-up, start of the free trial, first real payment. See "Google Ads" below. |
@@ -86,17 +86,29 @@ Added 2026-10-10 for the client's request to measure sign-ups, free trials and p
 |---|---|---|---|
 | `sign_up` | The first signed-in page in the hour after an account is created | the browser | `method`: `email` or `google` |
 | `start_trial` | The first signed-in page in the hour after a checkout with a free trial completes | the browser | `plan` |
-| `purchase` | A subscription's **first** payment for money, by Stripe or PayPal: at once for a checkout paid at once, otherwise when the 3-day free trial ends (by card and through PayPal; legacy free-articles trials from before 2026-11-13: by card all three written or after 30 days, through PayPal "Start my plan now" or after 30 days) | the server (GA4 Measurement Protocol) | `value`, `currency`, `transaction_id`, `items` (the plan), `payment_type` |
+| `purchase` | A workspace's first positive payment, only when it belongs to a completed subscription checkout with a current revocable consent identity | the durable `paid_acquisitions` queue (GA4 Measurement Protocol) | Ledger amount/currency, stable opaque `transaction_id`, actual payment time, plan and payment provider |
 
-Renewals are not reported as new conversions. The browser remembers which conversions it has sent, so a reload does not count one twice. Signed-in pages send them with the title "RepGet" and a cleaned address, then silence GA again.
+The acquisition unit is a **new paying workspace**, not a unique human across several workspaces. Renewals, another subscription, another provider and reactivations do not produce another acquisition for the workspace. Prior positive payments, including refunded ones, disqualify a later subscription from being new. Credit and other one-off purchases never emit this acquisition event. The first observed positive ledger payment is authoritative; incomplete historical provider data still needs reconciliation before relying on acquisition totals.
 
-`purchase` comes from the server because, for most customers, the money arrives after they have left the site: when their 3-day trial ends. When they start paying, the checkout keeps their GA identity (the `_ga` cookie's client id, nothing else), and only if they had accepted.
+The browser remembers which signup/trial events it has sent, so a reload does not count one twice. Signed-in pages send them with the title "RepGet" and a cleaned address, then silence GA again.
+
+`purchase` comes from the server because the money can arrive after the customer leaves. A consenting checkout saves the GA client/session identity and an opaque first-party revocation key. The key is issued in the HttpOnly `repget_analytics_consent` cookie only after accepted consent and is never sent to Google. Checkouts captured before this revocation mechanism are conservatively excluded; a later renewal is not substituted.
+
+### Reliable paid delivery (migration 0094)
+
+- The first payment is recorded in `payments` before analytics work. `reportFirstPayment` creates one `paid_acquisitions` record per workspace; its source is the ledger, not a webhook argument or a visited URL.
+- Payment handling does not fail for a Google outage. A failed send stays pending with bounded backoff and a token lease. The registered `paid-acquisition-deliver` Inngest cron runs every five minutes, also discovering ledger commits whose request died before queueing. No in-memory/background-after-response worker is required.
+- Retries keep the original transaction ID, payment time, captured identity and destination measurement ID. A missing API secret leaves work pending. A changed measurement ID requires investigation rather than sending the old identity to a new property. Fixed reason codes and cron counts expose failures without logging API-secret URLs.
+- A transport-accepted request is marked `delivered` **after** sending, and its queued identity is cleared. This is HTTP acceptance, not proof of GA4 validation or Google Ads attribution. An acknowledgement-lost retry can send again with the same transaction ID; verify downstream deduplication. No distributed network send can promise exactly-once delivery by itself.
+- Pending events older than 72 hours expire without being redated. Fully refunded payments and withdrawn/expired consent are suppressed before delivery. Refunds after delivery still require ledger reconciliation/Analytics or Ads adjustments; this change does not implement value-based bidding or refund uploads.
+- Migration `0094_paid_acquisitions` creates the server-only RLS table and marks every existing positive paid/refunded workspace `legacy`. **It deliberately does not replay old sales or uncertain legacy `purchaseSentAt` markers.** Apply it once through the normal migration journal, before code rollout. Reconcile the historical baseline before allowing ad spend.
+- Delayed trial-to-paid attribution remains a release gate: client identity alone is not proof that Google Ads credited the correct click. The sender never invents an old session or backdates the actual payment to the checkout. Confirm the supported attribution path for the real delay and live configuration before bidding.
 
 - **Tag Manager** (optional, `NEXT_PUBLIC_GTM_ID`). The container is loaded **beside** GA, never instead of it. It receives the consent signals and `sign_up` / `start_trial` as dataLayer events with a `transaction_id`. `purchase` is not in the dataLayer, because it happens on the server.
 
 ### Owner setup (in this order)
 
-1. **Database**: apply migration `0053_checkout_analytics` (one new empty column).
+1. **Database**: use the normal migration runner through `0094_paid_acquisitions`, including the historical baseline described above. Do not re-run individual history files manually.
 2. **GA4 Measurement Protocol secret**: in GA, go to Admin > Data streams > the web stream > Measurement Protocol API secrets > Create. Give it a nickname such as "RepGet server" and copy the **Secret value**.
 3. **Vercel** (Production), then redeploy:
    - `GA4_API_SECRET`: the secret from step 2.
@@ -104,7 +116,9 @@ Renewals are not reported as new conversions. The browser remembers which conver
    - `NEXT_PUBLIC_GTM_ID`: only if a Tag Manager container is wanted (step 7).
 4. **Key events in GA**: go to Admin > Data display > Key events > New key event. Add `sign_up`, `start_trial` and `purchase`, spelled exactly like that.
 5. **Link Google Ads to GA**: in GA, go to Admin > Product links > Google Ads links > Link, and choose the Ads account. In Google Ads, keep **auto-tagging** on (Admin > Account settings).
-6. **Import the conversions into Google Ads**: go to Goals > Conversions > Summary > + New conversion action > Import > Google Analytics 4 properties > Web. Tick `purchase`, `start_trial` and `sign_up`. Make `purchase` (and, if wanted, `start_trial`) **Primary**, and `sign_up` **Secondary**, so bidding aims at paying customers.
+6. **Import and verify the paid conversion in Google Ads**: import the relevant GA4 event and validate its amount, deduplication and attribution. For paying-customer acquisition, only the validated paid event belongs in the campaign's bidding goal. Keep signup, trial, call and page-engagement actions **Secondary**. Secondary actions included in a custom goal can still be biddable, so check the actual campaign goal. Do not import the same paid event twice through both direct Ads and GA4 tracking.
+
+   Live read-only audit on 16 November 2026 found a primary Purchases action named **Success Page**, defined as page load `www.repget.com/success-stories`. That is customer-story engagement, not a sale. Remove it from acquisition bidding (retain secondary engagement if useful). The enabled **AI-qualified call leads** action was also primary. Code deployment does not correct these external account settings.
 7. **Tag Manager (optional)**: create a Web container for `www.repget.com` and put its `GTM-...` id in Vercel (step 3).
    - Add a **Conversion Linker** tag on All Pages.
    - Add one **Google Ads Conversion Tracking** tag per conversion. Use the Conversion ID and Label from Google Ads, a **Custom Event** trigger named `sign_up` or `start_trial`, and a **Data Layer Variable** `transaction_id` as the Transaction ID.
@@ -114,11 +128,15 @@ Renewals are not reported as new conversions. The browser remembers which conver
 
 ### Test end to end before any ad spend
 
+Start in provider sandboxes and a test GA4 property. Run the focused `conversions`, `paid-acquisitions`, `consent-withdrawal` and billing webhook tests: real disposable Postgres and real handlers, external services replaced at their boundaries. Cover zero trial → positive payment → replay → renewal, failed send → cron recovery, process death, consent withdrawal and historical backfill. Validate representative payloads with [Google's non-reporting Measurement Protocol validator](https://developers.google.com/analytics/devguides/collection/protocol/ga4/validating-events). A mocked HTTP204 is not end-to-end production attribution proof.
+
+The following live-property verification requires an approved environment and test arrangement. Do not create fake production purchases, charge/refund a real card or launch ads solely to unlock metrics without authorization.
+
 1. In a private window, open `https://www.repget.com/?utm_source=test&utm_medium=cpc&utm_campaign=setup-test` and press **Accept**.
 2. In GA, go to Reports > Realtime. You appear, with source `test`.
 3. Sign up with a new email address and finish the first onboarding screen. Within a minute, Realtime > "Event count by Event name" shows `sign_up`.
 4. Choose a plan with the free trial and complete the Stripe page (nothing is charged). On the next screen, Realtime shows `start_trial`.
-5. To test `purchase`, either let the test account's 3-day trial end (the plan then starts and is charged), or buy a plan with a workspace that has had one before (it gets no trial, so it pays at once). Then refund it from Admin > Payments. Within a few minutes of the charge, Realtime shows `purchase` with the amount.
+5. With an approved genuinely new test workspace, confirm one first positive payment reaches the intended GA4 property with the actual amount/time. Check a delayed payment too. Replaying the payment or renewing must not add another acquisition. Reconcile refund/cancellation effects separately. A workspace that paid before is deliberately ineligible for this acquisition test.
 6. Footer > Cookie settings > Decline. The `_ga` and `_gcl_` cookies disappear, and no more `collect` requests are sent.
 7. With Tag Manager: use its **Preview** button (Tag Assistant) on www.repget.com and repeat steps 3-4. The Ads conversion tags fire on `sign_up` and `start_trial`.
 8. In Google Ads, the imported conversions show "Recording conversions" within 24-48 hours.
