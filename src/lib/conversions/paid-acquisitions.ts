@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { and, asc, eq, gt, inArray, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
+import { and, asc, eq, exists, gt, inArray, isNotNull, isNull, lt, lte, not, notExists, or, sql } from "drizzle-orm";
 
 import { CONSENT_MAX_AGE } from "@/lib/consent";
 import { billingCheckouts, paidAcquisitions, payments, plans } from "@/lib/db/schema";
@@ -21,6 +21,8 @@ const SKEW_MS = 5 * 60_000;
 // Subscription money only. PayPal credit packs share this ledger without a subscription id (Stripe's go to
 // addon_purchases), so otherwise a trial's credit purchase would block its first subscription charge.
 const positivePayment = and(gt(payments.amountCents, 0), inArray(payments.status, ["paid", "refunded"]), isNotNull(payments.providerSubscriptionId));
+/** Checkout states that may still complete: a first payment matching only these waits (see enqueueFirstPayment). */
+const UNFINISHED = ["open", "unresolved", "abandoned"];
 
 function visitor(value: unknown, now: Date): CheckoutVisitor | null {
   if (!value || typeof value !== "object") return null;
@@ -52,10 +54,11 @@ async function enqueueFirstPayment(database: Database, organizationId: string, n
   const age = now.getTime() - payment.paidAt.getTime();
   if (!checkout && payment.providerSubscriptionId && age < MAX_AGE_MS) {
     // Activation can trail the payment (PayPal may report the sale before the subscription is active).
-    // Leave it to a later recovery pass rather than suppress it for good.
+    // Leave it to a later recovery pass rather than suppress it for good. recoverPaidAcquisitions skips
+    // exactly these workspaces, so they never take a place in its bounded batch.
     const [unfinished] = await database.select({ id: billingCheckouts.id }).from(billingCheckouts).where(and(
       eq(billingCheckouts.organizationId, organizationId), eq(billingCheckouts.provider, payment.provider),
-      eq(billingCheckouts.providerSubscriptionId, payment.providerSubscriptionId), inArray(billingCheckouts.status, ["open", "unresolved", "abandoned"]),
+      eq(billingCheckouts.providerSubscriptionId, payment.providerSubscriptionId), inArray(billingCheckouts.status, UNFINISHED),
     )).limit(1);
     if (unfinished) return null;
   }
@@ -188,11 +191,34 @@ export async function deliverPaidAcquisitions(
 /**
  * Finds ledger commits whose request died before enqueueing. Migration 0094
  * marks existing paying workspaces as legacy, so this cannot replay historical sales.
+ *
+ * GUARANTEED PROGRESS. The batch is bounded, so it must never be filled by
+ * workspaces enqueueFirstPayment would only defer: twenty first payments
+ * waiting on unfinished checkouts used to take every place on every pass,
+ * and a completed payment outside them was found only after its 72 hours
+ * (review of PR #133, 2026-11-17). Each workspace's first payment is
+ * selected exactly as enqueueFirstPayment selects it, and the deferred ones
+ * - under 72 hours old, no completed checkout, an unfinished one - are left
+ * out, so every workspace in the batch is decided on this pass. A deferred
+ * one returns by itself once its checkout completes or its 72 hours pass.
+ * Oldest first: those nearest the end of their window go before newer ones.
  */
 export async function recoverPaidAcquisitions(database: Database, send: Send = fetch, now = new Date()): Promise<AcquisitionDelivery & { discovered: number }> {
-  const missing = await database.selectDistinct({ organizationId: payments.organizationId }).from(payments)
+  const first = database.selectDistinctOn([payments.organizationId], {
+    organizationId: payments.organizationId, provider: payments.provider,
+    subscriptionId: payments.providerSubscriptionId, paidAt: payments.paidAt,
+  }).from(payments)
     .leftJoin(paidAcquisitions, eq(paidAcquisitions.organizationId, payments.organizationId))
-    .where(and(positivePayment, isNull(paidAcquisitions.id))).limit(LIMIT);
+    .where(and(positivePayment, isNull(paidAcquisitions.id)))
+    .orderBy(payments.organizationId, asc(payments.paidAt), asc(payments.createdAt), asc(payments.id))
+    .as("first_payment");
+  const checkoutIn = (statuses: string[]) => database.select({ id: billingCheckouts.id }).from(billingCheckouts).where(and(
+    eq(billingCheckouts.organizationId, first.organizationId), eq(billingCheckouts.provider, first.provider),
+    eq(billingCheckouts.providerSubscriptionId, first.subscriptionId), inArray(billingCheckouts.status, statuses),
+  ));
+  const deferred = and(gt(first.paidAt, new Date(now.getTime() - MAX_AGE_MS)), notExists(checkoutIn(["completed"])), exists(checkoutIn(UNFINISHED)));
+  const missing = await database.select({ organizationId: first.organizationId }).from(first)
+    .where(not(deferred!)).orderBy(asc(first.paidAt), asc(first.organizationId)).limit(LIMIT);
   let discovered = 0;
   for (const row of missing) if (await enqueueFirstPayment(database, row.organizationId, now)) discovered++;
   return { discovered, ...await deliverPaidAcquisitions(database, { now }, send) };

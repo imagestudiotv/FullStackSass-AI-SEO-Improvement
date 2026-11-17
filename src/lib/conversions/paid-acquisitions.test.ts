@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { NextRequest } from "next/server";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -143,6 +143,36 @@ describe("paid acquisition ledger to delivery", () => {
     await test.db.update(billingCheckouts).set({ status: "abandoned" }).where(eq(billingCheckouts.id, stale.checkout.id));
     await recoverPaidAcquisitions(test.db, send, NOW);
     expect((await test.db.select().from(paidAcquisitions).where(eq(paidAcquisitions.organizationId, "org_b")))[0]).toMatchObject({ status: "suppressed", lastError: "not_subscription_checkout" });
+  });
+
+  it("deferred checkouts never fill the recovery batch: a completed payment is found at once, the rest as they complete or expire", async () => {
+    // More waiting workspaces than one batch (20), named and dated to come before the completed one.
+    const waiting = Array.from({ length: 25 }, (_, n) => `wait_${String(n).padStart(2, "0")}`);
+    await test.db.insert(organization).values([...waiting, "zz_valid"].map(id => ({ id, name: id, slug: id, createdAt: NOW }))).onConflictDoNothing();
+    const open: string[] = [];
+    for (const org of waiting) {
+      const { checkout } = await paid({ provider: "paypal", org, occurredAt: later(-30) });
+      open.push(checkout.id);
+    }
+    await test.db.update(billingCheckouts).set({ status: "open" }).where(inArray(billingCheckouts.id, open));
+    const valid = await paid({ provider: "paypal", org: "zz_valid", occurredAt: later(-1) });
+    const send = vi.fn(async () => new Response(null, { status: 204 }));
+
+    expect(await recoverPaidAcquisitions(test.db, send, NOW)).toMatchObject({ discovered: 1, delivered: 1 });
+    expect(body(send).events[0].params.transaction_id).toBe(conversionId("purchase", `paypal:${valid.payment.externalId}`));
+    // Repeated passes: the waiting ones stay undecided, with no row of their own.
+    for (const minutes of [5, 10]) expect(await recoverPaidAcquisitions(test.db, send, later(minutes))).toMatchObject({ discovered: 0, delivered: 0 });
+    expect(await test.db.select().from(paidAcquisitions)).toHaveLength(1);
+
+    // Their checkouts complete later: found across more than one batch, each with its own payment time.
+    await test.db.update(billingCheckouts).set({ status: "completed" }).where(inArray(billingCheckouts.id, open.slice(0, 24)));
+    expect(await recoverPaidAcquisitions(test.db, send, later(15))).toMatchObject({ discovered: 20, delivered: 20 });
+    expect(await recoverPaidAcquisitions(test.db, send, later(20))).toMatchObject({ discovered: 4, delivered: 4 });
+
+    // The one never completed is decided once its 72 hours pass, never sent.
+    expect(await recoverPaidAcquisitions(test.db, send, later(72 * 60))).toMatchObject({ discovered: 1, delivered: 0 });
+    expect((await test.db.select().from(paidAcquisitions).where(eq(paidAcquisitions.organizationId, "wait_24")))[0]).toMatchObject({ status: "suppressed", lastError: "not_subscription_checkout" });
+    expect(send).toHaveBeenCalledTimes(25);
   });
 
   it("a provider clock a little ahead waits until the payment time, never sends a future or shifted time", async () => {
