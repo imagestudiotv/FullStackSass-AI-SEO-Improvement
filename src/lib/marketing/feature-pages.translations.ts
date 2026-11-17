@@ -190,7 +190,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
         },
         {
           title: "Seguimiento de su visibilidad en la IA",
-          body: "Añada las preguntas que sus clientes harían a un asistente, 20 en Grow y 50 en Scale, y vea si su negocio aparece nombrado y en qué lugar de la respuesta.",
+          body: "Añada las preguntas que sus clientes harían a un asistente, 20 en Launch y Grow y 50 en Scale. Cada semana RepGet se las hace a Claude y le muestra si su negocio aparece nombrado y en qué lugar. No se consulta a ChatGPT.",
         },
       ],
       compare: {
@@ -254,7 +254,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
         {
           question: "¿Cómo funciona el seguimiento?",
           answer:
-            "RepGet hace a un asistente de IA cada pregunta que usted sigue, como lo haría un cliente, y registra qué negocios nombra la respuesta y en qué orden. Cuando una comprobación no se puede completar, no se registra nada, así que un fallo nunca parece una ausencia.",
+            "Una vez por semana RepGet hace a Claude, a través de su API y sin búsqueda web en directo, cada pregunta que usted sigue, como lo haría un cliente, y registra qué negocios nombra la respuesta y en qué orden. No se consulta a ChatGPT, Gemini ni Perplexity, así que es la visión de un asistente, no una medición de toda la búsqueda con IA. Cuando una comprobación no se puede completar, no se registra nada, así que un fallo nunca parece una ausencia.",
         },
         {
           question: "¿Cuánto tarda?",
@@ -435,7 +435,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
         },
         {
           title: "Le suivi de votre visibilité dans l’IA",
-          body: "Ajoutez les questions que vos clients poseraient à un assistant, 20 avec Grow et 50 avec Scale, et voyez si votre entreprise est citée, et à quel endroit de la réponse.",
+          body: "Ajoutez les questions que vos clients poseraient à un assistant, 20 avec Launch et Grow et 50 avec Scale. Chaque semaine, RepGet les pose à Claude et vous montre si votre entreprise est citée, et à quel endroit. ChatGPT n’est pas interrogé.",
         },
       ],
       compare: {
@@ -499,7 +499,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
         {
           question: "Comment fonctionne le suivi ?",
           answer:
-            "RepGet pose à un assistant d’IA chaque question que vous suivez, comme le ferait un client, et enregistre les entreprises citées dans la réponse et leur ordre. Quand une vérification ne peut pas aboutir, rien n’est enregistré : un échec ne passe jamais pour une absence.",
+            "Une fois par semaine, RepGet pose à Claude, via son API et sans recherche web en direct, chaque question que vous suivez, comme le ferait un client, et enregistre les entreprises citées dans la réponse et leur ordre. ChatGPT, Gemini et Perplexity ne sont pas interrogés : c’est le point de vue d’un assistant, pas une mesure de toute la recherche par IA. Quand une vérification ne peut pas aboutir, rien n’est enregistré : un échec ne passe jamais pour une absence.",
         },
         {
           question: "Combien de temps cela prend-il ?",
@@ -680,7 +680,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
         },
         {
           title: "Monitoraggio della visibilità nell’AI",
-          body: "Aggiunga le domande che i suoi clienti farebbero a un assistente, 20 con Grow e 50 con Scale, e veda se la sua attività viene nominata e in quale punto della risposta.",
+          body: "Aggiunga le domande che i suoi clienti farebbero a un assistente, 20 con Launch e Grow e 50 con Scale. Ogni settimana RepGet le pone a Claude e le mostra se la sua attività viene nominata, e in quale punto. ChatGPT non viene interrogato.",
         },
       ],
       compare: {
@@ -744,7 +744,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
         {
           question: "Come funziona il monitoraggio?",
           answer:
-            "RepGet pone a un assistente AI ogni domanda che lei monitora, come farebbe un cliente, e registra quali attività vengono nominate nella risposta e in che ordine. Quando un controllo non può essere completato non viene registrato nulla, così un errore non sembra mai un’assenza.",
+            "Una volta a settimana RepGet pone a Claude, tramite la sua API e senza ricerca web in tempo reale, ogni domanda che lei monitora, come farebbe un cliente, e registra quali attività vengono nominate nella risposta e in che ordine. ChatGPT, Gemini e Perplexity non vengono interrogati: è il punto di vista di un assistente, non una misura di tutta la ricerca con l’IA. Quando un controllo non può essere completato non viene registrato nulla, così un errore non sembra mai un’assenza.",
         },
         {
           question: "Quanto tempo ci vuole?",
@@ -925,7 +925,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
         },
         {
           title: "Tracking der KI-Sichtbarkeit",
-          body: "Fügen Sie die Fragen hinzu, die Ihre Kunden einem Assistenten stellen würden, 20 im Grow- und 50 im Scale-Tarif, und sehen Sie, ob Ihr Unternehmen genannt wird und an welcher Stelle der Antwort.",
+          body: "Fügen Sie die Fragen hinzu, die Ihre Kunden einem Assistenten stellen würden, 20 bei Launch und Grow, 50 bei Scale. Jede Woche stellt RepGet sie Claude und zeigt, ob und an welcher Stelle Ihr Unternehmen genannt wird. ChatGPT selbst wird nicht abgefragt.",
         },
       ],
       compare: {
@@ -989,7 +989,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
         {
           question: "Wie funktioniert das Tracking?",
           answer:
-            "RepGet stellt einem KI-Assistenten jede Frage, die Sie verfolgen, so wie es ein Kunde tun würde, und erfasst, welche Unternehmen die Antwort nennt und in welcher Reihenfolge. Kann eine Prüfung nicht abgeschlossen werden, wird nichts erfasst. So sieht ein Fehler nie wie ein Fehlen aus.",
+            "Einmal pro Woche stellt RepGet Claude über die API und ohne Live-Websuche jede Frage, die Sie verfolgen, so wie es ein Kunde tun würde, und erfasst, welche Unternehmen die Antwort nennt und in welcher Reihenfolge. ChatGPT, Gemini und Perplexity werden nicht abgefragt: Es ist die Sicht eines Assistenten, keine Messung der gesamten KI-Suche. Kann eine Prüfung nicht abgeschlossen werden, wird nichts erfasst. So sieht ein Fehler nie wie ein Fehlen aus.",
         },
         {
           question: "Wie lange dauert es?",

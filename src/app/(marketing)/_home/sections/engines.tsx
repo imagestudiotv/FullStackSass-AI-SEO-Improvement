@@ -122,7 +122,8 @@ export function Engines({ locale }: SectionProps) {
           <Card icon={<SparkIcon />} title={e.ai.title} body={e.ai.body} foot={e.ai.foot}>
             <div className={c("rgx-growth-visual-panel rgx-ai-panel")}>
               <div className={c("rgx-ai-platforms")}>
-                {["ChatGPT", "Gemini", "Perplexity"].map((name) => (
+                {/* The assistant the weekly check actually asks (lib/geo/check.ts ENGINE). */}
+                {["Claude"].map((name) => (
                   <span key={name} className={c("rgx-ai-pill")}>
                     <i /> {name}
                   </span>
