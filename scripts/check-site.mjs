@@ -23,7 +23,8 @@
 const BASE = (process.env.CHECK_SITE_URL ?? "https://www.repget.com").replace(/\/+$/, "");
 const HOST = new URL(BASE).host;
 const DELAY_MS = Number(process.env.CHECK_SITE_DELAY_MS ?? 300);
-const MAX_REQUESTS = Number(process.env.CHECK_SITE_MAX_REQUESTS ?? 800);
+// 800 stopped the check on 2026-11-16: 577 sitemap pages by then, growing by every blog post and its 4 translations.
+const MAX_REQUESTS = Number(process.env.CHECK_SITE_MAX_REQUESTS ?? 3000);
 const UA = "RepGetSiteCheck/1.0 (+https://www.repget.com)";
 
 let requests = 0;

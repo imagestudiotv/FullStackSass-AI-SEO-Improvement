@@ -20,7 +20,8 @@ on:
 jobs:
   site:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # About 1 request a second (scripts/check-site.mjs pauses between them): room for its 3,000-request cap.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
