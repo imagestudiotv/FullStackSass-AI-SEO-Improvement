@@ -52,10 +52,23 @@ describe("/it/social-publishing", () => {
   });
 
   it("says what cannot be scheduled, and shows the app's own statuses", () => {
-    expect(html).toContain("Non ancora");
-    expect(copy.faq[0].answer).toMatch(/^Non ancora\./);
+    expect(html).toContain(copy.scope.cannotLabel);
+    expect(copy.faq[0].answer).toMatch(/^No\./);
     const app = VIDEOS_COPY.it.status;
     expect(copy.statuses).toEqual([app.ready, app.scheduled, app.posting, app.posted]);
+  });
+
+  /*
+    The promise is content RepGet creates, then schedules - not a scheduler for
+    posts made elsewhere (review of PR #133, 2026-11-17). The search result and
+    the first screen say so, and nothing advertises Stories, whose Instagram
+    publishing per account type is not verified yet (lib/marketing/social-publishing.ts).
+  */
+  it("promises created content in its title, metadata and first screen, and no Stories", () => {
+    for (const text of [copy.metaTitle, copy.metaDescription, copy.title, copy.intro]) expect(text).toMatch(/\bcrea|realizza/i);
+    for (const text of [copy.metaTitle, copy.metaDescription, copy.intro]) expect(text).toMatch(/\bIA\b/);
+    expect(copy.intro).toMatch(/non si possono caricare/);
+    expect(JSON.stringify(copy)).not.toMatch(/Stori/);
   });
 
   it("makes no price, free-trial length, discount, result or guarantee claim", () => {

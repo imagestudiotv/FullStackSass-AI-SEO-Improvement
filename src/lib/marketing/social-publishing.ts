@@ -10,10 +10,18 @@ import type { Locale } from "@/lib/i18n/config";
  * EVERY CLAIM IS ONE THE PRODUCT BACKS, checked against the code on
  * 2026-11-16:
  *  - Publishing is the "Contenuti social" product (/websites/<id>/videos):
- *    RepGet makes a Reel, a carousel (5-7 slides of 1080x1350) or a Story
- *    from an approved idea (lib/video/formats.ts VIDEO_FORMATS), and
- *    publishes it to the channels connected there (VIDEO_PLATFORMS).
- *    Instagram takes all three; a Story has no caption (lib/video/publish.ts).
+ *    RepGet makes a Reel or a carousel (5-7 slides of 1080x1350) from an
+ *    idea its AI writes and the customer approves (lib/video/formats.ts),
+ *    and publishes it to the channels connected there (VIDEO_PLATFORMS).
+ *  - THE PROMISE IS CONTENT REPGET CREATES, scheduled by the customer - not
+ *    a scheduler for posts made elsewhere (review of PR #133, 2026-11-17).
+ *    Title, intro and metadata say so, and the scope box and first question
+ *    say plainly what cannot be done.
+ *  - STORIES ARE NOT ADVERTISED. The product makes them (one file, no
+ *    caption) and bundle.social lists Instagram Stories, but Meta's own rules
+ *    for which professional accounts may publish Stories through the API
+ *    could not be read (developers.facebook.com unreachable, 2026-11-17).
+ *    Add them back once publishing one is verified with a real account.
  *  - There is NO upload-your-own-post scheduler: a finished photo plus a
  *    caption cannot be scheduled. The customer's own pictures or clips can
  *    be added to an idea before it is made (addMediaToIdea), and the page
@@ -26,10 +34,13 @@ import type { Locale } from "@/lib/i18n/config";
  *    most MAX_POSTS_PER_DAY (3) per channel a day.
  *  - Statuses are the app's own words (lib/i18n/videos.ts): Pronto,
  *    Programmato, Pubblicazione, Pubblicato.
- *  - Instagram publishing needs a professional (Business or Creator)
- *    account: Meta's content-publishing requirement, not a RepGet one (the
- *    conservative statement; Meta's developer pages could not be reached to
- *    re-read it on 2026-11-16, so confirm before the campaign goes live).
+ *  - Instagram: the page asks for a professional (Business or Creator)
+ *    account, as guidance rather than a statement of Meta's rules (not
+ *    re-read from Meta). RepGet requests no connection method by default, so
+ *    bundle.social's applies; its docs describe Facebook Login, with a
+ *    Facebook Page to pick, as its default path, and Reels' native music only
+ *    through Facebook Login (info.bundle.social, oauth-options and the
+ *    Instagram pages, read 2026-11-17). Hence "may" ask for a Page.
  *  - Every plan includes it (lib/i18n/home/pricing.ts "Pubblicazione
  *    social"), and a trialing subscription is entitled like a paid one
  *    (videoAccess). No price, no trial length and no offer is written here:
@@ -67,27 +78,27 @@ export type SocialPublishingCopy = {
 };
 
 const IT: SocialPublishingCopy = {
-  metaTitle: "Programmare post social e Instagram con RepGet",
+  metaTitle: "Reel e caroselli creati con l’IA da RepGet, da programmare sui Suoi social",
   metaDescription:
-    "RepGet crea Reel, caroselli e Storie dal Suo sito, con la didascalia. Li rivede, collega i canali e li pubblica subito o in una data e ora scelte.",
-  eyebrow: "Contenuti social",
-  title: "Pianifichi i prossimi post social",
+    "RepGet crea con l’IA Reel e caroselli con didascalia a partire dal Suo sito. Lei li rivede e li programma sui canali collegati: subito, all’orario migliore o in una data scelta.",
+  eyebrow: "Contenuti social creati con l’IA",
+  title: "RepGet crea i Suoi contenuti social. Lei sceglie quando pubblicarli",
   intro:
-    "Crei contenuti con la didascalia, li riveda e programmi i post per i canali collegati. RepGet realizza Reel, caroselli e Storie a partire dal Suo sito, e Lei sceglie quando pubblicarli.",
+    "Dal Suo sito RepGet realizza con l’IA Reel e caroselli con didascalia. Lei li rivede, collega i canali e li programma. Non serve per programmare post già pronti creati altrove: quelli non si possono caricare.",
   primaryCta: "Crei il Suo account RepGet",
   secondaryCta: { label: "Veda piani e prezzi", href: "/pricing" },
   scope: {
-    title: "Cosa può programmare con RepGet",
+    title: "Cosa crea e programma RepGet",
     canLabel: "Sì",
-    cannotLabel: "Non ancora",
+    cannotLabel: "Non incluso",
     can: [
-      "Reel con didascalia, realizzati da RepGet a partire da un’idea che Lei approva",
-      "Caroselli di 5–7 immagini con didascalia",
-      "Storie (un solo contenuto, senza didascalia)",
+      "Reel con didascalia, realizzati da RepGet con l’IA a partire da un’idea che Lei approva",
+      "Caroselli di 5–7 immagini con didascalia, realizzati allo stesso modo",
       "Sue foto o clip aggiunte a un’idea prima della realizzazione",
+      "Pubblicazione subito, all’orario migliore o in una data e un’ora scelte",
     ],
     cannot: [
-      "Caricare un post già pronto (una Sua foto con la Sua didascalia) e programmarlo così com’è",
+      "Caricare un post già pronto, creato altrove (una Sua foto con la Sua didascalia), e programmarlo così com’è",
       "Modificare la didascalia dopo che il contenuto è stato realizzato",
     ],
   },
@@ -95,7 +106,7 @@ const IT: SocialPublishingCopy = {
   steps: [
     {
       title: "Crei i contenuti",
-      body: "RepGet propone idee a partire dal Suo sito, ognuna con titolo, testo e didascalia. Sceglie il formato, Reel, carosello o Storia, e approva quelle da realizzare.",
+      body: "RepGet propone idee a partire dal Suo sito, ognuna con titolo, testo e didascalia. Sceglie il formato, Reel o carosello, e approva quelle da realizzare.",
     },
     {
       title: "Li riveda e li modifichi",
@@ -121,11 +132,11 @@ const IT: SocialPublishingCopy = {
   details: [
     {
       title: "Account Instagram",
-      body: "Meta consente la pubblicazione tramite API solo agli account professionali, Business o Creator. Un profilo personale va prima convertito in account professionale nelle impostazioni di Instagram.",
+      body: "Colleghi un account Instagram professionale (Business o Creator); un profilo personale si converte nelle impostazioni di Instagram. Il collegamento può passare dall’accesso con Facebook e chiederLe di scegliere una Pagina Facebook.",
     },
     {
       title: "Formati per canale",
-      body: "Instagram accetta Reel, caroselli e Storie. Non tutti i formati sono disponibili su ogni canale: Pinterest, per esempio, riceve solo video. L’app indica quali canali accettano il formato scelto.",
+      body: "Su Instagram RepGet pubblica Reel e caroselli. Non tutti i formati sono disponibili su ogni canale: Pinterest, per esempio, riceve solo video. L’app indica quali canali accettano il formato scelto.",
     },
     {
       title: "Piani e prova",
@@ -141,12 +152,12 @@ const IT: SocialPublishingCopy = {
     {
       question: "Posso programmare un post Instagram che ho già pronto?",
       answer:
-        "Non ancora. RepGet programma i contenuti che realizza per Lei: Reel, caroselli e Storie. Può aggiungere Sue foto o clip a un’idea prima della realizzazione, ma non caricare un post finito e pubblicarlo così com’è.",
+        "No. RepGet programma i contenuti che realizza per Lei, Reel e caroselli. Può aggiungere Sue foto o clip a un’idea prima della realizzazione, ma non caricare un post finito, creato altrove, e pubblicarlo così com’è.",
     },
     {
       question: "Che tipo di account Instagram serve?",
       answer:
-        "Un account professionale, Business o Creator: è un requisito di Meta per la pubblicazione tramite API. Per usare la musica nativa di Instagram nei Reel il collegamento avviene tramite Facebook, con l’account Instagram associato a una Pagina Facebook.",
+        "Un account professionale, Business o Creator. Il collegamento può passare dall’accesso con Facebook e chiederLe di scegliere una Pagina Facebook. La musica nativa di Instagram nei Reel richiede il collegamento tramite Facebook.",
     },
     {
       question: "RepGet pubblica qualcosa senza la mia approvazione?",
@@ -174,8 +185,8 @@ const IT: SocialPublishingCopy = {
         "Sì, in tutti i piani RepGet. La realizzazione dei contenuti approvati usa crediti del piano. I prezzi aggiornati sono nella pagina dei piani.",
     },
   ],
-  closingTitle: "Prepari i prossimi post social",
-  closingBody: "Crei un account, colleghi il Suo sito e i Suoi canali, e scelga quando pubblicare.",
+  closingTitle: "Lasci a RepGet la creazione dei prossimi post",
+  closingBody: "Crei un account, colleghi il Suo sito e i Suoi canali, approvi i contenuti e scelga quando pubblicarli.",
 };
 
 const COPY: Partial<Record<Locale, SocialPublishingCopy>> = { it: IT };
