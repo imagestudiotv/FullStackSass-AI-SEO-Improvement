@@ -266,20 +266,19 @@ export function AuthForm({
   return (
     <div>
       {/*
-        lang="en" here and on the button text, the legal line and the switch
-        below: they are not translated yet, and the (auth) layout declares the
-        visitor's language around the form.
+        In the visitor's language, like the rest of the form: an Italian
+        visitor arriving from /it/... read an English heading, button, legal
+        line and switch around Italian fields (found by the Italian landing
+        page's E2E, 2026-11-17).
       */}
-      <p lang="en" className="text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-        {isSignUp ? "Create your account" : "Welcome back"}
+      <p className="text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+        {isSignUp ? t.signUpEyebrow : t.signInEyebrow}
       </p>
-      <h1 lang="en" className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
-        {isSignUp ? "Start growing today" : "Sign in to RepGet"}
+      <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+        {isSignUp ? t.signUpTitle : t.signInTitle}
       </h1>
-      <p lang="en" className="mt-2 text-muted-foreground">
-        {isSignUp
-          ? "Get started in minutes."
-          : "Sign in to access your dashboard."}
+      <p className="mt-2 text-muted-foreground">
+        {isSignUp ? t.signUpSub : t.signInSub}
       </p>
 
       {/*
@@ -538,23 +537,11 @@ export function AuthForm({
           {pending ? (
             <>
               <Loader2 className="size-4 animate-spin" />
-              {isSignUp ? (
-                <span lang="en">Creating your account…</span>
-              ) : method === "code" ? (
-                t.sendingCode
-              ) : (
-                <span lang="en">Signing you in…</span>
-              )}
+              {isSignUp ? t.creatingAccount : method === "code" ? t.sendingCode : t.signingIn}
             </>
           ) : (
             <>
-              {isSignUp ? (
-                <span lang="en">Create account</span>
-              ) : method === "code" ? (
-                t.sendCode
-              ) : (
-                <span lang="en">Sign in</span>
-              )}
+              {isSignUp ? t.createAccount : method === "code" ? t.sendCode : t.signIn}
               <ArrowRight className="size-4" aria-hidden="true" />
             </>
           )}
@@ -584,16 +571,17 @@ export function AuthForm({
         The legal line the reference carries. It belongs on the screen where
         someone actually agrees, not only in the footer.
       */}
-      <p lang="en" className="mt-6 text-center text-xs leading-relaxed text-muted-foreground">
-        By continuing, you agree to our{" "}
-        <Link href="/terms" className="underline underline-offset-2">
-          Terms of Service
-        </Link>{" "}
-        and acknowledge our{" "}
-        <Link href="/privacy" className="underline underline-offset-2">
-          Privacy Policy
-        </Link>
-        .
+      <p className="mt-6 text-center text-xs leading-relaxed text-muted-foreground">
+        {t.legal.split(/(\{terms\}|\{privacy\})/).map((part, index) =>
+          part === "{terms}" || part === "{privacy}" ? (
+            // The documents themselves are in English (/terms, /privacy).
+            <Link key={index} href={part === "{terms}" ? "/terms" : "/privacy"} className="underline underline-offset-2">
+              {part === "{terms}" ? t.terms : t.privacy}
+            </Link>
+          ) : (
+            part
+          ),
+        )}
       </p>
 
       {/*
@@ -605,8 +593,8 @@ export function AuthForm({
         `email` is whatever is in the field now, which starts as the invited
         address. See authSwitchHref.
       */}
-      <p lang="en" className="mt-6 text-sm text-muted-foreground">
-        {isSignUp ? "Already have an account? " : "Don't have an account? "}
+      <p className="mt-6 text-sm text-muted-foreground">
+        {isSignUp ? t.haveAccount : t.noAccount}{" "}
         <Link
           href={authSwitchHref(
             isSignUp ? "/sign-in" : "/sign-up",
@@ -615,7 +603,7 @@ export function AuthForm({
           )}
           className="font-medium text-primary hover:underline"
         >
-          {isSignUp ? "Sign in" : "Sign up"}
+          {isSignUp ? t.signIn : t.signUp}
         </Link>
       </p>
     </div>
