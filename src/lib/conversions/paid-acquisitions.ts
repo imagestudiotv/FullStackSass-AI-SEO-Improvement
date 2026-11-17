@@ -16,6 +16,8 @@ const MAX_AGE_MS = 72 * 60 * 60 * 1000;
 // A batch is bounded to 20 five-second requests. Leave room for DB work too.
 const CLAIM_MS = 5 * 60_000;
 const LIMIT = 20;
+/** Checkouts given the rollback marker per recovery pass (markPaidCheckouts): one cheap UPDATE. */
+const MARK_LIMIT = 500;
 // A provider clock slightly ahead of ours: the payment waits until it is due instead of being suppressed.
 const SKEW_MS = 5 * 60_000;
 // Subscription money only. PayPal credit packs share this ledger without a subscription id (Stripe's go to
@@ -75,6 +77,55 @@ async function enqueueFirstPayment(database: Database, organizationId: string, n
   return inserted?.id ?? null;
 }
 
+/**
+ * ROLLBACK COMPATIBILITY (release review of PR #133, F1). The previous
+ * release reported a "purchase" for any checkout whose analytics had a
+ * clientId and no purchaseSentAt, matched by provider and subscription. This
+ * code never needs that marker, so without it a rollback would report every
+ * already-paying subscription's next renewal as a new purchase, under a new
+ * transaction_id. Every checkout of a subscription with a positive payment in
+ * the ledger is therefore marked - whatever paid_acquisitions decided, pending
+ * and retrying included, and for later subscriptions or providers that get no
+ * acquisition row. The marker means only "the previous reporter must skip
+ * this subscription": it is NOT evidence that Google received or attributed
+ * anything (delivery state lives in paid_acquisitions).
+ *
+ * Merged into the existing analytics (identity and consentKey kept), only
+ * where an identity exists (a withdrawn or never-consented checkout stays
+ * null), never on an unpaid checkout or for a zero-value trial invoice, and
+ * with updated_at left as it is.
+ */
+const legacyMarker = (now: Date) => sql`jsonb_build_object('purchaseSentAt', ${now.toISOString()}::text, 'legacyMarker', 'rollback_compat')`;
+const unmarked = and(sql`${billingCheckouts.analytics}->>'clientId' is not null`, sql`${billingCheckouts.analytics}->>'purchaseSentAt' is null`);
+const markChecked = (now: Date) => ({ analytics: sql`${billingCheckouts.analytics} || ${legacyMarker(now)}`, updatedAt: sql`${billingCheckouts.updatedAt}` });
+
+async function markSubscriptionPaid(database: Database, provider: Payment["provider"], providerSubscriptionId: string, now: Date): Promise<void> {
+  try {
+    await database.update(billingCheckouts).set(markChecked(now)).where(and(
+      eq(billingCheckouts.provider, provider), eq(billingCheckouts.providerSubscriptionId, providerSubscriptionId), unmarked,
+    ));
+  } catch {
+    // markPaidCheckouts (the five-minute recovery) writes it from the ledger instead.
+    console.error("[analytics] rollback marker not written; scheduled recovery will write it");
+  }
+}
+
+/**
+ * The same marker from the ledger, for payments whose request ended between
+ * committing the payment and markSubscriptionPaid (a crash, a timeout, a
+ * failed write), and for a checkout whose identity was saved again after it
+ * paid. Bounded per pass; the remaining window is the time to the next pass.
+ */
+async function markPaidCheckouts(database: Database, now: Date): Promise<number> {
+  const paid = database.select({ one: sql`1` }).from(payments).where(and(
+    eq(payments.provider, billingCheckouts.provider), eq(payments.providerSubscriptionId, billingCheckouts.providerSubscriptionId), positivePayment,
+  ));
+  const due = database.select({ id: billingCheckouts.id }).from(billingCheckouts).where(and(unmarked, exists(paid))).limit(MARK_LIMIT);
+  const marked = await database.update(billingCheckouts).set(markChecked(now))
+    .where(and(inArray(billingCheckouts.id, due), unmarked)).returning({ id: billingCheckouts.id });
+  return marked.length;
+}
+
 /** Persist first, then try a bounded delivery; the scheduled worker recovers either failure window. */
 export async function reportFirstPayment(database: Database, payment: Payment, send: Send = fetch, now = new Date()): Promise<"sent" | "skipped" | "failed"> {
   if (payment.amountCents <= 0) return "skipped";
@@ -84,6 +135,8 @@ export async function reportFirstPayment(database: Database, payment: Payment, s
       eq(payments.providerSubscriptionId, payment.providerSubscriptionId), positivePayment,
     )).limit(1);
     if (!record) return "skipped";
+    // Before, and independent of, the acquisition decision: renewals and later subscriptions too.
+    await markSubscriptionPaid(database, payment.provider, payment.providerSubscriptionId, now);
     const inserted = await enqueueFirstPayment(database, record.organizationId, now);
     if (!inserted) return "skipped";
     const result = await deliverPaidAcquisitions(database, { only: [inserted], now, limit: 1 }, send);
@@ -203,7 +256,7 @@ export async function deliverPaidAcquisitions(
  * one returns by itself once its checkout completes or its 72 hours pass.
  * Oldest first: those nearest the end of their window go before newer ones.
  */
-export async function recoverPaidAcquisitions(database: Database, send: Send = fetch, now = new Date()): Promise<AcquisitionDelivery & { discovered: number }> {
+export async function recoverPaidAcquisitions(database: Database, send: Send = fetch, now = new Date()): Promise<AcquisitionDelivery & { discovered: number; marked: number }> {
   const first = database.selectDistinctOn([payments.organizationId], {
     organizationId: payments.organizationId, provider: payments.provider,
     subscriptionId: payments.providerSubscriptionId, paidAt: payments.paidAt,
@@ -221,7 +274,12 @@ export async function recoverPaidAcquisitions(database: Database, send: Send = f
     .where(not(deferred!)).orderBy(asc(first.paidAt), asc(first.organizationId)).limit(LIMIT);
   let discovered = 0;
   for (const row of missing) if (await enqueueFirstPayment(database, row.organizationId, now)) discovered++;
-  return { discovered, ...await deliverPaidAcquisitions(database, { now }, send) };
+  // The rollback marker from the ledger (markPaidCheckouts); a failure here never stops discovery or delivery.
+  const marked = await markPaidCheckouts(database, now).catch(() => {
+    console.error("[analytics] rollback markers not written this pass");
+    return 0;
+  });
+  return { discovered, marked, ...await deliverPaidAcquisitions(database, { now }, send) };
 }
 
 /** Same-browser withdrawal: no account id or GA identity is accepted from the request body. */

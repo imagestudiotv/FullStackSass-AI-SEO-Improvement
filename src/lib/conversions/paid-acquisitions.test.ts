@@ -8,6 +8,7 @@ import { applyMigration, createTestDb, type TestDb } from "@/test/db";
 
 import { ANALYTICS_CONSENT_COOKIE, conversionId } from "./config";
 import { deliverPaidAcquisitions, recoverPaidAcquisitions, reportFirstPayment } from "./paid-acquisitions";
+import { previousReportFirstPayment } from "./previous-reporter.fixture";
 
 const state = vi.hoisted(() => ({ db: null as unknown }));
 vi.mock("@/lib/db", () => ({ db: new Proxy({}, { get: (_t, p) => Reflect.get(state.db as object, p) }) }));
@@ -225,6 +226,108 @@ describe("paid acquisition ledger to delivery", () => {
     expect(results.reduce((n, x) => n + x.delivered, 0)).toBe(1);
     expect(send).toHaveBeenCalledTimes(1);
     expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain("containing a secret");
+  });
+});
+
+/*
+  Rolling PR #133 back puts the previous reporter (previous-reporter.fixture.ts,
+  verbatim from 33038bef) in charge again. It claims any checkout with a
+  clientId and no purchaseSentAt, so every subscription already paying under
+  this code must carry the marker, or its next renewal is reported as a new
+  purchase (release review F1). These run that reporter against the database
+  this code leaves behind.
+*/
+describe("rollback compatibility with the previous reporter", () => {
+  const renewal = async (of: Awaited<ReturnType<typeof paid>>, minutes: number) => {
+    const [row] = await test.db.insert(payments).values({
+      organizationId: of.checkout.organizationId, provider: of.args.provider, externalId: `renewal_${++sequence}`,
+      providerSubscriptionId: of.args.providerSubscriptionId, amountCents: 4900, currency: "eur", status: "paid", paidAt: later(minutes),
+    }).returning();
+    return { ...of.args, externalId: row.externalId, paidAt: row.paidAt };
+  };
+  const checkoutOf = async (of: Awaited<ReturnType<typeof paid>>) =>
+    (await test.db.select().from(billingCheckouts).where(eq(billingCheckouts.id, of.checkout.id)))[0];
+
+  it("marks a paid subscription while its delivery is still retrying; the previous reporter skips its renewal; the outbox still delivers once", async () => {
+    const first = await paid();
+    expect(await reportFirstPayment(test.db, first.args, async () => new Response(null, { status: 500 }), NOW)).toBe("failed");
+    expect((await test.db.select().from(paidAcquisitions))[0]).toMatchObject({ status: "pending", lastError: "http_500" });
+
+    const marked = await checkoutOf(first);
+    // The identity and consent proof are kept; the marker is added; updated_at does not move.
+    expect(marked.analytics).toEqual({ ...(first.checkout.analytics as object), purchaseSentAt: NOW.toISOString(), legacyMarker: "rollback_compat" });
+    expect(marked.updatedAt).toEqual(first.checkout.updatedAt);
+
+    // Rolled back: the previous reporter sees the renewal and reports nothing.
+    const oldSend = vi.fn(async () => new Response(null, { status: 204 }));
+    expect(await previousReportFirstPayment(test.db, await renewal(first, 10), oldSend, later(10))).toBe("skipped");
+    expect(oldSend).not.toHaveBeenCalled();
+
+    // Not rolled back: the marker changes nothing for the outbox, which retries and sends the first payment once.
+    const send = vi.fn(async () => new Response(null, { status: 204 }));
+    expect(await recoverPaidAcquisitions(test.db, send, later(1))).toMatchObject({ delivered: 1 });
+    expect(body(send).events[0].params.transaction_id).toBe(conversionId("purchase", `stripe:${first.payment.externalId}`));
+    expect(await test.db.select().from(paidAcquisitions)).toHaveLength(1);
+  });
+
+  it("marks a later subscription on another provider although it gets no acquisition row", async () => {
+    const send = vi.fn(async () => new Response(null, { status: 204 }));
+    const first = await paid({ occurredAt: later(-10) });
+    expect(await reportFirstPayment(test.db, first.args, send, NOW)).toBe("sent");
+    const second = await paid({ provider: "paypal", key: OTHER_KEY });
+    expect(await reportFirstPayment(test.db, second.args, send, NOW)).toBe("skipped");
+    expect(await test.db.select().from(paidAcquisitions)).toHaveLength(1);
+    expect((await checkoutOf(second)).analytics).toMatchObject({ purchaseSentAt: NOW.toISOString(), consentKey: OTHER_KEY });
+
+    const oldSend = vi.fn(async () => new Response(null, { status: 204 }));
+    for (const of of [first, second]) expect(await previousReportFirstPayment(test.db, await renewal(of, 30), oldSend, later(30))).toBe("skipped");
+    expect(oldSend).not.toHaveBeenCalled();
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves unpaid checkouts, zero-value trial invoices and withdrawn identities exactly as they were", async () => {
+    const send = vi.fn(async () => new Response(null, { status: 204 }));
+    const trial = await paid({ amount: 0 });
+    expect(await reportFirstPayment(test.db, trial.args, send, NOW)).toBe("skipped");
+    const withdrawn = await paid({ org: "org_b", key: null });
+    await reportFirstPayment(test.db, withdrawn.args, send, NOW);
+    const [unpaid] = await test.db.insert(billingCheckouts).values({
+      organizationId: "org_b", provider: "stripe", providerSubscriptionId: "sub_unpaid", planId, status: "completed", trialDays: 3,
+      analytics: { clientId: "333.444", sessionId: null, capturedAt: later(-5).toISOString(), consentKey: KEY }, updatedAt: later(-5),
+    }).returning();
+    await recoverPaidAcquisitions(test.db, send, later(1));
+
+    expect((await checkoutOf(trial)).analytics).toEqual(trial.checkout.analytics);
+    expect((await checkoutOf(withdrawn)).analytics).toBeNull();
+    const [still] = await test.db.select().from(billingCheckouts).where(eq(billingCheckouts.id, unpaid.id));
+    expect(still.analytics).toEqual(unpaid.analytics);
+    expect(still.updatedAt).toEqual(unpaid.updatedAt);
+    // So the previous reporter still reports these subscriptions' real first payment after a rollback, as it always did.
+    const oldSend = vi.fn(async () => new Response(null, { status: 204 }));
+    const firstAfterRollback = { provider: "stripe" as const, providerSubscriptionId: "sub_unpaid", externalId: "in_first_after_rollback", amountCents: 4900, currency: "eur", paidAt: later(60) };
+    expect(await previousReportFirstPayment(test.db, firstAfterRollback, oldSend, later(60))).toBe("sent");
+    expect(await previousReportFirstPayment(test.db, { ...trial.args, amountCents: 4900, externalId: "in_trial_end" }, oldSend, later(60))).toBe("sent");
+    expect(oldSend).toHaveBeenCalledTimes(2);
+  });
+
+  it("a payment committed without its marker (the request ended first) is marked by the next recovery pass", async () => {
+    // The ledger row exists, but reportFirstPayment never ran: the window the recovery pass closes.
+    const crashed = await paid();
+    const renewed = await paid({ org: "org_b", key: OTHER_KEY, occurredAt: later(-20) });
+    await reportFirstPayment(test.db, renewed.args, async () => new Response(null, { status: 204 }), later(-19));
+    // A renewal whose request also ended before the marker: the workspace already has its acquisition row.
+    await test.db.update(billingCheckouts).set({ analytics: renewed.checkout.analytics }).where(eq(billingCheckouts.id, renewed.checkout.id));
+    await renewal(renewed, -1);
+    expect((await checkoutOf(crashed)).analytics).not.toHaveProperty("purchaseSentAt");
+    expect((await checkoutOf(renewed)).analytics).not.toHaveProperty("purchaseSentAt");
+
+    const send = vi.fn(async () => new Response(null, { status: 204 }));
+    expect(await recoverPaidAcquisitions(test.db, send, NOW)).toMatchObject({ marked: 2, discovered: 1, delivered: 1 });
+    expect(await recoverPaidAcquisitions(test.db, send, later(5))).toMatchObject({ marked: 0, discovered: 0 });
+    const oldSend = vi.fn(async () => new Response(null, { status: 204 }));
+    for (const of of [crashed, renewed]) expect(await previousReportFirstPayment(test.db, await renewal(of, 40), oldSend, later(40))).toBe("skipped");
+    expect(oldSend).not.toHaveBeenCalled();
+    expect(await test.db.select().from(paidAcquisitions)).toHaveLength(2);
   });
 });
 

@@ -90,8 +90,14 @@ export type CheckoutVisitor = {
   capturedAt: string;
   /** First-party revocation proof, issued by rememberPayer after consent. Never sent to Google. */
   consentKey?: string;
-  /** Legacy marker only; new delivery state lives in paid_acquisitions. */
+  /**
+   * Rollback compatibility only (paid-acquisitions.ts markSubscriptionPaid): set once the subscription
+   * has a positive payment, so the previous release's reporter skips it. Not delivery or attribution
+   * evidence; delivery state lives in paid_acquisitions.
+   */
   purchaseSentAt?: string;
+  /** "rollback_compat" when this code wrote purchaseSentAt, to tell it from the previous release's own. */
+  legacyMarker?: "rollback_compat";
 };
 
 /**

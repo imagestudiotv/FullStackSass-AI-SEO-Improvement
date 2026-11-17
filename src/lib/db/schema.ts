@@ -363,9 +363,11 @@ export const billingCheckouts = pgTable(
      * The payer's Google Analytics identity when they started paying, kept
      * ONLY for a visitor who had accepted the cookie banner
      * (lib/conversions/conversions.ts): { clientId, sessionId, capturedAt },
-     * plus a first-party consentKey for revocation. purchaseSentAt is a
-     * legacy marker only: delivery now lives in paid_acquisitions. Null for
-     * visitors without consent; withdrawal clears both saved identities.
+     * plus a first-party consentKey for revocation. purchaseSentAt is kept
+     * for rollback compatibility only (set once the subscription has paid,
+     * with legacyMarker "rollback_compat"): delivery now lives in
+     * paid_acquisitions. Null for visitors without consent; withdrawal
+     * clears both saved identities.
      */
     analytics: jsonb("analytics"),
     ...timestamps,
