@@ -108,8 +108,8 @@ describe("paid acquisition ledger to delivery", () => {
     expect((await test.db.select().from(paidAcquisitions))[0]).toMatchObject({ status: "suppressed", lastError: "refunded_before_delivery" });
   });
 
-  it.each(["no consent", "one-off purchase", "old checkout without revocation proof"])("suppresses %s; later consent does not turn a renewal into an acquisition", async scenario => {
-    const first = await paid({ key: scenario === "no consent" ? null : KEY, subscription: scenario !== "one-off purchase", occurredAt: later(-10) });
+  it.each(["no consent", "old checkout without revocation proof"])("suppresses %s; later consent does not turn a renewal into an acquisition", async scenario => {
+    const first = await paid({ key: scenario === "no consent" ? null : KEY, occurredAt: later(-10) });
     if (scenario === "old checkout without revocation proof") await test.db.update(billingCheckouts).set({ analytics: { clientId: "111.222", sessionId: null, capturedAt: later(-20).toISOString() } }).where(eq(billingCheckouts.id, first.checkout.id));
     const send = vi.fn();
     await recoverPaidAcquisitions(test.db, send, NOW);
@@ -117,6 +117,45 @@ describe("paid acquisition ledger to delivery", () => {
     await reportFirstPayment(test.db, laterPayment.args, send, NOW);
     expect(send).not.toHaveBeenCalled();
     expect((await test.db.select().from(paidAcquisitions))).toHaveLength(1);
+  });
+
+  it("a PayPal credit pack bought during the trial neither is an acquisition nor blocks the first subscription charge", async () => {
+    // PayPal Orders captures share the ledger with no subscription id (lib/paypal/orders.ts); Stripe's credit packs never reach it.
+    await test.db.insert(payments).values({ organizationId: "org_a", provider: "paypal", externalId: "capture_1", providerObject: "paypal_capture", amountCents: 900, currency: "eur", status: "paid", paidAt: later(-30) });
+    const send = vi.fn(async () => new Response(null, { status: 204 }));
+    expect(await recoverPaidAcquisitions(test.db, send, later(-20))).toMatchObject({ discovered: 0 });
+    expect(await test.db.select().from(paidAcquisitions)).toEqual([]);
+    const first = await paid({ provider: "paypal" });
+    expect(await reportFirstPayment(test.db, first.args, send, NOW)).toBe("sent");
+    expect(body(send).events[0].params.transaction_id).toBe(conversionId("purchase", `paypal:${first.payment.externalId}`));
+  });
+
+  it("waits for a checkout that has not completed yet instead of suppressing the payment for good", async () => {
+    const first = await paid({ provider: "paypal" });
+    await test.db.update(billingCheckouts).set({ status: "open" }).where(eq(billingCheckouts.id, first.checkout.id));
+    const send = vi.fn(async () => new Response(null, { status: 204 }));
+    expect(await reportFirstPayment(test.db, first.args, send, NOW)).toBe("skipped");
+    expect(await test.db.select().from(paidAcquisitions)).toEqual([]);
+    await test.db.update(billingCheckouts).set({ status: "completed" }).where(eq(billingCheckouts.id, first.checkout.id));
+    expect(await recoverPaidAcquisitions(test.db, send, later(5))).toMatchObject({ discovered: 1, delivered: 1 });
+    // Past the window it is decided, so an abandoned checkout cannot hold discovery forever.
+    const stale = await paid({ org: "org_b", occurredAt: later(-73 * 60) });
+    await test.db.update(billingCheckouts).set({ status: "abandoned" }).where(eq(billingCheckouts.id, stale.checkout.id));
+    await recoverPaidAcquisitions(test.db, send, NOW);
+    expect((await test.db.select().from(paidAcquisitions).where(eq(paidAcquisitions.organizationId, "org_b")))[0]).toMatchObject({ status: "suppressed", lastError: "not_subscription_checkout" });
+  });
+
+  it("a provider clock a little ahead waits until the payment time, never sends a future or shifted time", async () => {
+    const first = await paid({ occurredAt: later(2) });
+    const send = vi.fn(async () => new Response(null, { status: 204 }));
+    expect(await reportFirstPayment(test.db, first.args, send, NOW)).toBe("skipped");
+    expect((await test.db.select().from(paidAcquisitions))[0]).toMatchObject({ status: "pending", nextAttemptAt: later(2) });
+    expect((await deliverPaidAcquisitions(test.db, { now: later(1) }, send)).delivered).toBe(0);
+    expect((await deliverPaidAcquisitions(test.db, { now: later(2) }, send)).delivered).toBe(1);
+    expect(body(send).timestamp_micros).toBe(later(2).getTime() * 1000);
+    const wrong = await paid({ org: "org_b", occurredAt: later(60) });
+    await reportFirstPayment(test.db, wrong.args, send, NOW);
+    expect((await test.db.select().from(paidAcquisitions).where(eq(paidAcquisitions.organizationId, "org_b")))[0]).toMatchObject({ status: "suppressed", lastError: "outside_measurement_window" });
   });
 
   it("queues without the server secret, then retries when configured; aged payments are never redated", async () => {
@@ -160,8 +199,11 @@ describe("paid acquisition ledger to delivery", () => {
 });
 
 describe("first-party consent withdrawal route → outbox recovery", () => {
-  function request(site: string, consent = "2.denied", key = KEY) {
-    return new NextRequest("https://www.repget.com/api/analytics/consent", { method: "POST", headers: { "sec-fetch-site": site, cookie: `repget_consent=${consent}; ${ANALYTICS_CONSENT_COOKIE}=${key}` } });
+  function request(site: string | null, consent = "2.denied", key = KEY, origin?: string) {
+    return new NextRequest("https://www.repget.com/api/analytics/consent", { method: "POST", headers: {
+      host: "www.repget.com", ...(site ? { "sec-fetch-site": site } : {}), ...(origin ? { origin } : {}),
+      cookie: `repget_consent=${consent}; ${ANALYTICS_CONSENT_COOKIE}=${key}`,
+    } });
   }
   it("withdraws this browser's pending conversion and saved identity, leaving another browser intact", async () => {
     const first = await paid();
@@ -180,21 +222,28 @@ describe("first-party consent withdrawal route → outbox recovery", () => {
   it("rejects cross-site requests and ignores unconsented, forged or missing proof", async () => {
     const first = await paid();
     expect((await withdraw(request("cross-site"))).status).toBe(403);
+    // Browsers without Sec-Fetch-Site (Safari before 16.4): the Origin decides; neither header is refused.
+    expect((await withdraw(request(null, "2.denied", KEY, "https://evil.example"))).status).toBe(403);
+    expect((await withdraw(request(null))).status).toBe(403);
     await withdraw(request("same-origin", "2.granted"));
     await withdraw(request("same-origin", "2.denied", "invalid"));
     await withdraw(request("same-origin", "2.denied", OTHER_KEY));
     expect((await test.db.select().from(billingCheckouts).where(eq(billingCheckouts.id, first.checkout.id)))[0].analytics).not.toBeNull();
+    expect((await withdraw(request(null, "2.denied", KEY, "https://www.repget.com"))).status).toBe(204);
+    expect((await test.db.select().from(billingCheckouts).where(eq(billingCheckouts.id, first.checkout.id)))[0].analytics).toBeNull();
   });
 });
 
 it("migration marks existing paid and refunded workspaces as legacy without queuing or sending old sales", async () => {
   const old = await createTestDb({ through: "0093_nov13_topups_engagement_ads" });
   try {
-    await old.db.insert(organization).values([{ id: "old", name: "Old", slug: "old", createdAt: NOW }, { id: "zero", name: "Zero", slug: "zero", createdAt: NOW }]);
+    await old.db.insert(organization).values([{ id: "old", name: "Old", slug: "old", createdAt: NOW }, { id: "zero", name: "Zero", slug: "zero", createdAt: NOW }, { id: "credits", name: "Credits", slug: "credits", createdAt: NOW }]);
     await old.db.insert(payments).values([
-      { organizationId: "old", provider: "stripe", externalId: "historic", amountCents: 4900, currency: "eur", status: "refunded", paidAt: later(-5000) },
-      { organizationId: "old", provider: "paypal", externalId: "later", amountCents: 4900, currency: "eur", status: "paid", paidAt: later(-4000) },
-      { organizationId: "zero", provider: "stripe", externalId: "trial", amountCents: 0, currency: "eur", status: "paid", paidAt: later(-10) },
+      { organizationId: "old", provider: "stripe", externalId: "historic", providerSubscriptionId: "sub_old", amountCents: 4900, currency: "eur", status: "refunded", paidAt: later(-5000) },
+      { organizationId: "old", provider: "paypal", externalId: "later", providerSubscriptionId: "I-OLD", amountCents: 4900, currency: "eur", status: "paid", paidAt: later(-4000) },
+      { organizationId: "zero", provider: "stripe", externalId: "trial", providerSubscriptionId: "sub_zero", amountCents: 0, currency: "eur", status: "paid", paidAt: later(-10) },
+      // A credit pack is not a subscription customer, here as at runtime.
+      { organizationId: "credits", provider: "paypal", externalId: "capture", providerObject: "paypal_capture", amountCents: 900, currency: "eur", status: "paid", paidAt: later(-10) },
     ]);
     await applyMigration(old.client, "0094_paid_acquisitions");
     const rows = await old.db.select().from(paidAcquisitions);

@@ -34,3 +34,17 @@ it("recovers an offline refusal while the page remains open and stops after ackn
   consent.listener();
   expect(send).toHaveBeenCalledTimes(2);
 });
+
+it("does not repeat a refusal every 30 seconds; a server error is retried", async () => {
+  consent.value = "denied";
+  const refused = vi.fn<typeof fetch>(async () => new Response(null, { status: 403 }));
+  const stop = startConsentWithdrawalSync(refused);
+  await vi.advanceTimersByTimeAsync(90_000);
+  expect(refused).toHaveBeenCalledTimes(1);
+  stop();
+  const failing = vi.fn<typeof fetch>().mockResolvedValueOnce(new Response(null, { status: 503 })).mockResolvedValue(new Response(null, { status: 204 }));
+  const again = startConsentWithdrawalSync(failing);
+  await vi.advanceTimersByTimeAsync(30_000);
+  expect(failing).toHaveBeenCalledTimes(2);
+  again();
+});

@@ -7,10 +7,26 @@ import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Sec-Fetch-Site when the browser sends it. Older Safari (before 16.4) and some in-app webviews do not:
+ * then the Origin a fetch POST always carries must name this host. Neither present: refused.
+ */
+function sameOrigin(request: NextRequest): boolean {
+  const site = request.headers.get("sec-fetch-site");
+  if (site) return site === "same-origin";
+  const origin = request.headers.get("origin");
+  if (!origin) return false;
+  try {
+    return new URL(origin).host === request.headers.get("host");
+  } catch {
+    return false;
+  }
+}
+
 /** Revoke only this browser's saved identities; never accepts a GA id or workspace id from a body. */
 export async function POST(request: NextRequest) {
   const headers = { "cache-control": "no-store" };
-  if (request.headers.get("sec-fetch-site") !== "same-origin") return new Response(null, { status: 403, headers });
+  if (!sameOrigin(request)) return new Response(null, { status: 403, headers });
   if (parseConsent(`${CONSENT_COOKIE}=${request.cookies.get(CONSENT_COOKIE)?.value ?? ""}`) !== "denied") {
     return new Response(null, { status: 204, headers });
   }

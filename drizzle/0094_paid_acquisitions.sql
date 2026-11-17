@@ -29,9 +29,10 @@ CREATE INDEX "paid_acquisitions_due_idx" ON "paid_acquisitions" USING btree ("st
 -- Cutover baseline, deliberately non-reporting. Existing paid/refunded money
 -- makes a workspace historical even when its old checkout has no GA identity.
 -- Never replay old sales (or uncertain legacy purchaseSentAt markers) into Ads.
+-- Subscription payments only, as at runtime: a PayPal credit pack is not a subscription customer.
 INSERT INTO "paid_acquisitions" ("organization_id", "payment_id", "status", "occurred_at", "last_error")
 SELECT DISTINCT ON ("organization_id") "organization_id", "id", 'legacy', "paid_at", 'pre_cutover_customer'
 FROM "payments"
-WHERE "amount_cents" > 0 AND "status" IN ('paid', 'refunded')
+WHERE "amount_cents" > 0 AND "status" IN ('paid', 'refunded') AND "provider_subscription_id" IS NOT NULL
 ORDER BY "organization_id", "paid_at", "created_at", "id"
 ON CONFLICT ("organization_id") DO NOTHING;

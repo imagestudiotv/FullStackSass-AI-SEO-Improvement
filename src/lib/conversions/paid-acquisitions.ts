@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { and, asc, eq, gt, inArray, isNull, lt, lte, or, sql } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
 
 import { CONSENT_MAX_AGE } from "@/lib/consent";
 import { billingCheckouts, paidAcquisitions, payments, plans } from "@/lib/db/schema";
@@ -16,7 +16,11 @@ const MAX_AGE_MS = 72 * 60 * 60 * 1000;
 // A batch is bounded to 20 five-second requests. Leave room for DB work too.
 const CLAIM_MS = 5 * 60_000;
 const LIMIT = 20;
-const positivePayment = and(gt(payments.amountCents, 0), inArray(payments.status, ["paid", "refunded"]));
+// A provider clock slightly ahead of ours: the payment waits until it is due instead of being suppressed.
+const SKEW_MS = 5 * 60_000;
+// Subscription money only. PayPal credit packs share this ledger without a subscription id (Stripe's go to
+// addon_purchases), so otherwise a trial's credit purchase would block its first subscription charge.
+const positivePayment = and(gt(payments.amountCents, 0), inArray(payments.status, ["paid", "refunded"]), isNotNull(payments.providerSubscriptionId));
 
 function visitor(value: unknown, now: Date): CheckoutVisitor | null {
   if (!value || typeof value !== "object") return null;
@@ -45,16 +49,25 @@ async function enqueueFirstPayment(database: Database, organizationId: string, n
         eq(billingCheckouts.providerSubscriptionId, payment.providerSubscriptionId), eq(billingCheckouts.status, "completed"),
       )).orderBy(asc(billingCheckouts.createdAt), asc(billingCheckouts.id)).limit(1)
     : [];
+  const age = now.getTime() - payment.paidAt.getTime();
+  if (!checkout && payment.providerSubscriptionId && age < MAX_AGE_MS) {
+    // Activation can trail the payment (PayPal may report the sale before the subscription is active).
+    // Leave it to a later recovery pass rather than suppress it for good.
+    const [unfinished] = await database.select({ id: billingCheckouts.id }).from(billingCheckouts).where(and(
+      eq(billingCheckouts.organizationId, organizationId), eq(billingCheckouts.provider, payment.provider),
+      eq(billingCheckouts.providerSubscriptionId, payment.providerSubscriptionId), inArray(billingCheckouts.status, ["open", "unresolved", "abandoned"]),
+    )).limit(1);
+    if (unfinished) return null;
+  }
   const saved = visitor(checkout?.analytics, now);
   const id = measurementId();
-  const age = now.getTime() - payment.paidAt.getTime();
   const reason = !checkout ? "not_subscription_checkout" : payment.status === "refunded" ? "refunded_before_delivery"
-    : !saved ? "no_current_consent_identity" : !id ? "measurement_not_configured" : age < 0 || age >= MAX_AGE_MS ? "outside_measurement_window" : null;
+    : !saved ? "no_current_consent_identity" : !id ? "measurement_not_configured" : age < -SKEW_MS || age >= MAX_AGE_MS ? "outside_measurement_window" : null;
   const [inserted] = await database.insert(paidAcquisitions).values({
     organizationId, paymentId: payment.id, checkoutId: checkout?.id ?? null,
     visitor: reason ? null : saved, measurementId: id,
     status: reason ? "suppressed" : "pending", lastError: reason,
-    occurredAt: payment.paidAt, nextAttemptAt: now,
+    occurredAt: payment.paidAt, nextAttemptAt: age < 0 ? payment.paidAt : now,
   }).onConflictDoNothing({ target: paidAcquisitions.organizationId }).returning({ id: paidAcquisitions.id });
   return inserted?.id ?? null;
 }
@@ -124,7 +137,8 @@ export async function deliverPaidAcquisitions(
     };
     try {
       const age = now.getTime() - row.occurredAt.getTime();
-      if (age < 0 || age >= MAX_AGE_MS) { await finish("expired", "outside_measurement_window"); continue; }
+      // Never due before occurredAt (enqueue schedules it so); beyond the skew allowance is not a real payment time.
+      if (age < -SKEW_MS || age >= MAX_AGE_MS) { await finish("expired", "outside_measurement_window"); continue; }
       const saved = visitor(row.visitor, now);
       const [checkout] = row.checkoutId ? await database.select().from(billingCheckouts).where(eq(billingCheckouts.id, row.checkoutId)).limit(1) : [];
       const current = visitor(checkout?.analytics, now);
