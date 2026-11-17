@@ -22,7 +22,7 @@ import { partnerCommissionsSweep, partnerProviderEvent, partnerTiersDaily } from
 import { partnerWelcome } from "./partner-onboarding";
 import { partnerPayoutsMonthly, partnerPayoutsSweep, partnerSettlementExecute } from "./partner-payouts";
 import { partnerReconciliation } from "./partner-reconciliation";
-import { billingMaintenance, deliverOutbox } from "./maintenance";
+import { billingMaintenance, deliverOutbox, paidAcquisitionMaintenance } from "./maintenance";
 import { publishArticleJob } from "./publish-article";
 import { renewalReplan } from "./renewal-replan";
 import { researchKeywords } from "./research-keywords";
@@ -49,6 +49,7 @@ export const functions = [
   importAnalytics,
   importAnalyticsDaily,
   deliverOutbox,
+  paidAcquisitionMaintenance,
   billingMaintenance,
   collectAuthority,
   indexArticles,

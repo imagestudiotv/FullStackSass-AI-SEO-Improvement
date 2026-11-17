@@ -3260,6 +3260,24 @@ export type Messages = {
       verifying: string;
       resendCode: string;
       useDifferentEmail: string;
+      /** The heading of the sign-up and sign-in forms: small line, title, sentence. */
+      signUpEyebrow: string;
+      signUpTitle: string;
+      signUpSub: string;
+      signInEyebrow: string;
+      signInTitle: string;
+      signInSub: string;
+      createAccount: string;
+      creatingAccount: string;
+      signIn: string;
+      signingIn: string;
+      /** The legal line under the form; {terms} and {privacy} become the two links. */
+      legal: string;
+      terms: string;
+      privacy: string;
+      haveAccount: string;
+      noAccount: string;
+      signUp: string;
       codeSent: string;
       connectionFailed: string;
       codeNotSent: string;
@@ -6506,6 +6524,22 @@ const en: Messages = {
       verifying: "Checking your code…",
       resendCode: "Send another code",
       useDifferentEmail: "Use a different email",
+      signUpEyebrow: "Create your account",
+      signUpTitle: "Start growing today",
+      signUpSub: "Get started in minutes.",
+      signInEyebrow: "Welcome back",
+      signInTitle: "Sign in to RepGet",
+      signInSub: "Sign in to access your dashboard.",
+      createAccount: "Create account",
+      creatingAccount: "Creating your account…",
+      signIn: "Sign in",
+      signingIn: "Signing you in…",
+      legal: "By continuing, you agree to our {terms} and acknowledge our {privacy}.",
+      terms: "Terms of Service",
+      privacy: "Privacy Policy",
+      haveAccount: "Already have an account?",
+      noAccount: "Don’t have an account?",
+      signUp: "Sign up",
       codeSent: "Check your email for the code.",
       connectionFailed: "We could not reach RepGet. Check your connection and try again.",
       codeNotSent: "That code could not be sent. Try again.",
@@ -9770,6 +9804,22 @@ const es: Messages = {
       verifying: "Comprobando su código…",
       resendCode: "Enviar otro código",
       useDifferentEmail: "Usar otro correo",
+      signUpEyebrow: "Cree su cuenta",
+      signUpTitle: "Empiece a crecer hoy",
+      signUpSub: "Listo en pocos minutos.",
+      signInEyebrow: "Hola de nuevo",
+      signInTitle: "Inicie sesión en RepGet",
+      signInSub: "Inicie sesión para acceder a su panel.",
+      createAccount: "Crear cuenta",
+      creatingAccount: "Creando su cuenta…",
+      signIn: "Iniciar sesión",
+      signingIn: "Iniciando sesión…",
+      legal: "Al continuar, acepta nuestros {terms} y reconoce nuestra {privacy}.",
+      terms: "Términos del servicio",
+      privacy: "Política de privacidad",
+      haveAccount: "¿Ya tiene una cuenta?",
+      noAccount: "¿No tiene una cuenta?",
+      signUp: "Regístrese",
       codeSent: "Revise su correo para ver el código.",
       connectionFailed: "No pudimos conectar con RepGet. Compruebe su conexión e inténtelo de nuevo.",
       codeNotSent: "No se ha podido enviar el código. Inténtelo de nuevo.",
@@ -13035,6 +13085,22 @@ const fr: Messages = {
       verifying: "Vérification de votre code…",
       resendCode: "Envoyer un autre code",
       useDifferentEmail: "Utiliser une autre adresse",
+      signUpEyebrow: "Créez votre compte",
+      signUpTitle: "Commencez à grandir dès aujourd’hui",
+      signUpSub: "Quelques minutes suffisent.",
+      signInEyebrow: "Bon retour",
+      signInTitle: "Connectez-vous à RepGet",
+      signInSub: "Connectez-vous pour accéder à votre tableau de bord.",
+      createAccount: "Créer un compte",
+      creatingAccount: "Création de votre compte…",
+      signIn: "Se connecter",
+      signingIn: "Connexion en cours…",
+      legal: "En continuant, vous acceptez nos {terms} et reconnaissez avoir pris connaissance de notre {privacy}.",
+      terms: "Conditions d’utilisation",
+      privacy: "Politique de confidentialité",
+      haveAccount: "Vous avez déjà un compte ?",
+      noAccount: "Vous n’avez pas de compte ?",
+      signUp: "Inscrivez-vous",
       codeSent: "Consultez votre boîte mail pour le code.",
       connectionFailed: "Impossible de joindre RepGet. Vérifiez votre connexion et réessayez.",
       codeNotSent: "Ce code n\u2019a pas pu être envoyé. Réessayez.",
@@ -16299,6 +16365,22 @@ const it: Messages = {
       verifying: "Verifica del codice…",
       resendCode: "Invia un altro codice",
       useDifferentEmail: "Usa un\u2019altra e-mail",
+      signUpEyebrow: "Crei il Suo account",
+      signUpTitle: "Inizi a crescere oggi",
+      signUpSub: "Bastano pochi minuti.",
+      signInEyebrow: "Bentornati",
+      signInTitle: "Acceda a RepGet",
+      signInSub: "Acceda per aprire la Sua dashboard.",
+      createAccount: "Crea account",
+      creatingAccount: "Creazione dell’account…",
+      signIn: "Accedi",
+      signingIn: "Accesso in corso…",
+      legal: "Continuando, accetta i nostri {terms} e prende atto della nostra {privacy}.",
+      terms: "Termini di servizio",
+      privacy: "Informativa sulla privacy",
+      haveAccount: "Ha già un account?",
+      noAccount: "Non ha un account?",
+      signUp: "Si registri",
       codeSent: "Controlli la sua e-mail per il codice.",
       connectionFailed: "Impossibile connettersi a RepGet. Controlli la connessione e riprovi.",
       codeNotSent: "Non è stato possibile inviare il codice. Riprovi.",
@@ -19560,6 +19642,22 @@ const de: Messages = {
       verifying: "Code wird geprüft…",
       resendCode: "Neuen Code senden",
       useDifferentEmail: "Andere E-Mail verwenden",
+      signUpEyebrow: "Konto erstellen",
+      signUpTitle: "Starten Sie noch heute",
+      signUpSub: "In wenigen Minuten startklar.",
+      signInEyebrow: "Willkommen zurück",
+      signInTitle: "Bei RepGet anmelden",
+      signInSub: "Melden Sie sich an, um Ihr Dashboard zu öffnen.",
+      createAccount: "Konto erstellen",
+      creatingAccount: "Ihr Konto wird erstellt…",
+      signIn: "Anmelden",
+      signingIn: "Sie werden angemeldet…",
+      legal: "Indem Sie fortfahren, akzeptieren Sie unsere {terms} und nehmen unsere {privacy} zur Kenntnis.",
+      terms: "Nutzungsbedingungen",
+      privacy: "Datenschutzerklärung",
+      haveAccount: "Sie haben bereits ein Konto?",
+      noAccount: "Noch kein Konto?",
+      signUp: "Registrieren",
       codeSent: "Sehen Sie in Ihrem Postfach nach dem Code.",
       connectionFailed: "RepGet ist nicht erreichbar. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
       codeNotSent: "Der Code konnte nicht gesendet werden. Versuchen Sie es erneut.",

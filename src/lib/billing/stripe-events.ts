@@ -354,6 +354,8 @@ async function processBillingEvent(event: Stripe.Event): Promise<void> {
       }
 
       const status = event.type === "invoice.paid" ? "paid" : "failed";
+      const providerPaidAt = invoice.status_transitions?.paid_at
+        ? new Date(invoice.status_transitions.paid_at * 1000) : null;
       if (invoice.id) {
         await db
           .insert(payments)
@@ -366,9 +368,7 @@ async function processBillingEvent(event: Stripe.Event): Promise<void> {
             status,
             invoiceUrl: invoice.hosted_invoice_url ?? invoice.invoice_pdf ?? null,
             description: invoice.lines?.data?.[0]?.description ?? null,
-            paidAt: invoice.status_transitions?.paid_at
-              ? new Date(invoice.status_transitions.paid_at * 1000)
-              : new Date(),
+            paidAt: providerPaidAt ?? new Date(),
             /*
               The subscription this invoice belongs to, as Stripe says. A
               refund that also cancels uses THIS, never "the newest
@@ -385,6 +385,13 @@ async function processBillingEvent(event: Stripe.Event): Promise<void> {
             target: [payments.provider, payments.externalId],
             set: {
               status,
+              // A failed invoice later paid must use the actual paid amount/time,
+              // not the earlier failure's amount_due/date. Replays keep the provider timestamp.
+              ...(status === "paid" ? {
+                amountCents: invoice.amount_paid ?? 0,
+                currency: invoice.currency ?? "eur",
+                ...(providerPaidAt ? { paidAt: providerPaidAt } : {}),
+              } : {}),
               providerSubscriptionId: subscriptionId,
               ...(synced.subscriptionRowId ? { subscriptionId: synced.subscriptionRowId } : {}),
               updatedAt: new Date(),

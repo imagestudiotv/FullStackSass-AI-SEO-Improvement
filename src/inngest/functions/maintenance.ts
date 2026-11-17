@@ -8,6 +8,7 @@ import { sweepAbandonedReservations } from "@/lib/billing/spend-quota";
 import { recoverWebhookEvents } from "@/lib/billing/webhook-recovery";
 import { db } from "@/lib/db";
 import { deliverJobs } from "@/lib/jobs/outbox";
+import { recoverPaidAcquisitions } from "@/lib/conversions/paid-acquisitions";
 
 /**
  * Scheduled recovery: the work that must happen whether or not any request
@@ -26,6 +27,12 @@ export const deliverOutbox = inngest.createFunction(
     const result = await step.run("deliver", () => deliverJobs(db, { limit: 100 }));
     return { sent: result.sent.length, retrying: result.retrying.length, failed: result.failed.length };
   },
+);
+
+/** Separate recovery from payment handling: a Google outage cannot lose the paid event. */
+export const paidAcquisitionMaintenance = inngest.createFunction(
+  { id: "paid-acquisition-deliver", retries: 1, triggers: [{ cron: "*/5 * * * *" }] },
+  async ({ step }) => step.run("recover-and-deliver", () => recoverPaidAcquisitions(db)),
 );
 
 export const billingMaintenance = inngest.createFunction(

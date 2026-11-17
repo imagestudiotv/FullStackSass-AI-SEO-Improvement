@@ -65,3 +65,33 @@ describe("the sign-in / sign-up switch link", () => {
     expect(switchHref(render("sign-in"))).toBe("/sign-up");
   });
 });
+
+/*
+  The heading, button, legal line and switch were English on every language's
+  form, so an Italian visitor from /it/social-publishing read English around
+  Italian fields (2026-11-17). Every visible word now comes from `t`.
+*/
+describe("the form in the visitor's language", () => {
+  const ENGLISH = ["Create your account", "Start growing today", "Get started in minutes", "Welcome back", "Sign in to RepGet", "Create account", "By continuing", "Terms of Service", "Privacy Policy", "Already have an account", "have an account?"];
+  const renderIn = (locale: "it" | "es" | "fr" | "de", mode: "sign-in" | "sign-up") =>
+    renderToStaticMarkup(createElement(AuthForm, { mode, initialEmail: "", t: getMessages(locale).app.auth }));
+
+  for (const locale of ["it", "es", "fr", "de"] as const) {
+    for (const mode of ["sign-up", "sign-in"] as const) {
+      it(`${locale} ${mode} has no English left and no lang="en" island`, () => {
+        const html = renderIn(locale, mode);
+        for (const phrase of ENGLISH) expect(html).not.toContain(phrase);
+        expect(html).not.toContain('lang="en"');
+        // The legal line keeps both links, to the (English) documents.
+        expect(html).toContain('href="/terms"');
+        expect(html).toContain('href="/privacy"');
+      });
+    }
+  }
+
+  it("Italian sign-up reads in Italian", () => {
+    const t = getMessages("it").app.auth;
+    const html = renderIn("it", "sign-up");
+    for (const text of [t.signUpTitle, t.createAccount, t.terms, t.privacy, t.haveAccount, t.signIn]) expect(html).toContain(text.replace(/'/g, "&#x27;"));
+  });
+});

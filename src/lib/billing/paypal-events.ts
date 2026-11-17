@@ -45,6 +45,9 @@ export type PayPalEvent = {
     status?: string;
     custom_id?: string;
     billing_agreement_id?: string;
+    /** Sale timestamps from the verified event snapshot (not this webhook's arrival time). */
+    create_time?: string;
+    update_time?: string;
     /** v1 (sales): total + currency. v2 (captures, refunds): value + currency_code. */
     amount?: { total?: string; currency?: string; value?: string; currency_code?: string };
     /** On a refund or reversal: the sale it returns money from. */
@@ -472,6 +475,8 @@ export async function processPayPalEvent(event: PayPalEvent): Promise<void> {
         // PayPal reports decimal strings ("29.00"); stored in minor units.
         const total = Number.parseFloat(resource.amount?.total ?? "0");
         const status = event.event_type === "PAYMENT.SALE.COMPLETED" ? "paid" : "failed";
+        const saleDate = new Date(resource.update_time ?? resource.create_time ?? "");
+        const providerPaidAt = Number.isFinite(saleDate.getTime()) ? saleDate : null;
         await db
           .insert(payments)
           .values({
@@ -481,6 +486,7 @@ export async function processPayPalEvent(event: PayPalEvent): Promise<void> {
             amountCents: Number.isFinite(total) ? Math.round(total * 100) : 0,
             currency: (resource.amount?.currency ?? "EUR").toLowerCase(),
             status,
+            ...(providerPaidAt ? { paidAt: providerPaidAt } : {}),
             description: "Subscription payment",
             // A v1 sale: refunded at /v1/payments/sale (lib/paypal/payments.ts).
             providerObject: "paypal_sale",
@@ -492,6 +498,11 @@ export async function processPayPalEvent(event: PayPalEvent): Promise<void> {
             target: [payments.provider, payments.externalId],
             set: {
               status,
+              ...(status === "paid" ? {
+                amountCents: Number.isFinite(total) ? Math.round(total * 100) : 0,
+                currency: (resource.amount?.currency ?? "EUR").toLowerCase(),
+                ...(providerPaidAt ? { paidAt: providerPaidAt } : {}),
+              } : {}),
               providerSubscriptionId: billingId,
               ...(synced.subscriptionRowId ? { subscriptionId: synced.subscriptionRowId } : {}),
               updatedAt: new Date(),

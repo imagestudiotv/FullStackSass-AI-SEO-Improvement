@@ -146,11 +146,24 @@ export const TRANSLATED_PATHS: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * Pages that exist ONLY in the languages listed, under app/(localized)/[locale]
+ * like the translated ones but with no English page and no other translation:
+ * a campaign's landing page written for one market (the Italian Google Ads
+ * pilot, 2026-11-16). Not in TRANSLATED_PATHS, so they declare no hreflang
+ * alternates, offer no language switch and get no sitemap entry in the other
+ * languages - each of those would advertise a page that 404s.
+ */
+export const LOCALE_ONLY_PATHS: Readonly<Record<string, readonly Locale[]>> = {
+  "/social-publishing": ["it"],
+};
+
+/**
  * Builds a path for a locale. English stays unprefixed, and so does any page
  * that is English-only: a Spanish page links to /audit, not to an /es/audit
  * that does not exist. Every translated page's "free check" button and its
  * tools and docs links used to be exactly that - 404s (found by the 404
  * logging review, 2026-10-04). A ?query or #fragment is kept.
+ * A LOCALE_ONLY_PATHS page is prefixed in its own languages only.
  */
 export function localePath(locale: Locale, path: string): string {
   const clean = path.startsWith("/") ? path : `/${path}`;
@@ -158,7 +171,7 @@ export function localePath(locale: Locale, path: string): string {
   const cut = clean.search(/[?#]/);
   const pathname = cut === -1 ? clean : clean.slice(0, cut);
   const suffix = cut === -1 ? "" : clean.slice(cut);
-  if (!TRANSLATED_PATHS.has(pathname)) return clean;
+  if (!TRANSLATED_PATHS.has(pathname) && !LOCALE_ONLY_PATHS[pathname]?.includes(locale)) return clean;
   return `/${locale}${pathname === "/" ? "" : pathname}${suffix}`;
 }
 
