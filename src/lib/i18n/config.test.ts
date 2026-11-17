@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { INTEGRATION_GUIDE_SLUGS, languageAlternates, LOCALES, localePath, splitLocale, TOOL_SLUGS, TRANSLATED_PATHS } from "@/lib/i18n/config";
+import { INTEGRATION_GUIDE_SLUGS, languageAlternates, LOCALE_ONLY_PATHS, LOCALES, localePath, splitLocale, TOOL_SLUGS, TRANSLATED_PATHS } from "@/lib/i18n/config";
 import { INTEGRATION_DOCS } from "@/lib/publishing/docs";
 import { TOOL_PAGES } from "@/lib/seo/public-pages";
 
@@ -142,7 +142,17 @@ describe("localePath", () => {
     */
     const NOT_PUBLIC = new Set(["/blog/sponsorship/thanks"]);
     for (const page of NOT_PUBLIC) expect(pages, `${page} is listed as not public but has no page`).toContain(page);
-    expect([...TRANSLATED_PATHS].sort()).toEqual(pages.filter((page) => !NOT_PUBLIC.has(page)).sort());
+    // Pages in some languages only (LOCALE_ONLY_PATHS) are under [locale] too, and are not in every language.
+    for (const page of Object.keys(LOCALE_ONLY_PATHS)) expect(pages, `${page} is listed as locale-only but has no page`).toContain(page);
+    expect([...TRANSLATED_PATHS].sort()).toEqual(pages.filter((page) => !NOT_PUBLIC.has(page) && !(page in LOCALE_ONLY_PATHS)).sort());
+  });
+
+  it("prefixes a page that exists in some languages only for those languages", () => {
+    expect(localePath("it", "/social-publishing")).toBe("/it/social-publishing");
+    expect(localePath("it", "/social-publishing?utm_source=google")).toBe("/it/social-publishing?utm_source=google");
+    // Never an address that does not exist: no /es/... and no hreflang or switcher entry.
+    expect(localePath("es", "/social-publishing")).toBe("/social-publishing");
+    expect(TRANSLATED_PATHS.has("/social-publishing")).toBe(false);
   });
 
   it("lists every integration guide (the slugs are copied so the guides' text stays out of the browser)", () => {
