@@ -17,8 +17,14 @@ import { anthropic, MODELS } from "@/lib/ai/client";
  * otherwise meet the request timeout.
  */
 
-/** Room for the model's thinking and the longest answer. */
-const MAX_TOKENS = 32_000;
+/**
+ * Room for the model's thinking and the longest answer: thinking counts
+ * against it. 32,000 was too little for a comparison's plan (2026-11-17:
+ * "RepGet vs Semrush" ran out of room on every try, thinking at high effort
+ * over two pricing pages, then quoting each fact). The calls are streamed, so
+ * a larger ceiling meets no timeout; only what is generated is paid for.
+ */
+const MAX_TOKENS = 64_000;
 
 type Rates = { input: number; output: number; cacheRead: number; cacheWrite: number };
 
@@ -59,8 +65,8 @@ function priced(usage: Anthropic.Usage, model: string): CallUsage {
  * links). Carries what the call cost, so the run still counts it.
  *
  * `final`: asking again cannot help (a comparison its sources do not
- * support), so the run fails at once instead of paying for the same
- * refusal on every retry.
+ * support, an answer cut off at the ceiling), so the run fails at once
+ * instead of paying for the same refusal on every retry.
  */
 export class SpentError extends Error {
   constructor(
@@ -112,7 +118,8 @@ export async function askClaude(options: {
 
   const usage = priced(message.usage, model);
   if (message.stop_reason === "refusal") throw new SpentError("The AI declined to write about this topic. Reword the topic, then try again.", usage);
-  if (message.stop_reason === "max_tokens") throw new SpentError("The AI ran out of room while writing. Try again.", usage);
+  // Final: the same request at the same ceiling ran out of room on every retry (2026-11-17), so retrying only pays again.
+  if (message.stop_reason === "max_tokens") throw new SpentError("The AI ran out of room while writing. Try again.", usage, true);
   const text = message.content
     .filter((block): block is Anthropic.TextBlock => block.type === "text")
     .map((block) => block.text)
