@@ -652,6 +652,26 @@ describe("a comparison article", () => {
     expect(Object.keys((run.detail as { costs: Record<string, number> }).costs)).toContain("plan-article-refused-1");
   });
 
+  it("stops at once when the plan runs out of room, counting what it cost, instead of paying for it twice more (2026-11-17)", async () => {
+    await languages();
+    const claim = await queuedComparison();
+    modelWrites(message(COMPARE_PLAN(), { stop: "max_tokens", usage: { output_tokens: 64_000 } }));
+    await expect(invoke(claim.runId, memoisedStep())).rejects.toMatchObject({ name: "NonRetriableError", message: expect.stringContaining("ran out of room") });
+    expect(ai.stream).toHaveBeenCalledTimes(1);
+    expect(ai.stream.mock.calls[0][0]).toMatchObject({ max_tokens: 64_000 });
+    const [run] = await test.db.select().from(blogAutopilotRuns).where(eq(blogAutopilotRuns.id, claim.runId));
+    expect(Object.keys((run.detail as { costs: Record<string, number> }).costs)).toContain("plan-article-refused-1");
+  });
+
+  it("stops at once when a part runs out of room, keeping the plan", async () => {
+    await languages();
+    const claim = await queuedComparison();
+    modelWrites(message(COMPARE_PLAN()), message(COMPARE_PARTS()[0], { stop: "max_tokens" }));
+    const step = memoisedStep();
+    await expect(invoke(claim.runId, step)).rejects.toMatchObject({ name: "NonRetriableError", message: expect.stringContaining("ran out of room") });
+    expect(step.ran).toContain("plan-article");
+  });
+
   it("a stored comparison with nothing to compare fails with a reason, before anything is paid", async () => {
     await languages();
     const claim = await queuedComparison({ entities: [] });

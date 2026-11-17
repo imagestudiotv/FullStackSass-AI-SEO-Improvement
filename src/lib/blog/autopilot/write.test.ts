@@ -223,7 +223,8 @@ describe("the plan", () => {
     answers(message(planReply(), { stop: "refusal" }));
     await expect(planArticle(TOPIC, context())).rejects.toThrow("declined to write about this topic");
     answers(message(planReply(), { stop: "max_tokens" }));
-    await expect(planArticle(TOPIC, context())).rejects.toThrow("ran out of room");
+    // Final: retrying at the same ceiling is cut off again (2026-11-17).
+    await expect(planArticle(TOPIC, context())).rejects.toMatchObject({ message: expect.stringContaining("ran out of room"), final: true });
     answers(message("not json"));
     await expect(planArticle(TOPIC, context())).rejects.toThrow("not in the expected form");
     // Answered, so paid for: the refusal says what it cost.

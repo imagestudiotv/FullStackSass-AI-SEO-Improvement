@@ -130,7 +130,7 @@ export const blogAutopilotRun = inngest.createFunction(
 
     const planned = await step.run("plan-article", async () => {
       const result = await counted("plan-article", async () => planArticle(claim, await loadWriterContext(asOf), research)).catch((error: unknown) => {
-        // Counted above; a refusal no retry can change (sources that do not support the comparison) ends the run now.
+        // Counted above; a refusal no retry can change (sources that do not support the comparison, an answer cut off at the ceiling) ends the run now.
         if (error instanceof SpentError && error.final) throw new NonRetriableError(error.message);
         throw error;
       });
@@ -158,7 +158,11 @@ export const blogAutopilotRun = inngest.createFunction(
       const id = `write-part-${number}`;
       const start = from;
       const part = await step.run(id, async () => {
-        const result = await counted(id, async () => writePart(claim, await loadWriterContext(asOf), planned.plan, { number, from: start }, written));
+        const result = await counted(id, async () => writePart(claim, await loadWriterContext(asOf), planned.plan, { number, from: start }, written)).catch((error: unknown) => {
+          // As the plan: an answer cut off at the ceiling would be cut off again, and paid for each time.
+          if (error instanceof SpentError && error.final) throw new NonRetriableError(error.message);
+          throw error;
+        });
         await noteCost(runId, id, result.usage.costUsd);
         logger.info({ step: id, runId, htmlBytes: result.html.length, sections: result.sections, from: start, costUsd: result.usage.costUsd }, "Blog article part written");
         return result;
