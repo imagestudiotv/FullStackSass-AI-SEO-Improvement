@@ -363,15 +363,11 @@ function MiniCard({ tool, site }: { tool: Exclude<FeatureIconName, "arrow">; sit
       body = (
         <>
           {kicker(m.ai.kicker)}
+          {/* The one assistant the weekly check asks (lib/geo/check.ts ENGINE). */}
           <div className={c("rgf-ai-mini-row")}>
             <span className={c("rgf-ai-mark")}>✳</span>
-            <b>ChatGPT</b>
+            <b>Claude</b>
             <i className={c("rgf-ai-signal")} />
-          </div>
-          <div className={c("rgf-ai-mini-row")}>
-            <span className={c("rgf-ai-mark gemini")}>✦</span>
-            <b>Gemini</b>
-            <i className={c("rgf-ai-signal alt")} />
           </div>
           <div className={c("rgf-mini-bottom")}>
             <span>{m.ai.bottom}</span>
@@ -563,13 +559,8 @@ function PreviewWindow({ tool, site }: { tool: Exclude<FeatureIconName, "arrow">
           </div>
           <div className={c("rgf-ai-results")}>
             {kicker(w.ai.channels)}
-            {(
-              [
-                ["✳", "ChatGPT"],
-                ["✦", "Gemini"],
-                ["◉", "Perplexity"],
-              ] as const
-            ).map(([glyph, name]) => (
+            {/* Only Claude is asked (lib/geo/check.ts ENGINE); ChatGPT, Gemini and Perplexity are not. */}
+            {([["✳", "Claude"]] as const).map(([glyph, name]) => (
               <div key={name}>
                 <span>{glyph}</span>
                 <b>{name}</b>

@@ -68,8 +68,8 @@ const GROUPS: { lead: Panel; supporting: [Panel, Panel] }[] = [
   },
   {
     lead: {
-      headline: "See whether AI assistants name you",
-      body: "We ask the questions your customers ask ChatGPT, Claude and Perplexity, and track whether your business comes up in the answer - the search everyone is still pretending does not matter.",
+      headline: "See whether an AI assistant names you",
+      body: "Each week we ask Claude the questions your customers would ask an AI assistant, and record whether your business comes up in the answer. One assistant's view, asked through its API - ChatGPT, Gemini and Perplexity are not checked.",
     },
     supporting: [
       {
