@@ -125,19 +125,29 @@ export default function PrivacyPage() {
       {meta ? (
         <p>
           <strong>Meta (Facebook), only if you accept.</strong> The same
-          answer covers the Meta Pixel, which measures our Facebook and
-          Instagram ads. Nothing is loaded from Meta unless you accept, and
-          never inside your account except to report a sign-up or the start
-          of a free trial. If you accept, the pixel sets a cookie,{" "}
-          <code>_fbp</code> (and <code>_fbc</code> when you arrive from one of
-          our ads), and tells Meta which public pages you view, which ad sent
-          you, and when you create an account or start your free trial. It is
-          never sent from a page whose address carries anything beyond the
-          page itself and campaign tags, and we never send Meta your name,
-          your email address, or anything about your websites or articles.
-          Meta may process this data in the United States under the EU-US
-          Data Privacy Framework. If you decline, the pixel stops and its
-          cookies are deleted.
+          answer covers the Meta Pixel and Meta&apos;s Conversions API, which
+          measure our Facebook and Instagram ads. With JavaScript on, nothing
+          is loaded from Meta unless you accept, and never inside your account
+          except to report a sign-up, the start of a checkout or the start of
+          a free trial. With JavaScript off, the cookie banner cannot be shown,
+          and your browser loads one invisible image from Meta for each page
+          you open, which tells Meta that the page was viewed and lets Meta
+          read or set its own cookies. If you accept, the pixel sets
+          a cookie, <code>_fbp</code> (and <code>_fbc</code> when you arrive
+          from one of our ads), and tells Meta which public pages you view,
+          which ad sent you, and when you ask for a free audit, create an
+          account or start your free trial. Our server tells Meta about the
+          same steps, about starting a checkout, and about your first
+          subscription payment (its amount and plan), with your IP address,
+          your browser&apos;s name and version, those cookies, and a
+          scrambled (SHA-256 hashed) copy of your email address and account
+          number, so Meta can match them to its ads. The pixel never runs on
+          a page whose address carries anything beyond the page itself and
+          campaign tags, and we never send Meta your name or anything about
+          your websites or articles. Meta may process this data in the United
+          States under the EU-US Data Privacy Framework. If you decline, the
+          pixel stops, its cookies are deleted, and our server sends nothing
+          more about you.
         </p>
       ) : null}
 
@@ -237,8 +247,8 @@ export default function PrivacyPage() {
         </li>
         {meta ? (
           <li>
-            <strong>Meta</strong> - advertising measurement (the Meta Pixel),
-            only for visitors who accept cookies
+            <strong>Meta</strong> - advertising measurement (the Meta Pixel
+            and its Conversions API), only for visitors who accept cookies
           </li>
         ) : null}
         <li>

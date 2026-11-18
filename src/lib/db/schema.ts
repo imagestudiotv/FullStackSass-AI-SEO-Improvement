@@ -2524,6 +2524,42 @@ export const paidAcquisitions = pgTable(
 );
 
 /**
+ * The same new-paying-workspace event for Meta's Conversions API, as a
+ * Purchase (lib/conversions/meta-purchases.ts): its own delivery state, so
+ * neither destination's outage or settings hold up the other.
+ */
+export const metaPurchases = pgTable(
+  "meta_purchases",
+  {
+    id: pk(),
+    organizationId: organizationId(),
+    paymentId: uuid("payment_id").references(() => payments.id, { onDelete: "set null" }),
+    checkoutId: uuid("checkout_id").references(() => billingCheckouts.id, { onDelete: "set null" }),
+    /** The payer's Meta browser identity from their checkout, for retries; erased once decided or when consent is withdrawn. */
+    visitor: jsonb("visitor"),
+    /** Pin the destination pixel: a changed configuration must not send queued work elsewhere. */
+    pixelId: text("pixel_id"),
+    /** pending | delivered | suppressed | legacy | expired */
+    status: text("status").default("pending").notNull(),
+    occurredAt: timestamp("occurred_at").notNull(),
+    attempts: integer("attempts").default(0).notNull(),
+    nextAttemptAt: timestamp("next_attempt_at").defaultNow().notNull(),
+    claimToken: uuid("claim_token"),
+    claimedUntil: timestamp("claimed_until"),
+    deliveredAt: timestamp("delivered_at"),
+    /** Fixed internal reason/status only; never a provider URL, token or response body. */
+    lastError: text("last_error"),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("meta_purchases_org_uidx").on(table.organizationId),
+    index("meta_purchases_due_idx").on(table.status, table.nextAttemptAt),
+    check("meta_purchases_status_check", sql`${table.status} in ('pending', 'delivered', 'suppressed', 'legacy', 'expired')`),
+    check("meta_purchases_attempts_check", sql`${table.attempts} >= 0`),
+  ],
+);
+
+/**
  * Every refund of a payment, one row per refund OPERATION, whoever made it:
  * the admin (source "admin") or the provider's dashboard, learned from its
  * webhook (source "provider").

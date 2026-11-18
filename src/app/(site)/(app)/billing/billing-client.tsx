@@ -45,6 +45,8 @@ import { OfferApplied } from "@/components/billing/offer-code-field";
 import type { OfferCodeCopy } from "@/lib/i18n/offer-code";
 import type { PayPalPurchaseCopy } from "@/lib/i18n/paypal-purchase";
 import { createCheckoutSession } from "@/lib/stripe/actions";
+import { readConsent } from "@/lib/consent";
+import { trackMetaCheckout } from "@/lib/meta-pixel";
 import { createPortalSession, type PortalFlow } from "@/lib/stripe/portal";
 import { cn } from "@/lib/utils";
 
@@ -275,6 +277,8 @@ export function BillingClient({
         setPending(null);
         return;
       }
+      // Meta's InitiateCheckout, for a visitor who accepted (lib/meta-pixel.ts); a moment for it, then on.
+      await trackMetaCheckout(result.metaCheckout, readConsent());
       // assign() rather than `location.href = ...`: the React Compiler treats
       // assigning to an outer value as a mutation, while a method call is not.
       window.location.assign(result.url);
@@ -303,6 +307,7 @@ export function BillingClient({
         setPending(null);
         return;
       }
+      await trackMetaCheckout(result.metaCheckout, readConsent());
       window.location.assign(result.url);
     } catch {
       toast.error(t.paypalCheckoutFailed);
