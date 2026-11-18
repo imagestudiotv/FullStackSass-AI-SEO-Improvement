@@ -1248,7 +1248,12 @@ export async function settlePayPalReturn(
                 sql`${billingCheckouts.updatedAt} > ${new Date(now.getTime() - RETURN_RESYNC_MS).toISOString()}::timestamp`,
               ),
             )
-          : eq(billingCheckouts.status, "open"),
+          : /*
+              Cancelling: "abandoned" too - an earlier version's status for
+              an approval left behind, which still blocks paying another way
+              (beginCheckout) and had no way out but PayPal expiring it.
+            */
+            inArray(billingCheckouts.status, ["open", "abandoned"]),
       ),
     );
 
@@ -1267,7 +1272,7 @@ export async function settlePayPalReturn(
         }
         continue;
       }
-      if (checkout.status !== "open") continue;
+      if (checkout.status !== "open" && checkout.status !== "abandoned") continue;
       if (state === "ended") {
         await applyTransition(database, checkout, { status: "expired", providerState: "ended" }, now);
         continue;
@@ -1311,7 +1316,8 @@ export async function hasUnfinishedPayPalApproval(
         eq(billingCheckouts.organizationId, scope.organizationId),
         eq(billingCheckouts.websiteId, scope.websiteId),
         eq(billingCheckouts.provider, "paypal"),
-        eq(billingCheckouts.status, "open"),
+        // "abandoned": an earlier version's status for the same thing; it blocks just the same.
+        inArray(billingCheckouts.status, ["open", "abandoned"]),
         isNotNull(billingCheckouts.providerSubscriptionId),
         sql`${billingCheckouts.createdAt} < ${new Date(now.getTime() - UNFINISHED_APPROVAL_MS).toISOString()}::timestamp`,
       ),

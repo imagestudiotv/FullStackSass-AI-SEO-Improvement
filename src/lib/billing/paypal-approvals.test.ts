@@ -246,6 +246,19 @@ describe("a PayPal approval left unfinished - PayPal's tab closed (H1, 2026-10-2
     expect(await createCheckoutSession(planId, site.id)).toEqual({ url: "https://checkout.stripe.test/cs_card" });
   });
 
+  it("an approval an earlier version marked \"abandoned\" is offered and released too, not stuck until PayPal expires it", async () => {
+    const site = await addSite();
+    const checkout = await startPayPal(site);
+    payPalReports("APPROVAL_PENDING", site, checkout);
+    await test.db.update(billingCheckouts).set({ status: "abandoned", createdAt: new Date(Date.now() - 60 * 60_000) }).where(eq(billingCheckouts.id, checkout.id));
+    expect(await createCheckoutSession(planId, site.id)).toEqual({ error: expect.any(String), pendingPayPal: true });
+    expect(await hasUnfinishedPayPalApproval(test.db, { organizationId: "org_a", websiteId: site.id })).toBe(true);
+
+    expect(await confirmPayPalReturn(site.id, "cancelled")).toEqual({ changed: true, paid: false, waiting: false });
+    expect(await checkoutRow()).toMatchObject({ status: "released" });
+    expect(await createCheckoutSession(planId, site.id)).toEqual({ url: "https://checkout.stripe.test/cs_card" });
+  });
+
   it("another plan through PayPal is refused with the same flag, and the same plan goes back to PayPal", async () => {
     const site = await addSite();
     const checkout = await startPayPal(site);
