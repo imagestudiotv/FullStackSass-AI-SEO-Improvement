@@ -351,6 +351,13 @@
   border: 1px solid #efedf1;
 }
 
+/* A white logo on the white card: a dark tile behind it. */
+.icon[data-tone="light"] {
+  padding: 6px;
+  background: #1f1d22;
+  border-color: #1f1d22;
+}
+
 .iconLetter {
   display: grid;
   place-items: center;

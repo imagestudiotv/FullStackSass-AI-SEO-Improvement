@@ -4,6 +4,7 @@ import { detectPlatform } from "@/lib/audit/ai-crawlers";
 import { guardPublicTool } from "@/lib/tools/public-guard";
 import { fetchHomepage } from "@/lib/websites/crawl";
 import { siteCard, type SiteCard } from "@/lib/websites/site-card";
+import { iconData } from "@/lib/websites/site-icon-data";
 import { InvalidUrlError, isPublicWebsiteUrl, normalizeWebsiteUrl } from "@/lib/websites/url";
 
 /**
@@ -54,7 +55,10 @@ export async function publicSitePreview(input: string, visitor: string): Promise
         try {
           const page = await fetchHomepage(normalized.url, isPublicWebsiteUrl);
           const platform = detectPlatform([...page.platformSignals, ...page.images.map((image) => image.src)], page.generator ?? null);
-          return siteCard(page, normalized.domain, platform);
+          const card = siteCard(page, normalized.domain, platform);
+          // The icon with the suggestion, never a gap while it loads; a white one marked for a dark tile.
+          const icon = card.faviconUrl ? await iconData(card.faviconUrl) : null;
+          return icon ? { ...card, faviconUrl: icon.dataUrl, faviconTone: icon.tone } : card;
         } catch {
           return null;
         }

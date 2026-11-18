@@ -32,8 +32,14 @@ export type SiteCard = {
   name: string;
   /** The title's tagline, else the meta description, cut to one line. */
   description: string | null;
-  /** HTTPS only: the browser loads it straight from the site. */
+  /**
+   * The icon as a PNG data URL when our server could read it
+   * (lib/websites/site-icon-data.ts), else the site's own HTTPS address, which
+   * the browser loads straight from the site.
+   */
   faviconUrl: string | null;
+  /** "light": the icon is drawn in white, so it goes on a dark tile. */
+  faviconTone: "light" | null;
   platform: string | null;
   /** Two-letter code from <html lang>. */
   language: string | null;
@@ -59,6 +65,7 @@ export function siteCard(page: Pick<PageSnapshot, "title" | "ogSiteName" | "meta
     name: cut(name, 80),
     description: about ? cut(about, SITE_CARD_DESCRIPTION_CHARS) : null,
     faviconUrl: favicon,
+    faviconTone: null,
     platform,
     language: page.lang?.slice(0, 2).toLowerCase() || null,
   };
