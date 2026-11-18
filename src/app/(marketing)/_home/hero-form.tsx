@@ -2,11 +2,14 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useId, useRef, useState, useTransition, type FormEvent, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, useTransition, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 
+import { suggestSite } from "@/app/(marketing)/growth-plan/actions";
+import { SiteIcon } from "@/app/(marketing)/growth-plan/site-icon";
 import { CALLBACK_URL } from "@/lib/auth/next";
 import type { FinalCtaCopy } from "@/lib/i18n/home/final-cta";
 import type { HeroCopy } from "@/lib/i18n/home/hero";
+import type { SiteCard } from "@/lib/websites/site-card";
 import { JoinWithGoogle } from "./join-with-google";
 import styles from "./sections/hero.module.css";
 import { cleanEmail, cleanWebsite, signUpWithEmail, signUpWithWebsite, websiteStep } from "./start-field";
@@ -35,17 +38,25 @@ type Mode = "website" | "email";
 const START_DELAY = 450;
 const SWITCH_DELAY = 170;
 const CLEARED_DELAY = 580;
+/** Typing pauses this long before the typed site is looked up. */
+const SUGGEST_DELAY = 450;
 
 /**
  * The hero's field (client's design, 2026-11-03): a website by default, an
  * email on request ("Use your email instead"), and under it the way to ask
  * for a website when there is none.
  *
- * It only navigates. A website goes through sign-up to the website step with
- * the address pre-filled (`?next=` -> /onboarding/website?domain=); an email
- * goes to sign-up with the address pre-filled (`?email=`, read by the sign-up
- * page). Nothing is created or crawled from here, so there is one sign-up and
- * one website check, not a second copy of either. "Join with Google" lives here
+ * It only navigates. A website goes to the growth plan (/growth-plan?domain=,
+ * client 2026-11-18 after explee.com), which researches it and then sends the
+ * visitor through sign-up to the website step with the address pre-filled;
+ * an email goes to sign-up with the address pre-filled (`?email=`, read by
+ * the sign-up page). Nothing is created from here.
+ *
+ * While a website is typed, the site itself is suggested under the field -
+ * its icon, name, a line about it and its address, read from its homepage
+ * (growth-plan/actions.ts suggestSite, guarded like the free tools) - as on
+ * explee.com. Pressing it, or Enter, starts the plan. No suggestion (a slow
+ * or unreadable site, a limit reached) changes nothing. "Join with Google" lives here
  * too because it carries whatever has been typed so far: a valid website to
  * the website step, a valid email as the account Google offers first.
  *
@@ -61,6 +72,7 @@ export function HeroForm({
   strings,
   signUpPath,
   onboardingPath,
+  planPath,
   buildPath,
   googleLabel,
   googleIcon,
@@ -72,6 +84,8 @@ export function HeroForm({
   signUpPath: string;
   /** Locale-aware /onboarding/website, where a typed website is carried to. */
   onboardingPath: string;
+  /** Locale-aware /growth-plan, where a submitted website goes first. */
+  planPath: string;
   /** Locale-aware page to ask for a website to be built (the contact page). */
   buildPath: string;
   googleLabel: string;
@@ -91,6 +105,13 @@ export function HeroForm({
   const nextDelay = useRef(START_DELAY);
   const inputId = useId();
   const errorId = useId();
+  const listId = useId();
+  const optionId = useId();
+  /** The last suggestion that came back, and the address it was for. */
+  const [found, setFound] = useState<{ address: string; card: SiteCard | null } | null>(null);
+  const [suggestOpen, setSuggestOpen] = useState(true);
+  const [highlighted, setHighlighted] = useState(false);
+  const asked = useRef(0);
 
   const isWebsite = mode === "website";
   const example = isWebsite ? strings.websitePlaceholder : strings.emailPlaceholder;
@@ -133,6 +154,24 @@ export function HeroForm({
     return () => clearTimeout(timer);
   }, [example, mode, hasValue]);
 
+  // The typed site, looked up once typing pauses; an answer for an older value is dropped.
+  const lookup = mode === "website" ? cleanWebsite(value) : null;
+  useEffect(() => {
+    const ticket = ++asked.current;
+    if (!lookup) return;
+    const timer = setTimeout(() => {
+      suggestSite(lookup)
+        .then((card) => {
+          if (ticket === asked.current) setFound({ address: lookup, card });
+        })
+        .catch(() => {});
+    }, SUGGEST_DELAY);
+    return () => clearTimeout(timer);
+  }, [lookup]);
+  // Only ever the suggestion for what is in the field now.
+  const suggestion = found && found.address === lookup ? found.card : null;
+  const showSuggestion = Boolean(suggestion && suggestOpen && lookup);
+
   // The full example until the typing starts: what the server renders, and
   // what reduced motion keeps.
   const placeholder = typed && typed.mode === mode ? typed.text : example;
@@ -145,6 +184,22 @@ export function HeroForm({
     setTyped(null);
     // Straight back into the field: the switch was a request to type something else.
     input.current?.focus();
+  }
+
+  function startPlan(domain: string) {
+    setSuggestOpen(false);
+    startTransition(() => router.push(`${planPath}?domain=${encodeURIComponent(domain)}`));
+  }
+
+  function onFieldKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (!showSuggestion) return;
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      setHighlighted((on) => !on);
+    } else if (event.key === "Escape") {
+      setSuggestOpen(false);
+      setHighlighted(false);
+    }
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -162,7 +217,7 @@ export function HeroForm({
         return;
       }
       setError(null);
-      startTransition(() => router.push(signUpWithWebsite(signUpPath, onboardingPath, domain)));
+      startPlan(domain);
       return;
     }
     const email = cleanEmail(value);
@@ -216,8 +271,18 @@ export function HeroForm({
                 // Emptied by hand: the design waits a little longer before typing again.
                 if (next === "") nextDelay.current = CLEARED_DELAY;
                 setValue(next);
+                setSuggestOpen(true);
+                setHighlighted(false);
                 if (error) setError(null);
               }}
+              onKeyDown={onFieldKeyDown}
+              onBlur={() => setSuggestOpen(false)}
+              onFocus={() => setSuggestOpen(true)}
+              role={isWebsite ? "combobox" : undefined}
+              aria-autocomplete={isWebsite ? "list" : undefined}
+              aria-expanded={isWebsite ? showSuggestion : undefined}
+              aria-controls={isWebsite ? listId : undefined}
+              aria-activedescendant={showSuggestion && highlighted ? optionId : undefined}
               aria-invalid={error ? true : undefined}
               aria-describedby={error ? errorId : undefined}
             />
@@ -230,6 +295,29 @@ export function HeroForm({
               </span>
             </button>
           </form>
+          {isWebsite ? (
+            <div id={listId} role="listbox" aria-label={strings.websiteLabel} className={styles["rgx-suggest"]} hidden={!showSuggestion}>
+              {showSuggestion && suggestion && lookup ? (
+                <div
+                  id={optionId}
+                  role="option"
+                  aria-selected={highlighted}
+                  tabIndex={-1}
+                  className={styles["rgx-suggest-row"]}
+                  // Keeps the field focused, so the press is not lost to its blur.
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => startPlan(lookup)}
+                >
+                  <SiteIcon site={suggestion} host={suggestion.domain} size={26} className={styles["rgx-suggest-icon"]} letterClassName={styles["rgx-suggest-letter"]} />
+                  <span className={styles["rgx-suggest-text"]}>
+                    <span className={styles["rgx-suggest-name"]}>{suggestion.name}</span>
+                    {suggestion.description ? <span className={styles["rgx-suggest-about"]}>{suggestion.description}</span> : null}
+                  </span>
+                  <span className={styles["rgx-suggest-domain"]}>{suggestion.domain}</span>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </div>
       {/* Always in the page, so a screen reader hears the message when it appears. */}

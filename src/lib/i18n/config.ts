@@ -158,6 +158,15 @@ export const LOCALE_ONLY_PATHS: Readonly<Record<string, readonly Locale[]>> = {
 };
 
 /**
+ * Pages in every language that are never public: one visitor's own page,
+ * noindex. localePath prefixes them like a translated page, but they are not
+ * in TRANSLATED_PATHS, so they declare no hreflang, offer no language switch
+ * and are never in the sitemap. The growth plan (/growth-plan?domain=,
+ * client 2026-11-18): the homepage field's website, researched.
+ */
+export const PRIVATE_TRANSLATED_PATHS: ReadonlySet<string> = new Set(["/growth-plan"]);
+
+/**
  * Builds a path for a locale. English stays unprefixed, and so does any page
  * that is English-only: a Spanish page links to /audit, not to an /es/audit
  * that does not exist. Every translated page's "free check" button and its
@@ -171,7 +180,7 @@ export function localePath(locale: Locale, path: string): string {
   const cut = clean.search(/[?#]/);
   const pathname = cut === -1 ? clean : clean.slice(0, cut);
   const suffix = cut === -1 ? "" : clean.slice(cut);
-  if (!TRANSLATED_PATHS.has(pathname) && !LOCALE_ONLY_PATHS[pathname]?.includes(locale)) return clean;
+  if (!TRANSLATED_PATHS.has(pathname) && !PRIVATE_TRANSLATED_PATHS.has(pathname) && !LOCALE_ONLY_PATHS[pathname]?.includes(locale)) return clean;
   return `/${locale}${pathname === "/" ? "" : pathname}${suffix}`;
 }
 

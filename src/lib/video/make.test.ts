@@ -128,6 +128,44 @@ describe("making a production video", () => {
     expect(fetcher).not.toHaveBeenCalled();
   });
 
+  it("fails a voice refused for RepGet's own quota at once, with a code for the customer and the real reason for the owner", async () => {
+    const { websiteId } = await site();
+    const row = await idea(websiteId, { status: "making", direction: "voiceover", plan: { ...PLAN, direction: "voiceover" }, production: { audio: "voiceover", narration: "warm", captionStyle: "editorial", music: "auto", duration: "30-45", showHook: true, includeCta: true, ctaText: null } });
+    // 2026-11-18: OpenAI's answer when RepGet's account ran out of credit.
+    const refusal = JSON.stringify({ error: { message: "You have no credits remaining. Add credits to continue.", type: "insufficient_quota", code: "insufficient_quota" } });
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(refusal, { status: 429 })));
+    const logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      const failure = await prepareVoice(row.id).catch((error: unknown) => error);
+      // Not retried (the same call fails again), and its message is the code the Videos page translates.
+      expect(failure).toBeInstanceOf(ProductionError);
+      expect((failure as Error).message).toBe("voice_unavailable");
+      expect(logged).toHaveBeenCalledWith("[video] the AI voice failed", expect.objectContaining({ ideaId: row.id, code: "voice_unavailable", reason: "quota", status: 429, detail: expect.stringContaining("no credits remaining") }));
+      const ledger = await readLedger(row.id);
+      expect(ledger.items.find((item) => item.kind === "narration")?.note).toMatch(/^failed: Text to speech failed \(429\)/);
+      await failMaking(row.id, (failure as Error).message);
+      const [saved] = await test.db.select().from(videoIdeas).where(eq(videoIdeas.id, row.id));
+      expect(saved).toMatchObject({ status: "failed", error: "voice_unavailable" });
+    } finally {
+      logged.mockRestore();
+    }
+  });
+
+  it("lets the job try a busy voice service again, its message still a code", async () => {
+    const { websiteId } = await site();
+    const row = await idea(websiteId, { status: "making", direction: "voiceover", plan: { ...PLAN, direction: "voiceover" }, production: { audio: "voiceover", narration: "warm", captionStyle: "editorial", music: "auto", duration: "30-45", showHook: true, includeCta: true, ctaText: null } });
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("upstream connect error", { status: 503 })));
+    const logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      const failure = await prepareVoice(row.id).catch((error: unknown) => error);
+      expect(failure).not.toBeInstanceOf(ProductionError);
+      expect((failure as Error).message).toBe("voice_busy");
+      expect(logged).toHaveBeenCalledWith("[video] the AI voice failed", expect.objectContaining({ code: "voice_busy", reason: "server", status: 503 }));
+    } finally {
+      logged.mockRestore();
+    }
+  });
+
   it("refuses a video that cannot fit its budget before spending, and a failure returns the credit but keeps the ledger", async () => {
     const { orgId, websiteId } = await site();
     await recordCredit(orgId, { type: "adjustment", amount: 1, note: "test" });

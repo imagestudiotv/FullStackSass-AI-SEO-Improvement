@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { INTEGRATION_GUIDE_SLUGS, languageAlternates, LOCALE_ONLY_PATHS, LOCALES, localePath, splitLocale, TOOL_SLUGS, TRANSLATED_PATHS } from "@/lib/i18n/config";
+import { INTEGRATION_GUIDE_SLUGS, languageAlternates, LOCALE_ONLY_PATHS, LOCALES, localePath, PRIVATE_TRANSLATED_PATHS, splitLocale, TOOL_SLUGS, TRANSLATED_PATHS } from "@/lib/i18n/config";
 import { INTEGRATION_DOCS } from "@/lib/publishing/docs";
 import { TOOL_PAGES } from "@/lib/seo/public-pages";
 
@@ -140,11 +140,17 @@ describe("localePath", () => {
       (which gives hreflang and sitemap entries): the page Stripe returns a
       "Get Featured" buyer to, noindex (client, 2026-10-15).
     */
-    const NOT_PUBLIC = new Set(["/blog/sponsorship/thanks"]);
+    const NOT_PUBLIC = new Set(["/blog/sponsorship/thanks", ...PRIVATE_TRANSLATED_PATHS]);
     for (const page of NOT_PUBLIC) expect(pages, `${page} is listed as not public but has no page`).toContain(page);
     // Pages in some languages only (LOCALE_ONLY_PATHS) are under [locale] too, and are not in every language.
     for (const page of Object.keys(LOCALE_ONLY_PATHS)) expect(pages, `${page} is listed as locale-only but has no page`).toContain(page);
     expect([...TRANSLATED_PATHS].sort()).toEqual(pages.filter((page) => !NOT_PUBLIC.has(page) && !(page in LOCALE_ONLY_PATHS)).sort());
+  });
+
+  it("prefixes a private page in every language, without making it public", () => {
+    expect(localePath("es", "/growth-plan?domain=acme.com")).toBe("/es/growth-plan?domain=acme.com");
+    expect(localePath("en", "/growth-plan")).toBe("/growth-plan");
+    expect(TRANSLATED_PATHS.has("/growth-plan")).toBe(false);
   });
 
   it("prefixes a page that exists in some languages only for those languages", () => {

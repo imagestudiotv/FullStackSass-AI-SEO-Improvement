@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { videoIdeas, videoMedia, websites } from "@/lib/db/schema";
 import { activeProvider, generateArticleImage, generateOpenAiImage } from "@/lib/images/generate";
 import { track } from "@/lib/usage";
+import { coverFrame } from "@/remotion/cover";
 import { productionParts, productionTimeline } from "@/remotion/production";
 import type { ProductionReelProps, SceneMedia } from "@/remotion/props";
 
@@ -56,11 +57,11 @@ import {
   type Voice,
 } from "./formats";
 import { MUSIC_VOLUME, musicTrack, musicUrl, pickProductionTrack, pickTrack } from "./music";
-import { remuxNoMusic, renderReelLocally, renderSlides } from "./render";
+import { remuxNoMusic, renderReelLocally, renderSlides, type CoverRequest } from "./render";
 import { autoPublishTime, releaseScheduleSlot } from "./schedule";
 import { readVideoSettings, websiteBrand } from "./settings";
 import { storeVideoFile } from "./storage";
-import { isVoiceConfigured, speakScript, UnsupportedVoiceLanguageError, voiceLanguage, VOICE_COST_PER_MINUTE } from "./voice";
+import { isVoiceConfigured, speakScript, UnsupportedVoiceLanguageError, voiceLanguage, VOICE_COST_PER_MINUTE, VoiceServiceError } from "./voice";
 
 /**
  * Making an approved idea into its video: the scenes' pictures and clips
@@ -387,10 +388,18 @@ export async function prepareVoice(id: string): Promise<VideoIdea> {
   try {
     spoken = await speakScript(texts, idea.voice as Voice, language, direction === "animated" ? null : choicesOf(idea).narration);
   } catch (error) {
+    const service = error instanceof VoiceServiceError ? error : null;
+    const detail = service ? service.detail : String((error as Error).message);
     // A failed call may still have been billed: unmeasured, never free.
-    await recordCost(id, { kind: "narration", provider: "openai", usd: null, basis: "unmeasured", note: `failed: ${String((error as Error).message).slice(0, 80)}` }, "narration");
+    await recordCost(id, { kind: "narration", provider: "openai", usd: null, basis: "unmeasured", note: `failed: ${detail.slice(0, 80)}` }, "narration");
     await recordCost(id, { kind: "transcription", provider: "openai", usd: null, basis: "unmeasured", note: "with a failed voice" }, "transcription");
     if (error instanceof UnsupportedVoiceLanguageError) throw new ProductionError(error.message);
+    if (service) {
+      // The customer is shown the code's words (the video's error); the owner the provider's own answer, here.
+      console.error("[video] the AI voice failed", { ideaId: id, code: service.code, reason: service.reason, status: service.status, call: service.call, detail: service.detail });
+      // Out of quota, a bad key, a refused request: trying again at once would fail the same way.
+      if (!service.retryable) throw new ProductionError(service.code);
+    }
     throw error;
   }
   const minutes = spoken.durationMs / 60_000;
@@ -451,13 +460,38 @@ export async function chooseMusic(idea: VideoIdea): Promise<VideoIdea> {
 
 /* ------------------------------------------------------------------ render */
 
-/** A reel rendered on this machine (development), stored; the version without music too when it has music. */
-export async function makeReelLocally(idea: VideoIdea): Promise<string> {
+/** The cover still to make with a reel: its own props, at the frame its opening is fully drawn (src/remotion/cover.ts). */
+export function coverRequest(props: ProductionReelProps): CoverRequest {
+  return { props, frame: coverFrame(props) };
+}
+
+/**
+ * Stores a reel's cover still; null when there is none. A cover is a bonus:
+ * its failure (not made, not stored) is logged for the owner and never fails
+ * the video - the Videos page then shows the video's own frame.
+ */
+export async function storeCover(id: string, websiteId: string, file: Buffer | null, error: string | null): Promise<string | null> {
+  if (!file) {
+    if (error) console.warn("[video] the cover was not made", { ideaId: id, error });
+    return null;
+  }
+  try {
+    return await storeVideoFile(websiteId, `ideas/${id}`, file, "image/jpeg");
+  } catch (stored) {
+    console.warn("[video] the cover was not stored", { ideaId: id, error: (stored as Error).message });
+    return null;
+  }
+}
+
+/** A reel rendered on this machine (development) with its cover, stored. */
+export async function makeReelLocally(idea: VideoIdea): Promise<{ videoUrl: string; coverUrl: string | null }> {
   const props = await reelProps(idea);
-  const file = await renderReelLocally(props);
-  const url = await storeVideoFile(idea.websiteId, `ideas/${idea.id}`, file, "video/mp4");
+  const cover = coverRequest(props);
+  const rendered = await renderReelLocally(props, cover.frame);
+  const videoUrl = await storeVideoFile(idea.websiteId, `ideas/${idea.id}`, rendered.video, "video/mp4");
   await recordCost(idea.id, { kind: "render", provider: "local", usd: 0, basis: "estimated", note: "rendered on a development machine" }, "render");
-  return url;
+  const coverUrl = await storeCover(idea.id, idea.websiteId, rendered.cover, rendered.cover ? null : "the local render made no cover");
+  return { videoUrl, coverUrl };
 }
 
 /** A carousel's slides, rendered and stored. */
@@ -555,7 +589,7 @@ export async function makeNoMusicVersion(ideaId: string): Promise<string> {
 /** The video is made: ready, and on its way when the website publishes automatically. */
 export async function finishMaking(
   id: string,
-  files: { videoUrl?: string; slideUrls?: string[]; altVideoUrl?: string | null },
+  files: { videoUrl?: string; slideUrls?: string[]; altVideoUrl?: string | null; coverUrl?: string | null },
   now: Date = new Date(),
 ): Promise<{ autoAt: Date | null }> {
   const [idea] = await db.select().from(videoIdeas).where(eq(videoIdeas.id, id));
@@ -571,6 +605,8 @@ export async function finishMaking(
       status: autoAt ? "scheduled" : "ready",
       videoUrl: files.videoUrl ?? null,
       slideUrls: files.slideUrls ?? null,
+      // A reel's cover still (a carousel's cover is its first slide); a remake replaces the old one.
+      coverUrl: files.coverUrl ?? null,
       ...(files.altVideoUrl ? { altVideoUrl: files.altVideoUrl } : {}),
       platforms: autoAt ? settings.platforms : idea.platforms,
       scheduledFor: autoAt,

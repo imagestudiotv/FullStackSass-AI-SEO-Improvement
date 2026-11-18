@@ -3,7 +3,10 @@
 // renderer cannot load inside Next's server, and a render should not hold
 // the dev server's memory.
 //
-//   node scripts/remotion-render-local.mjs reel|slides|remux <props.json> <out-dir> [slide-count]
+//   node scripts/remotion-render-local.mjs reel|slides|remux <props.json> <out-dir> [slide-count | cover-frame]
+//
+// reel: a cover frame of 0 or more also writes the reel's cover still
+// (2026-11-18), without captions, after the MP4; -1 or none = no cover.
 //
 // remux (2026-11-12): the reel without RepGet's music - the props file is the job
 // from lib/video/render.ts remuxJob ({OUT} = out-dir); Remotion's own ffmpeg, -c:v copy.
@@ -76,6 +79,19 @@ if (kind === "reel") {
     ...browser,
   });
   files.push(output);
+  // The cover still (src/remotion/cover.ts), without captions: a bonus - its failure keeps the reel.
+  const coverFrame = Number(countArg);
+  if (Number.isInteger(coverFrame) && coverFrame >= 0) {
+    try {
+      const coverProps = { ...props, hideCaptions: true };
+      const still = await selectComposition({ serveUrl, id: "Reel", inputProps: coverProps, ...browser });
+      const cover = path.join(outDir, "cover.jpg");
+      await renderStill({ serveUrl, composition: still, inputProps: coverProps, frame: Math.min(coverFrame, still.durationInFrames - 1), imageFormat: "jpeg", jpegQuality: 85, output: cover, licenseKey, timeoutInMilliseconds: 180_000, ...browser });
+      files.push(cover);
+    } catch (error) {
+      console.error(`The cover was not made: ${error?.message ?? error}`);
+    }
+  }
 } else {
   const count = Number(countArg);
   for (let index = 0; index < count; index += 1) {

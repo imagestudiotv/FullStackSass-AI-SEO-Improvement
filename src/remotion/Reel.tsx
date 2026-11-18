@@ -39,7 +39,9 @@ export function Reel(props: ReelProps | ProductionReelProps) {
  */
 function ProductionReel(props: ProductionReelProps) {
   const { fps } = useVideoConfig();
-  const timeline = productionTimeline(props, fps);
+  const timed = productionTimeline(props, fps);
+  // The cover still has no captions: every direction draws them from the timeline's words.
+  const timeline = props.hideCaptions ? { ...timed, words: [] } : timed;
   // Pictures carry the colour: the dark palette, the brand in the accents.
   const pal = palette(props.brand, "story");
   const safe = safeArea(props.format === "story");
@@ -60,7 +62,7 @@ function ProductionReel(props: ProductionReelProps) {
 }
 
 /** The original templates (Bold, Numbers, Story): direction "animated" and every idea written before 2026-11-12. */
-function AnimatedReel(props: ReelProps) {
+function AnimatedReel(props: ReelProps & Pick<ProductionReelProps, "hideCaptions">) {
   const { fps } = useVideoConfig();
   const timing = reelTiming(props, fps);
   const pal = palette(props.brand, props.style);
@@ -70,7 +72,7 @@ function AnimatedReel(props: ReelProps) {
       {props.style === "bold" ? <BoldReel {...props} timing={timing} pal={pal} /> : null}
       {props.style === "numbers" ? <NumbersReel {...props} timing={timing} pal={pal} /> : null}
       {props.style === "story" ? <StoryReel {...props} timing={timing} pal={pal} /> : null}
-      {props.captions && props.words.length ? <Captions words={props.words} pal={pal} /> : null}
+      {props.captions && !props.hideCaptions && props.words.length ? <Captions words={props.words} pal={pal} /> : null}
       {props.voiceUrl ? <Audio src={props.voiceUrl} /> : null}
       {props.music ? <Music url={props.music.url} volume={props.music.volume} durationInFrames={timing.durationInFrames} /> : null}
     </AbsoluteFill>

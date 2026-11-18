@@ -186,6 +186,7 @@ export default async function WebsiteVideosPage({ params, searchParams }: PagePr
       props,
       videoUrl: row.filesDeletedAt ? null : row.videoUrl,
       slideUrls: row.filesDeletedAt ? [] : (row.slideUrls ?? []),
+      coverUrl: row.filesDeletedAt ? null : row.coverUrl,
       platforms: (row.platforms ?? []).filter(isVideoPlatform),
       scheduledFor: row.scheduledFor?.toISOString() ?? null,
       postedAt: row.postedAt?.toISOString() ?? null,

@@ -452,6 +452,9 @@ export type ViralCopy = {
     too_short: string;
     native_audio_login: string;
     native_audio_file: string;
+    /** A make that failed at the AI voice provider (lib/video/make-errors.ts), never its raw answer. */
+    voice_unavailable: string;
+    voice_busy: string;
   };
 };
 
@@ -773,6 +776,8 @@ const viralEn: ViralCopy = {
     too_short: "Too short for a Story",
     native_audio_login: "Reconnect Instagram through Facebook Login for its audio",
     native_audio_file: "The version for Instagram's audio could not be made",
+    voice_unavailable: "The AI voice is unavailable right now because of a problem on RepGet's side, not yours. Please try again later.",
+    voice_busy: "The AI voice service is busy right now. Please try again in a few minutes.",
   },
 };
 
@@ -1094,6 +1099,8 @@ const viralEs: ViralCopy = {
     too_short: "Demasiado corto para una Historia",
     native_audio_login: "Vuelva a conectar Instagram con Facebook Login para su audio",
     native_audio_file: "No se ha podido crear la versión para el audio de Instagram",
+    voice_unavailable: "La voz IA no está disponible en este momento por un problema de RepGet, no suyo. Inténtelo de nuevo más tarde.",
+    voice_busy: "El servicio de voz IA está saturado en este momento. Inténtelo de nuevo en unos minutos.",
   },
 };
 
@@ -1415,6 +1422,8 @@ const viralFr: ViralCopy = {
     too_short: "Trop courte pour une Story",
     native_audio_login: "Reconnectez Instagram via Facebook Login pour son audio",
     native_audio_file: "La version pour l’audio d’Instagram n’a pas pu être créée",
+    voice_unavailable: "La voix IA est indisponible pour le moment à cause d’un problème du côté de RepGet, pas du vôtre. Réessayez plus tard.",
+    voice_busy: "Le service de voix IA est surchargé pour le moment. Réessayez dans quelques minutes.",
   },
 };
 
@@ -1736,6 +1745,8 @@ const viralIt: ViralCopy = {
     too_short: "Troppo breve per una Storia",
     native_audio_login: "Ricolleghi Instagram con Facebook Login per il suo audio",
     native_audio_file: "Non è stato possibile creare la versione per l’audio di Instagram",
+    voice_unavailable: "La voce IA non è disponibile al momento per un problema di RepGet, non suo. Riprovi più tardi.",
+    voice_busy: "Il servizio di voce IA è sovraccarico al momento. Riprovi tra qualche minuto.",
   },
 };
 
@@ -2057,6 +2068,8 @@ const viralDe: ViralCopy = {
     too_short: "Zu kurz für eine Story",
     native_audio_login: "Instagram für das Audio über Facebook Login neu verbinden",
     native_audio_file: "Die Version für das Instagram-Audio konnte nicht erstellt werden",
+    voice_unavailable: "Die KI-Stimme ist gerade nicht verfügbar – wegen eines Problems bei RepGet, nicht bei Ihnen. Bitte versuchen Sie es später erneut.",
+    voice_busy: "Der KI-Sprachdienst ist gerade ausgelastet. Bitte versuchen Sie es in ein paar Minuten erneut.",
   },
 };
 

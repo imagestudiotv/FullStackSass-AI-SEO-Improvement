@@ -6,7 +6,7 @@ import { Captions, groupWords } from "../components/Captions";
 import { BrandShapes } from "../components/Media";
 import { FONT } from "../fonts";
 import type { ProductionPart, ProductionTimeline } from "../production";
-import { partEnd } from "../production";
+import { ENTER_FRAMES, partEnd } from "../production";
 import type { ProductionReelProps, SceneMedia } from "../props";
 import { fitFontSize } from "../text";
 import { alpha, mix, type Palette } from "../theme";
@@ -241,9 +241,6 @@ export function LegibilityShade({ strength = 1, top = 0.35 }: { strength?: numbe
     />
   );
 }
-
-/** Frames a transition into a scene takes. */
-export const ENTER_FRAMES: Record<Transition, number> = { cut: 0, zoom: 8, whip: 7, slide: 9, flash: 6, glitch: 7, fade: 12 };
 
 /**
  * A scene entering with its planned transition (ShotScene.transition). The

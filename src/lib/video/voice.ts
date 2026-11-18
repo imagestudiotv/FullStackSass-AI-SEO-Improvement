@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { CaptionWord, NarrationStyle, Voice } from "./formats";
+import { classifyVoiceFailure, type MakeErrorCode, type VoiceFailureReason } from "./make-errors";
 
 /**
  * The AI voice and its word timings (client, 2026-10-29: "AI voice-over in
@@ -81,6 +82,51 @@ export function narrationInstructions(style: NarrationStyle | null | undefined, 
   return `Speak in ${languageName} as an upbeat, confident narrator of a short social media video: lively, clear and natural, never robotic.`;
 }
 
+/**
+ * OpenAI refused (or never answered) a speech or transcription call. The
+ * message is the customer's code (lib/video/make-errors.ts), so whatever
+ * stores it shows words instead of the provider's raw answer; `detail` keeps
+ * that answer for the logs and the cost ledger.
+ */
+export class VoiceServiceError extends Error {
+  readonly call: "speech" | "transcription";
+  readonly status: number | null;
+  readonly detail: string;
+  readonly code: MakeErrorCode;
+  readonly reason: VoiceFailureReason;
+  readonly retryable: boolean;
+  /** `body` is the provider's whole answer (classified), `detail` what is kept of it. */
+  constructor(call: "speech" | "transcription", status: number | null, body: string, detail: string) {
+    const failure = classifyVoiceFailure(status, body);
+    super(failure.code);
+    this.name = "VoiceServiceError";
+    this.call = call;
+    this.status = status;
+    this.detail = detail;
+    this.code = failure.code;
+    this.reason = failure.reason;
+    this.retryable = failure.retryable;
+  }
+}
+
+const CALL_NAMES = { speech: "Text to speech", transcription: "Transcription" } as const;
+
+/** A call to OpenAI; a refusal, or no answer at all, comes back as a VoiceServiceError. */
+async function callOpenAi(call: "speech" | "transcription", url: string, init: RequestInit): Promise<Response> {
+  let response: Response;
+  try {
+    response = await fetch(url, init);
+  } catch (error) {
+    const message = String((error as Error)?.message ?? error).slice(0, 200);
+    throw new VoiceServiceError(call, null, message, `${CALL_NAMES[call]} did not answer: ${message}`);
+  }
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new VoiceServiceError(call, response.status, body, `${CALL_NAMES[call]} failed (${response.status}): ${body.slice(0, 300)}`);
+  }
+  return response;
+}
+
 export function isVoiceConfigured(): boolean {
   return Boolean(process.env.OPENAI_API_KEY?.trim());
 }
@@ -92,7 +138,7 @@ function key(): string {
 }
 
 async function speak(text: string, voice: Voice, language: string, narration: NarrationStyle | null): Promise<Buffer> {
-  const response = await fetch("https://api.openai.com/v1/audio/speech", {
+  const response = await callOpenAi("speech", "https://api.openai.com/v1/audio/speech", {
     method: "POST",
     headers: { authorization: `Bearer ${key()}`, "content-type": "application/json" },
     body: JSON.stringify({
@@ -104,7 +150,6 @@ async function speak(text: string, voice: Voice, language: string, narration: Na
     }),
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
-  if (!response.ok) throw new Error(`Text to speech failed (${response.status}): ${(await response.text()).slice(0, 300)}`);
   return Buffer.from(await response.arrayBuffer());
 }
 
@@ -134,13 +179,12 @@ async function transcribe(pcm: Buffer, language: string): Promise<{ words: Capti
   form.append("response_format", "verbose_json");
   form.append("timestamp_granularities[]", "word");
   form.append("language", language);
-  const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+  const response = await callOpenAi("transcription", "https://api.openai.com/v1/audio/transcriptions", {
     method: "POST",
     headers: { authorization: `Bearer ${key()}` },
     body: form,
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
-  if (!response.ok) throw new Error(`Transcription failed (${response.status}): ${(await response.text()).slice(0, 300)}`);
   const json = (await response.json()) as { words?: { word: string; start: number; end: number }[] };
   return {
     words: (json.words ?? []).map((word) => ({

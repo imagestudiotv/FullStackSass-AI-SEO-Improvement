@@ -263,14 +263,75 @@ async function remuxOnSandbox(sandbox: SandboxLike, videoPath: string | null, vi
   return Buffer.from(file);
 }
 
-export type CollectedRender = { video: Buffer; noMusic: Buffer | null; noMusicError: string | null; runtimeMs: number | null; vcpus: number };
+/* ------------------------------------------------- the cover */
+
+/**
+ * The reel's cover: one frame of the same composition, its opening fully
+ * drawn and without captions (src/remotion/cover.ts), as a JPEG. Made on the
+ * machine that rendered the reel, before it stops - seconds of its time, in
+ * the render's measured runtime.
+ */
+export type CoverRequest = { props: RenderProps; frame: number };
+
+const COVER_FILE = "/tmp/cover.jpg";
+/** A cover never holds the video up for long: past this it is given up (the video is kept). */
+export const COVER_TIMEOUT_MS = 60_000;
+
+/** The props the cover still is rendered with: the reel's own, captions hidden. */
+export function coverProps(props: RenderProps): ProductionReelProps {
+  return { ...props, hideCaptions: true };
+}
+
+/** `work`, or a rejection once `ms` have passed (the work itself is left to the machine's stop). */
+export async function withTimeout<T>(work: Promise<T>, ms: number, message: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(message)), ms);
+  });
+  try {
+    return await Promise.race([work, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** The cover still on a sandbox that already has the templates (the reel's own). */
+export async function coverOnSandbox(sandbox: Sandbox, cover: CoverRequest): Promise<Buffer> {
+  const { renderStillOnVercel } = await import("@remotion/vercel");
+  const { sandboxFilePath } = await renderStillOnVercel({
+    sandbox,
+    compositionId: "Reel",
+    inputProps: coverProps(cover.props),
+    frame: cover.frame,
+    outputFile: COVER_FILE,
+    imageFormat: "jpeg",
+    jpegQuality: 85,
+    licenseKey: licenseKey(),
+    logLevel: "warn",
+    timeoutInMilliseconds: 45_000,
+  });
+  const file = await sandbox.readFileToBuffer({ path: sandboxFilePath });
+  if (!file) throw new Error("The cover was not found on the render machine");
+  return Buffer.from(file);
+}
+
+export type CollectedRender = {
+  video: Buffer;
+  noMusic: Buffer | null;
+  noMusicError: string | null;
+  /** The cover still (JPEG), or null with coverError when it could not be made. */
+  cover: Buffer | null;
+  coverError: string | null;
+  runtimeMs: number | null;
+  vcpus: number;
+};
 
 /**
  * The finished reel and, when asked, the same reel without RepGet's music
- * (remuxed on the same machine before it stops), with how long the machine
- * ran - for the cost ledger.
+ * (remuxed on the same machine before it stops) and its cover still, with
+ * how long the machine ran - for the cost ledger.
  */
-export async function collectRender(handle: RenderHandle, noMusic: NoMusicSource | null): Promise<CollectedRender> {
+export async function collectRender(handle: RenderHandle, noMusic: NoMusicSource | null, cover: CoverRequest | null = null): Promise<CollectedRender> {
   const { Sandbox } = await import("@vercel/sandbox");
   const sandbox = await Sandbox.get({ sandboxId: handle.sandboxId });
   try {
@@ -286,7 +347,25 @@ export async function collectRender(handle: RenderHandle, noMusic: NoMusicSource
         altError = (error as Error).message;
       }
     }
-    return { video: Buffer.from(file), noMusic: alt, noMusicError: altError, runtimeMs: handle.startedAt ? Date.now() - handle.startedAt : null, vcpus: handle.vcpus ?? RENDER_VCPUS };
+    let still: Buffer | null = null;
+    let stillError: string | null = null;
+    if (cover) {
+      // The cover is a bonus too: without it the page shows the video's own frame.
+      try {
+        still = await withTimeout(coverOnSandbox(sandbox, cover), COVER_TIMEOUT_MS, "The cover took too long");
+      } catch (error) {
+        stillError = (error as Error).message.slice(0, 500);
+      }
+    }
+    return {
+      video: Buffer.from(file),
+      noMusic: alt,
+      noMusicError: altError,
+      cover: still,
+      coverError: stillError,
+      runtimeMs: handle.startedAt ? Date.now() - handle.startedAt : null,
+      vcpus: handle.vcpus ?? RENDER_VCPUS,
+    };
   } finally {
     await sandbox.stop().catch(() => undefined);
   }
@@ -385,10 +464,15 @@ async function renderHere(kind: "reel" | "slides" | "remux", props: RenderProps 
   }
 }
 
-export async function renderReelLocally(props: RenderProps): Promise<Buffer> {
-  const [file] = await renderHere("reel", props);
+/**
+ * A reel rendered on this machine and, when a cover frame is given, its
+ * cover still (in the same process, best effort: null when it failed).
+ */
+export async function renderReelLocally(props: RenderProps, coverFrame: number | null = null): Promise<{ video: Buffer; cover: Buffer | null }> {
+  // The script's last argument is the cover's frame for a reel; -1 = none.
+  const [file, cover] = await renderHere("reel", props, coverFrame ?? -1);
   if (!file) throw new Error("The local render returned no file");
-  return file;
+  return { video: file, cover: cover ?? null };
 }
 
 export async function renderSlides(props: RenderProps, count: number): Promise<Buffer[]> {
