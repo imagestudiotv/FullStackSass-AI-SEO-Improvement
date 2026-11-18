@@ -6,6 +6,7 @@ import { CtaScene } from "../scenes/Cta";
 import { fitFontSize } from "../text";
 import { BrandTag, Enter, IllustrativeLabel, LegibilityShade, Parts, SceneVisual, StyledCaptions, mediaFor, type DirectionProps } from "./common";
 import { KineticLine } from "./Footage";
+import { hookRoom } from "./HookClip";
 
 /**
  * AI voiceover: the narration over relevant footage and pictures, each scene
@@ -45,6 +46,7 @@ function VoiceScene(props: DirectionProps & { part: ProductionPart; index: numbe
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const media = mediaFor(props, part);
+  const room = hookRoom(props, part, fps);
   const chip = spring({ frame: frame - 4, fps, config: { damping: 200, stiffness: 150 } });
   const fade = interpolate(frame, [duration - 10, duration], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   return (
@@ -59,13 +61,13 @@ function VoiceScene(props: DirectionProps & { part: ProductionPart; index: numbe
             position: "absolute",
             left: 80,
             top: safe.top + 90,
-            maxWidth: 820,
+            maxWidth: 820 - room,
             padding: "14px 24px",
             borderRadius: 16,
             background: "rgba(10,10,14,0.6)",
             borderLeft: `8px solid ${pal.accent}`,
             fontFamily: FONT,
-            fontSize: fitFontSize(part.title, 760, 2, 52, 44, 0.56),
+            fontSize: fitFontSize(part.title, 760 - room, 2, 52, 44, 0.56),
             fontWeight: 800,
             lineHeight: 1.15,
             color: "#fff",
