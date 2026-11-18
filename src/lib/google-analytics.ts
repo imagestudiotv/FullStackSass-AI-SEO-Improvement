@@ -312,15 +312,16 @@ const SENT_KEEP = 20;
 /**
  * The conversions not sent from this browser yet, recorded as sent. Empty
  * when the browser cannot remember (storage blocked): better one missed than
- * the same one counted on every page load.
+ * the same one counted on every page load. `key`: each destination keeps its
+ * own list (lib/meta-pixel.ts), so sending to one does not stop the other.
  */
-function claimConversions(ids: string[]): Set<string> {
+export function claimConversions(ids: string[], key: string = SENT_KEY): Set<string> {
   try {
-    const raw = window.localStorage.getItem(SENT_KEY);
+    const raw = window.localStorage.getItem(key);
     const sent: string[] = raw ? (JSON.parse(raw) as unknown[]).filter((v): v is string => typeof v === "string") : [];
     const fresh = ids.filter((id) => !sent.includes(id));
     if (fresh.length === 0) return new Set();
-    window.localStorage.setItem(SENT_KEY, JSON.stringify([...sent, ...fresh].slice(-SENT_KEEP)));
+    window.localStorage.setItem(key, JSON.stringify([...sent, ...fresh].slice(-SENT_KEEP)));
     return new Set(fresh);
   } catch {
     return new Set();

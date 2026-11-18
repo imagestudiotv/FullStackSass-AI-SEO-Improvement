@@ -102,6 +102,8 @@ export type Messages = {
     /** Accessible name of the banner. */
     label: string;
     message: string;
+    /** The same, while the Meta Pixel is configured too (lib/meta-pixel.ts). */
+    messageWithMeta: string;
     /** Link text to the (English) privacy policy. */
     privacy: string;
     accept: string;
@@ -3464,6 +3466,7 @@ const en: Messages = {
   consent: {
     label: "Cookie choice",
     message: "We would like to use Google Analytics and Google Ads cookies to understand how people use our website, measure our ads and show them to past visitors. They are only set if you accept.",
+    messageWithMeta: "We would like to use cookies from Google Analytics, Google Ads and Meta (Facebook) to understand how people use our website, measure our ads and show them to past visitors. They are only set if you accept.",
     privacy: "Privacy policy",
     accept: "Accept",
     decline: "Decline",
@@ -6739,6 +6742,7 @@ const es: Messages = {
   consent: {
     label: "Preferencias de cookies",
     message: "Nos gustaría usar cookies de Google Analytics y Google Ads para entender cómo se usa nuestro sitio web, medir nuestros anuncios y mostrarlos a quienes ya nos visitaron. Solo se instalan si las acepta.",
+    messageWithMeta: "Nos gustaría usar cookies de Google Analytics, Google Ads y Meta (Facebook) para entender cómo se usa nuestro sitio web, medir nuestros anuncios y mostrarlos a quienes ya nos visitaron. Solo se instalan si las acepta.",
     privacy: "Política de privacidad",
     accept: "Aceptar",
     decline: "Rechazar",
@@ -10047,6 +10051,7 @@ const fr: Messages = {
   consent: {
     label: "Choix des cookies",
     message: "Nous aimerions utiliser les cookies de Google Analytics et de Google Ads pour comprendre comment notre site est utilisé, mesurer nos annonces et les montrer aux personnes qui nous ont déjà rendu visite. Ils ne sont déposés que si vous les acceptez.",
+    messageWithMeta: "Nous aimerions utiliser les cookies de Google Analytics, de Google Ads et de Meta (Facebook) pour comprendre comment notre site est utilisé, mesurer nos annonces et les montrer aux personnes qui nous ont déjà rendu visite. Ils ne sont déposés que si vous les acceptez.",
     privacy: "Politique de confidentialité",
     accept: "Accepter",
     decline: "Refuser",
@@ -13355,6 +13360,7 @@ const it: Messages = {
   consent: {
     label: "Scelta dei cookie",
     message: "Vorremmo usare i cookie di Google Analytics e Google Ads per capire come viene usato il nostro sito, misurare i nostri annunci e mostrarli a chi ci ha già visitato. Vengono installati solo se li accetta.",
+    messageWithMeta: "Vorremmo usare i cookie di Google Analytics, Google Ads e Meta (Facebook) per capire come viene usato il nostro sito, misurare i nostri annunci e mostrarli a chi ci ha già visitato. Vengono installati solo se li accetta.",
     privacy: "Informativa sulla privacy",
     accept: "Accetta",
     decline: "Rifiuta",
@@ -16663,6 +16669,7 @@ const de: Messages = {
   consent: {
     label: "Cookie-Auswahl",
     message: "Wir würden gern Cookies von Google Analytics und Google Ads verwenden, um zu verstehen, wie unsere Website genutzt wird, unsere Anzeigen zu messen und sie früheren Besuchern zu zeigen. Sie werden nur gesetzt, wenn Sie zustimmen.",
+    messageWithMeta: "Wir würden gern Cookies von Google Analytics, Google Ads und Meta (Facebook) verwenden, um zu verstehen, wie unsere Website genutzt wird, unsere Anzeigen zu messen und sie früheren Besuchern zu zeigen. Sie werden nur gesetzt, wenn Sie zustimmen.",
     privacy: "Datenschutzerklärung",
     accept: "Akzeptieren",
     decline: "Ablehnen",

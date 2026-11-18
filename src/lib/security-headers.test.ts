@@ -87,14 +87,17 @@ describe("securityHeaders", () => {
 
 describe("cspIntegrations", () => {
   it("allows only what the deployment configures", () => {
-    expect(cspIntegrations({})).toEqual({ sentryDsn: undefined, crisp: false, googleTag: false, ads: false });
+    expect(cspIntegrations({})).toEqual({ sentryDsn: undefined, crisp: false, googleTag: false, ads: false, meta: false });
     expect(
       cspIntegrations({
         NEXT_PUBLIC_SENTRY_DSN: DSN,
         NEXT_PUBLIC_CRISP_WEBSITE_ID: "11111111-2222-3333-4444-555555555555",
         NEXT_PUBLIC_GA4_MEASUREMENT_ID: "G-ABC123XYZ",
       }),
-    ).toEqual({ sentryDsn: DSN, crisp: true, googleTag: true, ads: false });
+    ).toEqual({ sentryDsn: DSN, crisp: true, googleTag: true, ads: false, meta: false });
+    // The Meta Pixel: its digits only.
+    expect(cspIntegrations({ NEXT_PUBLIC_META_PIXEL_ID: " 1063151092935473 " })).toMatchObject({ meta: true, googleTag: false });
+    expect(cspIntegrations({ NEXT_PUBLIC_META_PIXEL_ID: "fb-123" })).toMatchObject({ meta: false });
     // A Tag Manager container loads Google's tag too, and the Ads tags.
     expect(cspIntegrations({ NEXT_PUBLIC_GTM_ID: "GTM-AB12CD3" })).toMatchObject({ googleTag: true, ads: true });
     // Not real ids: nothing loads them, so nothing is allowed.
@@ -128,6 +131,7 @@ describe("contentSecurityPolicy", () => {
       "https://googleads.g.doubleclick.net",
       "https://www.google.com",
       "https://tagassistant.google.com",
+      "https://connect.facebook.net",
     ]);
     expect(csp["style-src"]).toEqual(["'self'", "'unsafe-inline'", "https://client.crisp.chat"]);
   });
@@ -153,6 +157,8 @@ describe("contentSecurityPolicy", () => {
       "https://*.google-analytics.com",
       "https://*.analytics.google.com",
       "https://www.googletagmanager.com",
+      "https://www.facebook.com",
+      "https://connect.facebook.net",
       "https://o4501.ingest.de.sentry.io",
     ]);
   });

@@ -143,3 +143,20 @@ The following live-property verification requires an approved environment and te
 6. Footer > Cookie settings > Decline. The `_ga` and `_gcl_` cookies disappear, and no more `collect` requests are sent.
 7. With Tag Manager: use its **Preview** button (Tag Assistant) on www.repget.com and repeat steps 3-4. The Ads conversion tags fire on `sign_up` and `start_trial`.
 8. In Google Ads, the imported conversions show "Recording conversions" within 24-48 hours.
+
+## Meta (Facebook) Pixel
+
+`lib/meta-pixel.ts`, for the client's Facebook ads (2026-11-18). Off until `NEXT_PUBLIC_META_PIXEL_ID` is set.
+
+- **What it sends.** `PageView` on the public pages, and `CompleteRegistration` (sign-up) and `StartTrial` (start of the free trial) from the signed-in pages, each with its conversion id as Meta's `eventID`. Purchases are not sent: they happen on the server, mostly with nobody there, and would need Meta's Conversions API (not built).
+- **Consent.** Only after **Accept**, in either consent mode. The banner then names Meta, and the consent cookie's version becomes `3`, so everyone who accepted before Meta was named is asked again once. Decline revokes the pixel and deletes `_fbp` / `_fbc`.
+- **Addresses.** The pixel reports `location.href` and `document.referrer` itself and cannot be told to clean them. So on a page whose address, or same-site referrer, carries anything `lib/site-analytics.ts` would remove (a query parameter other than the campaign tags and `fbclid`, a fragment, an invitation token, a record id, `/admin`), nothing is sent. A conversion skipped that way is sent from the next safe signed-in page within the hour.
+- **No automatic events.** `autoConfig` is off (no button clicks or page metadata) and `disablePushState` is on (no page view of Meta's own on in-site navigation).
+- **CSP.** `connect.facebook.net` (script, connect) and `www.facebook.com` (connect) are allowed only while the pixel is configured.
+
+### Owner setup
+
+1. **Vercel** (Production): `NEXT_PUBLIC_META_PIXEL_ID` = the Pixel ID (digits only), then redeploy. It is not a secret.
+2. **Events Manager** > Data sources > the pixel > Settings: keep **Automatic advanced matching** OFF. It reads email addresses from forms, the sign-up form among them, and the privacy policy says no email address is sent to Meta.
+3. **Test**: Events Manager > the pixel > **Test events** > enter `https://www.repget.com` and open it. In that window press **Accept**: `PageView` appears. Sign up with a new address and finish the first onboarding screen: `CompleteRegistration` appears; start a trial: `StartTrial`. The **test code** shown there is for server events (Conversions API) and is not needed for these.
+4. Decline in Footer > Cookie settings: the `_fbp` cookie disappears and nothing more is sent to `facebook.com/tr`.

@@ -4,10 +4,11 @@ import { useEffect } from "react";
 
 import { readConsent } from "@/lib/consent";
 import { sendGoogleConversions, type BrowserConversion } from "@/lib/google-analytics";
+import { sendMetaConversions } from "@/lib/meta-pixel";
 
 /**
  * Reports the conversions the server found due (lib/conversions/conversions.ts)
- * - a sign-up, the start of the free articles - to Google, for a visitor who
+ * - a sign-up, the start of the free articles - to Google and the Meta Pixel, for a visitor who
  * accepted the cookie banner. Rendered by the signed-in layouts only when
  * there is something to report, so it costs nothing otherwise. The layouts
  * re-render on router.refresh(), which is how a free-articles start found
@@ -15,7 +16,9 @@ import { sendGoogleConversions, type BrowserConversion } from "@/lib/google-anal
  */
 export function ConversionEvents({ events }: { events: BrowserConversion[] }) {
   useEffect(() => {
-    sendGoogleConversions(events, readConsent());
+    const consent = readConsent();
+    sendGoogleConversions(events, consent);
+    sendMetaConversions(events, consent);
   }, [events]);
   return null;
 }

@@ -9,13 +9,17 @@
  * ask about void every earlier answer. Version 2 (October 2026) added
  * advertising measurement (Google Ads, Consent Mode v2) to what Accept
  * covers, so the analytics-only answers of version 1 are asked again.
+ * Version 3 (November 2026) is version 2 plus the Meta Pixel
+ * (lib/meta-pixel.ts), and is used only while the pixel is configured: an
+ * Accept given before the banner named Meta is not consent to Meta.
  *
  * NO IMPORTS: this runs in every visitor's browser, and is tested as plain
- * functions.
+ * functions. (The pixel test below mirrors metaPixelId in lib/meta-pixel.ts.)
  */
 
 export const CONSENT_COOKIE = "repget_consent";
-const VERSION = "2";
+/** Inlined at build time, the same in the browser and on the server. */
+const VERSION = /^\d{10,20}$/.test(process.env.NEXT_PUBLIC_META_PIXEL_ID?.trim() ?? "") ? "3" : "2";
 /** Six months, in seconds. */
 export const CONSENT_MAX_AGE = 182 * 24 * 60 * 60;
 

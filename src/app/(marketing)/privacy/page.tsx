@@ -2,6 +2,7 @@ import { LegalPage } from "../legal-page";
 import { CookieSettingsButton } from "@/components/consent-banner";
 import { SUPPORT_EMAIL } from "@/lib/config/site";
 import { consentMode } from "@/lib/google-analytics";
+import { metaPixelId } from "@/lib/meta-pixel";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
 export const metadata = {
@@ -26,8 +27,10 @@ export const metadata = {
 export default function PrivacyPage() {
   // Set per deployment (lib/google-analytics.ts); the policy says which one runs.
   const advanced = consentMode() === "advanced";
+  // The Meta Pixel (lib/meta-pixel.ts) is described only while it is configured.
+  const meta = metaPixelId() !== null;
   return (
-    <LegalPage title="Privacy Policy" updated="19 October 2026">
+    <LegalPage title="Privacy Policy" updated={meta ? "18 November 2026" : "19 October 2026"}>
       <p>
         This policy explains what information RepGet (&quot;we&quot;,
         &quot;the service&quot;) collects, why we collect it, and what we do
@@ -119,6 +122,24 @@ export default function PrivacyPage() {
         Privacy Framework. If you decline, no Google cookie is set and nothing
         about your account is sent to Google.
       </p>
+      {meta ? (
+        <p>
+          <strong>Meta (Facebook), only if you accept.</strong> The same
+          answer covers the Meta Pixel, which measures our Facebook and
+          Instagram ads. Nothing is loaded from Meta unless you accept, and
+          never inside your account except to report a sign-up or the start
+          of a free trial. If you accept, the pixel sets a cookie,{" "}
+          <code>_fbp</code> (and <code>_fbc</code> when you arrive from one of
+          our ads), and tells Meta which public pages you view, which ad sent
+          you, and when you create an account or start your free trial. It is
+          never sent from a page whose address carries anything beyond the
+          page itself and campaign tags, and we never send Meta your name,
+          your email address, or anything about your websites or articles.
+          Meta may process this data in the United States under the EU-US
+          Data Privacy Framework. If you decline, the pixel stops and its
+          cookies are deleted.
+        </p>
+      ) : null}
 
       <h2>Google user data</h2>
       <p>
@@ -214,6 +235,12 @@ export default function PrivacyPage() {
           advertising measurement (Google Ads), only for visitors who accept
           cookies
         </li>
+        {meta ? (
+          <li>
+            <strong>Meta</strong> - advertising measurement (the Meta Pixel),
+            only for visitors who accept cookies
+          </li>
+        ) : null}
         <li>
           <strong>Stripe</strong> - payment processing
         </li>
@@ -255,6 +282,13 @@ export default function PrivacyPage() {
         cookies for six months. If you accept, Google Analytics also sets the
         two cookies described above, and Google Ads may set its own (names
         starting with <code>_gcl_</code>).
+        {meta ? (
+          <>
+            {" "}
+            The Meta Pixel sets <code>_fbp</code> (and <code>_fbc</code> after
+            an ad click), kept for up to 90 days.
+          </>
+        ) : null}
       </p>
       <p>
         One called <code>repget_site_language</code> remembers which language
