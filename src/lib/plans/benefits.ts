@@ -64,3 +64,17 @@ export function planBenefits(plan: BenefitPlan, locale: Locale, extra: { credits
 
   return null;
 }
+
+/**
+ * Whether the pricing page lists visibility perks (a RepGet blog feature,
+ * social channels, an email spotlight) for this tier: the same lists as
+ * planBenefits, so today Grow, Scale and the Grow + Visibility bundle, never
+ * Launch. The trial-ending email reads it, so a plan is not told of a perk its
+ * card does not list (lib/email/lifecycle-copy.ts).
+ */
+export function planHasVisibilityPerks(tier: string | null | undefined): boolean {
+  const page = pricingPageCopy("en");
+  if (tier === GROW_VISIBILITY_TIER) return page.bundle.bonuses.length > 0;
+  if (!tier || !PRICING_TIERS.includes(tier)) return false;
+  return (page.plans[tier as PricingTierId].perks?.length ?? 0) > 0;
+}

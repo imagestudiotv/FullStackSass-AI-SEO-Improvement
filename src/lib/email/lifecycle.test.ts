@@ -84,11 +84,11 @@ async function account(options: { locale?: string | null; website?: boolean } = 
 async function subscription(
   orgId: string,
   websiteId: string,
-  values: { status: string; cancelAtPeriodEnd?: boolean; start?: Date; end?: Date; provider?: string; stripeId?: string },
+  values: { status: string; cancelAtPeriodEnd?: boolean; start?: Date; end?: Date; provider?: string; stripeId?: string; tier?: string },
 ) {
   const [plan] = await test.db
     .insert(plans)
-    .values({ name: "Growth", tier: `t_${randomUUID()}`, priceCents: 4900, articleLimit: 30, keywordLimit: 100, siteLimit: 1, monthlyCredits: 0 })
+    .values({ name: "Growth", tier: values.tier ?? `t_${randomUUID()}`, priceCents: 4900, articleLimit: 30, keywordLimit: 100, siteLimit: 1, monthlyCredits: 0 })
     .returning({ id: plans.id });
   const [row] = await test.db
     .insert(subscriptions)
@@ -263,6 +263,24 @@ describe("the free period ending", () => {
     expect((await emailTrialEnding(row.id)).status).toBe("sent");
     expect(await emailTrialEnding(row.id)).toEqual({ status: "duplicate" });
     expect(sent.sendEmail.mock.calls[0][0].text).toContain(`/billing?site=${websiteId}`);
+  });
+
+  it("names the blog post and the social mention only for a plan whose card lists them: Grow, not Launch (2026-11-18)", async () => {
+    const ending = async (tier: string) => {
+      sent.sendEmail.mockClear();
+      const { orgId, websiteId } = await account({ website: true });
+      const row = await subscription(orgId, websiteId!, { status: "trialing", tier });
+      expect((await emailTrialEnding(row.id)).status).toBe("sent");
+      return sent.sendEmail.mock.calls[0][0].text;
+    };
+    const launch = await ending("launch");
+    expect(launch).not.toContain("blog post about your business");
+    expect(launch).not.toContain("social channels");
+    expect(launch).toContain("partner network");
+    const grow = await ending("grow");
+    expect(grow).toContain("blog post about your business");
+    expect(grow).toContain("social channels");
+    for (const text of [launch, grow]) expect(text).not.toMatch(/DR ?60|dofollow/i);
   });
 
   it("is skipped once the plan is paid", async () => {
