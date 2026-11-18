@@ -1,8 +1,10 @@
 "use server";
 
 import { detectPlatform } from "@/lib/audit/ai-crawlers";
+import { actionLocale } from "@/lib/i18n/action-locale";
+import { ONBOARDING_ERRORS, websiteErrorKey, websiteRefusal } from "@/lib/i18n/onboarding-errors";
 import { requireOrg } from "@/lib/tenant";
-import { CrawlError, fetchHomepage } from "@/lib/websites/crawl";
+import { CrawlError, FETCH_TIMEOUT_MS, fetchHomepage } from "@/lib/websites/crawl";
 import {
   InvalidUrlError,
   isPublicWebsiteUrl,
@@ -73,7 +75,7 @@ export async function previewWebsite(rawUrl: string): Promise<PreviewResult> {
     normalized = normalizeWebsiteUrl(rawUrl);
   } catch (error) {
     if (error instanceof InvalidUrlError) {
-      return { ok: false, error: error.message };
+      return { ok: false, error: websiteRefusal(error.message, await actionLocale()) };
     }
     throw error;
   }
@@ -120,10 +122,24 @@ export async function previewWebsite(rawUrl: string): Promise<PreviewResult> {
      * the site — the analysis will try again from the job, where a retry
      * costs them nothing — so this returns a readable reason and the UI keeps
      * its Continue button enabled.
+     *
+     * In the customer's app language, and only in our own words. A CrawlError
+     * for a site that could not be reached used to carry the network
+     * library's message ("getaddrinfo ENOTFOUND …", "fetch failed") straight
+     * to the screen; that is logged now, and the customer reads `unreachable`.
      */
+    const copy = ONBOARDING_ERRORS[await actionLocale()].website;
     if (error instanceof CrawlError) {
-      return { ok: false, error: error.message };
+      if (error.kind === "timeout") return { ok: false, error: copy.timedOut(FETCH_TIMEOUT_MS) };
+      if (error.status !== undefined && error.message === ONBOARDING_ERRORS.en.website.httpStatus(error.status)) {
+        return { ok: false, error: copy.httpStatus(error.status) };
+      }
+      const key = websiteErrorKey(error.message);
+      if (key) return { ok: false, error: copy[key] };
+      console.warn(`[preview] could not reach ${normalized.domain}: ${error.message}`);
+      return { ok: false, error: copy.unreachable };
     }
-    return { ok: false, error: "Could not read that website" };
+    console.warn(`[preview] could not read ${normalized.domain}`, error);
+    return { ok: false, error: copy.unreadable };
   }
 }

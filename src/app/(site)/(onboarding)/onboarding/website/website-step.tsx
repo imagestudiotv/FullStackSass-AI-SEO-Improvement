@@ -22,6 +22,7 @@ import {
 import { useRouter } from "next/navigation";
 import { format } from "@/lib/i18n/format";
 import { getMessages, type Messages } from "@/lib/i18n/messages";
+import { ONBOARDING_ERRORS } from "@/lib/i18n/onboarding-errors";
 import { ONBOARDING_STEPS_COPY, type OnboardingStepsCopy } from "@/lib/i18n/onboarding-steps";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -55,6 +56,10 @@ import { previewWebsite, type WebsitePreview } from "@/lib/websites/preview";
 export function WebsiteStep({
   t = getMessages("en").app.onboarding,
   copy = ONBOARDING_STEPS_COPY.en.website,
+  errors = {
+    unreadable: ONBOARDING_ERRORS.en.website.unreadable,
+    unexpected: ONBOARDING_ERRORS.en.website.unexpected,
+  },
   initialUrl = "",
   plan,
 }: {
@@ -62,6 +67,11 @@ export function WebsiteStep({
   t?: Messages["app"]["onboarding"];
   /** The rest of this step's words (lib/i18n/onboarding-steps.ts), defaulting to English. */
   copy?: OnboardingStepsCopy["website"];
+  /**
+   * What to say when an action fails outright (lib/i18n/onboarding-errors.ts),
+   * defaulting to English. Its refusals arrive already in the reader's language.
+   */
+  errors?: { unreadable: string; unexpected: string };
   /**
    * The address typed into the homepage's "Start free trial" field
    * (?domain=), so the visitor does not type it twice. It only fills the
@@ -86,7 +96,13 @@ export function WebsiteStep({
 
     setLooking(true);
     setPreview(null);
-    const result = await previewWebsite(url);
+    /*
+      Thrown rather than returned: a failed look, which never blocks the
+      form, so the same warning as any other.
+    */
+    const result = await previewWebsite(url).catch(
+      (): Awaited<ReturnType<typeof previewWebsite>> => ({ ok: false, error: errors.unreadable }),
+    );
     setLooking(false);
 
     if (!result.ok) {
@@ -106,7 +122,10 @@ export function WebsiteStep({
     if (!url) return;
 
     setPending(true);
-    const result = await addWebsite(url);
+    // Thrown rather than returned: the button comes back, with a sentence instead of a spinner for good.
+    const result = await addWebsite(url).catch(
+      (): Awaited<ReturnType<typeof addWebsite>> => ({ ok: false, error: errors.unexpected }),
+    );
 
     if (!result.ok) {
       setPending(false);

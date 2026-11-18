@@ -33,6 +33,7 @@ export function GoogleStep({
   callbackMessage = null,
   t = getMessages("en").app.onboarding,
   copy = ONBOARDING_STEPS_COPY.en.google,
+  failed = getMessages("en").app.analytics.statusError,
 }: {
   websiteId: string;
   connection: AnalyticsConnection;
@@ -42,6 +43,8 @@ export function GoogleStep({
   t?: Messages["app"]["onboarding"];
   /** The rest of this step's words (lib/i18n/onboarding-steps.ts), defaulting to English. */
   copy?: OnboardingStepsCopy["google"];
+  /** Said when starting the connection fails outright; its refusals arrive in the reader's language. */
+  failed?: string;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -61,7 +64,10 @@ export function GoogleStep({
 
   function handleConnect() {
     startTransition(async () => {
-      const result = await startGoogleConnect(websiteId, "onboarding");
+      // Thrown rather than returned: the button comes back, with the callback's own failure sentence.
+      const result = await startGoogleConnect(websiteId, "onboarding").catch(
+        (): Awaited<ReturnType<typeof startGoogleConnect>> => ({ ok: false, error: failed }),
+      );
       if (!result.ok) {
         toast.error(result.error);
         return;

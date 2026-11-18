@@ -87,6 +87,7 @@ export default async function OnboardingGooglePage({
         callbackMessage={callbackMessage}
         t={t.app.onboarding}
         copy={ONBOARDING_STEPS_COPY[locale].google}
+        failed={status.statusError}
       />
     </div>
   );

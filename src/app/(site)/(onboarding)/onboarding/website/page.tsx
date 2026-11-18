@@ -5,6 +5,7 @@ import { cache } from "react";
 
 import { requireSession } from "@/lib/auth-guard";
 import { getAppMessages } from "@/lib/i18n/app-locale";
+import { ONBOARDING_ERRORS } from "@/lib/i18n/onboarding-errors";
 import { ONBOARDING_STEPS_COPY } from "@/lib/i18n/onboarding-steps";
 import { WEBSITE_PROJECT_COPY } from "@/lib/i18n/website-projects";
 import { getOnboardingState } from "@/lib/onboarding/steps";
@@ -38,6 +39,7 @@ export default async function OnboardingWebsitePage({
   const { orgId } = await requireOrg();
   const { t, locale } = await messagesFor(session.user.id);
   const noSite = WEBSITE_PROJECT_COPY[locale];
+  const failed = ONBOARDING_ERRORS[locale].website;
 
   const params = await searchParams;
   /**
@@ -114,6 +116,7 @@ export default async function OnboardingWebsitePage({
       <WebsiteStep
         t={t.app.onboarding}
         copy={ONBOARDING_STEPS_COPY[locale].website}
+        errors={{ unreadable: failed.unreadable, unexpected: failed.unexpected }}
         initialUrl={initialUrl}
         plan={plan}
       />
