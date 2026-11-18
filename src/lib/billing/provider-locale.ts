@@ -1,5 +1,4 @@
-import { getSession } from "@/lib/auth-guard";
-import { resolveAppLocale } from "@/lib/i18n/app-locale";
+import { actionLocale } from "@/lib/i18n/action-locale";
 import type { Locale } from "@/lib/i18n/config";
 
 /**
@@ -14,14 +13,8 @@ import type { Locale } from "@/lib/i18n/config";
  * the plan or where the buyer returns depends on it.
  */
 export async function payerLocale(): Promise<Exclude<Locale, "en"> | null> {
-  try {
-    const session = await getSession();
-    if (!session) return null;
-    const locale = await resolveAppLocale(session.user.id);
-    return locale === "en" ? null : locale;
-  } catch {
-    return null;
-  }
+  const locale = await actionLocale();
+  return locale === "en" ? null : locale;
 }
 
 /** PayPal wants a language with a country (BCP 47); the country of each language's market. */

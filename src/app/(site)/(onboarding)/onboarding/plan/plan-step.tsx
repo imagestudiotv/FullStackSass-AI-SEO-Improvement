@@ -303,14 +303,30 @@ export function PlanStep({
       the flow carries on where it left off instead of ending in a screen full
       of the app chrome that setup deliberately hides.
     */
-    const result =
-      provider === "paypal"
-        ? await createPayPalCheckout(plan.id, websiteId, "onboarding")
-        : await createCheckoutSession(plan.id, websiteId, "onboarding");
+    /*
+      Thrown rather than returned (the request failed, or the action did):
+      production hides the reason, so the button comes back with Billing's
+      own sentence instead of spinning for good.
+    */
+    let result: Awaited<ReturnType<typeof createCheckoutSession>>;
+    try {
+      result =
+        provider === "paypal"
+          ? await createPayPalCheckout(plan.id, websiteId, "onboarding")
+          : await createCheckoutSession(plan.id, websiteId, "onboarding");
+    } catch {
+      setPending(null);
+      toast.error(copy.checkoutFailed);
+      return;
+    }
 
     if ("error" in result) {
       setPending(null);
-      // Checkout's one English refusal this step can meet, in the reader's language; the value compared is unchanged.
+      /*
+        The refusals arrive in the reader's language (lib/i18n/checkout-errors.ts),
+        all but CONFIRM_EMAIL_FIRST, which Billing recognises by its English value
+        and this step words itself.
+      */
       toast.error(result.error === CONFIRM_EMAIL_FIRST ? copy.confirmEmailFirst : result.error);
       return;
     }
