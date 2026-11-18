@@ -3,7 +3,9 @@
  * Candidates for the hook library (src/lib/video/footage/hook-library.ts),
  * for a person to pick from. Nothing here runs in the app.
  *
- *   PIXABAY_API_KEY=... node scripts/hook-library.mjs <out-dir> [per=6]
+ *   PIXABAY_API_KEY=... node scripts/hook-library.mjs <out-dir> [per=6] [queries=file.json]
+ *
+ * queries=: other search words, as {"danger": ["rock climbing", ...], ...}.
  *
  * For each hook type it searches Pixabay's API (film footage, safe search)
  * with that type's search words, downloads each clip's smallest rendition to
@@ -18,10 +20,10 @@
  * never printed. Pixabay: 100 requests a minute; Content License.
  */
 import { execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync, existsSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-const QUERIES = {
+const DEFAULT_QUERIES = {
   anticipation: ["domino chain falling", "glass filling with water slow motion", "basketball shot slow motion", "tree felling forest", "paint pouring slow motion", "balloon popping slow motion", "bowling strike", "golf ball putt"],
   impossible: ["balanced stones stacking", "water drop slow motion", "liquid nitrogen vapor", "ferrofluid magnet", "optical illusion", "ink in water slow motion", "soap bubble colors macro", "spinning top balance"],
   danger: ["jenga tower falling", "house of cards", "tightrope walker", "rock climber cliff", "slackline walking high", "glass falling slow motion", "stacking cups tower", "balancing on rope"],
@@ -29,6 +31,8 @@ const QUERIES = {
 
 const out = path.resolve(process.argv[2] ?? "hook-candidates");
 const per = Number(process.argv.find((a) => a.startsWith("per="))?.slice(4) ?? 6);
+const queriesFile = process.argv.find((a) => a.startsWith("queries="))?.slice(8);
+const QUERIES = queriesFile ? JSON.parse(readFileSync(queriesFile, "utf8")) : DEFAULT_QUERIES;
 const key = process.env.PIXABAY_API_KEY?.trim();
 if (!key) {
   console.error("Set PIXABAY_API_KEY (a free key from https://pixabay.com/api/docs/).");

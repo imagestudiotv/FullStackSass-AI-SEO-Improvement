@@ -147,9 +147,9 @@ const TECHNIQUE_TEXT: Record<ViralTechnique, string> = {
 const VISUAL_HOOK_TEXT = `VISUAL HOOK (slots whose techniques include anticipation_hook, impossible_hook or danger_hook): the video OPENS on a short licensed stock clip that stops the scroll - it need not show the business. The clip is cut just before its climax, keeps running small in a corner while the video talks, and its ending plays behind the proof line. So:
 - "visualHook": {"type": anticipation, impossible or danger (the slot's), "clip": 3-8 concrete English stock-search words for ONE continuous clip with a clear climax}. Every other idea: null.
 - "hook": the bridge line over the clip that ties it to this video's subject ("Booking a photographer without checking this?"), at most 60 characters. The "proof" lands the payoff.
-- anticipation: an outcome they have to see ("domino chain toppling close-up", "glass filling to the brim", "basketball trick shot arc", "tree felling in a forest").
-- impossible: something that looks like it should not work but is real ("perfectly balanced stacked stones", "optical illusion street art", "slow motion water drop crown", "liquid nitrogen vapor pour"). Never a fake claim, never about the business's own results.
-- danger: controlled tension where one wrong move ends it ("jenga tower wobbling", "glass on the edge of a table", "building a house of cards", "tightrope walker high above"). Never real injury, accidents, crashes, fire, weapons, vehicles at speed, animals or children at risk, or anything people could copy dangerously.
+- anticipation: an outcome they have to see ("domino chain toppling", "golf putt rolling to the hole", "dart flying to the bullseye", "basketball rolling around the rim", "skateboard kickflip landing").
+- impossible: something that looks like it should not work but is real ("plasma ball lightning", "flower blooming timelapse", "ink cloud in water", "soap bubble freezing into crystals", "rainbow swirl on soap film"). Never a fake claim, never about the business's own results.
+- danger: controlled tension where one wrong move ends it, by trained people ("surfer inside a big wave barrel", "acrobat balancing on a partner's hands", "paraglider launching off a ridge", "climber on a rock face"). Never real injury, accidents, crashes, fire, weapons, vehicles at speed, animals or children at risk, or anything people could copy dangerously.
 - Never a real person, brand or famous stunt in "clip".`;
 
 const TONE_TEXT: Record<TonePreset, string> = {

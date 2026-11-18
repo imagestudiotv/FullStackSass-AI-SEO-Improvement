@@ -48,39 +48,13 @@ export function hookTypeFor(techniques: readonly string[], format: VideoFormat, 
 /**
  * Search words for a clip that is safe to open a business's video with: one
  * of these, or one the writer chose that names none of the UNSAFE words. They
- * search well on Pixabay (film footage) and each has a clear climax.
+ * are the searches that found usable Pixabay footage when the library was
+ * picked (2026-11-18).
  */
 export const SAFE_HOOK_QUERIES: Record<HookType, readonly string[]> = {
-  anticipation: [
-    "domino chain falling",
-    "glass filling with water slow motion",
-    "basketball shot slow motion",
-    "tree felling forest",
-    "paint pouring slow motion",
-    "balloon popping slow motion",
-    "bowling strike",
-    "golf ball putt",
-  ],
-  impossible: [
-    "balanced stones stacking",
-    "water drop slow motion",
-    "liquid nitrogen vapor",
-    "ferrofluid magnet",
-    "optical illusion",
-    "ink in water slow motion",
-    "soap bubble colors macro",
-    "spinning top balance",
-  ],
-  danger: [
-    "jenga tower falling",
-    "house of cards",
-    "tightrope walker",
-    "rock climber cliff",
-    "slackline walking high",
-    "glass falling slow motion",
-    "stacking cups tower",
-    "balancing on rope",
-  ],
+  anticipation: ["domino chain falling", "golf ball putt", "darts bullseye", "basketball layup", "skateboard trick", "bowling strike", "water balloon slow motion", "billiards break"],
+  impossible: ["plasma ball", "flower blooming timelapse", "ink in water slow motion", "soap bubble colors macro", "bubble freezing", "liquid nitrogen vapor", "ferrofluid magnet", "water droplet macro"],
+  danger: ["surfing big wave", "acrobat balance", "paragliding", "rock climbing", "trapeze acrobat", "slackline", "tightrope walker", "gymnast balance beam"],
 };
 
 /**

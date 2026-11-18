@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import { productionTimeline, hookTiming, HOOK_MIN_RATE } from "@/remotion/production";
 import type { ProductionReelProps } from "@/remotion/props";
 
-import { HOOK_TECHNIQUES, HOOK_TECHNIQUES_FROM, hookTypeOf, VIRAL_TECHNIQUES, type VideoScript } from "./formats";
+import { HOOK_TECHNIQUES, HOOK_TECHNIQUES_FROM, HOOK_TYPES, hookTypeOf, VIRAL_TECHNIQUES, type VideoScript } from "./formats";
 import { libraryPicks } from "./footage/hooks";
-import type { HookLibraryClip } from "./footage/hook-library";
+import { HOOK_LIBRARY, type HookLibraryClip } from "./footage/hook-library";
 import { buildPlan } from "./strategy/creative";
 import { canHook, hookQuery, hookTypeFor, SAFE_HOOK_QUERIES, savedTechniques, unsafeHookWords, withOneHook, withoutHooks } from "./strategy/hooks";
 import { systemPrompt, type IdeaInput, type SlotBrief } from "./strategy/prompt";
@@ -91,6 +91,18 @@ describe("the hook library", () => {
     expect(first).toEqual(["1", "2", "3"]);
     expect(next).toEqual(["2", "1", "3"]);
     expect(libraryPicks("danger", "anything", 5, new Set(), LIBRARY).map((clip) => clip.id)).toEqual(["4"]);
+  });
+
+  it("has hand-picked clips of every type, each with a climax that leaves room for the opening", () => {
+    expect(new Set(HOOK_LIBRARY.map((clip) => clip.id)).size).toBe(HOOK_LIBRARY.length);
+    for (const type of HOOK_TYPES) expect(HOOK_LIBRARY.filter((clip) => clip.type === type).length).toBeGreaterThanOrEqual(3);
+    for (const clip of HOOK_LIBRARY) {
+      expect(clip.id).toMatch(/^\d+$/);
+      expect(clip.climaxMs).toBeGreaterThanOrEqual(2500);
+      expect(clip.focalX ?? 0.5).toBeGreaterThanOrEqual(0);
+      expect(clip.focalX ?? 0.5).toBeLessThanOrEqual(1);
+      expect(unsafeHookWords(clip.tags.join(" "))).toBe(false);
+    }
   });
 
   it("leaves out a clip the video already uses", () => {
