@@ -30,6 +30,8 @@ export type SceneMedia = {
   focalY?: number;
   /** A clip's length, so a scene longer than the clip loops it instead of freezing. */
   durationMs?: number | null;
+  /** A hook library clip: where its climax starts, in ms (production.ts hookTiming). */
+  climaxMs?: number | null;
   /**
    * Stock or AI footage paired with words about people ("our client", "meet
    * the team"): the video marks it as illustrative so stock actors are never

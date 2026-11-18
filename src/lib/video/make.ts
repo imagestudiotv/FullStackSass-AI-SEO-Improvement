@@ -31,9 +31,11 @@ import {
   storageEstimate,
   transcriptionEstimate,
 } from "./cost-math";
-import { STOCK_PROVIDERS, footageStatus } from "./footage";
+import { STOCK_PROVIDERS, footageStatus, type StockCandidate } from "./footage";
 import { collectionCost } from "./footage/collection";
-import { cachedForQuery, storeCandidate } from "./footage/store";
+import { libraryPicks, type HookCandidate } from "./footage/hooks";
+import { pixabayVideoById } from "./footage/pixabay";
+import { cachedAsset, cachedForQuery, storeCandidate } from "./footage/store";
 import {
   DURATION_SECONDS,
   MAX_REEL_SECONDS,
@@ -46,6 +48,7 @@ import {
   spokenParts,
   type CaptionWord,
   type CreativeDirection,
+  type HookType,
   type MediaItem,
   type ProductionChoices,
   type ReelProps,
@@ -60,6 +63,8 @@ import { remuxNoMusic, renderReelLocally, renderSlides } from "./render";
 import { autoPublishTime, releaseScheduleSlot } from "./schedule";
 import { readVideoSettings, websiteBrand } from "./settings";
 import { storeVideoFile } from "./storage";
+import { stableHash } from "./strategy/creative";
+import { canHook } from "./strategy/hooks";
 import { isVoiceConfigured, speakScript, UnsupportedVoiceLanguageError, voiceLanguage, VOICE_COST_PER_MINUTE } from "./voice";
 
 /**
@@ -177,7 +182,15 @@ export function sceneMediaFor(script: VideoScript, plan: ShotPlan, production: P
     const scene = plan.scenes?.[part];
     const words = [text, scene?.overlay ?? "", part === spoken.length - 1 ? production.ctaText ?? "" : ""].join(" ");
     const illustrative = (asset.source === "stock" || asset.source === "ai_image") && identityClaim(words);
-    return { url: asset.url, kind: asset.kind, source: asset.source, durationMs: asset.durationMs ?? null, ...(illustrative ? { illustrative: true } : {}) };
+    return {
+      url: asset.url,
+      kind: asset.kind,
+      source: asset.source,
+      durationMs: asset.durationMs ?? null,
+      ...(typeof asset.focalX === "number" ? { focalX: asset.focalX } : {}),
+      ...(typeof asset.climaxMs === "number" ? { climaxMs: asset.climaxMs } : {}),
+      ...(illustrative ? { illustrative: true } : {}),
+    };
   });
 }
 
@@ -266,6 +279,7 @@ function resolverDeps(idea: VideoIdea): ResolverDeps {
     findCached: (query, kind, exclude) => cachedForQuery(query, kind, exclude),
     storeStock: (candidate, query, cost) => storeCandidate(candidate, query, cost),
     stockCost: (candidate) => (candidate.provider === "collection" ? collectionCost(candidate.providerId) : Promise.resolve(null)),
+    hookCandidates: (type, query, exclude) => hookCandidates(type, query, exclude, stableHash(idea.id)),
     ai: {
       provider: () => activeProvider(),
       estimateUsd: () => imageEstimate(activeProvider()),
@@ -286,6 +300,19 @@ function resolverDeps(idea: VideoIdea): ResolverDeps {
   };
 }
 
+/** Up to three hook library clips for a video: already stored ones need no lookup, the others are looked up by id (free). */
+async function hookCandidates(type: HookType, query: string, exclude: Set<string>, seed: number): Promise<HookCandidate[]> {
+  const out: HookCandidate[] = [];
+  for (const pick of libraryPicks(type, query, seed, exclude).slice(0, 3)) {
+    const stored = await cachedAsset("pixabay", pick.id, "video");
+    const candidate: StockCandidate | null = stored
+      ? { provider: stored.provider, providerId: stored.providerId, kind: "video", downloadUrl: stored.url, width: stored.width ?? 0, height: stored.height ?? 0, durationMs: stored.durationMs, sizeBytes: null, licence: stored.licence, sourceUrl: stored.sourceUrl ?? stored.url, author: stored.author, tags: [] }
+      : await pixabayVideoById(pick.id);
+    if (candidate) out.push({ ...candidate, climaxMs: pick.climaxMs, focalX: pick.focalX ?? null });
+  }
+  return out;
+}
+
 /**
  * The scenes' pictures and clips, chosen now (never at idea time), once: a
  * retry keeps what was found. A footage-led video with nothing real to show
@@ -302,7 +329,7 @@ export async function prepareAssets(id: string): Promise<{ assets: number; notes
   let result;
   try {
     result = await resolveSceneAssets(
-      { direction, scenes: plan.scenes ?? [], parts: formatOf(idea) === "carousel" ? productionParts(idea.script as VideoScript, { ...choicesOf(idea), showHook: true }, plan).map((p) => p.part) : shownParts(idea), media: (idea.media as MediaItem[]) ?? [], existing },
+      { direction, hook: canHook(formatOf(idea), direction) ? (plan.hookClip?.type ?? null) : null, scenes: plan.scenes ?? [], parts: formatOf(idea) === "carousel" ? productionParts(idea.script as VideoScript, { ...choicesOf(idea), showHook: true }, plan).map((p) => p.part) : shownParts(idea), media: (idea.media as MediaItem[]) ?? [], existing },
       resolverDeps(idea),
     );
   } catch (error) {

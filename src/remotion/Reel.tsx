@@ -5,6 +5,7 @@ import type { ReelProps } from "../lib/video/formats";
 import { Captions } from "./components/Captions";
 import { ConceptBadge, type DirectionProps } from "./directions/common";
 import { FootageProduction } from "./directions/Footage";
+import { HookClipLayer } from "./directions/HookClip";
 import { MemeProduction } from "./directions/Meme";
 import { StorytellingProduction } from "./directions/Storytelling";
 import { TextMusicProduction } from "./directions/TextMusic";
@@ -51,6 +52,7 @@ function ProductionReel(props: ProductionReelProps) {
       {props.direction === "storytelling" ? <StorytellingProduction {...direction} /> : null}
       {props.direction === "text_music" ? <TextMusicProduction {...direction} /> : null}
       {props.direction === "voiceover" ? <VoiceoverProduction {...direction} /> : null}
+      {props.plan?.hookClip ? <HookClipLayer {...direction} /> : null}
       {/* A meme's caption bar fills the top: its badge (preview only, never rendered) sits under the text area on the right, clear of the bar and the captions. */}
       {props.concept ? (props.direction === "meme" ? <ConceptBadge top={safe.bottom + 30} right /> : <ConceptBadge top={safe.top + 60} />) : null}
       {timeline.voiced && props.voiceUrl ? <Audio src={props.voiceUrl} /> : null}

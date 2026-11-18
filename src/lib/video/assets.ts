@@ -1,5 +1,6 @@
-import type { CostItem, CreativeDirection, MediaItem, ResolvedAsset, ShotScene, VisualSource } from "./formats";
+import type { CostItem, CreativeDirection, HookType, MediaItem, ResolvedAsset, ShotScene, VisualSource } from "./formats";
 import { FOOTAGE_LIMITS, bestCandidate, configuredProviders, searchProvider, type StockCandidate, type StockProvider } from "./footage";
+import type { HookCandidate } from "./footage/hooks";
 
 /**
  * Each scene's picture or clip, chosen when the video is made (never when
@@ -16,13 +17,16 @@ import { FOOTAGE_LIMITS, bestCandidate, configuredProviders, searchProvider, typ
  *      the animated templates): a footage-led video with nothing to show
  *      fails clearly instead (lib/video/make.ts), never falls back silently.
  *
+ * A visual hook's opening clip (ResolveInput.hook) tries the hand-picked hook
+ * library first (footage/hooks.ts), then the scene's own order above.
+ *
  * Every asset keeps its provenance and licence (ResolvedAsset). The logic
  * takes its database, storage and providers as arguments so it can be tested
  * without any of them.
  */
 
 /** ResolvedAsset plus what the composition needs (stored in video_ideas.assets). */
-export type StoredAsset = ResolvedAsset & { durationMs?: number | null; width?: number | null; height?: number | null };
+export type StoredAsset = ResolvedAsset & { durationMs?: number | null; width?: number | null; height?: number | null; focalX?: number | null };
 
 /** A stock file stored by RepGet (video_stock_assets row, or its test stand-in). */
 export type CachedStock = {
@@ -47,6 +51,8 @@ export type ResolverDeps = {
   storeStock(candidate: StockCandidate, query: string, costUsd: number | null): Promise<CachedStock>;
   /** The per-use cost of a non-free provider's file (null = unknown). */
   stockCost(candidate: StockCandidate): Promise<number | null>;
+  /** The hook library's clips for a visual hook, in the order to try (free Pixabay files). */
+  hookCandidates?(type: HookType, query: string, exclude: Set<string>): Promise<HookCandidate[]>;
   ai: {
     provider(): "openai" | "replicate" | null;
     estimateUsd(): number;
@@ -71,6 +77,8 @@ export type ResolveInput = {
   media: MediaItem[];
   /** Assets already resolved (a retry): kept, nothing fetched again for those scenes. */
   existing?: StoredAsset[];
+  /** The plan's visual hook (ShotPlan.hookClip): scene 0 opens on its clip. */
+  hook?: HookType | null;
 };
 
 export type ResolveResult = { assets: StoredAsset[]; missing: number[]; notes: string[] };
@@ -130,7 +138,12 @@ export async function resolveSceneAssets(input: ResolveInput, deps: ResolverDeps
     let chosen: StoredAsset | null = null;
     let deliberateBrand = false;
 
-    for (const source of sourceOrder(request.source)) {
+    if (part === 0 && input.hook && deps.hookCandidates && downloads < FOOTAGE_LIMITS.maxAssetsPerVideo) {
+      chosen = await hookClipFor(input.hook, query, usedStock, deps, log);
+      if (chosen) downloads += 1;
+    }
+
+    for (const source of chosen ? [] : sourceOrder(request.source)) {
       if (source === "customer") {
         const item = pickFrom(customer, request.kind);
         if (item) chosen = { sceneIndex: part, url: item.url, kind: item.kind, source: "customer", provider: "customer", providerId: null, licence: "Customer's own media (uploaded by the customer)", sourceUrl: null, author: null, assetId: null };
@@ -224,6 +237,27 @@ async function stockFor(
         if (!provider.free) await deps.record({ kind: "footage", provider: provider.id, usd: null, basis: "unmeasured", note: "download failed" }, key);
         log(`Scene ${part}: ${provider.id} download failed (${(error as Error).message}).`);
       }
+    }
+  }
+  return null;
+}
+
+/** The opening clip from the hook library: the first of its picks that stores (free Pixabay files), with the library's climax and crop. */
+async function hookClipFor(type: HookType, query: string, usedStock: Set<string>, deps: ResolverDeps, log: (message: string) => void): Promise<StoredAsset | null> {
+  let candidates: HookCandidate[];
+  try {
+    candidates = await deps.hookCandidates!(type, query, usedStock);
+  } catch (error) {
+    log(`Scene 0: the hook library failed (${(error as Error).message}).`);
+    return null;
+  }
+  for (const candidate of candidates) {
+    try {
+      const stored = await deps.storeStock(candidate, query, 0);
+      await deps.record({ kind: "footage", provider: candidate.provider, usd: 0, basis: "measured", note: `free provider, hook clip ${candidate.providerId}` });
+      return { ...fromCached(0, stored), climaxMs: candidate.climaxMs, focalX: candidate.focalX };
+    } catch (error) {
+      log(`Scene 0: hook clip ${candidate.providerId} could not be stored (${(error as Error).message}).`);
     }
   }
   return null;

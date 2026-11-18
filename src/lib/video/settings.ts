@@ -44,6 +44,7 @@ import {
   type ViralTechnique,
   type Voice,
 } from "./formats";
+import { savedTechniques } from "./strategy/hooks";
 
 /**
  * A website's video settings, with the defaults where it has no row yet, and
@@ -143,7 +144,7 @@ export async function readVideoSettings(websiteId: string, executor: Executor = 
     logoUrl: row.logoUrl,
     viralMix: normalMix(row.viralMix),
     goal: oneOf(CONTENT_GOALS, row.goal, d.goal),
-    techniques: row.techniques.filter((t): t is ViralTechnique => (VIRAL_TECHNIQUES as readonly string[]).includes(t)),
+    techniques: savedTechniques(row.techniques, row.updatedAt),
     trendInspired: row.trendInspired,
     priorityTopics: row.priorityTopics,
     tonePreset: oneOf(TONE_PRESETS, row.tonePreset, d.tonePreset),

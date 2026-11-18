@@ -51,7 +51,7 @@ import {
   saveVideoProfileAction,
   saveVideoSettingsAction,
 } from "./actions";
-import type { ProductionChoices, ShotPlan, VideoScript } from "./formats";
+import { HOOK_TECHNIQUES, HOOK_TECHNIQUES_FROM, hookTypeOf, isHookTechnique, type ProductionChoices, type ShotPlan, type VideoScript } from "./formats";
 import { suggestVideoIdeas, WRITE_CHUNK, writeChunks, writeExtraBatch, type IdeaInput } from "./ideas";
 import { maxTokensFor } from "./strategy/prompt";
 import { contentHash, reviewBlocksAutoPublish } from "./review";
@@ -97,6 +97,8 @@ function writer(options: { audio?: "voiceover" | "text_music"; tag?: string } = 
       hashtags: ["photography", "trending"],
       why: slot.category === "viral" ? "A relatable mistake with a quick fix can be worth saving." : null,
       techniques: slot.techniques,
+      // As the model does: a clip for a slot with a visual hook.
+      visualHook: slot.techniques.map(hookTypeOf).find(Boolean) ? { type: slot.techniques.map(hookTypeOf).find(Boolean)!, clip: "domino chain falling close-up" } : null,
       scenes: Array.from({ length: POINTS.length + 3 }, () => ({ query: "photographer adjusting softbox in studio", kind: "video" as const, overlay: "POV: your first shoot", reaction: "wait..." })),
       claims: [],
       controversial: false,
@@ -142,6 +144,28 @@ describe("the day's ideas", () => {
     const viral = rows.find((row) => row.category === "viral")!;
     expect(viral.why).toBeTruthy();
     expect(viral.techniques.length).toBeGreaterThan(0);
+  });
+
+  it("open viral reels and Stories on a visual hook, never a carousel or the animated templates", async () => {
+    const { websiteId } = await site();
+    await test.db.insert(videoSettings).values({ websiteId, viralMix: 100, techniques: [...HOOK_TECHNIQUES], updatedAt: HOOK_TECHNIQUES_FROM });
+    const write = writer();
+    await suggestVideoIdeas(websiteId, NOW, { write });
+    for (const slot of write.mock.calls[0][0].slots) {
+      const hooks = slot.techniques.filter(isHookTechnique);
+      expect(hooks.length).toBeLessThanOrEqual(1);
+      if (slot.format === "carousel" || slot.direction === "animated") expect(hooks).toEqual([]);
+      if (hooks.length) expect(slot.alternatives).not.toContain("animated");
+    }
+    const hooked = (await ideasOf(websiteId)).filter((row) => (row.plan as ShotPlan).hookClip);
+    expect(hooked.length).toBeGreaterThan(0);
+    for (const row of hooked) {
+      const plan = row.plan as ShotPlan;
+      expect(row.format).not.toBe("carousel");
+      expect(row.direction).not.toBe("animated");
+      expect(plan.scenes[0].visual).toEqual({ source: "stock", query: "domino chain falling close-up", kind: "video" });
+      expect(row.techniques).toContain(`${plan.hookClip!.type}_hook`);
+    }
   });
 
   it("are written in Romanian for a Romanian website, never silently in English", async () => {

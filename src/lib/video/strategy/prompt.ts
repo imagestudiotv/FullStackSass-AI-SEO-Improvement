@@ -4,7 +4,9 @@ import { dataBlock, dataRule } from "@/lib/ai/untrusted";
 
 import {
   CREATIVE_DIRECTIONS,
+  HOOK_TYPES,
   VIRAL_TECHNIQUES,
+  isHookTechnique,
   type ContentGoal,
   type CreativeDirection,
   type HumorLevel,
@@ -51,6 +53,7 @@ export const ideaSchema = z.object({
       hashtags: z.array(z.string()),
       why: z.string().nullable(),
       techniques: z.array(z.enum(VIRAL_TECHNIQUES)),
+      visualHook: z.object({ type: z.enum(HOOK_TYPES), clip: z.string() }).nullable(),
       scenes: z.array(
         z.object({
           query: z.string(),
@@ -135,7 +138,19 @@ const TECHNIQUE_TEXT: Record<ViralTechnique, string> = {
   unexpected_facts: "unexpected fact (only a fact from the material)",
   comparisons: "comparison (options or approaches, never named competitors; facts only from the material)",
   storytelling: "story arc",
+  anticipation_hook: "anticipation hook: an opening clip whose ending the viewer HAS to see",
+  impossible_hook: "impossible hook: an opening clip of something that should not be possible, so they stop to figure out how",
+  danger_hook: "danger hook: an opening clip where one wrong move and it is over, so they cannot look away",
 };
+
+/** The visual hook rules (client, 2026-11-18), for batches with a hook slot. */
+const VISUAL_HOOK_TEXT = `VISUAL HOOK (slots whose techniques include anticipation_hook, impossible_hook or danger_hook): the video OPENS on a short licensed stock clip that stops the scroll - it need not show the business. The clip is cut just before its climax, keeps running small in a corner while the video talks, and its ending plays behind the proof line. So:
+- "visualHook": {"type": anticipation, impossible or danger (the slot's), "clip": 3-8 concrete English stock-search words for ONE continuous clip with a clear climax}. Every other idea: null.
+- "hook": the bridge line over the clip that ties it to this video's subject ("Booking a photographer without checking this?"), at most 60 characters. The "proof" lands the payoff.
+- anticipation: an outcome they have to see ("domino chain toppling close-up", "glass filling to the brim", "basketball trick shot arc", "tree felling in a forest").
+- impossible: something that looks like it should not work but is real ("perfectly balanced stacked stones", "optical illusion street art", "slow motion water drop crown", "liquid nitrogen vapor pour"). Never a fake claim, never about the business's own results.
+- danger: controlled tension where one wrong move ends it ("jenga tower wobbling", "glass on the edge of a table", "building a house of cards", "tightrope walker high above"). Never real injury, accidents, crashes, fire, weapons, vehicles at speed, animals or children at risk, or anything people could copy dangerously.
+- Never a real person, brand or famous stunt in "clip".`;
 
 const TONE_TEXT: Record<TonePreset, string> = {
   professional: "professional: clear, refined and confident",
@@ -197,7 +212,7 @@ ${directions.map((direction) => `- ${DIRECTION_TEXT[direction]}`).join("\n")}
 
 CATEGORIES:
 ${categories.map((category) => `- ${CATEGORY_TEXT[category]}`).join("\n")}
-${techniques.length ? `\nTECHNIQUES (for the slots that name them; they shape the angle, they never justify invented claims):\n${techniques.map((technique) => `- ${technique}: ${TECHNIQUE_TEXT[technique]}`).join("\n")}\n` : ""}
+${techniques.some(isHookTechnique) ? `\n${VISUAL_HOOK_TEXT}\n` : ""}${techniques.length ? `\nTECHNIQUES (for the slots that name them; they shape the angle, they never justify invented claims):\n${techniques.map((technique) => `- ${technique}: ${TECHNIQUE_TEXT[technique]}`).join("\n")}\n` : ""}
 STYLE:
 - Tone: ${TONE_TEXT[s.tonePreset]}, together with the business's own tone and words to avoid (business profile).
 - ${HUMOR_TEXT[s.humor]}
@@ -217,6 +232,7 @@ EACH IDEA:
 - "caption": the post text: 1-3 short sentences that add value, conversational, at most one emoji, no links. "hashtags": 3-5 relevant ones without "#" (never #trending or #viral).
 - "why": viral ideas only (else null): one sentence on why it could perform well, never a guarantee.
 - "techniques": the slot's techniques this idea really uses (viral only, else []).
+- "visualHook": only for a slot with a hook technique (VISUAL HOOK above); null for every other idea.
 - "scenes": exactly one per spoken part, in order: the hook, each point, the proof, the cta (points + 3 scenes). "query": 3-8 concrete, filmable English stock-search words ("barista pouring latte art close-up"); "kind": video, or image for carousels and still pictures; "overlay" and "reaction": memes and stories only (else null), in ${input.language}.
 - "claims": every factual statement in the script or caption (figures, rankings, comparisons, facts about the business) with its "source": "article:N" for the N-th article, "profile" for the business profile, or null when it is not in the material.
 - "controversial": true for a provocative angle or hot take. "sensitive": true for health, legal, financial, safety or other regulated topics.

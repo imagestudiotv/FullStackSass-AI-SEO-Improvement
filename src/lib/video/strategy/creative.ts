@@ -5,6 +5,7 @@ import {
   type AudioMode,
   type CaptionStyle,
   type CreativeDirection,
+  type HookType,
   type IdeaCategory,
   type MusicDirection,
   type Pacing,
@@ -185,6 +186,8 @@ export type PlanInput = {
   variant?: { pacing: number; transitions: number; mood: number };
   /** Stock search words for a scene the writer left empty (the idea's title). */
   fallbackQuery: string;
+  /** A visual hook (strategy/hooks.ts): the opening scene is its stock clip. */
+  hook?: { type: HookType; query: string } | null;
 };
 
 const clipText = (value: string | null | undefined, max: number) => (value ? value.replace(/\s+/g, " ").trim().slice(0, max) || null : null);
@@ -231,18 +234,22 @@ export function buildPlan(input: PlanInput): ShotPlan {
     const written = input.scenes[index] ?? input.scenes[input.scenes.length - 1];
     const meme = input.direction === "meme";
     const story = input.direction === "storytelling";
+    const hookClip = index === 0 && input.hook;
     return {
-      visual: {
-        source: sourceFor(input, index, parts),
-        query: cleanQuery(written?.query ?? "", input.fallbackQuery),
-        kind: kindFor(written),
-      },
+      visual: hookClip
+        ? { source: "stock", query: cleanQuery(input.hook!.query, input.fallbackQuery), kind: "video" }
+        : {
+            source: sourceFor(input, index, parts),
+            query: cleanQuery(written?.query ?? "", input.fallbackQuery),
+            kind: kindFor(written),
+          },
       transition: transitionAt(index),
       reaction: meme ? clipText(written?.reaction, 24) : null,
       overlay: meme || story ? clipText(written?.overlay, 70) : null,
     };
   });
   const plan: ShotPlan = { direction: input.direction, pacing, captionStyle: input.captionStyle, musicMood, scenes, recipe: "" };
+  if (input.hook) plan.hookClip = { type: input.hook.type };
   plan.recipe = recipeOf(plan);
   return plan;
 }
@@ -251,7 +258,8 @@ export function buildPlan(input: PlanInput): ShotPlan {
 export function recipeOf(plan: Omit<ShotPlan, "recipe">): string {
   const transitions = [...new Set(plan.scenes.slice(1).map((scene) => scene.transition))].sort().join("+") || "cut";
   const visuals = plan.scenes.map((scene) => `${scene.visual.source[0]}${scene.visual.kind[0]}`).join("");
-  return [plan.direction, plan.pacing, transitions, plan.captionStyle, plan.musicMood ?? "none", visuals].join("|");
+  const recipe = [plan.direction, plan.pacing, transitions, plan.captionStyle, plan.musicMood ?? "none", visuals];
+  return (plan.hookClip ? [...recipe, `hook-${plan.hookClip.type}`] : recipe).join("|");
 }
 
 /**
