@@ -4,7 +4,9 @@ import { ArrowRight, Globe, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, useTransition, type FormEvent, type MouseEvent, type ReactNode } from "react";
 
+import { readConsent } from "@/lib/consent";
 import type { AuditLandingCopy } from "@/lib/i18n/audit-landing";
+import { trackMetaLead } from "@/lib/meta-pixel";
 
 import { cleanWebsite } from "../_home/start-field";
 import styles from "./audit-landing.module.css";
@@ -64,6 +66,8 @@ export function AuditStartForm({
     const domain = cleanWebsite(value);
     if (!domain) return fail(strings.invalidError);
     setError("");
+    // Meta's Lead, for a visitor who accepted (lib/meta-pixel.ts); the audit page sends the server's copy.
+    void trackMetaLead(readConsent());
     startTransition(() => router.push(`${action}?domain=${encodeURIComponent(domain)}`));
   }
 

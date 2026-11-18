@@ -17,6 +17,7 @@ import {
   EXTRA_BATCH_SIZE,
   isCreativeDirection,
   isIdeaCategory,
+  isHookTechnique,
   isVideoFormat,
   PRODUCTION_BUDGET_USD,
   VIDEO_STYLES,
@@ -43,6 +44,7 @@ import { readVideoSettings, videoAccess, type VideoSettings } from "./settings";
 import { batchCategories, durationFor, formatAt, type CategoryCounts } from "./strategy/allocation";
 import { allowedDirections, assignDirections, buildPlan, enforceRecipes, settleDirections, stableHash, type Slot } from "./strategy/creative";
 import { lengthPlan, maxPointsFor, MIN_POINTS, TEMPLATE_MAX_POINTS } from "./strategy/duration";
+import { canHook, hookQuery, hookTypeFor, withOneHook, withoutHooks } from "./strategy/hooks";
 import { LEARNING_DAYS, learnFrom, NO_LEARNING, type Learning } from "./strategy/learning";
 import { ideaSchema, maxTokensFor, systemPrompt, userContent, type IdeaInput, type SlotBrief, type WrittenIdea } from "./strategy/prompt";
 
@@ -221,15 +223,21 @@ async function loadMaterial(site: Site, now: Date): Promise<Material> {
 
 type PlannedSlot = Slot & { slot: number; index: number; techniques: ViralTechnique[] };
 
-/** The chosen techniques, in turn, for the viral slots (trend-inspired only while that switch is on). */
-function techniquesFor(settings: VideoSettings, viralIndex: number, weights: Learning["techniqueWeights"]): ViralTechnique[] {
-  const chosen = settings.techniques.filter((technique) => technique !== "trend_inspired" || settings.trendInspired);
+/**
+ * The chosen techniques, in turn, for the viral slots (trend-inspired only
+ * while that switch is on; visual hooks only where a clip can open the video,
+ * one at a time).
+ */
+function techniquesFor(settings: VideoSettings, viralIndex: number, weights: Learning["techniqueWeights"], format: VideoFormat): ViralTechnique[] {
+  const chosen = settings.techniques.filter(
+    (technique) => (technique !== "trend_inspired" || settings.trendInspired) && (!isHookTechnique(technique) || canHook(format, null)),
+  );
   const pool = chosen.length > 0 ? chosen : (["curiosity_hooks", "myth_busting"] as ViralTechnique[]);
   // Learning puts the better techniques first in the turn; every chosen one still comes round.
   const ordered = [...pool].sort((a, b) => (weights[b] ?? 1) - (weights[a] ?? 1) || VIRAL_TECHNIQUES.indexOf(a) - VIRAL_TECHNIQUES.indexOf(b));
   const first = ordered[viralIndex % ordered.length];
   const second = ordered.length > 2 ? ordered[(viralIndex + 1 + Math.floor(viralIndex / ordered.length)) % ordered.length] : null;
-  return second && second !== first ? [first, second] : [first];
+  return withOneHook(second && second !== first ? [first, second] : [first]);
 }
 
 function planSlots(categories: IdeaCategory[], formatOffset: number, material: Material): PlannedSlot[] {
@@ -241,7 +249,7 @@ function planSlots(categories: IdeaCategory[], formatOffset: number, material: M
       index: formatOffset + index,
       category,
       format,
-      techniques: category === "viral" ? techniquesFor(material.settings, viral++, material.learning.techniqueWeights) : [],
+      techniques: category === "viral" ? techniquesFor(material.settings, viral++, material.learning.techniqueWeights, format) : [],
     };
   });
 }
@@ -264,7 +272,10 @@ function briefs(slots: PlannedSlot[], directions: CreativeDirection[], material:
       slot: slot.slot,
       category: slot.category,
       direction,
-      alternatives: allowedDirections(slot.category, slot.format, material.audioMode).filter((other) => other !== direction).slice(0, 2),
+      // A hook slot never switches to the animated templates: they have no clip to open on.
+      alternatives: allowedDirections(slot.category, slot.format, material.audioMode)
+        .filter((other) => other !== direction && (other !== "animated" || !slot.techniques.some(isHookTechnique)))
+        .slice(0, 2),
       format: slot.format,
       audio: fixed,
       techniques: slot.techniques,
@@ -357,6 +368,13 @@ function checkIdea(written: WrittenIdea, slot: PlannedSlot, direction: CreativeD
   return { slot, written, script, title, direction };
 }
 
+/** The slot's techniques the idea says it used (all of them when it names none); none for a non-viral idea. */
+function usedTechniques(slot: PlannedSlot, written: WrittenIdea): ViralTechnique[] {
+  if (slot.category !== "viral") return [];
+  const used = (Array.isArray(written.techniques) ? written.techniques : []).filter((technique) => slot.techniques.includes(technique));
+  return used.length > 0 ? used : slot.techniques;
+}
+
 type RowContext = {
   websiteId: string;
   day: string;
@@ -374,6 +392,10 @@ function composeRows(composed: Composed[], context: RowContext): (typeof videoId
   const parts = composed.map((item) => {
     const { slot, written, script, direction } = item;
     const article = written.article && written.article >= 1 ? material.live[written.article - 1] : undefined;
+    const techniques = usedTechniques(slot, written);
+    // A visual hook opens on a stock clip: the writer's search words when safe, else a safe one of its type.
+    const hookType = hookTypeFor(techniques, slot.format, direction);
+    const hook = hookType ? { type: hookType, query: hookQuery(hookType, written.visualHook?.clip, stableHash(item.title)) } : null;
     const audio = resolveAudio(direction, slot.format, material.audioMode, written.audio === "text_music" || written.audio === "voiceover" ? written.audio : null);
     const production: ProductionChoices = {
       audio,
@@ -397,14 +419,15 @@ function composeRows(composed: Composed[], context: RowContext): (typeof videoId
         articlePicture: Boolean(article?.imageUrl),
         variant,
         fallbackQuery: item.title,
+        hook,
       });
-    return { item, article, audio, production, planFor };
+    return { item, article, audio, production, planFor, techniques };
   });
   const plans = enforceRecipes(parts, (part) => part.planFor(), (part, variant) => part.planFor(variant), material.recentRecipes, context.seed);
   const ledger = context.ledger(parts.length);
 
   return parts.map((part, j) => {
-    const { item, article, audio, production } = part;
+    const { item, article, audio, production, techniques } = part;
     const { slot, written, script, direction } = item;
     const plan: ShotPlan = plans[j];
     const index = slot.index;
@@ -413,13 +436,6 @@ function composeRows(composed: Composed[], context: RowContext): (typeof videoId
       articles: material.live.map((article) => [article.title, article.keyword, article.summary].filter(Boolean).join(" ")),
       profile: JSON.stringify(material.profile),
     });
-    const techniques =
-      slot.category === "viral"
-        ? (() => {
-            const used = (Array.isArray(written.techniques) ? written.techniques : []).filter((technique) => slot.techniques.includes(technique));
-            return used.length > 0 ? used : slot.techniques;
-          })()
-        : [];
     const review = assessReview(
       { content: { script, caption, plan, production }, claims, controversial: Boolean(written.controversial), sensitive: Boolean(written.sensitive), techniques },
       settings,
@@ -473,8 +489,12 @@ async function writeBatchIdeas(
   write: typeof writeIdeas,
   meta: { kind: BatchKind; batchId: string | null; day: string; now: Date },
 ): Promise<(typeof videoIdeas.$inferInsert)[]> {
-  const slots = planSlots(categories, formatOffset, material);
-  const planned = assignDirections(slots, material.audioMode, { seed, weights: material.learning.directionWeights, recent: material.recentDirections });
+  const base = planSlots(categories, formatOffset, material);
+  const planned = assignDirections(base, material.audioMode, { seed, weights: material.learning.directionWeights, recent: material.recentDirections });
+  // A slot planned as the animated templates keeps its other techniques: no clip to open on.
+  const slots = base.map((slot, k) =>
+    canHook(slot.format, planned[k]) ? slot : { ...slot, techniques: slot.category === "viral" ? withoutHooks(slot.techniques) : slot.techniques },
+  );
   const { ideas, usage } = await write({
     count: slots.length,
     language: material.languageName,
@@ -649,7 +669,9 @@ export async function rewriteIdea(websiteId: string, ideaId: string, now: Date =
   const audio: ResolvedAudio = production?.audio ?? (row.voice ? "voiceover" : "text_music");
   const techniques = (row.techniques ?? []).filter((t): t is ViralTechnique => (VIRAL_TECHNIQUES as readonly string[]).includes(t));
   const overrides = (row.overrides ?? {}) as IdeaOverrides;
-  const slot: PlannedSlot = { slot: 1, index: 0, category, format, techniques: category === "viral" && techniques.length === 0 ? techniquesFor(material.settings, 0, {}) : techniques };
+  const chosen = category === "viral" && techniques.length === 0 ? techniquesFor(material.settings, 0, {}, format) : techniques;
+  const fitted = canHook(format, direction) ? withOneHook(chosen) : category === "viral" ? withoutHooks(chosen) : chosen;
+  const slot: PlannedSlot = { slot: 1, index: 0, category, format, techniques: fitted };
   const brief: SlotBrief = {
     slot: 1,
     category,

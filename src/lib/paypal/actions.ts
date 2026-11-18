@@ -17,7 +17,8 @@ import {
 } from "@/lib/billing/checkouts";
 import { syncPayPalSubscription } from "@/lib/billing/paypal-events";
 import { REPGET_CODE } from "@/lib/billing/repget-offer";
-import { rememberPayer } from "@/lib/conversions/conversions";
+import { metaCheckoutEvent, rememberPayer } from "@/lib/conversions/conversions";
+import type { MetaCheckout } from "@/lib/meta-pixel";
 import { db } from "@/lib/db";
 import { plans, subscriptions, websites } from "@/lib/db/schema";
 import { isPayPalConfigured, PayPalError, payPalCheckoutPaused } from "@/lib/paypal/client";
@@ -38,7 +39,8 @@ import {
  * one-subscription-per-website decision (beginCheckout).
  */
 
-export type PayPalResult = { url: string } | { error: string };
+/** `metaCheckout`: as on Stripe's (lib/stripe/actions.ts CheckoutResult). */
+export type PayPalResult = { url: string; metaCheckout?: MetaCheckout } | { error: string };
 
 function appUrl(): string {
   const url = process.env.NEXT_PUBLIC_APP_URL;
@@ -129,7 +131,7 @@ export async function createPayPalCheckout(
   /** Where the customer started, so approving returns them there. */
   origin: CheckoutOrigin = "billing",
 ): Promise<PayPalResult> {
-  const { orgId } = await requireOrg();
+  const { orgId, userId } = await requireOrg();
 
   /**
    * Ownership re-checked before the id leaves for PayPal, as with Stripe: a
@@ -292,8 +294,8 @@ export async function createPayPalCheckout(
     discount !== null
       ? { sequence: withFreeDays ? 2 : 1, totalCycles: launchPrice ? 0 : 1, priceCents: plan.priceCents - discount, currency: plan.currency }
       : null;
-  // The payer's GA identity, for the purchase reported when the money arrives.
-  await rememberPayer(db, checkoutId);
+  // The payer's GA and Meta identities, for the purchase reported when the money arrives; Meta also hears InitiateCheckout.
+  await rememberPayer(db, checkoutId, { userId, plan: { name: plan.name, priceCents: plan.priceCents, currency: plan.currency } });
   const idempotencyKey = `checkout:${checkoutId}`;
   try {
     await recordCheckoutRequest(db, checkoutId, {
@@ -323,7 +325,7 @@ export async function createPayPalCheckout(
       providerSubscriptionId: result.subscriptionId,
       checkoutUrl: result.approveUrl,
     });
-    return { url: result.approveUrl };
+    return { url: result.approveUrl, metaCheckout: metaCheckoutEvent(checkoutId, plan) };
   } catch (error) {
     /*
       Only a definite refusal marks it failed. A timeout ("unknown") may have

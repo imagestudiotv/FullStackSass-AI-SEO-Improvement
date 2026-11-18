@@ -666,6 +666,13 @@
       "when": 1794860045561,
       "tag": "0094_paid_acquisitions",
       "breakpoints": true
+    },
+    {
+      "idx": 95,
+      "version": "7",
+      "when": 1794996706355,
+      "tag": "0095_meta_purchases",
+      "breakpoints": true
     }
   ]
 }

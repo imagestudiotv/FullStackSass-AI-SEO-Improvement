@@ -4,6 +4,7 @@ import { DeferredToaster } from "@/components/deferred-toaster";
 import { SiteAnalytics } from "@/components/site-analytics";
 import "./globals.css";
 import { isPreviewDeployment } from "@/lib/deployment";
+import { metaNoscriptSrc, metaPixelId } from "@/lib/meta-pixel";
 import type { Locale } from "@/lib/i18n/config";
 import { siteUrl as canonicalSiteUrl } from "@/lib/site-url";
 import { SITE_OPEN_GRAPH } from "@/lib/seo/page-metadata";
@@ -137,6 +138,7 @@ export const ROOT_METADATA: Metadata = {
 
 /** <html> and <body> for a root layout, in the page's language. */
 export function RootDocument({ lang, children }: { lang: Locale; children: React.ReactNode }) {
+  const metaPixel = metaPixelId();
   return (
     <html
       lang={lang}
@@ -154,6 +156,18 @@ export function RootDocument({ lang, children }: { lang: Locale; children: React
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
       <body className="min-h-full flex flex-col">
+        {/*
+          The Meta Pixel's image for browsers without JavaScript (client's
+          guide, 2026-11-18, section 1): one page view. A browser without
+          JavaScript cannot show the cookie banner, so it is sent without
+          an answer - the client's decision; the privacy policy says so.
+        */}
+        {metaPixel ? (
+          <noscript>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img height="1" width="1" style={{ display: "none" }} alt="" src={metaNoscriptSrc(metaPixel)} />
+          </noscript>
+        ) : null}
         {children}
         <DeferredToaster />
         <SiteAnalytics />

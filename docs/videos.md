@@ -74,6 +74,12 @@ Daniel chose genuinely different productions ("Option B"), not catchier scripts 
 - **Length**: 15–30 / 30–45 / 45–60 / 60–90 s, with word budgets of 2.4 words/s narrated and 2.75 words/s on screen. A Story is at most 60 s.
 - **Formats**: about 1 in 4 is a carousel and 1 in 10 a Story, when allowed.
 - **Trends**: trend-inspired only (proven formats, niche knowledge). Nothing is ever called "currently trending" without provider data; such claims are stripped or the idea is dropped.
+- **Visual hooks** (client, 2026-11-18; `strategy/hooks.ts`, `footage/hooks.ts`, `src/remotion/directions/HookClip.tsx`): three more viral techniques. Anticipation ("they HAVE to see how it ends"), impossible ("something that shouldn't be possible") and danger ("one wrong move and it's over").
+  - They are on by default. Settings saved before 2026-11-19 (`HOOK_TECHNIQUES_FROM`) get them too; a later Save keeps the customer's own choice.
+  - Reels and Stories only, one hook an idea; never carousels or the animated templates.
+  - The writer gives the clip's English search words (`visualHook`) and a bridge line as the hook. Words naming harm, vehicles, weapons, animals or children are replaced by a safe search of the type (`SAFE_HOOK_QUERIES`).
+  - The opening clip comes from the hand-picked library first (`footage/hook-library.ts`: Pixabay ids with the moment the climax starts, fetched by id through the API, picked with `scripts/hook-library.mjs`), then a Pixabay search.
+  - In the video: the clip full screen with the bridge line while the hook is said; then small in a corner, slowed so its climax waits; then full screen from a second before the climax behind the proof (`hookTiming` in `src/remotion/production.ts`). A danger clip says "Professionals. Don't try this."
 - **Learning** (`strategy/learning.ts`): views and engagement of the website's posted videos over the last 60 days give soft weights, with each direction kept between a 10% floor and the 40% cap.
 - **Profile**: audience, language, market (country), tone and avoid are the website's profile and Brand Voice, saved there (`saveVideoProfileAction`). Only priority topics and the tone preset (Professional/Bold/Playful, next to the free-text tone) are video settings. Per-video overrides (`overrides`) never change the global profile. "Rewrite with these" is free, up to 10 a website a day.
 - **Languages**: the 8 content languages plus Romanian (`ro`).

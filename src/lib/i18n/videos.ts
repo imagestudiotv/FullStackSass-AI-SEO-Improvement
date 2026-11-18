@@ -241,6 +241,9 @@ export type ViralCopy = {
     unexpected_facts: string;
     comparisons: string;
     storytelling: string;
+    anticipation_hook: string;
+    impossible_hook: string;
+    danger_hook: string;
   };
   tonePresets: Record<"professional" | "bold" | "playful", { title: string; body: string }>;
   frequencies: { "3_week": string; "5_week": string; "1_day": string; "2_day": string; legacy: string };
@@ -518,6 +521,9 @@ const viralEn: ViralCopy = {
     unexpected_facts: "Unexpected facts",
     comparisons: "Comparisons",
     storytelling: "Storytelling",
+    anticipation_hook: "Anticipation hooks",
+    impossible_hook: "Impossible hooks",
+    danger_hook: "Danger hooks",
   },
   tonePresets: {
     professional: { title: "Professional", body: "Clear, refined and confident." },
@@ -841,6 +847,9 @@ const viralEs: ViralCopy = {
     unexpected_facts: "Datos inesperados",
     comparisons: "Comparaciones",
     storytelling: "Narrativa",
+    anticipation_hook: "Ganchos de anticipación",
+    impossible_hook: "Ganchos imposibles",
+    danger_hook: "Ganchos de peligro",
   },
   tonePresets: {
     professional: { title: "Profesional", body: "Claro, cuidado y seguro." },
@@ -1164,6 +1173,9 @@ const viralFr: ViralCopy = {
     unexpected_facts: "Faits surprenants",
     comparisons: "Comparaisons",
     storytelling: "Récit",
+    anticipation_hook: "Accroches d'anticipation",
+    impossible_hook: "Accroches impossibles",
+    danger_hook: "Accroches de danger",
   },
   tonePresets: {
     professional: { title: "Professionnel", body: "Clair, soigné et assuré." },
@@ -1487,6 +1499,9 @@ const viralIt: ViralCopy = {
     unexpected_facts: "Fatti inaspettati",
     comparisons: "Confronti",
     storytelling: "Racconto",
+    anticipation_hook: "Ganci di attesa",
+    impossible_hook: "Ganci impossibili",
+    danger_hook: "Ganci di pericolo",
   },
   tonePresets: {
     professional: { title: "Professionale", body: "Chiaro, curato e sicuro." },
@@ -1810,6 +1825,9 @@ const viralDe: ViralCopy = {
     unexpected_facts: "Überraschende Fakten",
     comparisons: "Vergleiche",
     storytelling: "Storytelling",
+    anticipation_hook: "Spannungs-Aufhänger",
+    impossible_hook: "Unmöglich-Aufhänger",
+    danger_hook: "Gefahr-Aufhänger",
   },
   tonePresets: {
     professional: { title: "Professionell", body: "Klar, souverän und gepflegt." },
