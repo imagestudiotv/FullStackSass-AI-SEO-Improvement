@@ -79,7 +79,8 @@ export const FREE_ARTICLES_ONLY_PAYPAL =
  * Checkout's refusal while the free trial would be given to an address
  * nobody has confirmed (lib/stripe/actions.ts, lib/paypal/actions.ts). The
  * plan step asks for the code first, so this is only seen by a request that
- * skipped it.
+ * skipped it. Compared by value (Billing, the tests), so it stays English
+ * here; the plan step shows it in the reader’s language (lib/i18n/plan-step.ts).
  */
 export const CONFIRM_EMAIL_FIRST =
   "Confirm your email address first - your free trial is given to it.";

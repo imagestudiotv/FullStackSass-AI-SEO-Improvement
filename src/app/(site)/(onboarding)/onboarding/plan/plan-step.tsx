@@ -14,7 +14,9 @@ import { formatPrice } from "@/lib/billing-shared";
 import { perMonthOfYear, planDisplayPrice } from "@/lib/billing/display-prices";
 import { REPGET_PERCENT_OFF } from "@/lib/billing/repget-offer";
 import { format } from "@/lib/i18n/format";
-import { planFeatures, TRIAL_DAYS, type PickerPlan } from "@/lib/plans/features";
+import { CONFIRM_EMAIL_FIRST, planFeatures, TRIAL_DAYS, type PickerPlan } from "@/lib/plans/features";
+import type { Locale } from "@/lib/i18n/config";
+import { planStepCopy } from "@/lib/i18n/plan-step";
 import { OfferApplied } from "@/components/billing/offer-code-field";
 import type { DirectPurchaseCopy } from "@/lib/i18n/direct-purchase";
 import type { OfferCodeCopy } from "@/lib/i18n/offer-code";
@@ -82,6 +84,7 @@ export function PlanStep({
   benefits = {},
   descriptions = {},
   usageNote = null,
+  locale = "en",
 }: {
   /**
    * What each plan includes, by plan id, in the reader's language - the
@@ -137,7 +140,13 @@ export function PlanStep({
   websiteId: string;
   /** This step's copy, defaulting to English. */
   t?: Messages["app"]["onboarding"];
+  /**
+   * The reader's app language (lib/i18n/app-locale.ts), for this step's own
+   * words (lib/i18n/plan-step.ts). English when left out.
+   */
+  locale?: Locale;
 }) {
+  const copy = planStepCopy(locale);
   const [annual, setAnnual] = useState(false);
   /**
    * Which tier is on screen. The mid tier by default — the reference opens on
@@ -176,12 +185,12 @@ export function PlanStep({
     });
     setChecking(null);
     if (error) {
-      toast.error("We could not send the code. Please try again in a minute.");
+      toast.error(copy.sendCodeFailed);
       return;
     }
     setCodeSent(true);
     setCode("");
-    toast.success(`We sent a 6-digit code to ${email}.`);
+    toast.success(copy.codeSent(email));
   }
 
   async function submitCode(event: React.FormEvent<HTMLFormElement>) {
@@ -191,15 +200,15 @@ export function PlanStep({
     setChecking(null);
     if (result.ok) {
       setVerified(true);
-      toast.success("Email confirmed.");
+      toast.success(copy.emailConfirmed);
       return;
     }
     toast.error(
       result.error === "INVALID"
-        ? "That code is not right. Check the email and try again."
+        ? copy.codeInvalid
         : result.error === "EXPIRED" || result.error === "TOO_MANY"
-          ? "That code no longer works. Send a new one."
-          : "We could not check the code. Please try again.",
+          ? copy.codeExpired
+          : copy.codeCheckFailed,
     );
   }
 
@@ -301,7 +310,8 @@ export function PlanStep({
 
     if ("error" in result) {
       setPending(null);
-      toast.error(result.error);
+      // Checkout's one English refusal this step can meet, in the reader's language; the value compared is unchanged.
+      toast.error(result.error === CONFIRM_EMAIL_FIRST ? copy.confirmEmailFirst : result.error);
       return;
     }
     // assign() rather than `location.href = …`: the React Compiler treats the
@@ -334,7 +344,7 @@ export function PlanStep({
   const paypalTrial = paypal && trial && paypalTrialPlanIds.includes(plan.id);
   const description =
     descriptions[plan.id] ??
-    "Everything you need to grow organic traffic from Google and AI search, on autopilot.";
+    copy.defaultDescription;
   const money = (cents: number) => formatPrice(cents, plan.currency);
 
   /**
@@ -347,9 +357,9 @@ export function PlanStep({
   const badge = directPurchase
     ? directPurchase.badge
     : plan.tier === "grow"
-      ? "Most popular plan"
+      ? copy.badgePopular
       : plan.tier === "scale"
-        ? "Best value"
+        ? copy.badgeBestValue
         : null;
 
   return (
@@ -364,7 +374,7 @@ export function PlanStep({
         this one had already not survived it.
       */}
       <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">
-        Step {String(wizardStepIndex("plan") + 1).padStart(2, "0")}{" "}
+        {copy.step} {String(wizardStepIndex("plan") + 1).padStart(2, "0")}{" "}
         <span className="text-muted-foreground">
           / {String(WIZARD_STEPS.length).padStart(2, "0")}
         </span>
@@ -392,7 +402,7 @@ export function PlanStep({
         */
         <div
           role="radiogroup"
-          aria-label="Plan"
+          aria-label={copy.planLabel}
           className={`mt-4 grid ${monthlyPlans.length === 3 ? "grid-cols-3" : "grid-cols-2"} gap-1 rounded-2xl border bg-muted/50 p-1 sm:flex sm:rounded-full`}
         >
           {monthlyPlans.map((option) => (
@@ -451,11 +461,11 @@ export function PlanStep({
         used rather than the raw hex.
       */}
       <section
-        aria-label={`${plan.name} plan`}
+        aria-label={copy.planName(plan.name)}
         className="mt-5 rounded-[19px] border-[1.5px] border-primary bg-card px-4 pt-5 pb-5 shadow-[0_12px_50px_rgba(19,19,19,0.025)] min-[501px]:px-[22px] min-[501px]:pt-[22px]"
       >
         <div className="flex flex-wrap items-center gap-2">
-          <h2 className="text-lg font-bold tracking-tight">{plan.name} plan</h2>
+          <h2 className="text-lg font-bold tracking-tight">{copy.planName(plan.name)}</h2>
           {/*
             The badge from the design: "Most popular plan" on Grow, "Best
             value" on Scale. Read from the tier rather than position, so it
@@ -478,7 +488,7 @@ export function PlanStep({
           <span className="text-5xl leading-none font-extrabold tracking-tight tabular-nums">
             {money(perMonthCents)}
           </span>
-          <span className="text-sm text-muted-foreground">/month</span>
+          <span className="text-sm text-muted-foreground">{copy.perMonth}</span>
         </div>
 
         {/* The billing switch from the design: a toggle, not two radio pills. */}
@@ -506,13 +516,13 @@ export function PlanStep({
                 {t.payYearly}
                 {saving ? (
                   <span className="ml-1 font-bold text-primary-strong">
-                    &middot; save {saving}%
+                    &middot; {copy.save(saving)}
                   </span>
                 ) : null}
               </span>
             </div>
             <span className="text-sm text-muted-foreground" aria-live="polite">
-              {annual ? "Billed annually" : "Billed monthly"}
+              {annual ? copy.billedAnnually : copy.billedMonthly}
             </span>
           </div>
         ) : null}
@@ -534,7 +544,7 @@ export function PlanStep({
           <div className="mt-4 rounded-2xl border bg-muted/40 p-4">
             <p className="flex items-center gap-2 text-sm font-medium">
               <MailCheck className="size-4 shrink-0 text-primary" aria-hidden="true" />
-              Confirm your email to start your {TRIAL_DAYS}-day free trial
+              {copy.confirmEmailTitle(TRIAL_DAYS)}
             </p>
             {codeSent ? (
               <form onSubmit={submitCode} className="mt-3 flex flex-wrap gap-2">
@@ -543,23 +553,23 @@ export function PlanStep({
                   onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
                   inputMode="numeric"
                   autoComplete="one-time-code"
-                  placeholder="6-digit code"
-                  aria-label="Confirmation code"
+                  placeholder={copy.codePlaceholder}
+                  aria-label={copy.codeLabel}
                   className="h-11 min-w-0 flex-1 rounded-full bg-background px-4 tracking-[0.3em]"
                 />
                 <Button type="submit" disabled={checking !== null || code.length !== 6} className="h-11 rounded-full px-5">
                   {checking === "confirm" ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
-                  Confirm
+                  {copy.confirm}
                 </Button>
                 <p className="w-full text-xs text-muted-foreground">
-                  Sent to {email}.{" "}
+                  {copy.sentTo(email)}{" "}
                   <button
                     type="button"
                     onClick={sendCode}
                     disabled={checking !== null}
                     className="font-medium text-foreground underline underline-offset-2"
                   >
-                    Send a new code
+                    {copy.sendNewCode}
                   </button>
                 </p>
               </form>
@@ -567,9 +577,9 @@ export function PlanStep({
               <div className="mt-3 flex flex-wrap items-center gap-3">
                 <Button type="button" variant="outline" onClick={sendCode} disabled={checking !== null} className="h-11 rounded-full px-5">
                   {checking === "send" ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
-                  Email me a code
+                  {copy.emailMeCode}
                 </Button>
-                <span className="min-w-0 text-xs text-muted-foreground">We send it to {email}.</span>
+                <span className="min-w-0 text-xs text-muted-foreground">{copy.weSendItTo(email)}</span>
               </div>
             )}
           </div>
@@ -583,11 +593,11 @@ export function PlanStep({
           {pending === "stripe" ? (
             <>
               <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-              Starting checkout&hellip;
+              {copy.startingCheckout}
             </>
           ) : (
             <>
-              {directPurchase ? directPurchase.button : trial ? "Start free trial" : "Continue to payment"}
+              {directPurchase ? directPurchase.button : trial ? copy.startTrial : copy.continueToPayment}
               <ArrowRight className="size-4" aria-hidden="true" />
             </>
           )}
@@ -610,20 +620,19 @@ export function PlanStep({
         ) : trial ? (
           <p className="mt-2.5 text-center text-sm leading-relaxed text-muted-foreground">
             <strong className="font-semibold text-foreground">
-              {money(0)} today &middot; {TRIAL_DAYS} days free.
+              {copy.trialToday(money(0), TRIAL_DAYS)}
             </strong>{" "}
             {yearly
               ? repget
-                ? "Then your discounted annual plan begins at the total shown at checkout, unless you cancel before the trial ends."
-                : `Then ${money(chargedCents)}/year, unless you cancel before the trial ends.`
+                ? copy.thenYearDiscounted
+                : copy.thenYear(money(chargedCents))
               : repget
-                ? `Then ${money(chargedCents)}/month with your ${REPGET_PERCENT_OFF}% discount, unless you cancel before the trial ends.`
-                : `Then ${money(chargedCents)}/month, unless you cancel before the trial ends.`}
+                ? copy.thenMonthDiscounted(money(chargedCents), REPGET_PERCENT_OFF)
+                : copy.thenMonth(money(chargedCents))}
           </p>
         ) : (
           <p className="mt-2.5 text-center text-sm leading-relaxed text-muted-foreground">
-            {money(chargedCents)} {yearly ? "a year" : "a month"}, charged today. This workspace has
-            already had its free trial.
+            {yearly ? copy.chargedTodayYear(money(chargedCents)) : copy.chargedTodayMonth(money(chargedCents))}
           </p>
         )}
 
@@ -642,7 +651,7 @@ export function PlanStep({
             {pending === "paypal" ? (
               <>
                 <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-                Redirecting to PayPal&hellip;
+                {copy.redirectingPayPal}
               </>
             ) : (
               <>
@@ -652,7 +661,7 @@ export function PlanStep({
                   money, and a stand-in logo reads as an imitation.
                 */}
                 <PayPalMark className="size-6" />
-                Pay with PayPal
+                {copy.payWithPayPal}
               </>
             )}
           </Button>
