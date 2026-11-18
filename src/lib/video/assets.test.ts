@@ -166,3 +166,33 @@ describe("choosing each scene's picture or clip", () => {
     expect(identityClaim("Three ways to light a product photo")).toBe(false);
   });
 });
+
+describe("a visual hook's opening clip", () => {
+  const HOOK = { ...CANDIDATE, provider: "pixabay", providerId: "4242", climaxMs: 5200, focalX: 0.4 };
+
+  it("comes from the hook library first, with its climax and crop, and is recorded as free", async () => {
+    const stock = provider(true);
+    const hookCandidates = vi.fn(async () => [HOOK]);
+    const d = deps({ providers: [stock], hookCandidates });
+    const result = await resolveSceneAssets({ direction: "footage", hook: "danger", scenes: [scene("stock", "jenga tower falling"), scene("stock")], parts: [0, 1], media: [] }, d);
+    expect(hookCandidates).toHaveBeenCalledWith("danger", "jenga tower falling", expect.any(Set));
+    expect(result.assets[0]).toMatchObject({ sceneIndex: 0, providerId: "4242", climaxMs: 5200, focalX: 0.4, source: "stock" });
+    expect(result.assets[1]).toMatchObject({ sceneIndex: 1, source: "stock" });
+    expect(result.assets[1].providerId).not.toBe("4242");
+    expect(d.recorded).toContainEqual(expect.objectContaining({ kind: "footage", usd: 0, basis: "measured", note: "free provider, hook clip 4242" }));
+  });
+
+  it("falls back to searching the hook's words when the library has nothing", async () => {
+    const stock = provider(true);
+    const result = await resolveSceneAssets({ direction: "footage", hook: "anticipation", scenes: [scene("stock", "domino chain falling")], parts: [0], media: [] }, deps({ providers: [stock], hookCandidates: async () => [] }));
+    expect(stock.search).toHaveBeenCalledWith({ query: "domino chain falling", kind: "video" }, expect.anything());
+    expect(result.assets[0]).toMatchObject({ sceneIndex: 0, source: "stock" });
+    expect(result.assets[0].climaxMs).toBeUndefined();
+  });
+
+  it("is not looked up for a video without a hook", async () => {
+    const hookCandidates = vi.fn(async () => [HOOK]);
+    await resolveSceneAssets({ direction: "footage", scenes: [scene("stock")], parts: [0], media: [] }, deps({ providers: [provider(true)], hookCandidates }));
+    expect(hookCandidates).not.toHaveBeenCalled();
+  });
+});

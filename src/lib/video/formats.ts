@@ -339,9 +339,42 @@ export const VIRAL_TECHNIQUES = [
   "unexpected_facts",
   "comparisons",
   "storytelling",
+  "anticipation_hook",
+  "impossible_hook",
+  "danger_hook",
 ] as const;
 export type ViralTechnique = (typeof VIRAL_TECHNIQUES)[number];
-export const DEFAULT_TECHNIQUES: readonly ViralTechnique[] = ["curiosity_hooks", "trend_inspired", "myth_busting"];
+
+/**
+ * Visual hooks (client, 2026-11-18): the video opens on a short, eye-catching
+ * licensed clip - one whose ending the viewer HAS to see (anticipation), one
+ * that looks impossible, one where one wrong move ends it (danger) - cut just
+ * before its climax, kept running small in a corner, and paid off behind the
+ * proof line. Reels and Stories only (a carousel has no clip to cut).
+ */
+export const HOOK_TECHNIQUES = ["anticipation_hook", "impossible_hook", "danger_hook"] as const satisfies readonly ViralTechnique[];
+export type HookTechnique = (typeof HOOK_TECHNIQUES)[number];
+export const HOOK_TYPES = ["anticipation", "impossible", "danger"] as const;
+export type HookType = (typeof HOOK_TYPES)[number];
+
+export function isHookTechnique(value: unknown): value is HookTechnique {
+  return typeof value === "string" && (HOOK_TECHNIQUES as readonly string[]).includes(value);
+}
+
+/** "anticipation_hook" -> "anticipation"; null for every other technique. */
+export function hookTypeOf(technique: string): HookType | null {
+  return isHookTechnique(technique) ? (technique.replace(/_hook$/, "") as HookType) : null;
+}
+
+/** The client wants the hooks on by default. */
+export const DEFAULT_TECHNIQUES: readonly ViralTechnique[] = ["curiosity_hooks", "trend_inspired", "myth_busting", ...HOOK_TECHNIQUES];
+
+/**
+ * Settings saved before the visual hooks existed get them too (client: "include
+ * videos with anticipation, impossible and danger hooks"); a Save from this
+ * date on is the customer's own choice and is kept as it is.
+ */
+export const HOOK_TECHNIQUES_FROM = new Date("2026-11-19T00:00:00Z");
 
 /** Brand voice presets; applied next to brand_voice.tone (free text), never replacing it. */
 export const TONE_PRESETS = ["professional", "bold", "playful"] as const;
@@ -418,6 +451,12 @@ export type ShotPlan = {
   musicMood: string | null;
   scenes: ShotScene[];
   /**
+   * A visual hook (HOOK_TECHNIQUES): scene 0's clip opens the video full
+   * screen, runs small in a corner during the points and pays off behind the
+   * proof (src/remotion/directions/HookClip.tsx). Absent = no visual hook.
+   */
+  hookClip?: { type: HookType } | null;
+  /**
    * A fingerprint of the production recipe (direction/pacing/transition set/
    * caption style/music mood/visual mix) the variety rules compare, so a day
    * never repeats near-identical videos.
@@ -439,6 +478,8 @@ export type ResolvedAsset = {
   author: string | null;
   /** video_stock_assets.id when cached there. */
   assetId: string | null;
+  /** A hook clip from the hand-picked library: where its climax starts, in ms (the cut and the payoff are timed to it). */
+  climaxMs?: number | null;
 };
 
 /** Per-video production choices: a snapshot of the settings when the idea is written, editable per video. */

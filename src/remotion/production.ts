@@ -230,6 +230,57 @@ export function partEnd(timeline: Pick<ProductionTimeline, "starts" | "durationI
   return index + 1 < timeline.starts.length ? timeline.starts[index + 1] : timeline.durationInFrames;
 }
 
+/**
+ * A visual hook's three moments (ShotPlan.hookClip), in frames of the video
+ * and of the clip:
+ *  - open: the hook part, the clip full screen from its start;
+ *  - inset: the points, the clip small in a corner, slowed (never below
+ *    HOOK_MIN_RATE) so it reaches the run-up to its climax only at the
+ *    proof, held still before it when it would get there sooner;
+ *  - payoff: the proof part, full screen from HOOK_LEAD_MS before the
+ *    climax, held on its last frame if the clip ends first.
+ * The climax is the hook library's (SceneMedia.climaxMs), else
+ * HOOK_CLIMAX_SHARE of the clip. Without the clip's length, or without a
+ * hook or proof part on screen, only what can be timed: the opening, or null.
+ */
+export const HOOK_LEAD_MS = 1000;
+export const HOOK_CLIMAX_SHARE = 0.6;
+export const HOOK_MIN_RATE = 0.25;
+
+export type HookSegment = { from: number; frames: number; clipFrom: number; rate: number; playFrames: number };
+export type HookTiming = { open: HookSegment; inset: HookSegment | null; payoff: HookSegment | null };
+
+export function hookTiming(
+  timeline: Pick<ProductionTimeline, "parts" | "starts" | "durationInFrames">,
+  clip: { durationMs?: number | null; climaxMs?: number | null },
+  fps: number = REEL.fps,
+): HookTiming | null {
+  if (timeline.parts[0]?.role !== "hook") return null;
+  const openFrames = partEnd(timeline, 0);
+  const clipFrames = clip.durationMs ? Math.floor((clip.durationMs / 1000) * fps) - 1 : null;
+  const proof = timeline.parts.findIndex((part) => part.role === "proof");
+  if (!clipFrames || clipFrames < fps || proof < 1) {
+    return { open: { from: 0, frames: openFrames, clipFrom: 0, rate: 1, playFrames: clipFrames ? Math.min(openFrames, clipFrames) : openFrames }, inset: null, payoff: null };
+  }
+  const climax = typeof clip.climaxMs === "number" ? Math.round((clip.climaxMs / 1000) * fps) : Math.round(clipFrames * HOOK_CLIMAX_SHARE);
+  // The payoff shows the run-up and the climax, with at least a second of clip left.
+  const payoffFrom = Math.max(0, Math.min(climax - Math.round((HOOK_LEAD_MS / 1000) * fps), clipFrames - fps));
+  // The opening never shows the payoff: slowed down to half speed at most, then held.
+  const openRate = openFrames > payoffFrom ? Math.max(0.5, payoffFrom / Math.max(1, openFrames)) : 1;
+  const openPlay = Math.min(openFrames, Math.floor(payoffFrom / openRate));
+  const openEnd = Math.min(payoffFrom, Math.round(openPlay * openRate));
+  const proofFrom = timeline.starts[proof];
+  const insetFrames = proofFrom - openFrames;
+  const remaining = payoffFrom - openEnd;
+  const insetRate = insetFrames > 0 ? Math.min(1, Math.max(HOOK_MIN_RATE, remaining / insetFrames)) : 1;
+  const proofFrames = partEnd(timeline, proof) - proofFrom;
+  return {
+    open: { from: 0, frames: openFrames, clipFrom: 0, rate: openRate, playFrames: openPlay },
+    inset: insetFrames > 0 ? { from: openFrames, frames: insetFrames, clipFrom: openEnd, rate: insetRate, playFrames: Math.max(1, Math.min(insetFrames, Math.floor(remaining / insetRate))) } : null,
+    payoff: proofFrames > 0 ? { from: proofFrom, frames: proofFrames, clipFrom: payoffFrom, rate: 1, playFrames: Math.max(1, Math.min(proofFrames, clipFrames - payoffFrom)) } : null,
+  };
+}
+
 /** Sub-shot length for the footage cuts (client: fast editing), in frames. */
 export function cutFrames(pacing: Pacing, fps: number = REEL.fps): number {
   return Math.round((pacing === "fast" ? 1.3 : pacing === "calm" ? 2.5 : 1.9) * fps);

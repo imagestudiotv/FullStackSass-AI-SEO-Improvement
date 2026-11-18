@@ -88,6 +88,18 @@ export function parsePixabayImages(json: unknown): StockCandidate[] {
   });
 }
 
+/** One video by its id (the hook library's picks), with the same rendition rules as a search; null when it is gone or has no usable rendition. */
+export async function pixabayVideoById(id: string, fetcher: typeof fetch = fetch): Promise<StockCandidate | null> {
+  const apiKey = key();
+  if (!apiKey || !/^\d+$/.test(id)) return null;
+  const response = await fetcher(`https://pixabay.com/api/videos/?${new URLSearchParams({ key: apiKey, id })}`, { signal: AbortSignal.timeout(FOOTAGE_LIMITS.searchTimeoutMs) });
+  if (response.status === 429) throw new Error("Pixabay's rate limit was reached; try again in a minute");
+  // An id Pixabay no longer has answers 400.
+  if (response.status === 400) return null;
+  if (!response.ok) throw new Error(`Pixabay lookup failed (${response.status})`);
+  return parsePixabayVideos(await response.json())[0] ?? null;
+}
+
 export const pixabay: StockProvider = {
   id: "pixabay",
   free: true,

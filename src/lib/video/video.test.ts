@@ -115,6 +115,7 @@ function writer(count = 25) {
       hashtags: ["photography", "#product photos", "ecommerce"],
       why: null,
       techniques: [],
+      visualHook: null,
       scenes: [],
       claims: [],
       controversial: false,
