@@ -125,6 +125,7 @@ export default async function OnboardingPlanPage({
         <CheckoutPending
           websiteId={state.websiteId}
           t={t.app.onboarding}
+          locale={locale}
         />
       </div>
     );

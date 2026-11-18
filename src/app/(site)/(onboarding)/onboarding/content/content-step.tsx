@@ -1,7 +1,9 @@
 "use client";
 
 import { ArrowRight, Check, Clock, Loader2, Sparkles } from "lucide-react";
+import { format, plural } from "@/lib/i18n/format";
 import { getMessages, type Messages } from "@/lib/i18n/messages";
+import { ONBOARDING_STEPS_COPY, type OnboardingStepsCopy } from "@/lib/i18n/onboarding-steps";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -45,6 +47,7 @@ export function ContentStep({
   hasPlan,
   articlesPerMonth,
   t = getMessages("en").app.onboarding,
+  copy = ONBOARDING_STEPS_COPY.en.content,
 }: {
   websiteId: string;
   /** Named in the subtitle, as the design shows. */
@@ -55,6 +58,8 @@ export function ContentStep({
   articlesPerMonth: number | null;
   /** This step's copy, defaulting to English. */
   t?: Messages["app"]["onboarding"];
+  /** The rest of this step's words (lib/i18n/onboarding-steps.ts), defaulting to English. */
+  copy?: OnboardingStepsCopy["content"];
 }) {
   const router = useRouter();
 
@@ -153,7 +158,7 @@ export function ContentStep({
      * screen, and Planned Articles shows it when it does.
      */
     setLeaving(true);
-    toast.success("We are building your plan. You can carry on - it lands in a few minutes.");
+    toast.success(copy.buildingToast);
     /*
       replace: the content plan is building in the background and cannot be
       started twice. Returning here would show a Start button for work
@@ -181,17 +186,17 @@ export function ContentStep({
   const deliverables = [
     {
       title: t.searchOpportunities,
-      body: "Find real search demand and the terms worth targeting.",
+      body: copy.searchBody,
     },
     {
       title: t.topicClusters,
-      body: "Group related searches so one article covers a subject properly.",
+      body: copy.clustersBody,
     },
     {
       title: t.publishingPlan,
       body: articlesPerMonth
-        ? `A calendar of ${articlesPerMonth} briefs a month, each with a title, term and intent.`
-        : "A calendar of briefs, each with a title, target term and intent.",
+        ? plural(copy.calendarBodyCount, articlesPerMonth)
+        : copy.calendarBody,
     },
   ];
 
@@ -203,11 +208,7 @@ export function ContentStep({
    * button does not do it. It exists so the handover to the setup checklist is
    * expected rather than a surprise.
    */
-  const nextUp = [
-    "Connect your site",
-    "Activate the backlink exchange",
-    "Linking configuration",
-  ];
+  const nextUp = copy.nextUp;
 
   return (
     <div>
@@ -215,8 +216,7 @@ export function ContentStep({
         {t.articlesContentBacklinks}
       </h1>
       <p className="mt-2 text-muted-foreground">
-        We&apos;ll turn what we learned about {brandName} into a plan you can
-        publish from.
+        {format(copy.intro, { brand: brandName })}
       </p>
 
       <div className="mt-6 rounded-2xl border bg-card p-6 sm:p-8">
@@ -237,21 +237,21 @@ export function ContentStep({
           <div className="min-w-0">
             <p className="text-xl font-semibold">
               {leaving
-                ? "Your content plan is ready"
+                ? copy.readyTitle
                 : done
-                  ? "Your content plan is ready"
+                  ? copy.readyTitle
                   : building
-                    ? "Building your content plan…"
-                    : "Your content engine is ready"}
+                    ? copy.buildingTitle
+                    : copy.idleTitle}
             </p>
             <p className="mt-1.5 text-sm text-muted-foreground">
               {leaving
-                ? "Taking you to the last step…"
+                ? copy.leavingBody
                 : done
-                  ? "Your search terms and publishing calendar are ready. You can review them on your website page any time."
+                  ? copy.readyBody
                   : building
-                    ? "This usually takes a few minutes. The page updates on its own and moves you on when it is finished."
-                    : "We research what your customers search for, group it into subjects, and write a brief for every article you publish."}
+                    ? copy.buildingBody
+                    : copy.idleBody}
             </p>
           </div>
         </div>
@@ -355,7 +355,7 @@ export function ContentStep({
           variant="ghost"
           onClick={() => router.push("/onboarding/visibility")}
         >
-          Back
+          {copy.back}
         </Button>
         {/*
           Kept even though finishing now advances on its own.
@@ -374,11 +374,11 @@ export function ContentStep({
           {leaving ? (
             <>
               <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-              Continuing&hellip;
+              {copy.continuing}
             </>
           ) : (
             <>
-              Next
+              {copy.next}
               <ArrowRight className="size-4" aria-hidden="true" />
             </>
           )}

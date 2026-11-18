@@ -1,16 +1,28 @@
 import { ArrowRight, Check, Loader2 } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { cache } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { requireSession } from "@/lib/auth-guard";
 import { getAppMessages } from "@/lib/i18n/app-locale";
+import { format } from "@/lib/i18n/format";
+import { checklistStepText, ONBOARDING_STEPS_COPY } from "@/lib/i18n/onboarding-steps";
 import { getOnboardingState } from "@/lib/onboarding/steps";
+import { TRIAL_DAYS } from "@/lib/plans/features";
 import { requireOrg } from "@/lib/tenant";
 import { hasOnlySharedWork } from "@/lib/websites/accessible";
 
-export const metadata = { title: "Get started" };
+/** One locale lookup per request, shared by the title and the page. */
+const messagesFor = cache((userId: string) => getAppMessages(userId));
+
+export async function generateMetadata(): Promise<Metadata> {
+  const session = await requireSession();
+  const { locale } = await messagesFor(session.user.id);
+  return { title: ONBOARDING_STEPS_COPY[locale].checklist.getStarted };
+}
 
 // Reads live setup state, so it can never be cached.
 export const dynamic = "force-dynamic";
@@ -38,7 +50,8 @@ export default async function OnboardingPage({
   searchParams,
 }: PageProps<"/onboarding">) {
   const session = await requireSession();
-  const { t } = await getAppMessages(session.user.id);
+  const { t, locale } = await messagesFor(session.user.id);
+  const copy = ONBOARDING_STEPS_COPY[locale].checklist;
   const { orgId } = await requireOrg();
 
   /**
@@ -91,15 +104,30 @@ export default async function OnboardingPage({
 
   const doneCount = state.steps.filter((step) => step.done).length;
 
+  /*
+    The state's titles are English (it is request-cached and shared with
+    callers that show no text), so the rows are said again here in the
+    customer's language. A step this dictionary does not know keeps its own.
+  */
+  const steps = state.steps.map((step) =>
+    step.id === "profile"
+      ? step
+      : {
+          ...step,
+          ...checklistStepText(locale, step.id, {
+            agency: state.agency,
+            trialDays: TRIAL_DAYS,
+          }),
+        },
+  );
+
   return (
     <div className="mx-auto max-w-2xl px-4 py-10 sm:py-14">
       <h1 className="text-3xl font-semibold tracking-tight">
-        {state.complete ? "You are all set" : "Get started"}
+        {state.complete ? copy.allSet : copy.getStarted}
       </h1>
       <p className="mt-2 text-muted-foreground">
-        {state.complete
-          ? "Everything is set up. This page stays here if you want to check."
-          : "A few steps, and we do most of the work."}
+        {state.complete ? copy.allSetBody : copy.getStartedBody}
       </p>
 
       <div className="mt-8 flex items-center gap-3">
@@ -117,7 +145,7 @@ export default async function OnboardingPage({
           />
         </div>
         <span className="text-sm tabular-nums text-muted-foreground">
-          {doneCount} of {state.steps.length}
+          {format(copy.countOf, { done: doneCount, total: state.steps.length })}
         </span>
       </div>
 
@@ -137,7 +165,7 @@ export default async function OnboardingPage({
       ) : null}
 
       <ol className="mt-6 space-y-3">
-        {state.steps.map((step, index) => {
+        {steps.map((step, index) => {
           const isCurrent = step.id === state.currentId;
 
           return (

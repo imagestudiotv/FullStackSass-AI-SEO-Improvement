@@ -1,9 +1,12 @@
 import { eq } from "drizzle-orm";
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { cache } from "react";
 
 import { WizardProgress } from "@/components/wizard-progress";
 import { requireSession } from "@/lib/auth-guard";
 import { getAppMessages } from "@/lib/i18n/app-locale";
+import { ONBOARDING_STEPS_COPY } from "@/lib/i18n/onboarding-steps";
 import { db } from "@/lib/db";
 import { geoPrompts, websites } from "@/lib/db/schema";
 import { ENGINES, availableEngineIds } from "@/lib/geo/engines";
@@ -12,7 +15,14 @@ import { requireOrg } from "@/lib/tenant";
 import { maxPromptsFor } from "@/lib/geo/allowance";
 import { VisibilityStep } from "./visibility-step";
 
-export const metadata = { title: "AI visibility" };
+/** One locale lookup per request, shared by the title and the page. */
+const messagesFor = cache((userId: string) => getAppMessages(userId));
+
+export async function generateMetadata(): Promise<Metadata> {
+  const session = await requireSession();
+  const { locale } = await messagesFor(session.user.id);
+  return { title: ONBOARDING_STEPS_COPY[locale].wizard.labels.visibility };
+}
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +39,7 @@ export default async function OnboardingVisibilityPage({
 }: PageProps<"/onboarding/visibility">) {
   const session = await requireSession();
   const { orgId } = await requireOrg();
-  const { t } = await getAppMessages(session.user.id);
+  const { t, locale } = await messagesFor(session.user.id);
 
   /**
    * Which website this run of setup is about.
@@ -114,7 +124,7 @@ export default async function OnboardingVisibilityPage({
 
   return (
     <div>
-      <WizardProgress current="visibility" />
+      <WizardProgress current="visibility" locale={locale} t={t.app.common} />
       {/*
         Narrower than the plan step and with no side panel: the design puts
         this step on a single centred column, because the question list is the
@@ -126,6 +136,7 @@ export default async function OnboardingVisibilityPage({
           <VisibilityStep
             websiteId={site.id}
             t={t.app.onboarding}
+            copy={ONBOARDING_STEPS_COPY[locale].visibility}
             market={site.country}
             language={site.language}
             initialPrompts={prompts.map((p) => ({ ...p, latest: null }))}

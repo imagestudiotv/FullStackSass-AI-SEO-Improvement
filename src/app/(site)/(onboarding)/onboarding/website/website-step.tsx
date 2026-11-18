@@ -20,7 +20,9 @@ import {
   Tag,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { format } from "@/lib/i18n/format";
 import { getMessages, type Messages } from "@/lib/i18n/messages";
+import { ONBOARDING_STEPS_COPY, type OnboardingStepsCopy } from "@/lib/i18n/onboarding-steps";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -52,11 +54,14 @@ import { previewWebsite, type WebsitePreview } from "@/lib/websites/preview";
  */
 export function WebsiteStep({
   t = getMessages("en").app.onboarding,
+  copy = ONBOARDING_STEPS_COPY.en.website,
   initialUrl = "",
   plan,
 }: {
   /** This step's copy, defaulting to English. */
   t?: Messages["app"]["onboarding"];
+  /** The rest of this step's words (lib/i18n/onboarding-steps.ts), defaulting to English. */
+  copy?: OnboardingStepsCopy["website"];
   /**
    * The address typed into the homepage's "Start free trial" field
    * (?domain=), so the visitor does not type it twice. It only fills the
@@ -89,7 +94,7 @@ export function WebsiteStep({
        * A warning rather than an error: the address may be perfectly valid
        * and simply blocking our fetch, and the next button still works.
        */
-      toast.warning(`${result.error}. You can still continue.`);
+      toast.warning(format(copy.previewFailed, { error: result.error }));
       return;
     }
     setPreview(result.data);
@@ -134,7 +139,7 @@ export function WebsiteStep({
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:gap-12">
       <div>
         <p className="text-sm font-semibold tracking-wide text-primary">
-          STEP 01 <span className="text-muted-foreground">/ 02</span>
+          {copy.step} 01 <span className="text-muted-foreground">/ 02</span>
         </p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
           {t.whatsYourWebsite}
@@ -192,11 +197,13 @@ export function WebsiteStep({
               {preview.platform.slice(0, 1)}
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium">{preview.platform} detected</p>
+              <p className="text-sm font-medium">
+                {format(copy.platformDetected, { platform: preview.platform })}
+              </p>
               <p className="text-sm text-muted-foreground">
                 {preview.platform === "WordPress"
-                  ? "Our plugin connects your blog in about three clicks."
-                  : "We can publish straight to it once you are set up."}
+                  ? copy.wordpressNote
+                  : copy.otherPlatformNote}
               </p>
             </div>
             <span className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
@@ -246,7 +253,7 @@ export function WebsiteStep({
       </div>
 
       <div>
-        <WebsiteCard preview={preview} looking={looking} t={t} />
+        <WebsiteCard preview={preview} looking={looking} t={t} copy={copy} />
 
         {/*
           The handwritten note from the design. Decorative, so it is hidden
@@ -277,10 +284,12 @@ function WebsiteCard({
   preview,
   looking,
   t,
+  copy,
 }: {
   preview: WebsitePreview | null;
   looking: boolean;
   t: Messages["app"]["onboarding"];
+  copy: OnboardingStepsCopy["website"];
 }) {
   return (
     <div className="overflow-hidden rounded-2xl border bg-card shadow-[0_24px_60px_-30px_rgba(0,0,0,0.25)]">
@@ -294,7 +303,7 @@ function WebsiteCard({
         <span className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-background px-3 py-1.5 text-xs text-muted-foreground">
           <Globe className="size-3 shrink-0" aria-hidden="true" />
           <span className="truncate">
-            {preview?.domain ?? "your-website.com"}
+            {preview?.domain ?? copy.domainPlaceholder}
           </span>
         </span>
         <RotateCw
@@ -372,10 +381,10 @@ function WebsiteCard({
             )}
 
             <p className="mt-2 truncate text-lg font-semibold">
-              {preview?.name ?? "Your business"}
+              {preview?.name ?? copy.yourBusiness}
             </p>
             <p className="truncate text-sm text-muted-foreground">
-              {preview?.domain ?? "your-website.com"}
+              {preview?.domain ?? copy.domainPlaceholder}
             </p>
           </div>
         </div>

@@ -1,14 +1,24 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { cache } from "react";
 
 import { WizardProgress } from "@/components/wizard-progress";
 import { requireSession } from "@/lib/auth-guard";
 import { getAppMessages } from "@/lib/i18n/app-locale";
+import { ONBOARDING_STEPS_COPY } from "@/lib/i18n/onboarding-steps";
 import { getAnalyticsConnection } from "@/lib/analytics/actions";
 import { getOnboardingState } from "@/lib/onboarding/steps";
 import { requireOrg } from "@/lib/tenant";
 import { GoogleStep } from "./google-step";
 
-export const metadata = { title: "Connect Google" };
+/** One locale lookup per request, shared by the title and the page. */
+const messagesFor = cache((userId: string) => getAppMessages(userId));
+
+export async function generateMetadata(): Promise<Metadata> {
+  const session = await requireSession();
+  const { t } = await messagesFor(session.user.id);
+  return { title: t.app.onboarding.connectGoogle };
+}
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +42,7 @@ export default async function OnboardingGooglePage({
 }: PageProps<"/onboarding/google">) {
   const session = await requireSession();
   const { orgId } = await requireOrg();
-  const { t } = await getAppMessages(session.user.id);
+  const { t, locale } = await messagesFor(session.user.id);
 
   const params = await searchParams;
   const siteParam = typeof params.site === "string" ? params.site : undefined;
@@ -70,12 +80,13 @@ export default async function OnboardingGooglePage({
 
   return (
     <div>
-      <WizardProgress current="google" />
+      <WizardProgress current="google" locale={locale} t={t.app.common} />
       <GoogleStep
         websiteId={state.websiteId}
         connection={connection}
         callbackMessage={callbackMessage}
         t={t.app.onboarding}
+        copy={ONBOARDING_STEPS_COPY[locale].google}
       />
     </div>
   );

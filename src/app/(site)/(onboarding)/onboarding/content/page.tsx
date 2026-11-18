@@ -1,9 +1,12 @@
 import { eq } from "drizzle-orm";
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { cache } from "react";
 
 import { WizardProgress } from "@/components/wizard-progress";
 import { requireSession } from "@/lib/auth-guard";
 import { getAppMessages } from "@/lib/i18n/app-locale";
+import { ONBOARDING_STEPS_COPY } from "@/lib/i18n/onboarding-steps";
 import { db } from "@/lib/db";
 import { calendarItems, keywords, websites } from "@/lib/db/schema";
 import { getOnboardingState } from "@/lib/onboarding/steps";
@@ -12,7 +15,14 @@ import { checkLimit } from "@/lib/usage";
 import { UNLIMITED } from "@/lib/usage-shared";
 import { ContentStep } from "./content-step";
 
-export const metadata = { title: "Content & backlinks" };
+/** One locale lookup per request, shared by the title and the page. */
+const messagesFor = cache((userId: string) => getAppMessages(userId));
+
+export async function generateMetadata(): Promise<Metadata> {
+  const session = await requireSession();
+  const { t } = await messagesFor(session.user.id);
+  return { title: t.app.onboarding.contentAndBacklinks };
+}
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +43,7 @@ export default async function OnboardingContentPage({
 }: PageProps<"/onboarding/content">) {
   const session = await requireSession();
   const { orgId } = await requireOrg();
-  const { t } = await getAppMessages(session.user.id);
+  const { t, locale } = await messagesFor(session.user.id);
 
   /**
    * Which website this run of setup is about.
@@ -103,7 +113,7 @@ export default async function OnboardingContentPage({
 
   return (
     <div>
-      <WizardProgress current="content" />
+      <WizardProgress current="content" locale={locale} t={t.app.common} />
       {/*
         The heading now lives inside the step component, beside the state it
         depends on — the design's title and subtitle sit directly above the
@@ -113,6 +123,7 @@ export default async function OnboardingContentPage({
         <ContentStep
           websiteId={site.id}
           t={t.app.onboarding}
+          copy={ONBOARDING_STEPS_COPY[locale].content}
           brandName={site.brandName ?? site.domain}
           hasKeywords={keywordCount.length > 0}
           hasPlan={plannedCount.length > 0}

@@ -163,11 +163,11 @@ export const PLAN_STEP_COPY: Record<Locale, PlanStepCopy> = {
     confirmEmailFirst: "Confirmez d’abord votre adresse e-mail : votre essai gratuit lui est attribué.",
     defaultDescription:
       "Tout ce qu’il vous faut pour développer votre trafic organique depuis Google et la recherche IA, en pilote automatique.",
-    badgePopular: "La formule la plus choisie",
+    badgePopular: "Le forfait le plus choisi",
     badgeBestValue: "Le meilleur rapport qualité-prix",
     step: "Étape",
-    planLabel: "Formule",
-    planName: (name) => `Formule ${name}`,
+    planLabel: "Forfait",
+    planName: (name) => `Forfait ${name}`,
     perMonth: "/mois",
     save: (pct) => `économisez ${pct} %`,
     billedAnnually: "Facturé chaque année",
@@ -185,7 +185,7 @@ export const PLAN_STEP_COPY: Record<Locale, PlanStepCopy> = {
     continueToPayment: "Continuer vers le paiement",
     trialToday: (zero, days) => `${zero} aujourd’hui · ${days} jours gratuits.`,
     thenYearDiscounted:
-      "Ensuite, votre formule annuelle à prix réduit démarre au montant total indiqué lors du paiement, sauf si vous résiliez avant la fin de l’essai.",
+      "Ensuite, votre forfait annuel à prix réduit démarre au montant total indiqué lors du paiement, sauf si vous résiliez avant la fin de l’essai.",
     thenYear: (price) => `Ensuite ${price}/an, sauf si vous résiliez avant la fin de l’essai.`,
     thenMonthDiscounted: (price, pct) =>
       `Ensuite ${price}/mois avec votre réduction de ${pct} %, sauf si vous résiliez avant la fin de l’essai.`,

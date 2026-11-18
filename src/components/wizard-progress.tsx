@@ -1,8 +1,11 @@
 import { Check } from "lucide-react";
+import type { Locale } from "@/lib/i18n/config";
+import { format } from "@/lib/i18n/format";
 import { getMessages, type Messages } from "@/lib/i18n/messages";
+import { ONBOARDING_STEPS_COPY } from "@/lib/i18n/onboarding-steps";
 import Link from "next/link";
 
-import { WIZARD_STEPS, wizardStepIndex, type WizardStepId } from "@/lib/onboarding/wizard";
+import { wizardSteps, wizardStepIndex, type WizardStepId } from "@/lib/onboarding/wizard";
 
 /**
  * The step indicator across the top of setup, as the reference has it.
@@ -14,13 +17,18 @@ import { WIZARD_STEPS, wizardStepIndex, type WizardStepId } from "@/lib/onboardi
  */
 export function WizardProgress({
   current,
-  t = getMessages("en").app.common,
+  locale = "en",
+  t = getMessages(locale).app.common,
 }: {
   current: WizardStepId;
-  /** Shared words, defaulting to English. */
+  /** The app language (resolveAppLocale) for the step labels, defaulting to English. */
+  locale?: Locale;
+  /** Shared words, defaulting to the same language. */
   t?: Messages["app"]["common"];
 }) {
   const currentIndex = wizardStepIndex(current);
+  const steps = wizardSteps(locale);
+  const backTo = (ONBOARDING_STEPS_COPY[locale] ?? ONBOARDING_STEPS_COPY.en).wizard.backTo;
 
   return (
     /*
@@ -34,7 +42,7 @@ export function WizardProgress({
     */
     <nav aria-label={t.setupProgress} className="bg-background">
       <ol className="mx-auto flex max-w-2xl items-start gap-1 px-4 pt-1 pb-6 sm:gap-2">
-        {WIZARD_STEPS.map((step, index) => {
+        {steps.map((step, index) => {
           const done = index < currentIndex;
           const active = index === currentIndex;
 
@@ -71,7 +79,7 @@ export function WizardProgress({
                   aria-hidden="true"
                 />
                 {done ? (
-                  <Link href={step.href} aria-label={`Back to ${step.label}`}>
+                  <Link href={step.href} aria-label={format(backTo, { step: step.label })}>
                     {dot}
                   </Link>
                 ) : (
@@ -79,7 +87,7 @@ export function WizardProgress({
                 )}
                 <span
                   className={`h-0.5 flex-1 ${
-                    index === WIZARD_STEPS.length - 1
+                    index === steps.length - 1
                       ? "invisible"
                       : done
                         ? "bg-emerald-500"
