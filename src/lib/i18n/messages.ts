@@ -3784,7 +3784,7 @@ const en: Messages = {
       },
       {
         label: "AI visibility",
-        body: "Whether ChatGPT, Claude and Perplexity name your business when someone asks for what you sell. Checked on your own prompts.",
+        body: "Whether Claude names your business when someone asks for what you sell. Asked weekly through its API, on your own questions.",
       },
       {
         label: "Articles published",
@@ -7063,7 +7063,7 @@ const es: Messages = {
       },
       {
         label: "Visibilidad en IA",
-        body: "Si ChatGPT, Claude y Perplexity nombran su negocio cuando alguien pregunta por lo que usted vende. Comprobado con sus propias preguntas.",
+        body: "Si Claude nombra su negocio cuando alguien pregunta por lo que usted vende. Preguntado cada semana a través de su API, con sus propias preguntas.",
       },
       {
         label: "Artículos publicados",
@@ -10344,7 +10344,7 @@ const fr: Messages = {
       },
       {
         label: "Visibilité IA",
-        body: "Si ChatGPT, Claude et Perplexity citent votre entreprise quand on demande ce que vous vendez. Vérifié sur vos propres questions.",
+        body: "Si Claude cite votre entreprise quand on demande ce que vous vendez. Posé chaque semaine via son API, sur vos propres questions.",
       },
       {
         label: "Articles publiés",
@@ -13627,7 +13627,7 @@ const it: Messages = {
       },
       {
         label: "Visibilità IA",
-        body: "Se ChatGPT, Claude e Perplexity nominano la sua azienda quando qualcuno chiede ciò che lei vende. Verificato sulle sue domande.",
+        body: "Se Claude nomina la sua azienda quando qualcuno chiede ciò che lei vende. Chiesto ogni settimana tramite la sua API, sulle sue domande.",
       },
       {
         label: "Articoli pubblicati",
@@ -16904,7 +16904,7 @@ const de: Messages = {
       },
       {
         label: "KI-Sichtbarkeit",
-        body: "Ob ChatGPT, Claude und Perplexity Ihr Unternehmen nennen, wenn jemand nach dem fragt, was Sie anbieten. Geprüft anhand Ihrer eigenen Fragen.",
+        body: "Ob Claude Ihr Unternehmen nennt, wenn jemand nach dem fragt, was Sie anbieten. Wöchentlich über die API gefragt, anhand Ihrer eigenen Fragen.",
       },
       {
         label: "Veröffentlichte Artikel",

@@ -567,7 +567,6 @@ function compareRows(t: CompareCopy): { key: string; label: string; sub?: string
     { key: "blog", label: t.blog.strong, sub: t.blog.small, value: (tier) => perk(tier) },
     { key: "channels", label: t.channels.strong, sub: t.channels.small, value: (tier) => perk(tier) },
     { key: "email", label: t.email.strong, sub: t.email.small, value: (tier) => perk(tier) },
-    { key: "priority", label: t.priorityProcessing, value: (tier) => scaleOnly(tier) },
     { key: "custom", label: t.custom, value: (tier) => scaleOnly(tier) },
   ];
 }
