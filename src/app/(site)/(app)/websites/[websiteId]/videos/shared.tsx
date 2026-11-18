@@ -21,6 +21,7 @@ import {
   type VideoPlatform,
 } from "@/lib/video/formats";
 import type { DestinationCode } from "@/lib/video/destinations";
+import { makeErrorCode, type MakeErrorCode } from "@/lib/video/make-errors";
 import type { PublishError, VideoPublishingStatus } from "@/lib/video/publish-actions";
 
 /** The Social Content page's shared pieces: the idea's view, the error words, the small parts every tab uses. */
@@ -41,6 +42,8 @@ export type IdeaView = {
   props: ReelProps;
   videoUrl: string | null;
   slideUrls: string[];
+  /** A reel's cover still (made with it since 2026-11-18); null for older videos and carousels. */
+  coverUrl: string | null;
   platforms: VideoPlatform[];
   scheduledFor: string | null;
   postedAt: string | null;
@@ -95,7 +98,7 @@ const errorWords = (t: T): Record<string, string | undefined> => ({ ...t.viral.e
   the five languages: a new code without copy fails the type check here.
 */
 type ErrorCopyKey = keyof T["errors"] | keyof T["viral"]["errors"];
-type MissingErrorCopy = Exclude<VideoError | PublishError | DestinationCode, ErrorCopyKey>;
+type MissingErrorCopy = Exclude<VideoError | PublishError | DestinationCode | MakeErrorCode, ErrorCopyKey>;
 export const ERROR_COPY_COMPLETE: [MissingErrorCopy] extends [never] ? true : MissingErrorCopy = true;
 
 /** An action's error in the reader's language; a code this copy does not know yet reads as the generic one. */
@@ -109,18 +112,23 @@ export function errorText(t: T, result: { ok: false; error: string; available?: 
   return errorWords(t)[result.error] ?? t.errors.generic;
 }
 
+/** A stored error part as a code: itself, or the code an older raw voice failure stands for (lib/video/make-errors.ts). */
+const codeOf = (part: string) => makeErrorCode(part) ?? part;
+
 /**
  * A video's stored error in the reader's language: the codes publishing
- * leaves (no_accounts, no_board, x_budget...: lib/video/publish.ts)
- * translated, a platform's own refusal as it came.
+ * leaves (no_accounts, no_board, x_budget...: lib/video/publish.ts) and a
+ * failed make leaves (voice_unavailable...) translated - the AI voice
+ * provider's raw answer is never shown, older rows' included - and a
+ * platform's own refusal as it came.
  */
 export function errorNote(t: T, error: string): string {
   return error
     .split(" · ")
-    .map((part) => errorWords(t)[part] ?? part)
+    .map((part) => errorWords(t)[codeOf(part)] ?? part)
     .join(" · ");
 }
-export const isCode = (t: T, error: string | null) => Boolean(error && error.split(" · ").some((part) => part in errorWords(t)));
+export const isCode = (t: T, error: string | null) => Boolean(error && error.split(" · ").some((part) => codeOf(part) in errorWords(t)));
 
 export function Field({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }) {
   return (

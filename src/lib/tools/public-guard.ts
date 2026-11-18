@@ -50,7 +50,9 @@ export type PublicToolId =
   | "robots"
   | "meta-tags"
   | "readability"
-  | "ai-crawlers";
+  | "ai-crawlers"
+  /** The homepage field's suggestion: one site's name, description and icon (lib/websites/public-preview.ts). */
+  | "preview";
 
 type ToolLimits = {
   perVisitorPerHour: number;
@@ -74,6 +76,8 @@ export const PUBLIC_TOOL_LIMITS: Record<PublicToolId, ToolLimits> = {
   "meta-tags": { perVisitorPerHour: 30, perVisitorPerDay: 150, globalPerHour: 400, perSitePerHour: 30, pool: "fetch", leaseSeconds: 60 },
   readability: { perVisitorPerHour: 30, perVisitorPerDay: 150, globalPerHour: 400, perSitePerHour: 30, pool: "fetch", leaseSeconds: 60 },
   "ai-crawlers": { perVisitorPerHour: 30, perVisitorPerDay: 150, globalPerHour: 400, perSitePerHour: 30, pool: "fetch", leaseSeconds: 60 },
+  // Asked as a visitor types (debounced, valid addresses only, cached): a little more room than one check.
+  preview: { perVisitorPerHour: 40, perVisitorPerDay: 150, globalPerHour: 600, perSitePerHour: 40, pool: "fetch", leaseSeconds: 30 },
 };
 
 /** Requests of each kind that may be fetching at once, across every instance. */

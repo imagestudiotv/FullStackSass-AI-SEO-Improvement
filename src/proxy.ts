@@ -88,6 +88,9 @@ export const config = {
     "/:locale/discover/:path*",
     "/audit",
     "/:locale/audit",
+    // The growth plan: one visitor's website, per request.
+    "/growth-plan",
+    "/:locale/growth-plan",
     "/tools/ai-crawler-checker",
     "/tools/keyword-density",
     "/tools/llm-html-checker",

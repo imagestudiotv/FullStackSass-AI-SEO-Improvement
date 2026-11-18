@@ -343,8 +343,13 @@ describe("making the video", () => {
   it("is ready for the customer, or scheduled at a good hour when the website publishes automatically", async () => {
     const { websiteId } = await site();
     const manual = await idea(websiteId, { status: "making" });
-    expect(await finishMaking(manual.id, { videoUrl: "https://files.example/reel.mp4" }, NOW)).toEqual({ autoAt: null });
-    expect((await test.db.select().from(videoIdeas).where(eq(videoIdeas.id, manual.id)))[0]).toMatchObject({ status: "ready", videoUrl: "https://files.example/reel.mp4" });
+    expect(await finishMaking(manual.id, { videoUrl: "https://files.example/reel.mp4", coverUrl: "https://files.example/cover.jpg" }, NOW)).toEqual({ autoAt: null });
+    expect((await test.db.select().from(videoIdeas).where(eq(videoIdeas.id, manual.id)))[0]).toMatchObject({
+      status: "ready",
+      videoUrl: "https://files.example/reel.mp4",
+      // The cover still made with the reel (2026-11-18).
+      coverUrl: "https://files.example/cover.jpg",
+    });
 
     await test.db.insert(videoSettings).values({ websiteId, publishMode: "auto" });
     const auto = await idea(websiteId, { status: "making" });

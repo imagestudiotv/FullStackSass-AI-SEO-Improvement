@@ -77,13 +77,17 @@ export function sandboxCost(runtimeMs: number, vcpus: number = RENDER_VCPUS): nu
   return round(minutes * sandboxCostPerMinute(vcpus) + PRICES.sandboxCreation);
 }
 
+/** The reel's cover still (lib/video/render.ts coverOnSandbox): a browser opened for one frame (given up after a minute; the measured runtime counts what it really took). */
+export const COVER_MINUTES = 0.25;
+
 /**
  * Render minutes a reel is expected to take on the sandbox: about 1.5 min to
  * set the machine up plus about 0.12 min per second of video (4 vCPUs,
- * 1080x1920, footage) - on the high side, as a gate estimate should be.
+ * 1080x1920, footage) - on the high side, as a gate estimate should be -
+ * and the cover still made on the same machine afterwards (COVER_MINUTES).
  */
 export function renderMinutesEstimate(videoSeconds: number): number {
-  return 1.5 + 0.12 * videoSeconds;
+  return 1.5 + 0.12 * videoSeconds + COVER_MINUTES;
 }
 
 /** The conservative figure the gate uses for an unmeasured item of each kind. */

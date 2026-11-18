@@ -3,6 +3,7 @@
 import { detectPlatform } from "@/lib/audit/ai-crawlers";
 import { requireOrg } from "@/lib/tenant";
 import { CrawlError, fetchHomepage } from "@/lib/websites/crawl";
+import { nameFromTitle } from "@/lib/websites/site-card";
 import {
   InvalidUrlError,
   isPublicWebsiteUrl,
@@ -48,17 +49,6 @@ export type WebsitePreview = {
 export type PreviewResult =
   | { ok: true; data: WebsitePreview }
   | { ok: false; error: string };
-
-/**
- * Trims a page title down to something that reads as a business name.
- *
- * Titles are routinely "Image Studio | Photo & Film Production in Milan" —
- * everything after the first separator is positioning copy, not the name.
- */
-function nameFromTitle(title: string): string {
-  const [first] = title.split(/\s+[|–—·•-]\s+/);
-  return (first ?? title).trim();
-}
 
 export async function previewWebsite(rawUrl: string): Promise<PreviewResult> {
   /**

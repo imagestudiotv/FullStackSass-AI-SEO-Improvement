@@ -8,6 +8,7 @@ import { MAKE_WAIT } from "@/lib/video/formats";
 import {
   chooseMusic,
   claimMaking,
+  coverRequest,
   failMaking,
   finishMaking,
   hasRepgetMusic,
@@ -20,6 +21,7 @@ import {
   ProductionError,
   recordRender,
   reelProps,
+  storeCover,
   storeNoMusicVersion,
 } from "@/lib/video/make";
 import { collectRender, onVercel, reelRenderProgress, startReelRender, stopRender, type RenderHandle } from "@/lib/video/render";
@@ -101,9 +103,12 @@ export const makeVideo = inngest.createFunction(
 
     let videoUrl: string;
     let altVideoUrl: string | null = null;
+    let coverUrl: string | null = null;
     let localCopy = false;
     if (!onVercel()) {
-      videoUrl = await step.run("render-here", async () => makeReelLocally(await loadIdea(id)));
+      const local = await step.run("render-here", async () => makeReelLocally(await loadIdea(id)));
+      videoUrl = local.videoUrl;
+      coverUrl = local.coverUrl;
       localCopy = wantsNoMusicCopy(await loadIdea(id));
     } else {
       const handle: RenderHandle = await step.run("start-render", async () => startReelRender(await reelProps(await loadIdea(id))));
@@ -129,18 +134,21 @@ export const makeVideo = inngest.createFunction(
       }
       const collected = await step.run("collect", async () => {
         const idea = await loadIdea(id);
-        const result = await collectRender(handle, wantsNoMusicCopy(idea) ? { voiceUrl: idea.voiceUrl, durationMs: idea.durationMs ?? 0 } : null);
+        // The cover still is made on the same machine before it stops: its seconds are in the render's runtime.
+        const result = await collectRender(handle, wantsNoMusicCopy(idea) ? { voiceUrl: idea.voiceUrl, durationMs: idea.durationMs ?? 0 } : null, coverRequest(await reelProps(idea)));
         await recordRender(id, result.runtimeMs, result.vcpus);
         const url = await storeVideoFile(idea.websiteId, `ideas/${id}`, result.video, "video/mp4");
         const alt = result.noMusic ? await storeNoMusicVersion(id, result.noMusic) : null;
-        return { url, alt, altError: result.noMusicError };
+        const cover = await storeCover(id, idea.websiteId, result.cover, result.coverError);
+        return { url, alt, altError: result.noMusicError, cover };
       });
       videoUrl = collected.url;
       altVideoUrl = collected.alt;
+      coverUrl = collected.cover;
       if (collected.altError) logger.warn({ ideaId: id, error: collected.altError }, "The version without music was not made");
     }
 
-    const done = await step.run("finish", () => finishMaking(id, { videoUrl, altVideoUrl }));
+    const done = await step.run("finish", () => finishMaking(id, { videoUrl, altVideoUrl, coverUrl }));
     if (localCopy) {
       // Development: the version without music, remuxed on this machine (best effort).
       await step.run("no-music", async () => {

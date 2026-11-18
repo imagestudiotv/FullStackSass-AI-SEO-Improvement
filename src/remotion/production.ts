@@ -9,6 +9,7 @@ import {
   type ProductionChoices,
   type ShotPlan,
   type ShotScene,
+  type Transition,
   type VideoScript,
 } from "../lib/video/formats";
 import type { ProductionReelProps } from "./props";
@@ -229,6 +230,9 @@ export function productionTimeline(props: ProductionReelProps, fps: number = REE
 export function partEnd(timeline: Pick<ProductionTimeline, "starts" | "durationInFrames">, index: number): number {
   return index + 1 < timeline.starts.length ? timeline.starts[index + 1] : timeline.durationInFrames;
 }
+
+/** Frames a transition into a scene takes (directions/common.tsx Enter; the cover frame waits for it too). */
+export const ENTER_FRAMES: Record<Transition, number> = { cut: 0, zoom: 8, whip: 7, slide: 9, flash: 6, glitch: 7, fade: 12 };
 
 /**
  * A visual hook's three moments (ShotPlan.hookClip), in frames of the video

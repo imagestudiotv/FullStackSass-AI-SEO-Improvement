@@ -62,6 +62,11 @@ export type ProductionReelProps = ReelProps & {
   concept?: boolean;
   /** The script's language (ISO code), for the few words the templates write themselves. */
   language?: string;
+  /**
+   * The cover still (src/remotion/cover.ts): the reel without its
+   * word-by-word captions, which would show a lone first word in a box.
+   */
+  hideCaptions?: boolean;
 };
 
 /** Whether the props describe one of the new productions (else the original templates render). */

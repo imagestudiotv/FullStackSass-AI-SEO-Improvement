@@ -135,7 +135,7 @@ export async function deleteOldFiles(now: Date = new Date()): Promise<number> {
     )
     .limit(200);
   for (const row of rows) {
-    await deleteVideoFiles(row.websiteId, [row.videoUrl, row.altVideoUrl, row.voiceUrl, ...(row.slideUrls ?? [])]);
+    await deleteVideoFiles(row.websiteId, [row.videoUrl, row.altVideoUrl, row.voiceUrl, row.coverUrl, ...(row.slideUrls ?? [])]);
     await db.update(videoIdeas).set({ filesDeletedAt: now }).where(eq(videoIdeas.id, row.id));
   }
   return rows.length;

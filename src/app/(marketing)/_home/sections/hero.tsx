@@ -86,6 +86,7 @@ export function Hero({ locale, href }: SectionProps) {
           }}
           signUpPath={href("/sign-up")}
           onboardingPath={href("/onboarding/website")}
+          planPath={href("/growth-plan")}
           buildPath={href(WEBSITE_CREATION_PATH)}
           googleLabel={t.joinGoogle}
           googleIcon={

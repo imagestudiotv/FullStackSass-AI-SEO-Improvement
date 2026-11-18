@@ -25,6 +25,7 @@ import {
   type VideoPublishingStatus,
 } from "@/lib/video/publish-actions";
 import type { VideoSettings } from "@/lib/video/settings";
+import { COVER_FALLBACK_SECONDS, coverSeconds } from "@/remotion/cover";
 
 import { compatText } from "./edit-dialog";
 import type { FormatFilter } from "./logic";
@@ -48,6 +49,19 @@ import {
 
 /** A made video's length, as its render works it out (voice, scenes and closing card), in seconds. */
 const reelSeconds = (idea: IdeaView) => Math.round(reelFrames(idea.props) / REEL.fps);
+/**
+ * When a video without a cover still is shown: the moment its opening is
+ * fully drawn, from its own timing (src/remotion/cover.ts) - never the
+ * first frame, where scenes fade in and the first caption word sits alone.
+ */
+function coverMoment(idea: IdeaView): number {
+  try {
+    const seconds = coverSeconds(idea.props);
+    return Number.isFinite(seconds) && seconds > 0 ? seconds : COVER_FALLBACK_SECONDS;
+  } catch {
+    return COVER_FALLBACK_SECONDS;
+  }
+}
 const formatLabel = (t: T, format: string) => (format === "carousel" ? t.carousel : format === "story" ? t.viral.formats.story : t.reel);
 /** "Save as draft": a ready video waits as a draft, sent nowhere until the customer publishes it. */
 const isDraft = (idea: IdeaView, settings: VideoSettings) => idea.status === "draft" || (idea.status === "ready" && settings.publishMode === "draft");
@@ -137,9 +151,13 @@ function MadeCard(props: ListProps & { idea: IdeaView; connected: VideoAccountVi
             <Loader2 className="size-6 animate-spin" aria-hidden="true" />
             <p className="max-w-[220px]">{idea.status === "posting" ? t.publishing : t.makingBody}</p>
           </div>
+        ) : idea.videoUrl && idea.coverUrl ? (
+          // The reel's cover still: its opening fully drawn, without captions (src/remotion/cover.ts). Preview plays it.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={idea.coverUrl} alt="" className="size-full object-cover" />
         ) : idea.videoUrl ? (
-          // The first frame as the cover (#t asks the browser for it); Preview plays it.
-          <video src={`${idea.videoUrl}#t=0.1`} muted playsInline preload="metadata" aria-hidden="true" className="size-full object-cover" />
+          // A video made before covers: the browser shows the MP4 at the cover's moment (#t), the opening fully drawn.
+          <video src={`${idea.videoUrl}#t=${coverMoment(idea)}`} muted playsInline preload="metadata" aria-hidden="true" className="size-full object-cover" />
         ) : idea.slideUrls[0] ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={idea.slideUrls[0]} alt="" className="size-full object-cover" />
@@ -250,7 +268,7 @@ function PreviewDialog({ idea, length, locale, t, onClose }: { idea: IdeaView; l
         <div className="grid gap-5 md:grid-cols-[minmax(0,280px)_1fr]">
           <div className="mx-auto w-full max-w-[280px]">
             {idea.videoUrl ? (
-              <video src={idea.videoUrl} controls playsInline preload="metadata" className="aspect-[9/16] w-full rounded-xl bg-black object-contain" />
+              <video src={idea.videoUrl} poster={idea.coverUrl ?? undefined} controls playsInline preload="metadata" className="aspect-[9/16] w-full rounded-xl bg-black object-contain" />
             ) : (
               <div className="flex snap-x snap-mandatory gap-2 overflow-x-auto pb-2">
                 {idea.slideUrls.map((url, index) => (
