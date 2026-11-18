@@ -1,14 +1,20 @@
 import { formatPrice, type PlanRow } from "@/lib/billing-shared";
+import type { Locale } from "@/lib/i18n/config";
 import { planDisplayPrice } from "@/lib/billing/display-prices";
 import { trialAllowance } from "@/lib/billing/entitlement-period";
 import { TRIAL_DAYS } from "@/lib/plans/features";
 import { SUPPORTED_LANGUAGES } from "@/lib/websites/languages";
 
+import { SEO_CONTENT_AUTOMATION_TRANSLATIONS } from "./seo-content-automation.translations";
+
 /**
  * The SEO-content-automation landing page, /seo-content-automation: the
  * destination prepared for the English (US/UK) Google Ads candidate
- * (review-reports/2026-11-17/google-ads/english-pilot). English only, not
- * indexed, not in the sitemap; no ad runs until the owner approves one.
+ * (review-reports/2026-11-17/google-ads/english-pilot), and its Italian,
+ * German, Spanish and French versions at /it|de|es|fr/seo-content-automation
+ * (seo-content-automation.translations.ts; 2026-11-18, five languages, six
+ * markets). Not indexed, not in the sitemap; no ad runs until the owner
+ * approves one.
  *
  * EVERY CLAIM IS ONE THE PRODUCT BACKS, checked against the code on
  * 2026-11-17 (commercial-readiness-result.txt):
@@ -52,6 +58,12 @@ import { SUPPORTED_LANGUAGES } from "@/lib/websites/languages";
 
 export const SEO_CONTENT_AUTOMATION_PATH = "/seo-content-automation";
 
+/**
+ * The prefixed languages with a version of the page (lib/i18n/config.ts
+ * LOCALE_ONLY_PATHS lists the same ones). English is the unprefixed page.
+ */
+export const SEO_CONTENT_AUTOMATION_LOCALES = ["it", "de", "es", "fr"] as const satisfies readonly Locale[];
+
 export type SeoContentAutomationCopy = {
   metaTitle: string;
   metaDescription: string;
@@ -75,7 +87,8 @@ export type SeoContentAutomationCopy = {
   limits: string[];
   termsTitle: string;
   terms: string[];
-  termsLinks: { refunds: string; terms: string; pricing: string };
+  /** englishOnly: said next to the refund and terms links where those pages are not translated. */
+  termsLinks: { refunds: string; terms: string; pricing: string; englishOnly?: string };
   faqTitle: string;
   faq: { question: string; answer: string }[];
   closingTitle: string;
@@ -109,7 +122,12 @@ function languageList(): string {
   return `${LANGUAGES.slice(0, -1).join(", ")} and ${LANGUAGES.at(-1)}`;
 }
 
-export function seoContentAutomationCopy(launch: LaunchFacts | null): SeoContentAutomationCopy {
+/** The page's words in one of the five site languages: every one has a version. */
+export function seoContentAutomationCopy(launch: LaunchFacts | null, locale: Locale = "en"): SeoContentAutomationCopy {
+  return locale === "en" ? englishCopy(launch) : SEO_CONTENT_AUTOMATION_TRANSLATIONS[locale](launch);
+}
+
+function englishCopy(launch: LaunchFacts | null): SeoContentAutomationCopy {
   const termsLine = launch ? `Launch includes ${launch.terms.toLocaleString("en")} researched search terms.` : "";
   return {
     metaTitle: "SEO Content Automation for Business Websites",

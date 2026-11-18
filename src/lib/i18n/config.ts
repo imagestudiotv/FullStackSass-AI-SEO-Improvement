@@ -147,14 +147,19 @@ export const TRANSLATED_PATHS: ReadonlySet<string> = new Set([
 
 /**
  * Pages that exist ONLY in the languages listed, under app/(localized)/[locale]
- * like the translated ones but with no English page and no other translation:
- * a campaign's landing page written for one market (the Italian Google Ads
- * pilot, 2026-11-16). Not in TRANSLATED_PATHS, so they declare no hreflang
- * alternates, offer no language switch and get no sitemap entry in the other
- * languages - each of those would advertise a page that 404s.
+ * like the translated ones: campaign landing pages written for their markets
+ * (the Italian Google Ads pilot, 2026-11-16; the five-language SEO-content
+ * pages, 2026-11-18). Not in TRANSLATED_PATHS, so they declare no hreflang
+ * alternates, offer no language switch and get no sitemap entry: each version
+ * stands alone, with its own canonical, and is not indexed. A language not
+ * listed has no page there (a 404). An English version, when there is one, is
+ * the unprefixed page under app/(marketing) - /seo-content-automation - and
+ * is just as separate.
  */
 export const LOCALE_ONLY_PATHS: Readonly<Record<string, readonly Locale[]>> = {
   "/social-publishing": ["it"],
+  // lib/marketing/seo-content-automation.ts SEO_CONTENT_AUTOMATION_LOCALES.
+  "/seo-content-automation": ["it", "de", "es", "fr"],
 };
 
 /**

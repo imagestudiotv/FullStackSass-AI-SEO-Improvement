@@ -2,6 +2,7 @@ import { ArrowRight, CalendarRange, Check, Info, Minus, PenLine, Plus, Search, S
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+import { DEFAULT_LOCALE, type Locale, localePath } from "@/lib/i18n/config";
 import type { SeoContentAutomationCopy } from "@/lib/marketing/seo-content-automation";
 import { signUpForPlan } from "@/lib/plans/features";
 
@@ -17,6 +18,13 @@ import { SectionHeading } from "../home-sections";
  * so the chosen plan reaches the onboarding plan step. No payment link and no
  * tracking of its own: the site's tag reads campaign parameters on arrival,
  * and a purchase is reported by the existing paid-acquisition outbox.
+ *
+ * THE LANGUAGE CARRIES ON WITHOUT A PARAMETER. Sign-up reads it from the page
+ * the visitor came from, then from the site-language cookie the header sets
+ * on every site page (lib/i18n/app-locale.ts authLocale), and the account
+ * keeps it for onboarding, checkout and its emails. Links to pages that exist
+ * in the reader's language go there (localePath); the refund policy and the
+ * terms are English only, and the copy says so next to them.
  */
 
 const CTA = "h-12 rounded-full px-7 text-base";
@@ -24,7 +32,10 @@ const LAUNCH_SIGN_UP = signUpForPlan("launch");
 
 const STEP_ICONS: LucideIcon[] = [Search, CalendarRange, PenLine, Send];
 
-export function SeoContentAutomationContent({ copy }: { copy: SeoContentAutomationCopy }) {
+export function SeoContentAutomationContent({ copy, locale = DEFAULT_LOCALE }: { copy: SeoContentAutomationCopy; locale?: Locale }) {
+  const pricing = localePath(locale, "/pricing");
+  // The refund policy and the terms are English only: say so to the browser as the copy says it to the reader.
+  const englishOnly = locale === DEFAULT_LOCALE ? undefined : DEFAULT_LOCALE;
   const actions = (
     <div className="mt-8 flex flex-wrap justify-center gap-3">
       <Button size="lg" asChild className={CTA}>
@@ -34,7 +45,7 @@ export function SeoContentAutomationContent({ copy }: { copy: SeoContentAutomati
         </Link>
       </Button>
       <Button size="lg" variant="outline" asChild className={CTA}>
-        <Link href="/pricing">{copy.secondaryCta}</Link>
+        <Link href={pricing}>{copy.secondaryCta}</Link>
       </Button>
     </div>
   );
@@ -102,7 +113,7 @@ export function SeoContentAutomationContent({ copy }: { copy: SeoContentAutomati
           </dl>
           <p className="mt-6 text-center text-sm text-muted-foreground">
             {copy.connectionsNote}{" "}
-            <Link href="/docs/integrations" className="font-medium text-primary underline-offset-4 hover:underline">
+            <Link href={localePath(locale, "/docs/integrations")} className="font-medium text-primary underline-offset-4 hover:underline">
               {copy.connectionsLink}
             </Link>
           </p>
@@ -147,16 +158,17 @@ export function SeoContentAutomationContent({ copy }: { copy: SeoContentAutomati
             ))}
           </ul>
           <p className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-sm">
-            <Link href="/refunds" className="font-medium text-primary underline-offset-4 hover:underline">
+            <Link href="/refunds" hrefLang={englishOnly} className="font-medium text-primary underline-offset-4 hover:underline">
               {copy.termsLinks.refunds}
             </Link>
-            <Link href="/terms" className="font-medium text-primary underline-offset-4 hover:underline">
+            <Link href="/terms" hrefLang={englishOnly} className="font-medium text-primary underline-offset-4 hover:underline">
               {copy.termsLinks.terms}
             </Link>
-            <Link href="/pricing" className="font-medium text-primary underline-offset-4 hover:underline">
+            <Link href={pricing} className="font-medium text-primary underline-offset-4 hover:underline">
               {copy.termsLinks.pricing}
             </Link>
           </p>
+          {copy.termsLinks.englishOnly ? <p className="mt-2 text-xs text-muted-foreground">{copy.termsLinks.englishOnly}</p> : null}
         </div>
       </section>
 

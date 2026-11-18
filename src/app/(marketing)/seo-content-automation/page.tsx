@@ -12,9 +12,10 @@ const STATIC_COPY = seoContentAutomationCopy(null);
 
 /**
  * /seo-content-automation: the English SEO-content landing page
- * (lib/marketing/seo-content-automation.ts). English only: it is not in
- * TRANSLATED_PATHS or LOCALE_ONLY_PATHS, so it declares no hreflang and
- * /es/seo-content-automation and the rest are 404s.
+ * (lib/marketing/seo-content-automation.ts). Its Italian, German, Spanish and
+ * French versions are app/(localized)/[locale]/(pages)/seo-content-automation,
+ * listed in LOCALE_ONLY_PATHS: each one stands alone, so none declares
+ * hreflang and none is a translation of this page in the search sense.
  *
  * NOT INDEXED and not in PUBLIC_PAGES (so not in the sitemap): it is a paid
  * campaign's destination, prepared before any campaign is approved. Google
