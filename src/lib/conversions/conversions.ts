@@ -8,7 +8,7 @@ import { CONSENT_COOKIE, CONSENT_MAX_AGE, parseConsent } from "@/lib/consent";
 import { account, billingCheckouts, plans, user } from "@/lib/db/schema";
 import type { Database } from "@/lib/db/types";
 import { measurementId, tagManagerId, type BrowserConversion } from "@/lib/google-analytics";
-import { metaPixelId } from "@/lib/meta-pixel";
+import { metaPixelId, type MetaCheckout } from "@/lib/meta-pixel";
 
 import { gaClientId, gaSessionCookie, gaSessionId } from "./ga-identity";
 import { ANALYTICS_CONSENT_COOKIE, conversionId, validConsentKey } from "./config";
@@ -199,20 +199,36 @@ export async function rememberPayer(
     // No revocation proof means no server conversion; never stop a customer's checkout.
     console.error("[analytics] could not keep revocable checkout consent");
   }
-  const plan = payer?.plan;
-  if (metaUser && plan) {
+  const event = payer?.plan ? metaCheckoutEvent(checkoutId, payer.plan) : undefined;
+  if (metaUser && event) {
     const user = metaUser;
     afterResponse(() =>
       sendMetaEvents([{
         name: "InitiateCheckout",
-        id: conversionId("initiate_checkout", checkoutId),
+        id: event.eventId,
         time: new Date(),
         path: "/pricing",
         user,
-        custom: { value: plan.priceCents / 100, currency: plan.currency.toUpperCase(), content_name: plan.name.toLowerCase() },
+        custom: { value: event.value, currency: event.currency, content_name: event.contentName },
       }]),
     );
   }
+}
+
+/**
+ * InitiateCheckout as the client's guide gives it (section 2 row 5), for the
+ * page to send from the browser (lib/meta-pixel.ts trackMetaCheckout) with
+ * the same id as the server's copy above, so Meta counts one. Undefined
+ * without a pixel.
+ */
+export function metaCheckoutEvent(checkoutId: string, plan: { name: string; priceCents: number; currency: string }): MetaCheckout | undefined {
+  if (!metaPixelId()) return undefined;
+  return {
+    eventId: conversionId("initiate_checkout", checkoutId),
+    value: plan.priceCents / 100,
+    currency: plan.currency.toUpperCase(),
+    contentName: plan.name.toLowerCase(),
+  };
 }
 
 /** After the response when there is one (next/server after), otherwise now; never awaited by the caller. */

@@ -225,6 +225,37 @@ export function forgetMetaPixel(): void {
   }
 }
 
+/** InitiateCheckout, as the checkout actions return it (lib/conversions/conversions.ts metaCheckoutEvent). */
+export type MetaCheckout = { eventId: string; value: number; currency: string; contentName: string };
+
+/** How long the page waits for the pixel's request before it leaves for Stripe or PayPal. */
+export const CHECKOUT_WAIT_MS = 400;
+
+/**
+ * The customer picked a plan and the payment page is ready (client's guide,
+ * section 2 row 5): InitiateCheckout, with the id the server's copy carries,
+ * for a visitor who accepted, from a page safe to report. Resolves when the
+ * page may leave: after a short wait when something was sent, at once
+ * otherwise. Never throws, never holds the checkout up for longer.
+ */
+export async function trackMetaCheckout(checkout: MetaCheckout | undefined, consent: "granted" | "denied" | null, id: string | null = metaPixelId()): Promise<boolean> {
+  try {
+    if (!checkout || consent !== "granted" || !id) return false;
+    if (!metaSafePage(window.location.href, document.referrer)) return false;
+    startMetaPixel(id, { soon: true });
+    fbq("track", "InitiateCheckout", { value: checkout.value, currency: checkout.currency, content_name: checkout.contentName }, { eventID: checkout.eventId });
+    await new Promise((resolve) => setTimeout(resolve, CHECKOUT_WAIT_MS));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Meta's own image for a browser without JavaScript (client's guide, section 1): a page view, nothing else. */
+export function metaNoscriptSrc(id: string): string {
+  return `https://www.facebook.com/tr?id=${encodeURIComponent(id)}&ev=PageView&noscript=1`;
+}
+
 /** Meta's standard event for each conversion the server reports (lib/conversions/conversions.ts). */
 const META_EVENTS: Record<BrowserConversion["name"], string> = {
   sign_up: "CompleteRegistration",

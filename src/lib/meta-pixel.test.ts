@@ -253,3 +253,33 @@ describe("the client's guide (2026-11-18): ViewContent, Lead and the server's co
     fake.storage.delete("repget_conversions");
   });
 });
+
+describe("InitiateCheckout and the image for browsers without JavaScript", () => {
+  const CHECKOUT = { eventId: "c_checkout1", value: 149, currency: "EUR", contentName: "grow" };
+
+  it("sends InitiateCheckout with the server's id after Accept, from a safe page, then lets the page go", async () => {
+    fake = browser("https://www.repget.com/billing");
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    try {
+      const sent = meta.trackMetaCheckout(CHECKOUT, "granted", ID);
+      await vi.advanceTimersByTimeAsync(meta.CHECKOUT_WAIT_MS);
+      expect(await sent).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(fake.calls.at(-1)).toEqual(["track", "InitiateCheckout", { value: 149, currency: "EUR", content_name: "grow" }, { eventID: "c_checkout1" }]);
+  });
+
+  it("sends nothing and waits for nothing without Accept, without the event, or from an address with a record id", async () => {
+    fake = browser("https://www.repget.com/billing");
+    expect(await meta.trackMetaCheckout(CHECKOUT, null, ID)).toBe(false);
+    expect(await meta.trackMetaCheckout(undefined, "granted", ID)).toBe(false);
+    fake = browser("https://www.repget.com/onboarding/plan?site=0b8f6c1e-1d2a-4c3b-9e8f-7a6b5c4d3e2f");
+    expect(await meta.trackMetaCheckout(CHECKOUT, "granted", ID)).toBe(false);
+    expect(fake.calls).toEqual([]);
+  });
+
+  it("points the no-JavaScript image at Meta's page view, as the guide's snippet does", () => {
+    expect(meta.metaNoscriptSrc(ID)).toBe(`https://www.facebook.com/tr?id=${ID}&ev=PageView&noscript=1`);
+  });
+});

@@ -126,9 +126,13 @@ export default function PrivacyPage() {
         <p>
           <strong>Meta (Facebook), only if you accept.</strong> The same
           answer covers the Meta Pixel and Meta&apos;s Conversions API, which
-          measure our Facebook and Instagram ads. Nothing is loaded from Meta
-          unless you accept, and never inside your account except to report a
-          sign-up or the start of a free trial. If you accept, the pixel sets
+          measure our Facebook and Instagram ads. With JavaScript on, nothing
+          is loaded from Meta unless you accept, and never inside your account
+          except to report a sign-up, the start of a checkout or the start of
+          a free trial. With JavaScript off, the cookie banner cannot be shown,
+          and your browser loads one invisible image from Meta for each page
+          you open, which tells Meta that the page was viewed and lets Meta
+          read or set its own cookies. If you accept, the pixel sets
           a cookie, <code>_fbp</code> (and <code>_fbc</code> when you arrive
           from one of our ads), and tells Meta which public pages you view,
           which ad sent you, and when you ask for a free audit, create an

@@ -154,14 +154,14 @@ The following live-property verification requires an approved environment and te
 | `ViewContent` | the pricing page (any language) | yes | no | `content_name: pricing` |
 | `Lead` | the free audit form is submitted (browser), the audit finishes (server) | yes | yes | `content_name: free_audit` |
 | `CompleteRegistration` | the first signed-in page in the hour after sign-up | yes | yes | `content_name: signup` |
-| `InitiateCheckout` | a checkout is created, just before Stripe or PayPal | no | yes | `value`, `currency`, `content_name` (plan) |
+| `InitiateCheckout` | a checkout is created, just before Stripe or PayPal (the page waits 400 ms for the pixel) | yes, from a safe page | yes | `value`, `currency`, `content_name` (plan) |
 | `StartTrial` | the first signed-in page in the hour after the trial checkout completed | yes | yes | `value: 0`, `currency: EUR`, `content_name` (plan) |
 | `Purchase` | the workspace's first subscription payment, from the Stripe (`invoice.paid`) and PayPal (`PAYMENT.SALE.COMPLETED`) webhooks; never a renewal | no | yes | `value`, `currency`, `content_name` (plan) |
 
 - **Deduplication.** The browser and the server give an event the same id: the conversion id for `CompleteRegistration` / `StartTrial`, `conversionId("lead", "<_fbp>:<UTC day>")` for `Lead` (one per browser per day), and for `Purchase` the id Google's purchase uses as its transaction id.
+- **`<noscript>` image** (guide, section 1), in every page's `<body>` (app/root-document.tsx): a browser without JavaScript sends one `PageView` per page. It cannot show the cookie banner, so this is sent without an answer: the client's decision (2026-11-18), and the privacy policy says so.
 - **Not as the guide says, on purpose.**
-  - No `<noscript>` image: it would report visitors who never accepted.
-  - `InitiateCheckout` is sent by the server only. The checkout page leaves for Stripe at once, and its address carries the website id, so the pixel either could not finish or would not be allowed to send.
+  - The onboarding plan page carries the website id in its address, so the pixel sends nothing there; `InitiateCheckout` reaches Meta from the server alone.
   - Identity is kept on the checkout, not on the user record. Whoever starts paying is the one the payment belongs to, and the `fbp`/`fbc` saved there are the freshest ones.
 - **Consent.** Everything, browser and server, only after **Accept**, in either consent mode. The banner then names Meta, and the consent cookie's version becomes `3`. Decline revokes the pixel, deletes `_fbp` / `_fbc`, and the first-party withdrawal (`/api/analytics/consent`) erases the identity saved on any checkout and suppresses a queued `Purchase`.
 - **What the server sends.** `_fbp`, `_fbc`, the IP address and the browser as they are; the email address and the user id SHA-256 hashed (trimmed, lowercased); never a name or anything about websites or articles. The token never leaves the server and is never logged (failures log only `http_<status>`).

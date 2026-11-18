@@ -16,7 +16,8 @@ import {
   recordCheckoutRequest,
   recordCheckoutStarted,
 } from "@/lib/billing/checkouts";
-import { rememberPayer } from "@/lib/conversions/conversions";
+import { metaCheckoutEvent, rememberPayer } from "@/lib/conversions/conversions";
+import type { MetaCheckout } from "@/lib/meta-pixel";
 import { db } from "@/lib/db";
 import { billingCustomers, plans, websites } from "@/lib/db/schema";
 import { CONFIRM_EMAIL_FIRST, isDirectPurchaseTier } from "@/lib/plans/features";
@@ -37,7 +38,8 @@ function appUrl(): string {
   return url.replace(/\/$/, "");
 }
 
-export type CheckoutResult = { url: string } | { error: string };
+/** `metaCheckout`: what the page tells the Meta Pixel before it leaves for Stripe (lib/meta-pixel.ts trackMetaCheckout). */
+export type CheckoutResult = { url: string; metaCheckout?: MetaCheckout } | { error: string };
 
 /**
  * Whether Stripe definitely refused a request (it answered 4xx), as opposed
@@ -269,7 +271,7 @@ export async function createCheckoutSession(
     if (!session.url) {
       return { error: "Stripe did not return a Checkout URL" };
     }
-    return { url: session.url };
+    return { url: session.url, metaCheckout: metaCheckoutEvent(checkoutId, plan) };
   } catch (error) {
     /*
       Only a definite refusal marks the checkout failed. After a timeout
@@ -302,7 +304,7 @@ export async function createCheckoutSession(
           checkoutUrl: found.url,
           expiresAt: found.expiresAt,
         });
-        return { url: found.url };
+        return { url: found.url, metaCheckout: metaCheckoutEvent(checkoutId, plan) };
       }
       if (!found) await markCheckoutFailed(db, checkoutId);
     } catch (lookupError) {
