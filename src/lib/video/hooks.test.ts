@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import type { DirectionProps } from "@/remotion/directions/common";
+import { hookRoom } from "@/remotion/directions/HookClip";
 import { productionTimeline, hookTiming, HOOK_MIN_RATE } from "@/remotion/production";
 import type { ProductionReelProps } from "@/remotion/props";
 
@@ -188,6 +190,19 @@ describe("the hook clip's timing", () => {
     // The 3 s opening would pass the run-up: slowed, never below half speed, then held.
     expect(timing.open.rate).toBeGreaterThanOrEqual(0.5);
     expect(Math.round(timing.open.playFrames * timing.open.rate)).toBeLessThanOrEqual(77);
+  });
+
+  it("keeps the points' text clear of the corner box, and only while it shows", () => {
+    const direction = { ...props, timeline, plan: { hookClip: { type: "danger" } }, sceneMedia: [{ url: "https://repget.example/clip.mp4", kind: "video", durationMs: 12_000, climaxMs: 8000 }] } as unknown as DirectionProps;
+    const [hook, point] = timeline.parts;
+    const proof = timeline.parts.find((part) => part.role === "proof")!;
+    expect(hookRoom(direction, point, 30)).toBeGreaterThan(0);
+    expect(hookRoom(direction, hook, 30)).toBe(0);
+    expect(hookRoom(direction, proof, 30)).toBe(0);
+    // No box: a picture, a clip of unknown length, or no hook.
+    expect(hookRoom({ ...direction, sceneMedia: [{ url: "https://repget.example/a.jpg", kind: "image" }] } as DirectionProps, point, 30)).toBe(0);
+    expect(hookRoom({ ...direction, sceneMedia: [{ url: "https://repget.example/clip.mp4", kind: "video", durationMs: null }] } as DirectionProps, point, 30)).toBe(0);
+    expect(hookRoom({ ...direction, plan: undefined } as DirectionProps, point, 30)).toBe(0);
   });
 
   it("only opens when the clip's length is unknown, and needs the hook on screen", () => {

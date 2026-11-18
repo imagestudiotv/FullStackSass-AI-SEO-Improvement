@@ -5,6 +5,7 @@ import { cutFrames, type ProductionPart } from "../production";
 import { CtaScene } from "../scenes/Cta";
 import { emphasis, fitFontSize, splitWords } from "../text";
 import { BrandTag, Enter, FilmTexture, IllustrativeLabel, LegibilityShade, Parts, SceneVisual, StyledCaptions, mediaFor, type DirectionProps, type Motion } from "./common";
+import { hookRoom } from "./HookClip";
 
 /**
  * Footage: real-world clips and photos full-bleed, cut fast (a new shot every
@@ -47,6 +48,7 @@ function FootageScene(props: DirectionProps & { part: ProductionPart; index: num
   const shots = Math.max(1, Math.round(duration / shot));
   const length = Math.ceil(duration / shots);
   const first = mediaFor(props, part);
+  const room = hookRoom(props, part, useVideoConfig().fps);
   return (
     <AbsoluteFill style={{ background: "#000" }}>
       {Array.from({ length: shots }, (_, k) => {
@@ -72,23 +74,23 @@ function FootageScene(props: DirectionProps & { part: ProductionPart; index: num
         );
       })}
       <LegibilityShade strength={0.9} />
-      <KineticLine text={part.title} top={safe.top + 170} pal={pal} hook={part.role === "hook"} />
+      <KineticLine text={part.title} top={safe.top + 170} pal={pal} hook={part.role === "hook"} width={860 - room} />
       {first?.illustrative ? <IllustrativeLabel language={props.language} top={safe.top} /> : null}
     </AbsoluteFill>
   );
 }
 
 /** The scene's line, word by word, the key words on an accent highlighter. */
-export function KineticLine({ text, top, pal, hook }: { text: string; top: number; pal: DirectionProps["pal"]; hook: boolean }) {
+export function KineticLine({ text, top, pal, hook, width = 860 }: { text: string; top: number; pal: DirectionProps["pal"]; hook: boolean; width?: number }) {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const words = splitWords(text);
   const strong = emphasis(words);
-  const size = fitFontSize(text, 860, hook ? 4 : 3, hook ? 104 : 84, 52);
+  const size = fitFontSize(text, width, hook ? 4 : 3, hook ? 104 : 84, 52);
   // The hook lands within 0.3 s (client: the first 1-2 seconds matter most).
   const stagger = hook ? 1.5 : 2.5;
   return (
-    <div style={{ position: "absolute", left: 80, width: 860, top, fontFamily: FONT, fontSize: size, fontWeight: 900, lineHeight: 1.08, letterSpacing: "-0.03em", color: "#fff" }}>
+    <div style={{ position: "absolute", left: 80, width, top, fontFamily: FONT, fontSize: size, fontWeight: 900, lineHeight: 1.08, letterSpacing: "-0.03em", color: "#fff" }}>
       {words.map((word, i) => {
         const s = spring({ frame: frame - 1 - i * stagger, fps, config: { damping: 13, stiffness: 240, mass: 0.6 } });
         const mark = strong.has(i);

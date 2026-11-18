@@ -6,6 +6,7 @@ import type { ProductionPart } from "../production";
 import { fitFontSize } from "../text";
 import { CtaScene } from "../scenes/Cta";
 import { Enter, IllustrativeLabel, LegibilityShade, Parts, SceneVisual, StyledCaptions, mediaFor, type DirectionProps } from "./common";
+import { hookRoom } from "./HookClip";
 
 /**
  * Meme: a relatable POV/reaction situation, as people post them - a white
@@ -61,6 +62,8 @@ function MemeScene(props: DirectionProps & { part: ProductionPart; index: number
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const media = mediaFor(props, part);
+  // Beside the hook's corner box the title and the reaction keep clear of it.
+  const room = hookRoom(props, part, fps);
   // The bar: the plan's POV line, else the scene's own words - on screen within 0.3 s.
   const bar = part.scene?.overlay?.trim() || part.title;
   const { size, height } = barSize(bar);
@@ -124,7 +127,7 @@ function MemeScene(props: DirectionProps & { part: ProductionPart; index: number
           style={{
             position: "absolute",
             left: safe.left,
-            right: 1080 - safe.right + 20,
+            right: 1080 - safe.right + 20 + room,
             top: visualTop + 40,
             fontSize: 44,
             fontWeight: 800,
@@ -140,7 +143,7 @@ function MemeScene(props: DirectionProps & { part: ProductionPart; index: number
         <div
           style={{
             position: "absolute",
-            right: 1080 - safe.right + 10,
+            ...(room ? { left: safe.left } : { right: 1080 - safe.right + 10 }),
             top: Math.min(safe.bottom - 520, visualTop + 300),
             padding: "18px 30px",
             borderRadius: 26,

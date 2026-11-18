@@ -7,6 +7,7 @@ import { CtaScene } from "../scenes/Cta";
 import { emphasis, fitFontSize, splitWords } from "../text";
 import { alpha } from "../theme";
 import { Enter, IllustrativeLabel, Parts, SceneVisual, mediaFor, type DirectionProps } from "./common";
+import { hookRoom } from "./HookClip";
 
 /**
  * Text + Music: no narration - fast animated typography over the visuals,
@@ -41,15 +42,18 @@ export function TextMusicProduction(props: DirectionProps) {
 }
 
 function TypeScene(props: DirectionProps & { part: ProductionPart; index: number; duration: number; layout: Layout }) {
-  const { part, index, duration, layout, pal, safe } = props;
+  const { part, index, duration, layout: asked, pal, safe } = props;
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
+  // Beside the hook's corner box the text keeps clear of it, left-aligned.
+  const room = hookRoom(props, part, fps);
+  const layout: Layout = room && asked === "stack" ? "slide" : asked;
   const media = mediaFor(props, part);
   const words = splitWords(part.title);
   const strong = emphasis(words);
   // Reveal the title within the first ~40% of the scene, a word per beat, the hook at once.
   const reveal = part.role === "hook" ? 2 : Math.max(2, Math.min(6, Math.floor((duration * 0.4) / Math.max(1, words.length))));
-  const size = fitFontSize(part.title, 880, layout === "stack" ? 5 : 4, layout === "stack" ? 128 : 100, 56);
+  const size = fitFontSize(part.title, 880 - room, layout === "stack" ? 5 : 4, layout === "stack" ? 128 : 100, 56);
   // Beat pulses on the background, on each word's arrival.
   const lastBeat = Math.floor(Math.max(0, frame - 1) / reveal) * reveal;
   const pulse = frame < words.length * reveal + 2 ? interpolate(frame - lastBeat, [0, 5], [1.04, 1], { extrapolateRight: "clamp" }) : 1;
@@ -76,7 +80,7 @@ function TypeScene(props: DirectionProps & { part: ProductionPart; index: number
         style={{
           position: "absolute",
           left: 80,
-          width: 880,
+          width: 880 - room,
           top: safe.top + 120,
           bottom: 1920 - safe.bottom + 60,
           display: "flex",
@@ -106,8 +110,8 @@ function TypeScene(props: DirectionProps & { part: ProductionPart; index: number
           <div
             style={{
               marginTop: 44,
-              maxWidth: 860,
-              fontSize: fitFontSize(part.detail, 860, 4, 54, 44, 0.55),
+              maxWidth: 860 - room,
+              fontSize: fitFontSize(part.detail, 860 - room, 4, 54, 44, 0.55),
               fontWeight: 600,
               lineHeight: 1.25,
               color: "rgba(255,255,255,0.9)",

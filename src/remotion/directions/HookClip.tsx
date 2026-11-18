@@ -3,7 +3,7 @@ import { AbsoluteFill, Freeze, OffthreadVideo, Sequence, interpolate, useCurrent
 
 import type { HookType } from "../../lib/video/formats";
 import { FONT } from "../fonts";
-import { hookTiming, type HookSegment } from "../production";
+import { hookTiming, type HookSegment, type ProductionPart } from "../production";
 import type { SceneMedia } from "../props";
 import { fitFontSize } from "../text";
 import { ConceptFrame, FilmTexture, LegibilityShade, type DirectionProps } from "./common";
@@ -45,14 +45,33 @@ const INSET = { width: 270, height: 420, radius: 28 };
 /** The clip length the concept preview assumes, to show the structure before a clip is chosen. */
 const CONCEPT_CLIP_MS = 8000;
 
-export function HookClipLayer(props: DirectionProps) {
-  const { fps } = useVideoConfig();
+/** What the corner box needs on the right of the text column: the box and a gap. */
+const HOOK_ROOM = INSET.width + 40;
+
+/** The hook's type, clip and timing, or null when the production shows as it is. */
+function hookShown(props: DirectionProps, fps: number) {
   const type = props.plan?.hookClip?.type;
   const media = props.sceneMedia?.[0] ?? null;
   const clip = media?.kind === "video" ? media : null;
   if (!type || (!clip && !props.concept)) return null;
   const timing = hookTiming(props.timeline, clip ?? { durationMs: CONCEPT_CLIP_MS }, fps);
-  if (!timing) return null;
+  return timing ? { type, clip, timing } : null;
+}
+
+/**
+ * The width a scene's text leaves free on the right for the corner box: the
+ * box runs through the points (hook end to proof), so their text keeps clear
+ * of it; 0 for every other scene and without a hook.
+ */
+export function hookRoom(props: DirectionProps, part: ProductionPart, fps: number): number {
+  return part.role === "point" && hookShown(props, fps)?.timing.inset ? HOOK_ROOM : 0;
+}
+
+export function HookClipLayer(props: DirectionProps) {
+  const { fps } = useVideoConfig();
+  const shown = hookShown(props, fps);
+  if (!shown) return null;
+  const { type, clip, timing } = shown;
   const hook = props.timeline.parts[0];
   const proof = props.timeline.parts.find((part) => part.role === "proof");
   const query = props.plan?.scenes?.[0]?.visual.query;

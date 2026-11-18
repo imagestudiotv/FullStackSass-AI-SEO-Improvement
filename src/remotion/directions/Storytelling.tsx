@@ -6,6 +6,7 @@ import { CtaScene } from "../scenes/Cta";
 import { fitFontSize } from "../text";
 import { alpha } from "../theme";
 import { Enter, FilmTexture, IllustrativeLabel, LegibilityShade, Parts, SceneVisual, StyledCaptions, mediaFor, type DirectionProps } from "./common";
+import { hookRoom } from "./HookClip";
 
 /**
  * Storytelling: situation -> development -> turn -> resolution. Chapter
@@ -61,11 +62,12 @@ function StoryScene(props: DirectionProps & { part: ProductionPart; index: numbe
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const media = mediaFor(props, part);
+  const room = hookRoom(props, part, fps);
   const turnAt = Math.min(Math.round(duration * 0.35), 30);
   const grey = act === "turn" ? interpolate(frame, [0, turnAt - 2, turnAt], [0.2, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) : 0;
   const flash = act === "turn" ? interpolate(frame, [turnAt, turnAt + 7], [0.85, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) : 0;
   const title = spring({ frame: frame - 3, fps, config: { damping: 200, stiffness: 90 } });
-  const size = fitFontSize(part.title, 860, 4, part.role === "hook" ? 92 : 74, 50, 0.55);
+  const size = fitFontSize(part.title, 860 - room, 4, part.role === "hook" ? 92 : 74, 50, 0.55);
   return (
     <AbsoluteFill style={{ background: "#000" }}>
       <SceneVisual
@@ -84,7 +86,7 @@ function StoryScene(props: DirectionProps & { part: ProductionPart; index: numbe
         style={{
           position: "absolute",
           left: 80,
-          width: 860,
+          width: 860 - room,
           top: safe.top + 150,
           fontFamily: FONT,
           fontSize: size,
