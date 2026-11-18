@@ -12,7 +12,6 @@ import { authClient } from "@/lib/auth-client";
 import { confirmEmail, type ConfirmEmailResult } from "@/lib/auth/confirm-email-actions";
 import { formatPrice } from "@/lib/billing-shared";
 import { perMonthOfYear, planDisplayPrice } from "@/lib/billing/display-prices";
-import { REPGET_PERCENT_OFF } from "@/lib/billing/repget-offer";
 import { format } from "@/lib/i18n/format";
 import { CONFIRM_EMAIL_FIRST, planFeatures, TRIAL_DAYS, type PickerPlan } from "@/lib/plans/features";
 import type { Locale } from "@/lib/i18n/config";
@@ -50,10 +49,12 @@ import { WIZARD_STEPS, wizardStepIndex } from "@/lib/onboarding/wizard";
  * to Stripe's own Checkout page — see the note further down.
  *
  * THE CARD FOLLOWS DANIEL'S CHECKOUT CARD (2026-11-13, "RepGet | Grow Plan
- * Checkout Card"): the plan's regular price large, the REPGET discount in its
- * own box under the yearly switch, "Start free trial", the trial's terms under
- * it, PayPal with its own line, then what the plan includes and the usage
- * note. Every amount is planDisplayPrice's (the same code checkout uses).
+ * Checkout Card"): the price large, the REPGET notice in its own box under
+ * the yearly switch, "Start free trial", the trial's terms under it, PayPal
+ * with its own line, then what the plan includes and the usage note. Every
+ * amount is planDisplayPrice's charge (the same code checkout uses); the card
+ * no longer draws the regular price large with "instead of" beside the
+ * launch price (conservative copy, 2026-11-18).
  *
  * The email is confirmed first, with a code, when the trial is on offer:
  * checkout refuses without it (lib/stripe/actions.ts), so nobody can collect
@@ -63,8 +64,8 @@ import { WIZARD_STEPS, wizardStepIndex } from "@/lib/onboarding/wizard";
  * strike-through and its "90-day money-back guarantee if traffic doesn't
  * grow". A struck price we never charged is a misleading pricing claim, and
  * the guarantee is a commitment the client has not made — cheap to write here
- * and expensive to honour later. The struck figure we DO show on the yearly
- * option is real: it is twelve of our own monthly payments.
+ * and expensive to honour later. The yearly saving beside the switch is real:
+ * it compares twelve of our own monthly payments with the yearly one.
  *
  * Testimonials and the review score come from lib/marketing/testimonials.ts,
  * which is empty until there are real ones. See TestimonialRail.
@@ -252,28 +253,16 @@ export function PlanStep({
    * customer to read the cheaper number as the better deal.
    */
   /*
-    The price checkout charges, and the regular one struck beside it only
-    when checkout really takes something off (lib/billing/display-prices.ts,
-    the same function /pricing and Billing read): REPGET's launch price while
-    its notice is on screen, and the Grow + Visibility bundle against EUR 299.
+    The price checkout charges (lib/billing/display-prices.ts, the same
+    function /pricing and Billing read): REPGET's launch price while its
+    notice is on screen, otherwise the plan's own. It is the large figure and
+    the only one - no regular or list price struck beside it (conservative
+    copy, 2026-11-18).
   */
   const repgetOn = Boolean(offerCopy) && offerCopy?.offer !== "winback";
-  const shown = plan ? planDisplayPrice(plan, repgetOn) : null;
-  const chargedCents = shown?.chargedCents ?? plan?.priceCents ?? 0;
+  const chargedCents = plan ? planDisplayPrice(plan, repgetOn).chargedCents : 0;
   const yearly = Boolean(annual && annualForTier);
-  /** REPGET's launch price applies to this plan: its box says so, under the switch. */
-  const repget = shown?.discount === "repget";
-  /*
-    The large figure, per month. With REPGET it is the REGULAR price, as
-    Daniel's card draws it ("€149 /month"), and the discount box right under
-    it gives the payment checkout takes ("€89 instead of €149"). Otherwise it
-    is what checkout charges - for the Grow + Visibility bundle with its list
-    price struck beside it, as /pricing shows it.
-  */
-  const bigCents = repget ? (plan?.priceCents ?? 0) : chargedCents;
-  const perMonthCents = yearly ? perMonthOfYear(bigCents) : bigCents;
-  const strikeCents =
-    !repget && shown?.strikeCents ? (yearly ? perMonthOfYear(shown.strikeCents) : shown.strikeCents) : null;
+  const perMonthCents = yearly ? perMonthOfYear(chargedCents) : chargedCents;
 
   /**
    * NO CALENDAR DATE IS COMPUTED HERE, deliberately.
@@ -502,9 +491,6 @@ export function PlanStep({
         <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{description}</p>
 
         <div className="mt-4 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-          {strikeCents !== null ? (
-            <del className="text-2xl text-muted-foreground tabular-nums">{money(strikeCents)}</del>
-          ) : null}
           <span className="text-5xl leading-none font-extrabold tracking-tight tabular-nums">
             {money(perMonthCents)}
           </span>
@@ -548,10 +534,10 @@ export function PlanStep({
         ) : null}
 
         {/*
-          The discount box from the design ("REPGET 40% OFF applied" / "Each
-          monthly payment: €89 instead of €149."): the offer's own notice,
-          which states the plan's real payment and renders nothing for a plan
-          the offer does not cover.
+          The offer box from the design ("REPGET launch price applied" / "Each
+          monthly payment: €89."): the offer's own notice, which states the
+          plan's real payment and renders nothing for a plan the offer does
+          not cover.
         */}
         {offerCopy && !directPurchase ? <OfferApplied copy={offerCopy} plan={plan} className="mt-4" /> : null}
 
@@ -630,8 +616,7 @@ export function PlanStep({
           and the charge cannot drift apart. When the plan starts is stated
           plainly rather than left as "cancel any time": someone entering a
           card is owed when money leaves their account, not a reassuring
-          phrase. A yearly plan with REPGET leaves the total to checkout, as
-          the design does; every other figure is planDisplayPrice's.
+          phrase. Every figure is planDisplayPrice's charge, REPGET or not.
         */}
         {directPurchase ? (
           <p className="mt-2.5 text-center text-sm leading-relaxed text-muted-foreground">
@@ -642,13 +627,7 @@ export function PlanStep({
             <strong className="font-semibold text-foreground">
               {copy.trialToday(money(0), TRIAL_DAYS)}
             </strong>{" "}
-            {yearly
-              ? repget
-                ? copy.thenYearDiscounted
-                : copy.thenYear(money(chargedCents))
-              : repget
-                ? copy.thenMonthDiscounted(money(chargedCents), REPGET_PERCENT_OFF)
-                : copy.thenMonth(money(chargedCents))}
+            {yearly ? copy.thenYear(money(chargedCents)) : copy.thenMonth(money(chargedCents))}
           </p>
         ) : (
           <p className="mt-2.5 text-center text-sm leading-relaxed text-muted-foreground">

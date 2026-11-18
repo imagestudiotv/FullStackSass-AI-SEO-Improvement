@@ -10,14 +10,14 @@ import { getMessages } from "@/lib/i18n/messages";
 import { format } from "@/lib/i18n/format";
 import { PLAN_CARDS_COPY } from "@/lib/i18n/plan-cards";
 import { GROW_VISIBILITY_COMPARE_AT_CENTS, TRIAL_DAYS } from "@/lib/plans/features";
+import { referencePriceMatches } from "@/test/reference-price";
 
 import { BUNDLE_STRIPE_COUPONS, catalogRows, REPGET_STRIPE_COUPONS, stripeAmountFor } from "../../../scripts/plan-catalog.mjs";
 import { perMonthOfYear, planDisplayPrice } from "./display-prices";
 
 /**
- * The price a plan screen shows is the price checkout charges (Daniel,
- * 2026-11-13: the original price struck through beside the discounted one,
- * as /pricing does). For every row of the catalogue on sale, with the REPGET
+ * The price a plan screen shows is the price checkout charges, and since
+ * 2026-11-18 (conservative copy) the only price it shows. For every row of the catalogue on sale, with the REPGET
  * offer on and off, what /pricing, Billing and the onboarding step show is
  * worked out here the way checkout works it out: the row's Stripe price
  * amount, less the coupon checkout attaches by itself.
@@ -73,7 +73,7 @@ describe("the price on every plan screen is the price checkout charges", () => {
         const shown = planDisplayPrice(plan, offerOn);
 
         expect(shown.chargedCents).toBe(charged);
-        // Struck through only when something really is taken off, and then the regular price.
+        // What checkout takes off, kept for the record though no screen shows it: only when something really is.
         if (charged === row.priceCents && row.tier !== "grow_visibility") expect(shown.strikeCents).toBeNull();
         else expect(shown.strikeCents).toBe(row.tier === "grow_visibility" ? GROW_VISIBILITY_COMPARE_AT_CENTS : row.priceCents);
         // PayPal's REPGET plans are priced at the launch price, and the bundle's at its row's price: the same figure.
@@ -82,7 +82,8 @@ describe("the price on every plan screen is the price checkout charges", () => {
         // Billing's card: the same figure, per month for a yearly plan, as /pricing quotes it.
         const card = planCardsFor([asPlanRow(row, 0)], { offerOn, trialEligible: false, locale: "en", t })[`plan_${row.tier}_${row.interval}`];
         expect(card.price).toBe(formatMoney(row.interval === "year" ? perMonthOfYear(charged) : charged, "eur", "en"));
-        expect(card.strike === null).toBe(shown.strikeCents === null);
+        expect(card).not.toHaveProperty("strike");
+        expect(card).not.toHaveProperty("badge");
       });
     }
   }
@@ -100,10 +101,23 @@ describe("the price on every plan screen is the price checkout charges", () => {
     }
   });
 
-  it("the bundle is EUR 99 against EUR 299 whether REPGET is on or not, and never takes the launch price", () => {
+  it("the bundle is EUR 99 (its EUR 299 Stripe price less its coupon) whether REPGET is on or not, and never takes the launch price", () => {
     const bundle = { tier: "grow_visibility", interval: "month", currency: "eur", priceCents: 9900 };
     expect(planDisplayPrice(bundle, true)).toEqual({ chargedCents: 9900, strikeCents: 29900, discount: "bundle" });
     expect(planDisplayPrice(bundle, false)).toEqual({ chargedCents: 9900, strikeCents: 29900, discount: "bundle" });
+  });
+
+  it("Billing's cards say the charged price only, in every language, REPGET on or off", () => {
+    for (const locale of ["en", "es", "fr", "it", "de"] as const) {
+      for (const offerOn of [true, false]) {
+        for (const trialEligible of [true, false]) {
+          const cards = planCardsFor(rows.map(asPlanRow), { offerOn, trialEligible, locale, t: getMessages(locale).app.billing });
+          for (const card of Object.values(cards)) {
+            expect(referencePriceMatches([card.price, card.caption, ...card.terms].join("\n")), `${locale} ${card.price}`).toEqual([]);
+          }
+        }
+      }
+    }
   });
 
   it("a price no coupon was made for is shown as it is, offer or not", () => {
@@ -127,15 +141,16 @@ describe("the plan cards' terms", () => {
       format(PLAN_CARDS_COPY.en.trial, { n: TRIAL_DAYS, days: TRIAL_DAYS }),
       "Then €59 a month, renewing until you cancel.",
     ]);
-    expect(card.strike).toBe("€99");
-    expect(card.badge).toBe("40% OFF");
+    expect(card.price).toBe("€59");
+    expect(card.caption).toBe("Billed monthly");
     // PayPal without its trial plan starts at once, and says so.
     expect(card.paypalNote).toBe(PLAN_CARDS_COPY.en.paypalNoTrial);
     // Every placeholder filled, and no longer the legacy offer's 30 days.
     expect(card.terms[0]).not.toMatch(/\{\w+\}|30 days/);
     const later = planCardsFor([plan], { offerOn: false, trialEligible: false, locale: "en", t })[plan.id];
     expect(later.terms).toEqual(["€99 charged today, then every month until you cancel."]);
-    expect(later.strike).toBeNull();
+    expect(later.price).toBe("€99");
+    expect(later.caption).toBe("Billed monthly");
   });
 
   it("Grow + Visibility: a direct purchase, never a free trial", () => {
@@ -143,9 +158,9 @@ describe("the plan cards' terms", () => {
     const card = planCardsFor([plan], { offerOn: true, trialEligible: true, locale: "en", t })[plan.id];
     expect(card.terms).toEqual(["€99 billed at checkout, then monthly. The 3-day free trial does not apply to this offer."]);
     expect(card.directBadge).toBe("Direct purchase");
-    expect(card.strike).toBe("€299");
+    expect(card.price).toBe("€99");
     expect(card.paypalNote).toBeNull();
-    expect(card.perks.map((perk) => perk.strong)).toEqual(["40K+ social followers", "DR 60 blog feature", "Email spotlight"]);
+    expect(card.perks.map((perk) => perk.strong)).toEqual(["Featured on RepGet social channels", "RepGet blog feature", "Email spotlight"]);
   });
 
   it("lists social posts, videos, AI Growth Copilot and AI Social Opportunities, in every language", () => {

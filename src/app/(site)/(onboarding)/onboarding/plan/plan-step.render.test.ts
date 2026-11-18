@@ -17,9 +17,11 @@ vi.mock("@/lib/auth/confirm-email-actions", () => ({ confirmEmail: vi.fn() }));
 
 import { DIRECT_PURCHASE } from "@/lib/i18n/direct-purchase";
 import { format } from "@/lib/i18n/format";
+import { LOCALES } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
 import { OFFER_CODE } from "@/lib/i18n/offer-code";
 import { TRIAL_DAYS } from "@/lib/plans/features";
+import { referencePriceMatches } from "@/test/reference-price";
 
 import { PlanStep } from "./plan-step";
 
@@ -160,25 +162,26 @@ describe("PayPal on the plan step", () => {
 });
 
 describe("REPGET, applied automatically (2026-11-11)", () => {
-  it("says the discount is applied, with the plan's launch price on every payment, instead of asking for a code", () => {
+  it("says the launch price is applied, with the plan's payment on every payment, instead of asking for a code", () => {
     const html = render({ monthlyPlans: [GROW_2], offerCopy: OFFER_CODE.en });
     expect(html).toContain(OFFER_CODE.en.label);
-    expect(html).toContain("Each monthly payment: €89 instead of €149.");
-    expect(html).toContain("40% off regular price on every payment");
+    expect(html).toContain("REPGET launch price applied");
+    expect(html).toContain("Each monthly payment: €89.");
+    expect(html).toContain("The launch price applies to every payment, monthly or yearly.");
     expect(html).not.toMatch(/<input[^>]*maxLength="24"/i);
   });
 
-  it("shows the regular price large with the discount in its box, and quotes the launch price in the trial's terms", () => {
+  it("shows the launch price large, the only price on the card, and quotes it in the trial's terms", () => {
     const html = render({ monthlyPlans: [GROW_2], offerCopy: OFFER_CODE.en, trialEligible: true });
-    // Daniel's card: "€149 /month", then the box "€89 instead of €149" - nothing struck.
-    expect(html).toMatch(/text-5xl[^>]*>€149</);
+    expect(html).toMatch(/text-5xl[^>]*>€89</);
+    expect(html).not.toContain("€149");
     expect(html).not.toContain("<del");
     expect(html).toContain("€0 today · 3 days free.");
-    expect(html).toContain("Then €89/month with your 40% discount, unless you cancel before the trial ends.");
-    // Off: the regular price alone, and no discount in the terms.
+    expect(html).toContain("Then €89/month, unless you cancel before the trial ends.");
+    // Off: the plan's own price, said the same way.
     const plain = render({ monthlyPlans: [GROW_2] });
+    expect(plain).toMatch(/text-5xl[^>]*>€149</);
     expect(plain).not.toContain("<del");
-    expect(plain).not.toContain("with your 40% discount");
     expect(plain).toContain("Then €149/month, unless you cancel before the trial ends.");
   });
 
@@ -190,9 +193,37 @@ describe("REPGET, applied automatically (2026-11-11)", () => {
   it("says nothing for a plan it does not cover, or while the offer is off (no copy passed)", () => {
     const covered = render({ offerCopy: OFFER_CODE.en });
     expect(covered).not.toContain(OFFER_CODE.en.label);
-    expect(covered).not.toContain("with your 40% discount");
+    expect(covered).toContain("Then €99/month, unless you cancel before the trial ends.");
     expect(render({ monthlyPlans: [GROW_2] })).not.toContain(OFFER_CODE.en.label);
   });
+});
+
+describe("the charged price only (conservative copy, 2026-11-18)", () => {
+  const BUNDLE = { ...GROW, id: "plan_bundle", tier: "grow_visibility", name: "Grow + Visibility", priceCents: 9900 };
+
+  for (const locale of LOCALES) {
+    for (const offer of [true, false]) {
+      it(`${locale}, REPGET ${offer ? "on" : "off"}: the price checkout charges, nothing struck, no percentage off`, () => {
+        const offerCopy = offer ? OFFER_CODE[locale] : null;
+        const tiers = render({ locale, t: getMessages(locale).app.onboarding, monthlyPlans: [GROW_2], offerCopy });
+        expect(tiers).toMatch(new RegExp(`text-5xl[^>]*>${offer ? "€89" : "€149"}<`));
+        if (offer) expect(tiers).not.toContain("€149");
+        expect(referencePriceMatches(tiers)).toEqual([]);
+
+        const bundle = render({
+          locale,
+          t: getMessages(locale).app.onboarding,
+          monthlyPlans: [BUNDLE],
+          paypalPlanIds: [BUNDLE.id],
+          directPurchase: DIRECT_PURCHASE[locale],
+          offerCopy,
+        });
+        expect(bundle).toMatch(/text-5xl[^>]*>€99</);
+        expect(bundle).not.toContain("€299");
+        expect(referencePriceMatches(bundle)).toEqual([]);
+      });
+    }
+  }
 });
 
 describe("a direct purchase on the plan step (Grow + Visibility)", () => {
@@ -212,8 +243,10 @@ describe("a direct purchase on the plan step (Grow + Visibility)", () => {
     expect(html).not.toContain(OFFER_CODE.en.label);
     expect(html).not.toContain(markup(t.paypalNoTrial));
     expect(paypalButton(html)).not.toMatch(/disabled=""/);
-    // Its list value struck through, as /pricing shows it; the charge stays EUR 99.
-    expect(html).toMatch(/<del[^>]*>€299<\/del>/);
+    // Its charge alone: no list value struck through beside it.
+    expect(html).toMatch(/text-5xl[^>]*>€99</);
+    expect(html).not.toContain("<del");
+    expect(html).not.toContain("€299");
     // The same card styling as the trial plans.
     expect(html).toMatch(/rounded-\[19px\] border-\[1\.5px\] border-primary/);
   });

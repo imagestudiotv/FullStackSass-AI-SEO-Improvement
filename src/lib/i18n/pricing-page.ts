@@ -10,9 +10,13 @@ import type { Locale } from "@/lib/i18n/config";
  *
  * The figures are NOT written here. Prices, articles, social posts and search
  * terms come from the plans table, the rows checkout charges
- * (scripts/plan-catalog.mjs): `{articles}`, `{posts}`, `{terms}`, `{price}`,
- * `{regular}`, `{pct}` and `{n}` are filled in by the page. `**words**` are
- * bold.
+ * (scripts/plan-catalog.mjs): `{articles}`, `{posts}`, `{terms}`, `{price}`
+ * and `{n}` are filled in by the page. `**words**` are bold.
+ *
+ * `{price}` IS WHAT CHECKOUT CHARGES, and the only price said: no regular or
+ * reference price beside it, struck through or not, and no percentage off it
+ * (conservative copy for the ads pilot, 2026-11-18: the owner has no evidence
+ * for a reference price), REPGET offer on or off.
  */
 
 export type PricingTierId = "launch" | "grow" | "scale";
@@ -34,7 +38,6 @@ export type PricingPageCopy = {
   hero: { titleLead: string; titleAccent: string; body: string; pills: [string, string, string] };
   bundle: {
     flag: string;
-    sale: string;
     lede: string;
     priceLabel: string;
     perMonth: string;
@@ -55,16 +58,12 @@ export type PricingPageCopy = {
     bonusIntro: string;
     bonuses: [PerkItem, PerkItem, PerkItem];
   };
-  billing: { sectionLabel: string; label: string; monthly: string; yearly: string; saving: string; savingPlain: string };
+  billing: { sectionLabel: string; label: string; monthly: string; yearly: string; saving: string };
   card: {
-    offerBadge: string;
-    wasLabel: string;
     perMonth: string;
+    /** How the charged price is billed, said plainly: the same words with the REPGET offer on or off. */
     monthlyCaption: string;
     yearlyCaption: string;
-    /** Without the REPGET offer (REPGET_OFFER_ENABLED off): the regular price, said plainly. */
-    plainMonthlyCaption: string;
-    plainYearlyCaption: string;
     more: string;
     popular: string;
     perksTitle: string;
@@ -135,9 +134,8 @@ const en: PricingPageCopy = {
   },
   bundle: {
     flag: "GROWTH, AMPLIFIED.",
-    sale: "SAVE {pct}% ON THE FULL BUNDLE",
     lede: "The full Grow plan. Plus a bigger stage for your brand.",
-    priceLabel: "Grow plus Visibility bundle price {regular} per month, promotional price {price} per month",
+    priceLabel: "Grow plus Visibility bundle price {price} per month",
     perMonth: "/ month",
     featureKicker: "VISIBILITY INCLUDED",
     featureTitle: "Get featured on *Social channels* & our *Blog.*",
@@ -149,7 +147,7 @@ const en: PricingPageCopy = {
     coreEyebrow: "01 / THE COMPLETE GROW PLAN",
     corePill: "All standard features",
     stats: [
-      { strong: "branded articles / mo", small: "2 daily, with images" },
+      { strong: "branded articles / mo", small: "2 daily" },
       { strong: "social posts / mo", small: "For your channels" },
       { strong: "search terms", small: "Researched & clustered" },
     ],
@@ -167,8 +165,8 @@ const en: PricingPageCopy = {
     bonusPill: "INCLUDED WITH THIS BUNDLE",
     bonusIntro: "Added promotion beyond your own channels",
     bonuses: [
-      { strong: "40K+ social followers", small: "Get featured across RepGet's social channels" },
-      { strong: "DR 60 blog feature", small: "Introduce your business to readers of our blog" },
+      { strong: "Featured on RepGet social channels", small: "Get featured across RepGet's social channels" },
+      { strong: "RepGet blog feature", small: "Introduce your business to readers of our blog" },
       { strong: "Email spotlight", small: "Promotion to RepGet's subscriber audience" },
     ],
   },
@@ -177,17 +175,12 @@ const en: PricingPageCopy = {
     label: "Choose billing period",
     monthly: "Monthly",
     yearly: "Yearly",
-    saving: "Yearly: 2 months free, plus 40% off",
-    savingPlain: "Yearly: 2 months free",
+    saving: "Yearly: 2 months free",
   },
   card: {
-    offerBadge: "40% OFF",
-    wasLabel: "regular price",
     perMonth: "/ month",
-    monthlyCaption: "40% off regular price · billed monthly",
-    yearlyCaption: "Billed {price}/year · was {regular}/year",
-    plainMonthlyCaption: "Billed monthly",
-    plainYearlyCaption: "Billed {price}/year",
+    monthlyCaption: "Billed monthly",
+    yearlyCaption: "Billed {price}/year",
     more: "Explore full feature comparison",
     popular: "Most popular",
     perksTitle: "Included visibility perks",
@@ -201,7 +194,7 @@ const en: PricingPageCopy = {
       cta: "Start with Launch",
       includedLabel: "Your monthly growth toolkit",
       features: [
-        "**{articles} SEO articles** with images",
+        "**{articles} SEO articles**",
         "**{posts} social posts** to keep showing up",
         "**{terms} search terms** researched",
         "**1 website** connected",
@@ -218,7 +211,7 @@ const en: PricingPageCopy = {
       cta: "Start with Grow",
       includedLabel: "Everything in Launch, with more volume",
       features: [
-        "**{articles} SEO articles** with images",
+        "**{articles} SEO articles**",
         "**{posts} social posts** across platforms",
         "**{terms} search terms** researched",
         "**1 website** connected",
@@ -229,7 +222,7 @@ const en: PricingPageCopy = {
         "**AI Social Opportunities** to discover conversations and draft replies",
       ],
       perks: [
-        { strong: "DR 60+ RepGet blog feature", small: "Introduce your business to blog readers" },
+        { strong: "RepGet blog feature", small: "Introduce your business to blog readers" },
         { strong: "Featured on RepGet social channels", small: "Reach RepGet's established social audience" },
         { strong: "Email spotlight", small: "Promotion to RepGet's subscriber audience" },
       ],
@@ -240,7 +233,7 @@ const en: PricingPageCopy = {
       cta: "Start with Scale",
       includedLabel: "Everything in Grow, plus more capacity",
       features: [
-        "**{articles} SEO articles** with images",
+        "**{articles} SEO articles**",
         "**{posts} social posts** across platforms",
         "**{terms} search terms** researched",
         "**1 website** connected",
@@ -251,7 +244,7 @@ const en: PricingPageCopy = {
         "**AI Social Opportunities** to discover conversations and draft replies",
       ],
       perks: [
-        { strong: "Priority DR 60+ RepGet blog feature", small: "Featured editorial exposure" },
+        { strong: "Priority RepGet blog feature", small: "Featured editorial exposure" },
         { strong: "Priority RepGet social channel feature", small: "Promotion across RepGet's social audience" },
         { strong: "Priority email spotlight", small: "Promotion to RepGet's subscriber audience" },
       ],
@@ -272,7 +265,7 @@ const en: PricingPageCopy = {
     audits: "SEO site audits & article meta descriptions",
     visibility: "Weekly AI answer checks (Claude)",
     backlinks: "Backlink partner network",
-    blog: { strong: "DR 60+ RepGet blog feature", small: "Featured placement on RepGet's blog" },
+    blog: { strong: "RepGet blog feature", small: "Featured placement on RepGet's blog" },
     channels: { strong: "RepGet social channel feature", small: "Promotion through RepGet social channels" },
     email: { strong: "Email spotlight", small: "Promotion to RepGet's subscribers" },
     custom: "Custom feature requests",
@@ -395,11 +388,11 @@ const en: PricingPageCopy = {
         items: [
           {
             q: "Do Grow and Scale include promotional features?",
-            a: "Yes. Grow includes a DR 60+ RepGet blog feature, social-channel exposure and an email spotlight. Scale includes priority versions of these benefits. The timing and scope of each placement are defined by RepGet's published promotion terms.",
+            a: "Yes. Grow includes a RepGet blog feature, social-channel exposure and an email spotlight. Scale includes priority versions of these benefits.",
           },
           {
             q: "What does priority promotion mean in Scale?",
-            a: "Scale gives promotional placements priority over standard Grow placements, subject to availability and agreed campaign terms. Priority is not a guarantee of search rankings, traffic or conversions.",
+            a: "Scale gives promotional placements priority over standard Grow placements, subject to availability. Priority is not a guarantee of search rankings, traffic or conversions.",
           },
           {
             q: "What is included in Grow + Visibility?",
@@ -411,11 +404,11 @@ const en: PricingPageCopy = {
           },
           {
             q: "Where could my business be featured?",
-            a: "The offer highlights RepGet social channels with a combined audience of 40K+ followers, an editorial feature on the RepGet blog and exposure through subscriber email communications.",
+            a: "The offer highlights RepGet social channels, an editorial feature on the RepGet blog and exposure through subscriber email communications.",
           },
           {
             q: "Are the promotional bonuses unlimited every month?",
-            a: "No. The promotional features are extras on top of the monthly Grow platform subscription, not unlimited posts, emails or guaranteed ranking results. Their delivery schedule and scope should be defined in the offer terms.",
+            a: "No. The promotional features are extras on top of the monthly Grow platform subscription, not unlimited posts, emails or guaranteed ranking results.",
           },
         ],
       },
@@ -452,9 +445,8 @@ const es: PricingPageCopy = {
   },
   bundle: {
     flag: "CRECIMIENTO, AMPLIFICADO.",
-    sale: "AHORRE UN {pct} % EN EL PAQUETE COMPLETO",
     lede: "El plan Grow completo. Y un escenario más grande para su marca.",
-    priceLabel: "Precio del paquete Grow más Visibility {regular} al mes, precio promocional {price} al mes",
+    priceLabel: "Precio del paquete Grow más Visibility {price} al mes",
     perMonth: "/ mes",
     featureKicker: "VISIBILIDAD INCLUIDA",
     featureTitle: "Aparezca en nuestras *redes sociales* y en nuestro *blog.*",
@@ -466,7 +458,7 @@ const es: PricingPageCopy = {
     coreEyebrow: "01 / EL PLAN GROW COMPLETO",
     corePill: "Todas las funciones estándar",
     stats: [
-      { strong: "artículos de marca / mes", small: "2 al día, con imágenes" },
+      { strong: "artículos de marca / mes", small: "2 al día" },
       { strong: "publicaciones sociales / mes", small: "Para sus canales" },
       { strong: "términos de búsqueda", small: "Investigados y agrupados" },
     ],
@@ -484,8 +476,8 @@ const es: PricingPageCopy = {
     bonusPill: "INCLUIDO EN ESTE PAQUETE",
     bonusIntro: "Promoción adicional más allá de sus propios canales",
     bonuses: [
-      { strong: "Más de 40K seguidores en redes", small: "Aparezca en los canales sociales de RepGet" },
-      { strong: "Artículo en un blog DR 60", small: "Presente su negocio a los lectores de nuestro blog" },
+      { strong: "Presencia en las redes sociales de RepGet", small: "Aparezca en los canales sociales de RepGet" },
+      { strong: "Artículo en el blog de RepGet", small: "Presente su negocio a los lectores de nuestro blog" },
       { strong: "Mención en nuestro correo", small: "Promoción ante los suscriptores de RepGet" },
     ],
   },
@@ -494,17 +486,12 @@ const es: PricingPageCopy = {
     label: "Elija el periodo de facturación",
     monthly: "Mensual",
     yearly: "Anual",
-    saving: "Anual: 2 meses gratis y un 40 % de descuento",
-    savingPlain: "Anual: 2 meses gratis",
+    saving: "Anual: 2 meses gratis",
   },
   card: {
-    offerBadge: "40 % DTO.",
-    wasLabel: "precio normal",
     perMonth: "/ mes",
-    monthlyCaption: "40 % de descuento sobre el precio normal · facturación mensual",
-    yearlyCaption: "Facturado {price}/año · antes {regular}/año",
-    plainMonthlyCaption: "Facturación mensual",
-    plainYearlyCaption: "Facturado {price}/año",
+    monthlyCaption: "Facturación mensual",
+    yearlyCaption: "Facturado {price}/año",
     more: "Ver la comparación completa",
     popular: "El más popular",
     perksTitle: "Ventajas de visibilidad incluidas",
@@ -518,7 +505,7 @@ const es: PricingPageCopy = {
       cta: "Empezar con Launch",
       includedLabel: "Su kit mensual de crecimiento",
       features: [
-        "**{articles} artículos SEO** con imágenes",
+        "**{articles} artículos SEO**",
         "**{posts} publicaciones sociales** para seguir presente",
         "**{terms} términos de búsqueda** investigados",
         "**1 sitio web** conectado",
@@ -535,7 +522,7 @@ const es: PricingPageCopy = {
       cta: "Empezar con Grow",
       includedLabel: "Todo lo de Launch, con más volumen",
       features: [
-        "**{articles} artículos SEO** con imágenes",
+        "**{articles} artículos SEO**",
         "**{posts} publicaciones sociales** en varias plataformas",
         "**{terms} términos de búsqueda** investigados",
         "**1 sitio web** conectado",
@@ -546,7 +533,7 @@ const es: PricingPageCopy = {
         "**AI Social Opportunities** para descubrir conversaciones y redactar respuestas",
       ],
       perks: [
-        { strong: "Artículo en el blog de RepGet (DR 60+)", small: "Presente su negocio a los lectores del blog" },
+        { strong: "Artículo en el blog de RepGet", small: "Presente su negocio a los lectores del blog" },
         { strong: "Presencia en las redes sociales de RepGet", small: "Llegue a la audiencia social consolidada de RepGet" },
         { strong: "Mención en nuestro correo", small: "Promoción ante los suscriptores de RepGet" },
       ],
@@ -557,7 +544,7 @@ const es: PricingPageCopy = {
       cta: "Empezar con Scale",
       includedLabel: "Todo lo de Grow, con más capacidad",
       features: [
-        "**{articles} artículos SEO** con imágenes",
+        "**{articles} artículos SEO**",
         "**{posts} publicaciones sociales** en varias plataformas",
         "**{terms} términos de búsqueda** investigados",
         "**1 sitio web** conectado",
@@ -568,7 +555,7 @@ const es: PricingPageCopy = {
         "**AI Social Opportunities** para descubrir conversaciones y redactar respuestas",
       ],
       perks: [
-        { strong: "Artículo prioritario en el blog de RepGet (DR 60+)", small: "Visibilidad editorial destacada" },
+        { strong: "Artículo prioritario en el blog de RepGet", small: "Visibilidad editorial destacada" },
         { strong: "Presencia prioritaria en las redes de RepGet", small: "Promoción ante la audiencia social de RepGet" },
         { strong: "Mención prioritaria en nuestro correo", small: "Promoción ante los suscriptores de RepGet" },
       ],
@@ -589,7 +576,7 @@ const es: PricingPageCopy = {
     audits: "Auditorías SEO y metadescripciones de los artículos",
     visibility: "Comprobación semanal de respuestas de IA (Claude)",
     backlinks: "Red de socios de backlinks",
-    blog: { strong: "Artículo en el blog de RepGet (DR 60+)", small: "Espacio destacado en el blog de RepGet" },
+    blog: { strong: "Artículo en el blog de RepGet", small: "Espacio destacado en el blog de RepGet" },
     channels: { strong: "Presencia en las redes sociales de RepGet", small: "Promoción en los canales sociales de RepGet" },
     email: { strong: "Mención en nuestro correo", small: "Promoción ante los suscriptores de RepGet" },
     custom: "Solicitudes de funciones a medida",
@@ -712,11 +699,11 @@ const es: PricingPageCopy = {
         items: [
           {
             q: "¿Grow y Scale incluyen funciones promocionales?",
-            a: "Sí. Grow incluye un artículo en el blog de RepGet (DR 60+), presencia en las redes sociales y una mención en nuestro correo. Scale incluye versiones prioritarias de estas ventajas. El calendario y el alcance de cada colocación se definen en las condiciones de promoción publicadas por RepGet.",
+            a: "Sí. Grow incluye un artículo en el blog de RepGet, presencia en las redes sociales y una mención en nuestro correo. Scale incluye versiones prioritarias de estas ventajas.",
           },
           {
             q: "¿Qué significa la promoción prioritaria en Scale?",
-            a: "Scale da prioridad a sus colocaciones promocionales frente a las colocaciones estándar de Grow, según disponibilidad y las condiciones de campaña acordadas. La prioridad no garantiza posiciones en buscadores, tráfico ni conversiones.",
+            a: "Scale da prioridad a sus colocaciones promocionales frente a las colocaciones estándar de Grow, según disponibilidad. La prioridad no garantiza posiciones en buscadores, tráfico ni conversiones.",
           },
           {
             q: "¿Qué incluye Grow + Visibility?",
@@ -728,11 +715,11 @@ const es: PricingPageCopy = {
           },
           {
             q: "¿Dónde podría aparecer mi negocio?",
-            a: "La oferta destaca los canales sociales de RepGet, con una audiencia conjunta de más de 40K seguidores, un artículo editorial en el blog de RepGet y visibilidad en los correos a nuestros suscriptores.",
+            a: "La oferta destaca los canales sociales de RepGet, un artículo editorial en el blog de RepGet y visibilidad en los correos a nuestros suscriptores.",
           },
           {
             q: "¿Las ventajas promocionales son ilimitadas cada mes?",
-            a: "No. Las funciones promocionales son extras de la suscripción mensual a la plataforma Grow, no publicaciones ni correos ilimitados, ni resultados de posicionamiento garantizados. Su calendario de entrega y su alcance deben definirse en las condiciones de la oferta.",
+            a: "No. Las funciones promocionales son extras de la suscripción mensual a la plataforma Grow, no publicaciones ni correos ilimitados, ni resultados de posicionamiento garantizados.",
           },
         ],
       },
@@ -769,9 +756,8 @@ const fr: PricingPageCopy = {
   },
   bundle: {
     flag: "LA CROISSANCE, AMPLIFIÉE.",
-    sale: "ÉCONOMISEZ {pct} % SUR L'OFFRE COMPLÈTE",
     lede: "La formule Grow complète. Et une plus grande scène pour votre marque.",
-    priceLabel: "Prix de l'offre Grow plus Visibility {regular} par mois, prix promotionnel {price} par mois",
+    priceLabel: "Prix de l'offre Grow plus Visibility {price} par mois",
     perMonth: "/ mois",
     featureKicker: "VISIBILITÉ INCLUSE",
     featureTitle: "Soyez mis en avant sur nos *réseaux sociaux* et notre *blog.*",
@@ -783,7 +769,7 @@ const fr: PricingPageCopy = {
     coreEyebrow: "01 / LA FORMULE GROW COMPLÈTE",
     corePill: "Toutes les fonctions standard",
     stats: [
-      { strong: "articles de marque / mois", small: "2 par jour, avec images" },
+      { strong: "articles de marque / mois", small: "2 par jour" },
       { strong: "publications sociales / mois", small: "Pour vos canaux" },
       { strong: "termes de recherche", small: "Étudiés et regroupés" },
     ],
@@ -801,8 +787,8 @@ const fr: PricingPageCopy = {
     bonusPill: "INCLUS DANS CETTE OFFRE",
     bonusIntro: "Une promotion supplémentaire au-delà de vos propres canaux",
     bonuses: [
-      { strong: "Plus de 40K abonnés sur les réseaux", small: "Soyez mis en avant sur les réseaux sociaux de RepGet" },
-      { strong: "Article sur un blog DR 60", small: "Présentez votre entreprise aux lecteurs de notre blog" },
+      { strong: "Mise en avant sur les réseaux de RepGet", small: "Soyez mis en avant sur les réseaux sociaux de RepGet" },
+      { strong: "Article sur le blog RepGet", small: "Présentez votre entreprise aux lecteurs de notre blog" },
       { strong: "Mise en avant par e-mail", small: "Promotion auprès des abonnés de RepGet" },
     ],
   },
@@ -811,17 +797,12 @@ const fr: PricingPageCopy = {
     label: "Choisissez la période de facturation",
     monthly: "Mensuel",
     yearly: "Annuel",
-    saving: "Annuel : 2 mois offerts, et 40 % de réduction",
-    savingPlain: "Annuel : 2 mois offerts",
+    saving: "Annuel : 2 mois offerts",
   },
   card: {
-    offerBadge: "-40 %",
-    wasLabel: "prix normal",
     perMonth: "/ mois",
-    monthlyCaption: "40 % de réduction sur le prix normal · facturé chaque mois",
-    yearlyCaption: "Facturé {price}/an · au lieu de {regular}/an",
-    plainMonthlyCaption: "Facturé chaque mois",
-    plainYearlyCaption: "Facturé {price}/an",
+    monthlyCaption: "Facturé chaque mois",
+    yearlyCaption: "Facturé {price}/an",
     more: "Voir la comparaison complète",
     popular: "La plus choisie",
     perksTitle: "Avantages de visibilité inclus",
@@ -835,7 +816,7 @@ const fr: PricingPageCopy = {
       cta: "Commencer avec Launch",
       includedLabel: "Votre boîte à outils de croissance mensuelle",
       features: [
-        "**{articles} articles SEO** avec images",
+        "**{articles} articles SEO**",
         "**{posts} publications sociales** pour rester présent",
         "**{terms} termes de recherche** étudiés",
         "**1 site web** connecté",
@@ -852,7 +833,7 @@ const fr: PricingPageCopy = {
       cta: "Commencer avec Grow",
       includedLabel: "Tout Launch, avec plus de volume",
       features: [
-        "**{articles} articles SEO** avec images",
+        "**{articles} articles SEO**",
         "**{posts} publications sociales** sur plusieurs plateformes",
         "**{terms} termes de recherche** étudiés",
         "**1 site web** connecté",
@@ -863,7 +844,7 @@ const fr: PricingPageCopy = {
         "**AI Social Opportunities** pour trouver des conversations et rédiger des réponses",
       ],
       perks: [
-        { strong: "Article sur le blog RepGet (DR 60+)", small: "Présentez votre entreprise aux lecteurs du blog" },
+        { strong: "Article sur le blog RepGet", small: "Présentez votre entreprise aux lecteurs du blog" },
         { strong: "Mise en avant sur les réseaux de RepGet", small: "Touchez l'audience sociale établie de RepGet" },
         { strong: "Mise en avant par e-mail", small: "Promotion auprès des abonnés de RepGet" },
       ],
@@ -874,7 +855,7 @@ const fr: PricingPageCopy = {
       cta: "Commencer avec Scale",
       includedLabel: "Tout Grow, avec plus de capacité",
       features: [
-        "**{articles} articles SEO** avec images",
+        "**{articles} articles SEO**",
         "**{posts} publications sociales** sur plusieurs plateformes",
         "**{terms} termes de recherche** étudiés",
         "**1 site web** connecté",
@@ -885,7 +866,7 @@ const fr: PricingPageCopy = {
         "**AI Social Opportunities** pour trouver des conversations et rédiger des réponses",
       ],
       perks: [
-        { strong: "Article prioritaire sur le blog RepGet (DR 60+)", small: "Une visibilité éditoriale mise en avant" },
+        { strong: "Article prioritaire sur le blog RepGet", small: "Une visibilité éditoriale mise en avant" },
         { strong: "Mise en avant prioritaire sur les réseaux de RepGet", small: "Promotion auprès de l'audience sociale de RepGet" },
         { strong: "Mise en avant prioritaire par e-mail", small: "Promotion auprès des abonnés de RepGet" },
       ],
@@ -906,7 +887,7 @@ const fr: PricingPageCopy = {
     audits: "Audits SEO et méta-descriptions des articles",
     visibility: "Vérification hebdomadaire des réponses de l’IA (Claude)",
     backlinks: "Réseau de partenaires de backlinks",
-    blog: { strong: "Article sur le blog RepGet (DR 60+)", small: "Un emplacement mis en avant sur le blog de RepGet" },
+    blog: { strong: "Article sur le blog RepGet", small: "Un emplacement mis en avant sur le blog de RepGet" },
     channels: { strong: "Mise en avant sur les réseaux de RepGet", small: "Promotion via les réseaux sociaux de RepGet" },
     email: { strong: "Mise en avant par e-mail", small: "Promotion auprès des abonnés de RepGet" },
     custom: "Demandes de fonctionnalités sur mesure",
@@ -1029,11 +1010,11 @@ const fr: PricingPageCopy = {
         items: [
           {
             q: "Grow et Scale comprennent-elles des fonctions promotionnelles ?",
-            a: "Oui. Grow comprend un article sur le blog RepGet (DR 60+), une présence sur les réseaux sociaux et une mise en avant par e-mail. Scale comprend des versions prioritaires de ces avantages. Le calendrier et la portée de chaque mise en avant sont définis par les conditions de promotion publiées par RepGet.",
+            a: "Oui. Grow comprend un article sur le blog RepGet, une présence sur les réseaux sociaux et une mise en avant par e-mail. Scale comprend des versions prioritaires de ces avantages.",
           },
           {
             q: "Que signifie la promotion prioritaire dans Scale ?",
-            a: "Scale donne à vos mises en avant la priorité sur celles de la formule Grow standard, selon les disponibilités et les conditions de campagne convenues. La priorité ne garantit ni positions dans les moteurs de recherche, ni trafic, ni conversions.",
+            a: "Scale donne à vos mises en avant la priorité sur celles de la formule Grow standard, selon les disponibilités. La priorité ne garantit ni positions dans les moteurs de recherche, ni trafic, ni conversions.",
           },
           {
             q: "Que comprend Grow + Visibility ?",
@@ -1045,11 +1026,11 @@ const fr: PricingPageCopy = {
           },
           {
             q: "Où mon entreprise pourrait-elle être mise en avant ?",
-            a: "L'offre met en avant les réseaux sociaux de RepGet, avec une audience cumulée de plus de 40K abonnés, un article éditorial sur le blog RepGet et une visibilité dans les e-mails envoyés aux abonnés.",
+            a: "L'offre met en avant les réseaux sociaux de RepGet, un article éditorial sur le blog RepGet et une visibilité dans les e-mails envoyés aux abonnés.",
           },
           {
             q: "Les avantages promotionnels sont-ils illimités chaque mois ?",
-            a: "Non. Les fonctions promotionnelles sont des extras de l'abonnement mensuel à la plateforme Grow, et non des publications ou e-mails illimités ni des résultats de classement garantis. Leur calendrier et leur portée doivent être définis dans les conditions de l'offre.",
+            a: "Non. Les fonctions promotionnelles sont des extras de l'abonnement mensuel à la plateforme Grow, et non des publications ou e-mails illimités ni des résultats de classement garantis.",
           },
         ],
       },
@@ -1086,9 +1067,8 @@ const it: PricingPageCopy = {
   },
   bundle: {
     flag: "CRESCITA, AMPLIFICATA.",
-    sale: "RISPARMI IL {pct}% SUL PACCHETTO COMPLETO",
     lede: "Il piano Grow completo. In più, un palcoscenico più grande per il suo marchio.",
-    priceLabel: "Prezzo del pacchetto Grow più Visibility {regular} al mese, prezzo promozionale {price} al mese",
+    priceLabel: "Prezzo del pacchetto Grow più Visibility {price} al mese",
     perMonth: "/ mese",
     featureKicker: "VISIBILITÀ INCLUSA",
     featureTitle: "Compaia sui nostri *canali social* e sul nostro *blog.*",
@@ -1100,7 +1080,7 @@ const it: PricingPageCopy = {
     coreEyebrow: "01 / IL PIANO GROW COMPLETO",
     corePill: "Tutte le funzioni standard",
     stats: [
-      { strong: "articoli brandizzati / mese", small: "2 al giorno, con immagini" },
+      { strong: "articoli brandizzati / mese", small: "2 al giorno" },
       { strong: "post social / mese", small: "Per i suoi canali" },
       { strong: "termini di ricerca", small: "Analizzati e raggruppati" },
     ],
@@ -1118,8 +1098,8 @@ const it: PricingPageCopy = {
     bonusPill: "INCLUSO IN QUESTO PACCHETTO",
     bonusIntro: "Promozione aggiuntiva oltre ai suoi canali",
     bonuses: [
-      { strong: "Oltre 40K follower social", small: "Compaia sui canali social di RepGet" },
-      { strong: "Articolo su un blog DR 60", small: "Presenti la sua attività ai lettori del nostro blog" },
+      { strong: "Presenza sui canali social di RepGet", small: "Compaia sui canali social di RepGet" },
+      { strong: "Articolo sul blog di RepGet", small: "Presenti la sua attività ai lettori del nostro blog" },
       { strong: "Spazio nella nostra email", small: "Promozione presso gli iscritti di RepGet" },
     ],
   },
@@ -1128,17 +1108,12 @@ const it: PricingPageCopy = {
     label: "Scelga il periodo di fatturazione",
     monthly: "Mensile",
     yearly: "Annuale",
-    saving: "Annuale: 2 mesi gratis, più il 40% di sconto",
-    savingPlain: "Annuale: 2 mesi gratis",
+    saving: "Annuale: 2 mesi gratis",
   },
   card: {
-    offerBadge: "-40%",
-    wasLabel: "prezzo normale",
     perMonth: "/ mese",
-    monthlyCaption: "40% di sconto sul prezzo normale · fatturazione mensile",
-    yearlyCaption: "Fatturato {price}/anno · prima {regular}/anno",
-    plainMonthlyCaption: "Fatturazione mensile",
-    plainYearlyCaption: "Fatturato {price}/anno",
+    monthlyCaption: "Fatturazione mensile",
+    yearlyCaption: "Fatturato {price}/anno",
     more: "Vedi il confronto completo",
     popular: "Il più scelto",
     perksTitle: "Vantaggi di visibilità inclusi",
@@ -1152,7 +1127,7 @@ const it: PricingPageCopy = {
       cta: "Inizia con Launch",
       includedLabel: "Il suo kit mensile per crescere",
       features: [
-        "**{articles} articoli SEO** con immagini",
+        "**{articles} articoli SEO**",
         "**{posts} post social** per restare presente",
         "**{terms} termini di ricerca** analizzati",
         "**1 sito web** collegato",
@@ -1169,7 +1144,7 @@ const it: PricingPageCopy = {
       cta: "Inizia con Grow",
       includedLabel: "Tutto Launch, con più volume",
       features: [
-        "**{articles} articoli SEO** con immagini",
+        "**{articles} articoli SEO**",
         "**{posts} post social** su più piattaforme",
         "**{terms} termini di ricerca** analizzati",
         "**1 sito web** collegato",
@@ -1180,7 +1155,7 @@ const it: PricingPageCopy = {
         "**AI Social Opportunities** per scoprire conversazioni e preparare risposte",
       ],
       perks: [
-        { strong: "Articolo sul blog di RepGet (DR 60+)", small: "Presenti la sua attività ai lettori del blog" },
+        { strong: "Articolo sul blog di RepGet", small: "Presenti la sua attività ai lettori del blog" },
         { strong: "Presenza sui canali social di RepGet", small: "Raggiunga il pubblico social consolidato di RepGet" },
         { strong: "Spazio nella nostra email", small: "Promozione presso gli iscritti di RepGet" },
       ],
@@ -1191,7 +1166,7 @@ const it: PricingPageCopy = {
       cta: "Inizia con Scale",
       includedLabel: "Tutto Grow, con più capacità",
       features: [
-        "**{articles} articoli SEO** con immagini",
+        "**{articles} articoli SEO**",
         "**{posts} post social** su più piattaforme",
         "**{terms} termini di ricerca** analizzati",
         "**1 sito web** collegato",
@@ -1202,7 +1177,7 @@ const it: PricingPageCopy = {
         "**AI Social Opportunities** per scoprire conversazioni e preparare risposte",
       ],
       perks: [
-        { strong: "Articolo prioritario sul blog di RepGet (DR 60+)", small: "Visibilità editoriale in evidenza" },
+        { strong: "Articolo prioritario sul blog di RepGet", small: "Visibilità editoriale in evidenza" },
         { strong: "Presenza prioritaria sui canali social di RepGet", small: "Promozione presso il pubblico social di RepGet" },
         { strong: "Spazio prioritario nella nostra email", small: "Promozione presso gli iscritti di RepGet" },
       ],
@@ -1223,7 +1198,7 @@ const it: PricingPageCopy = {
     audits: "Audit SEO e meta description degli articoli",
     visibility: "Controllo settimanale delle risposte dell'IA (Claude)",
     backlinks: "Rete di partner per i backlink",
-    blog: { strong: "Articolo sul blog di RepGet (DR 60+)", small: "Uno spazio in evidenza sul blog di RepGet" },
+    blog: { strong: "Articolo sul blog di RepGet", small: "Uno spazio in evidenza sul blog di RepGet" },
     channels: { strong: "Presenza sui canali social di RepGet", small: "Promozione attraverso i canali social di RepGet" },
     email: { strong: "Spazio nella nostra email", small: "Promozione presso gli iscritti di RepGet" },
     custom: "Richieste di funzioni personalizzate",
@@ -1346,11 +1321,11 @@ const it: PricingPageCopy = {
         items: [
           {
             q: "Grow e Scale includono funzioni promozionali?",
-            a: "Sì. Grow include un articolo sul blog di RepGet (DR 60+), visibilità sui canali social e uno spazio nella nostra email. Scale include versioni prioritarie di questi vantaggi. Tempi e portata di ogni collocamento sono definiti dalle condizioni di promozione pubblicate da RepGet.",
+            a: "Sì. Grow include un articolo sul blog di RepGet, visibilità sui canali social e uno spazio nella nostra email. Scale include versioni prioritarie di questi vantaggi.",
           },
           {
             q: "Che cosa significa promozione prioritaria in Scale?",
-            a: "Scale dà ai suoi collocamenti promozionali la priorità rispetto a quelli standard di Grow, secondo disponibilità e condizioni di campagna concordate. La priorità non garantisce posizioni nei risultati di ricerca, traffico o conversioni.",
+            a: "Scale dà ai suoi collocamenti promozionali la priorità rispetto a quelli standard di Grow, secondo disponibilità. La priorità non garantisce posizioni nei risultati di ricerca, traffico o conversioni.",
           },
           {
             q: "Che cosa include Grow + Visibility?",
@@ -1362,11 +1337,11 @@ const it: PricingPageCopy = {
           },
           {
             q: "Dove potrebbe comparire la mia attività?",
-            a: "L'offerta mette in evidenza i canali social di RepGet, con un pubblico complessivo di oltre 40K follower, un articolo editoriale sul blog di RepGet e visibilità nelle email inviate agli iscritti.",
+            a: "L'offerta mette in evidenza i canali social di RepGet, un articolo editoriale sul blog di RepGet e visibilità nelle email inviate agli iscritti.",
           },
           {
             q: "I vantaggi promozionali sono illimitati ogni mese?",
-            a: "No. Le funzioni promozionali sono extra in aggiunta all'abbonamento mensile alla piattaforma Grow, non post o email illimitati né risultati di posizionamento garantiti. Tempi di consegna e portata devono essere definiti nelle condizioni dell'offerta.",
+            a: "No. Le funzioni promozionali sono extra in aggiunta all'abbonamento mensile alla piattaforma Grow, non post o email illimitati né risultati di posizionamento garantiti.",
           },
         ],
       },
@@ -1403,9 +1378,8 @@ const de: PricingPageCopy = {
   },
   bundle: {
     flag: "WACHSTUM, VERSTÄRKT.",
-    sale: "SPAREN SIE {pct} % AUF DAS GESAMTPAKET",
     lede: "Der komplette Grow-Tarif. Dazu eine größere Bühne für Ihre Marke.",
-    priceLabel: "Preis des Pakets Grow plus Visibility {regular} pro Monat, Aktionspreis {price} pro Monat",
+    priceLabel: "Preis des Pakets Grow plus Visibility {price} pro Monat",
     perMonth: "/ Monat",
     featureKicker: "SICHTBARKEIT INKLUSIVE",
     featureTitle: "Präsentiert auf unseren *Social-Media-Kanälen* & unserem *Blog.*",
@@ -1417,7 +1391,7 @@ const de: PricingPageCopy = {
     coreEyebrow: "01 / DER KOMPLETTE GROW-TARIF",
     corePill: "Alle Standardfunktionen",
     stats: [
-      { strong: "Markenartikel / Monat", small: "2 täglich, mit Bildern" },
+      { strong: "Markenartikel / Monat", small: "2 täglich" },
       { strong: "Social-Media-Beiträge / Monat", small: "Für Ihre Kanäle" },
       { strong: "Suchbegriffe", small: "Recherchiert & gruppiert" },
     ],
@@ -1435,8 +1409,8 @@ const de: PricingPageCopy = {
     bonusPill: "IN DIESEM PAKET ENTHALTEN",
     bonusIntro: "Zusätzliche Werbung über Ihre eigenen Kanäle hinaus",
     bonuses: [
-      { strong: "Über 40K Social-Media-Follower", small: "Präsentiert auf den Social-Media-Kanälen von RepGet" },
-      { strong: "Beitrag in einem DR-60-Blog", small: "Stellen Sie Ihr Unternehmen den Lesern unseres Blogs vor" },
+      { strong: "Präsentiert auf den Social-Media-Kanälen von RepGet", small: "Präsentiert auf den Social-Media-Kanälen von RepGet" },
+      { strong: "Beitrag im RepGet-Blog", small: "Stellen Sie Ihr Unternehmen den Lesern unseres Blogs vor" },
       { strong: "E-Mail-Spotlight", small: "Werbung bei den Abonnenten von RepGet" },
     ],
   },
@@ -1445,17 +1419,12 @@ const de: PricingPageCopy = {
     label: "Abrechnungszeitraum wählen",
     monthly: "Monatlich",
     yearly: "Jährlich",
-    saving: "Jährlich: 2 Monate gratis, dazu 40 % Rabatt",
-    savingPlain: "Jährlich: 2 Monate gratis",
+    saving: "Jährlich: 2 Monate gratis",
   },
   card: {
-    offerBadge: "40 % RABATT",
-    wasLabel: "regulärer Preis",
     perMonth: "/ Monat",
-    monthlyCaption: "40 % Rabatt auf den regulären Preis · monatliche Abrechnung",
-    yearlyCaption: "{price}/Jahr berechnet · statt {regular}/Jahr",
-    plainMonthlyCaption: "Monatliche Abrechnung",
-    plainYearlyCaption: "{price}/Jahr berechnet",
+    monthlyCaption: "Monatliche Abrechnung",
+    yearlyCaption: "{price}/Jahr berechnet",
     more: "Zum vollständigen Funktionsvergleich",
     popular: "Am beliebtesten",
     perksTitle: "Enthaltene Sichtbarkeitsvorteile",
@@ -1469,7 +1438,7 @@ const de: PricingPageCopy = {
       cta: "Mit Launch starten",
       includedLabel: "Ihr monatliches Wachstums-Toolkit",
       features: [
-        "**{articles} SEO-Artikel** mit Bildern",
+        "**{articles} SEO-Artikel**",
         "**{posts} Social-Media-Beiträge**, um präsent zu bleiben",
         "**{terms} Suchbegriffe** recherchiert",
         "**1 Website** verbunden",
@@ -1486,7 +1455,7 @@ const de: PricingPageCopy = {
       cta: "Mit Grow starten",
       includedLabel: "Alles aus Launch, mit mehr Volumen",
       features: [
-        "**{articles} SEO-Artikel** mit Bildern",
+        "**{articles} SEO-Artikel**",
         "**{posts} Social-Media-Beiträge** auf mehreren Plattformen",
         "**{terms} Suchbegriffe** recherchiert",
         "**1 Website** verbunden",
@@ -1497,7 +1466,7 @@ const de: PricingPageCopy = {
         "**AI Social Opportunities**, um Gespräche zu finden und Antworten zu entwerfen",
       ],
       perks: [
-        { strong: "Beitrag im RepGet-Blog (DR 60+)", small: "Stellen Sie Ihr Unternehmen den Blog-Lesern vor" },
+        { strong: "Beitrag im RepGet-Blog", small: "Stellen Sie Ihr Unternehmen den Blog-Lesern vor" },
         { strong: "Präsentiert auf den Social-Media-Kanälen von RepGet", small: "Erreichen Sie die etablierte Social-Media-Zielgruppe von RepGet" },
         { strong: "E-Mail-Spotlight", small: "Werbung bei den Abonnenten von RepGet" },
       ],
@@ -1508,7 +1477,7 @@ const de: PricingPageCopy = {
       cta: "Mit Scale starten",
       includedLabel: "Alles aus Grow, mit mehr Kapazität",
       features: [
-        "**{articles} SEO-Artikel** mit Bildern",
+        "**{articles} SEO-Artikel**",
         "**{posts} Social-Media-Beiträge** auf mehreren Plattformen",
         "**{terms} Suchbegriffe** recherchiert",
         "**1 Website** verbunden",
@@ -1519,7 +1488,7 @@ const de: PricingPageCopy = {
         "**AI Social Opportunities**, um Gespräche zu finden und Antworten zu entwerfen",
       ],
       perks: [
-        { strong: "Bevorzugter Beitrag im RepGet-Blog (DR 60+)", small: "Hervorgehobene redaktionelle Sichtbarkeit" },
+        { strong: "Bevorzugter Beitrag im RepGet-Blog", small: "Hervorgehobene redaktionelle Sichtbarkeit" },
         { strong: "Bevorzugte Präsentation auf den RepGet-Kanälen", small: "Werbung bei der Social-Media-Zielgruppe von RepGet" },
         { strong: "Bevorzugtes E-Mail-Spotlight", small: "Werbung bei den Abonnenten von RepGet" },
       ],
@@ -1540,7 +1509,7 @@ const de: PricingPageCopy = {
     audits: "SEO-Audits & Meta-Beschreibungen der Artikel",
     visibility: "Wöchentliche Prüfung von KI-Antworten (Claude)",
     backlinks: "Backlink-Partnernetzwerk",
-    blog: { strong: "Beitrag im RepGet-Blog (DR 60+)", small: "Hervorgehobene Platzierung im RepGet-Blog" },
+    blog: { strong: "Beitrag im RepGet-Blog", small: "Hervorgehobene Platzierung im RepGet-Blog" },
     channels: { strong: "Präsentation auf den RepGet-Kanälen", small: "Werbung über die Social-Media-Kanäle von RepGet" },
     email: { strong: "E-Mail-Spotlight", small: "Werbung bei den Abonnenten von RepGet" },
     custom: "Individuelle Funktionswünsche",
@@ -1663,11 +1632,11 @@ const de: PricingPageCopy = {
         items: [
           {
             q: "Enthalten Grow und Scale Werbefunktionen?",
-            a: "Ja. Grow umfasst einen Beitrag im RepGet-Blog (DR 60+), Präsenz auf den Social-Media-Kanälen und ein E-Mail-Spotlight. Scale umfasst bevorzugte Versionen dieser Vorteile. Zeitpunkt und Umfang jeder Platzierung richten sich nach den veröffentlichten Werbebedingungen von RepGet.",
+            a: "Ja. Grow umfasst einen Beitrag im RepGet-Blog, Präsenz auf den Social-Media-Kanälen und ein E-Mail-Spotlight. Scale umfasst bevorzugte Versionen dieser Vorteile.",
           },
           {
             q: "Was bedeutet bevorzugte Werbung bei Scale?",
-            a: "Scale gibt Ihren Werbeplatzierungen Vorrang vor den Standardplatzierungen von Grow, je nach Verfügbarkeit und vereinbarten Kampagnenbedingungen. Priorität ist keine Garantie für Suchplatzierungen, Traffic oder Conversions.",
+            a: "Scale gibt Ihren Werbeplatzierungen Vorrang vor den Standardplatzierungen von Grow, je nach Verfügbarkeit. Priorität ist keine Garantie für Suchplatzierungen, Traffic oder Conversions.",
           },
           {
             q: "Was ist in Grow + Visibility enthalten?",
@@ -1679,11 +1648,11 @@ const de: PricingPageCopy = {
           },
           {
             q: "Wo könnte mein Unternehmen präsentiert werden?",
-            a: "Das Angebot umfasst die Social-Media-Kanäle von RepGet mit insgesamt über 40K Followern, einen redaktionellen Beitrag im RepGet-Blog und Sichtbarkeit in E-Mails an unsere Abonnenten.",
+            a: "Das Angebot umfasst die Social-Media-Kanäle von RepGet, einen redaktionellen Beitrag im RepGet-Blog und Sichtbarkeit in E-Mails an unsere Abonnenten.",
           },
           {
             q: "Sind die Werbevorteile jeden Monat unbegrenzt?",
-            a: "Nein. Die Werbefunktionen sind Extras zum monatlichen Abonnement der Grow-Plattform, keine unbegrenzten Beiträge oder E-Mails und keine garantierten Platzierungen. Zeitplan und Umfang sollten in den Angebotsbedingungen festgelegt werden.",
+            a: "Nein. Die Werbefunktionen sind Extras zum monatlichen Abonnement der Grow-Plattform, keine unbegrenzten Beiträge oder E-Mails und keine garantierten Platzierungen.",
           },
         ],
       },

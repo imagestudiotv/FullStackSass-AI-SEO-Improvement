@@ -7,9 +7,10 @@ import type { Locale } from "@/lib/i18n/config";
  * address (Lei, Sie, usted, vous).
  *
  * Translation only: every number is the caller's - prices from formatPrice
- * (always en-IE, "€59"), the trial's days from TRIAL_DAYS, the saving and the
- * REPGET percentage worked out by the step - so no language can state a
- * different amount, length or condition from the English.
+ * (always en-IE, "€59"), the trial's days from TRIAL_DAYS, the yearly saving
+ * worked out by the step - so no language can state a different amount,
+ * length or condition from the English. The prices are the charged ones; no
+ * line quotes a percentage off them (conservative copy, 2026-11-18).
  */
 export type PlanStepCopy = {
   /** Toast: Better Auth refused to send the code. */
@@ -55,10 +56,7 @@ export type PlanStepCopy = {
   continueToPayment: string;
   /** "€0 today · 3 days free." */
   trialToday: (zero: string, days: number) => string;
-  /** Yearly with REPGET: the total is left to checkout. */
-  thenYearDiscounted: string;
   thenYear: (price: string) => string;
-  thenMonthDiscounted: (price: string, pct: number) => string;
   thenMonth: (price: string) => string;
   /** No trial left: charged at once. */
   chargedTodayMonth: (price: string) => string;
@@ -100,11 +98,7 @@ export const PLAN_STEP_COPY: Record<Locale, PlanStepCopy> = {
     startTrial: "Start free trial",
     continueToPayment: "Continue to payment",
     trialToday: (zero, days) => `${zero} today · ${days} days free.`,
-    thenYearDiscounted:
-      "Then your discounted annual plan begins at the total shown at checkout, unless you cancel before the trial ends.",
     thenYear: (price) => `Then ${price}/year, unless you cancel before the trial ends.`,
-    thenMonthDiscounted: (price, pct) =>
-      `Then ${price}/month with your ${pct}% discount, unless you cancel before the trial ends.`,
     thenMonth: (price) => `Then ${price}/month, unless you cancel before the trial ends.`,
     chargedTodayMonth: (price) => `${price} a month, charged today. This workspace has already had its free trial.`,
     chargedTodayYear: (price) => `${price} a year, charged today. This workspace has already had its free trial.`,
@@ -143,11 +137,7 @@ export const PLAN_STEP_COPY: Record<Locale, PlanStepCopy> = {
     startTrial: "Empezar la prueba gratuita",
     continueToPayment: "Continuar al pago",
     trialToday: (zero, days) => `${zero} hoy · ${days} días gratis.`,
-    thenYearDiscounted:
-      "Después comienza su plan anual con descuento, por el total indicado al pagar, salvo que cancele antes de que termine la prueba.",
     thenYear: (price) => `Después, ${price}/año, salvo que cancele antes de que termine la prueba.`,
-    thenMonthDiscounted: (price, pct) =>
-      `Después, ${price}/mes con su descuento del ${pct} %, salvo que cancele antes de que termine la prueba.`,
     thenMonth: (price) => `Después, ${price}/mes, salvo que cancele antes de que termine la prueba.`,
     chargedTodayMonth: (price) =>
       `${price} al mes, cobrados hoy. Este espacio de trabajo ya ha tenido su prueba gratuita.`,
@@ -188,11 +178,7 @@ export const PLAN_STEP_COPY: Record<Locale, PlanStepCopy> = {
     startTrial: "Commencer l’essai gratuit",
     continueToPayment: "Continuer vers le paiement",
     trialToday: (zero, days) => `${zero} aujourd’hui · ${days} jours gratuits.`,
-    thenYearDiscounted:
-      "Ensuite, votre forfait annuel à prix réduit démarre au montant total indiqué lors du paiement, sauf si vous résiliez avant la fin de l’essai.",
     thenYear: (price) => `Ensuite ${price}/an, sauf si vous résiliez avant la fin de l’essai.`,
-    thenMonthDiscounted: (price, pct) =>
-      `Ensuite ${price}/mois avec votre réduction de ${pct} %, sauf si vous résiliez avant la fin de l’essai.`,
     thenMonth: (price) => `Ensuite ${price}/mois, sauf si vous résiliez avant la fin de l’essai.`,
     chargedTodayMonth: (price) =>
       `${price} par mois, facturés aujourd’hui. Cet espace de travail a déjà bénéficié de son essai gratuit.`,
@@ -233,11 +219,7 @@ export const PLAN_STEP_COPY: Record<Locale, PlanStepCopy> = {
     startTrial: "Inizi la prova gratuita",
     continueToPayment: "Continua al pagamento",
     trialToday: (zero, days) => `${zero} oggi · ${days} giorni gratis.`,
-    thenYearDiscounted:
-      "Poi parte il suo piano annuale scontato, al totale indicato al pagamento, a meno che non disdica prima della fine della prova.",
     thenYear: (price) => `Poi ${price}/anno, a meno che non disdica prima della fine della prova.`,
-    thenMonthDiscounted: (price, pct) =>
-      `Poi ${price}/mese con il suo sconto del ${pct}%, a meno che non disdica prima della fine della prova.`,
     thenMonth: (price) => `Poi ${price}/mese, a meno che non disdica prima della fine della prova.`,
     chargedTodayMonth: (price) =>
       `${price} al mese, addebitati oggi. Questo spazio di lavoro ha già usufruito della prova gratuita.`,
@@ -280,11 +262,7 @@ export const PLAN_STEP_COPY: Record<Locale, PlanStepCopy> = {
     startTrial: "Kostenlose Testphase starten",
     continueToPayment: "Weiter zur Zahlung",
     trialToday: (zero, days) => `${zero} heute · ${days} Tage kostenlos.`,
-    thenYearDiscounted:
-      "Danach beginnt Ihr rabattierter Jahrestarif zum beim Bezahlen angezeigten Gesamtbetrag, sofern Sie nicht vor dem Ende der Testphase kündigen.",
     thenYear: (price) => `Danach ${price}/Jahr, sofern Sie nicht vor dem Ende der Testphase kündigen.`,
-    thenMonthDiscounted: (price, pct) =>
-      `Danach ${price}/Monat mit Ihrem Rabatt von ${pct} %, sofern Sie nicht vor dem Ende der Testphase kündigen.`,
     thenMonth: (price) => `Danach ${price}/Monat, sofern Sie nicht vor dem Ende der Testphase kündigen.`,
     chargedTodayMonth: (price) =>
       `${price} pro Monat, heute berechnet. Dieser Arbeitsbereich hatte seine kostenlose Testphase bereits.`,

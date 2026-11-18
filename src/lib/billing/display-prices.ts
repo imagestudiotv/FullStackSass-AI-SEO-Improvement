@@ -1,10 +1,10 @@
 import { BUNDLE_COUPON, repgetFirstPaymentCents, type OfferPlan } from "@/lib/billing/repget-offer";
 
 /**
- * The price a plan screen shows - /pricing, Billing's plan cards and the
- * onboarding plan step all read it - and the regular price struck through
- * beside it. ONE function, so the screens cannot drift from each other or from
- * what checkout charges:
+ * The price a plan screen shows - /pricing, Billing's plan cards, the
+ * onboarding plan step and the SEO landing pages all read it - and what
+ * checkout takes off to get there. ONE function, so the screens cannot drift
+ * from each other or from what checkout charges:
  *
  *  - REPGET's launch price (lib/billing/repget-offer.ts), only while the offer
  *    is on (REPGET_OFFER_ENABLED=1) and only for a plan at the exact catalogue
@@ -20,14 +20,20 @@ import { BUNDLE_COUPON, repgetFirstPaymentCents, type OfferPlan } from "@/lib/bi
  * The win-back offer is not here: it is one account's, for its first payment
  * only, and its own notice says so (components/billing/offer-code-field.tsx).
  *
+ * THE SCREENS SHOW chargedCents ONLY (conservative copy for the ads pilot,
+ * 2026-11-18): the owner has no evidence that the regular or list price was
+ * ever charged, so no screen strikes it through or quotes a percentage off
+ * it. strikeCents and discount still say what checkout takes off - Stripe's
+ * own Checkout page lists that coupon line - should that evidence come.
+ *
  * No server import: client screens use it too.
  */
 export type PlanDisplayPrice = {
-  /** What each payment is, in cents: what checkout charges. */
+  /** What each payment is, in cents: what checkout charges. The one figure the screens show. */
   chargedCents: number;
-  /** The regular price shown struck through beside it, or null when nothing is taken off. */
+  /** The Stripe price the coupon is taken from, or null when nothing is taken off. Not shown. */
   strikeCents: number | null;
-  /** Which discount, for the wording around it. */
+  /** Which coupon checkout applies, if any. Not shown. */
   discount: "repget" | "bundle" | null;
 };
 

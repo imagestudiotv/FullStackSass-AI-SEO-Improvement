@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { activationProblems, BUNDLES, CATALOG_VERSION, catalogRows, isBundleTier, TIERS } from "../../../scripts/plan-catalog.mjs";
+import { planHasVisibilityPerks } from "./benefits";
 import { GROW_VISIBILITY_TIER, isDirectPurchaseTier, planFeatures, signUpForPlan } from "./features";
 
 /** What the plans table should hold for a catalog that is ready to sell. */
@@ -53,6 +54,15 @@ describe("the plan catalog", () => {
 describe("Grow + Visibility (client, 2026-11-11)", () => {
   const bundle = catalogRows().filter((row) => row.tier === GROW_VISIBILITY_TIER);
   const grow = TIERS.find((tier) => tier.tier === "grow")!;
+
+  it("has visibility perks, as Grow and Scale do and Launch does not, as the pricing page lists them", () => {
+    expect(planHasVisibilityPerks(GROW_VISIBILITY_TIER)).toBe(true);
+    expect(planHasVisibilityPerks("grow")).toBe(true);
+    expect(planHasVisibilityPerks("scale")).toBe(true);
+    expect(planHasVisibilityPerks("launch")).toBe(false);
+    expect(planHasVisibilityPerks("starter")).toBe(false);
+    expect(planHasVisibilityPerks(null)).toBe(false);
+  });
 
   it("is one monthly row at EUR 99, a direct purchase in the app too", () => {
     expect(bundle).toHaveLength(1);
@@ -116,7 +126,9 @@ describe("the plan surfaces", () => {
 
   it("states the plan's own articles and social posts", () => {
     const features = planFeatures({ ...picker, tier: "grow", articleLimit: 60, socialPostLimit: 90 });
-    expect(features).toContain("60 branded articles a month - 2 a day, with images");
+    expect(features).toContain("60 branded articles a month - 2 a day");
+    // A cover image is added only when image generation is available, so none is promised.
+    expect(features.join(" ")).not.toMatch(/image/i);
     expect(features).toContain("90 social posts a month");
   });
 

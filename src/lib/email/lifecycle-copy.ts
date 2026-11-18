@@ -17,8 +17,8 @@ import { TRIAL_DAYS } from "@/lib/plans/features";
  * NO NUMBER IS WRITTEN HERE. Every figure in these emails - a date, a plan's
  * name, a view count, a credit balance - comes from the caller, read from the
  * database at send time; a metric that is zero or unknown is left out rather
- * than shown. (The one figure in the words, "DR 60+" in trial_ending, is part
- * of RepGet's own offer, not a fact about the account.)
+ * than shown. No metric about RepGet itself is claimed either (a domain
+ * rating, a follower count): conservative copy, 2026-11-18.
  *
  * Every email has ONE button, to the page in the app where the reader acts on
  * it, and the same link written out under it for clients that strip buttons.
@@ -83,7 +83,18 @@ export type LifecycleEmail =
       articlesLive?: number;
       topicsPlanned?: number;
     }
-  | { kind: "trial_ending"; websiteId: string; domain: string; plan: string; endsOn: Date }
+  | {
+      kind: "trial_ending";
+      websiteId: string;
+      domain: string;
+      plan: string;
+      endsOn: Date;
+      /**
+       * The plan's /pricing card lists visibility perks (lib/plans/benefits.ts
+       * planHasVisibilityPerks): only then are the blog post and social lines said.
+       */
+      visibilityPerks: boolean;
+    }
   | { kind: "trial_ended"; websiteId: string; domain: string }
   | { kind: "plan_started"; websiteId: string; domain: string; plan: string }
   | { kind: "payment_failed"; websiteId: string; domain: string; plan: string }
@@ -164,10 +175,12 @@ type Copy = {
     preheader: string;
     /** The billing facts: when it ends, that the plan starts and is charged. */
     body: string;
-    /** "Continue growing with RepGet", introducing the three lines below. */
+    /** "Continue growing with RepGet", introducing the lines below. */
     growth: string;
+    /** This and `social`: only for a plan whose /pricing card lists visibility perks. */
     blogPost: string;
     social: string;
+    /** The partner network, which every plan has; no domain rating is claimed. */
     backlink: string;
     cancel: string;
     button: string;
@@ -270,7 +283,7 @@ export const LIFECYCLE_COPY: Record<Locale, Copy> = {
       growth: "Continue growing with RepGet. With your plan:",
       blogPost: "We publish and share a great blog post about your business.",
       social: "We mention you on RepGet's social channels for a brand boost.",
-      backlink: "You get a strong dofollow link from a DR 60+ website.",
+      backlink: "You can earn links from relevant websites in RepGet's partner network.",
       cancel: "To change plan or cancel, open Billing before then.",
       button: "Open Billing",
     },
@@ -417,7 +430,7 @@ export const LIFECYCLE_COPY: Record<Locale, Copy> = {
       growth: "Siga creciendo con RepGet. Con su plan:",
       blogPost: "Publicamos y difundimos un excelente artículo de blog sobre su negocio.",
       social: "Le mencionamos en las redes sociales de RepGet para impulsar su marca.",
-      backlink: "Obtiene un sólido enlace dofollow desde un sitio web con DR 60+.",
+      backlink: "Puede conseguir enlaces desde sitios web relevantes de la red de socios de RepGet.",
       cancel: "Para cambiar de plan o cancelar, abra Facturación antes de esa fecha.",
       button: "Abrir Facturación",
     },
@@ -564,7 +577,7 @@ export const LIFECYCLE_COPY: Record<Locale, Copy> = {
       growth: "Continuez à grandir avec RepGet. Avec votre forfait :",
       blogPost: "Nous publions et diffusons un excellent article de blog sur votre entreprise.",
       social: "Nous vous mentionnons sur les réseaux sociaux de RepGet pour donner de la visibilité à votre marque.",
-      backlink: "Vous obtenez un lien dofollow solide depuis un site au DR 60+.",
+      backlink: "Vous pouvez obtenir des liens depuis des sites web pertinents du réseau partenaire de RepGet.",
       cancel: "Pour changer de forfait ou annuler, ouvrez Facturation avant cette date.",
       button: "Ouvrir Facturation",
     },
@@ -711,7 +724,7 @@ export const LIFECYCLE_COPY: Record<Locale, Copy> = {
       growth: "Continui a crescere con RepGet. Con il Suo piano:",
       blogPost: "Pubblichiamo e condividiamo un ottimo articolo di blog sulla Sua attività.",
       social: "La menzioniamo sui canali social di RepGet per dare slancio al Suo marchio.",
-      backlink: "Ottiene un solido link dofollow da un sito web con DR 60+.",
+      backlink: "Può ottenere link da siti web pertinenti della rete partner di RepGet.",
       cancel: "Per cambiare piano o annullare, apra Fatturazione prima di quella data.",
       button: "Apri Fatturazione",
     },
@@ -858,7 +871,7 @@ export const LIFECYCLE_COPY: Record<Locale, Copy> = {
       growth: "Wachsen Sie weiter mit RepGet. Mit Ihrem Tarif:",
       blogPost: "Wir veröffentlichen und teilen einen starken Blogartikel über Ihr Unternehmen.",
       social: "Wir erwähnen Sie auf den Social-Media-Kanälen von RepGet, um Ihre Marke zu stärken.",
-      backlink: "Sie erhalten einen starken Dofollow-Link von einer Website mit DR 60+.",
+      backlink: "Sie können Links von passenden Websites im Partnernetzwerk von RepGet erhalten.",
       cancel: "Um den Tarif zu wechseln oder zu kündigen, öffnen Sie vorher die Abrechnung.",
       button: "Abrechnung öffnen",
     },
@@ -1059,7 +1072,8 @@ function parts(email: LifecycleEmail, locale: Locale): Parts {
         preheader: format(c.preheader, values),
         // The billing facts first: it stays an essential email about money.
         paragraphs: [format(c.body, values), c.growth],
-        facts: [c.blogPost, c.social, c.backlink],
+        // The blog post and the social mention are perks of the plans whose card lists them (Grow, Scale), not Launch.
+        facts: email.visibilityPerks ? [c.blogPost, c.social, c.backlink] : [c.backlink],
         closing: [c.cancel],
         button: { label: c.button, path: billing(email.websiteId) },
       };
