@@ -168,11 +168,11 @@ describe("REPGET, applied automatically (2026-11-11)", () => {
     expect(html).not.toMatch(/<input[^>]*maxLength="24"/i);
   });
 
-  it("shows the regular price large with the discount in its box, and quotes the launch price in the trial's terms", () => {
+  it("shows the launch price large with the regular price struck beside it, and quotes it in the trial's terms", () => {
     const html = render({ monthlyPlans: [GROW_2], offerCopy: OFFER_CODE.en, trialEligible: true });
-    // Daniel's card: "€149 /month", then the box "€89 instead of €149" - nothing struck.
-    expect(html).toMatch(/text-5xl[^>]*>€149</);
-    expect(html).not.toContain("<del");
+    // Daniel, 2026-11-18: "€149" struck, "€89 /month" large, as /pricing shows it.
+    expect(html).toMatch(/<del[^>]*>€149<\/del>/);
+    expect(html).toMatch(/text-5xl[^>]*>€89</);
     expect(html).toContain("€0 today · 3 days free.");
     expect(html).toContain("Then €89/month with your 40% discount, unless you cancel before the trial ends.");
     // Off: the regular price alone, and no discount in the terms.
