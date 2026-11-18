@@ -41,7 +41,7 @@ vi.mock("@/lib/db", () => ({
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/referrals/core", () => ({ convertReferral: vi.fn(), reverseReferralReward: vi.fn() }));
-vi.mock("@/lib/conversions/conversions", () => ({ rememberPayer: vi.fn(), reportFirstPayment: vi.fn() }));
+vi.mock("@/lib/conversions/conversions", () => ({ rememberPayer: vi.fn(), reportFirstPayment: vi.fn(), metaCheckoutEvent: vi.fn() }));
 vi.mock("@/lib/paypal/client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/paypal/client")>()),
   isPayPalConfigured: () => true,
