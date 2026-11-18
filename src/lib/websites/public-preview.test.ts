@@ -20,6 +20,8 @@ vi.mock("@/lib/tools/public-guard", () => ({
 }));
 const crawl = vi.hoisted(() => ({ fetchHomepage: vi.fn() }));
 vi.mock("@/lib/websites/crawl", () => crawl);
+const icons = vi.hoisted(() => ({ iconData: vi.fn() }));
+vi.mock("@/lib/websites/site-icon-data", () => icons);
 
 import { forgetPreviews, publicSitePreview } from "./public-preview";
 import { nameFromTitle, siteCard, taglineFromTitle } from "./site-card";
@@ -41,6 +43,8 @@ beforeEach(() => {
   guard.refuse = false;
   guard.calls = [];
   crawl.fetchHomepage.mockReset();
+  icons.iconData.mockReset();
+  icons.iconData.mockResolvedValue(null);
 });
 
 describe("siteCard", () => {
@@ -53,6 +57,7 @@ describe("siteCard", () => {
       name: "Image Studio",
       description: "Photo & Film Production in Milan",
       faviconUrl: "https://imagestudio.com/apple-touch-icon.png",
+      faviconTone: null,
       platform: "WordPress",
       language: "en",
     });
@@ -82,6 +87,20 @@ describe("publicSitePreview", () => {
     expect(card).toMatchObject({ name: "Image Studio", platform: "WordPress" });
     expect(guard.calls).toEqual([{ tool: "preview", site: "imagestudio.com", visitor: "visitor-1" }]);
     expect(crawl.fetchHomepage).toHaveBeenCalledTimes(1);
+  });
+
+  it("sends the icon our server read, marked when it is white; the site's own address when it could not be read", async () => {
+    crawl.fetchHomepage.mockResolvedValue(page());
+    icons.iconData.mockResolvedValueOnce({ dataUrl: "data:image/png;base64,AAAA", tone: "light" });
+    expect(await publicSitePreview("imagestudio.com", "visitor-1")).toMatchObject({ faviconUrl: "data:image/png;base64,AAAA", faviconTone: "light" });
+    expect(icons.iconData).toHaveBeenCalledWith("https://imagestudio.com/apple-touch-icon.png");
+    forgetPreviews();
+    expect(await publicSitePreview("imagestudio.com", "visitor-1")).toMatchObject({ faviconUrl: "https://imagestudio.com/apple-touch-icon.png", faviconTone: null });
+    forgetPreviews();
+    icons.iconData.mockClear();
+    crawl.fetchHomepage.mockResolvedValue(page({ faviconUrl: null }));
+    expect(await publicSitePreview("imagestudio.com", "visitor-1")).toMatchObject({ faviconUrl: null });
+    expect(icons.iconData).not.toHaveBeenCalled();
   });
 
   it("answers the same site again from memory, without counting or fetching", async () => {
