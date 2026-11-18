@@ -36,6 +36,9 @@ import {
 } from "@/lib/analytics/google-api";
 import { authorizeUrl, isGoogleConfigured } from "@/lib/analytics/google-oauth";
 import { db } from "@/lib/db";
+import { actionLocale } from "@/lib/i18n/action-locale";
+import { getMessages } from "@/lib/i18n/messages";
+import { ONBOARDING_ERRORS } from "@/lib/i18n/onboarding-errors";
 import {
   gscMetrics,
   gscPageMetrics,
@@ -116,24 +119,36 @@ const CANNOT_MANAGE =
 const CANNOT_REPLACE =
   "This Google connection belongs to the website's owner. Only the owner can disconnect it or connect a different account.";
 
-/** Produces the Google consent URL for this website. */
+/** startGoogleConnect's refusals, in the caller's app language (lib/i18n/onboarding-errors.ts). */
+async function connectErrors() {
+  return ONBOARDING_ERRORS[await actionLocale()].google;
+}
+
+/**
+ * Produces the Google consent URL for this website.
+ *
+ * Onboarding's Google step and the website's Google page call it, so its
+ * refusals are in the caller's app language. A failure that is not one of
+ * them is logged and said as the step's own "Google could not be connected".
+ */
 export async function startGoogleConnect(
   websiteId: string,
   origin: ConnectOrigin = "app",
 ): Promise<ActionResult<{ url: string }>> {
   const guard = await requireEditor(websiteId);
-  if (!guard.ok) return { ok: false, error: guard.error };
+  // requireEditor's one refusal: an invited viewer.
+  if (!guard.ok) return { ok: false, error: (await connectErrors()).viewOnly };
   const { site } = guard.context;
 
   // Connecting over an existing connection REPLACES it: not a guest's call
   // when the owner made it (re-checked in the callback, too).
   const existing = await getConnectionMeta(site.id);
   if (existing && !propertyPermissions(guard.context, existing).canReplaceConnection) {
-    return { ok: false, error: CANNOT_REPLACE };
+    return { ok: false, error: (await connectErrors()).cannotReplace };
   }
 
   if (!isGoogleConfigured()) {
-    return { ok: false, error: "Google integration is not configured yet." };
+    return { ok: false, error: (await connectErrors()).notConfigured };
   }
 
   // Anything but the one other known value means the app page.
@@ -146,17 +161,22 @@ export async function startGoogleConnect(
    * there is no session, so this is defensive rather than a real branch.
    */
   const session = await getSession();
-  if (!session) return { ok: false, error: "Sign in to connect Google." };
+  if (!session) return { ok: false, error: (await connectErrors()).signIn };
 
-  const { state, codeChallenge } = await createOAuthState({
-    provider: "google",
-    websiteId: site.id,
-    userId: session.user.id,
-    sessionId: session.session.id,
-    origin: from,
-  });
+  try {
+    const { state, codeChallenge } = await createOAuthState({
+      provider: "google",
+      websiteId: site.id,
+      userId: session.user.id,
+      sessionId: session.session.id,
+      origin: from,
+    });
 
-  return { ok: true, data: { url: authorizeUrl(state, codeChallenge) } };
+    return { ok: true, data: { url: authorizeUrl(state, codeChallenge) } };
+  } catch (error) {
+    console.error(`[google] could not start connecting ${site.id}`, error);
+    return { ok: false, error: getMessages(await actionLocale()).app.analytics.statusError };
+  }
 }
 
 export async function disconnectGoogle(

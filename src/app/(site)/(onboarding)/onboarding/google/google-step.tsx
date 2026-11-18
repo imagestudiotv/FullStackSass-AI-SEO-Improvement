@@ -2,6 +2,7 @@
 
 import { ArrowRight, BarChart3, Check, Loader2, Search } from "lucide-react";
 import { getMessages, type Messages } from "@/lib/i18n/messages";
+import { ONBOARDING_STEPS_COPY, type OnboardingStepsCopy } from "@/lib/i18n/onboarding-steps";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -31,6 +32,8 @@ export function GoogleStep({
   connection,
   callbackMessage = null,
   t = getMessages("en").app.onboarding,
+  copy = ONBOARDING_STEPS_COPY.en.google,
+  failed = getMessages("en").app.analytics.statusError,
 }: {
   websiteId: string;
   connection: AnalyticsConnection;
@@ -38,6 +41,10 @@ export function GoogleStep({
   callbackMessage?: { ok: boolean; text: string } | null;
   /** This step's copy, defaulting to English. */
   t?: Messages["app"]["onboarding"];
+  /** The rest of this step's words (lib/i18n/onboarding-steps.ts), defaulting to English. */
+  copy?: OnboardingStepsCopy["google"];
+  /** Said when starting the connection fails outright; its refusals arrive in the reader's language. */
+  failed?: string;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -57,7 +64,10 @@ export function GoogleStep({
 
   function handleConnect() {
     startTransition(async () => {
-      const result = await startGoogleConnect(websiteId, "onboarding");
+      // Thrown rather than returned: the button comes back, with the callback's own failure sentence.
+      const result = await startGoogleConnect(websiteId, "onboarding").catch(
+        (): Awaited<ReturnType<typeof startGoogleConnect>> => ({ ok: false, error: failed }),
+      );
       if (!result.ok) {
         toast.error(result.error);
         return;
@@ -88,7 +98,7 @@ export function GoogleStep({
             this step would have broken it a second time.
           */}
           <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">
-            Step {String(wizardStepIndex("google") + 1).padStart(2, "0")}{" "}
+            {copy.step} {String(wizardStepIndex("google") + 1).padStart(2, "0")}{" "}
             <span className="text-muted-foreground">
               / {String(WIZARD_STEPS.length).padStart(2, "0")}
             </span>
@@ -105,14 +115,14 @@ export function GoogleStep({
               t={t}
               icon={BarChart3}
               name="Google Analytics 4"
-              detail="Track AI-driven traffic and measure content performance."
+              detail={copy.analyticsDetail}
               connected={connected}
             />
             <SourceRow
               t={t}
               icon={Search}
               name="Google Search Console"
-              detail="Monitor organic search clicks and impressions."
+              detail={copy.searchConsoleDetail}
               connected={connected}
             />
           </div>
@@ -134,7 +144,7 @@ export function GoogleStep({
                   {t.openingGoogle}
                 </>
               ) : (
-                "Connect Google"
+                t.connectGoogle
               )}
             </Button>
           )}
@@ -165,7 +175,7 @@ export function GoogleStep({
                 <ArrowRight className="size-4" />
               </>
             ) : (
-              "Skip for now"
+              copy.skip
             )}
           </Button>
         </div>

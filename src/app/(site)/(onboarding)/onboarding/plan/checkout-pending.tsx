@@ -1,7 +1,9 @@
 "use client";
 
 import { CheckCircle2, Loader2 } from "lucide-react";
+import type { Locale } from "@/lib/i18n/config";
 import { getMessages, type Messages } from "@/lib/i18n/messages";
+import { ONBOARDING_STEPS_COPY } from "@/lib/i18n/onboarding-steps";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -41,12 +43,16 @@ const GIVE_UP_MS = 30000;
 
 export function CheckoutPending({
   websiteId,
-  t = getMessages("en").app.onboarding,
+  locale = "en",
+  t = getMessages(locale).app.onboarding,
 }: {
   websiteId: string;
-  /** This screen's copy, defaulting to English. */
+  /** The app language (resolveAppLocale) for the heading, defaulting to English. */
+  locale?: Locale;
+  /** This screen's copy, defaulting to the same language. */
   t?: Messages["app"]["onboarding"];
 }) {
+  const copy = (ONBOARDING_STEPS_COPY[locale] ?? ONBOARDING_STEPS_COPY.en).checkoutPending;
   const router = useRouter();
   const [waited, setWaited] = useState(0);
 
@@ -82,7 +88,7 @@ export function CheckoutPending({
       </span>
 
       <h1 className="mt-6 text-2xl font-semibold tracking-tight">
-        {stuck ? "Payment received" : "Payment received - setting up"}
+        {stuck ? copy.received : copy.receivedSettingUp}
       </h1>
 
       <p className="mt-3 text-muted-foreground">

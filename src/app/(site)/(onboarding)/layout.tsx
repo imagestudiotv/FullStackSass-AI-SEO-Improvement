@@ -46,7 +46,7 @@ export const metadata: Metadata = { robots: { index: false, follow: true } };
 
 export default async function OnboardingLayout({ children }: LayoutProps<"/">) {
   const session = await requireSession();
-  const { t } = await getAppMessages(session.user.id);
+  const { t, locale } = await getAppMessages(session.user.id);
 
   /**
    * Administrators get a way out of the wizard.
@@ -86,7 +86,8 @@ export default async function OnboardingLayout({ children }: LayoutProps<"/">) {
   });
 
   return (
-    <div className="flex min-h-svh flex-col bg-background">
+    // The app language declared for the page, as in (auth)/layout.tsx: the root <html> says "en" (app/(site)/layout.tsx).
+    <div lang={locale} className="flex min-h-svh flex-col bg-background">
       <header className="flex h-16 items-center gap-3 px-5 sm:px-8">
         {/*
           The logo is not a link.

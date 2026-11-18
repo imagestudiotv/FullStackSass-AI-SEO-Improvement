@@ -15,6 +15,9 @@
  * done.
  */
 
+import type { Locale } from "@/lib/i18n/config";
+import { ONBOARDING_STEPS_COPY } from "@/lib/i18n/onboarding-steps";
+
 export type WizardStepId =
   | "website"
   | "setup"
@@ -70,6 +73,16 @@ export const WIZARD_STEPS: WizardStep[] = [
   */
   { id: "done", label: "Ready to grow", href: "/setup" },
 ];
+
+/**
+ * The same steps with their labels in `locale`. WIZARD_STEPS stays English
+ * (the labels above are ONBOARDING_STEPS_COPY.en's), so order and hrefs are
+ * stated once and only the words change.
+ */
+export function wizardSteps(locale: Locale = "en"): WizardStep[] {
+  const labels = ONBOARDING_STEPS_COPY[locale]?.wizard.labels ?? ONBOARDING_STEPS_COPY.en.wizard.labels;
+  return WIZARD_STEPS.map((step) => ({ ...step, label: labels[step.id] }));
+}
 
 export function wizardStepIndex(id: WizardStepId): number {
   return WIZARD_STEPS.findIndex((step) => step.id === id);

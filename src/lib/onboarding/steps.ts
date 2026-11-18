@@ -8,6 +8,7 @@ import { articles, geoPrompts, websites } from "@/lib/db/schema";
 import { getSubscription } from "@/lib/billing";
 import { isAgencyWorkspace } from "@/lib/agency/core";
 import { TRIAL_DAYS } from "@/lib/plans/features";
+import { checklistStepText } from "@/lib/i18n/onboarding-steps";
 
 /**
  * Where a new customer is in setting up.
@@ -64,6 +65,11 @@ export type OnboardingState = {
    * screens reachable by typing their URL.
    */
   hasPlan: boolean;
+  /**
+   * An agency workspace (ours, needs no plan). Exposed so /onboarding can say
+   * the plan row's agency line in the customer's language (checklistStepText).
+   */
+  agency: boolean;
   /**
    * The website is on its LEGACY free articles (lib/billing/free-articles.ts):
    * the AI visibility step waits for the plan, so it is not one of the steps.
@@ -155,6 +161,15 @@ export const getOnboardingState = cache(async function getOnboardingState(
   const hasPrompts = (promptCount[0]?.n ?? 0) > 0;
   const hasArticles = (articleCount[0]?.n ?? 0) > 0;
 
+  /*
+    The titles and descriptions are English here, from the same dictionary
+    /onboarding translates them with (lib/i18n/onboarding-steps.ts), so the
+    words exist in one place. This state is request-cached and shared by
+    callers that never show the text, so it stays language-neutral.
+  */
+  const text = (id: "website" | "plan" | "visibility" | "content") =>
+    checklistStepText("en", id, { agency, trialDays: TRIAL_DAYS });
+
   const steps: OnboardingStep[] = [
     /**
      * The website comes first now.
@@ -166,17 +181,13 @@ export const getOnboardingState = cache(async function getOnboardingState(
      */
     {
       id: "website",
-      title: "Add your website",
-      description: "We read it and work out what your business does.",
+      ...text("website"),
       done: hasWebsite,
       href: "/onboarding/website",
     },
     {
       id: "plan",
-      title: "Choose a plan",
-      description: agency
-        ? "This workspace is set up by us - no plan needed."
-        : `Each website has its own plan. New accounts get a ${TRIAL_DAYS}-day free trial.`,
+      ...text("plan"),
       done: hasPlan,
       /*
         The onboarding plan screen, not /billing. /billing carries the
@@ -188,17 +199,13 @@ export const getOnboardingState = cache(async function getOnboardingState(
     },
     {
       id: "visibility",
-      title: "Add AI visibility questions",
-      description:
-        "The questions your customers would ask an assistant. We check whether you get named.",
+      ...text("visibility"),
       done: hasPrompts,
       href: hasWebsite && analysed && hasPlan ? "/onboarding/visibility" : null,
     },
     {
       id: "content",
-      title: "Write your first article",
-      description:
-        "We research the terms worth going after and write the page that answers them.",
+      ...text("content"),
       done: hasArticles,
       href: hasWebsite && analysed && hasPlan ? "/onboarding/content" : null,
     },
@@ -221,6 +228,7 @@ export const getOnboardingState = cache(async function getOnboardingState(
     // "pending" and "crawling" both mean we are still working on it.
     analysing: hasWebsite && !analysed,
     hasPlan,
+    agency,
     freeArticles,
   };
 });

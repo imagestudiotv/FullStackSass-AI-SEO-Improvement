@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { AuthForm } from "@/components/auth-form";
@@ -5,7 +6,11 @@ import { safeNext } from "@/lib/auth/next";
 import { getSession } from "@/lib/auth-guard";
 import { getAuthMessages } from "@/lib/i18n/app-locale";
 
-export const metadata = { title: "Sign up" };
+/** The tab title in the form's language ("Sign up" in English): see getAuthMessages. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getAuthMessages();
+  return { title: t.app.auth.signUpPageTitle };
+}
 
 /**
  * Someone already signed in has no business on this page - but WHERE they are

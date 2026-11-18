@@ -1,8 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { cache } from "react";
 
 import { requireSession } from "@/lib/auth-guard";
 import { getAppMessages } from "@/lib/i18n/app-locale";
+import { ONBOARDING_ERRORS } from "@/lib/i18n/onboarding-errors";
+import { ONBOARDING_STEPS_COPY } from "@/lib/i18n/onboarding-steps";
 import { WEBSITE_PROJECT_COPY } from "@/lib/i18n/website-projects";
 import { getOnboardingState } from "@/lib/onboarding/steps";
 import { websiteProjectsHref } from "@/lib/website-projects/shared";
@@ -10,7 +14,14 @@ import { requireOrg } from "@/lib/tenant";
 import { hasOnlySharedWork } from "@/lib/websites/accessible";
 import { WebsiteStep } from "./website-step";
 
-export const metadata = { title: "Add your website" };
+/** One locale lookup per request, shared by the title and the page. */
+const messagesFor = cache((userId: string) => getAppMessages(userId));
+
+export async function generateMetadata(): Promise<Metadata> {
+  const session = await requireSession();
+  const { t } = await messagesFor(session.user.id);
+  return { title: t.app.onboarding.addYourWebsite };
+}
 
 export const dynamic = "force-dynamic";
 
@@ -26,8 +37,9 @@ export default async function OnboardingWebsitePage({
 }: PageProps<"/onboarding/website">) {
   const session = await requireSession();
   const { orgId } = await requireOrg();
-  const { t, locale } = await getAppMessages(session.user.id);
+  const { t, locale } = await messagesFor(session.user.id);
   const noSite = WEBSITE_PROJECT_COPY[locale];
+  const failed = ONBOARDING_ERRORS[locale].website;
 
   const params = await searchParams;
   /**
@@ -101,7 +113,13 @@ export default async function OnboardingWebsitePage({
       shows. Two progress indicators on one screen is one too many.
     */
     <div className="mx-auto max-w-6xl px-4 py-10 sm:py-14">
-      <WebsiteStep t={t.app.onboarding} initialUrl={initialUrl} plan={plan} />
+      <WebsiteStep
+        t={t.app.onboarding}
+        copy={ONBOARDING_STEPS_COPY[locale].website}
+        errors={{ unreadable: failed.unreadable, unexpected: failed.unexpected }}
+        initialUrl={initialUrl}
+        plan={plan}
+      />
       {/*
         The step is required for anyone with a site to set up, but not everyone
         has one. Below the form at every width, so nobody is held in a form they

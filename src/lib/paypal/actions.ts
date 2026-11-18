@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/auth-guard";
 import { isEntitled } from "@/lib/billing-shared";
 import { checkoutProviderOps } from "@/lib/billing/checkout-providers";
+import { payerLocale, payPalLocale } from "@/lib/billing/provider-locale";
 import {
   automaticOffer,
   beginCheckout,
@@ -21,6 +22,7 @@ import { metaCheckoutEvent, rememberPayer } from "@/lib/conversions/conversions"
 import type { MetaCheckout } from "@/lib/meta-pixel";
 import { db } from "@/lib/db";
 import { plans, subscriptions, websites } from "@/lib/db/schema";
+import { checkoutErrors } from "@/lib/i18n/checkout-errors";
 import { isPayPalConfigured, PayPalError, payPalCheckoutPaused } from "@/lib/paypal/client";
 import { CONFIRM_EMAIL_FIRST, isDirectPurchaseTier } from "@/lib/plans/features";
 import { startPlanChange } from "@/lib/paypal/plan-changes";
@@ -132,6 +134,9 @@ export async function createPayPalCheckout(
   origin: CheckoutOrigin = "billing",
 ): Promise<PayPalResult> {
   const { orgId, userId } = await requireOrg();
+  // The payer's app language: the refusals below and PayPal's page (lib/billing/provider-locale.ts).
+  const locale = await payerLocale();
+  const say = checkoutErrors(locale);
 
   /**
    * Ownership re-checked before the id leaves for PayPal, as with Stripe: a
@@ -143,16 +148,16 @@ export async function createPayPalCheckout(
     .where(and(eq(websites.id, websiteId), eq(websites.organizationId, orgId)))
     .limit(1);
   if (!site) {
-    return { error: "Website not found" };
+    return { error: say.websiteNotFound };
   }
 
   // Before credentials exist this is the expected path, not an outage.
   if (!isPayPalConfigured()) {
-    return { error: "PayPal is not available yet. Please pay by card." };
+    return { error: say.payPalUnavailable };
   }
   // Paused by the owner (PAYPAL_CHECKOUT=off): no new subscription and no plan change; existing ones carry on.
   if (payPalCheckoutPaused()) {
-    return { error: "Paying with PayPal is paused for now. Please pay by card, or try again later." };
+    return { error: say.payPalPaused };
   }
 
   const [plan] = await db
@@ -174,16 +179,14 @@ export async function createPayPalCheckout(
     .limit(1);
 
   if (!plan || !plan.isActive) {
-    return { error: "Plan not found" };
+    return { error: say.planNotFound };
   }
   if (!plan.paypalPlanId) {
     /**
      * Reported plainly rather than failing: a plan can legitimately exist in
      * Stripe before it has been mirrored into PayPal.
      */
-    return {
-      error: `"${plan.name}" is not available through PayPal yet. Please pay by card.`,
-    };
+    return { error: say.planNotOnPayPal(plan.name) };
   }
 
   /*
@@ -227,12 +230,12 @@ export async function createPayPalCheckout(
   try {
     begun = await beginCheckout(
       db,
-      { organizationId: orgId, websiteId, provider: "paypal", planId: plan.id, offer: autoOffer?.code ?? null },
+      { organizationId: orgId, websiteId, provider: "paypal", planId: plan.id, offer: autoOffer?.code ?? null, locale },
       checkoutProviderOps,
     );
   } catch (error) {
     console.error("[paypal] could not start checkout", error);
-    return { error: "We could not start the checkout. Please try again." };
+    return { error: say.checkoutNotStarted };
   }
 
   if (begun.kind === "refuse") return { error: begun.error };
@@ -240,7 +243,7 @@ export async function createPayPalCheckout(
 
   if (begun.kind === "change_plan") {
     if (begun.current.planId === plan.id) {
-      return { error: `This website is already on ${plan.name}.` };
+      return { error: say.alreadyOnPlan(plan.name) };
     }
     /*
       The same subscription, revised - never a second one. An upgrade pays
@@ -260,7 +263,7 @@ export async function createPayPalCheckout(
       return changed.kind === "redirect" ? { url: changed.url } : { error: changed.error };
     } catch (error) {
       console.error("[paypal] could not change the plan", error);
-      return { error: "PayPal could not change the plan." };
+      return { error: say.payPalChangeFailed };
     }
   }
 
@@ -268,7 +271,7 @@ export async function createPayPalCheckout(
   // Checked here, not before: a plan change above needs no offer plan. Failing the row gives the discount back.
   if (autoOffer && !launchPrice && !winbackReady) {
     await markCheckoutFailed(db, checkoutId).catch(() => {});
-    return { error: `The welcome-back discount is not available with PayPal for "${plan.name}" yet. Please pay by card to get it.` };
+    return { error: say.winbackNotOnPayPal(plan.name) };
   }
   /*
     The free trial (TRIAL_DAYS since 2026-11-13; the free articles before):
@@ -320,6 +323,7 @@ export async function createPayPalCheckout(
       returnUrl,
       cancelUrl,
       prices: discounted ? [discounted] : undefined,
+      locale: payPalLocale(locale),
     });
     await recordCheckoutStarted(db, checkoutId, {
       providerSubscriptionId: result.subscriptionId,
@@ -338,7 +342,9 @@ export async function createPayPalCheckout(
       );
     }
     if (error instanceof PayPalError) {
-      return { error: "PayPal could not start the subscription." };
+      // PayPal's own words are logged, never shown.
+      console.error("[paypal] could not start the subscription", error);
+      return { error: say.payPalStartFailed };
     }
     throw error;
   }

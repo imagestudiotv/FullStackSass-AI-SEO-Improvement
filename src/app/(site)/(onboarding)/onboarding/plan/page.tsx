@@ -115,7 +115,7 @@ export default async function OnboardingPlanPage({
   if (returning) {
     return (
       <div>
-        <WizardProgress current="plan" />
+        <WizardProgress current="plan" locale={locale} />
         {/*
           Back from PayPal: the subscription is read back from PayPal for
           this website, so a late webhook does not keep the customer
@@ -125,6 +125,7 @@ export default async function OnboardingPlanPage({
         <CheckoutPending
           websiteId={state.websiteId}
           t={t.app.onboarding}
+          locale={locale}
         />
       </div>
     );
@@ -173,7 +174,7 @@ export default async function OnboardingPlanPage({
 
   return (
     <div>
-      <WizardProgress current="plan" />
+      <WizardProgress current="plan" locale={locale} />
       {/*
         Back from PayPal's "Cancel and return": the approval left behind is
         released, so it does not block paying by card. Renders nothing.
@@ -228,6 +229,7 @@ export default async function OnboardingPlanPage({
               benefits={benefits}
               descriptions={descriptions}
               usageNote={page.compare.usageNote}
+              locale={locale}
             />
             {/*
               No "free trial or paid plan" comparison here any more (it was

@@ -270,7 +270,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       On a phone the sidebar is the menu sheet and the bar carries the logo
       and the credits instead.
     */
-    <div className="flex min-h-svh bg-muted/30">
+    // The app language declared for the page, as in (auth)/layout.tsx: the root <html> says "en" (app/(site)/layout.tsx).
+    <div lang={locale} className="flex min-h-svh bg-muted/30">
       <AppSidebar
         header={
           <div className="flex h-14 shrink-0 items-center gap-2 border-b px-4">

@@ -12,7 +12,9 @@ import {
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { format, plural } from "@/lib/i18n/format";
 import { getMessages, type Messages } from "@/lib/i18n/messages";
+import { ONBOARDING_STEPS_COPY, type OnboardingStepsCopy } from "@/lib/i18n/onboarding-steps";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -65,6 +67,7 @@ export function VisibilityStep({
   /** How many this website's plan may track: 20 on Grow, 50 on Scale. */
   allowance,
   t = getMessages("en").app.onboarding,
+  copy = ONBOARDING_STEPS_COPY.en.visibility,
 }: {
   websiteId: string;
   market: string | null;
@@ -74,6 +77,8 @@ export function VisibilityStep({
   allowance: number;
   /** This step's copy, defaulting to English. */
   t?: Messages["app"]["onboarding"];
+  /** The rest of this step's words (lib/i18n/onboarding-steps.ts), defaulting to English. */
+  copy?: OnboardingStepsCopy["visibility"];
 }) {
   const router = useRouter();
   const [prompts, setPrompts] = useState(initialPrompts);
@@ -169,7 +174,7 @@ export function VisibilityStep({
    */
   async function handleSuggestMore() {
     if (atLimit) {
-      toast.error(`Your plan tracks up to ${allowance} questions.`);
+      toast.error(plural(copy.limitReached, allowance));
       return;
     }
 
@@ -212,7 +217,7 @@ export function VisibilityStep({
 
     setSuggesting(false);
     if (added.length === 0) {
-      toast.info("No new questions this time - try adding one of your own.");
+      toast.info(copy.noNewQuestions);
       return;
     }
     setPrompts((current) => [...current, ...added]);
@@ -242,7 +247,7 @@ export function VisibilityStep({
             className="size-4 shrink-0 text-muted-foreground"
             aria-hidden="true"
           />
-          {market ?? "Global"}
+          {market ?? copy.globalMarket}
         </span>
         <span
           className="hidden h-4 w-px bg-border sm:block"
@@ -253,7 +258,7 @@ export function VisibilityStep({
             className="size-4 shrink-0 text-muted-foreground"
             aria-hidden="true"
           />
-          {language ?? "English"}
+          {language ?? copy.defaultLanguage}
         </span>
         <span
           className="hidden h-4 w-px bg-border sm:block"
@@ -264,14 +269,14 @@ export function VisibilityStep({
             className="size-4 shrink-0 text-muted-foreground"
             aria-hidden="true"
           />
-          {allowance} prompts included
+          {plural(copy.promptsIncluded, allowance)}
         </span>
         <button
           type="button"
           onClick={() => router.push("/onboarding/plan")}
           className="ml-auto font-medium text-primary hover:underline"
         >
-          Edit
+          {copy.edit}
         </button>
       </div>
 
@@ -310,7 +315,7 @@ export function VisibilityStep({
             */}
             {liveEngines.length > 3 ? (
               <p className="mt-3 text-sm text-muted-foreground">
-                + {liveEngines.length - 3} more checked on every run
+                {plural(copy.moreEngines, liveEngines.length - 3)}
               </p>
             ) : null}
           </>
@@ -327,7 +332,7 @@ export function VisibilityStep({
               </p>
           </div>
           <span className="shrink-0 text-sm text-muted-foreground tabular-nums">
-            {prompts.length} / {allowance} selected
+            {format(copy.selected, { n: prompts.length, total: allowance })}
           </span>
         </div>
 
@@ -373,7 +378,7 @@ export function VisibilityStep({
                 <button
                   type="button"
                   onClick={() => handleRemove(prompt.id)}
-                  aria-label={`Remove "${prompt.prompt}"`}
+                  aria-label={format(copy.remove, { prompt: prompt.prompt })}
                   className="shrink-0 rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-destructive"
                 >
                   <X className="size-4" aria-hidden="true" />
@@ -435,8 +440,7 @@ export function VisibilityStep({
 
         {atLimit ? (
           <p className="mt-3 text-xs text-muted-foreground">
-            You have filled your plan&apos;s {allowance} questions. Remove one
-            to add another.
+            {plural(copy.atLimit, allowance)}
           </p>
         ) : null}
       </div>
@@ -446,7 +450,7 @@ export function VisibilityStep({
           variant="ghost"
           onClick={() => router.push("/onboarding/plan")}
         >
-          Back
+          {copy.back}
         </Button>
         <Button
           className="h-12 rounded-full px-6 text-base font-semibold"
@@ -459,11 +463,11 @@ export function VisibilityStep({
           {busy ? (
             <>
               <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-              Saving&hellip;
+              {copy.saving}
             </>
           ) : (
             <>
-              Start tracking {prompts.length}
+              {format(copy.startTracking, { n: prompts.length })}
               <ArrowRight className="size-4" aria-hidden="true" />
             </>
           )}

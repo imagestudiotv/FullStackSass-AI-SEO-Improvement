@@ -64,7 +64,7 @@ describe("/seo-content-automation", () => {
     expect(metadata.alternates).toEqual({ canonical: SEO_CONTENT_AUTOMATION_PATH });
     expect(metadata.openGraph?.url).toBe(SEO_CONTENT_AUTOMATION_PATH);
     expect(String(metadata.title)).toMatch(/SEO Content Automation/);
-    // Not a PUBLIC_PAGES entry: no sitemap line, and /es/seo-content-automation is a 404 rather than a redirect.
+    // Not a PUBLIC_PAGES entry: no sitemap line. /it|de|es|fr/seo-content-automation are its separate versions (seo-content-automation-localized.render.test.ts).
     expect(isPublicEnglishPage(SEO_CONTENT_AUTOMATION_PATH)).toBe(false);
     // The price is read per request, as /pricing reads it.
     expect(dynamic).toBe("force-dynamic");

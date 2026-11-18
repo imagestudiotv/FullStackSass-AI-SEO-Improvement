@@ -3285,6 +3285,30 @@ export type Messages = {
       codeNotSent: string;
       codeInvalid: string;
       enterEmailFirst: string;
+      /** Page titles (the browser tab) of /sign-in and /sign-up. */
+      signInPageTitle: string;
+      signUpPageTitle: string;
+      /**
+       * Better Auth's OAuth ?error= codes, in words (auth-form). Its own codes read
+       * like internals; anything unlisted shows oauthFailed.
+       */
+      oauthErrors: {
+        account_not_linked: string;
+        email_does_not_match: string;
+        account_already_linked_to_different_user: string;
+        unable_to_link_account: string;
+      };
+      oauthFailed: string;
+      /** Fallbacks when Google sign-in, or the password form, is refused. */
+      googleFailed: string;
+      somethingWentWrong: string;
+      /**
+       * Better Auth's error codes (error.code) in this language: lib/i18n/auth-errors.ts
+       * lists them. Null in English, where the form shows Better Auth's own wording as
+       * it always has. Elsewhere a code not listed shows the step's own fallback,
+       * never Better Auth's English.
+       */
+      serverErrors: Record<string, string> | null;
       organizations: string;
       loading: string;
       createOrganization: string;
@@ -6548,6 +6572,18 @@ const en: Messages = {
       codeNotSent: "That code could not be sent. Try again.",
       codeInvalid: "That code is not right, or it has expired.",
       enterEmailFirst: "Enter your email address first.",
+      signInPageTitle: "Sign in",
+      signUpPageTitle: "Sign up",
+      oauthErrors: {
+        account_not_linked: "That email already has a password account. Sign in with your password, or contact support to link Google.",
+        email_does_not_match: "That Google account uses a different email than the one on file.",
+        account_already_linked_to_different_user: "That Google account is already connected to another account.",
+        unable_to_link_account: "Google sign-in could not be linked to your account.",
+      },
+      oauthFailed: "Sign-in did not complete. Try again.",
+      googleFailed: "Google sign-in failed",
+      somethingWentWrong: "Something went wrong",
+      serverErrors: null,
       organizations: "Organizations",
       loading: "Loading…",
       createOrganization: "Create organization",
@@ -9829,6 +9865,33 @@ const es: Messages = {
       codeNotSent: "No se ha podido enviar el código. Inténtelo de nuevo.",
       codeInvalid: "Ese código no es correcto o ha caducado.",
       enterEmailFirst: "Introduzca primero su correo electrónico.",
+      signInPageTitle: "Iniciar sesión",
+      signUpPageTitle: "Registrarse",
+      oauthErrors: {
+        account_not_linked: "Ese correo electrónico ya tiene una cuenta con contraseña. Inicie sesión con su contraseña o contacte con soporte para vincular Google.",
+        email_does_not_match: "Esa cuenta de Google usa un correo electrónico distinto del que tenemos registrado.",
+        account_already_linked_to_different_user: "Esa cuenta de Google ya está conectada a otra cuenta.",
+        unable_to_link_account: "No se pudo vincular el inicio de sesión con Google a su cuenta.",
+      },
+      oauthFailed: "No se completó el inicio de sesión. Inténtelo de nuevo.",
+      googleFailed: "No se pudo iniciar sesión con Google",
+      somethingWentWrong: "Algo salió mal",
+      serverErrors: {
+        INVALID_EMAIL_OR_PASSWORD: "El correo electrónico o la contraseña no son correctos.",
+        INVALID_EMAIL: "Esa dirección de correo electrónico no es válida.",
+        INVALID_PASSWORD: "Esa contraseña no es válida.",
+        PASSWORD_TOO_SHORT: "La contraseña es demasiado corta. Use al menos 8 caracteres.",
+        PASSWORD_TOO_LONG: "La contraseña es demasiado larga. Use como máximo 128 caracteres.",
+        USER_ALREADY_EXISTS: "Ya existe una cuenta con ese correo electrónico. Inicie sesión o use otro correo.",
+        USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: "Ya existe una cuenta con ese correo electrónico. Inicie sesión o use otro correo.",
+        USER_NOT_FOUND: "No hay ninguna cuenta con ese correo electrónico.",
+        EMAIL_NOT_VERIFIED: "Ese correo electrónico aún no está verificado.",
+        FAILED_TO_CREATE_USER: "No se pudo crear la cuenta. Inténtelo de nuevo.",
+        FAILED_TO_CREATE_SESSION: "No se pudo iniciar la sesión. Inténtelo de nuevo.",
+        INVALID_OTP: "Ese código no es correcto. Compruébelo o solicite uno nuevo.",
+        OTP_EXPIRED: "Ese código ha caducado. Solicite uno nuevo.",
+        TOO_MANY_ATTEMPTS: "Demasiados intentos con este código. Solicite uno nuevo.",
+      },
       organizations: "Organizaciones",
       loading: "Cargando…",
       createOrganization: "Crear organización",
@@ -13111,6 +13174,33 @@ const fr: Messages = {
       codeNotSent: "Ce code n\u2019a pas pu être envoyé. Réessayez.",
       codeInvalid: "Ce code est incorrect ou a expiré.",
       enterEmailFirst: "Saisissez d\u2019abord votre adresse e-mail.",
+      signInPageTitle: "Se connecter",
+      signUpPageTitle: "S’inscrire",
+      oauthErrors: {
+        account_not_linked: "Cette adresse e-mail a déjà un compte avec mot de passe. Connectez-vous avec votre mot de passe, ou contactez le support pour associer Google.",
+        email_does_not_match: "Ce compte Google utilise une adresse e-mail différente de celle enregistrée.",
+        account_already_linked_to_different_user: "Ce compte Google est déjà associé à un autre compte.",
+        unable_to_link_account: "La connexion Google n’a pas pu être associée à votre compte.",
+      },
+      oauthFailed: "La connexion n’a pas abouti. Réessayez.",
+      googleFailed: "La connexion avec Google a échoué",
+      somethingWentWrong: "Une erreur s’est produite",
+      serverErrors: {
+        INVALID_EMAIL_OR_PASSWORD: "Adresse e-mail ou mot de passe incorrect.",
+        INVALID_EMAIL: "Cette adresse e-mail n’est pas valide.",
+        INVALID_PASSWORD: "Ce mot de passe n’est pas valide.",
+        PASSWORD_TOO_SHORT: "Mot de passe trop court. Utilisez au moins 8 caractères.",
+        PASSWORD_TOO_LONG: "Mot de passe trop long. Utilisez au maximum 128 caractères.",
+        USER_ALREADY_EXISTS: "Un compte existe déjà avec cette adresse e-mail. Connectez-vous ou utilisez une autre adresse.",
+        USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: "Un compte existe déjà avec cette adresse e-mail. Connectez-vous ou utilisez une autre adresse.",
+        USER_NOT_FOUND: "Aucun compte n’existe avec cette adresse e-mail.",
+        EMAIL_NOT_VERIFIED: "Cette adresse e-mail n’est pas encore vérifiée.",
+        FAILED_TO_CREATE_USER: "Le compte n’a pas pu être créé. Réessayez.",
+        FAILED_TO_CREATE_SESSION: "La connexion n’a pas pu être établie. Réessayez.",
+        INVALID_OTP: "Ce code est incorrect. Vérifiez-le ou demandez-en un nouveau.",
+        OTP_EXPIRED: "Ce code a expiré. Demandez-en un nouveau.",
+        TOO_MANY_ATTEMPTS: "Trop de tentatives avec ce code. Demandez-en un nouveau.",
+      },
       organizations: "Organisations",
       loading: "Chargement…",
       createOrganization: "Créer une organisation",
@@ -16392,6 +16482,33 @@ const it: Messages = {
       codeNotSent: "Non è stato possibile inviare il codice. Riprovi.",
       codeInvalid: "Il codice non è corretto o è scaduto.",
       enterEmailFirst: "Inserisca prima il suo indirizzo e-mail.",
+      signInPageTitle: "Accedi",
+      signUpPageTitle: "Registrazione",
+      oauthErrors: {
+        account_not_linked: "Questo indirizzo e-mail ha già un account con password. Acceda con la sua password o contatti l’assistenza per collegare Google.",
+        email_does_not_match: "Questo account Google usa un indirizzo e-mail diverso da quello registrato.",
+        account_already_linked_to_different_user: "Questo account Google è già collegato a un altro account.",
+        unable_to_link_account: "Non è stato possibile collegare l’accesso con Google al suo account.",
+      },
+      oauthFailed: "L’accesso non è stato completato. Riprovi.",
+      googleFailed: "Accesso con Google non riuscito",
+      somethingWentWrong: "Si è verificato un errore",
+      serverErrors: {
+        INVALID_EMAIL_OR_PASSWORD: "Indirizzo e-mail o password non corretti.",
+        INVALID_EMAIL: "Questo indirizzo e-mail non è valido.",
+        INVALID_PASSWORD: "Questa password non è valida.",
+        PASSWORD_TOO_SHORT: "Password troppo corta. Usi almeno 8 caratteri.",
+        PASSWORD_TOO_LONG: "Password troppo lunga. Usi al massimo 128 caratteri.",
+        USER_ALREADY_EXISTS: "Esiste già un account con questo indirizzo e-mail. Acceda oppure usi un altro indirizzo.",
+        USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: "Esiste già un account con questo indirizzo e-mail. Acceda oppure usi un altro indirizzo.",
+        USER_NOT_FOUND: "Non esiste alcun account con questo indirizzo e-mail.",
+        EMAIL_NOT_VERIFIED: "Questo indirizzo e-mail non è ancora verificato.",
+        FAILED_TO_CREATE_USER: "Non è stato possibile creare l’account. Riprovi.",
+        FAILED_TO_CREATE_SESSION: "Non è stato possibile completare l’accesso. Riprovi.",
+        INVALID_OTP: "Il codice non è corretto. Lo controlli o ne richieda uno nuovo.",
+        OTP_EXPIRED: "Il codice è scaduto. Ne richieda uno nuovo.",
+        TOO_MANY_ATTEMPTS: "Troppi tentativi con questo codice. Ne richieda uno nuovo.",
+      },
       organizations: "Organizzazioni",
       loading: "Caricamento…",
       createOrganization: "Crea organizzazione",
@@ -19670,6 +19787,33 @@ const de: Messages = {
       codeNotSent: "Der Code konnte nicht gesendet werden. Versuchen Sie es erneut.",
       codeInvalid: "Der Code ist falsch oder abgelaufen.",
       enterEmailFirst: "Geben Sie zuerst Ihre E-Mail-Adresse ein.",
+      signInPageTitle: "Anmelden",
+      signUpPageTitle: "Registrieren",
+      oauthErrors: {
+        account_not_linked: "Für diese E-Mail-Adresse gibt es bereits ein Konto mit Passwort. Melden Sie sich mit Ihrem Passwort an oder wenden Sie sich an den Support, um Google zu verknüpfen.",
+        email_does_not_match: "Dieses Google-Konto verwendet eine andere E-Mail-Adresse als die hinterlegte.",
+        account_already_linked_to_different_user: "Dieses Google-Konto ist bereits mit einem anderen Konto verbunden.",
+        unable_to_link_account: "Die Google-Anmeldung konnte nicht mit Ihrem Konto verknüpft werden.",
+      },
+      oauthFailed: "Die Anmeldung wurde nicht abgeschlossen. Versuchen Sie es erneut.",
+      googleFailed: "Die Anmeldung mit Google ist fehlgeschlagen",
+      somethingWentWrong: "Etwas ist schiefgelaufen",
+      serverErrors: {
+        INVALID_EMAIL_OR_PASSWORD: "E-Mail-Adresse oder Passwort ist falsch.",
+        INVALID_EMAIL: "Diese E-Mail-Adresse ist ungültig.",
+        INVALID_PASSWORD: "Dieses Passwort ist ungültig.",
+        PASSWORD_TOO_SHORT: "Das Passwort ist zu kurz. Verwenden Sie mindestens 8 Zeichen.",
+        PASSWORD_TOO_LONG: "Das Passwort ist zu lang. Verwenden Sie höchstens 128 Zeichen.",
+        USER_ALREADY_EXISTS: "Für diese E-Mail-Adresse gibt es bereits ein Konto. Melden Sie sich an oder verwenden Sie eine andere Adresse.",
+        USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: "Für diese E-Mail-Adresse gibt es bereits ein Konto. Melden Sie sich an oder verwenden Sie eine andere Adresse.",
+        USER_NOT_FOUND: "Für diese E-Mail-Adresse gibt es kein Konto.",
+        EMAIL_NOT_VERIFIED: "Diese E-Mail-Adresse ist noch nicht bestätigt.",
+        FAILED_TO_CREATE_USER: "Das Konto konnte nicht erstellt werden. Versuchen Sie es erneut.",
+        FAILED_TO_CREATE_SESSION: "Die Anmeldung konnte nicht abgeschlossen werden. Versuchen Sie es erneut.",
+        INVALID_OTP: "Der Code ist falsch. Prüfen Sie ihn oder fordern Sie einen neuen an.",
+        OTP_EXPIRED: "Der Code ist abgelaufen. Fordern Sie einen neuen an.",
+        TOO_MANY_ATTEMPTS: "Zu viele Versuche mit diesem Code. Fordern Sie einen neuen an.",
+      },
       organizations: "Organisationen",
       loading: "Wird geladen…",
       createOrganization: "Organisation erstellen",

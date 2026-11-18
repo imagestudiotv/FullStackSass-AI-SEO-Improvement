@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createTestDb, type TestDb } from "@/test/db";
 
@@ -65,10 +65,11 @@ const google = vi.hoisted(() => ({
   fetchAnalyticsReport: vi.fn(),
 }));
 vi.mock("@/lib/analytics/google-api", async (original) => ({ ...(await original<object>()), ...google }));
+const oauth = vi.hoisted(() => ({ authorizeUrl: vi.fn(() => "https://accounts.google.example/consent") }));
 vi.mock("@/lib/analytics/google-oauth", async (original) => ({
   ...(await original<object>()),
   isGoogleConfigured: () => true,
-  authorizeUrl: () => "https://accounts.google.example/consent",
+  authorizeUrl: oauth.authorizeUrl,
   refreshAccessToken: vi.fn(),
 }));
 
@@ -369,4 +370,52 @@ describe("connections made before approvals were recorded", () => {
     expect(run["import-analytics"].skipped).toBe("unapproved");
   });
 
+});
+
+describe("starting the connection, in the caller's app language (2026-11-18)", () => {
+  /*
+    Onboarding's Google step was in the customer's language and the refusals
+    of startGoogleConnect were English. English stays as the tests above have it.
+  */
+  async function speaks(who: Who, locale: string | null) {
+    await test.db.update(user).set({ locale }).where(eq(user.id, people[who].userId));
+  }
+  afterEach(async () => {
+    for (const who of Object.keys(people) as Who[]) await speaks(who, null);
+  });
+
+  it("refuses an editor over the owner's connection, and a viewer, in Italian and German", async () => {
+    await connect("owner");
+    as("editor");
+    await speaks("editor", "it");
+    expect(await startGoogleConnect(site, "onboarding")).toEqual({
+      ok: false,
+      error: "Questo collegamento Google appartiene al proprietario del sito web. Solo il proprietario può scollegarlo o collegare un altro account.",
+    });
+    as("viewer");
+    await speaks("viewer", "de");
+    expect(await startGoogleConnect(site, "onboarding")).toEqual({ ok: false, error: "Sie haben für diese Website nur Lesezugriff." });
+    await speaks("viewer", "en");
+    expect(await startGoogleConnect(site, "onboarding")).toEqual({ ok: false, error: VIEW_ONLY });
+  });
+
+  it("an unexpected failure: the step's own sentence in the caller's language, the error logged, never its text", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const failure = new Error("invalid_client: The OAuth client was not found.");
+    oauth.authorizeUrl.mockImplementationOnce(() => {
+      throw failure;
+    });
+    oauth.authorizeUrl.mockImplementationOnce(() => {
+      throw failure;
+    });
+    as("owner");
+    await speaks("owner", "it");
+    expect(await startGoogleConnect(site, "onboarding")).toEqual({ ok: false, error: "Non è stato possibile collegare Google" });
+    await speaks("owner", null);
+    expect(await startGoogleConnect(site, "onboarding")).toEqual({ ok: false, error: "Google could not be connected" });
+    expect(logged).toHaveBeenCalledWith(expect.stringContaining(site), failure);
+    logged.mockRestore();
+    // Nothing was hiding a working connection: the next try goes to Google.
+    expect(await startGoogleConnect(site, "onboarding")).toMatchObject({ ok: true, data: { url: "https://accounts.google.example/consent" } });
+  });
 });

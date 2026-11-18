@@ -21,27 +21,18 @@ import { authClient } from "@/lib/auth-client";
 import { localAuthRedirect } from "@/lib/auth/local-origin";
 import { authSwitchHref, googleErrorPath, safeNext } from "@/lib/auth/next";
 import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from "@/lib/auth/password-policy";
+import { authFailureMessage, oauthErrorMessage, type AuthRequestError } from "@/lib/i18n/auth-errors";
 import { Button } from "@/components/ui/button";
 import { GoogleMark } from "@/components/google-mark";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-/**
- * What Better Auth's OAuth error codes mean to a customer.
- *
- * Its own codes read like internals — "account_not_linked" tells someone
- * nothing about what to do next. Anything unmapped falls back to a plain
- * sentence rather than showing the raw code.
- */
-const OAUTH_ERRORS: Record<string, string> = {
-  account_not_linked:
-    "That email already has a password account. Sign in with your password, or contact support to link Google.",
-  email_does_not_match:
-    "That Google account uses a different email than the one on file.",
-  account_already_linked_to_different_user:
-    "That Google account is already connected to another account.",
-  unable_to_link_account: "Google sign-in could not be linked to your account.",
-};
+/*
+  What Better Auth's OAuth error codes mean to a customer is t.oauthErrors:
+  its own codes read like internals - "account_not_linked" tells someone
+  nothing about what to do next - and anything unmapped is t.oauthFailed
+  rather than the raw code (lib/i18n/auth-errors.ts).
+*/
 
 /**
  * Sign-in and sign-up, following the reference design.
@@ -155,7 +146,7 @@ export function AuthForm({
   useEffect(() => {
     const code = searchParams.get("error");
     if (!code) return;
-    toast.error(OAUTH_ERRORS[code] ?? "Sign-in did not complete. Try again.");
+    toast.error(oauthErrorMessage(code, t));
     /*
       Strip ONLY the error, keeping the rest of the query. It used to reset
       the address to the bare pathname, which also threw away ?next= and
@@ -170,20 +161,20 @@ export function AuthForm({
       "",
       query ? `${window.location.pathname}?${query}` : window.location.pathname,
     );
-  }, [searchParams]);
+  }, [searchParams, t]);
 
   /**
-   * What to say when Better Auth refuses. Its messages are English; a 429
-   * (too many attempts, lib/auth/rate-limit.ts) is the one this page can
-   * predict, so it is said in the reader's language. Anything else keeps
-   * Better Auth's wording, or the page's own fallback.
+   * What to say when Better Auth refuses. Its messages are English: a 429
+   * (too many attempts, lib/auth/rate-limit.ts) is said in the reader's
+   * language, English keeps Better Auth's wording, and other languages word
+   * its error code, or say the page's own fallback. See authFailureMessage.
    */
-  function failure(error: { status?: number; message?: string }, fallback: string): string {
-    return error.status === 429 ? t.tooManyAttempts : (error.message ?? fallback);
+  function failure(error: AuthRequestError, fallback: string): string {
+    return authFailureMessage(error, t, fallback);
   }
 
   async function runRequest(
-    request: () => Promise<{ error?: { status?: number; message?: string } | null }>,
+    request: () => Promise<{ error?: AuthRequestError | null }>,
     onSuccess: () => void,
     fallback: string,
     google = false,
@@ -216,7 +207,7 @@ export function AuthForm({
         errorCallbackURL: googleErrorPath(next),
       }),
       () => {}, // Better Auth performs the OAuth redirect.
-      "Google sign-in failed",
+      t.googleFailed,
       true,
     );
   }
@@ -259,7 +250,7 @@ export function AuthForm({
         ? authClient.signUp.email({ name: name.trim(), email: cleanEmail, password })
         : authClient.signIn.email({ email: cleanEmail, password }),
       enterApp,
-      "Something went wrong",
+      t.somethingWentWrong,
     );
   }
 
