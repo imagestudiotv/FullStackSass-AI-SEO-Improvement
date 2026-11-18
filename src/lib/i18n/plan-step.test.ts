@@ -63,11 +63,7 @@ describe("the plan step's words", () => {
     expect(en.startTrial).toBe("Start free trial");
     expect(en.continueToPayment).toBe("Continue to payment");
     expect(en.trialToday("€0", 3)).toBe("€0 today · 3 days free.");
-    expect(en.thenYearDiscounted).toBe(
-      "Then your discounted annual plan begins at the total shown at checkout, unless you cancel before the trial ends.",
-    );
     expect(en.thenYear("€990")).toBe("Then €990/year, unless you cancel before the trial ends.");
-    expect(en.thenMonthDiscounted("€89", 40)).toBe("Then €89/month with your 40% discount, unless you cancel before the trial ends.");
     expect(en.thenMonth("€149")).toBe("Then €149/month, unless you cancel before the trial ends.");
     expect(en.chargedTodayMonth("€99")).toBe("€99 a month, charged today. This workspace has already had its free trial.");
     expect(en.chargedTodayYear("€990")).toBe("€990 a year, charged today. This workspace has already had its free trial.");
@@ -89,9 +85,6 @@ describe("the plan step's words", () => {
       expect(today, locale).toContain("3");
       expect(copy.thenYear("€912"), locale).toContain("€912");
       expect(copy.thenMonth("€149"), locale).toContain("€149");
-      const discounted = copy.thenMonthDiscounted("€89", 40);
-      expect(discounted, locale).toContain("€89");
-      expect(discounted, locale).toContain("40");
       expect(copy.chargedTodayMonth("€99"), locale).toContain("€99");
       expect(copy.chargedTodayYear("€990"), locale).toContain("€990");
     }

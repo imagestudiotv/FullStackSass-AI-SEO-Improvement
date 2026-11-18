@@ -912,21 +912,12 @@ function ManagedForYou({ template }: { template: string }) {
 }
 
 /**
- * The price as /pricing shows it (plan-cards.ts): the charged figure, the
- * regular one struck through beside it when checkout really takes something
- * off, how it is billed, and when money is taken.
+ * The price as /pricing shows it (plan-cards.ts): the charged figure alone,
+ * how it is billed, and when money is taken.
  */
 function PlanPrice({ view }: { view: PlanCardView }) {
   return (
     <div className="mt-3 space-y-1">
-      {view.strike ? (
-        <p className="flex flex-wrap items-center gap-2 text-sm">
-          {view.badge ? (
-            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">{view.badge}</span>
-          ) : null}
-          <del className="text-muted-foreground tabular-nums">{view.strike}</del>
-        </p>
-      ) : null}
       <p className="flex flex-wrap items-baseline gap-x-1.5">
         <span className="text-3xl font-semibold tracking-tight tabular-nums text-foreground">{view.price}</span>
         <span className="text-sm text-muted-foreground">{view.per}</span>

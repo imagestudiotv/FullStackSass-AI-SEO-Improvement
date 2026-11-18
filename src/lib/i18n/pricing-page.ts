@@ -10,9 +10,13 @@ import type { Locale } from "@/lib/i18n/config";
  *
  * The figures are NOT written here. Prices, articles, social posts and search
  * terms come from the plans table, the rows checkout charges
- * (scripts/plan-catalog.mjs): `{articles}`, `{posts}`, `{terms}`, `{price}`,
- * `{regular}`, `{pct}` and `{n}` are filled in by the page. `**words**` are
- * bold.
+ * (scripts/plan-catalog.mjs): `{articles}`, `{posts}`, `{terms}`, `{price}`
+ * and `{n}` are filled in by the page. `**words**` are bold.
+ *
+ * `{price}` IS WHAT CHECKOUT CHARGES, and the only price said: no regular or
+ * reference price beside it, struck through or not, and no percentage off it
+ * (conservative copy for the ads pilot, 2026-11-18: the owner has no evidence
+ * for a reference price), REPGET offer on or off.
  */
 
 export type PricingTierId = "launch" | "grow" | "scale";
@@ -34,7 +38,6 @@ export type PricingPageCopy = {
   hero: { titleLead: string; titleAccent: string; body: string; pills: [string, string, string] };
   bundle: {
     flag: string;
-    sale: string;
     lede: string;
     priceLabel: string;
     perMonth: string;
@@ -55,16 +58,12 @@ export type PricingPageCopy = {
     bonusIntro: string;
     bonuses: [PerkItem, PerkItem, PerkItem];
   };
-  billing: { sectionLabel: string; label: string; monthly: string; yearly: string; saving: string; savingPlain: string };
+  billing: { sectionLabel: string; label: string; monthly: string; yearly: string; saving: string };
   card: {
-    offerBadge: string;
-    wasLabel: string;
     perMonth: string;
+    /** How the charged price is billed, said plainly: the same words with the REPGET offer on or off. */
     monthlyCaption: string;
     yearlyCaption: string;
-    /** Without the REPGET offer (REPGET_OFFER_ENABLED off): the regular price, said plainly. */
-    plainMonthlyCaption: string;
-    plainYearlyCaption: string;
     more: string;
     popular: string;
     perksTitle: string;
@@ -135,9 +134,8 @@ const en: PricingPageCopy = {
   },
   bundle: {
     flag: "GROWTH, AMPLIFIED.",
-    sale: "SAVE {pct}% ON THE FULL BUNDLE",
     lede: "The full Grow plan. Plus a bigger stage for your brand.",
-    priceLabel: "Grow plus Visibility bundle price {regular} per month, promotional price {price} per month",
+    priceLabel: "Grow plus Visibility bundle price {price} per month",
     perMonth: "/ month",
     featureKicker: "VISIBILITY INCLUDED",
     featureTitle: "Get featured on *Social channels* & our *Blog.*",
@@ -177,17 +175,12 @@ const en: PricingPageCopy = {
     label: "Choose billing period",
     monthly: "Monthly",
     yearly: "Yearly",
-    saving: "Yearly: 2 months free, plus 40% off",
-    savingPlain: "Yearly: 2 months free",
+    saving: "Yearly: 2 months free",
   },
   card: {
-    offerBadge: "40% OFF",
-    wasLabel: "regular price",
     perMonth: "/ month",
-    monthlyCaption: "40% off regular price · billed monthly",
-    yearlyCaption: "Billed {price}/year · was {regular}/year",
-    plainMonthlyCaption: "Billed monthly",
-    plainYearlyCaption: "Billed {price}/year",
+    monthlyCaption: "Billed monthly",
+    yearlyCaption: "Billed {price}/year",
     more: "Explore full feature comparison",
     popular: "Most popular",
     perksTitle: "Included visibility perks",
@@ -452,9 +445,8 @@ const es: PricingPageCopy = {
   },
   bundle: {
     flag: "CRECIMIENTO, AMPLIFICADO.",
-    sale: "AHORRE UN {pct} % EN EL PAQUETE COMPLETO",
     lede: "El plan Grow completo. Y un escenario más grande para su marca.",
-    priceLabel: "Precio del paquete Grow más Visibility {regular} al mes, precio promocional {price} al mes",
+    priceLabel: "Precio del paquete Grow más Visibility {price} al mes",
     perMonth: "/ mes",
     featureKicker: "VISIBILIDAD INCLUIDA",
     featureTitle: "Aparezca en nuestras *redes sociales* y en nuestro *blog.*",
@@ -494,17 +486,12 @@ const es: PricingPageCopy = {
     label: "Elija el periodo de facturación",
     monthly: "Mensual",
     yearly: "Anual",
-    saving: "Anual: 2 meses gratis y un 40 % de descuento",
-    savingPlain: "Anual: 2 meses gratis",
+    saving: "Anual: 2 meses gratis",
   },
   card: {
-    offerBadge: "40 % DTO.",
-    wasLabel: "precio normal",
     perMonth: "/ mes",
-    monthlyCaption: "40 % de descuento sobre el precio normal · facturación mensual",
-    yearlyCaption: "Facturado {price}/año · antes {regular}/año",
-    plainMonthlyCaption: "Facturación mensual",
-    plainYearlyCaption: "Facturado {price}/año",
+    monthlyCaption: "Facturación mensual",
+    yearlyCaption: "Facturado {price}/año",
     more: "Ver la comparación completa",
     popular: "El más popular",
     perksTitle: "Ventajas de visibilidad incluidas",
@@ -769,9 +756,8 @@ const fr: PricingPageCopy = {
   },
   bundle: {
     flag: "LA CROISSANCE, AMPLIFIÉE.",
-    sale: "ÉCONOMISEZ {pct} % SUR L'OFFRE COMPLÈTE",
     lede: "La formule Grow complète. Et une plus grande scène pour votre marque.",
-    priceLabel: "Prix de l'offre Grow plus Visibility {regular} par mois, prix promotionnel {price} par mois",
+    priceLabel: "Prix de l'offre Grow plus Visibility {price} par mois",
     perMonth: "/ mois",
     featureKicker: "VISIBILITÉ INCLUSE",
     featureTitle: "Soyez mis en avant sur nos *réseaux sociaux* et notre *blog.*",
@@ -811,17 +797,12 @@ const fr: PricingPageCopy = {
     label: "Choisissez la période de facturation",
     monthly: "Mensuel",
     yearly: "Annuel",
-    saving: "Annuel : 2 mois offerts, et 40 % de réduction",
-    savingPlain: "Annuel : 2 mois offerts",
+    saving: "Annuel : 2 mois offerts",
   },
   card: {
-    offerBadge: "-40 %",
-    wasLabel: "prix normal",
     perMonth: "/ mois",
-    monthlyCaption: "40 % de réduction sur le prix normal · facturé chaque mois",
-    yearlyCaption: "Facturé {price}/an · au lieu de {regular}/an",
-    plainMonthlyCaption: "Facturé chaque mois",
-    plainYearlyCaption: "Facturé {price}/an",
+    monthlyCaption: "Facturé chaque mois",
+    yearlyCaption: "Facturé {price}/an",
     more: "Voir la comparaison complète",
     popular: "La plus choisie",
     perksTitle: "Avantages de visibilité inclus",
@@ -1086,9 +1067,8 @@ const it: PricingPageCopy = {
   },
   bundle: {
     flag: "CRESCITA, AMPLIFICATA.",
-    sale: "RISPARMI IL {pct}% SUL PACCHETTO COMPLETO",
     lede: "Il piano Grow completo. In più, un palcoscenico più grande per il suo marchio.",
-    priceLabel: "Prezzo del pacchetto Grow più Visibility {regular} al mese, prezzo promozionale {price} al mese",
+    priceLabel: "Prezzo del pacchetto Grow più Visibility {price} al mese",
     perMonth: "/ mese",
     featureKicker: "VISIBILITÀ INCLUSA",
     featureTitle: "Compaia sui nostri *canali social* e sul nostro *blog.*",
@@ -1128,17 +1108,12 @@ const it: PricingPageCopy = {
     label: "Scelga il periodo di fatturazione",
     monthly: "Mensile",
     yearly: "Annuale",
-    saving: "Annuale: 2 mesi gratis, più il 40% di sconto",
-    savingPlain: "Annuale: 2 mesi gratis",
+    saving: "Annuale: 2 mesi gratis",
   },
   card: {
-    offerBadge: "-40%",
-    wasLabel: "prezzo normale",
     perMonth: "/ mese",
-    monthlyCaption: "40% di sconto sul prezzo normale · fatturazione mensile",
-    yearlyCaption: "Fatturato {price}/anno · prima {regular}/anno",
-    plainMonthlyCaption: "Fatturazione mensile",
-    plainYearlyCaption: "Fatturato {price}/anno",
+    monthlyCaption: "Fatturazione mensile",
+    yearlyCaption: "Fatturato {price}/anno",
     more: "Vedi il confronto completo",
     popular: "Il più scelto",
     perksTitle: "Vantaggi di visibilità inclusi",
@@ -1403,9 +1378,8 @@ const de: PricingPageCopy = {
   },
   bundle: {
     flag: "WACHSTUM, VERSTÄRKT.",
-    sale: "SPAREN SIE {pct} % AUF DAS GESAMTPAKET",
     lede: "Der komplette Grow-Tarif. Dazu eine größere Bühne für Ihre Marke.",
-    priceLabel: "Preis des Pakets Grow plus Visibility {regular} pro Monat, Aktionspreis {price} pro Monat",
+    priceLabel: "Preis des Pakets Grow plus Visibility {price} pro Monat",
     perMonth: "/ Monat",
     featureKicker: "SICHTBARKEIT INKLUSIVE",
     featureTitle: "Präsentiert auf unseren *Social-Media-Kanälen* & unserem *Blog.*",
@@ -1445,17 +1419,12 @@ const de: PricingPageCopy = {
     label: "Abrechnungszeitraum wählen",
     monthly: "Monatlich",
     yearly: "Jährlich",
-    saving: "Jährlich: 2 Monate gratis, dazu 40 % Rabatt",
-    savingPlain: "Jährlich: 2 Monate gratis",
+    saving: "Jährlich: 2 Monate gratis",
   },
   card: {
-    offerBadge: "40 % RABATT",
-    wasLabel: "regulärer Preis",
     perMonth: "/ Monat",
-    monthlyCaption: "40 % Rabatt auf den regulären Preis · monatliche Abrechnung",
-    yearlyCaption: "{price}/Jahr berechnet · statt {regular}/Jahr",
-    plainMonthlyCaption: "Monatliche Abrechnung",
-    plainYearlyCaption: "{price}/Jahr berechnet",
+    monthlyCaption: "Monatliche Abrechnung",
+    yearlyCaption: "{price}/Jahr berechnet",
     more: "Zum vollständigen Funktionsvergleich",
     popular: "Am beliebtesten",
     perksTitle: "Enthaltene Sichtbarkeitsvorteile",

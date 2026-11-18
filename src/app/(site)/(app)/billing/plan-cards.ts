@@ -14,15 +14,14 @@ import { formatMoney, planFeatures } from "./billing-view";
 /**
  * What each plan card on Billing shows, worked out on the server from the plan
  * rows and the offer that checkout applies (Daniel, 2026-11-13: the cards
- * should list the real benefits and show the original price struck through,
- * as /pricing does).
+ * should list the real benefits, as /pricing does).
  *
- * THE PRICE IS planDisplayPrice's (lib/billing/display-prices.ts), the same
- * function /pricing and the onboarding plan step read, which only shows a
- * discount checkout really gives: REPGET's launch price while
- * REPGET_OFFER_ENABLED=1 (LP40_* coupons) and the Grow + Visibility bundle's
- * EUR 299 -> 99 (REPGET_GV_M). A yearly plan is quoted per month with the
- * year's total beside it, as /pricing quotes it.
+ * THE PRICE IS planDisplayPrice's chargedCents (lib/billing/display-prices.ts),
+ * the same function /pricing and the onboarding plan step read: what checkout
+ * charges, REPGET's launch price while REPGET_OFFER_ENABLED=1, and nothing
+ * else - no regular price struck through and no "% off" badge (conservative
+ * copy, 2026-11-18). A yearly plan is quoted per month with the year's total
+ * beside it, as /pricing quotes it.
  *
  * THE TERMS ARE CHECKOUT'S: the TRIAL_DAYS free trial only for a workspace that has
  * never subscribed (lib/billing/checkouts.ts isTrialEligible) and never on a
@@ -32,13 +31,9 @@ import { formatMoney, planFeatures } from "./billing-view";
 export type PlanCardView = {
   /** The main figure: per month (a yearly plan's total divided by 12). */
   price: string;
-  /** The regular figure on the same basis, struck through; null when nothing is taken off. */
-  strike: string | null;
-  /** "40% OFF" for REPGET, "SAVE 67%"-style for the bundle; null without a discount. */
-  badge: string | null;
   /** "/ month". */
   per: string;
-  /** /pricing's line under the price: how it is billed, and the regular total. */
+  /** /pricing's line under the price: how it is billed, and a yearly plan's total. */
   caption: string;
   /** When money is taken and how it renews. */
   terms: string[];
@@ -79,14 +74,7 @@ export function planCardsFor(
     const direct = isDirectPurchaseTier(plan.tier);
     const charged = money(shown.chargedCents);
 
-    const caption = yearly
-      ? format(shown.strikeCents !== null ? page.card.yearlyCaption : page.card.plainYearlyCaption, {
-          price: charged,
-          regular: money(shown.strikeCents ?? plan.priceCents),
-        })
-      : shown.discount === "repget"
-        ? page.card.monthlyCaption
-        : page.card.plainMonthlyCaption;
+    const caption = yearly ? format(page.card.yearlyCaption, { price: charged }) : page.card.monthlyCaption;
 
     const trial = context.trialEligible && !direct;
     // The trial line: n and days are both TRIAL_DAYS, so it reads right in its old ({n}) and new ({days}) wording.
@@ -105,13 +93,6 @@ export function planCardsFor(
 
     cards[plan.id] = {
       price: money(yearly ? perMonthOfYear(shown.chargedCents) : shown.chargedCents),
-      strike: shown.strikeCents === null ? null : money(yearly ? perMonthOfYear(shown.strikeCents) : shown.strikeCents),
-      badge:
-        shown.discount === "repget"
-          ? page.card.offerBadge
-          : shown.discount === "bundle" && shown.strikeCents
-            ? format(t.saveBadge, { n: Math.round(((shown.strikeCents - shown.chargedCents) / shown.strikeCents) * 100) })
-            : null,
       per: page.card.perMonth,
       caption,
       terms,

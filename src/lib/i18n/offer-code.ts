@@ -5,10 +5,12 @@ import type { Locale } from "@/lib/i18n/config";
  * 2026-11-11 the discount is applied automatically, so the screens say it is
  * applied instead of asking for a code. Shown only while the offer is on.
  *
- * REPGET is the launch price (2026-11-11): 40% off the regular price on every
- * payment, so for it `{price}` is what each payment costs; for the win-back
- * offer it is the first payment. `{regular}` is the regular price of the plan
- * on screen.
+ * REPGET is the launch price (2026-11-11), on every payment, so for it
+ * `{price}` is what each payment costs - the only figure its words give: no
+ * regular price and no percentage off it (conservative copy, 2026-11-18, as
+ * nothing shows the regular price was ever charged). For the win-back offer
+ * `{price}` is the first payment and `{regular}` the plan's price on screen,
+ * the price that account pays otherwise.
  */
 export type OfferCodeCopy = {
   /** Which discount the words are for: REPGET when absent, or the win-back offer (lib/billing/winback-offer.ts). */
@@ -23,34 +25,34 @@ export type OfferCodeCopy = {
 
 export const OFFER_CODE: Record<Locale, OfferCodeCopy> = {
   en: {
-    label: "REPGET 40% OFF applied",
-    help: "Applied automatically at checkout on Launch, Grow and Scale, together with your free trial: 40% off regular price on every payment, monthly or yearly.",
-    firstMonth: "Each monthly payment: {price} instead of {regular}.",
-    firstYear: "Each yearly payment: {price} instead of {regular}.",
+    label: "REPGET launch price applied",
+    help: "Applied automatically at checkout on Launch, Grow and Scale, together with your free trial. The launch price applies to every payment, monthly or yearly.",
+    firstMonth: "Each monthly payment: {price}.",
+    firstYear: "Each yearly payment: {price}.",
   },
   es: {
-    label: "REPGET: 40 % de descuento aplicado",
-    help: "Se aplica automáticamente al pagar en Launch, Grow y Scale, junto con su prueba gratuita: un 40 % de descuento sobre el precio normal en cada pago, mensual o anual.",
-    firstMonth: "Cada pago mensual: {price} en lugar de {regular}.",
-    firstYear: "Cada pago anual: {price} en lugar de {regular}.",
+    label: "Precio de lanzamiento REPGET aplicado",
+    help: "Se aplica automáticamente al pagar en Launch, Grow y Scale, junto con su prueba gratuita. El precio de lanzamiento se aplica a cada pago, mensual o anual.",
+    firstMonth: "Cada pago mensual: {price}.",
+    firstYear: "Cada pago anual: {price}.",
   },
   fr: {
-    label: "REPGET : 40 % de réduction appliquée",
-    help: "Appliquée automatiquement au paiement sur Launch, Grow et Scale, avec votre essai gratuit : 40 % de réduction sur le prix normal à chaque paiement, mensuel ou annuel.",
-    firstMonth: "Chaque paiement mensuel : {price} au lieu de {regular}.",
-    firstYear: "Chaque paiement annuel : {price} au lieu de {regular}.",
+    label: "Prix de lancement REPGET appliqué",
+    help: "Appliqué automatiquement au paiement sur Launch, Grow et Scale, avec votre essai gratuit. Le prix de lancement s’applique à chaque paiement, mensuel ou annuel.",
+    firstMonth: "Chaque paiement mensuel : {price}.",
+    firstYear: "Chaque paiement annuel : {price}.",
   },
   it: {
-    label: "REPGET: sconto del 40% applicato",
-    help: "Applicato automaticamente al pagamento su Launch, Grow e Scale, insieme alla prova gratuita: 40% di sconto sul prezzo normale a ogni pagamento, mensile o annuale.",
-    firstMonth: "Ogni pagamento mensile: {price} invece di {regular}.",
-    firstYear: "Ogni pagamento annuale: {price} invece di {regular}.",
+    label: "Prezzo di lancio REPGET applicato",
+    help: "Applicato automaticamente al pagamento su Launch, Grow e Scale, insieme alla prova gratuita. Il prezzo di lancio vale per ogni pagamento, mensile o annuale.",
+    firstMonth: "Ogni pagamento mensile: {price}.",
+    firstYear: "Ogni pagamento annuale: {price}.",
   },
   de: {
-    label: "REPGET: 40 % Rabatt angewendet",
-    help: "Wird beim Bezahlen für Launch, Grow und Scale automatisch angewendet, zusammen mit Ihrer kostenlosen Testphase: 40 % Rabatt auf den regulären Preis bei jeder Zahlung, monatlich oder jährlich.",
-    firstMonth: "Jede Monatszahlung: {price} statt {regular}.",
-    firstYear: "Jede Jahreszahlung: {price} statt {regular}.",
+    label: "REPGET-Einführungspreis angewendet",
+    help: "Wird beim Bezahlen für Launch, Grow und Scale automatisch angewendet, zusammen mit Ihrer kostenlosen Testphase. Der Einführungspreis gilt für jede Zahlung, monatlich oder jährlich.",
+    firstMonth: "Jede Monatszahlung: {price}.",
+    firstYear: "Jede Jahreszahlung: {price}.",
   },
 };
 

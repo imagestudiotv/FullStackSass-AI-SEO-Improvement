@@ -6,11 +6,11 @@ import { localePath, type Locale } from "@/lib/i18n/config";
 import { format } from "@/lib/i18n/format";
 import { pricingPageCopy, type PricingTierId } from "@/lib/i18n/pricing-page";
 import type { Testimonial } from "@/lib/marketing/testimonials";
-import { GROW_VISIBILITY_COMPARE_AT_CENTS, GROW_VISIBILITY_TIER, signUpForPlan } from "@/lib/plans/features";
+import { GROW_VISIBILITY_TIER, signUpForPlan } from "@/lib/plans/features";
 
 import { Reviews } from "../_home/sections/reviews";
 import { PlansBilling } from "./plans-billing";
-import { bundleSavingPercent, cardPrices } from "./prices";
+import { cardPrices } from "./prices";
 import styles from "./pricing.module.css";
 
 /** The design's class names, through the module: c("plan popular"). */
@@ -79,12 +79,15 @@ function Both({ monthly, yearly }: { monthly: string; yearly: string }) {
  *
  * EVERY FIGURE IS A PLAN ROW'S: the prices, articles, social posts and search
  * terms are the rows checkout charges (scripts/plan-catalog.mjs), so the price
- * read here is the price paid. The offer prices are the regular ones less 40%,
- * as the design rounds them (prices.ts), shown only while the REPGET offer is
- * on - checkout applies it by itself, on every payment, so these are the
- * prices charged (lib/billing/repget-offer.ts). A plan not
- * on sale is left out rather than shown with a price nobody can pay; the bundle
- * appears once its row is on sale.
+ * read here is the price paid: while the REPGET offer is on, its launch price,
+ * which checkout applies by itself on every payment (prices.ts,
+ * lib/billing/repget-offer.ts). A plan not on sale is left out rather than
+ * shown with a price nobody can pay; the bundle appears once its row is on
+ * sale.
+ *
+ * ONLY THAT PRICE (conservative copy, 2026-11-18): no regular or list price
+ * struck through beside it, no "% off" badge or "was" caption, for the plans
+ * or the bundle - nothing shows a reference price was ever charged.
  */
 export function PricingView({
   locale,
@@ -151,9 +154,6 @@ export function PricingView({
               <div className={c("growth-main")}>
                 <div className={c("lifetime-flag-row")}>
                   <span className={c("lifetime-flag")}>{t.bundle.flag}</span>
-                  <span className={c("lifetime-sale")}>
-                    {format(t.bundle.sale, { pct: bundleSavingPercent(bundle.priceCents, GROW_VISIBILITY_COMPARE_AT_CENTS) })}
-                  </span>
                 </div>
                 <h2 className={c("lifetime-title")} id="growth-offer-title">
                   Grow <span className={c("growth-plus")}>+</span>
@@ -161,14 +161,7 @@ export function PricingView({
                   Visibility<span className={c("growth-period")}>.</span>
                 </h2>
                 <p className={c("growth-lede")}>{t.bundle.lede}</p>
-                <div
-                  className={c("lifetime-price")}
-                  aria-label={format(t.bundle.priceLabel, {
-                    regular: formatPrice(GROW_VISIBILITY_COMPARE_AT_CENTS, bundle.currency),
-                    price: bundlePrice,
-                  })}
-                >
-                  <del>{formatPrice(GROW_VISIBILITY_COMPARE_AT_CENTS, bundle.currency)}</del>
+                <div className={c("lifetime-price")} aria-label={format(t.bundle.priceLabel, { price: bundlePrice })}>
                   <strong>{bundlePrice}</strong>
                   <span>{t.bundle.perMonth}</span>
                 </div>
@@ -257,7 +250,7 @@ export function PricingView({
           label={t.billing.label}
           monthly={t.billing.monthly}
           yearly={t.billing.yearly}
-          saving={offer ? t.billing.saving : t.billing.savingPlain}
+          saving={t.billing.saving}
         >
           <div className={c("plans")}>
             {tiers.map((tier) => {
@@ -266,12 +259,8 @@ export function PricingView({
               const words = t.plans[tier];
               const popular = tier === "grow";
               const prices = cardPrices(plan, yearRow, offer);
-              const year = prices.yearly ?? { regular: prices.monthly.regular, price: prices.monthly.price, total: "", regularTotal: "" };
-              const yearlyCaption = prices.yearly
-                ? format(offer ? t.card.yearlyCaption : t.card.plainYearlyCaption, { price: year.total, regular: year.regularTotal })
-                : offer
-                  ? t.card.monthlyCaption
-                  : t.card.plainMonthlyCaption;
+              const yearPrice = prices.yearly?.price ?? prices.monthly.price;
+              const yearlyCaption = prices.yearly ? format(t.card.yearlyCaption, { price: prices.yearly.total }) : t.card.monthlyCaption;
               const values = counts(plan);
               return (
                 <article key={plan.id} className={c(popular ? "plan popular" : "plan")}>
@@ -287,23 +276,14 @@ export function PricingView({
                   <h2>{plan.name}</h2>
                   <p className={c("plan-desc")}>{words.desc}</p>
                   <div className={c("price-area")}>
-                    {offer ? (
-                      <div className={c("price-offer-row")}>
-                        <span className={c("price-offer-badge")}>{t.card.offerBadge}</span>
-                        <del className={c("price-original")}>
-                          <Both monthly={prices.monthly.regular} yearly={year.regular} />
-                        </del>
-                        <span className={c("was-label")}>{t.card.wasLabel}</span>
-                      </div>
-                    ) : null}
                     <div className={c("price")}>
                       <strong>
-                        <Both monthly={prices.monthly.price} yearly={year.price} />
+                        <Both monthly={prices.monthly.price} yearly={yearPrice} />
                       </strong>
                       <span>{t.card.perMonth}</span>
                     </div>
                     <div className={c("billing-caption")}>
-                      <Both monthly={offer ? t.card.monthlyCaption : t.card.plainMonthlyCaption} yearly={yearlyCaption} />
+                      <Both monthly={t.card.monthlyCaption} yearly={yearlyCaption} />
                     </div>
                   </div>
                   <Link prefetch={false} className={c(popular ? "btn btn-dark plan-cta" : "btn btn-light plan-cta")} href={signUpForPlan(tier)}>

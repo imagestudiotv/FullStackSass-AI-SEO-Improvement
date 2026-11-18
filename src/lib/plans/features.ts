@@ -120,7 +120,11 @@ export function signUpForPlan(tier: string): string {
  */
 export const GROW_VISIBILITY_TIER = "grow_visibility";
 
-/** The bundle's value as the client's page strikes it through ("EUR 299"), beside the price checkout charges. */
+/**
+ * The bundle's Stripe list price ("EUR 299"), which its REPGET_GV_M coupon
+ * brings down to the EUR 99 checkout charges. No screen shows it any more
+ * (conservative copy, 2026-11-18: no evidence it was ever a selling price).
+ */
 export const GROW_VISIBILITY_COMPARE_AT_CENTS = 29900;
 
 /** Tiers bought outright: no trial, kept out of the standard plan grids and the upgrade ladder. */
