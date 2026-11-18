@@ -8,7 +8,9 @@ import { LOCALES } from "@/lib/i18n/config";
  * German, Spanish or French page receives. English stays word for word.
  */
 
-const sendEmail = vi.hoisted(() => vi.fn(async (_message: { to: string; subject: string; html: string; text: string }) => ({ ok: true as const })));
+const sendEmail = vi.hoisted(() =>
+  vi.fn<(message: { to: string; subject: string; html: string; text: string }) => Promise<{ ok: true }>>(async () => ({ ok: true })),
+);
 vi.mock("@/lib/email/send", () => ({ sendEmail }));
 
 import { otpWords, sendOtpEmail } from "@/lib/email/otp";
