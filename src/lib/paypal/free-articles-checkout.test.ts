@@ -19,7 +19,7 @@ vi.mock("@/lib/tenant", () => ({ requireOrg: vi.fn(async () => ({ orgId: "org_a"
 vi.mock("@/lib/auth-guard", () => ({
   requireSession: vi.fn(async () => ({ user: { id: "user_1", email: "owner@acme.test", emailVerified: state.verified } })),
 }));
-vi.mock("@/lib/conversions/conversions", () => ({ rememberPayer: vi.fn() }));
+vi.mock("@/lib/conversions/conversions", () => ({ rememberPayer: vi.fn(), metaCheckoutEvent: vi.fn() }));
 const paypal = vi.hoisted(() => ({ create: vi.fn() }));
 vi.mock("@/lib/paypal/subscriptions", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/paypal/subscriptions")>()),

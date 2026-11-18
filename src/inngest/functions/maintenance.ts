@@ -8,6 +8,7 @@ import { sweepAbandonedReservations } from "@/lib/billing/spend-quota";
 import { recoverWebhookEvents } from "@/lib/billing/webhook-recovery";
 import { db } from "@/lib/db";
 import { deliverJobs } from "@/lib/jobs/outbox";
+import { recoverMetaPurchases } from "@/lib/conversions/meta-purchases";
 import { recoverPaidAcquisitions } from "@/lib/conversions/paid-acquisitions";
 
 /**
@@ -29,10 +30,18 @@ export const deliverOutbox = inngest.createFunction(
   },
 );
 
-/** Separate recovery from payment handling: a Google outage cannot lose the paid event. */
+/**
+ * Separate recovery from payment handling: a Google or Meta outage cannot
+ * lose the paid event. One step each, so one destination failing never
+ * holds up the other.
+ */
 export const paidAcquisitionMaintenance = inngest.createFunction(
   { id: "paid-acquisition-deliver", retries: 1, triggers: [{ cron: "*/5 * * * *" }] },
-  async ({ step }) => step.run("recover-and-deliver", () => recoverPaidAcquisitions(db)),
+  async ({ step }) => {
+    const google = await step.run("recover-and-deliver", () => recoverPaidAcquisitions(db));
+    const meta = await step.run("meta-recover-and-deliver", () => recoverMetaPurchases(db));
+    return { google, meta };
+  },
 );
 
 export const billingMaintenance = inngest.createFunction(

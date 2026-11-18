@@ -22,6 +22,8 @@ import type { DirectPurchaseCopy } from "@/lib/i18n/direct-purchase";
 import type { OfferCodeCopy } from "@/lib/i18n/offer-code";
 import { createPayPalCheckout } from "@/lib/paypal/actions";
 import { createCheckoutSession } from "@/lib/stripe/actions";
+import { readConsent } from "@/lib/consent";
+import { trackMetaCheckout } from "@/lib/meta-pixel";
 import { WIZARD_STEPS, wizardStepIndex } from "@/lib/onboarding/wizard";
 
 /**
@@ -330,6 +332,8 @@ export function PlanStep({
       toast.error(result.error === CONFIRM_EMAIL_FIRST ? copy.confirmEmailFirst : result.error);
       return;
     }
+    // Meta's InitiateCheckout, for a visitor who accepted (lib/meta-pixel.ts); a moment for it, then on.
+    await trackMetaCheckout(result.metaCheckout, readConsent());
     // assign() rather than `location.href = …`: the React Compiler treats the
     // latter as mutating a value it does not own.
     window.location.assign(result.url);

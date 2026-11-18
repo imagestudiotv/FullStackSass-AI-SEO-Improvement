@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { and, asc, eq, exists, gt, inArray, isNotNull, isNull, lt, lte, not, notExists, or, sql } from "drizzle-orm";
 
 import { CONSENT_MAX_AGE } from "@/lib/consent";
-import { billingCheckouts, paidAcquisitions, payments, plans } from "@/lib/db/schema";
+import { billingCheckouts, metaPurchases, paidAcquisitions, payments, plans } from "@/lib/db/schema";
 import type { Database } from "@/lib/db/types";
 import { measurementId } from "@/lib/google-analytics";
 
@@ -12,19 +12,19 @@ import type { CheckoutVisitor } from "./conversions";
 
 type Send = (url: string, init: RequestInit) => Promise<Response>;
 type Payment = { provider: "stripe" | "paypal"; providerSubscriptionId: string; externalId: string; amountCents: number; currency: string; paidAt?: Date | null };
-const MAX_AGE_MS = 72 * 60 * 60 * 1000;
+export const MAX_AGE_MS = 72 * 60 * 60 * 1000;
 // A batch is bounded to 20 five-second requests. Leave room for DB work too.
 const CLAIM_MS = 5 * 60_000;
 const LIMIT = 20;
 /** Checkouts given the rollback marker per recovery pass (markPaidCheckouts): one cheap UPDATE. */
 const MARK_LIMIT = 500;
 // A provider clock slightly ahead of ours: the payment waits until it is due instead of being suppressed.
-const SKEW_MS = 5 * 60_000;
+export const SKEW_MS = 5 * 60_000;
 // Subscription money only. PayPal credit packs share this ledger without a subscription id (Stripe's go to
 // addon_purchases), so otherwise a trial's credit purchase would block its first subscription charge.
-const positivePayment = and(gt(payments.amountCents, 0), inArray(payments.status, ["paid", "refunded"]), isNotNull(payments.providerSubscriptionId));
+export const positivePayment = and(gt(payments.amountCents, 0), inArray(payments.status, ["paid", "refunded"]), isNotNull(payments.providerSubscriptionId));
 /** Checkout states that may still complete: a first payment matching only these waits (see enqueueFirstPayment). */
-const UNFINISHED = ["open", "unresolved", "abandoned"];
+export const UNFINISHED = ["open", "unresolved", "abandoned"];
 
 function visitor(value: unknown, now: Date): CheckoutVisitor | null {
   if (!value || typeof value !== "object") return null;
@@ -32,7 +32,8 @@ function visitor(value: unknown, now: Date): CheckoutVisitor | null {
   const age = now.getTime() - new Date(v.capturedAt).getTime();
   if (!/^\d+\.\d+$/.test(v.clientId) || !validConsentKey(v.consentKey) || !Number.isFinite(age) || age < 0 || age >= CONSENT_MAX_AGE * 1000) return null;
   if (v.sessionId !== null && !/^\d+$/.test(v.sessionId)) return null;
-  return v;
+  // Google's fields only: a checkout's Meta identity (meta-purchases.ts) is never copied into Google's queue.
+  return { clientId: v.clientId, sessionId: v.sessionId, capturedAt: v.capturedAt, consentKey: v.consentKey };
 }
 
 /**
@@ -41,8 +42,12 @@ function visitor(value: unknown, now: Date): CheckoutVisitor | null {
  * refunded ones) prevent a renewal/reactivation/second provider from being
  * called a new paying workspace. Credit/one-off purchases never emit this event.
  * The ledger is authoritative; webhook arguments are only lookup keys.
+ *
+ * The payment and its checkout, or null when there is none yet or its
+ * checkout may still complete. Shared with Meta's queue (meta-purchases.ts),
+ * so both destinations call the same payment the first.
  */
-async function enqueueFirstPayment(database: Database, organizationId: string, now: Date): Promise<string | null> {
+export async function firstSubscriptionPayment(database: Database, organizationId: string, now: Date) {
   const [payment] = await database.select().from(payments)
     .where(and(eq(payments.organizationId, organizationId), positivePayment))
     .orderBy(asc(payments.paidAt), asc(payments.createdAt), asc(payments.id)).limit(1);
@@ -64,6 +69,13 @@ async function enqueueFirstPayment(database: Database, organizationId: string, n
     )).limit(1);
     if (unfinished) return null;
   }
+  return { payment, checkout, age };
+}
+
+async function enqueueFirstPayment(database: Database, organizationId: string, now: Date): Promise<string | null> {
+  const first = await firstSubscriptionPayment(database, organizationId, now);
+  if (!first) return null;
+  const { payment, checkout, age } = first;
   const saved = visitor(checkout?.analytics, now);
   const id = measurementId();
   const reason = !checkout ? "not_subscription_checkout" : payment.status === "refunded" ? "refunded_before_delivery"
@@ -282,7 +294,7 @@ export async function recoverPaidAcquisitions(database: Database, send: Send = f
   return { discovered, marked, ...await deliverPaidAcquisitions(database, { now }, send) };
 }
 
-/** Same-browser withdrawal: no account id or GA identity is accepted from the request body. */
+/** Same-browser withdrawal, Google's queue and Meta's: no account id or GA identity is accepted from the request body. */
 export async function revokeCheckoutConsent(database: Database, key: string): Promise<void> {
   if (!validConsentKey(key)) return;
   await database.transaction(async tx => {
@@ -291,5 +303,8 @@ export async function revokeCheckoutConsent(database: Database, key: string): Pr
     await tx.update(paidAcquisitions).set({
       visitor: null, status: "suppressed", lastError: "consent_withdrawn", claimToken: null, claimedUntil: null,
     }).where(and(eq(paidAcquisitions.status, "pending"), sql`${paidAcquisitions.visitor}->>'consentKey' = ${key}`));
+    await tx.update(metaPurchases).set({
+      visitor: null, status: "suppressed", lastError: "consent_withdrawn", claimToken: null, claimedUntil: null,
+    }).where(and(eq(metaPurchases.status, "pending"), sql`${metaPurchases.visitor}->>'consentKey' = ${key}`));
   });
 }

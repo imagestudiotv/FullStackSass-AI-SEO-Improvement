@@ -3,6 +3,9 @@ import { Suspense } from "react";
 
 import { runPublicAudit } from "@/lib/audit/public-audit";
 import { startingOffer } from "@/lib/billing";
+import { afterResponse } from "@/lib/conversions/conversions";
+import { sendMetaEvents } from "@/lib/conversions/meta-capi";
+import { metaLeadEvent } from "@/lib/conversions/meta-request";
 import { auditLandingCopy } from "@/lib/i18n/audit-landing";
 import { localePath, type Locale } from "@/lib/i18n/config";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
@@ -102,6 +105,11 @@ async function AuditOutcome({ domain, locale }: { domain: string; locale: Locale
   // Limits are per visitor, identified only through trusted ingress (lib/visitor-key.ts).
   const visitor = visitorKey(await headers());
   const [outcome, offer] = await Promise.all([runPublicAudit(domain, visitor), startingOffer()]);
+  if (outcome.ok) {
+    // Meta's Lead, the server's copy (client's guide, section 2 row 3): read now, sent after the response.
+    const lead = await metaLeadEvent(localePath(locale, "/audit"));
+    if (lead) afterResponse(() => sendMetaEvents([lead]));
+  }
 
   if (!outcome.ok) {
     const form = auditLandingCopy(locale).form;
