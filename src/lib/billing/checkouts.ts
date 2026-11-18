@@ -595,7 +595,8 @@ export type BeginCheckoutResult =
   | { kind: "create"; checkoutId: string; trialDays: number }
   /** The website already pays through this provider: change its plan. */
   | { kind: "change_plan"; current: CurrentSubscriptionForChange }
-  | { kind: "refuse"; error: string };
+  /** code "paypal_pending": an unfinished PayPal approval for this website blocks it. */
+  | { kind: "refuse"; error: string; code?: "paypal_pending" };
 
 /**
  * Decides whether a website may start a checkout, and records it.
@@ -821,7 +822,9 @@ export async function beginCheckout(
         return {
           kind: "refuse",
           error:
-            "A PayPal approval for this website is still waiting. Finish it in PayPal, or wait until PayPal reports it expired, before choosing another plan or payment method.",
+            "A PayPal payment for this website was started but not finished. Finish it in PayPal, or cancel it to pay another way.",
+          // The screens offer to cancel it right there, then carry on (components/paypal-pending-prompt.tsx).
+          code: "paypal_pending",
         };
       }
 
@@ -1245,7 +1248,12 @@ export async function settlePayPalReturn(
                 sql`${billingCheckouts.updatedAt} > ${new Date(now.getTime() - RETURN_RESYNC_MS).toISOString()}::timestamp`,
               ),
             )
-          : eq(billingCheckouts.status, "open"),
+          : /*
+              Cancelling: "abandoned" too - an earlier version's status for
+              an approval left behind, which still blocks paying another way
+              (beginCheckout) and had no way out but PayPal expiring it.
+            */
+            inArray(billingCheckouts.status, ["open", "abandoned"]),
       ),
     );
 
@@ -1264,7 +1272,7 @@ export async function settlePayPalReturn(
         }
         continue;
       }
-      if (checkout.status !== "open") continue;
+      if (checkout.status !== "open" && checkout.status !== "abandoned") continue;
       if (state === "ended") {
         await applyTransition(database, checkout, { status: "expired", providerState: "ended" }, now);
         continue;
@@ -1308,7 +1316,8 @@ export async function hasUnfinishedPayPalApproval(
         eq(billingCheckouts.organizationId, scope.organizationId),
         eq(billingCheckouts.websiteId, scope.websiteId),
         eq(billingCheckouts.provider, "paypal"),
-        eq(billingCheckouts.status, "open"),
+        // "abandoned": an earlier version's status for the same thing; it blocks just the same.
+        inArray(billingCheckouts.status, ["open", "abandoned"]),
         isNotNull(billingCheckouts.providerSubscriptionId),
         sql`${billingCheckouts.createdAt} < ${new Date(now.getTime() - UNFINISHED_APPROVAL_MS).toISOString()}::timestamp`,
       ),

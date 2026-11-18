@@ -39,7 +39,10 @@ function appUrl(): string {
 }
 
 /** `metaCheckout`: what the page tells the Meta Pixel before it leaves for Stripe (lib/meta-pixel.ts trackMetaCheckout). */
-export type CheckoutResult = { url: string; metaCheckout?: MetaCheckout } | { error: string };
+export type CheckoutResult =
+  | { url: string; metaCheckout?: MetaCheckout }
+  /** pendingPayPal: an unfinished PayPal payment blocks this one; the screen offers to cancel it. */
+  | { error: string; pendingPayPal?: boolean };
 
 /**
  * Whether Stripe definitely refused a request (it answered 4xx), as opposed
@@ -177,7 +180,7 @@ export async function createCheckoutSession(
     return { error: "We could not start the checkout. Please try again." };
   }
 
-  if (begun.kind === "refuse") return { error: begun.error };
+  if (begun.kind === "refuse") return { error: begun.error, ...(begun.code === "paypal_pending" ? { pendingPayPal: true } : {}) };
   if (begun.kind === "reuse") return { url: begun.url };
 
   if (begun.kind === "change_plan") {

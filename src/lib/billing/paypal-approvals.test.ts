@@ -224,12 +224,52 @@ describe("a PayPal approval left unfinished - PayPal's tab closed (H1, 2026-10-2
     const checkout = await startPayPal(site);
     await age(checkout.id, 30);
     payPalReports("APPROVAL_PENDING", site, checkout);
-    expect(await createCheckoutSession(planId, site.id)).toEqual({ error: expect.stringMatching(/PayPal approval/) });
+    expect(await createCheckoutSession(planId, site.id)).toEqual({ error: expect.stringMatching(/started but not finished/), pendingPayPal: true });
 
     // The notice's button: the same release as PayPal's "Cancel and return".
     expect(await confirmPayPalReturn(site.id, "cancelled")).toEqual({ changed: true, paid: false, waiting: false });
     expect(await hasUnfinishedPayPalApproval(test.db, { organizationId: "org_a", websiteId: site.id })).toBe(false);
     expect(await createCheckoutSession(planId, site.id)).toEqual({ url: "https://checkout.stripe.test/cs_card" });
+  });
+
+  it("a customer who changes their mind at once: card refused with the flag, cancelled at once, card goes through", async () => {
+    // Daniel, 2026-11-18: PayPal started, its tab closed, then "Continue to payment" - stuck with no way out.
+    const site = await addSite();
+    const checkout = await startPayPal(site);
+    payPalReports("APPROVAL_PENDING", site, checkout);
+    // Seconds old: the page-top notice is not offered yet, but the refusal carries the flag for the prompt.
+    expect(await hasUnfinishedPayPalApproval(test.db, { organizationId: "org_a", websiteId: site.id })).toBe(false);
+    expect(await createCheckoutSession(planId, site.id)).toEqual({ error: expect.any(String), pendingPayPal: true });
+
+    // The prompt's button: released whatever its age, then the card checkout is repeated.
+    expect(await confirmPayPalReturn(site.id, "cancelled")).toEqual({ changed: true, paid: false, waiting: false });
+    expect(await createCheckoutSession(planId, site.id)).toEqual({ url: "https://checkout.stripe.test/cs_card" });
+  });
+
+  it("an approval an earlier version marked \"abandoned\" is offered and released too, not stuck until PayPal expires it", async () => {
+    const site = await addSite();
+    const checkout = await startPayPal(site);
+    payPalReports("APPROVAL_PENDING", site, checkout);
+    await test.db.update(billingCheckouts).set({ status: "abandoned", createdAt: new Date(Date.now() - 60 * 60_000) }).where(eq(billingCheckouts.id, checkout.id));
+    expect(await createCheckoutSession(planId, site.id)).toEqual({ error: expect.any(String), pendingPayPal: true });
+    expect(await hasUnfinishedPayPalApproval(test.db, { organizationId: "org_a", websiteId: site.id })).toBe(true);
+
+    expect(await confirmPayPalReturn(site.id, "cancelled")).toEqual({ changed: true, paid: false, waiting: false });
+    expect(await checkoutRow()).toMatchObject({ status: "released" });
+    expect(await createCheckoutSession(planId, site.id)).toEqual({ url: "https://checkout.stripe.test/cs_card" });
+  });
+
+  it("another plan through PayPal is refused with the same flag, and the same plan goes back to PayPal", async () => {
+    const site = await addSite();
+    const checkout = await startPayPal(site);
+    payPalReports("APPROVAL_PENDING", site, checkout);
+    const [other] = await test.db
+      .insert(plans)
+      .values({ name: "Scale", tier: "scale", priceCents: 34900, articleLimit: 100, keywordLimit: 1500, siteLimit: 10, monthlyCredits: 700, paypalPlanId: "P-SCALE", stripePriceId: "price_scale" })
+      .returning({ id: plans.id });
+    expect(await createPayPalCheckout(other.id, site.id)).toEqual({ error: expect.any(String), pendingPayPal: true });
+    // The same plan: back to the waiting approval, nothing to cancel.
+    expect(await createPayPalCheckout(planId, site.id)).toEqual({ url: "https://paypal.test/approve" });
   });
 
   it("says it was paid, and records it, when PayPal reports it approved after all", async () => {
@@ -249,9 +289,10 @@ describe("coming back through PayPal's Cancel and return (H1)", () => {
     const checkout = await startPayPal(site);
     payPalReports("APPROVAL_PENDING", site, checkout);
 
-    // Before: the pending approval blocks paying by card.
+    // Before: the pending approval blocks paying by card - flagged, so the screen offers to cancel it.
     expect(await createCheckoutSession(planId, site.id)).toEqual({
-      error: expect.stringMatching(/PayPal approval/),
+      error: expect.stringMatching(/PayPal payment for this website was started but not finished/),
+      pendingPayPal: true,
     });
 
     expect(await confirmPayPalReturn(site.id, "cancelled")).toEqual({ changed: true, paid: false, waiting: false });
