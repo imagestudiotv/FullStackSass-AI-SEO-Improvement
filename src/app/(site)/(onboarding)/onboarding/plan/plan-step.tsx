@@ -255,16 +255,14 @@ export function PlanStep({
   /** REPGET's launch price applies to this plan: its box says so, under the switch. */
   const repget = shown?.discount === "repget";
   /*
-    The large figure, per month. With REPGET it is the REGULAR price, as
-    Daniel's card draws it ("€149 /month"), and the discount box right under
-    it gives the payment checkout takes ("€89 instead of €149"). Otherwise it
-    is what checkout charges - for the Grow + Visibility bundle with its list
-    price struck beside it, as /pricing shows it.
+    The large figure, per month, is what checkout charges, with the regular
+    price struck beside it whenever checkout takes something off, as /pricing
+    shows it: REPGET's launch price ("€99" struck, "€59 /month"; Daniel,
+    2026-11-18, replacing his card's regular price drawn large) and the
+    Grow + Visibility bundle against its list price.
   */
-  const bigCents = repget ? (plan?.priceCents ?? 0) : chargedCents;
-  const perMonthCents = yearly ? perMonthOfYear(bigCents) : bigCents;
-  const strikeCents =
-    !repget && shown?.strikeCents ? (yearly ? perMonthOfYear(shown.strikeCents) : shown.strikeCents) : null;
+  const perMonthCents = yearly ? perMonthOfYear(chargedCents) : chargedCents;
+  const strikeCents = shown?.strikeCents ? (yearly ? perMonthOfYear(shown.strikeCents) : shown.strikeCents) : null;
 
   /**
    * NO CALENDAR DATE IS COMPUTED HERE, deliberately.
