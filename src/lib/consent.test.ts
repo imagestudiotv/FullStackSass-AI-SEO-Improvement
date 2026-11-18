@@ -96,3 +96,19 @@ describe("saveConsent / readConsent", () => {
     expect(opened).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("with the Meta Pixel configured", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  it("asks again anyone who answered before the banner named Meta", async () => {
+    vi.stubEnv("NEXT_PUBLIC_META_PIXEL_ID", "1063151092935473");
+    vi.resetModules();
+    const withMeta = await import("@/lib/consent");
+    expect(withMeta.parseConsent(`${CONSENT_COOKIE}=2.granted`)).toBeNull();
+    expect(withMeta.parseConsent(`${CONSENT_COOKIE}=3.granted`)).toBe("granted");
+    expect(withMeta.consentCookie("denied", true)).toMatch(/^repget_consent=3\.denied;/);
+  });
+});
