@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { billingCustomers, subscriptions, websites } from "@/lib/db/schema";
 import { isStripeConfigured, stripe } from "@/lib/stripe/client";
 import { stripeErrorMessage } from "@/lib/stripe/errors";
+import { payerLocale } from "@/lib/billing/provider-locale";
 import { requireOrg } from "@/lib/tenant";
 
 function appUrl(): string {
@@ -123,8 +124,11 @@ export async function createPortalSession(
     const launchPrice = flow !== "cancel" && (await hasLaunchPrice(orgId));
     const noPlanChange = process.env.STRIPE_PORTAL_CONFIG_NO_PLAN_CHANGE;
     const returnUrl = `${appUrl()}/billing`;
+    // The portal in the payer's app language; English stays Stripe's "auto" (lib/billing/provider-locale.ts).
+    const locale = await payerLocale();
     const session = await stripe.billingPortal.sessions.create({
       customer: row.customerId,
+      ...(locale ? { locale } : {}),
       return_url: returnUrl,
       ...(launchPrice && noPlanChange ? { configuration: noPlanChange } : {}),
       ...(launchPrice && !noPlanChange

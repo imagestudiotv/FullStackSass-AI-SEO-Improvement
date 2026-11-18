@@ -5,6 +5,7 @@ import type Stripe from "stripe";
 
 import { requireSession } from "@/lib/auth-guard";
 import { checkoutProviderOps } from "@/lib/billing/checkout-providers";
+import { payerLocale } from "@/lib/billing/provider-locale";
 import { BUNDLE_COUPON, bundleCouponFor, OFFER_UNAVAILABLE, REPGET_CODE, type OfferPlan } from "@/lib/billing/repget-offer";
 import { WINBACK_UNAVAILABLE } from "@/lib/billing/winback-offer";
 import { alertStaffAboutOffer, isCouponRefusal, OFFER_KEY, offerForPlanChange } from "@/lib/billing/repget-subscription";
@@ -213,8 +214,11 @@ export async function createCheckoutSession(
   }
 
   const metadata = { organizationId: orgId, planId: plan.id, websiteId, checkoutId };
+  // The page in the payer's app language; English stays Stripe's "auto" (lib/billing/provider-locale.ts).
+  const locale = await payerLocale();
   const params: Stripe.Checkout.SessionCreateParams = {
     mode: "subscription",
+    ...(locale ? { locale } : {}),
     customer: customerId,
     line_items: [{ price: plan.stripePriceId, quantity: 1 }],
     /*
@@ -350,8 +354,10 @@ async function changeStripePlan(input: {
       (typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id);
     if (!item) return { error: "This subscription has nothing to change." };
 
+    const locale = await payerLocale();
     const session = await stripe.billingPortal.sessions.create({
       customer: customerId,
+      ...(locale ? { locale } : {}),
       return_url: input.returnUrl,
       flow_data: {
         type: "subscription_update_confirm",

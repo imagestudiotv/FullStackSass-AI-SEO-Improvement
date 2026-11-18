@@ -89,11 +89,13 @@ vi.mock("@/lib/paypal/subscriptions", async (importOriginal) => ({
   reviseSubscription: paypalMock.reviseSubscription,
 }));
 // The signed-in person; card checkout asks whether their address is confirmed.
-vi.mock("@/lib/auth-guard", () => ({
-  requireSession: vi.fn(async () => ({
+// getSession: the payment page's language is theirs (lib/billing/provider-locale.ts).
+vi.mock("@/lib/auth-guard", () => {
+  const session = async () => ({
     user: { id: "user_1", email: "owner@example.test", emailVerified: state.emailVerified },
-  })),
-}));
+  });
+  return { requireSession: vi.fn(session), getSession: vi.fn(session) };
+});
 vi.mock("@/lib/tenant", () => {
   class WebsiteNotFoundError extends Error {}
   return {
@@ -571,6 +573,39 @@ describe("opening a checkout", () => {
       status: "open",
       providerSubscriptionId: "I-PENDING",
     });
+  });
+});
+
+describe("the payment page in the payer's language (2026-11-18)", () => {
+  const italian = async () => {
+    await test.db
+      .insert(user)
+      .values({ id: "user_1", name: "Owner", email: "owner@example.test", emailVerified: true, locale: "it", createdAt: new Date(), updatedAt: new Date() })
+      .onConflictDoUpdate({ target: user.id, set: { locale: "it" } });
+  };
+  afterEach(async () => {
+    await test.client.exec("delete from \"user\" where id = 'user_1'");
+  });
+
+  it("no language known (English): Stripe and PayPal choose, as before", async () => {
+    const site = await addSite();
+    await createCheckoutSession(planId, site.id);
+    await createPayPalCheckout(planId, (await addSite("org_a", "two.test")).id);
+    expect(stripeMock.sessionsCreate.mock.calls[0][0]).not.toHaveProperty("locale");
+    expect(paypalMock.createSubscription.mock.calls[0][0].locale).toBeUndefined();
+  });
+
+  it("Italian: Stripe Checkout in Italian, PayPal in it-IT; the price, trial and returns unchanged", async () => {
+    await italian();
+    const site = await addSite();
+    await createCheckoutSession(planId, site.id);
+    const params = stripeMock.sessionsCreate.mock.calls[0][0];
+    expect(params.locale).toBe("it");
+    expect(params.line_items).toEqual([{ price: "price_growth", quantity: 1 }]);
+    expect(params.subscription_data.trial_period_days).toBe(TRIAL_DAYS);
+
+    await createPayPalCheckout(planId, (await addSite("org_a", "two.test")).id);
+    expect(paypalMock.createSubscription.mock.calls[0][0]).toMatchObject({ planId: expect.any(String), locale: "it-IT" });
   });
 });
 

@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/auth-guard";
 import { isEntitled } from "@/lib/billing-shared";
 import { checkoutProviderOps } from "@/lib/billing/checkout-providers";
+import { payerLocale, payPalLocale } from "@/lib/billing/provider-locale";
 import {
   automaticOffer,
   beginCheckout,
@@ -318,6 +319,7 @@ export async function createPayPalCheckout(
       returnUrl,
       cancelUrl,
       prices: discounted ? [discounted] : undefined,
+      locale: payPalLocale(await payerLocale()),
     });
     await recordCheckoutStarted(db, checkoutId, {
       providerSubscriptionId: result.subscriptionId,

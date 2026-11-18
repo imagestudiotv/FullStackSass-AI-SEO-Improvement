@@ -233,6 +233,8 @@ export async function createSubscription(input: {
    * Any free days before them stay free.
    */
   prices?: CyclePrice[];
+  /** PayPal's page language, e.g. "it-IT" (lib/billing/provider-locale.ts); PayPal chooses when absent. */
+  locale?: string;
 }): Promise<CreatedSubscription> {
   const subscription = await payPalRequest<PayPalSubscription>(
     "/v1/billing/subscriptions",
@@ -265,6 +267,7 @@ export async function createSubscription(input: {
         ...planOverride(input.prices),
         application_context: {
           brand_name: "RepGet",
+          ...(input.locale ? { locale: input.locale } : {}),
           user_action: "SUBSCRIBE_NOW",
           // A software service: PayPal must not ask the buyer for a shipping address.
           shipping_preference: "NO_SHIPPING",
