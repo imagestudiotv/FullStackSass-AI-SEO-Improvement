@@ -52,7 +52,7 @@ const COPY: Record<Locale, AuditEndingCopy> = {
     },
     trial: {
       title: ["Your first day, free.", "Your first {count} days, free."],
-      body: "Your plan's full service: articles researched, written with images and published to your own site.",
+      body: "Your plan's full service: articles researched, written and published to your own site.",
     },
     withPlan: {
       title: "Deeper SEO, AI and social.",
@@ -82,7 +82,7 @@ const COPY: Record<Locale, AuditEndingCopy> = {
     },
     trial: {
       title: ["Su primer día, gratis.", "Sus primeros {count} días, gratis."],
-      body: "El servicio completo de su plan: artículos investigados, redactados con imágenes y publicados en su propia web.",
+      body: "El servicio completo de su plan: artículos investigados, redactados y publicados en su propia web.",
     },
     withPlan: {
       title: "Más SEO, IA y redes sociales.",
@@ -112,7 +112,7 @@ const COPY: Record<Locale, AuditEndingCopy> = {
     },
     trial: {
       title: ["Votre premier jour, gratuit.", "Vos {count} premiers jours, gratuits."],
-      body: "Le service complet de votre formule : des articles recherchés, rédigés avec images et publiés sur votre propre site.",
+      body: "Le service complet de votre formule : des articles recherchés, rédigés et publiés sur votre propre site.",
     },
     withPlan: {
       title: "Plus de SEO, d’IA et de social.",
@@ -142,7 +142,7 @@ const COPY: Record<Locale, AuditEndingCopy> = {
     },
     trial: {
       title: ["Il suo primo giorno, gratis.", "I suoi primi {count} giorni, gratis."],
-      body: "Il servizio completo del suo piano: articoli ricercati, scritti con immagini e pubblicati sul suo sito.",
+      body: "Il servizio completo del suo piano: articoli ricercati, scritti e pubblicati sul suo sito.",
     },
     withPlan: {
       title: "Più SEO, AI e social.",
@@ -172,7 +172,7 @@ const COPY: Record<Locale, AuditEndingCopy> = {
     },
     trial: {
       title: ["Ihr erster Tag, kostenlos.", "Ihre ersten {count} Tage, kostenlos."],
-      body: "Der volle Service Ihres Tarifs: Artikel recherchiert, mit Bildern geschrieben und auf Ihrer eigenen Website veröffentlicht.",
+      body: "Der volle Service Ihres Tarifs: Artikel recherchiert, geschrieben und auf Ihrer eigenen Website veröffentlicht.",
     },
     withPlan: {
       title: "Mehr SEO, KI und Social.",

@@ -75,8 +75,11 @@ describe("the closing banner", () => {
     expect(html).not.toContain("<a ");
   });
 
-  it("leaves the support line as it is: its wording is waiting for a review", () => {
-    expect(finalCtaCopy("en").points).toContain("24/7 human support");
+  it("says human support, with no hours it cannot show (conservative copy, 2026-11-18)", () => {
+    expect(finalCtaCopy("en").points).toContain("Human support");
+    for (const locale of LOCALES) {
+      expect(finalCtaCopy(locale).points.join(" "), locale).not.toMatch(/24|rund um die Uhr/);
+    }
   });
 });
 

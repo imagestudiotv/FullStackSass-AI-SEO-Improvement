@@ -160,7 +160,7 @@ describe("the plan cards' terms", () => {
     expect(card.directBadge).toBe("Direct purchase");
     expect(card.price).toBe("€99");
     expect(card.paypalNote).toBeNull();
-    expect(card.perks.map((perk) => perk.strong)).toEqual(["40K+ social followers", "DR 60 blog feature", "Email spotlight"]);
+    expect(card.perks.map((perk) => perk.strong)).toEqual(["Featured on RepGet social channels", "RepGet blog feature", "Email spotlight"]);
   });
 
   it("lists social posts, videos, AI Growth Copilot and AI Social Opportunities, in every language", () => {

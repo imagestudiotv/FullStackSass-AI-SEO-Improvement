@@ -232,7 +232,7 @@ export function planFeatures(plan: PickerPlan): string[] {
    * it is a reason to upgrade rather than a limit to apologise for.
    */
   const scale = [
-    `${count(plan.articleLimit, "branded article")} a month${cadence(plan.articleLimit)}, with images`,
+    `${count(plan.articleLimit, "branded article")} a month${cadence(plan.articleLimit)}`,
     ...socialPosts,
     `${plan.keywordLimit.toLocaleString()} search terms researched and clustered`,
     ONE_WEBSITE,
@@ -240,7 +240,7 @@ export function planFeatures(plan: PickerPlan): string[] {
   ];
 
   const grow = [
-    `${count(plan.articleLimit, "branded article")} a month${cadence(plan.articleLimit)}, with images`,
+    `${count(plan.articleLimit, "branded article")} a month${cadence(plan.articleLimit)}`,
     ...socialPosts,
     `${plan.keywordLimit.toLocaleString()} search terms researched and clustered`,
     ONE_WEBSITE,
