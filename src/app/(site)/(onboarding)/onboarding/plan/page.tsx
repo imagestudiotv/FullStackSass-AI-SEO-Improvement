@@ -228,6 +228,7 @@ export default async function OnboardingPlanPage({
               benefits={benefits}
               descriptions={descriptions}
               usageNote={page.compare.usageNote}
+              paypalPendingCopy={PAYPAL_PENDING_COPY[locale]}
             />
             {/*
               No "free trial or paid plan" comparison here any more (it was

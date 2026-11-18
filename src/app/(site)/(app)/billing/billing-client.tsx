@@ -21,6 +21,8 @@ import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
 import { PayPalMark } from "@/components/paypal-mark";
+import { PayPalPendingPrompt } from "@/components/paypal-pending-prompt";
+import type { PayPalPendingCopy } from "@/lib/i18n/paypal-pending";
 import { PayPalReturn } from "@/components/paypal-return";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -103,6 +105,8 @@ type BillingClientProps = {
   offerCopy?: OfferCodeCopy | null;
   /** Why a PayPal-billed website cannot switch monthly <-> yearly (lib/i18n/paypal-plan-change.ts). */
   paypalIntervalNote?: string;
+  /** The words for an unfinished PayPal payment that blocks paying another way (lib/i18n/paypal-pending.ts). */
+  paypalPendingCopy?: PayPalPendingCopy;
   /** Shared words used on several screens. */
   tCommon: Messages["app"]["common"];
   /**
@@ -142,6 +146,7 @@ export function BillingClient({
   locale,
   offerCopy = null,
   paypalIntervalNote,
+  paypalPendingCopy,
   tCommon,
   planCards = {},
   top = null,
@@ -157,6 +162,7 @@ export function BillingClient({
   );
   const router = useRouter();
   const [pending, setPending] = useState<{ planId: string; provider: "stripe" | "paypal" } | null>(null);
+  const [paypalBlock, setPayPalBlock] = useState<{ planId: string; provider: "stripe" | "paypal"; failed: boolean } | null>(null);
   /** Which portal button is mid-flight, so only that one shows a spinner. */
   const [portalPending, setPortalPending] = useState<PortalFlow | null>(null);
 
@@ -250,7 +256,18 @@ export function BillingClient({
   // Card or PayPal (review P5); applied by the server by itself (lib/billing/repget-offer.ts), so only said here.
   const offerField = offerCopy && (options.card || options.paypal) ? <OfferApplied copy={offerCopy} /> : null;
 
-  async function handleCard(planId: string) {
+  /**
+   * Paying was refused because a PayPal payment for this website was started
+   * and never finished: shown above the plans with a button that cancels it
+   * and carries on (components/paypal-pending-prompt.tsx). `failed`: the
+   * repeat after cancelling was refused again.
+   */
+  function showPayPalBlock(planId: string, provider: "stripe" | "paypal", afterCancel: boolean) {
+    setPending(null);
+    setPayPalBlock({ planId, provider, failed: afterCancel });
+  }
+
+  async function handleCard(planId: string, afterCancel = false) {
     setPending({ planId, provider: "stripe" });
     try {
       /*
@@ -272,6 +289,10 @@ export function BillingClient({
         router.push(`/onboarding/plan?site=${encodeURIComponent(websiteId)}`);
         return;
       }
+      if ("error" in result && result.pendingPayPal) {
+        showPayPalBlock(planId, "stripe", afterCancel);
+        return;
+      }
       if ("error" in result) {
         toast.error(result.error);
         setPending(null);
@@ -288,7 +309,7 @@ export function BillingClient({
     }
   }
 
-  async function handlePayPal(planId: string) {
+  async function handlePayPal(planId: string, afterCancel = false) {
     setPending({ planId, provider: "paypal" });
     try {
       if (!websiteId) {
@@ -300,6 +321,10 @@ export function BillingClient({
       // PayPal gives the free articles too (2026-10-22): the same confirmed address first, on the same screen as card.
       if ("error" in result && result.error === CONFIRM_EMAIL_FIRST) {
         router.push(`/onboarding/plan?site=${encodeURIComponent(websiteId)}`);
+        return;
+      }
+      if ("error" in result && result.pendingPayPal) {
+        showPayPalBlock(planId, "paypal", afterCancel);
         return;
       }
       if ("error" in result) {
@@ -518,7 +543,22 @@ export function BillingClient({
     if (list.length === 0) {
       return <p className="text-sm text-muted-foreground">{tCommon.noPlans}</p>;
     }
-    return <div className={planGridClass(list.length)}>{list.map(planCard)}</div>;
+    const grid = <div className={planGridClass(list.length)}>{list.map(planCard)}</div>;
+    if (!paypalBlock || !websiteId || !paypalPendingCopy) return grid;
+    const block = paypalBlock;
+    return (
+      <div className="space-y-4">
+        <PayPalPendingPrompt
+          websiteId={websiteId}
+          copy={paypalPendingCopy}
+          failed={block.failed}
+          onContinue={() =>
+            block.provider === "stripe" ? handleCard(block.planId, true) : handlePayPal(block.planId, true)
+          }
+        />
+        {grid}
+      </div>
+    );
   }
 
   const planFooter =

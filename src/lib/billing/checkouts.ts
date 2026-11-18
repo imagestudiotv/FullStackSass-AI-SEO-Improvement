@@ -595,7 +595,8 @@ export type BeginCheckoutResult =
   | { kind: "create"; checkoutId: string; trialDays: number }
   /** The website already pays through this provider: change its plan. */
   | { kind: "change_plan"; current: CurrentSubscriptionForChange }
-  | { kind: "refuse"; error: string };
+  /** code "paypal_pending": an unfinished PayPal approval for this website blocks it. */
+  | { kind: "refuse"; error: string; code?: "paypal_pending" };
 
 /**
  * Decides whether a website may start a checkout, and records it.
@@ -821,7 +822,9 @@ export async function beginCheckout(
         return {
           kind: "refuse",
           error:
-            "A PayPal approval for this website is still waiting. Finish it in PayPal, or wait until PayPal reports it expired, before choosing another plan or payment method.",
+            "A PayPal payment for this website was started but not finished. Finish it in PayPal, or cancel it to pay another way.",
+          // The screens offer to cancel it right there, then carry on (components/paypal-pending-prompt.tsx).
+          code: "paypal_pending",
         };
       }
 

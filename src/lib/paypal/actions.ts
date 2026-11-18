@@ -40,7 +40,10 @@ import {
  */
 
 /** `metaCheckout`: as on Stripe's (lib/stripe/actions.ts CheckoutResult). */
-export type PayPalResult = { url: string; metaCheckout?: MetaCheckout } | { error: string };
+export type PayPalResult =
+  | { url: string; metaCheckout?: MetaCheckout }
+  /** pendingPayPal: an unfinished PayPal payment (another plan) blocks this one; the screen offers to cancel it. */
+  | { error: string; pendingPayPal?: boolean };
 
 function appUrl(): string {
   const url = process.env.NEXT_PUBLIC_APP_URL;
@@ -235,7 +238,7 @@ export async function createPayPalCheckout(
     return { error: "We could not start the checkout. Please try again." };
   }
 
-  if (begun.kind === "refuse") return { error: begun.error };
+  if (begun.kind === "refuse") return { error: begun.error, ...(begun.code === "paypal_pending" ? { pendingPayPal: true } : {}) };
   if (begun.kind === "reuse") return { url: begun.url };
 
   if (begun.kind === "change_plan") {

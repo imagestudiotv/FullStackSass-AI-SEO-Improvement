@@ -272,6 +272,7 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
         paypalAvailable={paypalAvailable}
         offerCopy={screenOffer === "repget" ? OFFER_CODE[locale] : screenOffer === "winback" ? WINBACK_OFFER_CODE[locale] : null}
         paypalIntervalNote={PAYPAL_PLAN_CHANGE_COPY[locale].intervalSwitch}
+        paypalPendingCopy={PAYPAL_PENDING_COPY[locale]}
         checkout={checkout}
         addonResult={addonResult}
         addonPayPalCopy={PAYPAL_PURCHASE_COPY[locale]}

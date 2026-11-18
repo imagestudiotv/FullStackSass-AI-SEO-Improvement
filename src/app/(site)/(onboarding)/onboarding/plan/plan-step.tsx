@@ -8,6 +8,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PayPalMark } from "@/components/paypal-mark";
+import { PayPalPendingPrompt } from "@/components/paypal-pending-prompt";
+import { PAYPAL_PENDING_COPY, type PayPalPendingCopy } from "@/lib/i18n/paypal-pending";
 import { authClient } from "@/lib/auth-client";
 import { confirmEmail, type ConfirmEmailResult } from "@/lib/auth/confirm-email-actions";
 import { formatPrice } from "@/lib/billing-shared";
@@ -84,7 +86,10 @@ export function PlanStep({
   benefits = {},
   descriptions = {},
   usageNote = null,
+  paypalPendingCopy = PAYPAL_PENDING_COPY.en,
 }: {
+  /** The words for an unfinished PayPal payment that blocks paying another way, in the reader's language. */
+  paypalPendingCopy?: PayPalPendingCopy;
   /**
    * What each plan includes, by plan id, in the reader's language - the
    * pricing page's lists (lib/plans/benefits.ts), worked out on the server.
@@ -156,6 +161,8 @@ export function PlanStep({
       "",
   );
   const [pending, setPending] = useState<string | null>(null);
+  /** Paying this way was refused because of an unfinished PayPal payment: the prompt to cancel it. */
+  const [paypalBlock, setPayPalBlock] = useState<{ provider: "stripe" | "paypal"; failed: boolean } | null>(null);
   const [verified, setVerified] = useState(emailVerified);
   const [codeSent, setCodeSent] = useState(false);
   const [code, setCode] = useState("");
@@ -283,7 +290,7 @@ export function PlanStep({
    * then the price — and Stripe states the date.
    */
 
-  async function handleCheckout(provider: "stripe" | "paypal") {
+  async function handleCheckout(provider: "stripe" | "paypal", afterCancel = false) {
     if (!plan) return;
     // REPGET is applied by the server by itself (2026-11-11), card or PayPal; nothing to send.
     setPending(provider);
@@ -301,6 +308,16 @@ export function PlanStep({
 
     if ("error" in result) {
       setPending(null);
+      /*
+        An unfinished PayPal payment blocks paying another way: offer to
+        cancel it right here, then carry on (components/paypal-pending-prompt.tsx),
+        rather than an error with no way out.
+      */
+      if (result.pendingPayPal) {
+        setPayPalBlock({ provider, failed: afterCancel });
+        return;
+      }
+      setPayPalBlock(null);
       toast.error(result.error);
       return;
     }
@@ -671,6 +688,16 @@ export function PlanStep({
           <p className="mt-1.5 text-center text-xs leading-relaxed text-muted-foreground">
             {paypalTrial ? format(t.paypalFreeArticles, { n: TRIAL_DAYS, days: TRIAL_DAYS }) : t.paypalNoTrial}
           </p>
+        ) : null}
+
+        {paypalBlock ? (
+          <PayPalPendingPrompt
+            websiteId={websiteId}
+            copy={paypalPendingCopy}
+            failed={paypalBlock.failed}
+            onContinue={() => handleCheckout(paypalBlock.provider, true)}
+            className="mt-3 text-left"
+          />
         ) : null}
 
         <p className="mt-2.5 text-center text-xs text-muted-foreground">{t.cancelAnyTime}</p>

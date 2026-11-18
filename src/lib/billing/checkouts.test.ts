@@ -1188,8 +1188,10 @@ describe("duplicate checkouts and subscriptions", () => {
 
     for (const ms of [0, HOURS_4, 30 * 24 * HOURS_4]) {
       await age(ms);
+      // Refused however old - flagged, so the screen offers to cancel it (never released by age).
       expect(await createCheckoutSession(planId, site.id)).toEqual({
-        error: expect.stringMatching(/PayPal approval/),
+        error: expect.stringMatching(/PayPal payment for this website was started but not finished/),
+        pendingPayPal: true,
       });
     }
     expect(stripeMock.sessionsCreate).not.toHaveBeenCalled();
@@ -1211,7 +1213,7 @@ describe("duplicate checkouts and subscriptions", () => {
       .returning();
     await age(HOURS_4);
 
-    expect(await createPayPalCheckout(other.id, site.id)).toEqual({ error: expect.stringMatching(/PayPal approval/) });
+    expect(await createPayPalCheckout(other.id, site.id)).toEqual({ error: expect.stringMatching(/started but not finished/), pendingPayPal: true });
     expect(paypalMock.createSubscription).toHaveBeenCalledTimes(1);
   });
 

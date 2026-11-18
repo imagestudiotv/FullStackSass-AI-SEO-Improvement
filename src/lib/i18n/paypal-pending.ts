@@ -17,6 +17,10 @@ export type PayPalPendingCopy = {
   paid: string;
   /** PayPal still has it waiting for approval in another way, or did not answer. */
   failed: string;
+  /** Beside the buttons, when paying another way was refused because of it (components/paypal-pending-prompt.tsx). */
+  promptBody: string;
+  /** Cancels it, then carries on with what the customer clicked. */
+  cancelAndContinue: string;
 };
 
 export const PAYPAL_PENDING_COPY: Record<Locale, PayPalPendingCopy> = {
@@ -28,6 +32,8 @@ export const PAYPAL_PENDING_COPY: Record<Locale, PayPalPendingCopy> = {
     cancelled: "Cancelled. You can now pay by card or choose another plan.",
     paid: "PayPal says this payment went through. Your plan is being recorded.",
     failed: "PayPal did not confirm it. Try again in a moment.",
+    promptBody: "You started paying for this website with PayPal and did not finish. To pay another way, cancel that PayPal payment first. If you did not approve it, nothing was charged.",
+    cancelAndContinue: "Cancel it and continue",
   },
   es: {
     title: "Se inició un pago con PayPal que no se completó",
@@ -37,6 +43,8 @@ export const PAYPAL_PENDING_COPY: Record<Locale, PayPalPendingCopy> = {
     cancelled: "Cancelado. Ya puede pagar con tarjeta o elegir otro plan.",
     paid: "PayPal indica que este pago se realizó. Estamos registrando su plan.",
     failed: "PayPal no lo confirmó. Inténtelo de nuevo en un momento.",
+    promptBody: "Empezó a pagar este sitio web con PayPal y no terminó. Para pagar de otra forma, cancele primero ese pago de PayPal. Si no lo aprobó, no se le ha cobrado nada.",
+    cancelAndContinue: "Cancelarlo y continuar",
   },
   fr: {
     title: "Un paiement PayPal a été commencé mais pas terminé",
@@ -46,6 +54,8 @@ export const PAYPAL_PENDING_COPY: Record<Locale, PayPalPendingCopy> = {
     cancelled: "Annulé. Vous pouvez maintenant payer par carte ou choisir un autre forfait.",
     paid: "PayPal indique que ce paiement a abouti. Votre forfait est en cours d’enregistrement.",
     failed: "PayPal ne l’a pas confirmé. Réessayez dans un instant.",
+    promptBody: "Vous avez commencé à payer ce site avec PayPal sans terminer. Pour payer autrement, annulez d’abord ce paiement PayPal. Si vous ne l’avez pas approuvé, rien n’a été débité.",
+    cancelAndContinue: "L’annuler et continuer",
   },
   it: {
     title: "È stato avviato un pagamento PayPal non completato",
@@ -55,6 +65,8 @@ export const PAYPAL_PENDING_COPY: Record<Locale, PayPalPendingCopy> = {
     cancelled: "Annullato. Ora può pagare con carta o scegliere un altro piano.",
     paid: "PayPal indica che il pagamento è andato a buon fine. Stiamo registrando il suo piano.",
     failed: "PayPal non lo ha confermato. Riprovi tra un momento.",
+    promptBody: "Ha iniziato a pagare questo sito web con PayPal senza completare il pagamento. Per pagare in un altro modo, annulli prima quel pagamento PayPal. Se non lo ha approvato, non le è stato addebitato nulla.",
+    cancelAndContinue: "Annulli e continui",
   },
   de: {
     title: "Eine PayPal-Zahlung wurde begonnen, aber nicht abgeschlossen",
@@ -64,5 +76,7 @@ export const PAYPAL_PENDING_COPY: Record<Locale, PayPalPendingCopy> = {
     cancelled: "Storniert. Sie können jetzt per Karte bezahlen oder einen anderen Tarif wählen.",
     paid: "Laut PayPal ist diese Zahlung eingegangen. Ihr Tarif wird gerade eingetragen.",
     failed: "PayPal hat es nicht bestätigt. Versuchen Sie es gleich noch einmal.",
+    promptBody: "Sie haben begonnen, diese Website mit PayPal zu bezahlen, aber nicht abgeschlossen. Um anders zu bezahlen, stornieren Sie zuerst diese PayPal-Zahlung. Wenn Sie sie nicht bestätigt haben, wurde nichts abgebucht.",
+    cancelAndContinue: "Stornieren und fortfahren",
   },
 };
