@@ -1,16 +1,18 @@
 import { randomBytes } from "node:crypto";
 
 import { and, eq, gt, gte, sql } from "drizzle-orm";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { after } from "next/server";
 
 import { CONSENT_COOKIE, CONSENT_MAX_AGE, parseConsent } from "@/lib/consent";
-import { account, billingCheckouts, plans } from "@/lib/db/schema";
+import { account, billingCheckouts, plans, user } from "@/lib/db/schema";
 import type { Database } from "@/lib/db/types";
 import { measurementId, tagManagerId, type BrowserConversion } from "@/lib/google-analytics";
 import { metaPixelId } from "@/lib/meta-pixel";
 
 import { gaClientId, gaSessionCookie, gaSessionId } from "./ga-identity";
 import { ANALYTICS_CONSENT_COOKIE, conversionId, validConsentKey } from "./config";
+import { metaRequestUser, metaServerConfigured, sendMetaEvents, type MetaUser } from "./meta-capi";
 import { revokeCheckoutConsent } from "./paid-acquisitions";
 
 export { conversionId, gaApiSecret } from "./config";
@@ -102,6 +104,14 @@ export type CheckoutVisitor = {
 };
 
 /**
+ * Everything a checkout may keep: the GA identity, the payer's Meta identity
+ * (lib/conversions/meta-purchases.ts), or both, under one consent proof.
+ * Without GA (blocked, or not configured) there is no clientId.
+ */
+export type CheckoutAnalytics = Omit<CheckoutVisitor, "clientId" | "sessionId"> &
+  Partial<Pick<CheckoutVisitor, "clientId" | "sessionId">> & { meta?: MetaUser };
+
+/**
  * The payer's GA identity, from the cookies of the request that starts a
  * checkout, or null unless they accepted the cookie banner and GA has
  * identified their browser.
@@ -119,7 +129,7 @@ export function checkoutVisitor(read: (name: string) => string | undefined, now:
  * Keeps the payer's GA identity on their new checkout, for the purchase
  * reported when the money arrives. Never fails the checkout.
  */
-export async function rememberCheckoutVisitor(database: Database, checkoutId: string, visitor: CheckoutVisitor | null): Promise<void> {
+export async function rememberCheckoutVisitor(database: Database, checkoutId: string, visitor: CheckoutAnalytics | null): Promise<void> {
   if (!visitor) return;
   try {
     await database
@@ -134,18 +144,39 @@ export async function rememberCheckoutVisitor(database: Database, checkoutId: st
 
 /**
  * rememberCheckoutVisitor for the request that is starting the checkout (a
- * server action), reading its cookies. Nothing without GA, or outside a
- * request.
+ * server action), reading its cookies: the GA identity and, while Meta's
+ * Conversions API is configured, the payer's Meta identity, for the
+ * purchase reported when the money arrives. With `payer.plan`, Meta also
+ * hears InitiateCheckout now (after the response, so the customer never
+ * waits for it). Nothing without consent, without either destination, or
+ * outside a request.
  */
-export async function rememberPayer(database: Database, checkoutId: string): Promise<void> {
-  if (!measurementId()) return;
+export async function rememberPayer(
+  database: Database,
+  checkoutId: string,
+  payer?: { userId: string; plan?: { name: string; priceCents: number; currency: string } },
+): Promise<void> {
+  const ga = Boolean(measurementId());
+  const meta = metaServerConfigured();
+  if (!ga && !meta) return;
   let jar: Awaited<ReturnType<typeof cookies>>;
   try {
     jar = await cookies();
   } catch {
     return;
   }
-  const visitor = checkoutVisitor((name) => jar.get(name)?.value);
+  const read = (name: string) => jar.get(name)?.value;
+  const visitor = ga ? checkoutVisitor(read) : null;
+  let metaUser: MetaUser | null = null;
+  if (meta) {
+    try {
+      const list = await headers();
+      const [person] = payer ? await database.select({ id: user.id, email: user.email }).from(user).where(eq(user.id, payer.userId)).limit(1) : [];
+      metaUser = metaRequestUser(read, (name) => list.get(name), person ?? null);
+    } catch {
+      metaUser = null;
+    }
+  }
   try {
     const existing = jar.get(ANALYTICS_CONSENT_COOKIE)?.value;
     // A resumed checkout must honor the current refusal even if the browser's
@@ -154,14 +185,41 @@ export async function rememberPayer(database: Database, checkoutId: string): Pro
       await revokeCheckoutConsent(database, existing);
       return;
     }
-    if (!visitor) return;
+    if (!visitor && !metaUser) return;
     const key = validConsentKey(existing) ? existing : randomBytes(16).toString("hex");
     jar.set(ANALYTICS_CONSENT_COOKIE, key, {
       httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: CONSENT_MAX_AGE,
     });
-    await rememberCheckoutVisitor(database, checkoutId, { ...visitor, consentKey: key });
+    await rememberCheckoutVisitor(database, checkoutId, {
+      ...(visitor ?? { capturedAt: new Date().toISOString() }),
+      ...(metaUser ? { meta: metaUser } : {}),
+      consentKey: key,
+    });
   } catch {
     // No revocation proof means no server conversion; never stop a customer's checkout.
     console.error("[analytics] could not keep revocable checkout consent");
+  }
+  const plan = payer?.plan;
+  if (metaUser && plan) {
+    const user = metaUser;
+    afterResponse(() =>
+      sendMetaEvents([{
+        name: "InitiateCheckout",
+        id: conversionId("initiate_checkout", checkoutId),
+        time: new Date(),
+        path: "/pricing",
+        user,
+        custom: { value: plan.priceCents / 100, currency: plan.currency.toUpperCase(), content_name: plan.name.toLowerCase() },
+      }]),
+    );
+  }
+}
+
+/** After the response when there is one (next/server after), otherwise now; never awaited by the caller. */
+export function afterResponse(task: () => Promise<unknown>): void {
+  try {
+    after(task);
+  } catch {
+    void task().catch(() => {});
   }
 }

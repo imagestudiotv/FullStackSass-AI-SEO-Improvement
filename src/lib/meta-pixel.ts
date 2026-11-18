@@ -155,12 +155,61 @@ function loadMetaScript(id: string): void {
   document.head.appendChild(script);
 }
 
-/** Counts one page view, when the page is safe to report (metaSafePage). Returns whether it was sent. */
+/** The pricing page, in any language: "/pricing", "/es/pricing". */
+const PRICING_PAGE = /^\/(?:[a-z]{2}\/)?pricing\/?$/;
+
+/**
+ * Counts one page view, when the page is safe to report (metaSafePage), and
+ * on the pricing page ViewContent too (client's guide, section 2 row 2).
+ * Returns whether it was sent.
+ */
 export function trackMetaPage(id: string, page: { href: string; referrer: string }, options: { soon?: boolean } = {}): boolean {
   if (!metaSafePage(page.href, page.referrer)) return false;
   startMetaPixel(id, options);
   fbq("track", "PageView");
+  if (PRICING_PAGE.test(new URL(page.href).pathname)) fbq("track", "ViewContent", { content_name: "pricing" });
   return true;
+}
+
+/** A cookie's value in this document, or null. */
+function readCookie(name: string): string | null {
+  for (const part of document.cookie.split(";")) {
+    const [key, ...value] = part.trim().split("=");
+    if (key === name) return decodeURIComponent(value.join("="));
+  }
+  return null;
+}
+
+/**
+ * The same Lead id the server computes (lib/conversions/meta-capi.ts
+ * leadEventId: conversionId("lead", `${fbp}:${day}`)), so the browser's and
+ * the server's copies count once.
+ */
+async function leadEventId(fbp: string, day: string): Promise<string> {
+  const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`repget:lead:${fbp}:${day}`));
+  return Array.from(new Uint8Array(bytes), (b) => b.toString(16).padStart(2, "0")).join("").slice(0, 32);
+}
+
+/**
+ * The free audit was asked for (client's guide, section 2 row 3): Lead, from
+ * the page the form is on, for a visitor who accepted, once per browser per
+ * day. The audit page sends the server's copy with the same id
+ * (lib/conversions/meta-request.ts metaLeadEvent). Never throws.
+ */
+export async function trackMetaLead(consent: "granted" | "denied" | null, id: string | null = metaPixelId()): Promise<boolean> {
+  try {
+    if (consent !== "granted" || !id) return false;
+    if (!metaSafePage(window.location.href, document.referrer)) return false;
+    // The pixel sets _fbp on its first page view; without it, the server's copy stands alone.
+    const fbp = readCookie("_fbp");
+    if (!fbp) return false;
+    const eventID = await leadEventId(fbp, new Date().toISOString().slice(0, 10));
+    startMetaPixel(id, { soon: true });
+    fbq("track", "Lead", { content_name: "free_audit" }, { eventID });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** After a refusal: the pixel told, and its cookies (_fbp, and _fbc from an ad click) deleted wherever they were put. */
@@ -207,8 +256,30 @@ export function sendMetaConversions(
 
   startMetaPixel(id, { soon: true });
   for (const event of due) {
-    const params = event.params.plan ? { content_name: event.params.plan } : {};
-    fbq("track", META_EVENTS[event.name], params, { eventID: event.id });
+    fbq("track", META_EVENTS[event.name], metaParams(event), { eventID: event.id });
   }
   return due.map((event) => META_EVENTS[event.name]);
+}
+
+/** The parameters the client's guide gives each (section 2): the same on the server's copy (lib/conversions/meta-actions.ts). */
+function metaParams(event: BrowserConversion): Record<string, string | number> {
+  if (event.name === "sign_up") return { content_name: "signup" };
+  return { value: 0, currency: "EUR", content_name: (event.params.plan ?? "trial").toLowerCase() };
+}
+
+const SERVER_SENT_KEY = "repget_meta_server_conversions";
+
+/**
+ * Which of these conversions the server should copy to Meta now
+ * (lib/conversions/meta-actions.ts mirrorMetaConversions): those this browser
+ * has not had copied yet, for a visitor who accepted. Not tied to the page's
+ * address, because the server sends a clean one.
+ */
+export function claimMetaServerConversions(events: BrowserConversion[], consent: "granted" | "denied" | null, id: string | null = metaPixelId()): string[] {
+  if (consent !== "granted" || !id || events.length === 0) return [];
+  const fresh = claimConversions(
+    events.map((event) => event.id),
+    SERVER_SENT_KEY,
+  );
+  return events.filter((event) => fresh.has(event.id)).map((event) => event.id);
 }

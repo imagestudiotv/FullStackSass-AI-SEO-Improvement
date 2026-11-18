@@ -3,6 +3,7 @@ import { and, desc, eq, inArray, isNotNull, isNull, lte, ne, or } from "drizzle-
 import { cancellationOps } from "@/lib/billing/checkout-providers";
 import { addMonthsClamped } from "@/lib/billing/entitlement-period";
 import { reportFirstPayment } from "@/lib/conversions/conversions";
+import { reportMetaPurchase } from "@/lib/conversions/meta-purchases";
 import {
   syncProviderSubscription,
   type SubscriptionSnapshot,
@@ -535,6 +536,14 @@ export async function processPayPalEvent(event: PayPalEvent): Promise<void> {
           });
           // The first real payment, to Google Analytics, as on Stripe's (lib/conversions/conversions.ts).
           await reportFirstPayment(db, {
+            provider: "paypal",
+            providerSubscriptionId: billingId,
+            externalId: resource.id,
+            amountCents: Number.isFinite(total) ? Math.round(total * 100) : 0,
+            currency: resource.amount?.currency ?? "EUR",
+          });
+          // And to Meta, as a Purchase, as on Stripe's (lib/conversions/meta-purchases.ts).
+          await reportMetaPurchase(db, {
             provider: "paypal",
             providerSubscriptionId: billingId,
             externalId: resource.id,

@@ -129,7 +129,7 @@ export async function createPayPalCheckout(
   /** Where the customer started, so approving returns them there. */
   origin: CheckoutOrigin = "billing",
 ): Promise<PayPalResult> {
-  const { orgId } = await requireOrg();
+  const { orgId, userId } = await requireOrg();
 
   /**
    * Ownership re-checked before the id leaves for PayPal, as with Stripe: a
@@ -292,8 +292,8 @@ export async function createPayPalCheckout(
     discount !== null
       ? { sequence: withFreeDays ? 2 : 1, totalCycles: launchPrice ? 0 : 1, priceCents: plan.priceCents - discount, currency: plan.currency }
       : null;
-  // The payer's GA identity, for the purchase reported when the money arrives.
-  await rememberPayer(db, checkoutId);
+  // The payer's GA and Meta identities, for the purchase reported when the money arrives; Meta also hears InitiateCheckout.
+  await rememberPayer(db, checkoutId, { userId, plan: { name: plan.name, priceCents: plan.priceCents, currency: plan.currency } });
   const idempotencyKey = `checkout:${checkoutId}`;
   try {
     await recordCheckoutRequest(db, checkoutId, {

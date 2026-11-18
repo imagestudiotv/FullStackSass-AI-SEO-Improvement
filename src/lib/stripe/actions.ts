@@ -73,7 +73,7 @@ export async function createCheckoutSession(
   /** Where the customer started, so paying returns them there. */
   origin: CheckoutOrigin = "billing",
 ): Promise<CheckoutResult> {
-  const { orgId } = await requireOrg();
+  const { orgId, userId } = await requireOrg();
 
   /**
    * Confirms the website belongs to the caller before it reaches Stripe
@@ -194,8 +194,8 @@ export async function createCheckoutSession(
 
   const { checkoutId, trialDays } = begun;
 
-  // The payer's GA identity, for the purchase reported when the money arrives.
-  await rememberPayer(db, checkoutId);
+  // The payer's GA and Meta identities, for the purchase reported when the money arrives; Meta also hears InitiateCheckout.
+  await rememberPayer(db, checkoutId, { userId, plan: { name: plan.name, priceCents: plan.priceCents, currency: plan.currency } });
 
   /*
     Everything that talks to Stripe is inside the try. An error escaping a

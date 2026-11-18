@@ -144,19 +144,35 @@ The following live-property verification requires an approved environment and te
 7. With Tag Manager: use its **Preview** button (Tag Assistant) on www.repget.com and repeat steps 3-4. The Ads conversion tags fire on `sign_up` and `start_trial`.
 8. In Google Ads, the imported conversions show "Recording conversions" within 24-48 hours.
 
-## Meta (Facebook) Pixel
+## Meta (Facebook) Pixel and Conversions API
 
-`lib/meta-pixel.ts`, for the client's Facebook ads (2026-11-18). Off until `NEXT_PUBLIC_META_PIXEL_ID` is set.
+`lib/meta-pixel.ts` (browser) and `lib/conversions/meta-*.ts` (server), for the client's Facebook ads, following the client's guide `RepGet-Meta-Tracking-Developer-Guide.md` (2026-11-18). The pixel is off until `NEXT_PUBLIC_META_PIXEL_ID` is set; server events also need `META_CAPI_TOKEN`.
 
-- **What it sends.** `PageView` on the public pages, and `CompleteRegistration` (sign-up) and `StartTrial` (start of the free trial) from the signed-in pages, each with its conversion id as Meta's `eventID`. Purchases are not sent: they happen on the server, mostly with nobody there, and would need Meta's Conversions API (not built).
-- **Consent.** Only after **Accept**, in either consent mode. The banner then names Meta, and the consent cookie's version becomes `3`, so everyone who accepted before Meta was named is asked again once. Decline revokes the pixel and deletes `_fbp` / `_fbc`.
-- **Addresses.** The pixel reports `location.href` and `document.referrer` itself and cannot be told to clean them. So on a page whose address, or same-site referrer, carries anything `lib/site-analytics.ts` would remove (a query parameter other than the campaign tags and `fbclid`, a fragment, an invitation token, a record id, `/admin`), nothing is sent. A conversion skipped that way is sent from the next safe signed-in page within the hour.
+| Event | Fires when | Browser | Server | Parameters |
+|---|---|---|---|---|
+| `PageView` | every safe public page and route change | yes | no | none |
+| `ViewContent` | the pricing page (any language) | yes | no | `content_name: pricing` |
+| `Lead` | the free audit form is submitted (browser), the audit finishes (server) | yes | yes | `content_name: free_audit` |
+| `CompleteRegistration` | the first signed-in page in the hour after sign-up | yes | yes | `content_name: signup` |
+| `InitiateCheckout` | a checkout is created, just before Stripe or PayPal | no | yes | `value`, `currency`, `content_name` (plan) |
+| `StartTrial` | the first signed-in page in the hour after the trial checkout completed | yes | yes | `value: 0`, `currency: EUR`, `content_name` (plan) |
+| `Purchase` | the workspace's first subscription payment, from the Stripe (`invoice.paid`) and PayPal (`PAYMENT.SALE.COMPLETED`) webhooks; never a renewal | no | yes | `value`, `currency`, `content_name` (plan) |
+
+- **Deduplication.** The browser and the server give an event the same id: the conversion id for `CompleteRegistration` / `StartTrial`, `conversionId("lead", "<_fbp>:<UTC day>")` for `Lead` (one per browser per day), and for `Purchase` the id Google's purchase uses as its transaction id.
+- **Not as the guide says, on purpose.**
+  - No `<noscript>` image: it would report visitors who never accepted.
+  - `InitiateCheckout` is sent by the server only. The checkout page leaves for Stripe at once, and its address carries the website id, so the pixel either could not finish or would not be allowed to send.
+  - Identity is kept on the checkout, not on the user record. Whoever starts paying is the one the payment belongs to, and the `fbp`/`fbc` saved there are the freshest ones.
+- **Consent.** Everything, browser and server, only after **Accept**, in either consent mode. The banner then names Meta, and the consent cookie's version becomes `3`. Decline revokes the pixel, deletes `_fbp` / `_fbc`, and the first-party withdrawal (`/api/analytics/consent`) erases the identity saved on any checkout and suppresses a queued `Purchase`.
+- **What the server sends.** `_fbp`, `_fbc`, the IP address and the browser as they are; the email address and the user id SHA-256 hashed (trimmed, lowercased); never a name or anything about websites or articles. The token never leaves the server and is never logged (failures log only `http_<status>`).
+- **Purchase delivery.** Queued in `meta_purchases` (migration 0095), delivered at once and retried by the five-minute `paid-acquisition-deliver` job, for 72 hours; the queued identity is erased once the event is decided. Migration 0095 marks every workspace that had already paid as `legacy`, so no old sale is sent.
+- **Addresses.** The pixel reports `location.href` and `document.referrer` itself and cannot be told to clean them. So on a page whose address, or same-site referrer, carries anything `lib/site-analytics.ts` would remove (a query parameter other than the campaign tags and `fbclid`, a fragment, an invitation token, a record id, `/admin`), the pixel sends nothing. Server events always carry a clean address.
 - **No automatic events.** `autoConfig` is off (no button clicks or page metadata) and `disablePushState` is on (no page view of Meta's own on in-site navigation).
-- **CSP.** `connect.facebook.net` (script, connect) and `www.facebook.com` (connect) are allowed only while the pixel is configured.
+- **CSP.** `connect.facebook.net` (script, connect) and `www.facebook.com` (connect) are allowed only while the pixel is configured. Server events need no CSP.
 
 ### Owner setup
 
-1. **Vercel** (Production): `NEXT_PUBLIC_META_PIXEL_ID` = the Pixel ID (digits only), then redeploy. It is not a secret.
-2. **Events Manager** > Data sources > the pixel > Settings: keep **Automatic advanced matching** OFF. It reads email addresses from forms, the sign-up form among them, and the privacy policy says no email address is sent to Meta.
-3. **Test**: Events Manager > the pixel > **Test events** > enter `https://www.repget.com` and open it. In that window press **Accept**: `PageView` appears. Sign up with a new address and finish the first onboarding screen: `CompleteRegistration` appears; start a trial: `StartTrial`. The **test code** shown there is for server events (Conversions API) and is not needed for these.
+1. **Vercel** (Production): `NEXT_PUBLIC_META_PIXEL_ID` = the Pixel ID (digits only; not a secret) and `META_CAPI_TOKEN` = the Conversions API access token (a secret: Vercel only, never in Git or chat). Redeploy.
+2. **Events Manager** > Data sources > the pixel > Settings: keep **Automatic advanced matching** OFF. It reads every form field in the browser; the server already sends the hashed email address where it is known, and only after Accept.
+3. **Test**: set `META_TEST_EVENT_CODE` = the code shown under **Test events** (for example `TEST11921`) in Vercel Production and redeploy. Server events then show under Test events. Open `https://www.repget.com` from there and press **Accept**: `PageView`; open Pricing: `ViewContent`; run the free audit: `Lead` (browser and server); sign up with a new address: `CompleteRegistration`; start a trial: `InitiateCheckout`, then `StartTrial`. A `Purchase` follows the first real payment. **Remove `META_TEST_EVENT_CODE` and redeploy when the test is done**, or live events stay marked as tests.
 4. Decline in Footer > Cookie settings: the `_fbp` cookie disappears and nothing more is sent to `facebook.com/tr`.

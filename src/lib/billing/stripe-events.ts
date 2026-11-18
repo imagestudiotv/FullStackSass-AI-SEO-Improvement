@@ -12,6 +12,7 @@ import {
 } from "@/lib/billing/subscription-sync";
 import { confirmSponsorship, isSponsorshipSession } from "@/lib/blog/sponsorship";
 import { reportFirstPayment } from "@/lib/conversions/conversions";
+import { reportMetaPurchase } from "@/lib/conversions/meta-purchases";
 import { db } from "@/lib/db";
 import type { Executor } from "@/lib/db/types";
 import { billingCustomers, organization, payments, plans, subscriptions } from "@/lib/db/schema";
@@ -429,6 +430,14 @@ async function processBillingEvent(event: Stripe.Event): Promise<void> {
             amountCents: invoice.amount_paid ?? 0,
             currency: invoice.currency ?? "eur",
             paidAt: invoice.status_transitions?.paid_at ? new Date(invoice.status_transitions.paid_at * 1000) : null,
+          });
+          // The same first payment to Meta, as a Purchase (lib/conversions/meta-purchases.ts); never thrown.
+          await reportMetaPurchase(db, {
+            provider: "stripe",
+            providerSubscriptionId: subscriptionId,
+            externalId: invoice.id,
+            amountCents: invoice.amount_paid ?? 0,
+            currency: invoice.currency ?? "eur",
           });
         }
         /*
