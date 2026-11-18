@@ -23,7 +23,7 @@ export type HookLibraryClip = {
 };
 
 /**
- * Picked 2026-11-18 from about 280 Pixabay candidates (scripts/hook-library.mjs):
+ * Picked 2026-11-18 from about 450 Pixabay candidates (three search rounds) (scripts/hook-library.mjs):
  * each checked frame by frame for a clear climax, a 9:16 crop and safety
  * (no injury, fire, vehicles, children or animals). Pixabay's free catalogue
  * is thin for these effects; more can be added the same way.
@@ -39,6 +39,10 @@ export const HOOK_LIBRARY: readonly HookLibraryClip[] = [
   { id: "43594", type: "anticipation", tags: ["basketball", "layup", "hoop", "rim", "outdoor"], climaxMs: 9000, focalX: 0.74 },
   // skater pops kickflip and lands it
   { id: "37845", type: "anticipation", tags: ["skateboard", "kickflip", "trick", "landing", "street"], climaxMs: 3000, focalX: 0.45 },
+  // spinning coin wobbles down, falls flat
+  { id: "12564", type: "anticipation", tags: ["coin", "spinning", "table", "settling"], climaxMs: 17250, focalX: 0.45 },
+  // golden-hour wave bursts into huge slow splash
+  { id: "183960", type: "anticipation", tags: ["wave", "splash", "sunset", "sea", "slow motion"], climaxMs: 9750, focalX: 0.55 },
   // plasma bolts flare out to the glass
   { id: "11414", type: "impossible", tags: ["plasma", "globe", "lightning", "electricity", "science"], climaxMs: 8250, focalX: 0.51 },
   // rainbow swirl surges across soap film
@@ -53,10 +57,18 @@ export const HOOK_LIBRARY: readonly HookLibraryClip[] = [
   { id: "112389", type: "impossible", tags: ["daffodil", "flower", "bloom", "timelapse", "spring"], climaxMs: 27000, focalX: 0.5 },
   // frost crystals sweep over glowing bubble
   { id: "326483", type: "impossible", tags: ["soap", "bubble", "frost", "crystals", "freezing"], climaxMs: 3500, focalX: 0.55 },
+  // second ink plume plunges, blooms into cloud
+  { id: "20072", type: "impossible", tags: ["ink", "water", "blue", "cloud", "swirl"], climaxMs: 16000, focalX: 0.5 },
+  // red flower bursts open, stamens unfurl
+  { id: "107914", type: "impossible", tags: ["flower", "bloom", "timelapse", "red", "stamens"], climaxMs: 10500, focalX: 0.5 },
+  // snow dome melts away to green
+  { id: "112986", type: "impossible", tags: ["snow", "melting", "timelapse", "plant", "ice"], climaxMs: 25000, focalX: 0.45 },
   // flyer drops from handstand, partner catches her
   { id: "35235", type: "danger", tags: ["acrobats", "hand", "balance", "lift", "catch"], climaxMs: 15750, focalX: 0.57 },
   // pilot runs, lifts off the ridge edge
   { id: "49509", type: "danger", tags: ["paraglider", "launch", "wing", "ridge", "sunset"], climaxMs: 11000, focalX: 0.55 },
   // surfer tucks into barrel under crashing lip
   { id: "368", type: "danger", tags: ["surfer", "big", "wave", "barrel", "ocean"], climaxMs: 7000, focalX: 0.42 },
+  // surfer drops under breaking lip, rides out
+  { id: "13772", type: "danger", tags: ["surfer", "big", "wave", "ocean", "aerial"], climaxMs: 7250, focalX: 0.38 },
 ];

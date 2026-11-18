@@ -6,6 +6,7 @@
  *   PIXABAY_API_KEY=... node scripts/hook-library.mjs <out-dir> [per=6] [queries=file.json]
  *
  * queries=: other search words, as {"danger": ["rock climbing", ...], ...}.
+ * skip=: a JSON array of Pixabay ids already looked at, left out.
  *
  * For each hook type it searches Pixabay's API (film footage, safe search)
  * with that type's search words, downloads each clip's smallest rendition to
@@ -63,7 +64,8 @@ function suggestedClimaxMs(file) {
 }
 
 mkdirSync(path.join(out, "clips"), { recursive: true });
-const seen = new Set();
+const skipFile = process.argv.find((a) => a.startsWith("skip="))?.slice(5);
+const seen = new Set(skipFile ? JSON.parse(readFileSync(skipFile, "utf8")).map(Number) : []);
 const candidates = [];
 for (const [type, queries] of Object.entries(QUERIES)) {
   mkdirSync(path.join(out, "strips", type), { recursive: true });
@@ -83,13 +85,27 @@ for (const [type, queries] of Object.entries(QUERIES)) {
       if (!rendition?.url || !hit.duration || hit.duration < 4 || hit.duration > 40) continue;
       const file = path.join(out, "clips", `${hit.id}.mp4`);
       if (!existsSync(file)) {
-        const response = await fetch(rendition.url);
-        if (!response.ok) continue;
-        writeFileSync(file, Buffer.from(await response.arrayBuffer()));
+        try {
+          const response = await fetch(rendition.url);
+          if (!response.ok) continue;
+          writeFileSync(file, Buffer.from(await response.arrayBuffer()));
+        } catch (error) {
+          // A dropped download is left out, not the whole run.
+          console.error(`skipped ${hit.id}: download failed (${error.message})`);
+          continue;
+        }
       }
       const strip = path.join(out, "strips", type, `${hit.id}.png`);
       const fps = 8 / hit.duration;
-      ff(["-i", file, "-vf", `fps=${fps},scale=240:-2,tile=8x1:padding=4:color=white`, "-frames:v", "1", strip]);
+      let suggested;
+      try {
+        ff(["-i", file, "-vf", `fps=${fps},scale=240:-2,tile=8x1:padding=4:color=white`, "-frames:v", "1", strip]);
+        suggested = suggestedClimaxMs(file);
+      } catch (error) {
+        // A file ffmpeg cannot read is left out, not the whole run.
+        console.error(`skipped ${hit.id}: ${String(error.message).split(String.fromCharCode(10))[0]}`);
+        continue;
+      }
       const candidate = {
         id: String(hit.id),
         type,
@@ -99,7 +115,7 @@ for (const [type, queries] of Object.entries(QUERIES)) {
         width: hit.videos?.large?.width ?? rendition.width,
         height: hit.videos?.large?.height ?? rendition.height,
         page: hit.pageURL,
-        suggestedClimaxMs: suggestedClimaxMs(file),
+        suggestedClimaxMs: suggested,
         strip: path.relative(out, strip).replace(/\\/g, "/"),
       };
       candidates.push(candidate);
