@@ -76,7 +76,7 @@ describe("banner words", () => {
     const english = chrome.en.consent;
     for (const locale of LOCALES) {
       const words = chrome[locale].consent;
-      expect(Object.keys(words).sort()).toEqual(["accept", "close", "decline", "label", "message", "nothingToChoose", "privacy", "settings"]);
+      expect(Object.keys(words).sort()).toEqual(["accept", "close", "decline", "label", "message", "messageWithMeta", "nothingToChoose", "privacy", "settings"]);
       for (const value of Object.values(words)) expect(value.trim()).not.toBe("");
       if (locale !== "en") {
         expect(words.message).not.toBe(english.message);

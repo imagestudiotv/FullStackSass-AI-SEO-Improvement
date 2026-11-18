@@ -7,6 +7,7 @@ import { CONSENT_COOKIE, CONSENT_MAX_AGE, parseConsent } from "@/lib/consent";
 import { account, billingCheckouts, plans } from "@/lib/db/schema";
 import type { Database } from "@/lib/db/types";
 import { measurementId, tagManagerId, type BrowserConversion } from "@/lib/google-analytics";
+import { metaPixelId } from "@/lib/meta-pixel";
 
 import { gaClientId, gaSessionCookie, gaSessionId } from "./ga-identity";
 import { ANALYTICS_CONSENT_COOKIE, conversionId, validConsentKey } from "./config";
@@ -43,14 +44,14 @@ export const BROWSER_WINDOW_MS = 60 * 60 * 1000;
  * in the hour after the account was created, and the start of any free
  * articles in their workspace, in the hour after the checkout completed.
  * The browser remembers what it has sent, so a reload does not count one
- * twice. Nothing when the deployment has no Google tag.
+ * twice. Nothing when the deployment has no Google tag and no Meta Pixel.
  */
 export async function pendingConversions(
   database: Database,
   who: { userId: string; userCreatedAt: Date | string; organizationId: string | null },
   now: Date = new Date(),
 ): Promise<BrowserConversion[]> {
-  if (!measurementId() && !tagManagerId()) return [];
+  if (!measurementId() && !tagManagerId() && !metaPixelId()) return [];
   const since = new Date(now.getTime() - BROWSER_WINDOW_MS);
   const events: BrowserConversion[] = [];
 

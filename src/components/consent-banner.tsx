@@ -18,12 +18,14 @@ import {
 } from "@/lib/google-analytics";
 import { splitLocale, type Locale } from "@/lib/i18n/config";
 import type { Messages } from "@/lib/i18n/messages";
+import { forgetMetaPixel, metaPixelId, trackMetaPage } from "@/lib/meta-pixel";
 import { cn } from "@/lib/utils";
 
 const TAGS = googleTags();
 const GA_ID = TAGS.ga;
-/** Whether there is anything to ask about: GA, a Tag Manager container, or both. Without either, "Cookie settings" says so. */
-const ASKS = Boolean(TAGS.ga || TAGS.gtm);
+const META_ID = metaPixelId();
+/** Whether there is anything to ask about: GA, a Tag Manager container, the Meta Pixel. Without any, "Cookie settings" says so. */
+const ASKS = Boolean(TAGS.ga || TAGS.gtm || META_ID);
 const MODE = consentMode();
 
 type Copy = Messages["consent"];
@@ -111,6 +113,15 @@ export function ConsentBanner({ copy, locale }: { copy: Partial<Record<Locale, C
     };
   }, [consent, pathname]);
 
+  // The Meta Pixel: after Accept only, whatever the consent mode, and only on a page safe to report (lib/meta-pixel.ts).
+  useEffect(() => {
+    if (!META_ID || consent !== "granted") return;
+    const timer = window.setTimeout(() => {
+      trackMetaPage(META_ID, { href: window.location.href, referrer: document.referrer }, { soon: justAccepted.current });
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [consent, pathname]);
+
   if (!visible || !t) return null;
 
   const close = () => {
@@ -121,7 +132,10 @@ export function ConsentBanner({ copy, locale }: { copy: Partial<Record<Locale, C
 
   const choose = (value: Consent) => {
     if (value === "granted") justAccepted.current = true;
-    else forgetGoogleAnalytics(GA_ID);
+    else {
+      forgetGoogleAnalytics(GA_ID);
+      forgetMetaPixel();
+    }
     setReopened(false);
     saveConsent(value);
     opener.current?.focus();
@@ -135,7 +149,7 @@ export function ConsentBanner({ copy, locale }: { copy: Partial<Record<Locale, C
       className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-50 rounded-xl border bg-background p-4 text-sm shadow-lg sm:inset-x-auto sm:bottom-4 sm:left-4 sm:w-[22rem]"
     >
       <p className="text-foreground">
-        {ASKS ? t.message : t.nothingToChoose}{" "}
+        {ASKS ? (META_ID ? t.messageWithMeta : t.message) : t.nothingToChoose}{" "}
         <Link prefetch={false} href="/privacy" className="font-medium underline underline-offset-4 hover:no-underline">
           {t.privacy}
         </Link>

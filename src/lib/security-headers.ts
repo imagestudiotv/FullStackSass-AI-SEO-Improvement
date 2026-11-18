@@ -94,6 +94,8 @@ export type CspIntegrations = {
   googleTag: boolean;
   /** NEXT_PUBLIC_GTM_ID: the container's Google Ads tags (client, 2026-10-09). */
   ads: boolean;
+  /** NEXT_PUBLIC_META_PIXEL_ID: the Meta Pixel, for Facebook ads (lib/meta-pixel.ts, client 2026-11-18). */
+  meta?: boolean;
   /** NEXT_PUBLIC_SUPABASE_URL's origin: the videos' voice, reels and clips, played and uploaded there (lib/video/storage.ts). */
   storage?: string;
   /**
@@ -113,6 +115,8 @@ export function cspIntegrations(env: Record<string, string | undefined>): CspInt
     crisp: Boolean(env.NEXT_PUBLIC_CRISP_WEBSITE_ID?.trim()),
     googleTag: ga || ads,
     ads,
+    // Mirrors metaPixelId() in lib/meta-pixel.ts.
+    meta: /^\d{10,20}$/.test(env.NEXT_PUBLIC_META_PIXEL_ID?.trim() ?? ""),
     storage: originOf(env.NEXT_PUBLIC_SUPABASE_URL),
   };
 }
@@ -127,7 +131,7 @@ function originOf(url: string | undefined): string | undefined {
 }
 
 /** Every integration on: for tests and for checking the widest policy. */
-export const ALL_INTEGRATIONS = (sentryDsn?: string): CspIntegrations => ({ sentryDsn, crisp: true, googleTag: true, ads: true });
+export const ALL_INTEGRATIONS = (sentryDsn?: string): CspIntegrations => ({ sentryDsn, crisp: true, googleTag: true, ads: true, meta: true });
 
 /**
  * The allow-list, from what the browser actually loads (audited 2026-10-03,
@@ -243,6 +247,14 @@ export function contentSecurityPolicy(integrations: CspIntegrations, nonce?: str
     ? ["https://*.safeframe.googlesyndication.com", "https://tpc.googlesyndication.com", "https://securepubads.g.doubleclick.net", "https://googleads.g.doubleclick.net", "https://*.adtrafficquality.google", "https://www.google.com"]
     : [];
   const gptMedia = rewarded ? ["https://*.googlevideo.com", "https://*.gstatic.com", "https://*.googlesyndication.com"] : [];
+  /*
+    The Meta Pixel (lib/meta-pixel.ts): fbevents.js and the pixel's
+    configuration script from connect.facebook.net; its hits go to
+    www.facebook.com/tr, as an image (img-src already allows https:) or by
+    fetch/sendBeacon (connect-src).
+  */
+  const metaScript = integrations.meta ? ["https://connect.facebook.net"] : [];
+  const metaConnect = integrations.meta ? ["https://www.facebook.com", "https://connect.facebook.net"] : [];
   const sentry = sentryOrigin(integrations.sentryDsn);
   const storage = integrations.storage ? [integrations.storage] : [];
   const report = cspReportUri(integrations.sentryDsn);
@@ -252,14 +264,14 @@ export function contentSecurityPolicy(integrations: CspIntegrations, nonce?: str
     [
       "script-src",
       nonce
-        ? ["'self'", `'nonce-${nonce}'`, THEME_SCRIPT_HASH, "'strict-dynamic'", ...crispScript, ...gaScript, ...adsScript, ...gptScript]
-        : ["'self'", "'unsafe-inline'", ...crispScript, ...gaScript, ...adsScript, ...gptScript],
+        ? ["'self'", `'nonce-${nonce}'`, THEME_SCRIPT_HASH, "'strict-dynamic'", ...crispScript, ...gaScript, ...adsScript, ...metaScript, ...gptScript]
+        : ["'self'", "'unsafe-inline'", ...crispScript, ...gaScript, ...adsScript, ...metaScript, ...gptScript],
     ],
     ["script-src-attr", ["'none'"]],
     ["style-src", ["'self'", "'unsafe-inline'", ...crispScript]],
     ["img-src", ["'self'", "data:", "blob:", "https:"]],
     ["font-src", ["'self'", "data:", ...crispScript]],
-    ["connect-src", unique(["'self'", ...crispConnect, ...gaConnect, ...adsConnect, ...(sentry ? [sentry] : []), ...storage, ...gptConnect])],
+    ["connect-src", unique(["'self'", ...crispConnect, ...gaConnect, ...adsConnect, ...metaConnect, ...(sentry ? [sentry] : []), ...storage, ...gptConnect])],
     ["media-src", ["'self'", "blob:", ...storage, ...crispScript, ...gptMedia]],
     ["frame-src", unique(["'self'", youtube, ...adsFrame, ...gptFrame])],
     ["worker-src", ["'self'", "blob:"]],
