@@ -6,6 +6,8 @@ import { revalidatePath } from "next/cache";
 import { isEntitledToSpend } from "@/lib/billing/entitled";
 import { db } from "@/lib/db";
 import { competitors, networkSites, websiteMembers, websites } from "@/lib/db/schema";
+import { actionLocale } from "@/lib/i18n/action-locale";
+import { ONBOARDING_ERRORS, websiteRefusal } from "@/lib/i18n/onboarding-errors";
 import { NEW_SITE_DEFAULTS, NEW_SITE_NETWORK } from "@/lib/websites/new-site-defaults";
 import { settingsForMode, type FinishedMode } from "@/lib/publishing/policy";
 import {
@@ -61,9 +63,16 @@ export async function listWebsites(): Promise<WebsiteSummary[]> {
     .orderBy(desc(websites.createdAt));
 }
 
+/** addWebsite's own refusals, in the caller's app language (lib/i18n/onboarding-errors.ts). */
+async function addWebsiteErrors() {
+  return ONBOARDING_ERRORS[await actionLocale()].website;
+}
+
 /**
  * Adds a website to the caller's organization.
  *
+ * Its refusals are in the caller's app language: this is the first step of
+ * setup. The language is looked up only when it refuses.
  */
 export async function addWebsite(
   rawUrl: string,
@@ -75,7 +84,7 @@ export async function addWebsite(
     normalized = normalizeWebsiteUrl(rawUrl);
   } catch (error) {
     if (error instanceof InvalidUrlError) {
-      return { ok: false, error: error.message };
+      return { ok: false, error: websiteRefusal(error.message, await actionLocale()) };
     }
     throw error;
   }
@@ -94,7 +103,7 @@ export async function addWebsite(
     .limit(1);
 
   if (existing) {
-    return { ok: false, error: "That website is already in this workspace" };
+    return { ok: false, error: (await addWebsiteErrors()).alreadyInWorkspace };
   }
 
   /**
@@ -145,10 +154,7 @@ export async function addWebsite(
       read on the add-website form, where there is no switcher, and the
       header hides it on phones. Websites lists it under "Shared with you".
     */
-    return {
-      ok: false,
-      error: "That website is already shared with you. Find it under Websites, in Shared with you.",
-    };
+    return { ok: false, error: (await addWebsiteErrors()).alreadyShared };
   }
 
   /**
@@ -169,10 +175,7 @@ export async function addWebsite(
       normalized.domain,
   );
   if (waiting) {
-    return {
-      ok: false,
-      error: "You have an invitation waiting for that website. Accept it on your dashboard.",
-    };
+    return { ok: false, error: (await addWebsiteErrors()).invitationWaiting };
   }
 
   /**
@@ -222,7 +225,8 @@ export async function addWebsite(
       .onConflictDoNothing({ target: networkSites.websiteId });
     return created.id;
   });
-  if (!queued.ok) return { ok: false, error: queued.error };
+  // queueAnalysis words its two refusals in English; found by that sentence.
+  if (!queued.ok) return { ok: false, error: websiteRefusal(queued.error, await actionLocale()) };
 
   revalidatePath("/websites");
   return { ok: true, data: { id: queued.websiteId } };

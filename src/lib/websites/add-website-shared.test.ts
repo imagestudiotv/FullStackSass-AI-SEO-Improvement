@@ -312,3 +312,52 @@ describe("addWebsite - what the shared check must NOT refuse", () => {
     expect(inngestMock.send).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("addWebsite - in the caller's app language (2026-11-18)", () => {
+  /*
+    The first setup step was in the customer's language and its refusals were
+    English. The stored preference decides (lib/i18n/app-locale.ts); English
+    stays exactly as above.
+  */
+  async function speaks(userId: string, locale: string) {
+    await test.db.update(user).set({ locale }).where(eq(user.id, userId));
+  }
+
+  it("refuses a shared site in Italian and German, with nothing created", async () => {
+    await share(await site(OWNER_ORG, "shared.example"), GUEST_USER);
+    signIn(GUEST_USER, GUEST_ORG);
+
+    await speaks(GUEST_USER, "it");
+    expect(await addWebsite("shared.example")).toEqual({
+      ok: false,
+      error: "Quel sito web è già condiviso con lei. Lo trova in Siti web, sotto Condivisi con lei.",
+    });
+    await speaks(GUEST_USER, "de");
+    expect(await addWebsite("shared.example")).toEqual({
+      ok: false,
+      error: "Diese Website wurde bereits mit Ihnen geteilt. Sie finden sie unter Websites, bei Mit Ihnen geteilt.",
+    });
+    expect(await sitesIn(GUEST_ORG)).toEqual([]);
+    expect(inngestMock.send).not.toHaveBeenCalled();
+  });
+
+  it("says a duplicate and an address that is not a website in the caller's language", async () => {
+    await site(OWNER_ORG, "mine.example");
+    signIn(OWNER_USER, OWNER_ORG);
+
+    await speaks(OWNER_USER, "it");
+    expect(await addWebsite("mine.example")).toEqual({ ok: false, error: "Quel sito web è già in questo spazio di lavoro" });
+    expect(await addWebsite("instagram.com/acme")).toEqual({ ok: false, error: "Inserisca il suo sito web, non un profilo social" });
+    await speaks(OWNER_USER, "fr");
+    expect(await addWebsite("localhost")).toEqual({ ok: false, error: "Cette adresse n’est pas un site web public" });
+  });
+
+  it("English, stored or not, says what it always did", async () => {
+    await site(OWNER_ORG, "mine.example");
+    signIn(OWNER_USER, OWNER_ORG);
+
+    await speaks(OWNER_USER, "en");
+    expect(await addWebsite("mine.example")).toEqual({ ok: false, error: "That website is already in this workspace" });
+    expect(await addWebsite("not a website")).toEqual({ ok: false, error: "Enter a valid website address" });
+  });
+});

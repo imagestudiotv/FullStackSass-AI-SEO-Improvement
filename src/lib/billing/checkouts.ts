@@ -11,6 +11,8 @@ import {
   websites,
 } from "@/lib/db/schema";
 import type { Database, Executor, Transaction } from "@/lib/db/types";
+import { checkoutErrors } from "@/lib/i18n/checkout-errors";
+import type { Locale } from "@/lib/i18n/config";
 import { REPGET_CODE, repgetCouponFor, repgetDiscountCents, repgetOfferEnabled, type OfferPlan } from "@/lib/billing/repget-offer";
 import {
   WINBACK_CODE,
@@ -639,10 +641,13 @@ export async function beginCheckout(
      * REPGET), so it is closed and a new one made.
      */
     price?: string | null;
+    /** The payer's app language, for a refusal's words (lib/i18n/checkout-errors.ts); English when absent. */
+    locale?: Locale | null;
   },
   ops: CheckoutProviderOps,
   now: Date = new Date(),
 ): Promise<BeginCheckoutResult> {
+  const say = checkoutErrors(input.locale);
   const reusable = (c: CheckoutRow) =>
     BLOCKING_DELETION.includes(c.status) &&
     c.provider === input.provider &&
@@ -677,7 +682,7 @@ export async function beginCheckout(
       .from(organization)
       .where(eq(organization.id, input.organizationId))
       .for("key share");
-    if (!org) return { kind: "refuse", error: "Website not found" };
+    if (!org) return { kind: "refuse", error: say.websiteNotFound };
 
     const [site] = await tx
       .select({ id: websites.id })
@@ -689,7 +694,7 @@ export async function beginCheckout(
         ),
       )
       .for("update");
-    if (!site) return { kind: "refuse", error: "Website not found" };
+    if (!site) return { kind: "refuse", error: say.websiteNotFound };
 
     const [current] = await tx
       .select()
@@ -708,17 +713,15 @@ export async function beginCheckout(
         PayPal, can start once that time is over.
       */
       if (current.provider === "paypal" && current.cancelAtPeriodEnd) {
-        const until = current.currentPeriodEnd ? ` until ${current.currentPeriodEnd.toISOString().slice(0, 10)}` : "";
         return {
           kind: "refuse",
-          error: `This website's PayPal subscription is cancelled and its plan runs${until}. You can choose a plan again, by card or PayPal, once it has ended.`,
+          error: say.payPalCancelledRuns(current.currentPeriodEnd ? current.currentPeriodEnd.toISOString().slice(0, 10) : null),
         };
       }
       if (current.provider !== input.provider) {
-        const name = current.provider === "paypal" ? "PayPal" : "card (Stripe)";
         return {
           kind: "refuse",
-          error: `This website is already billed by ${name}. Change its plan there, or cancel that subscription first.`,
+          error: say.billedElsewhere(current.provider === "paypal" ? "paypal" : "stripe"),
         };
       }
       if (current.provider === "paypal" && current.status === "trialing") {
@@ -747,7 +750,7 @@ export async function beginCheckout(
       } else {
         return {
           kind: "refuse",
-          error: `This website's subscription is ${current.status.replace(/_/g, " ")}. Settle or cancel it before starting another.`,
+          error: say.subscriptionStatus(current.status),
         };
       }
     }
@@ -783,7 +786,7 @@ export async function beginCheckout(
         ) {
           return {
             kind: "refuse",
-            error: "A payment for this website has just gone through and is still being recorded. Refresh in a minute.",
+            error: say.paymentBeingRecorded,
           };
         }
         continue;
@@ -813,15 +816,14 @@ export async function beginCheckout(
       if (!providerId && now.getTime() - checkout.createdAt.getTime() <= CHECKOUT_IN_FLIGHT_MS) {
         return {
           kind: "refuse",
-          error: "A checkout for this website is already being prepared. Try again in a moment.",
+          error: say.checkoutBeingPrepared,
         };
       }
 
       if (checkout.provider === "paypal" && checkout.providerState === "approval_pending") {
         return {
           kind: "refuse",
-          error:
-            "A PayPal approval for this website is still waiting. Finish it in PayPal, or wait until PayPal reports it expired, before choosing another plan or payment method.",
+          error: say.payPalApprovalWaiting,
         };
       }
 
@@ -829,14 +831,13 @@ export async function beginCheckout(
         // A create call whose answer was lost and cannot be looked up.
         return {
           kind: "refuse",
-          error:
-            "We could not confirm whether an earlier checkout for this website can still be paid. Contact support before starting another.",
+          error: say.earlierCheckoutUnconfirmed,
         };
       }
 
       return {
         kind: "refuse",
-        error: "An earlier checkout for this website is still open and could not be closed. Try again in a few minutes.",
+        error: say.earlierCheckoutStillOpen,
       };
     }
 
@@ -870,12 +871,13 @@ export async function beginCheckout(
         await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`offer:${input.offer}:user:${owner}`}, 0))`);
       }
       const state = await offerStateOfAccount(tx, org.id, owners, input.offer);
-      const offerName = input.offer === WINBACK_CODE ? "welcome-back" : input.offer;
+      // The welcome-back discount by name; any other offer by its code.
+      const offerName = input.offer === WINBACK_CODE ? null : input.offer;
       if (state === "used") {
-        return { kind: "refuse", error: `Your account has already used the ${offerName} discount.` };
+        return { kind: "refuse", error: say.offerUsed(offerName) };
       }
       if (state === "held") {
-        return { kind: "refuse", error: `The ${offerName} discount is on another checkout of your account. Finish that one, or try again once it has expired.` };
+        return { kind: "refuse", error: say.offerHeld(offerName) };
       }
     }
 

@@ -11,7 +11,7 @@ import { fetchPage } from "@/lib/websites/fetch-page";
  */
 
 /** Caps chosen so one hostile response cannot stall or exhaust a worker. */
-const FETCH_TIMEOUT_MS = 15_000;
+export const FETCH_TIMEOUT_MS = 15_000;
 const MAX_BYTES = 2_000_000; // 2 MB of HTML is already far past normal.
 const MAX_REDIRECTS = 5;
 

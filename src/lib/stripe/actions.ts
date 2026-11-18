@@ -6,8 +6,7 @@ import type Stripe from "stripe";
 import { requireSession } from "@/lib/auth-guard";
 import { checkoutProviderOps } from "@/lib/billing/checkout-providers";
 import { payerLocale } from "@/lib/billing/provider-locale";
-import { BUNDLE_COUPON, bundleCouponFor, OFFER_UNAVAILABLE, REPGET_CODE, type OfferPlan } from "@/lib/billing/repget-offer";
-import { WINBACK_UNAVAILABLE } from "@/lib/billing/winback-offer";
+import { BUNDLE_COUPON, bundleCouponFor, REPGET_CODE, type OfferPlan } from "@/lib/billing/repget-offer";
 import { alertStaffAboutOffer, isCouponRefusal, OFFER_KEY, offerForPlanChange } from "@/lib/billing/repget-subscription";
 import {
   automaticOffer,
@@ -20,6 +19,8 @@ import {
 import { rememberPayer } from "@/lib/conversions/conversions";
 import { db } from "@/lib/db";
 import { billingCustomers, plans, websites } from "@/lib/db/schema";
+import { checkoutErrors, type CheckoutErrorsCopy } from "@/lib/i18n/checkout-errors";
+import type { Locale } from "@/lib/i18n/config";
 import { CONFIRM_EMAIL_FIRST, isDirectPurchaseTier } from "@/lib/plans/features";
 import { isStripeConfigured, stripe } from "@/lib/stripe/client";
 import { getOrCreateCustomer } from "@/lib/stripe/customer";
@@ -50,6 +51,17 @@ function definitelyRefused(error: unknown): boolean {
 }
 
 /**
+ * What the customer reads when a Stripe call fails: never Stripe's own words.
+ * stripeErrorMessage's diagnosis (a mode mismatch, a revoked key, Stripe's
+ * message with the ids in it) is for whoever runs this, so it goes to the
+ * log; before 2026-11-18 it was the customer's toast.
+ */
+function stripeFailure(error: unknown, say: CheckoutErrorsCopy): string {
+  console.error(`[stripe] not shown to the customer: ${stripeErrorMessage(error)}`);
+  return (error as { type?: unknown } | null)?.type === "StripeConnectionError" ? say.stripeUnreachable : say.checkoutFailed;
+}
+
+/**
  * Starts paying for a website with a card - or, for a website that already
  * pays by card, changes its plan.
  *
@@ -75,6 +87,13 @@ export async function createCheckoutSession(
   origin: CheckoutOrigin = "billing",
 ): Promise<CheckoutResult> {
   const { orgId } = await requireOrg();
+  /*
+    The payer's app language: every refusal below is in it (lib/i18n/
+    checkout-errors.ts), and so is Stripe's page. Null is English, and
+    Stripe's "auto" (lib/billing/provider-locale.ts).
+  */
+  const locale = await payerLocale();
+  const say = checkoutErrors(locale);
 
   /**
    * Confirms the website belongs to the caller before it reaches Stripe
@@ -87,12 +106,12 @@ export async function createCheckoutSession(
     .where(and(eq(websites.id, websiteId), eq(websites.organizationId, orgId)))
     .limit(1);
   if (!site) {
-    return { error: "Website not found" };
+    return { error: say.websiteNotFound };
   }
 
   // Before Stripe keys exist this is the expected path, not an outage.
   if (!isStripeConfigured()) {
-    return { error: "Payments are not configured yet." };
+    return { error: say.paymentsNotConfigured };
   }
 
   const [plan] = await db
@@ -111,10 +130,10 @@ export async function createCheckoutSession(
     .limit(1);
 
   if (!plan || !plan.isActive) {
-    return { error: "Plan not found" };
+    return { error: say.planNotFound };
   }
   if (!plan.stripePriceId) {
-    return { error: `Plan "${plan.name}" has no Stripe price configured` };
+    return { error: say.noStripePrice(plan.name) };
   }
 
   /*
@@ -151,12 +170,12 @@ export async function createCheckoutSession(
       amount = (await stripe.prices.retrieve(plan.stripePriceId)).unit_amount;
     } catch (error) {
       console.error("[stripe] could not read the bundle's price", error);
-      return { error: stripeErrorMessage(error) };
+      return { error: stripeFailure(error, say) };
     }
     const bundle = bundleCouponFor(plan, amount);
     if ("refuse" in bundle) {
       await alertStaffAboutOffer(`the ${plan.name} Stripe price is ${amount} cents`, `Its coupon ${BUNDLE_COUPON.id} needs ${BUNDLE_COUPON.listCents} (or the row's own price), so the customer could not start. Run stripe:setup.`);
-      return { error: OFFER_UNAVAILABLE };
+      return { error: say.offerUnavailable(REPGET_CODE) };
     }
     bundleCoupon = bundle.coupon;
   }
@@ -168,12 +187,12 @@ export async function createCheckoutSession(
   try {
     begun = await beginCheckout(
       db,
-      { organizationId: orgId, websiteId, provider: "stripe", planId: plan.id, offer: autoOffer?.code ?? null, price: plan.stripePriceId },
+      { organizationId: orgId, websiteId, provider: "stripe", planId: plan.id, offer: autoOffer?.code ?? null, price: plan.stripePriceId, locale },
       checkoutProviderOps,
     );
   } catch (error) {
     console.error("[stripe] could not start checkout", error);
-    return { error: "We could not start the checkout. Please try again." };
+    return { error: say.checkoutNotStarted };
   }
 
   if (begun.kind === "refuse") return { error: begun.error };
@@ -181,7 +200,7 @@ export async function createCheckoutSession(
 
   if (begun.kind === "change_plan") {
     if (begun.current.planId === plan.id) {
-      return { error: `This website is already on ${plan.name}.` };
+      return { error: say.alreadyOnPlan(plan.name) };
     }
     // A plan change takes no new REPGET discount, only the launch price offerForPlanChange carries over from the subscription.
     return changeStripePlan({
@@ -190,6 +209,7 @@ export async function createCheckoutSession(
       priceId: plan.stripePriceId,
       plan,
       returnUrl: `${base}${checkoutReturnPath(origin, "success", websiteId)}`,
+      locale,
     });
   }
 
@@ -201,8 +221,8 @@ export async function createCheckoutSession(
   /*
     Everything that talks to Stripe is inside the try. An error escaping a
     server action reaches the browser as an opaque 500 in production;
-    returning it as a value puts the real reason in front of whoever is
-    configuring this.
+    returning it as a value gives the customer a sentence in their language
+    (stripeFailure) and puts the real reason in the log.
   */
   let customerId: string;
   try {
@@ -210,12 +230,11 @@ export async function createCheckoutSession(
   } catch (error) {
     await markCheckoutFailed(db, checkoutId).catch(() => {});
     console.error("[stripe] could not prepare the customer", error);
-    return { error: stripeErrorMessage(error) };
+    return { error: stripeFailure(error, say) };
   }
 
   const metadata = { organizationId: orgId, planId: plan.id, websiteId, checkoutId };
-  // The page in the payer's app language; English stays Stripe's "auto" (lib/billing/provider-locale.ts).
-  const locale = await payerLocale();
+  // The page in the payer's app language (above); English stays Stripe's "auto".
   const params: Stripe.Checkout.SessionCreateParams = {
     mode: "subscription",
     ...(locale ? { locale } : {}),
@@ -271,7 +290,8 @@ export async function createCheckoutSession(
     });
 
     if (!session.url) {
-      return { error: "Stripe did not return a Checkout URL" };
+      console.error("[stripe] Stripe did not return a Checkout URL", session.id);
+      return { error: say.checkoutFailed };
     }
     return { url: session.url };
   } catch (error) {
@@ -290,9 +310,9 @@ export async function createCheckoutSession(
       // Never a checkout without what was promised: nothing was started, and staff are told.
       if (offerCoupon && isCouponRefusal(error)) {
         await alertStaffAboutOffer(error instanceof Error ? error.message : String(error), `Stripe refused coupon ${offerCoupon} at Checkout, so the customer could not start. Website: ${websiteId}.`);
-        return { error: autoOffer && autoOffer.code !== REPGET_CODE ? WINBACK_UNAVAILABLE : OFFER_UNAVAILABLE };
+        return { error: autoOffer && autoOffer.code !== REPGET_CODE ? say.winbackUnavailable : say.offerUnavailable(REPGET_CODE) };
       }
-      return { error: stripeErrorMessage(error) };
+      return { error: stripeFailure(error, say) };
     }
     try {
       const found = await checkoutProviderOps.findStripeSession({
@@ -312,7 +332,7 @@ export async function createCheckoutSession(
     } catch (lookupError) {
       console.error("[stripe] could not look up the checkout session", lookupError);
     }
-    return { error: stripeErrorMessage(error) };
+    return { error: stripeFailure(error, say) };
   }
 }
 
@@ -329,7 +349,10 @@ async function changeStripePlan(input: {
   priceId: string;
   plan: OfferPlan;
   returnUrl: string;
+  /** The payer's app language, as at checkout (payerLocale). */
+  locale: Exclude<Locale, "en"> | null;
 }): Promise<CheckoutResult> {
+  const say = checkoutErrors(input.locale);
   const [customer] = await db
     .select({ id: billingCustomers.stripeCustomerId })
     .from(billingCustomers)
@@ -340,24 +363,24 @@ async function changeStripePlan(input: {
   try {
     const subscription = await stripe.subscriptions.retrieve(input.providerSubscriptionId);
     const offer = offerForPlanChange(subscription, input.plan);
-    if (offer.refuse) return { error: offer.refuse };
+    // offerForPlanChange's one refusal: the launch price does not cover the plan.
+    if (offer.refuse) return { error: say.launchPriceDoesNotCover(REPGET_CODE) };
     offerCoupon = offer.coupon;
     // Onto the Grow + Visibility bundle: its own coupon, as at checkout.
     if (!offerCoupon && isDirectPurchaseTier(input.plan.tier)) {
       const bundle = bundleCouponFor(input.plan, (await stripe.prices.retrieve(input.priceId)).unit_amount);
-      if ("refuse" in bundle) return { error: OFFER_UNAVAILABLE };
+      if ("refuse" in bundle) return { error: say.offerUnavailable(REPGET_CODE) };
       offerCoupon = bundle.coupon ?? undefined;
     }
     const item = subscription.items.data[0];
     const customerId =
       customer?.id ??
       (typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id);
-    if (!item) return { error: "This subscription has nothing to change." };
+    if (!item) return { error: say.nothingToChange };
 
-    const locale = await payerLocale();
     const session = await stripe.billingPortal.sessions.create({
       customer: customerId,
-      ...(locale ? { locale } : {}),
+      ...(input.locale ? { locale: input.locale } : {}),
       return_url: input.returnUrl,
       flow_data: {
         type: "subscription_update_confirm",
@@ -376,8 +399,8 @@ async function changeStripePlan(input: {
     // Nothing was changed. Better no change than one at full price.
     if (offerCoupon && isCouponRefusal(error)) {
       await alertStaffAboutOffer(error instanceof Error ? error.message : String(error), `Stripe refused coupon ${offerCoupon} on a plan change, so the plan was not changed. Stripe subscription: ${input.providerSubscriptionId}.`);
-      return { error: OFFER_UNAVAILABLE };
+      return { error: say.offerUnavailable(REPGET_CODE) };
     }
-    return { error: stripeErrorMessage(error) };
+    return { error: stripeFailure(error, say) };
   }
 }

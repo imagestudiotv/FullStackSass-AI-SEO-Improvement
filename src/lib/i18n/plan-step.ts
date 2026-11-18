@@ -63,6 +63,8 @@ export type PlanStepCopy = {
   chargedTodayYear: (price: string) => string;
   redirectingPayPal: string;
   payWithPayPal: string;
+  /** Toast: the checkout action itself failed (threw), as Billing's billing.checkoutFailed says it. */
+  checkoutFailed: string;
 };
 
 export const PLAN_STEP_COPY: Record<Locale, PlanStepCopy> = {
@@ -102,6 +104,7 @@ export const PLAN_STEP_COPY: Record<Locale, PlanStepCopy> = {
     chargedTodayYear: (price) => `${price} a year, charged today. This workspace has already had its free trial.`,
     redirectingPayPal: "Redirecting to PayPal…",
     payWithPayPal: "Pay with PayPal",
+    checkoutFailed: "Could not start checkout. Please try again.",
   },
   es: {
     sendCodeFailed: "No hemos podido enviar el código. Inténtelo de nuevo dentro de un minuto.",
@@ -142,6 +145,7 @@ export const PLAN_STEP_COPY: Record<Locale, PlanStepCopy> = {
       `${price} al año, cobrados hoy. Este espacio de trabajo ya ha tenido su prueba gratuita.`,
     redirectingPayPal: "Redirigiendo a PayPal…",
     payWithPayPal: "Pagar con PayPal",
+    checkoutFailed: "No se pudo iniciar el pago. Inténtelo de nuevo.",
   },
   fr: {
     sendCodeFailed: "Nous n’avons pas pu envoyer le code. Réessayez dans une minute.",
@@ -182,6 +186,7 @@ export const PLAN_STEP_COPY: Record<Locale, PlanStepCopy> = {
       `${price} par an, facturés aujourd’hui. Cet espace de travail a déjà bénéficié de son essai gratuit.`,
     redirectingPayPal: "Redirection vers PayPal…",
     payWithPayPal: "Payer avec PayPal",
+    checkoutFailed: "Impossible de lancer le paiement. Réessayez.",
   },
   it: {
     sendCodeFailed: "Non siamo riusciti a inviare il codice. Riprovi tra un minuto.",
@@ -222,6 +227,7 @@ export const PLAN_STEP_COPY: Record<Locale, PlanStepCopy> = {
       `${price} all’anno, addebitati oggi. Questo spazio di lavoro ha già usufruito della prova gratuita.`,
     redirectingPayPal: "Reindirizzamento a PayPal…",
     payWithPayPal: "Paga con PayPal",
+    checkoutFailed: "Non è stato possibile avviare il pagamento. Riprovi.",
   },
   de: {
     sendCodeFailed: "Der Code konnte nicht gesendet werden. Bitte versuchen Sie es in einer Minute erneut.",
@@ -264,6 +270,7 @@ export const PLAN_STEP_COPY: Record<Locale, PlanStepCopy> = {
       `${price} pro Jahr, heute berechnet. Dieser Arbeitsbereich hatte seine kostenlose Testphase bereits.`,
     redirectingPayPal: "Weiterleitung zu PayPal…",
     payWithPayPal: "Mit PayPal bezahlen",
+    checkoutFailed: "Der Bezahlvorgang konnte nicht gestartet werden. Bitte erneut versuchen.",
   },
 };
 
