@@ -8,6 +8,7 @@ import { AUTH_IP_HEADERS, authRateLimit, OTP_RATE_LIMIT } from "@/lib/auth/rate-
 import { createAuthRateLimitStorage } from "@/lib/auth/rate-limit-store";
 import { db } from "@/lib/db";
 import { sendOtpEmail } from "@/lib/email/otp";
+import type { Locale } from "@/lib/i18n/config";
 import * as schema from "@/lib/db/schema";
 
 /**
@@ -252,22 +253,38 @@ function createAuth() {
               The welcome email, and the setup reminder a few hours later
               (inngest/functions/lifecycle-emails.ts). Queued through the
               outbox, not sent here: signing up must not wait on an email
-              provider. The browser's language goes with it, for the emails
-              of someone who never picks one in Settings. Keyed by the user,
-              so a repeated hook is one job; sends nothing while the
-              lifecycle emails are switched off. Never fails signup.
+              provider. The language they signed up in goes with it - the
+              site page they were reading, else the browser's
+              (signupLocaleFromHeaders) - for the emails of someone who never
+              picks one in Settings. Keyed by the user, so a repeated hook is
+              one job; sends nothing while the lifecycle emails are switched
+              off. Never fails signup.
+
+              The same language is stored HERE too, before the job runs, for
+              the app itself: onboarding opens a moment after this hook, and
+              resolveAppLocale reads it (lib/i18n/app-locale.ts), so a visitor
+              from an Italian page does not meet an English first step.
             */
             try {
-              const [{ queueJob }, { localeFromAcceptLanguage }] = await Promise.all([
+              const [{ queueJob }, { signupLocaleFromHeaders }, { rememberSignupLocale }] = await Promise.all([
                 import("@/inngest/send"),
                 import("@/lib/i18n/app-locale"),
+                import("@/lib/email/lifecycle"),
               ]);
               const hook = context as { headers?: HeadersInit | Headers; request?: Request } | null;
               const headers = new Headers(hook?.headers ?? hook?.request?.headers ?? undefined);
+              const locale = signupLocaleFromHeaders(headers);
+              if (locale) {
+                try {
+                  await rememberSignupLocale(user.id, locale);
+                } catch (error) {
+                  console.error("[auth] the sign-up language could not be stored; the app will follow the browser", error);
+                }
+              }
               await queueJob({
                 id: `lifecycle-signup:${user.id}`,
                 name: "email/user.signed-up",
-                data: { userId: user.id, locale: localeFromAcceptLanguage(headers.get("accept-language")) },
+                data: { userId: user.id, locale },
               });
             } catch (error) {
               console.error("[auth] the sign-up emails could not be queued", error);
@@ -328,12 +345,27 @@ function createAuth() {
          * follows. Logged loudly so an unsent code is findable, because to
          * the customer it looks identical to an email that never arrived.
          */
-        async sendVerificationOTP({ email, otp, type }) {
+        async sendVerificationOTP({ email, otp, type }, ctx) {
+          /*
+            In the language of the page the code is typed into: the site page
+            last read, then the browser (signupLocaleFromHeaders). The trial's
+            confirmation code is the first email a visitor from an Italian
+            page receives. English when the request says nothing.
+          */
+          let locale: Locale | null = null;
+          try {
+            const { signupLocaleFromHeaders } = await import("@/lib/i18n/app-locale");
+            const request = ctx as { headers?: HeadersInit | Headers; request?: Request } | undefined;
+            locale = signupLocaleFromHeaders(new Headers(request?.headers ?? request?.request?.headers ?? undefined));
+          } catch {
+            locale = null;
+          }
           const result = await sendOtpEmail({
             to: email,
             code: otp,
             purpose: type,
             expiresInSeconds: OTP_EXPIRES_IN,
+            locale,
           });
 
           if (!result.ok) {

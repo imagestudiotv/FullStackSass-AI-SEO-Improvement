@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { cookies, headers } from "next/headers";
 
 import { db } from "@/lib/db";
-import { user } from "@/lib/db/schema";
+import { emailPreferences, user } from "@/lib/db/schema";
 import { DEFAULT_LOCALE, isLocale, SITE_LANGUAGE_COOKIE, splitLocale, type Locale } from "@/lib/i18n/config";
 import { getMessages, type Messages } from "@/lib/i18n/messages";
 
@@ -20,11 +20,18 @@ import { getMessages, type Messages } from "@/lib/i18n/messages";
  * Resolution order, and why:
  *
  *  1. The stored preference. An explicit choice always wins.
- *  2. Accept-Language, when nothing is stored. Someone whose browser is in
+ *  2. The language they signed up in (email_preferences.signup_locale,
+ *     signupLocaleFromHeaders): the site page they were reading, else their
+ *     browser's. Somebody who came from /it/seo-content-automation and signed
+ *     up on the Italian form carries on in Italian through onboarding and
+ *     checkout, whatever their browser is set to. Before 2026-11-18 this step
+ *     did not exist and the app fell straight to Accept-Language, so such a
+ *     visitor read Italian up to sign-up and English from the first step on.
+ *  3. Accept-Language, when neither is stored. Someone whose browser is in
  *     German should not have to find the dropdown before the app speaks to
  *     them, and this is only ever a first guess — the moment they choose,
  *     step 1 takes over permanently.
- *  3. English.
+ *  4. English.
  *
  * Deliberately NOT cached across requests: the preference changes from the
  * Settings form, and a cached value would leave the old language on screen
@@ -32,13 +39,15 @@ import { getMessages, type Messages } from "@/lib/i18n/messages";
  */
 export async function resolveAppLocale(userId: string): Promise<Locale> {
   const [row] = await db
-    .select({ locale: user.locale })
+    .select({ locale: user.locale, signupLocale: emailPreferences.signupLocale })
     .from(user)
+    .leftJoin(emailPreferences, eq(emailPreferences.userId, user.id))
     .where(eq(user.id, userId))
     .limit(1);
 
   // A stored value we no longer ship degrades rather than throwing.
   if (row?.locale && isLocale(row.locale)) return row.locale;
+  if (row?.signupLocale && isLocale(row.signupLocale)) return row.signupLocale;
 
   return (await localeFromRequest()) ?? DEFAULT_LOCALE;
 }
@@ -132,8 +141,32 @@ async function localeFromRequest(): Promise<Locale | null> {
 }
 
 /**
- * The same choice from a header value already in hand - the sign-up hook's
- * request (lib/auth.ts), which remembers it for the account's emails.
+ * The language a request made outside a page was written in: the account's
+ * creation (lib/auth.ts, the sign-up hook) and the email codes sent while
+ * signing up or in (lib/auth.ts sendVerificationOTP). The same signals as
+ * authLocale less the referrer, which on those requests is /sign-up or an
+ * OAuth provider and says nothing: the site page last read (the cookie the
+ * site header sets on every page, SITE_LANGUAGE_COOKIE), then the browser's.
+ * Null when neither names a language we ship.
+ *
+ * The cookie is the same language the sign-up form was rendered in unless the
+ * visitor arrived at /sign-up straight from another site, so the account
+ * continues in the language they just read. It reaches the Google callback
+ * too: a first-party, SameSite=Lax cookie on a top-level redirect.
+ */
+export function signupLocaleFromHeaders(headers: Headers): Locale | null {
+  const cookie = headers.get("cookie") ?? "";
+  const site = cookie
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${SITE_LANGUAGE_COOKIE}=`))
+    ?.slice(SITE_LANGUAGE_COOKIE.length + 1);
+  if (site && isLocale(site)) return site;
+  return localeFromAcceptLanguage(headers.get("accept-language"));
+}
+
+/**
+ * The same choice from a header value already in hand.
  */
 export function localeFromAcceptLanguage(header: string | null | undefined): Locale | null {
   if (!header) return null;
