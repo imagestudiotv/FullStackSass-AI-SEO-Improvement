@@ -9,6 +9,7 @@ import { SiteIcon } from "@/app/(marketing)/growth-plan/site-icon";
 import { CALLBACK_URL } from "@/lib/auth/next";
 import type { FinalCtaCopy } from "@/lib/i18n/home/final-cta";
 import type { HeroCopy } from "@/lib/i18n/home/hero";
+import { brandQuery, brandSearchClientId, searchBrands, type BrandMatch } from "@/lib/websites/brand-search";
 import type { SiteCard } from "@/lib/websites/site-card";
 import { JoinWithGoogle } from "./join-with-google";
 import styles from "./sections/hero.module.css";
@@ -40,6 +41,43 @@ const SWITCH_DELAY = 170;
 const CLEARED_DELAY = 580;
 /** Typing pauses this long before the typed site is looked up. */
 const SUGGEST_DELAY = 450;
+/** ...and this long before companies of that name are (Brandfetch asks for 250-300 ms). */
+const BRAND_DELAY = 280;
+/** Rows under the field, at most. */
+const MAX_ROWS = 5;
+
+/** One row under the field: the typed site read by our server, or a company Brandfetch found. */
+type SuggestRow = {
+  /** What choosing it starts the plan for. */
+  target: string;
+  domain: string;
+  name: string;
+  description: string | null;
+  icon: Pick<SiteCard, "name" | "faviconUrl" | "faviconTone">;
+  brand: boolean;
+};
+
+/** The typed site first, when it was read; then the companies of its name, each domain once. */
+export function suggestRows(typed: { target: string; card: SiteCard } | null, brands: BrandMatch[]): SuggestRow[] {
+  const rows: SuggestRow[] = [];
+  if (typed) {
+    const { card } = typed;
+    rows.push({ target: typed.target, domain: card.domain, name: card.name, description: card.description, icon: card, brand: false });
+  }
+  for (const brand of brands) {
+    if (rows.length >= MAX_ROWS) break;
+    if (rows.some((row) => row.domain.replace(/^www\./, "") === brand.domain.replace(/^www\./, ""))) continue;
+    rows.push({
+      target: brand.domain,
+      domain: brand.domain,
+      name: brand.name,
+      description: null,
+      icon: { name: brand.name, faviconUrl: brand.icon, faviconTone: null },
+      brand: true,
+    });
+  }
+  return rows;
+}
 
 /**
  * The hero's field (client's design, 2026-11-03): a website by default, an
@@ -56,7 +94,13 @@ const SUGGEST_DELAY = 450;
  * its icon, name, a line about it and its address, read from its homepage
  * (growth-plan/actions.ts suggestSite, guarded like the free tools) - as on
  * explee.com. Pressing it, or Enter, starts the plan. No suggestion (a slow
- * or unreadable site, a limit reached) changes nothing. "Join with Google" lives here
+ * or unreadable site, a limit reached) changes nothing. As on explee.com too
+ * (Daniel, 2026-11-19), companies of the typed name are listed under it from
+ * the first letters - "imagestu" offers imagestudio.com and imagestudio.com.br
+ * with their logos - asked by the browser from Brandfetch
+ * (lib/websites/brand-search.ts) while its client ID is set; the arrows move
+ * through the rows, and Enter on a name that is not an address takes the
+ * first company. "Join with Google" lives here
  * too because it carries whatever has been typed so far: a valid website to
  * the website step, a valid email as the account Google offers first.
  *
@@ -109,8 +153,11 @@ export function HeroForm({
   const optionId = useId();
   /** The last suggestion that came back, and the address it was for. */
   const [found, setFound] = useState<{ address: string; card: SiteCard | null } | null>(null);
+  /** The last companies Brandfetch named, and the name they were for. */
+  const [brands, setBrands] = useState<{ query: string; matches: BrandMatch[] } | null>(null);
   const [suggestOpen, setSuggestOpen] = useState(true);
-  const [highlighted, setHighlighted] = useState(false);
+  /** The row the arrows are on, or -1. */
+  const [highlighted, setHighlighted] = useState(-1);
   const asked = useRef(0);
 
   const isWebsite = mode === "website";
@@ -168,9 +215,30 @@ export function HeroForm({
     }, SUGGEST_DELAY);
     return () => clearTimeout(timer);
   }, [lookup]);
-  // Only ever the suggestion for what is in the field now.
+  // Companies of the typed name, from the browser (Brandfetch's terms); the previous question is cancelled.
+  const clientId = brandSearchClientId();
+  const query = mode === "website" && clientId ? brandQuery(value) : null;
+  useEffect(() => {
+    if (!query || !clientId) return;
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      searchBrands(query, clientId, controller.signal).then((matches) => {
+        if (!controller.signal.aborted) setBrands({ query, matches });
+      });
+    }, BRAND_DELAY);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [query, clientId]);
+  // Only ever the suggestions for what is in the field now.
   const suggestion = found && found.address === lookup ? found.card : null;
-  const showSuggestion = Boolean(suggestion && suggestOpen && lookup);
+  const rows = suggestRows(
+    suggestion && lookup ? { target: lookup, card: suggestion } : null,
+    brands && brands.query === query ? brands.matches : [],
+  );
+  const showSuggestion = isWebsite && suggestOpen && rows.length > 0;
+  const active = showSuggestion && highlighted >= 0 && highlighted < rows.length ? highlighted : -1;
 
   // The full example until the typing starts: what the server renders, and
   // what reduced motion keeps.
@@ -195,10 +263,15 @@ export function HeroForm({
     if (!showSuggestion) return;
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
-      setHighlighted((on) => !on);
+      const step = event.key === "ArrowDown" ? 1 : -1;
+      setHighlighted(active < 0 ? (step > 0 ? 0 : rows.length - 1) : (active + step + rows.length) % rows.length);
+    } else if (event.key === "Enter" && active >= 0) {
+      event.preventDefault();
+      setError(null);
+      startPlan(rows[active].target);
     } else if (event.key === "Escape") {
       setSuggestOpen(false);
-      setHighlighted(false);
+      setHighlighted(-1);
     }
   }
 
@@ -211,6 +284,13 @@ export function HeroForm({
     }
     if (isWebsite) {
       const domain = cleanWebsite(value);
+      // A name, not an address ("imagestudio"): the first company of that name, as on explee.com.
+      const firstBrand = rows.find((row) => row.brand);
+      if (!domain && firstBrand) {
+        setError(null);
+        startPlan(firstBrand.target);
+        return;
+      }
       if (!domain) {
         setError(strings.invalidWebsite);
         input.current?.focus();
@@ -272,7 +352,7 @@ export function HeroForm({
                 if (next === "") nextDelay.current = CLEARED_DELAY;
                 setValue(next);
                 setSuggestOpen(true);
-                setHighlighted(false);
+                setHighlighted(-1);
                 if (error) setError(null);
               }}
               onKeyDown={onFieldKeyDown}
@@ -282,7 +362,7 @@ export function HeroForm({
               aria-autocomplete={isWebsite ? "list" : undefined}
               aria-expanded={isWebsite ? showSuggestion : undefined}
               aria-controls={isWebsite ? listId : undefined}
-              aria-activedescendant={showSuggestion && highlighted ? optionId : undefined}
+              aria-activedescendant={active >= 0 ? `${optionId}-${active}` : undefined}
               aria-invalid={error ? true : undefined}
               aria-describedby={error ? errorId : undefined}
             />
@@ -297,25 +377,35 @@ export function HeroForm({
           </form>
           {isWebsite ? (
             <div id={listId} role="listbox" aria-label={strings.websiteLabel} className={styles["rgx-suggest"]} hidden={!showSuggestion}>
-              {showSuggestion && suggestion && lookup ? (
-                <div
-                  id={optionId}
-                  role="option"
-                  aria-selected={highlighted}
-                  tabIndex={-1}
-                  className={styles["rgx-suggest-row"]}
-                  // Keeps the field focused, so the press is not lost to its blur.
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => startPlan(lookup)}
-                >
-                  <SiteIcon site={suggestion} host={suggestion.domain} size={26} className={styles["rgx-suggest-icon"]} letterClassName={styles["rgx-suggest-letter"]} />
-                  <span className={styles["rgx-suggest-text"]}>
-                    <span className={styles["rgx-suggest-name"]}>{suggestion.name}</span>
-                    {suggestion.description ? <span className={styles["rgx-suggest-about"]}>{suggestion.description}</span> : null}
-                  </span>
-                  <span className={styles["rgx-suggest-domain"]}>{suggestion.domain}</span>
-                </div>
-              ) : null}
+              {showSuggestion
+                ? rows.map((row, index) => (
+                    <div
+                      key={row.domain}
+                      id={`${optionId}-${index}`}
+                      role="option"
+                      aria-selected={index === active}
+                      tabIndex={-1}
+                      className={styles["rgx-suggest-row"]}
+                      // Keeps the field focused, so the press is not lost to its blur.
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => startPlan(row.target)}
+                    >
+                      <SiteIcon
+                        site={row.icon}
+                        host={row.domain}
+                        size={26}
+                        className={styles["rgx-suggest-icon"]}
+                        letterClassName={styles["rgx-suggest-letter"]}
+                        sendReferrer={row.brand}
+                      />
+                      <span className={styles["rgx-suggest-text"]}>
+                        <span className={styles["rgx-suggest-name"]}>{row.name}</span>
+                        {row.description ? <span className={styles["rgx-suggest-about"]}>{row.description}</span> : null}
+                      </span>
+                      <span className={styles["rgx-suggest-domain"]}>{row.domain}</span>
+                    </div>
+                  ))
+                : null}
             </div>
           ) : null}
         </div>

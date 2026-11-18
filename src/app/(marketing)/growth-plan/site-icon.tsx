@@ -11,6 +11,8 @@ import type { SiteCard } from "@/lib/websites/site-card";
  * a slow or hanging icon never leaves a gap, and it comes back if the icon
  * fails. A white icon (faviconTone "light") is marked data-tone="light" for
  * a dark tile. Used by the homepage field's suggestion and the growth plan.
+ * A Brandfetch logo is hotlinked as its terms ask, with our page as referrer
+ * (sendReferrer); a site's own icon is asked for without one.
  */
 export function SiteIcon({
   site,
@@ -18,12 +20,14 @@ export function SiteIcon({
   size,
   className,
   letterClassName,
+  sendReferrer = false,
 }: {
   site: Pick<SiteCard, "name" | "faviconUrl"> & Partial<Pick<SiteCard, "faviconTone">> | null | undefined;
   host: string;
   size: number;
   className: string;
   letterClassName: string;
+  sendReferrer?: boolean;
 }) {
   // Keyed by the address, so a new suggestion starts from the letter again.
   const [state, setState] = useState<{ src: string | null; status: "loading" | "loaded" | "failed" }>({ src: null, status: "loading" });
@@ -49,7 +53,7 @@ export function SiteIcon({
         className={className}
         data-tone={site?.faviconTone ?? undefined}
         style={status === "loaded" ? undefined : { display: "none" }}
-        referrerPolicy="no-referrer"
+        referrerPolicy={sendReferrer ? undefined : "no-referrer"}
         // Already loaded before React was listening (a data URL, or a server-rendered icon): count it.
         ref={(img) => {
           if (img?.complete && img.naturalWidth > 0 && status === "loading") setState({ src, status: "loaded" });
