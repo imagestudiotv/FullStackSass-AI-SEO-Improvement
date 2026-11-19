@@ -673,6 +673,13 @@
       "when": 1794996706355,
       "tag": "0095_meta_purchases",
       "breakpoints": true
+    },
+    {
+      "idx": 96,
+      "version": "7",
+      "when": 1795114166619,
+      "tag": "0096_support_chat",
+      "breakpoints": true
     }
   ]
 }
