@@ -3,6 +3,8 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { plans, subscriptions } from "@/lib/db/schema";
 import { maxPromptsForTier } from "@/lib/geo/shared";
+import { FREE_PLAN } from "@/lib/plans/free-plan";
+import { isFreePlanWebsite } from "@/lib/plans/free-plan-server";
 
 /**
  * How many AI-visibility questions a website may track.
@@ -19,6 +21,8 @@ import { maxPromptsForTier } from "@/lib/geo/shared";
  * nothing. The real spend gate is on the check itself, not on the list.
  */
 export async function maxPromptsFor(websiteId: string): Promise<number> {
+  // The Free plan's snapshot asks a few questions (lib/plans/free-plan.ts).
+  if (await isFreePlanWebsite(websiteId)) return FREE_PLAN.visibilityQuestions;
   const [row] = await db
     .select({ tier: plans.tier })
     .from(subscriptions)

@@ -287,7 +287,7 @@ export const CHATGPT_PAGE: FeaturePage = {
     },
     {
       title: "AI visibility tracking",
-      body: "Add the questions your customers would ask an assistant, 20 on Launch and Grow and 50 on Scale. Each week RepGet asks them to Claude and shows whether your business is named, and where. ChatGPT itself is not queried.",
+      body: "Add the questions your customers would ask an assistant, 20 on Grow and 50 on Scale (the Free plan takes one snapshot of 5 a month). Each week RepGet asks them to Claude and shows whether your business is named, and where. ChatGPT itself is not queried.",
     },
   ],
   compare: {

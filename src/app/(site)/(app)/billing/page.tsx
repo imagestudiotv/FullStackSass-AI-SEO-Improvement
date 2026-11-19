@@ -37,6 +37,10 @@ import { isPayPalAvailable } from "@/lib/paypal/actions";
 import { requireOrg } from "@/lib/tenant";
 import { hasOnlySharedWork, listAccessibleWebsites } from "@/lib/websites/accessible";
 import { readSelectedWebsite, resolveWebsiteId } from "@/lib/websites/selected";
+import { format } from "@/lib/i18n/format";
+import { freePlanCopy } from "@/lib/i18n/free-plan";
+import { freePlanValues } from "@/lib/plans/free-plan";
+import { isFreePlanWebsite } from "@/lib/plans/free-plan-server";
 
 import { AddonsPanel } from "./addons-panel";
 import { BillingClient } from "./billing-client";
@@ -205,6 +209,8 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
   );
   // The discount checkout applies by itself, said on screen: REPGET, else the win-back offer (lib/billing/winback-offer.ts).
   const screenOffer = await planScreenOffer(db, orgId);
+  const freeHere = websiteId ? await isFreePlanWebsite(websiteId) : false;
+  const freeWords = freePlanCopy(locale).app;
 
   /*
     The plan cards' prices, terms and benefits (plan-cards.ts): the price
@@ -264,6 +270,14 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
       {websiteId && unfinishedPayPal ? <PayPalPendingNotice websiteId={websiteId} copy={PAYPAL_PENDING_COPY[locale]} /> : null}
 
       <PayPalPlanChangeNotice notice={planChange} result={planChangeResult} copy={PAYPAL_PLAN_CHANGE_COPY[locale]} locale={locale} />
+
+      {/* The Free plan (lib/plans/free-plan.ts): what this website has, above the plans to upgrade to. No button: the plans are right below. */}
+      {freeHere ? (
+        <div className="rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
+          <p className="font-medium text-foreground">{format(freeWords.onFree, freePlanValues(locale))}</p>
+          <p className="text-xs text-muted-foreground">{format(freeWords.trialHint, freePlanValues(locale))}</p>
+        </div>
+      ) : null}
 
       <BillingClient
         plans={plans}

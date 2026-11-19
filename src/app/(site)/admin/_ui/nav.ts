@@ -20,6 +20,7 @@ import {
   PanelsTopLeft,
   Quote,
   Receipt,
+  Rocket,
   ScrollText,
   ShieldAlert,
   TicketPercent,
@@ -106,6 +107,13 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         icon: MessageSquare,
         keywords: ["ideas", "problems", "bugs", "suggestions", "improvements", "requests", "replies"],
         description: "Ideas and problems sent by customers and visitors",
+      },
+      {
+        href: "/admin/free-plan",
+        label: "Free plan launch",
+        icon: Rocket,
+        keywords: ["free", "launch", "cap", "signups", "conversion", "upgrade", "ai cost", "spend", "observation"],
+        description: "Free signups against the cap, milestones, upgrades and AI cost",
       },
       {
         href: "/admin/earn-credits",

@@ -21,6 +21,9 @@ import { isEntitledToSpend } from "@/lib/billing/entitled";
 import { paidCall, releaseUnspent, reserve } from "@/lib/billing/spend-quota";
 import { reserveAndQueue } from "@/lib/jobs/outbox";
 import { PRICING, track } from "@/lib/usage";
+import { calendarMonth } from "@/lib/billing/entitlement-period";
+import { FREE_PLAN, freePlanMessage } from "@/lib/plans/free-plan";
+import { freePlanSnapshotsThisMonth, isFreePlanWebsite } from "@/lib/plans/free-plan-server";
 
 /**
  * Suggestion requests per workspace per hour. Onboarding fills a list once and
@@ -312,8 +315,13 @@ export async function runGeoCheck(
     a server action is a public endpoint - the page in front of it redirects
     an unpaid customer, but the action behind it is still POSTable.
   */
-  const entitled = await isEntitledToSpend(site.id);
+  // The Free plan's AI visibility snapshot is allowed too, FREE_PLAN.visibilitySnapshotsPerMonth a month (below).
+  const entitled = await isEntitledToSpend(site.id, { free: true });
   if (!entitled.ok) return { ok: false, error: entitled.error };
+  const free = await isFreePlanWebsite(site.id);
+  if (free && (await freePlanSnapshotsThisMonth(site.id)) >= FREE_PLAN.visibilitySnapshotsPerMonth) {
+    return { ok: false, error: freePlanMessage("snapshotUsed") };
+  }
 
   /*
     Reserved before queueing, atomically: the previous limit counted
@@ -333,6 +341,8 @@ export async function runGeoCheck(
         limit: GEO_CHECKS_PER_WORKSPACE_PER_HOUR,
         window: { seconds: 60 * 60 },
       },
+      // Free: its one snapshot this month, so two presses cannot both take it.
+      ...(free ? [{ key: `free-plan:geo:${site.id}`, limit: FREE_PLAN.visibilitySnapshotsPerMonth, window: { since: calendarMonth().start } }] : []),
     ],
     { operation: "geo.check", organizationId: ownerOrgId, websiteId: site.id },
     // Recorded with the slot; delivered now or retried (lib/jobs/outbox.ts).
@@ -393,7 +403,8 @@ export async function suggestGeoPrompts(
     return { ok: false, error: "AI is not configured on this deployment" };
   }
 
-  const entitled = await isEntitledToSpend(site.id);
+  // Free too: its snapshot needs questions to ask (a few, maxPromptsFor).
+  const entitled = await isEntitledToSpend(site.id, { free: true });
   if (!entitled.ok) return { ok: false, error: entitled.error };
 
   const allowance = await maxPromptsFor(site.id);

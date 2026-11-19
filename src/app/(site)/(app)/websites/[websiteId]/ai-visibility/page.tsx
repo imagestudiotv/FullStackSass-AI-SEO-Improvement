@@ -51,7 +51,8 @@ export default async function WebsiteAiVisibilityPage({
     getGeoOverview(site.id),
     loadVisibilityDetails(site.id),
     maxPromptsFor(site.id),
-    canEdit ? isEntitledToSpend(site.id) : Promise.resolve(null),
+    // The Free plan takes its monthly snapshot here too (lib/geo/actions.ts runGeoCheck).
+    canEdit ? isEntitledToSpend(site.id, { free: true }) : Promise.resolve(null),
     getAppMessages(userId),
     searchParams,
   ]);
@@ -61,7 +62,7 @@ export default async function WebsiteAiVisibilityPage({
     : !isAiConfigured()
       ? t.app.geo.errAiUnavailable
       : entitlement && !entitlement.ok
-        ? localiseGeoError(entitlement.error, t.app.geo, t.app.workspace)
+        ? localiseGeoError(entitlement.error, t.app.geo, t.app.workspace, locale)
         : null;
 
   return (

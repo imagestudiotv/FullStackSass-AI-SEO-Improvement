@@ -85,6 +85,8 @@ export type AdminAction =
   | "valuation.policy_published"
   /* What credits buy (lib/admin/credits.ts). */
   | "credits.settings_saved"
+  /* The Free plan's launch cap (lib/admin/free-plan.ts). */
+  | "free_plan.cap_changed"
   /* The bar above the public site's header (lib/admin/site-banner.ts). */
   | "site.banner_saved"
   /* Earn Credits claims (lib/earn/admin.ts). */

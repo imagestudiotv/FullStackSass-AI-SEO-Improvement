@@ -330,7 +330,8 @@ export async function saveVideoSettings(websiteId: string, settings: VideoSettin
  */
 export async function videoAccess(websiteId: string): Promise<"paid" | "trial" | "none"> {
   if ((await isEntitledToSpend(websiteId)).ok) return "paid";
-  if ((await isEntitledToSpend(websiteId, { freeArticles: true })).ok) return "trial";
+  // Not the Free plan: AI video production needs an upgrade (lib/plans/free-plan.ts).
+  if ((await isEntitledToSpend(websiteId, { freeArticles: true, free: false })).ok) return "trial";
   return "none";
 }
 

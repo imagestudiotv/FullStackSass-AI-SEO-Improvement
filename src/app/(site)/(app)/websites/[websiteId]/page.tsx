@@ -74,7 +74,7 @@ export default async function WebsiteHealthPage({
     : siteNotReady
       ? health.siteNotReady
       : entitlement && !entitlement.ok
-        ? localiseStartError(entitlement.error, health, t.app.workspace)
+        ? localiseStartError(entitlement.error, health, t.app.workspace, locale)
         : null;
 
   return (

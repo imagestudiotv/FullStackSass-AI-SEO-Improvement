@@ -4,6 +4,7 @@ import { customerStoriesSection } from "@/lib/success-stories/stories";
 import { countContentCreated } from "@/lib/marketing/content-count";
 import { listPublishedTestimonials } from "@/lib/marketing/testimonials-db";
 import { listPlansForPrebuiltPage } from "@/lib/billing";
+import { getFreePlanCounter } from "@/lib/plans/free-plan-server";
 import { isLocale, localePath } from "@/lib/i18n/config";
 import { HOME_META } from "@/lib/seo/home-metadata";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
@@ -55,6 +56,8 @@ export default async function LocalisedHomePage({
     countContentCreated(),
     customerStoriesSection(locale),
   ]);
+  // The Free card's launch counter; optional, so a failed read only leaves it out.
+  const freeCounter = await getFreePlanCounter().catch(() => null);
   // Keeps every in-page link inside the reader's language.
   const href = (path: string) => localePath(locale, path);
 
@@ -66,6 +69,7 @@ export default async function LocalisedHomePage({
       contentCount={contentCount}
       plans={plans}
       customerStories={customerStories}
+      freeCounter={freeCounter}
     />
   );
 }

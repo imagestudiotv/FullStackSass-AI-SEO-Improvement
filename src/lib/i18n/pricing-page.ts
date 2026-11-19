@@ -216,7 +216,7 @@ const en: PricingPageCopy = {
       tag: "Reach more people",
       desc: "For growing brands that want more consistent reach and output.",
       cta: "Start with Grow",
-      includedLabel: "Everything in Launch, with more volume",
+      includedLabel: "Everything in Free, plus backlinks and more volume",
       features: [
         "**{articles} SEO articles**",
         "**{posts} social posts** across platforms",
@@ -260,7 +260,7 @@ const en: PricingPageCopy = {
   compare: {
     eyebrow: "Side by side",
     title: "Compare your options.",
-    body: "All three plans include the same core growth platform. Choose the monthly output that fits your business.",
+    body: "Start free, then choose the monthly output that fits your business. Grow and Scale include the complete growth platform, backlinks included.",
     included: "Included",
     articles: "Branded SEO articles / month",
     posts: "Social posts / month",
@@ -297,6 +297,10 @@ const en: PricingPageCopy = {
         title: "FREE TRIAL & GETTING STARTED",
         items: [
           {
+            q: "Is the Free plan really free?",
+            a: "Yes. Free costs nothing and needs no credit card: each month it includes 4 AI SEO articles, 8 social posts, 1 limited SEO audit and 1 AI visibility snapshot, with 10 search terms, 1 connected website and 3 Growth Copilot requests a day. Backlinks, AI video production and advanced automation need a paid plan, and you can upgrade or buy credits at any time. Free places are limited during the launch.",
+          },
+          {
             q: "What happens after the free trial?",
             a: "When your 3-day free trial ends, the plan you chose during signup starts and the first payment is taken, unless you cancel before the trial ends. The exact start date, charges and renewal terms are shown in your checkout.",
           },
@@ -310,7 +314,7 @@ const en: PricingPageCopy = {
           },
           {
             q: "Which plan should I choose?",
-            a: "Launch is suited to a smaller monthly content workload, Grow offers more articles and social posts, and Scale adds higher monthly volumes. Compare the article, social and research limits above to find the right fit.",
+            a: "Free lets you try RepGet at no cost, with a few articles and social posts each month. Grow offers more articles and social posts plus backlinks, and Scale adds higher monthly volumes. Compare the article, social and research limits above to find the right fit.",
           },
         ],
       },
@@ -374,11 +378,11 @@ const en: PricingPageCopy = {
         items: [
           {
             q: "How does RepGet research keywords in my niche?",
-            a: "RepGet researches and clusters search terms so you can plan content around relevant topics. Research allowances depend on your plan: Launch includes 300 terms, Grow includes 500, and Scale includes 1,500.",
+            a: "RepGet researches and clusters search terms so you can plan content around relevant topics. Research allowances depend on your plan: Free includes 10 terms, Grow includes 500, and Scale includes 1,500.",
           },
           {
             q: "Which AI assistants does RepGet check?",
-            a: "One: Claude. Each week RepGet asks Claude, through its API and without a live web search, the questions you track (20 on Launch and Grow, 50 on Scale) and records whether your business is named, and where. ChatGPT, Gemini, Perplexity and Google's AI results are not checked, so treat it as one assistant's view rather than a measure of AI search.",
+            a: "One: Claude. Each week RepGet asks Claude, through its API and without a live web search, the questions you track (20 on Grow, 50 on Scale; Free takes one snapshot of 5 questions a month) and records whether your business is named, and where. ChatGPT, Gemini, Perplexity and Google's AI results are not checked, so treat it as one assistant's view rather than a measure of AI search.",
           },
           {
             q: "How do backlink credits work?",
@@ -533,7 +537,7 @@ const es: PricingPageCopy = {
       tag: "Llegue a más personas",
       desc: "Para marcas en crecimiento que buscan un alcance y una producción más constantes.",
       cta: "Empezar con Grow",
-      includedLabel: "Todo lo de Launch, con más volumen",
+      includedLabel: "Todo lo de Free, más backlinks y más volumen",
       features: [
         "**{articles} artículos SEO**",
         "**{posts} publicaciones sociales** en varias plataformas",
@@ -577,7 +581,7 @@ const es: PricingPageCopy = {
   compare: {
     eyebrow: "Cara a cara",
     title: "Compare sus opciones.",
-    body: "Los tres planes incluyen la misma plataforma de crecimiento. Elija el volumen mensual que mejor se adapte a su negocio.",
+    body: "Empiece gratis y elija después el volumen mensual que mejor se adapte a su negocio. Grow y Scale incluyen la plataforma de crecimiento completa, backlinks incluidos.",
     included: "Incluido",
     articles: "Artículos SEO de marca / mes",
     posts: "Publicaciones sociales / mes",
@@ -614,6 +618,10 @@ const es: PricingPageCopy = {
         title: "PRUEBA GRATUITA Y PRIMEROS PASOS",
         items: [
           {
+            q: "¿El plan Free es realmente gratis?",
+            a: "Sí. Free no cuesta nada y no requiere tarjeta de crédito: cada mes incluye 4 artículos SEO con IA, 8 publicaciones sociales, 1 auditoría SEO limitada y 1 instantánea de visibilidad en IA, con 10 términos de búsqueda, 1 sitio web conectado y 3 consultas a Growth Copilot al día. Los backlinks, la producción de vídeo con IA y la automatización avanzada requieren un plan de pago, y puede mejorar su plan o comprar créditos en cualquier momento. Las plazas gratuitas son limitadas durante el lanzamiento.",
+          },
+          {
             q: "¿Qué ocurre después de la prueba gratuita?",
             a: "Cuando termina su prueba gratuita de 3 días, empieza el plan que eligió al registrarse y se cobra el primer pago, salvo que cancele antes de que termine la prueba. La fecha de inicio exacta, los cargos y las condiciones de renovación se muestran al pagar.",
           },
@@ -627,7 +635,7 @@ const es: PricingPageCopy = {
           },
           {
             q: "¿Qué plan debería elegir?",
-            a: "Launch se adapta a un volumen mensual de contenido más reducido, Grow ofrece más artículos y publicaciones sociales, y Scale añade volúmenes mensuales mayores. Compare arriba los límites de artículos, publicaciones e investigación para encontrar el más adecuado.",
+            a: "Free le permite probar RepGet sin coste, con algunos artículos y publicaciones sociales cada mes. Grow ofrece más artículos y publicaciones sociales, además de backlinks, y Scale añade volúmenes mensuales mayores. Compare arriba los límites de artículos, publicaciones e investigación para encontrar el más adecuado.",
           },
         ],
       },
@@ -691,11 +699,11 @@ const es: PricingPageCopy = {
         items: [
           {
             q: "¿Cómo investiga RepGet las palabras clave de mi sector?",
-            a: "RepGet investiga y agrupa términos de búsqueda para que pueda planificar contenido sobre temas relevantes. La investigación depende de su plan: Launch incluye 300 términos, Grow incluye 500 y Scale incluye 1.500.",
+            a: "RepGet investiga y agrupa términos de búsqueda para que pueda planificar contenido sobre temas relevantes. La investigación depende de su plan: Free incluye 10 términos, Grow incluye 500 y Scale incluye 1.500.",
           },
           {
             q: "¿Qué asistentes de IA comprueba RepGet?",
-            a: "Uno: Claude. Cada semana RepGet hace a Claude, a través de su API y sin búsqueda web en directo, las preguntas que usted sigue (20 en Launch y Grow, 50 en Scale) y registra si su negocio aparece nombrado y en qué lugar. ChatGPT, Gemini, Perplexity y los resultados con IA de Google no se comprueban, así que considérelo la visión de un asistente, no una medición de la búsqueda con IA.",
+            a: "Uno: Claude. Cada semana RepGet hace a Claude, a través de su API y sin búsqueda web en directo, las preguntas que usted sigue (20 en Grow, 50 en Scale; Free hace una instantánea de 5 preguntas al mes) y registra si su negocio aparece nombrado y en qué lugar. ChatGPT, Gemini, Perplexity y los resultados con IA de Google no se comprueban, así que considérelo la visión de un asistente, no una medición de la búsqueda con IA.",
           },
           {
             q: "¿Cómo funcionan los créditos de backlinks?",
@@ -850,7 +858,7 @@ const fr: PricingPageCopy = {
       tag: "Touchez plus de monde",
       desc: "Pour les marques en croissance qui veulent une portée et une production plus régulières.",
       cta: "Commencer avec Grow",
-      includedLabel: "Tout Launch, avec plus de volume",
+      includedLabel: "Tout Free, plus les backlinks et plus de volume",
       features: [
         "**{articles} articles SEO**",
         "**{posts} publications sociales** sur plusieurs plateformes",
@@ -894,7 +902,7 @@ const fr: PricingPageCopy = {
   compare: {
     eyebrow: "Côte à côte",
     title: "Comparez vos options.",
-    body: "Les trois formules incluent la même plateforme de croissance. Choisissez le volume mensuel adapté à votre entreprise.",
+    body: "Commencez gratuitement, puis choisissez le volume mensuel adapté à votre entreprise. Grow et Scale incluent la plateforme de croissance complète, backlinks compris.",
     included: "Inclus",
     articles: "Articles SEO de marque / mois",
     posts: "Publications sociales / mois",
@@ -931,6 +939,10 @@ const fr: PricingPageCopy = {
         title: "ESSAI GRATUIT ET PREMIERS PAS",
         items: [
           {
+            q: "Le plan Free est-il vraiment gratuit ?",
+            a: "Oui. Free ne coûte rien et ne demande aucune carte bancaire : chaque mois, il comprend 4 articles SEO rédigés par l'IA, 8 publications sociales, 1 audit SEO limité et 1 instantané de visibilité IA, avec 10 termes de recherche, 1 site web connecté et 3 demandes à Growth Copilot par jour. Les backlinks, la production vidéo par l'IA et l'automatisation avancée nécessitent un plan payant, et vous pouvez passer à un plan supérieur ou acheter des crédits à tout moment. Les places gratuites sont limitées pendant le lancement.",
+          },
+          {
             q: "Que se passe-t-il après l'essai gratuit ?",
             a: "À la fin de votre essai gratuit de 3 jours, la formule choisie à l'inscription démarre et le premier paiement est prélevé, sauf si vous résiliez avant la fin de l'essai. La date de début exacte, les montants et les conditions de renouvellement sont indiqués lors du paiement.",
           },
@@ -944,7 +956,7 @@ const fr: PricingPageCopy = {
           },
           {
             q: "Quelle formule choisir ?",
-            a: "Launch convient à un volume mensuel de contenu plus modeste, Grow offre davantage d'articles et de publications sociales, et Scale ajoute des volumes mensuels plus élevés. Comparez ci-dessus les limites d'articles, de publications et de recherche pour trouver la bonne formule.",
+            a: "Free vous permet d'essayer RepGet gratuitement, avec quelques articles et publications sociales chaque mois. Grow offre davantage d'articles et de publications sociales, ainsi que des backlinks, et Scale ajoute des volumes mensuels plus élevés. Comparez ci-dessus les limites d'articles, de publications et de recherche pour trouver la bonne formule.",
           },
         ],
       },
@@ -1008,11 +1020,11 @@ const fr: PricingPageCopy = {
         items: [
           {
             q: "Comment RepGet étudie-t-il les mots-clés de mon secteur ?",
-            a: "RepGet étudie et regroupe les termes de recherche pour vous permettre de planifier du contenu autour de sujets pertinents. Le volume de recherche dépend de votre formule : Launch comprend 300 termes, Grow 500 et Scale 1 500.",
+            a: "RepGet étudie et regroupe les termes de recherche pour vous permettre de planifier du contenu autour de sujets pertinents. Le volume de recherche dépend de votre formule : Free comprend 10 termes, Grow 500 et Scale 1 500.",
           },
           {
             q: "Quels assistants d'IA RepGet vérifie-t-il ?",
-            a: "Un seul : Claude. Chaque semaine, RepGet pose à Claude, via son API et sans recherche web en direct, les questions que vous suivez (20 avec Launch et Grow, 50 avec Scale) et note si votre entreprise est citée, et à quel endroit. ChatGPT, Gemini, Perplexity et les résultats IA de Google ne sont pas vérifiés : voyez-y le point de vue d'un assistant, pas une mesure de la recherche par IA.",
+            a: "Un seul : Claude. Chaque semaine, RepGet pose à Claude, via son API et sans recherche web en direct, les questions que vous suivez (20 avec Grow, 50 avec Scale ; Free prend un instantané de 5 questions par mois) et note si votre entreprise est citée, et à quel endroit. ChatGPT, Gemini, Perplexity et les résultats IA de Google ne sont pas vérifiés : voyez-y le point de vue d'un assistant, pas une mesure de la recherche par IA.",
           },
           {
             q: "Comment fonctionnent les crédits de backlinks ?",
@@ -1167,7 +1179,7 @@ const it: PricingPageCopy = {
       tag: "Raggiunga più persone",
       desc: "Per marchi in crescita che vogliono una portata e una produzione più costanti.",
       cta: "Inizia con Grow",
-      includedLabel: "Tutto Launch, con più volume",
+      includedLabel: "Tutto Free, più backlink e più volume",
       features: [
         "**{articles} articoli SEO**",
         "**{posts} post social** su più piattaforme",
@@ -1211,7 +1223,7 @@ const it: PricingPageCopy = {
   compare: {
     eyebrow: "Fianco a fianco",
     title: "Confronti le opzioni.",
-    body: "Tutti e tre i piani includono la stessa piattaforma di crescita. Scelga il volume mensile più adatto alla sua attività.",
+    body: "Inizi gratis, poi scelga il volume mensile più adatto alla sua attività. Grow e Scale includono la piattaforma di crescita completa, backlink compresi.",
     included: "Incluso",
     articles: "Articoli SEO brandizzati / mese",
     posts: "Post social / mese",
@@ -1248,6 +1260,10 @@ const it: PricingPageCopy = {
         title: "PROVA GRATUITA E PRIMI PASSI",
         items: [
           {
+            q: "Il piano Free è davvero gratuito?",
+            a: "Sì. Free non costa nulla e non richiede la carta di credito: ogni mese include 4 articoli SEO con IA, 8 post social, 1 audit SEO limitato e 1 istantanea di visibilità IA, con 10 termini di ricerca, 1 sito web collegato e 3 richieste a Growth Copilot al giorno. Backlink, produzione video con IA e automazione avanzata richiedono un piano a pagamento, e può passare a un piano superiore o acquistare crediti in qualsiasi momento. I posti gratuiti sono limitati durante il lancio.",
+          },
+          {
             q: "Che cosa succede dopo la prova gratuita?",
             a: "Al termine della prova gratuita di 3 giorni, il piano scelto in fase di registrazione inizia e viene addebitato il primo pagamento, a meno che non disdica prima della fine della prova. La data di inizio esatta, gli addebiti e le condizioni di rinnovo sono indicati al pagamento.",
           },
@@ -1261,7 +1277,7 @@ const it: PricingPageCopy = {
           },
           {
             q: "Quale piano scegliere?",
-            a: "Launch è adatto a un volume mensile di contenuti più contenuto, Grow offre più articoli e post social, e Scale aggiunge volumi mensili più alti. Confronti sopra i limiti di articoli, post e ricerca per trovare il piano giusto.",
+            a: "Free le permette di provare RepGet senza costi, con alcuni articoli e post social ogni mese. Grow offre più articoli e post social, oltre ai backlink, e Scale aggiunge volumi mensili più alti. Confronti sopra i limiti di articoli, post e ricerca per trovare il piano giusto.",
           },
         ],
       },
@@ -1325,11 +1341,11 @@ const it: PricingPageCopy = {
         items: [
           {
             q: "Come ricerca RepGet le parole chiave del mio settore?",
-            a: "RepGet ricerca e raggruppa i termini di ricerca per aiutarla a pianificare contenuti su argomenti pertinenti. Il volume di ricerca dipende dal piano: Launch include 300 termini, Grow 500 e Scale 1.500.",
+            a: "RepGet ricerca e raggruppa i termini di ricerca per aiutarla a pianificare contenuti su argomenti pertinenti. Il volume di ricerca dipende dal piano: Free include 10 termini, Grow 500 e Scale 1.500.",
           },
           {
             q: "Quali assistenti IA controlla RepGet?",
-            a: "Uno: Claude. Ogni settimana RepGet pone a Claude, tramite la sua API e senza ricerca web in tempo reale, le domande che lei monitora (20 con Launch e Grow, 50 con Scale) e registra se la sua attività viene nominata, e in che punto. ChatGPT, Gemini, Perplexity e i risultati IA di Google non vengono controllati: lo consideri il punto di vista di un assistente, non una misura della ricerca con l'IA.",
+            a: "Uno: Claude. Ogni settimana RepGet pone a Claude, tramite la sua API e senza ricerca web in tempo reale, le domande che lei monitora (20 con Grow, 50 con Scale; Free scatta un'istantanea di 5 domande al mese) e registra se la sua attività viene nominata, e in che punto. ChatGPT, Gemini, Perplexity e i risultati IA di Google non vengono controllati: lo consideri il punto di vista di un assistente, non una misura della ricerca con l'IA.",
           },
           {
             q: "Come funzionano i crediti per i backlink?",
@@ -1484,7 +1500,7 @@ const de: PricingPageCopy = {
       tag: "Mehr Menschen erreichen",
       desc: "Für wachsende Marken, die beständigere Reichweite und mehr Output wollen.",
       cta: "Mit Grow starten",
-      includedLabel: "Alles aus Launch, mit mehr Volumen",
+      includedLabel: "Alles aus Free, plus Backlinks und mehr Volumen",
       features: [
         "**{articles} SEO-Artikel**",
         "**{posts} Social-Media-Beiträge** auf mehreren Plattformen",
@@ -1528,7 +1544,7 @@ const de: PricingPageCopy = {
   compare: {
     eyebrow: "Im direkten Vergleich",
     title: "Vergleichen Sie Ihre Optionen.",
-    body: "Alle drei Tarife enthalten dieselbe Wachstumsplattform. Wählen Sie das monatliche Volumen, das zu Ihrem Unternehmen passt.",
+    body: "Starten Sie kostenlos und wählen Sie dann das monatliche Volumen, das zu Ihrem Unternehmen passt. Grow und Scale enthalten die komplette Wachstumsplattform, Backlinks inklusive.",
     included: "Enthalten",
     articles: "SEO-Markenartikel / Monat",
     posts: "Social-Media-Beiträge / Monat",
@@ -1565,6 +1581,10 @@ const de: PricingPageCopy = {
         title: "KOSTENLOSE TESTPHASE & ERSTE SCHRITTE",
         items: [
           {
+            q: "Ist der Free-Plan wirklich kostenlos?",
+            a: "Ja. Free kostet nichts und braucht keine Kreditkarte: Jeden Monat enthält er 4 KI-SEO-Artikel, 8 Social-Media-Beiträge, 1 eingeschränktes SEO-Audit und 1 KI-Sichtbarkeits-Momentaufnahme, dazu 10 Suchbegriffe, 1 verbundene Website und 3 Growth-Copilot-Anfragen pro Tag. Backlinks, KI-Videoproduktion und erweiterte Automatisierung erfordern einen bezahlten Plan, und Sie können jederzeit upgraden oder Credits kaufen. Die kostenlosen Plätze sind während des Starts begrenzt.",
+          },
+          {
             q: "Was passiert nach der kostenlosen Testphase?",
             a: "Wenn Ihre 3-tägige kostenlose Testphase endet, beginnt der bei der Anmeldung gewählte Tarif und die erste Zahlung wird eingezogen, sofern Sie nicht vor dem Ende der Testphase kündigen. Das genaue Startdatum, die Beträge und die Verlängerungsbedingungen werden beim Bezahlen angezeigt.",
           },
@@ -1578,7 +1598,7 @@ const de: PricingPageCopy = {
           },
           {
             q: "Welchen Tarif sollte ich wählen?",
-            a: "Launch eignet sich für ein kleineres monatliches Content-Volumen, Grow bietet mehr Artikel und Social-Media-Beiträge, und Scale ergänzt höhere monatliche Volumen. Vergleichen Sie oben die Grenzen für Artikel, Beiträge und Recherche, um den passenden Tarif zu finden.",
+            a: "Mit Free testen Sie RepGet kostenlos, mit einigen Artikeln und Social-Media-Beiträgen pro Monat. Grow bietet mehr Artikel und Social-Media-Beiträge sowie Backlinks, und Scale ergänzt höhere monatliche Volumen. Vergleichen Sie oben die Grenzen für Artikel, Beiträge und Recherche, um den passenden Tarif zu finden.",
           },
         ],
       },
@@ -1642,11 +1662,11 @@ const de: PricingPageCopy = {
         items: [
           {
             q: "Wie recherchiert RepGet Keywords in meiner Branche?",
-            a: "RepGet recherchiert und gruppiert Suchbegriffe, damit Sie Inhalte zu relevanten Themen planen können. Der Rechercheumfang hängt von Ihrem Tarif ab: Launch umfasst 300 Begriffe, Grow 500 und Scale 1.500.",
+            a: "RepGet recherchiert und gruppiert Suchbegriffe, damit Sie Inhalte zu relevanten Themen planen können. Der Rechercheumfang hängt von Ihrem Tarif ab: Free umfasst 10 Begriffe, Grow 500 und Scale 1.500.",
           },
           {
             q: "Welche KI-Assistenten prüft RepGet?",
-            a: "Einen: Claude. Jede Woche stellt RepGet Claude über die API und ohne Live-Websuche die Fragen, die Sie verfolgen (20 bei Launch und Grow, 50 bei Scale), und erfasst, ob und an welcher Stelle Ihr Unternehmen genannt wird. ChatGPT, Gemini, Perplexity und die KI-Ergebnisse von Google werden nicht geprüft. Sehen Sie es als Sicht eines Assistenten, nicht als Messung der KI-Suche.",
+            a: "Einen: Claude. Jede Woche stellt RepGet Claude über die API und ohne Live-Websuche die Fragen, die Sie verfolgen (20 bei Grow, 50 bei Scale; Free macht eine Momentaufnahme mit 5 Fragen pro Monat), und erfasst, ob und an welcher Stelle Ihr Unternehmen genannt wird. ChatGPT, Gemini, Perplexity und die KI-Ergebnisse von Google werden nicht geprüft. Sehen Sie es als Sicht eines Assistenten, nicht als Messung der KI-Suche.",
           },
           {
             q: "Wie funktionieren Backlink-Credits?",

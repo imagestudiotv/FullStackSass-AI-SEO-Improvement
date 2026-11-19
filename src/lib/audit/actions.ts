@@ -14,6 +14,9 @@ import { spendCredits } from "@/lib/credits/spend";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { format } from "@/lib/i18n/format";
 import { reserveAndQueue } from "@/lib/jobs/outbox";
+import { calendarMonth } from "@/lib/billing/entitlement-period";
+import { FREE_PLAN, freePlanMessage } from "@/lib/plans/free-plan";
+import { freePlanAuditsThisMonth, isFreePlanWebsite } from "@/lib/plans/free-plan-server";
 
 /**
  * Audit reads and actions.
@@ -138,6 +141,17 @@ export async function startAudit(
   if (!entitled.ok) return { ok: false, error: entitled.error };
 
   /*
+    The Free plan's audit: FREE_PLAN.auditsPerMonth a UTC month, over its
+    first FREE_PLAN.auditPages pages (inngest/functions/audit-website.ts) -
+    the "1 limited SEO audit per month" of its card. Its allowance is the
+    slot reserved below, so two presses cannot both take the last one.
+  */
+  const free = await isFreePlanWebsite(site.id);
+  if (free && (await freePlanAuditsThisMonth(site.id)) >= FREE_PLAN.auditsPerMonth) {
+    return { ok: false, error: freePlanMessage("auditUsed") };
+  }
+
+  /*
     An audit crawls every page of the site, so a held-down button is the most
     expensive thing a paying customer can do. Entitlement says they may spend;
     this says how fast.
@@ -167,6 +181,7 @@ export async function startAudit(
     [
       { key: `audit:site:${site.id}`, limit: AUDITS_PER_WEBSITE_PER_HOUR, window: { seconds: HOUR } },
       { key: `audit:org:${ownerOrgId}`, limit: AUDITS_PER_WORKSPACE_PER_HOUR, window: { seconds: HOUR } },
+      ...(free ? [{ key: `free-plan:audit:${site.id}`, limit: FREE_PLAN.auditsPerMonth, window: { since: calendarMonth().start } }] : []),
     ],
     { operation: "website.audit", organizationId: ownerOrgId, websiteId: site.id },
     (reservations) => ({
@@ -174,7 +189,8 @@ export async function startAudit(
       name: "website/audit.requested",
       data: { websiteId: site.id, organizationId: ownerOrgId, reservations, ...(creditSpendKey ? { creditSpendKey } : {}) },
     }),
-    previous
+    // Free's monthly audit is part of its plan: no credits for it.
+    previous && !free
       ? async (tx, reservations) => {
           const key = `audit:${reservations[0].id}`;
           const spent = await spendCredits(tx, { organizationId: ownerOrgId, action: "audit_rerun", key, websiteId: site.id });

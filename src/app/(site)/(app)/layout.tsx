@@ -27,6 +27,7 @@ import { ReferralClaim } from "@/components/referral-claim";
 import { ResearchWatcher } from "@/components/research-watcher";
 import { readReferralCookie } from "@/lib/referrals/cookie";
 import { getLaunchState } from "@/lib/onboarding/launch";
+import { FreePlanIndicator } from "@/components/free-plan/free-plan-indicator";
 import { WEBSITE_PROJECT_COPY } from "@/lib/i18n/website-projects";
 import { websiteProjectKindOf, websiteProjectsHref } from "@/lib/website-projects/shared";
 import { SetupTracker } from "@/components/setup-tracker";
@@ -263,6 +264,13 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
    * header's pill and the line under "Earn Credits".
    */
   const showCredits = !selectedShared && !sharedWorkOnly;
+  /*
+    The Free plan's one-line indicator ("Free plan · 3 of 4 articles left ·
+    Upgrade", lib/plans/free-plan.ts), for an owner on their Free website;
+    nothing otherwise.
+  */
+  const freeIndicator =
+    selectedOwned && fallbackWebsiteId ? <FreePlanIndicator websiteId={fallbackWebsiteId} organizationId={orgId} locale={locale} /> : null;
   const creditWords = t.app.credits;
 
   /**
@@ -320,7 +328,10 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             is this person's own workspace, so the number would be THEIR
             balance beside credits they cannot spend there.
           */
-          <SidebarUsage organizationId={orgId} showCredits={showCredits} locale={locale} t={t.app.nav} tc={creditWords} />
+          <>
+            {freeIndicator}
+            <SidebarUsage organizationId={orgId} showCredits={showCredits} locale={locale} t={t.app.nav} tc={creditWords} />
+          </>
         }
       >
         <SidebarNav
@@ -348,7 +359,12 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             addons={sidebarAddons}
             hideAddons={hideAddons}
             hideCredits={sharedWorkOnly}
-            footer={<SidebarUsage organizationId={orgId} showCredits={showCredits} locale={locale} t={t.app.nav} tc={creditWords} />}
+            footer={
+              <>
+                {freeIndicator}
+                <SidebarUsage organizationId={orgId} showCredits={showCredits} locale={locale} t={t.app.nav} tc={creditWords} />
+              </>
+            }
           />
           <HeaderBrand>
             <Link href="/dashboard" aria-label="RepGet" className="flex items-center">
