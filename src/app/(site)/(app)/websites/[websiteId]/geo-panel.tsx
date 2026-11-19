@@ -103,7 +103,7 @@ export function GeoPanel({
   tw: Messages["app"]["workspace"];
 }) {
   const router = useRouter();
-  const localise = (error: string) => localiseGeoError(error, t, tw);
+  const localise = (error: string) => localiseGeoError(error, t, tw, locale);
 
   /**
    * The check being followed (lib/geo/progress.ts baseline).

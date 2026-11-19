@@ -117,7 +117,7 @@ export function AuditPanel({
       try {
         const result = await startAudit(websiteId);
         if (!result.ok) {
-          setRefusal(localiseStartError(result.error, t, tw));
+          setRefusal(localiseStartError(result.error, t, tw, locale));
           return;
         }
         // The request is stored now (a reserved slot and a queued job): the
