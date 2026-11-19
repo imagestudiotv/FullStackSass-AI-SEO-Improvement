@@ -8,8 +8,10 @@ import type { HookLibraryClip } from "./hook-library";
  * (scripts/ai-clips-upload.mjs) - never generated while a customer's video is
  * made, so a video costs nothing more for it.
  *
- * A video with a visual hook tries these first, then the Pixabay library
- * (hook-library.ts), then a Pixabay search (footage/hooks.ts, make.ts). The
+ * About 65% of videos with a visual hook open on one of these, the rest on
+ * the Pixabay library's (hook-library.ts; client: "AI:pixabay = 65%:35%"),
+ * each with the other as the fallback, then a Pixabay search
+ * (footage/hooks.ts opensOnAiClip, make.ts). The
  * customer's text, brand and voice go over the clip as with any hook clip;
  * its own sound is muted. Google's SynthID mark is invisible.
  */

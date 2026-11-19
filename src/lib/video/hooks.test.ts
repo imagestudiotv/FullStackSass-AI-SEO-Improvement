@@ -7,9 +7,9 @@ import type { ProductionReelProps } from "@/remotion/props";
 
 import { HOOK_TECHNIQUES, HOOK_TECHNIQUES_FROM, HOOK_TYPES, hookTypeOf, VIRAL_TECHNIQUES, type VideoScript } from "./formats";
 import { AI_HOOK_LIBRARY, AI_PROVIDER, aiClipPath } from "./footage/ai-library";
-import { libraryPicks } from "./footage/hooks";
+import { AI_HOOK_SHARE, libraryPicks, opensOnAiClip } from "./footage/hooks";
 import { HOOK_LIBRARY, type HookLibraryClip } from "./footage/hook-library";
-import { buildPlan } from "./strategy/creative";
+import { buildPlan, stableHash } from "./strategy/creative";
 import { canHook, hookQuery, hookTypeFor, SAFE_HOOK_QUERIES, savedTechniques, unsafeHookWords, withOneHook, withoutHooks } from "./strategy/hooks";
 import { systemPrompt, type IdeaInput, type SlotBrief } from "./strategy/prompt";
 
@@ -130,6 +130,21 @@ describe("the AI hook clips", () => {
       expect(clip.prompt.length).toBeGreaterThan(40);
       expect(unsafeHookWords(clip.tags.join(" "))).toBe(false);
     }
+  });
+
+  it("open about 65% of hooked videos, Pixabay the rest, fixed per video", () => {
+    expect(AI_HOOK_SHARE).toBe(0.65);
+    const ids = Array.from({ length: 4000 }, (_, i) => `${(i * 2654435761).toString(16).padStart(8, "0")}-4b1d-4c2e-9f00-${String(i).padStart(12, "0")}`);
+    const share = ids.filter((id) => opensOnAiClip(stableHash(id))).length / ids.length;
+    expect(share).toBeGreaterThan(0.62);
+    expect(share).toBeLessThan(0.68);
+    // Sequential seeds too, and the same video always gets the same answer.
+    const sequential = Array.from({ length: 4000 }, (_, i) => opensOnAiClip(i)).filter(Boolean).length / 4000;
+    expect(sequential).toBeGreaterThan(0.62);
+    expect(sequential).toBeLessThan(0.68);
+    expect(opensOnAiClip(stableHash(ids[7]))).toBe(opensOnAiClip(stableHash(ids[7])));
+    expect(opensOnAiClip(123, 0)).toBe(false);
+    expect(opensOnAiClip(123, 1)).toBe(true);
   });
 
   it("live in the bucket's shared folder, which no website's cleanup touches", () => {

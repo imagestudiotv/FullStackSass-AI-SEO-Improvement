@@ -35,7 +35,7 @@ import {
 import { STOCK_PROVIDERS, footageStatus, type StockCandidate } from "./footage";
 import { collectionCost } from "./footage/collection";
 import { AI_CLIP_SIZE, AI_HOOK_LIBRARY, AI_LICENCE, AI_PROVIDER, aiClipPath, type AiHookClip } from "./footage/ai-library";
-import { libraryPicks, type HookCandidate } from "./footage/hooks";
+import { libraryPicks, opensOnAiClip, type HookCandidate } from "./footage/hooks";
 import { pixabayVideoById } from "./footage/pixabay";
 import { cachedAsset, cachedForQuery, storeCandidate } from "./footage/store";
 import {
@@ -303,13 +303,21 @@ function resolverDeps(idea: VideoIdea): ResolverDeps {
 }
 
 /**
- * Up to three hook clips for a video: RepGet's AI clips first (in storage
- * already), then the Pixabay library's - already stored ones need no lookup,
- * the others are looked up by id (free).
+ * Up to three hook clips for a video, in the order to try: RepGet's AI clips
+ * (in storage already) and the Pixabay library's, about 65:35 across videos
+ * (opensOnAiClip), the other source kept as the fallback. Pixabay clips
+ * already stored need no lookup, the others are looked up by id (free).
  */
 async function hookCandidates(type: HookType, query: string, exclude: Set<string>, seed: number): Promise<HookCandidate[]> {
-  const out: HookCandidate[] = libraryPicks(type, query, seed, exclude, AI_HOOK_LIBRARY, AI_PROVIDER).slice(0, 2).map(aiCandidate);
-  for (const pick of libraryPicks(type, query, seed, exclude).slice(0, 3 - out.length)) {
+  const ai = libraryPicks(type, query, seed, exclude, AI_HOOK_LIBRARY, AI_PROVIDER).slice(0, 2).map(aiCandidate);
+  const aiFirst = opensOnAiClip(seed);
+  const stock = await pixabayCandidates(type, query, exclude, seed, aiFirst ? 3 - ai.length : 3 - Math.min(1, ai.length));
+  return aiFirst ? [...ai, ...stock] : [...stock, ...ai];
+}
+
+async function pixabayCandidates(type: HookType, query: string, exclude: Set<string>, seed: number, count: number): Promise<HookCandidate[]> {
+  const out: HookCandidate[] = [];
+  for (const pick of libraryPicks(type, query, seed, exclude).slice(0, count)) {
     const stored = await cachedAsset("pixabay", pick.id, "video");
     const candidate: StockCandidate | null = stored
       ? { provider: stored.provider, providerId: stored.providerId, kind: "video", downloadUrl: stored.url, width: stored.width ?? 0, height: stored.height ?? 0, durationMs: stored.durationMs, sizeBytes: null, licence: stored.licence, sourceUrl: stored.sourceUrl ?? stored.url, author: stored.author, tags: [] }

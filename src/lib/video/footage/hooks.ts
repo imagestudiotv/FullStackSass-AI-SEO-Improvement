@@ -31,3 +31,18 @@ export function libraryPicks<Clip extends HookLibraryClip = HookLibraryClip>(
   const front = scored.slice(0, matching);
   return [...front.slice(shift), ...front.slice(0, shift), ...scored.slice(matching)].map((entry) => entry.clip);
 }
+
+/** The share of hooked videos that open on one of RepGet's AI clips, the rest on a Pixabay clip (client, 2026-11-19: "AI:pixabay = 65%:35%"). */
+export const AI_HOOK_SHARE = 0.65;
+
+/**
+ * Whether a video opens on an AI clip: fixed for the video (its seed), true
+ * for about AI_HOOK_SHARE of videos. The seed is mixed first, so the choice
+ * never moves in step with the clip rotation in libraryPicks (seed % n). Pure.
+ */
+export function opensOnAiClip(seed: number, share: number = AI_HOOK_SHARE): boolean {
+  let x = Math.imul(seed ^ (seed >>> 16), 0x45d9f3b);
+  x = Math.imul(x ^ (x >>> 16), 0x45d9f3b);
+  x ^= x >>> 16;
+  return (x >>> 0) % 1000 < Math.round(share * 1000);
+}
