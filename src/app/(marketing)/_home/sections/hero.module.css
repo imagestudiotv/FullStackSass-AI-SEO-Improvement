@@ -37,10 +37,13 @@
   text-decoration: none;
 }
 .rgx-hero a:focus-visible,
-.rgx-hero button:focus-visible,
-.rgx-hero input:focus-visible {
+.rgx-hero button:focus-visible {
   outline: 3px solid #f5a87c;
   outline-offset: 3px;
+}
+/* The field shows focus through the whole box (.rgx-form:focus-within): one box, no second ring inside it (Daniel, 2026-11-19). */
+.rgx-hero input:focus-visible {
+  outline: none;
 }
 .rgx-sr-only {
   position: absolute;

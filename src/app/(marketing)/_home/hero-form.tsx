@@ -260,7 +260,8 @@ export function HeroForm({
               name={isWebsite ? "website" : "email"}
               type={isWebsite ? "text" : "email"}
               inputMode={isWebsite ? "url" : "email"}
-              autoComplete={isWebsite ? "url" : "email"}
+              // Off for the website: the browser's own list of past entries would cover ours.
+              autoComplete={isWebsite ? "off" : "email"}
               autoCapitalize="none"
               spellCheck={false}
               required
