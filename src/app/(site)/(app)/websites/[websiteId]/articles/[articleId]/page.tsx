@@ -5,6 +5,7 @@ import { cache } from "react";
 
 import { REWRITES_PER_WEBSITE_PER_DAY } from "@/inngest/functions/generate-article";
 import { getArticle } from "@/lib/articles/actions";
+import { checkReleasable } from "@/lib/articles/review";
 import { requireSession } from "@/lib/auth-guard";
 import { partnerLinkUrls } from "@/lib/backlinks/partner-links";
 import { requireWebsitePlan } from "@/lib/billing/require-plan";
@@ -116,7 +117,7 @@ export default async function ArticlePage({
     );
   }
 
-  const [partnerLinks, cmsIntegrations, uncertain, plugin, { locale, t }] = await Promise.all([
+  const [partnerLinks, cmsIntegrations, uncertain, plugin, { locale, t }, release] = await Promise.all([
     // Partner Network links in this article, highlighted in its preview and editor.
     partnerLinkUrls(article.id),
     listIntegrations(websiteId),
@@ -139,6 +140,8 @@ export default async function ArticlePage({
       .orderBy(desc(integrationKeys.lastUsedAt))
       .limit(1),
     getAppMessages(gate.userId),
+    // Download only what may leave RepGet - the same gate as publishing (ticket 2026-11-19).
+    checkReleasable(article.id),
   ]);
 
   const destination = pickDestination(cmsIntegrations, plugin.length > 0);
@@ -174,6 +177,7 @@ export default async function ArticlePage({
       history={history}
       historyLimit={HISTORY_LIMIT}
       uncertain={Boolean(uncertain)}
+      downloadable={release.ok}
       lastSaved={formatWhen(article.updatedAt, locale)}
       rewriteLimit={REWRITES_PER_WEBSITE_PER_DAY}
       imageMaxAttempts={IMAGE_REGENERATIONS}

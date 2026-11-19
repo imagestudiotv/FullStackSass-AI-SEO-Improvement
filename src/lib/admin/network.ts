@@ -185,6 +185,12 @@ export async function getReviewQueue(): Promise<{
     .where(eq(networkSites.acceptingLinks, true))
     .orderBy(asc(websites.domain));
 
+  // Nothing of this website's published or approved yet: a new customer waiting for their first article.
+  const firstArticleSql = sql<boolean>`${articles.publishedUrl} is null and not exists (
+        select 1 from ${articles} other
+        where other.website_id = ${articles.websiteId} and other.id <> ${articles.id}
+          and (other.published_url is not null or other.status = 'published' or other.review_status = 'approved')
+      )`;
   const articleRows = await db
     .select({
       id: articles.id,
@@ -206,12 +212,7 @@ export async function getReviewQueue(): Promise<{
         select count(*)::int from ${placements} p
         where p.article_id = ${articles.id} and p.status in ('pending', 'drafted', 'published', 'live')
       )`,
-      // Nothing of this website's published or approved yet: a new customer waiting for their first article.
-      firstArticle: sql<boolean>`${articles.publishedUrl} is null and not exists (
-        select 1 from ${articles} other
-        where other.website_id = ${articles.websiteId} and other.id <> ${articles.id}
-          and (other.published_url is not null or other.status = 'published' or other.review_status = 'approved')
-      )`,
+      firstArticle: firstArticleSql,
       researchHeld: sql<boolean>`${articles.researchReviewRequired} and ${articles.researchApprovedHash} is distinct from ${reviewHashSql}`,
     })
     .from(articles)
@@ -233,7 +234,13 @@ export async function getReviewQueue(): Promise<{
         and(eq(articles.reviewStatus, "pending"), sql`not ${twoStepOffSql}`),
       ),
     )
-    .orderBy(asc(calendarItems.scheduledFor), asc(articles.createdAt))
+    /*
+      First articles first, IN THE QUERY: they were sorted to the top only
+      after the limit, so with more than 200 articles waiting a new client's
+      first one (planned for today, behind older dates) could be cut off the
+      page altogether (ticket 2026-11-19, item 4).
+    */
+    .orderBy(desc(firstArticleSql), asc(calendarItems.scheduledFor), asc(articles.createdAt))
     .limit(200);
 
   const ids = [...new Set([...siteRows.map((s) => s.websiteId), ...articleRows.map((a) => a.websiteId)])];
