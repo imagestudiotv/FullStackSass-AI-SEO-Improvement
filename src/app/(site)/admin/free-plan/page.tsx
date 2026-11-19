@@ -23,12 +23,16 @@ const DAY_MS = 86_400_000;
  * and its AI and API cost against the caps. This page makes no AI calls
  * (lib/admin/free-plan.ts).
  */
+/** Day N of the 30-day observation window, counting the launch day as day 1; null before the first Free account. */
+function observationDay(launchedAt: Date | null): number | null {
+  if (!launchedAt) return null;
+  return Math.min(FREE_PLAN_OBSERVATION_DAYS, Math.floor((Date.now() - launchedAt.getTime()) / DAY_MS) + 1);
+}
+
 export default async function FreePlanLaunchPage() {
   const data = await getFreePlanLaunch();
   const n = data.taken;
-  const windowDay = data.launchedAt
-    ? Math.min(FREE_PLAN_OBSERVATION_DAYS, Math.floor((Date.now() - data.launchedAt.getTime()) / DAY_MS) + 1)
-    : null;
+  const windowDay = observationDay(data.launchedAt);
   const highest = Math.max(0, ...data.perDay.map((entry) => entry.cents));
 
   return (

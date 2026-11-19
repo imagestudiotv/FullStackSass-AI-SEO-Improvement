@@ -19,31 +19,36 @@ import { UpgradeLink } from "./upgrade-link";
  * failed read leaves it out.
  */
 export async function FreePlanIndicator({ websiteId, organizationId, locale }: { websiteId: string; organizationId: string; locale: Locale }) {
+  // Read first, render after: a failed read leaves the line out, and JSX is
+  // never built inside the try (React would not catch its errors there).
+  let line: string;
+  let upgrade: string;
   try {
     if (!(await isFreePlanWebsite(websiteId))) return null;
     const [articles, pause] = await Promise.all([checkLimit(websiteId, "articles"), freePlanPause(organizationId)]);
     const t = freePlanCopy(locale).app;
     const values = freePlanValues(locale);
     const left = Math.max(0, articles.limit - articles.used);
-    const line = pause.paused
+    line = pause.paused
       ? t.pausedShort
       : left > 0
         ? format(t.indicator, { ...values, left })
         : format(t.indicatorNone, values);
-    return (
-      <div className="mx-3 mt-3 flex items-center gap-2 rounded-md border border-primary/25 bg-primary/5 px-3 py-2 text-xs">
-        <Sparkles className="size-3.5 shrink-0 text-primary" aria-hidden="true" />
-        <span className="min-w-0 flex-1 text-muted-foreground">{line}</span>
-        <UpgradeLink
-          href={`/billing?site=${encodeURIComponent(websiteId)}#plan`}
-          source="indicator"
-          className="shrink-0 font-semibold text-primary underline-offset-2 hover:underline"
-        >
-          {t.upgrade}
-        </UpgradeLink>
-      </div>
-    );
+    upgrade = t.upgrade;
   } catch {
     return null;
   }
+  return (
+    <div className="mx-3 mt-3 flex items-center gap-2 rounded-md border border-primary/25 bg-primary/5 px-3 py-2 text-xs">
+      <Sparkles className="size-3.5 shrink-0 text-primary" aria-hidden="true" />
+      <span className="min-w-0 flex-1 text-muted-foreground">{line}</span>
+      <UpgradeLink
+        href={`/billing?site=${encodeURIComponent(websiteId)}#plan`}
+        source="indicator"
+        className="shrink-0 font-semibold text-primary underline-offset-2 hover:underline"
+      >
+        {upgrade}
+      </UpgradeLink>
+    </div>
+  );
 }

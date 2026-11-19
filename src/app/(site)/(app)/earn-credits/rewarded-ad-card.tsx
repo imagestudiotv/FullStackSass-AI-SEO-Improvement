@@ -119,6 +119,8 @@ export function RewardedAdCard({ initial, t }: { initial: RewardedAdState; t: Ea
     setPhase({ kind: "loading" });
     // Arrived by an in-app link: this document still has the previous page's policy, which blocks the ad. Load the page for real.
     if (!loadedOnEarnCredits(documentEntry())) {
+      // A full load on purpose: router.push would keep this document and its policy.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       window.location.assign(WATCH_URL);
       return;
     }
