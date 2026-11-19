@@ -20,8 +20,8 @@ export type GrowthPlanCopy = {
   /** Once the plan is ready: {name}. */
   titleDone: string;
   intro: string;
-  /** The three steps, in order. */
-  phases: [string, string, string];
+  /** The four steps, in order: the three read from the site, then the plan to buy (growth-plan/flow-steps.ts). */
+  phases: [string, string, string, string];
   /** Accessible name of the step list. */
   phasesLabel: string;
   /** The working log beside the steps. */
@@ -85,8 +85,74 @@ export type GrowthPlanCopy = {
     note: string;
   };
   another: string;
-  /** "Step 2 of 3" on a step's button. */
+  /** "Step 2 of 4" on a step's button: {index}, {total}. */
   stepOf: string;
+  /** The buttons under each step and the auto-continue's words. */
+  nav: {
+    continue: string;
+    back: string;
+    pause: string;
+    resume: string;
+    /** Beside the filling bar. */
+    auto: string;
+    /** While the visitor's pointer or keyboard is in the card. */
+    held: string;
+    working: string;
+    /** Continue's words on the plan step, which leads to the plans. */
+    toBilling: string;
+    /** Read out by screen readers when the step changes: {index}, {total}, {label}. */
+    announce: string;
+  };
+  /** Each step's line in the step list once its answer is in. */
+  summary: {
+    waiting: string;
+    working: string;
+    /** {score}, {count}. */
+    pages: string;
+    /** {score}. */
+    pagesClean: string;
+    pagesSkipped: string;
+    /** {count}. */
+    plan: string;
+    billingPick: string;
+    /** {plan}, {price}. */
+    billingChosen: string;
+  };
+  /**
+   * The last step: the plans and the way to payment. Payment details are
+   * never asked here: the chosen plan goes through sign-up to the plan step's
+   * Stripe or PayPal checkout, and every promise matches that step's.
+   */
+  billing: {
+    heading: string;
+    /** {name}. */
+    intro: string;
+    options: string;
+    popular: string;
+    perMonth: string;
+    /** {price} a month, {total} a year. */
+    yearly: string;
+    selected: string;
+    orderTitle: string;
+    website: string;
+    plan: string;
+    today: string;
+    /** {days}. */
+    trial: string;
+    /** {price}. */
+    then: string;
+    noCard: string;
+    /** With PayPal, and without it (a plan with no PayPal plan, or PayPal off). */
+    methods: string;
+    methodsCard: string;
+    card: string;
+    paypal: string;
+    secure: string;
+    continue: string;
+    nextTitle: string;
+    /** The three steps after this page; the second says {host}. */
+    next: [string, string, string];
+  };
 };
 
 const en: GrowthPlanCopy = {
@@ -96,7 +162,7 @@ const en: GrowthPlanCopy = {
   title: "Getting to know {domain}",
   titleDone: "Your growth plan for {name} is ready",
   intro: "RepGet is reading your website, checking your pages and turning what it finds into a plan. It takes about a minute.",
-  phases: ["Research your business", "Check your pages", "Build your growth plan"],
+  phases: ["Research your business", "Check your pages", "Build your growth plan", "Choose your plan"],
   phasesLabel: "Progress",
   logTitle: "RepGet at work",
   logLabel: "What RepGet is doing",
@@ -158,7 +224,52 @@ const en: GrowthPlanCopy = {
     note: "Your website is already filled in.",
   },
   another: "Check another website",
-  stepOf: "Step {index} of 3",
+  stepOf: "Step {index} of {total}",
+  nav: {
+    continue: "Continue",
+    back: "Back",
+    pause: "Pause",
+    resume: "Resume",
+    auto: "Continues by itself in a few seconds",
+    held: "Paused while you read",
+    working: "Working on it…",
+    toBilling: "Choose your plan",
+    announce: "Step {index} of {total}: {label}",
+  },
+  summary: {
+    waiting: "Up next",
+    working: "Working…",
+    pages: "{score}/100 · {count} to fix",
+    pagesClean: "{score}/100 · no problems found",
+    pagesSkipped: "Check skipped",
+    plan: "{count} actions for your site",
+    billingPick: "Pick a plan",
+    billingChosen: "{plan} · {price}/month",
+  },
+  billing: {
+    heading: "Choose your plan",
+    intro: "Pick how much RepGet does for {name} each month. Payment details come next, on a secure page.",
+    options: "Plans",
+    popular: "Most popular",
+    perMonth: "/month",
+    yearly: "or {price}/month billed yearly ({total}/year)",
+    selected: "Selected",
+    orderTitle: "Your order",
+    website: "Website",
+    plan: "Plan",
+    today: "Due today",
+    trial: "{days}-day free trial for new accounts",
+    then: "Then {price}/month. Cancel anytime before the trial ends and pay nothing.",
+    noCard: "No card needed",
+    methods: "Pay by card or PayPal",
+    methodsCard: "Pay by card",
+    card: "Card",
+    paypal: "PayPal",
+    secure: "Card and PayPal details are entered on Stripe's or PayPal's secure page, never on RepGet.",
+    continue: "Create account & continue",
+    nextTitle: "What happens next",
+    next: ["Create your account with email or Google", "Confirm {host}, already filled in", "Add payment details on the secure checkout"],
+  },
 };
 
 const es: GrowthPlanCopy = {
@@ -168,7 +279,7 @@ const es: GrowthPlanCopy = {
   title: "Conociendo {domain}",
   titleDone: "Su plan de crecimiento para {name} está listo",
   intro: "RepGet está leyendo su sitio web, revisando sus páginas y convirtiendo lo que encuentra en un plan. Tarda alrededor de un minuto.",
-  phases: ["Investigar su negocio", "Revisar sus páginas", "Preparar su plan de crecimiento"],
+  phases: ["Investigar su negocio", "Revisar sus páginas", "Preparar su plan de crecimiento", "Elegir su plan"],
   phasesLabel: "Progreso",
   logTitle: "RepGet trabajando",
   logLabel: "Lo que está haciendo RepGet",
@@ -230,7 +341,52 @@ const es: GrowthPlanCopy = {
     note: "Su sitio web ya está rellenado.",
   },
   another: "Revisar otro sitio web",
-  stepOf: "Paso {index} de 3",
+  stepOf: "Paso {index} de {total}",
+  nav: {
+    continue: "Continuar",
+    back: "Atrás",
+    pause: "Pausar",
+    resume: "Reanudar",
+    auto: "Continúa solo en unos segundos",
+    held: "En pausa mientras lee",
+    working: "Trabajando…",
+    toBilling: "Elegir su plan",
+    announce: "Paso {index} de {total}: {label}",
+  },
+  summary: {
+    waiting: "A continuación",
+    working: "Trabajando…",
+    pages: "{score}/100 · {count} por corregir",
+    pagesClean: "{score}/100 · sin problemas",
+    pagesSkipped: "Revisión omitida",
+    plan: "{count} acciones para su sitio",
+    billingPick: "Elija un plan",
+    billingChosen: "{plan} · {price}/mes",
+  },
+  billing: {
+    heading: "Elija su plan",
+    intro: "Elija cuánto hace RepGet por {name} cada mes. Los datos de pago vienen después, en una página segura.",
+    options: "Planes",
+    popular: "El más popular",
+    perMonth: "/mes",
+    yearly: "o {price}/mes con pago anual ({total}/año)",
+    selected: "Seleccionado",
+    orderTitle: "Su pedido",
+    website: "Sitio web",
+    plan: "Plan",
+    today: "A pagar hoy",
+    trial: "Prueba gratuita de {days} días para cuentas nuevas",
+    then: "Después {price}/mes. Cancele en cualquier momento antes de que termine la prueba y no pagará nada.",
+    noCard: "Sin tarjeta",
+    methods: "Pague con tarjeta o PayPal",
+    methodsCard: "Pague con tarjeta",
+    card: "Tarjeta",
+    paypal: "PayPal",
+    secure: "Los datos de la tarjeta o de PayPal se introducen en la página segura de Stripe o PayPal, nunca en RepGet.",
+    continue: "Crear cuenta y continuar",
+    nextTitle: "Qué pasa después",
+    next: ["Cree su cuenta con email o Google", "Confirme {host}, ya rellenado", "Añada los datos de pago en el pago seguro"],
+  },
 };
 
 const fr: GrowthPlanCopy = {
@@ -240,7 +396,7 @@ const fr: GrowthPlanCopy = {
   title: "Découverte de {domain}",
   titleDone: "Votre plan de croissance pour {name} est prêt",
   intro: "RepGet lit votre site, vérifie vos pages et transforme ce qu'il trouve en plan. Cela prend environ une minute.",
-  phases: ["Étudier votre activité", "Vérifier vos pages", "Préparer votre plan de croissance"],
+  phases: ["Étudier votre activité", "Vérifier vos pages", "Préparer votre plan de croissance", "Choisir votre offre"],
   phasesLabel: "Progression",
   logTitle: "RepGet au travail",
   logLabel: "Ce que fait RepGet",
@@ -302,7 +458,52 @@ const fr: GrowthPlanCopy = {
     note: "Votre site est déjà renseigné.",
   },
   another: "Vérifier un autre site",
-  stepOf: "Étape {index} sur 3",
+  stepOf: "Étape {index} sur {total}",
+  nav: {
+    continue: "Continuer",
+    back: "Retour",
+    pause: "Pause",
+    resume: "Reprendre",
+    auto: "Continue tout seul dans quelques secondes",
+    held: "En pause pendant votre lecture",
+    working: "En cours…",
+    toBilling: "Choisir votre offre",
+    announce: "Étape {index} sur {total} : {label}",
+  },
+  summary: {
+    waiting: "Ensuite",
+    working: "En cours…",
+    pages: "{score}/100 · {count} à corriger",
+    pagesClean: "{score}/100 · aucun problème",
+    pagesSkipped: "Vérification ignorée",
+    plan: "{count} actions pour votre site",
+    billingPick: "Choisissez une offre",
+    billingChosen: "{plan} · {price}/mois",
+  },
+  billing: {
+    heading: "Choisissez votre offre",
+    intro: "Choisissez ce que RepGet fait pour {name} chaque mois. Les informations de paiement viennent ensuite, sur une page sécurisée.",
+    options: "Offres",
+    popular: "La plus choisie",
+    perMonth: "/mois",
+    yearly: "ou {price}/mois en paiement annuel ({total}/an)",
+    selected: "Sélectionnée",
+    orderTitle: "Votre commande",
+    website: "Site web",
+    plan: "Offre",
+    today: "À payer aujourd’hui",
+    trial: "Essai gratuit de {days} jours pour les nouveaux comptes",
+    then: "Puis {price}/mois. Annulez à tout moment avant la fin de l’essai et vous ne payez rien.",
+    noCard: "Sans carte bancaire",
+    methods: "Payez par carte ou PayPal",
+    methodsCard: "Payez par carte",
+    card: "Carte",
+    paypal: "PayPal",
+    secure: "Les données de carte ou PayPal sont saisies sur la page sécurisée de Stripe ou PayPal, jamais sur RepGet.",
+    continue: "Créer mon compte et continuer",
+    nextTitle: "Et ensuite",
+    next: ["Créez votre compte par e-mail ou avec Google", "Confirmez {host}, déjà renseigné", "Ajoutez vos informations de paiement sur la page sécurisée"],
+  },
 };
 
 const it: GrowthPlanCopy = {
@@ -312,7 +513,7 @@ const it: GrowthPlanCopy = {
   title: "Conosciamo {domain}",
   titleDone: "Il tuo piano di crescita per {name} è pronto",
   intro: "RepGet sta leggendo il tuo sito, controllando le tue pagine e trasformando ciò che trova in un piano. Ci vuole circa un minuto.",
-  phases: ["Studiare la tua attività", "Controllare le tue pagine", "Preparare il tuo piano di crescita"],
+  phases: ["Studiare la tua attività", "Controllare le tue pagine", "Preparare il tuo piano di crescita", "Scegliere il tuo piano"],
   phasesLabel: "Avanzamento",
   logTitle: "RepGet al lavoro",
   logLabel: "Cosa sta facendo RepGet",
@@ -374,7 +575,52 @@ const it: GrowthPlanCopy = {
     note: "Il tuo sito è già inserito.",
   },
   another: "Controlla un altro sito",
-  stepOf: "Passo {index} di 3",
+  stepOf: "Passo {index} di {total}",
+  nav: {
+    continue: "Continua",
+    back: "Indietro",
+    pause: "Pausa",
+    resume: "Riprendi",
+    auto: "Prosegue da solo tra qualche secondo",
+    held: "In pausa mentre leggi",
+    working: "Al lavoro…",
+    toBilling: "Scegli il tuo piano",
+    announce: "Passo {index} di {total}: {label}",
+  },
+  summary: {
+    waiting: "Dopo",
+    working: "Al lavoro…",
+    pages: "{score}/100 · {count} da correggere",
+    pagesClean: "{score}/100 · nessun problema",
+    pagesSkipped: "Controllo saltato",
+    plan: "{count} azioni per il tuo sito",
+    billingPick: "Scegli un piano",
+    billingChosen: "{plan} · {price}/mese",
+  },
+  billing: {
+    heading: "Scegli il tuo piano",
+    intro: "Scegli quanto fa RepGet per {name} ogni mese. I dati di pagamento arrivano dopo, su una pagina sicura.",
+    options: "Piani",
+    popular: "Il più scelto",
+    perMonth: "/mese",
+    yearly: "oppure {price}/mese con pagamento annuale ({total}/anno)",
+    selected: "Selezionato",
+    orderTitle: "Il tuo ordine",
+    website: "Sito web",
+    plan: "Piano",
+    today: "Da pagare oggi",
+    trial: "Prova gratuita di {days} giorni per i nuovi account",
+    then: "Poi {price}/mese. Annulla quando vuoi prima della fine della prova e non paghi nulla.",
+    noCard: "Nessuna carta richiesta",
+    methods: "Paga con carta o PayPal",
+    methodsCard: "Paga con carta",
+    card: "Carta",
+    paypal: "PayPal",
+    secure: "I dati della carta o di PayPal si inseriscono sulla pagina sicura di Stripe o PayPal, mai su RepGet.",
+    continue: "Crea l’account e continua",
+    nextTitle: "Cosa succede dopo",
+    next: ["Crea il tuo account con email o Google", "Conferma {host}, già inserito", "Aggiungi i dati di pagamento nel checkout sicuro"],
+  },
 };
 
 const de: GrowthPlanCopy = {
@@ -384,7 +630,7 @@ const de: GrowthPlanCopy = {
   title: "Wir lernen {domain} kennen",
   titleDone: "Ihr Wachstumsplan für {name} ist fertig",
   intro: "RepGet liest Ihre Website, prüft Ihre Seiten und macht aus den Ergebnissen einen Plan. Das dauert etwa eine Minute.",
-  phases: ["Ihr Unternehmen analysieren", "Ihre Seiten prüfen", "Ihren Wachstumsplan erstellen"],
+  phases: ["Ihr Unternehmen analysieren", "Ihre Seiten prüfen", "Ihren Wachstumsplan erstellen", "Ihren Plan wählen"],
   phasesLabel: "Fortschritt",
   logTitle: "RepGet bei der Arbeit",
   logLabel: "Was RepGet gerade tut",
@@ -446,7 +692,52 @@ const de: GrowthPlanCopy = {
     note: "Ihre Website ist bereits eingetragen.",
   },
   another: "Andere Website prüfen",
-  stepOf: "Schritt {index} von 3",
+  stepOf: "Schritt {index} von {total}",
+  nav: {
+    continue: "Weiter",
+    back: "Zurück",
+    pause: "Pause",
+    resume: "Fortsetzen",
+    auto: "Geht in wenigen Sekunden von selbst weiter",
+    held: "Pausiert, während Sie lesen",
+    working: "In Arbeit…",
+    toBilling: "Plan wählen",
+    announce: "Schritt {index} von {total}: {label}",
+  },
+  summary: {
+    waiting: "Als Nächstes",
+    working: "In Arbeit…",
+    pages: "{score}/100 · {count} zu beheben",
+    pagesClean: "{score}/100 · keine Probleme",
+    pagesSkipped: "Prüfung übersprungen",
+    plan: "{count} Maßnahmen für Ihre Website",
+    billingPick: "Plan auswählen",
+    billingChosen: "{plan} · {price}/Monat",
+  },
+  billing: {
+    heading: "Wählen Sie Ihren Plan",
+    intro: "Wählen Sie, wie viel RepGet jeden Monat für {name} erledigt. Die Zahlungsdaten folgen danach auf einer sicheren Seite.",
+    options: "Pläne",
+    popular: "Am beliebtesten",
+    perMonth: "/Monat",
+    yearly: "oder {price}/Monat bei jährlicher Zahlung ({total}/Jahr)",
+    selected: "Ausgewählt",
+    orderTitle: "Ihre Bestellung",
+    website: "Website",
+    plan: "Plan",
+    today: "Heute fällig",
+    trial: "{days} Tage kostenlos testen für neue Konten",
+    then: "Danach {price}/Monat. Kündigen Sie jederzeit vor Ende des Tests und zahlen Sie nichts.",
+    noCard: "Keine Karte nötig",
+    methods: "Zahlen per Karte oder PayPal",
+    methodsCard: "Zahlen per Karte",
+    card: "Karte",
+    paypal: "PayPal",
+    secure: "Karten- und PayPal-Daten geben Sie auf der sicheren Seite von Stripe oder PayPal ein, nie bei RepGet.",
+    continue: "Konto erstellen und weiter",
+    nextTitle: "So geht es weiter",
+    next: ["Konto per E-Mail oder Google erstellen", "{host} bestätigen, bereits eingetragen", "Zahlungsdaten im sicheren Checkout eingeben"],
+  },
 };
 
 const COPY: Record<Locale, GrowthPlanCopy> = { en, es, fr, it, de };
