@@ -6,7 +6,7 @@ import { LOCALES, localePath } from "@/lib/i18n/config";
 
 /**
  * The growth plan page (growth-plan-page.tsx) as the server sends it: the
- * visitor's website in the heading, the three steps with only the first one
+ * visitor's website in the heading, the four steps with only the first one
  * under way, the work log, and nothing asked of the server until the browser
  * runs it. Without a usable address the page sends the visitor home.
  */
@@ -35,7 +35,9 @@ describe("the growth plan page", () => {
     expect(html).toContain(esc(fill(t.title, { domain: "acme.com" })));
     for (const phase of t.phases) expect(html).toContain(esc(phase));
     expect(html.match(/data-state="active"/g)).toHaveLength(1);
-    expect(html.match(/data-state="next"/g)).toHaveLength(2);
+    expect(html.match(/data-state="next"/g)).toHaveLength(3);
+    // The plans can be opened at once; the steps still being read cannot.
+    expect(html.match(/<button type="button" class="[^"]*" disabled=""/g)).toHaveLength(2);
     expect(html).toContain(`aria-label="${esc(t.logLabel)}"`);
     expect(html).toContain('role="log"');
     expect(html).toContain(`href="${localePath(locale, "/")}"`);
