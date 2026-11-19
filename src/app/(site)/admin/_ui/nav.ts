@@ -2,6 +2,7 @@ import {
   Banknote,
   Building2,
   ChartLine,
+  Clapperboard,
   Coins,
   FileText,
   Gauge,
@@ -166,6 +167,14 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         icon: Megaphone,
         keywords: ["promo", "promotion", "offer", "holiday", "black friday", "countdown", "announcement", "top bar"],
         description: "The offer bar with a countdown above the public site's header",
+      },
+      {
+        // Client, 2026-11-19: what the AI hook clips are and what they cost.
+        href: "/admin/ai-clips",
+        label: "AI clips",
+        icon: Clapperboard,
+        keywords: ["veo", "gemini", "ai video", "hook clips", "viral", "spend", "cost"],
+        description: "RepGet's AI-made hook clips for viral videos and what they cost",
       },
     ],
   },

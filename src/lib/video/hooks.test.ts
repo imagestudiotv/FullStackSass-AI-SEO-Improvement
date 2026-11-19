@@ -6,6 +6,7 @@ import { productionTimeline, hookTiming, HOOK_MIN_RATE } from "@/remotion/produc
 import type { ProductionReelProps } from "@/remotion/props";
 
 import { HOOK_TECHNIQUES, HOOK_TECHNIQUES_FROM, HOOK_TYPES, hookTypeOf, VIRAL_TECHNIQUES, type VideoScript } from "./formats";
+import { AI_HOOK_LIBRARY, AI_PROVIDER, aiClipPath } from "./footage/ai-library";
 import { libraryPicks } from "./footage/hooks";
 import { HOOK_LIBRARY, type HookLibraryClip } from "./footage/hook-library";
 import { buildPlan } from "./strategy/creative";
@@ -109,6 +110,30 @@ describe("the hook library", () => {
 
   it("leaves out a clip the video already uses", () => {
     expect(libraryPicks("anticipation", "domino", 0, new Set(["pixabay:1"]), LIBRARY).map((clip) => clip.id)).toEqual(["2", "3"]);
+    // Another provider's clip with the same id is a different file.
+    expect(libraryPicks("anticipation", "domino", 0, new Set(["pixabay:1"]), LIBRARY, AI_PROVIDER).map((clip) => clip.id)).toEqual(["1", "2", "3"]);
+    expect(libraryPicks("anticipation", "domino", 0, new Set([`${AI_PROVIDER}:1`]), LIBRARY, AI_PROVIDER).map((clip) => clip.id)).toEqual(["2", "3"]);
+  });
+});
+
+describe("the AI hook clips", () => {
+  it("are checked 9:16 clips with a climax that leaves room for the opening and a second of payoff", () => {
+    expect(new Set(AI_HOOK_LIBRARY.map((clip) => clip.id)).size).toBe(AI_HOOK_LIBRARY.length);
+    for (const clip of AI_HOOK_LIBRARY) {
+      expect(clip.id).toMatch(/^\d{4}-\d{2}-\d{2}-[a-z0-9-]+$/);
+      expect(clip.id.startsWith(clip.madeOn)).toBe(true);
+      expect(HOOK_TYPES).toContain(clip.type);
+      expect(clip.climaxMs).toBeGreaterThanOrEqual(2500);
+      expect(clip.climaxMs).toBeLessThanOrEqual(clip.durationMs - 1000);
+      expect(clip.focalX).toBeUndefined();
+      expect(clip.costUsd).toBeGreaterThan(0);
+      expect(clip.prompt.length).toBeGreaterThan(40);
+      expect(unsafeHookWords(clip.tags.join(" "))).toBe(false);
+    }
+  });
+
+  it("live in the bucket's shared folder, which no website's cleanup touches", () => {
+    expect(aiClipPath("2026-11-19-marble-run")).toBe("shared/ai-clips/2026-11-19-marble-run.mp4");
   });
 });
 
