@@ -278,7 +278,7 @@ export function GrowthPlanFlow({
                       onClick={() => go(index as StepIndex)}
                     >
                       <span className={styles.stepMark} aria-hidden="true">
-                        {view.state === "done" ? "✓" : view.busy ? <span className={styles.markSpinner} /> : index + 1}
+                        {view.state === "done" ? "✓" : index + 1}
                       </span>
                       <span className={styles.stepText} aria-hidden="true">
                         <span className={styles.stepLabel}>{t.phases[index]}</span>

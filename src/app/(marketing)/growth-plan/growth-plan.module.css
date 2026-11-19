@@ -189,13 +189,18 @@
   color: #fff;
 }
 
-.markSpinner {
-  width: 14px;
-  height: 14px;
-  border: 2px solid currentColor;
-  border-right-color: transparent;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+/* The step RepGet is reading now: its number in a breathing ring (a still one under reduced motion). */
+.stepMark {
+  position: relative;
+}
+
+.step[data-busy] .stepMark::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border: 2px dashed rgba(242, 92, 61, 0.6);
+  border-radius: 13px;
+  animation: breathe 1.4s ease-in-out infinite;
 }
 
 .stepText {
@@ -1466,6 +1471,11 @@
     position: static;
   }
 
+  /* One list at a time on a phone, the chosen plan's: the order summary stays near. */
+  .option:not([data-chosen]) .optionList {
+    display: none;
+  }
+
   .back,
   .pause,
   .continue {
@@ -1489,5 +1499,11 @@
 
   .logText[data-typing] {
     clip-path: none;
+  }
+}
+
+@keyframes breathe {
+  50% {
+    opacity: 0.35;
   }
 }
