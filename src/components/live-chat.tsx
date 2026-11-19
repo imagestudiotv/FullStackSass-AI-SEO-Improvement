@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 
 import { splitLocale } from "@/lib/i18n/config";
+import { recordSupportChatEventAction } from "@/lib/support/actions";
 
 /**
  * Live chat.
@@ -55,13 +56,23 @@ import { splitLocale } from "@/lib/i18n/config";
 const WEBSITE_ID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+export type CrispCommand = [string, string?, unknown?];
+
 /**
  * The queue Crisp drains once its script loads, so calls made before then are
- * kept rather than lost. Declared here because we use four of its commands.
+ * kept rather than lost. Once loaded it is Crisp's own object, which also
+ * answers `is` and `get` (docs.crisp.chat, Web SDK "$crisp"); those two are
+ * synchronous and exist only after the load, hence optional.
  */
+export type CrispQueue = {
+  push: (command: CrispCommand) => unknown;
+  is?: (key: string) => boolean;
+  get?: (key: string) => unknown;
+};
+
 declare global {
   interface Window {
-    $crisp?: [string, string?, unknown?][];
+    $crisp?: CrispQueue;
     CRISP_WEBSITE_ID?: string;
     /** Read once at startup; later changes are ignored. */
     CRISP_RUNTIME_CONFIG?: { disable_full_view?: boolean };
@@ -83,7 +94,7 @@ declare global {
  * which is why this only ever fails after load — and why it went unnoticed
  * locally where the widget is usually unconfigured.
  */
-function pushToCrisp(command: [string, string?, unknown?]): void {
+export function pushToCrisp(command: CrispCommand): void {
   try {
     (window.$crisp ??= []).push(command);
   } catch (error) {
@@ -99,7 +110,35 @@ export type ChatUser = {
   organization: string | null;
   /** Plan name, so support knows what the person is paying for. */
   plan: string | null;
+  /**
+   * Crisp identity verification: HMAC-SHA256 of the email with
+   * CRISP_IDENTITY_SECRET, hex (lib/support/crisp-identity.ts). Null when the
+   * secret is not set, and then the email is sent unsigned as before.
+   */
+  emailSignature?: string | null;
+  /**
+   * More for the operator, as Crisp session data (ticket 2026-11-19: "account
+   * or workspace identifier, trial or subscription status, onboarding
+   * completion status, preferred interface language"). Strings, numbers and
+   * booleans only - what Crisp accepts.
+   */
+  data?: Record<string, string | number | boolean>;
 };
+
+/**
+ * Loads Crisp's script now, if it is not already there. LiveChat waits for
+ * the first interaction before doing this; the onboarding welcome
+ * (crisp-onboarding.tsx) calls it when the welcome is due and nobody has
+ * touched the page.
+ */
+export function loadCrispScript(): void {
+  if (typeof document === "undefined" || document.getElementById("crisp-sdk")) return;
+  const script = document.createElement("script");
+  script.id = "crisp-sdk";
+  script.src = "https://client.crisp.chat/l.js";
+  script.async = true;
+  document.head.appendChild(script);
+}
 
 export function LiveChat({
   user,
@@ -127,7 +166,8 @@ export function LiveChat({
   useEffect(() => {
     if (!enabled || !user) return;
 
-    pushToCrisp(["set", "user:email", [user.email]]);
+    // Signed when the deployment has the secret (identity verification, Crisp Mini and up): the conversation then shows as verified.
+    pushToCrisp(["set", "user:email", user.emailSignature ? [user.email, user.emailSignature] : [user.email]]);
     if (user.name) pushToCrisp(["set", "user:nickname", [user.name]]);
     if (user.organization) {
       pushToCrisp(["set", "user:company", [user.organization]]);
@@ -138,11 +178,44 @@ export function LiveChat({
      * changes on upgrade and a stale plan in a support conversation produces
      * the wrong answer about limits.
      */
-    const data: [string, string][] = [];
+    const data: [string, string | number | boolean][] = [];
     if (user.plan) data.push(["plan", user.plan]);
     if (user.organization) data.push(["workspace", user.organization]);
+    for (const [key, value] of Object.entries(user.data ?? {})) data.push([key, value]);
     if (data.length > 0) pushToCrisp(["set", "session:data", [data]]);
   }, [enabled, user]);
+
+  /**
+   * Inside the product: no sounds, and what happens in the chat is noted for
+   * the onboarding welcome and the support numbers (lib/support).
+   *
+   * Muted per the onboarding spec ("Do not play notification sounds"); Crisp
+   * has no dashboard switch for the visitor's sounds, only this command.
+   *
+   * The events say only THAT something happened - never a message's text.
+   * Each kind is sent at most once per page view (a sent message at most once
+   * a minute), so a long conversation is not a stream of requests; the
+   * server keeps the first time of each and counts requests itself.
+   */
+  const signedIn = Boolean(user);
+  useEffect(() => {
+    if (!enabled || !signedIn) return;
+    pushToCrisp(["config", "sound:mute", [true]]);
+    const lastSent = new Map<string, number>();
+    const note = (event: "opened" | "closed" | "sent" | "received", every = Infinity) => () => {
+      const last = lastSent.get(event);
+      if (last !== undefined && (every === Infinity || Date.now() - last < every)) return;
+      lastSent.set(event, Date.now());
+      void recordSupportChatEventAction(event).catch(() => {});
+    };
+    pushToCrisp(["on", "chat:opened", note("opened")]);
+    pushToCrisp(["on", "chat:closed", note("closed")]);
+    pushToCrisp(["on", "message:sent", note("sent", 60_000)]);
+    pushToCrisp(["on", "message:received", note("received")]);
+    return () => {
+      for (const name of ["chat:opened", "chat:closed", "message:sent", "message:received"]) pushToCrisp(["off", name]);
+    };
+  }, [enabled, signedIn]);
 
   /**
    * Match the widget's language to the page.
@@ -193,12 +266,7 @@ export function LiveChat({
     const cleanup = () => events.forEach((event) => window.removeEventListener(event, load, true));
     function load() {
       cleanup();
-      if (document.getElementById("crisp-sdk")) return;
-      const script = document.createElement("script");
-      script.id = "crisp-sdk";
-      script.src = "https://client.crisp.chat/l.js";
-      script.async = true;
-      document.head.appendChild(script);
+      loadCrispScript();
     }
     if (!document.getElementById("crisp-sdk")) {
       events.forEach((event) => window.addEventListener(event, load, { capture: true, passive: true }));

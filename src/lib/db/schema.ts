@@ -43,6 +43,8 @@ import { organizationId, pk, timestamps, userId } from "./columns";
 export * from "./auth-tables";
 // The cash partner program (docs/partner-program.md).
 export * from "./partner-tables";
+// The live chat's onboarding welcome and support tracking (ticket 2026-11-19).
+export * from "./support-tables";
 
 /** FK to websites.id. Declared here because websites lives in this module. */
 const websiteId = () =>

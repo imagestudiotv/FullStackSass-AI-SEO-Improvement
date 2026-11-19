@@ -33,6 +33,7 @@ import { verifyBacklinks } from "./verify-backlinks";
 import { publishSocialPost, socialSuggestionsDaily, suggestSocial } from "./social-media";
 import { makeVideo, publishVideoJob, suggestVideoIdeasJob, videoFollowupDaily, videoIdeasDaily } from "./videos";
 import { chatCleanupDaily } from "./chat";
+import { crispDigestDaily } from "./support-crisp";
 import { lifecycleHourly, lifecycleSignup, lifecycleWeeklySummary, lifecycleWeeklySummaryOne, lifecycleWinback } from "./lifecycle-emails";
 
 export const functions = [
@@ -74,6 +75,8 @@ export const functions = [
   publishVideoJob,
   videoFollowupDaily,
   chatCleanupDaily,
+  // The daily Crisp digest to the admins; inert without the Crisp API token (lib/support/crisp-digest.ts).
+  crispDigestDaily,
   // Lifecycle emails (docs/emails.md): nothing is sent until Admin -> Emails is switched on.
   lifecycleSignup,
   lifecycleHourly,

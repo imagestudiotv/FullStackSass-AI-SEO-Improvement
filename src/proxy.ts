@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { adsenseConfig, isBlogArticlePath } from "./lib/ads/adsense-config";
 import { rewardedAdsConfig } from "./lib/earn/rewarded-ads-config";
 import { contentSecurityPolicy, cspHeaderName, cspIntegrations, cspMode } from "./lib/security-headers";
 
@@ -45,7 +46,9 @@ export function proxy(request: NextRequest) {
   });
   // Google Publisher Tag, for "Watch an ad to earn credits": on that page only, and only while it is on.
   const rewardedAds = request.nextUrl.pathname === "/earn-credits" && rewardedAdsConfig(process.env).enabled;
-  const policy = contentSecurityPolicy({ ...integrations, rewardedAds }, nonce);
+  // AdSense: on a blog article only, and only while the publisher is configured (lib/ads/adsense-config.ts).
+  const adsense = isBlogArticlePath(request.nextUrl.pathname) && adsenseConfig({ NEXT_PUBLIC_ADSENSE_CLIENT: process.env.NEXT_PUBLIC_ADSENSE_CLIENT }).client !== null;
+  const policy = contentSecurityPolicy({ ...integrations, rewardedAds, adsense }, nonce);
   const headers = new Headers(request.headers);
   // Never trust a nonce or CSP supplied by a caller. Next reads the request
   // policy to nonce its framework scripts, including in report-only mode.

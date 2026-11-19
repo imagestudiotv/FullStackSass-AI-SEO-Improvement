@@ -34,6 +34,7 @@ import {
   summarize,
 } from "@/lib/articles/internal-links";
 import { applyTableOfContents } from "@/lib/articles/toc";
+import { emailTeamArticleHeld } from "@/lib/articles/team-notify";
 import { checkReleasable, heldFromCustomer, PREPARING_MESSAGE, reviewStatusForNewDraft, twoStepArticles } from "@/lib/articles/review";
 import { ArticleInFlightError, lockForEdit } from "@/lib/publishing/dispatch";
 import {
@@ -1240,6 +1241,14 @@ export const generateArticle = inngest.createFunction(
       );
       return true;
     });
+
+    /*
+      The team, for an article held for its review (ticket 2026-11-19: "we
+      receive a notification"): an email to ADMIN_EMAILS with its review
+      page, the first article of a new client said so. Does nothing for an
+      article that is not held, and never fails the run.
+    */
+    await step.run("notify-team", () => emailTeamArticleHeld({ articleId }));
 
     await step.run("notify-ready", async () => {
       /*

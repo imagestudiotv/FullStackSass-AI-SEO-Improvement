@@ -31,10 +31,13 @@ import { localePath } from "@/lib/i18n/config";
 export function BlogArticle({
   post,
   sponsorship,
+  ads,
 }: {
   post: BlogPost;
   /** The "Get Featured in This Article" button, on the public page only (not the admin preview). */
   sponsorship?: ReactNode;
+  /** AdSense units (components/ads/article-ads.tsx), on the public page only: after the introduction and after the body. */
+  ads?: { top: ReactNode; end: ReactNode } | null;
 }) {
   const siteHosts = blogSiteHosts();
   const cleanBody = sanitizeHtml(post.body, { siteHosts });
@@ -134,6 +137,8 @@ export function BlogArticle({
         </nav>
       ) : null}
 
+      {ads?.top ?? null}
+
       {/*
         Sanitised HTML (see above).
 
@@ -149,6 +154,8 @@ export function BlogArticle({
         className={`${ARTICLE_TABLE_CLASSES} mt-10 [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-4 [&_em]:italic [&_h2]:mt-10 [&_h2]:scroll-mt-24 [&_h2]:text-2xl [&_h2]:font-semibold [&_h2]:tracking-tight [&_h3]:mt-8 [&_h3]:text-xl [&_h3]:font-semibold [&_li]:my-1.5 [&_p]:my-4 [&_p]:leading-7 [&_strong]:font-semibold [&_ul]:my-4 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:my-4 [&_ol]:list-decimal [&_ol]:pl-6 [&_blockquote]:my-4 [&_blockquote]:border-l-2 [&_blockquote]:pl-4 [&_blockquote]:text-muted-foreground [&_img]:my-6 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-lg`}
         dangerouslySetInnerHTML={{ __html: body }}
       />
+
+      {ads?.end ?? null}
 
       {/*
         FAQ. Native <details> rather than a JS accordion: it works before

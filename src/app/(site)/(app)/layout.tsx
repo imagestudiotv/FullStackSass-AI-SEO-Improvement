@@ -8,6 +8,7 @@ import { MobileNav } from "@/components/mobile-nav";
 import { NotificationBell } from "@/components/notification-bell";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { BrandLogo, BrandMark } from "@/components/brand-logo";
+import { CrispOnboarding } from "@/components/crisp-onboarding";
 import { LiveChat } from "@/components/live-chat";
 import { SidebarNav } from "@/components/sidebar-nav";
 import { PhoneDailyClaim, SidebarCredits, SidebarUsage } from "@/components/sidebar-usage";
@@ -30,6 +31,8 @@ import { WEBSITE_PROJECT_COPY } from "@/lib/i18n/website-projects";
 import { websiteProjectKindOf, websiteProjectsHref } from "@/lib/website-projects/shared";
 import { SetupTracker } from "@/components/setup-tracker";
 import { getSubscription } from "@/lib/billing";
+import { crispEmailSignature } from "@/lib/support/crisp-identity";
+import { welcomeForLayout } from "@/lib/support/onboarding-welcome";
 import { requireOrg } from "@/lib/tenant";
 import {
   hasOnlySharedWork,
@@ -262,6 +265,26 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const showCredits = !selectedShared && !sharedWorkOnly;
   const creditWords = t.app.credits;
 
+  /**
+   * The live chat's onboarding welcome (lib/support/onboarding-welcome.ts):
+   * whether to start the dashboard's 60-second wait for this person. Only
+   * with the chat configured and an owned site whose setup is not finished;
+   * a failure here only means no welcome.
+   */
+  const welcome =
+    process.env.NEXT_PUBLIC_CRISP_WEBSITE_ID?.trim() && ownedLaunch && fallbackWebsiteId
+      ? await welcomeForLayout({
+          userId: session.user.id,
+          organizationId: orgId,
+          accountCreatedAt: new Date(session.user.createdAt),
+          ownsWorkspace: !sharedWorkOnly,
+          setupComplete: ownedLaunch.live,
+        }).catch((error: unknown) => {
+          console.error("[support] welcome check failed", error);
+          return false;
+        })
+      : false;
+
   return (
     /*
       The client's layout (2026-11-02): a full-height sidebar with the logo,
@@ -406,8 +429,25 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           name: session.user.name,
           organization: org?.name ?? null,
           plan: subscription?.planName ?? null,
+          emailSignature: crispEmailSignature(session.user.email),
+          /*
+            What the onboarding spec asks Crisp to know (ticket 2026-11-19):
+            ids to find the account in the admin, the subscription status
+            ("trialing" is the trial), setup progress and the app language.
+          */
+          data: {
+            user_id: session.user.id,
+            workspace_id: orgId,
+            subscription_status: subscription?.status ?? "none",
+            setup_complete: onboardingComplete,
+            ...(setupProgress ? { setup_steps_done: `${setupProgress.done}/${setupProgress.total}` } : {}),
+            language: locale,
+          },
         }}
       />
+      {welcome && ownedLaunch && fallbackWebsiteId ? (
+        <CrispOnboarding websiteId={fallbackWebsiteId} baselineDone={ownedLaunch.doneCount} />
+      ) : null}
     </div>
   );
 }

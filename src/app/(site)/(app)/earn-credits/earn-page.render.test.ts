@@ -246,9 +246,11 @@ describe("Watch an ad to earn credits (ticket 2026-11-13)", () => {
     testMode: false,
   };
 
-  it("is not shown while the feature is off", async () => {
+  it("says ads are unavailable while the feature is off, instead of leaving a silent gap (ticket 2026-11-19)", async () => {
     const html = await render({});
-    expect(html).not.toContain("Watch an ad to earn credits");
+    expect(html).toContain("Watch an ad to earn credits");
+    expect(html).toContain("Ads to earn credits are not available right now.");
+    expect(html).not.toContain("Watch an ad</button>");
     expect(html).not.toContain("googlesyndication");
   });
 

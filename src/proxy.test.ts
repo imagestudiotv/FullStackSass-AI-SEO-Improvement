@@ -125,3 +125,19 @@ describe("Earn Credits' rewarded ads (ticket 2026-11-13)", () => {
     expect(policy("https://repget.test/earn-credits")).not.toContain("securepubads");
   });
 });
+
+describe("AdSense on blog articles (ticket 2026-11-19)", () => {
+  it("allows AdSense on an article page only, and only while the publisher is set", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_ADSENSE_CLIENT", "ca-pub-8510275614015789");
+    const policy = (url: string) => proxy(new NextRequest(url)).headers.get("Content-Security-Policy") ?? "";
+    for (const article of ["https://repget.test/blog/seo-guide", "https://repget.test/es/blog/guia-seo"]) {
+      expect(policy(article), article).toContain("https://fundingchoicesmessages.google.com");
+    }
+    for (const other of ["https://repget.test/blog", "https://repget.test/blog/category/guides", "https://repget.test/es/blog", "https://repget.test/dashboard", "https://repget.test/growth-plan"]) {
+      expect(policy(other), other).not.toContain("fundingchoicesmessages");
+    }
+    vi.stubEnv("NEXT_PUBLIC_ADSENSE_CLIENT", "");
+    expect(policy("https://repget.test/blog/seo-guide")).not.toContain("fundingchoicesmessages");
+  });
+});
