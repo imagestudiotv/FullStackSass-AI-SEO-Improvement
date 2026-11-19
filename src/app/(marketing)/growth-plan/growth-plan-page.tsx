@@ -6,6 +6,7 @@ import { PUBLIC_AUDIT_MAX_PAGES } from "@/lib/audit/limits";
 import { growthPlanCopy } from "@/lib/i18n/growth-plan";
 import { localePath, type Locale } from "@/lib/i18n/config";
 import { TRIAL_DAYS } from "@/lib/plans/features";
+import { freePlanDisplay, type FreePlanCounter } from "@/lib/plans/free-plan";
 import { domainParam } from "@/lib/tools/i18n/meta";
 
 import { GrowthPlanFlow } from "./growth-plan-flow";
@@ -38,22 +39,20 @@ export function GrowthPlanPageContent({
   locale,
   searchParams,
   offers = [],
+  freeCounter = null,
 }: {
   locale: Locale;
   searchParams: Record<string, string | string[] | undefined>;
   offers?: GrowthPlanOffer[];
+  /** The Free plan's launch counter (getFreePlanCounter); null when it could not be read. */
+  freeCounter?: FreePlanCounter | null;
 }) {
   const domain = cleanWebsite(domainParam(searchParams));
   if (!domain) redirect(localePath(locale, "/"));
 
   const signUp = localePath(locale, "/sign-up");
   const onboarding = localePath(locale, "/onboarding/website");
-  /*
-    INTEGRATION(free-plan): agent A's Free plan card, in the reader's
-    language, from src/lib/plans/free-plan.ts mapped to FreePlanOption
-    (plan-offers.ts). Null leaves the paid plans alone.
-  */
-  const free: FreePlanOption | null = null;
+  const free = freeOption(locale, freeCounter);
   return (
     <GrowthPlanFlow
       key={domain}
@@ -74,4 +73,24 @@ export function GrowthPlanPageContent({
       }}
     />
   );
+}
+
+/**
+ * The Free plan's card for the plans step, in the reader's language (the
+ * same display data as /pricing's Free card). Left out once the launch cap
+ * is reached: the paid plans' free trial is the offer then.
+ */
+function freeOption(locale: Locale, counter: FreePlanCounter | null): FreePlanOption | null {
+  const display = freePlanDisplay(locale, counter);
+  if (display.counter?.full) return null;
+  return {
+    tier: display.tier,
+    name: display.name,
+    description: display.desc,
+    badge: display.badge,
+    price: display.price,
+    priceNote: display.caption,
+    features: display.features,
+    cta: display.cta,
+  };
 }

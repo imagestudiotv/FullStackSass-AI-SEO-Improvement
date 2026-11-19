@@ -1,3 +1,5 @@
+import { getFreePlanCounter } from "@/lib/plans/free-plan-server";
+
 import { GrowthPlanPageContent, growthPlanMetadata } from "./growth-plan-page";
 import { loadGrowthPlanOffers } from "./load-offers";
 
@@ -8,6 +10,11 @@ export const dynamic = "force-dynamic";
 
 /** The growth plan (growth-plan-page.tsx); other languages: [locale]/growth-plan. */
 export default async function GrowthPlanPage({ searchParams }: PageProps<"/growth-plan">) {
-  const [params, offers] = await Promise.all([searchParams, loadGrowthPlanOffers("en")]);
-  return <GrowthPlanPageContent locale="en" searchParams={params} offers={offers} />;
+  const [params, offers, freeCounter] = await Promise.all([
+    searchParams,
+    loadGrowthPlanOffers("en"),
+    // Optional: a failed read only leaves the counter (and the full-cap check) out.
+    getFreePlanCounter().catch(() => null),
+  ]);
+  return <GrowthPlanPageContent locale="en" searchParams={params} offers={offers} freeCounter={freeCounter} />;
 }
