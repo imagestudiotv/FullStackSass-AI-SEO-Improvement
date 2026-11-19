@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { videoStockAssets } from "@/lib/db/schema";
 
 import { storeSharedFile } from "../storage";
+import { AI_PROVIDER } from "./ai-library";
 import { FOOTAGE_LIMITS, type StockCandidate } from "./types";
 
 /**
@@ -77,9 +78,16 @@ function storedType(candidate: StockCandidate, contentType: string): string {
 export async function storeCandidate(candidate: StockCandidate, query: string, costUsd: number | null, fetcher: typeof fetch = fetch): Promise<StockAsset> {
   const existing = await cachedAsset(candidate.provider, candidate.providerId, candidate.kind);
   if (existing) return existing;
-  const file = await boundedDownload(candidate.downloadUrl, FOOTAGE_LIMITS.maxBytes, fetcher);
-  const type = storedType(candidate, file.contentType);
-  const url = await storeSharedFile(`stock/${candidate.provider}`, file.data, type);
+  // RepGet's AI clips are in the bucket already: recorded, not copied - once
+  // checked to be there, so a clip not uploaded yet falls back to the next one.
+  let url = candidate.downloadUrl;
+  if (candidate.provider === AI_PROVIDER) {
+    const head = await fetcher(url, { method: "HEAD", signal: AbortSignal.timeout(FOOTAGE_LIMITS.searchTimeoutMs) });
+    if (!head.ok) throw new Error(`The AI clip is not in storage (${head.status})`);
+  } else {
+    const file = await boundedDownload(candidate.downloadUrl, FOOTAGE_LIMITS.maxBytes, fetcher);
+    url = await storeSharedFile(`stock/${candidate.provider}`, file.data, storedType(candidate, file.contentType));
+  }
   const [row] = await db
     .insert(videoStockAssets)
     .values({

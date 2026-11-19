@@ -6,9 +6,10 @@ import { productionTimeline, hookTiming, HOOK_MIN_RATE } from "@/remotion/produc
 import type { ProductionReelProps } from "@/remotion/props";
 
 import { HOOK_TECHNIQUES, HOOK_TECHNIQUES_FROM, HOOK_TYPES, hookTypeOf, VIRAL_TECHNIQUES, type VideoScript } from "./formats";
-import { libraryPicks } from "./footage/hooks";
+import { AI_HOOK_LIBRARY, AI_PROVIDER, aiClipPath } from "./footage/ai-library";
+import { AI_HOOK_SHARE, libraryPicks, opensOnAiClip } from "./footage/hooks";
 import { HOOK_LIBRARY, type HookLibraryClip } from "./footage/hook-library";
-import { buildPlan } from "./strategy/creative";
+import { buildPlan, stableHash } from "./strategy/creative";
 import { canHook, hookQuery, hookTypeFor, SAFE_HOOK_QUERIES, savedTechniques, unsafeHookWords, withOneHook, withoutHooks } from "./strategy/hooks";
 import { systemPrompt, type IdeaInput, type SlotBrief } from "./strategy/prompt";
 
@@ -109,6 +110,45 @@ describe("the hook library", () => {
 
   it("leaves out a clip the video already uses", () => {
     expect(libraryPicks("anticipation", "domino", 0, new Set(["pixabay:1"]), LIBRARY).map((clip) => clip.id)).toEqual(["2", "3"]);
+    // Another provider's clip with the same id is a different file.
+    expect(libraryPicks("anticipation", "domino", 0, new Set(["pixabay:1"]), LIBRARY, AI_PROVIDER).map((clip) => clip.id)).toEqual(["1", "2", "3"]);
+    expect(libraryPicks("anticipation", "domino", 0, new Set([`${AI_PROVIDER}:1`]), LIBRARY, AI_PROVIDER).map((clip) => clip.id)).toEqual(["2", "3"]);
+  });
+});
+
+describe("the AI hook clips", () => {
+  it("are checked 9:16 clips with a climax that leaves room for the opening and a second of payoff", () => {
+    expect(new Set(AI_HOOK_LIBRARY.map((clip) => clip.id)).size).toBe(AI_HOOK_LIBRARY.length);
+    for (const clip of AI_HOOK_LIBRARY) {
+      expect(clip.id).toMatch(/^\d{4}-\d{2}-\d{2}-[a-z0-9-]+$/);
+      expect(clip.id.startsWith(clip.madeOn)).toBe(true);
+      expect(HOOK_TYPES).toContain(clip.type);
+      expect(clip.climaxMs).toBeGreaterThanOrEqual(2500);
+      expect(clip.climaxMs).toBeLessThanOrEqual(clip.durationMs - 1000);
+      expect(clip.focalX).toBeUndefined();
+      expect(clip.costUsd).toBeGreaterThan(0);
+      expect(clip.prompt.length).toBeGreaterThan(40);
+      expect(unsafeHookWords(clip.tags.join(" "))).toBe(false);
+    }
+  });
+
+  it("open about 65% of hooked videos, Pixabay the rest, fixed per video", () => {
+    expect(AI_HOOK_SHARE).toBe(0.65);
+    const ids = Array.from({ length: 4000 }, (_, i) => `${(i * 2654435761).toString(16).padStart(8, "0")}-4b1d-4c2e-9f00-${String(i).padStart(12, "0")}`);
+    const share = ids.filter((id) => opensOnAiClip(stableHash(id))).length / ids.length;
+    expect(share).toBeGreaterThan(0.62);
+    expect(share).toBeLessThan(0.68);
+    // Sequential seeds too, and the same video always gets the same answer.
+    const sequential = Array.from({ length: 4000 }, (_, i) => opensOnAiClip(i)).filter(Boolean).length / 4000;
+    expect(sequential).toBeGreaterThan(0.62);
+    expect(sequential).toBeLessThan(0.68);
+    expect(opensOnAiClip(stableHash(ids[7]))).toBe(opensOnAiClip(stableHash(ids[7])));
+    expect(opensOnAiClip(123, 0)).toBe(false);
+    expect(opensOnAiClip(123, 1)).toBe(true);
+  });
+
+  it("live in the bucket's shared folder, which no website's cleanup touches", () => {
+    expect(aiClipPath("2026-11-19-marble-run")).toBe("shared/ai-clips/2026-11-19-marble-run.mp4");
   });
 });
 

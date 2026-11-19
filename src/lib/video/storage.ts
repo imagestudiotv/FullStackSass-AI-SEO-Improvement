@@ -108,6 +108,20 @@ export async function storeSharedFile(folder: string, data: Buffer | Uint8Array,
 }
 
 /**
+ * The public URL of a shared file put in the bucket ahead of time - RepGet's
+ * AI hook clips (footage/ai-library.ts, scripts/ai-clips-upload.mjs). No
+ * network call. A developer's machine without Supabase serves its copy from
+ * public/, like storeLocally.
+ */
+export function sharedFileUrl(path: string): string {
+  if (!isVideoStorageConfigured()) {
+    const base = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001").replace(/\/+$/, "");
+    return `${base}/${DEV_FOLDER}/${path}`;
+  }
+  return client().storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+}
+
+/**
  * A signed upload address, so the customer's browser sends a clip straight
  * to storage - a 50 MB file never passes through a server function, whose
  * request body is limited to a few megabytes.
