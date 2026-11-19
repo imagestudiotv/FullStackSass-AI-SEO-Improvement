@@ -96,6 +96,8 @@ export type CspIntegrations = {
   ads: boolean;
   /** NEXT_PUBLIC_META_PIXEL_ID: the Meta Pixel, for Facebook ads (lib/meta-pixel.ts, client 2026-11-18). */
   meta?: boolean;
+  /** NEXT_PUBLIC_BRANDFETCH_CLIENT_ID: company suggestions under the homepage field, asked by the browser (lib/websites/brand-search.ts, client 2026-11-19). */
+  brandSearch?: boolean;
   /** NEXT_PUBLIC_SUPABASE_URL's origin: the videos' voice, reels and clips, played and uploaded there (lib/video/storage.ts). */
   storage?: string;
   /**
@@ -117,6 +119,8 @@ export function cspIntegrations(env: Record<string, string | undefined>): CspInt
     ads,
     // Mirrors metaPixelId() in lib/meta-pixel.ts.
     meta: /^\d{10,20}$/.test(env.NEXT_PUBLIC_META_PIXEL_ID?.trim() ?? ""),
+    // Mirrors brandSearchClientId() in lib/websites/brand-search.ts.
+    brandSearch: Boolean(env.NEXT_PUBLIC_BRANDFETCH_CLIENT_ID?.trim()),
     storage: originOf(env.NEXT_PUBLIC_SUPABASE_URL),
   };
 }
@@ -131,7 +135,7 @@ function originOf(url: string | undefined): string | undefined {
 }
 
 /** Every integration on: for tests and for checking the widest policy. */
-export const ALL_INTEGRATIONS = (sentryDsn?: string): CspIntegrations => ({ sentryDsn, crisp: true, googleTag: true, ads: true, meta: true });
+export const ALL_INTEGRATIONS = (sentryDsn?: string): CspIntegrations => ({ sentryDsn, crisp: true, googleTag: true, ads: true, meta: true, brandSearch: true });
 
 /**
  * The allow-list, from what the browser actually loads (audited 2026-10-03,
@@ -255,6 +259,12 @@ export function contentSecurityPolicy(integrations: CspIntegrations, nonce?: str
   */
   const metaScript = integrations.meta ? ["https://connect.facebook.net"] : [];
   const metaConnect = integrations.meta ? ["https://www.facebook.com", "https://connect.facebook.net"] : [];
+  /*
+    Brandfetch's Brand Search (lib/websites/brand-search.ts): the browser asks
+    api.brandfetch.io itself, as its terms require; the logos it names are
+    images from cdn.brandfetch.io, which img-src already allows.
+  */
+  const brandConnect = integrations.brandSearch ? ["https://api.brandfetch.io"] : [];
   const sentry = sentryOrigin(integrations.sentryDsn);
   const storage = integrations.storage ? [integrations.storage] : [];
   const report = cspReportUri(integrations.sentryDsn);
@@ -271,7 +281,7 @@ export function contentSecurityPolicy(integrations: CspIntegrations, nonce?: str
     ["style-src", ["'self'", "'unsafe-inline'", ...crispScript]],
     ["img-src", ["'self'", "data:", "blob:", "https:"]],
     ["font-src", ["'self'", "data:", ...crispScript]],
-    ["connect-src", unique(["'self'", ...crispConnect, ...gaConnect, ...adsConnect, ...metaConnect, ...(sentry ? [sentry] : []), ...storage, ...gptConnect])],
+    ["connect-src", unique(["'self'", ...crispConnect, ...gaConnect, ...adsConnect, ...metaConnect, ...brandConnect, ...(sentry ? [sentry] : []), ...storage, ...gptConnect])],
     ["media-src", ["'self'", "blob:", ...storage, ...crispScript, ...gptMedia]],
     ["frame-src", unique(["'self'", youtube, ...adsFrame, ...gptFrame])],
     ["worker-src", ["'self'", "blob:"]],

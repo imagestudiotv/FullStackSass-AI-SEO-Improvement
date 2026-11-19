@@ -87,17 +87,20 @@ describe("securityHeaders", () => {
 
 describe("cspIntegrations", () => {
   it("allows only what the deployment configures", () => {
-    expect(cspIntegrations({})).toEqual({ sentryDsn: undefined, crisp: false, googleTag: false, ads: false, meta: false });
+    expect(cspIntegrations({})).toEqual({ sentryDsn: undefined, crisp: false, googleTag: false, ads: false, meta: false, brandSearch: false });
     expect(
       cspIntegrations({
         NEXT_PUBLIC_SENTRY_DSN: DSN,
         NEXT_PUBLIC_CRISP_WEBSITE_ID: "11111111-2222-3333-4444-555555555555",
         NEXT_PUBLIC_GA4_MEASUREMENT_ID: "G-ABC123XYZ",
       }),
-    ).toEqual({ sentryDsn: DSN, crisp: true, googleTag: true, ads: false, meta: false });
+    ).toEqual({ sentryDsn: DSN, crisp: true, googleTag: true, ads: false, meta: false, brandSearch: false });
     // The Meta Pixel: its digits only.
     expect(cspIntegrations({ NEXT_PUBLIC_META_PIXEL_ID: " 1063151092935473 " })).toMatchObject({ meta: true, googleTag: false });
     expect(cspIntegrations({ NEXT_PUBLIC_META_PIXEL_ID: "fb-123" })).toMatchObject({ meta: false });
+    // Brandfetch's company search under the homepage field: on with its client ID.
+    expect(cspIntegrations({ NEXT_PUBLIC_BRANDFETCH_CLIENT_ID: " 1idAbC " })).toMatchObject({ brandSearch: true });
+    expect(cspIntegrations({ NEXT_PUBLIC_BRANDFETCH_CLIENT_ID: " " })).toMatchObject({ brandSearch: false });
     // A Tag Manager container loads Google's tag too, and the Ads tags.
     expect(cspIntegrations({ NEXT_PUBLIC_GTM_ID: "GTM-AB12CD3" })).toMatchObject({ googleTag: true, ads: true });
     // Not real ids: nothing loads them, so nothing is allowed.
@@ -159,6 +162,7 @@ describe("contentSecurityPolicy", () => {
       "https://www.googletagmanager.com",
       "https://www.facebook.com",
       "https://connect.facebook.net",
+      "https://api.brandfetch.io",
       "https://o4501.ingest.de.sentry.io",
     ]);
   });
