@@ -1,4 +1,5 @@
 import {
+  Award,
   Building2,
   Coins,
   FileText,
@@ -96,6 +97,11 @@ export const ACTION_META: Record<AdminAction, ActionMeta> = {
   "testimonial.published": { label: "Testimonial published", icon: Quote },
   "testimonial.unpublished": { label: "Testimonial unpublished", icon: Quote },
   "testimonial.deleted": { label: "Testimonial deleted", icon: Quote },
+  "success_story.created": { label: "Success story added", icon: Award },
+  "success_story.saved": { label: "Success story saved", icon: Award },
+  "success_story.published": { label: "Success story published", icon: Award },
+  "success_story.unpublished": { label: "Success story unpublished", icon: Award },
+  "success_story.deleted": { label: "Success story deleted", icon: Trash2, removal: true },
 
   "platform.control_changed": { label: "Platform control changed", icon: Gauge },
   "publication.dispatch_resolved": { label: "Delivery resolved", icon: Gauge },

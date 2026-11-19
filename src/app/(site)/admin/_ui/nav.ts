@@ -1,4 +1,5 @@
 import {
+  Award,
   Banknote,
   Building2,
   ChartLine,
@@ -159,6 +160,13 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         icon: Quote,
         keywords: ["reviews", "quotes", "feedback", "customers", "homepage"],
         description: "The homepage's testimonial cards",
+      },
+      {
+        href: "/admin/success-stories",
+        label: "Success stories",
+        icon: Award,
+        keywords: ["customer stories", "case studies", "brands", "homepage", "discover", "image studio"],
+        description: "The customer stories after Image Studio's, on the homepage, /success-stories and /discover",
       },
       {
         href: "/admin/banner",
