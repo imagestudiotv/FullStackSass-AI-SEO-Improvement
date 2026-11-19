@@ -8,7 +8,6 @@ import { user } from "@/lib/db/auth-tables";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { format } from "@/lib/i18n/format";
 import { freePlanCopy } from "@/lib/i18n/free-plan";
-import { TRIAL_DAYS } from "@/lib/plans/features";
 import { freePlanValues } from "@/lib/plans/free-plan";
 import { recordFreePlanEvent, startFreePlan, type StartFreePlanRefusal } from "@/lib/plans/free-plan-server";
 import { requireOrg } from "@/lib/tenant";
@@ -65,7 +64,7 @@ export async function startFreePlanAction(websiteId: string): Promise<StartFreeP
     has_plan: "This website already has a plan.",
     other_website: t.app.oneWebsite,
     domain_taken: t.app.domainTaken,
-    full: format(t.card.fullNote, { ...freePlanValues(locale), days: TRIAL_DAYS }),
+    full: format(t.card.fullNote, freePlanValues(locale)),
   }[result.reason];
   return { ok: false, reason: result.reason, error };
 }
