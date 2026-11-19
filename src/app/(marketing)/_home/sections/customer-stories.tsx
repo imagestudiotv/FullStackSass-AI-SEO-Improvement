@@ -4,19 +4,12 @@ import Link from "next/link";
 import { businessInitial } from "@/lib/blog/business";
 import { CUSTOMER_STORIES_COPY } from "@/lib/i18n/blog-engagement";
 import type { Locale } from "@/lib/i18n/config";
+import type { StoryCard } from "@/lib/success-stories/order";
 
 import styles from "./customer-stories.module.css";
 
-/** One story as the section shows it (lib/blog/engagement.ts listCustomerStories). */
-export type HomeCustomerStory = {
-  postId: string;
-  title: string;
-  description: string;
-  /** The business's name; the post's author when none is given. */
-  name: string;
-  logoUrl: string | null;
-  href: string;
-};
+/** One story as the section shows it (lib/success-stories/stories.ts listStoryCards). */
+export type HomeCustomerStory = Pick<StoryCard, "id" | "title" | "description" | "name" | "logoUrl" | "href" | "label">;
 
 const fill = (template: string, name: string) => template.replace("{name}", name);
 
@@ -27,21 +20,27 @@ const ARROW = (
 );
 
 /**
- * Customer stories (client, 2026-11-11): the latest three published posts in
- * the blog's Customer stories category, in the visitor's language (or the
- * English ones while it has none), right after the guest Growth Copilot.
- * Nothing at all when there are none. The design's three hand-drawn sample
- * stories are not shipped: every story here is a real post.
+ * Customer stories (client, 2026-11-11): right after the guest Growth
+ * Copilot on the homepage, and on /discover (client, 2026-11-19: "Customer
+ * stories on the homepage, and on discover page also"). The cards come in
+ * the one order lib/success-stories/order.ts keeps - Image Studio first,
+ * always - from the blog's Customer stories posts and Admin -> Success
+ * stories; the homepage shows the first three. Nothing at all when there
+ * are none. The design's three hand-drawn sample stories are not shipped:
+ * every story here is a real one.
  */
 export function CustomerStories({
   locale,
   stories,
   viewAllHref,
+  limit = 3,
 }: {
   locale: Locale;
   stories: HomeCustomerStory[];
-  /** The category's page in the visitor's language. */
+  /** /success-stories in the visitor's language. */
   viewAllHref: string;
+  /** How many cards: the homepage's row of three, more on /discover. */
+  limit?: number;
 }) {
   if (stories.length === 0) return null;
   const t = CUSTOMER_STORIES_COPY[locale];
@@ -60,8 +59,8 @@ export function CustomerStories({
         </header>
         <div className={styles.separator} aria-hidden="true" />
         <div className={styles.stories}>
-          {stories.slice(0, 3).map((story) => (
-            <article key={story.postId} className={styles.story}>
+          {stories.slice(0, limit).map((story) => (
+            <article key={story.id} className={styles.story}>
               <div className={styles.logoWrap}>
                 <div className={styles.logo}>
                   {story.logoUrl ? (
@@ -89,7 +88,7 @@ export function CustomerStories({
                 </div>
                 <p className={styles.description}>{story.description}</p>
                 <p className={styles.byline}>
-                  {story.name} <b>·</b> {t.byline}
+                  {story.name} <b>·</b> {story.label ?? t.byline}
                 </p>
               </div>
             </article>

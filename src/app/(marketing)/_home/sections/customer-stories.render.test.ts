@@ -25,12 +25,13 @@ import { BlogEngagement } from "@/components/blog-engagement/blog-engagement";
 import { CustomerStories, type HomeCustomerStory } from "./customer-stories";
 
 const story = (n: number, extra: Partial<HomeCustomerStory> = {}): HomeCustomerStory => ({
-  postId: `p${n}`,
+  id: `post:p${n}`,
   title: `How Studio ${n} grew`,
   description: `Story ${n} description`,
   name: `Studio ${n}`,
   logoUrl: null,
   href: `/blog/story-${n}`,
+  label: null,
   ...extra,
 });
 
@@ -53,6 +54,20 @@ describe("customer stories on the homepage", () => {
     expect(html).toContain(`Studio 1 <b>·</b> ${t.byline}`);
     // No logo: the business's initial.
     expect(html).toMatch(/>É<\/span>/);
+  });
+
+  it("shows a story's own label in the byline, and more cards where the page asks for them (/discover)", () => {
+    const html = renderToStaticMarkup(
+      createElement(CustomerStories, {
+        locale: "it",
+        viewAllHref: "/it/success-stories",
+        limit: 6,
+        stories: [story(1), story(2, { label: "Founder story" }), story(3), story(4)],
+      }),
+    );
+    expect(html.match(/<article/g)).toHaveLength(4);
+    expect(html).toContain("Studio 2 <b>·</b> Founder story");
+    expect(html).toContain(`Studio 1 <b>·</b> ${CUSTOMER_STORIES_COPY.it.byline}`);
   });
 
   it("is absent without stories", () => {

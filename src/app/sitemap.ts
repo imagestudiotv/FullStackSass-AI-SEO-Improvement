@@ -7,6 +7,8 @@ import { discoverSitemapProfiles } from "@/lib/discover/profiles";
 import { localePath, PREFIXED_LOCALES, TRANSLATED_PATHS } from "@/lib/i18n/config";
 import { INTEGRATION_DOC_PAGES, PUBLIC_PAGES, TOOL_PAGES } from "@/lib/seo/public-pages";
 import { siteUrl as canonicalSiteUrl } from "@/lib/site-url";
+import { successStoryPath } from "@/lib/success-stories/fields";
+import { listPublishedSuccessStories } from "@/lib/success-stories/stories";
 
 /**
  * Sitemap.
@@ -141,5 +143,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.5,
   }));
 
-  return [...pages, ...tools, ...docs, ...posts, ...categories, ...translated, ...translatedPosts, ...translatedCategories, ...profiles];
+  /**
+   * The published success stories from Admin -> Success stories (client,
+   * 2026-11-19), at their English address only: each is written in one
+   * language, and the other languages' pages name the English one as their
+   * canonical. Drafts have no public page.
+   */
+  const stories: MetadataRoute.Sitemap = (await listPublishedSuccessStories()).map((story) => ({
+    url: `${base}${successStoryPath("en", story.slug)}`,
+    lastModified: story.updatedAt,
+    priority: 0.6,
+  }));
+
+  return [...pages, ...tools, ...docs, ...posts, ...categories, ...translated, ...translatedPosts, ...translatedCategories, ...profiles, ...stories];
 }

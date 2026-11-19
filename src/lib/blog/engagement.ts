@@ -2,7 +2,7 @@ import "server-only";
 
 import { and, count, desc, eq, gte, inArray, isNull, ne, or, sql } from "drizzle-orm";
 
-import { blogLocale, blogPath, categoryPath } from "@/lib/blog/locale";
+import { blogLocale, blogPath } from "@/lib/blog/locale";
 import { db, isDatabaseConfigured } from "@/lib/db";
 import { user } from "@/lib/db/auth-tables";
 import { blogCategories, blogCommentUpvotes, blogComments, blogPosts, blogPostUpvotes, blogPostViews } from "@/lib/db/schema";
@@ -16,8 +16,9 @@ import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/config";
  * - Customer stories are PUBLISHED posts in the "Customer stories" category
  *   (address customer-stories; migration 0090 creates it). Each can name the
  *   business it is about (blog_posts.business_*, set in the editor). The
- *   homepage shows the latest three in the visitor's language, and Earn
- *   Credits' "Discover businesses" lists them too.
+ *   Customer stories cards (lib/success-stories/stories.ts: homepage,
+ *   /discover, /success-stories) list them in the visitor's language, and
+ *   Earn Credits' "Discover businesses" lists them too.
  * - Any signed-in user can upvote a published post or a shown comment: one
  *   per user and item (unique indexes), toggled on and off.
  * - Any signed-in user can comment: plain text, 1-750 characters, live at
@@ -77,8 +78,8 @@ export type DiscoverBusiness = {
   href: string;
 };
 
-/** A post's description, for the homepage's stories (DiscoverBusiness has the tagline instead). */
-export type CustomerStory = DiscoverBusiness & { description: string };
+/** A post's description and date, for the customer story cards (DiscoverBusiness has the tagline instead). */
+export type CustomerStory = DiscoverBusiness & { description: string; publishedAt: string | null };
 
 /** Something the caller asked for does not exist (or is not public). */
 export class BlogEngagementNotFound extends Error {
@@ -112,11 +113,6 @@ export async function customerStoriesCategory(): Promise<{ name: string; slug: s
   return row ?? null;
 }
 
-/** "View all customer stories": the category's page in a language. */
-export function customerStoriesPath(locale: Locale, slug: string = CUSTOMER_STORIES_SLUG): string {
-  return categoryPath(locale, slug);
-}
-
 async function storiesIn(category: string, locale: Locale, limit: number) {
   return db
     .select({
@@ -132,6 +128,7 @@ async function storiesIn(category: string, locale: Locale, limit: number) {
       businessCategory: blogPosts.businessCategory,
       businessWebsiteUrl: blogPosts.businessWebsiteUrl,
       businessTagline: blogPosts.businessTagline,
+      publishedAt: blogPosts.publishedAt,
     })
     .from(blogPosts)
     .where(and(published, eq(blogPosts.category, category), eq(blogPosts.locale, locale)))
@@ -168,6 +165,7 @@ export async function listCustomerStories(locale: Locale, limit = 3): Promise<Cu
         imageUrl: row.featuredImageUrl || null,
         logoUrl: row.businessLogoUrl || null,
         href: blogPath(rowLocale, row.slug),
+        publishedAt: row.publishedAt ? row.publishedAt.toISOString() : null,
       };
     });
   } catch (error) {
@@ -176,25 +174,6 @@ export async function listCustomerStories(locale: Locale, limit = 3): Promise<Cu
     console.warn("[blog/engagement] the customer stories columns do not exist yet (migration 0090): showing none");
     return [];
   }
-}
-
-/**
- * The homepage's Customer stories (built ahead, like its other data): the
- * latest three in the visitor's language with the English fallback, and
- * "View all customer stories" - the category's page in that language. Null
- * when there are none: the section is hidden.
- *
- * When the stories shown are the English fallback, "View all" goes to the
- * English page too: the category's page in a language with no stories of its
- * own is empty and noindex, and /de linked it from every German homepage
- * (live audit, 2026-11-13).
- */
-export async function homeCustomerStories(locale: Locale): Promise<{ stories: CustomerStory[]; viewAllHref: string } | null> {
-  const stories = await listCustomerStories(locale, 3);
-  if (stories.length === 0) return null;
-  const category = await customerStoriesCategory();
-  const pageLocale = stories.some((story) => story.locale === locale) ? locale : DEFAULT_LOCALE;
-  return { stories, viewAllHref: customerStoriesPath(pageLocale, category?.slug ?? CUSTOMER_STORIES_SLUG) };
 }
 
 /* ------------------------------------------------------------------------- */
