@@ -29,6 +29,7 @@ vi.mock("@/lib/websites/require-editor", () => ({
   requireEditor: vi.fn(async (id: string) => ({ ok: true, context: await contextFor(id) })),
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+vi.mock("@/lib/admin/guard", () => ({ requireAdmin: async () => ({ email: "admin@repget.test" }) }));
 vi.mock("@/lib/i18n/app-locale", async () => {
   const { getMessages } = await import("@/lib/i18n/messages");
   return { getAppMessages: async () => ({ t: getMessages("en"), locale: "en" }) };
@@ -348,3 +349,46 @@ describe("the Free card's data (shared by every surface)", () => {
   });
 });
 
+
+describe("Admin -> Free plan launch", () => {
+  it("counts signups, milestones, upgrade clicks and spend, and sets the cap without a deploy", async () => {
+    const { getFreePlanLaunch, setFreePlanCap } = await import("@/lib/admin/free-plan");
+    const { freePlanEvents, usageEvents: usage } = await import("@/lib/db/schema");
+    const a = await unpaidSite();
+    const b = await unpaidSite();
+    await startFree(a);
+    await startFree(b);
+    await test.db.insert(usage).values({ organizationId: a.orgId, kind: "llm", costUsd: "1.250000" });
+    await test.db.insert(freePlanEvents).values({ organizationId: b.orgId, kind: "upgrade_click", source: "indicator" });
+
+    const data = await getFreePlanLaunch();
+    expect(data.taken).toBe(2);
+    expect(data.cap).toBe(500);
+    expect(data.launchedAt).not.toBeNull();
+    expect(data.totals.spendCents).toBe(125);
+    expect(data.totals.averageCents).toBe(63);
+    expect(data.totals.upgradeClicks).toBe(1);
+    expect(data.totals.supportRequests).toBeNull();
+    expect(data.perDay).toHaveLength(30);
+    expect(data.accounts.find((row) => row.organizationId === a.orgId)?.spendTotalCents).toBe(125);
+
+    expect(await setFreePlanCap(120)).toEqual({ ok: true });
+    expect(await readFreePlanCap()).toBe(120);
+    expect((await setFreePlanCap(-1)).ok).toBe(false);
+  });
+});
+
+describe("the Partner Network", () => {
+  it("never lists a Free website to receive a link, while a paying one is listed", async () => {
+    const { onFreePlan } = await import("./free-plan-server");
+    const { sql } = await import("drizzle-orm");
+    const free = await unpaidSite();
+    await startFree(free);
+    const paid = await seedWebsite(test, { status: "active" });
+    const rows = await test.db
+      .select({ id: websites.id, free: sql<boolean>`${onFreePlan(websites.id)}` })
+      .from(websites)
+      .where(sql`${websites.id} in (${free.websiteId}, ${paid.websiteId})`);
+    expect(Object.fromEntries(rows.map((row) => [row.id, row.free]))).toEqual({ [free.websiteId]: true, [paid.websiteId]: false });
+  });
+});

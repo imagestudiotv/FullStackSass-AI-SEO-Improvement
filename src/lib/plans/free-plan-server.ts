@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, count, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, count, eq, gte, inArray, sql, type AnyColumn, type SQL } from "drizzle-orm";
 
 import { calendarMonth } from "@/lib/billing/entitlement-period";
 import { db, isDatabaseConfigured } from "@/lib/db";
@@ -229,6 +229,23 @@ export async function isFreePlanWebsite(websiteId: string, executor: Pick<Execut
     )
     .limit(1);
   return Boolean(row);
+}
+
+/**
+ * isFreePlanWebsite as SQL, for queries over many websites (the Partner
+ * Network's beneficiary list, lib/admin/network.ts).
+ */
+export function onFreePlan(websiteId: AnyColumn | SQL): SQL {
+  return sql`exists (
+    select 1 from ${freePlanAccounts} fp
+    where fp.website_id = ${websiteId}
+      and not exists (
+        select 1 from ${subscriptions} fs
+        where fs.website_id = fp.website_id
+          and fs.status in ('active', 'trialing', 'past_due')
+          and fs.plan_id is not null
+      )
+  )`;
 }
 
 /** The workspace's Free website, if the workspace is on Free (for the app shell's indicator). */

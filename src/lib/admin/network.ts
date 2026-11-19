@@ -31,6 +31,7 @@ import { isRelevantPair } from "@/lib/backlinks/matching";
 import { readOneAuthority } from "@/lib/authority/metric";
 import { effectiveMinSourceRank, minRankCaps, STANDARD_MIN_RANK_CAP } from "@/lib/backlinks/authority-cap";
 import { db } from "@/lib/db";
+import { onFreePlan } from "@/lib/plans/free-plan-server";
 import {
   articles,
   backlinkRequests,
@@ -381,6 +382,8 @@ export async function getReviewArticle(articleId: string) {
         ne(websites.organizationId, article.organizationId),
         // The same site in another workspace is not a partner (see placeManagedLink).
         sql`regexp_replace(lower(${websites.domain}), '^www\\.', '') <> regexp_replace(lower(${article.domain}), '^www\\.', '')`,
+        // A Free website hosts links but never receives one (placeManagedLink refuses it too).
+        sql`not ${onFreePlan(websites.id)}`,
       ),
     )
     .orderBy(asc(websites.domain));

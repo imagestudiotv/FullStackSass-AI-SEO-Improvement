@@ -73,6 +73,8 @@ export type FreePlanCopy = {
     preferFree: string;
     /** The launch dashboard's and the indicator's words for a paused Free workspace. */
     pausedShort: string;
+    /** Billing, for a website on Free: what it has, above the plans to upgrade to. */
+    onFree: string;
   };
 };
 
@@ -132,6 +134,7 @@ const en: FreePlanCopy = {
     seePaid: "See Grow and Scale, with a {days}-day free trial",
     preferFree: "Prefer to start free? Start Free, no card required",
     pausedShort: "Free AI paused",
+    onFree: "This website is on the Free plan: {articles} AI SEO articles and {posts} social posts a month. Choose a plan below to grow faster.",
   },
 };
 
@@ -191,6 +194,7 @@ const es: FreePlanCopy = {
     seePaid: "Ver Grow y Scale, con {days} días de prueba gratuita",
     preferFree: "¿Prefiere empezar gratis? Empiece con Free, sin tarjeta",
     pausedShort: "IA de Free en pausa",
+    onFree: "Este sitio web está en el plan Free: {articles} artículos SEO con IA y {posts} publicaciones sociales al mes. Elija un plan abajo para crecer más rápido.",
   },
 };
 
@@ -250,6 +254,7 @@ const fr: FreePlanCopy = {
     seePaid: "Voir Grow et Scale, avec {days} jours d'essai gratuit",
     preferFree: "Vous préférez commencer gratuitement ? Démarrez Free, sans carte",
     pausedShort: "IA de Free en pause",
+    onFree: "Ce site web est sur le plan Free : {articles} articles SEO rédigés par l'IA et {posts} publications sociales par mois. Choisissez un plan ci-dessous pour grandir plus vite.",
   },
 };
 
@@ -309,6 +314,7 @@ const it: FreePlanCopy = {
     seePaid: "Vedi Grow e Scale, con {days} giorni di prova gratuita",
     preferFree: "Preferisce iniziare gratis? Inizi con Free, senza carta",
     pausedShort: "IA di Free in pausa",
+    onFree: "Questo sito web è sul piano Free: {articles} articoli SEO con IA e {posts} post social al mese. Scelga un piano qui sotto per crescere più in fretta.",
   },
 };
 
@@ -368,6 +374,7 @@ const de: FreePlanCopy = {
     seePaid: "Grow und Scale ansehen, mit {days} Tagen kostenloser Testphase",
     preferFree: "Lieber kostenlos starten? Free starten, keine Karte nötig",
     pausedShort: "Free-KI pausiert",
+    onFree: "Diese Website nutzt den Free-Plan: {articles} KI-SEO-Artikel und {posts} Social-Media-Beiträge pro Monat. Wählen Sie unten einen Plan, um schneller zu wachsen.",
   },
 };
 

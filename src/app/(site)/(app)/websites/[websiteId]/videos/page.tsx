@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 
 import { queueJob } from "@/inngest/send";
 import { requireWebsitePlan } from "@/lib/billing/require-plan";
+import { FreePlanNotice } from "@/components/free-plan/free-plan-notice";
+import { isFreePlanWebsite } from "@/lib/plans/free-plan-server";
 import { creditOverviewForRequest } from "@/lib/credits/overview-request";
 import { readCreditSettings } from "@/lib/credits/prices";
 import { db } from "@/lib/db";
@@ -225,6 +227,15 @@ export default async function WebsiteVideosPage({ params, searchParams }: PagePr
   const tab = typeof query.tab === "string" && ["ideas", "videos", "posted", "settings"].includes(query.tab) ? query.tab : "ideas";
   const notice = typeof query.social === "string" ? query.social : null;
   const noticePlatform = typeof query.platform === "string" ? query.platform : null;
+
+  /*
+    The Free plan: AI video production needs an upgrade (videoAccess says
+    "none"); said plainly above the panel rather than leaving it empty.
+  */
+  const free = level === "none" && access === "owner" && (await isFreePlanWebsite(site.id));
+  if (free) {
+    return <FreePlanNotice locale={locale} reason="lockedVideos" websiteId={site.id} source="videos" className="mt-2" />;
+  }
 
   return (
     <VideosPanel
