@@ -55,7 +55,7 @@ export function HomePageSections({
   contentCount: number | null;
   /** The plans on sale (lib/billing.ts), which the pricing section shows. */
   plans: PlanRow[];
-  /** The latest customer stories from the blog (lib/blog/engagement.ts homeCustomerStories); null hides the section. */
+  /** The customer stories, Image Studio first (lib/success-stories/stories.ts customerStoriesSection); null hides the section. */
   customerStories?: { stories: HomeCustomerStory[]; viewAllHref: string } | null;
 }) {
   const props: SectionProps = { locale, href };
@@ -71,7 +71,7 @@ export function HomePageSections({
       <Steps {...props} />
       {/* The guest Growth Copilot (2026-11-11), where the Copilot section was: its anchor stays. */}
       <GuestCopilot locale={locale} id="repget-copilot-connect" />
-      {/* Customer stories (2026-11-11): the latest three from the blog's category; none, no section. */}
+      {/* Customer stories (2026-11-11): the first three, Image Studio first (2026-11-19); none, no section. */}
       {customerStories ? (
         <CustomerStories locale={locale} stories={customerStories.stories} viewAllHref={customerStories.viewAllHref} />
       ) : null}

@@ -3,7 +3,11 @@ import { notFound } from "next/navigation";
 import { isLocale, LOCALES } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
+import { otherStoryCards } from "@/lib/success-stories/stories";
 import { SuccessStoriesContent } from "@/app/(marketing)/success-stories-content";
+
+/** Refreshed at most hourly, and at once on a change in Admin -> Success stories (as the English page). */
+export const revalidate = 3600;
 
 /**
  * Localised success stories: /es/success-stories and the rest.
@@ -39,5 +43,5 @@ export default async function LocalisedSuccessStoriesPage({
   // English lives at /success-stories; /en/... would be a second URL for one page.
   if (!isLocale(locale) || locale === "en") notFound();
 
-  return <SuccessStoriesContent t={getMessages(locale)} locale={locale} />;
+  return <SuccessStoriesContent t={getMessages(locale)} locale={locale} stories={await otherStoryCards(locale)} />;
 }

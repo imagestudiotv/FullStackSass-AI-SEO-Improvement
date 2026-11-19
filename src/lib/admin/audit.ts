@@ -72,6 +72,12 @@ export type AdminAction =
   | "testimonial.published"
   | "testimonial.unpublished"
   | "testimonial.deleted"
+  /* Success stories (lib/admin/success-stories.ts). */
+  | "success_story.created"
+  | "success_story.saved"
+  | "success_story.published"
+  | "success_story.unpublished"
+  | "success_story.deleted"
   /* Operations (lib/admin/operations.ts). */
   | "platform.control_changed"
   | "publication.dispatch_resolved"

@@ -3324,6 +3324,59 @@ export const testimonials = pgTable(
 );
 
 /**
+ * Success stories written in Admin -> Success stories (lib/admin/
+ * success-stories.ts; client, 2026-11-19: "adding success stories from the
+ * dashboard ... the dumitruculiuc website for example, and other websites
+ * too"). Each published one has its page at /success-stories/<slug> and a
+ * card after Image Studio's on the homepage, /success-stories and /discover
+ * (lib/success-stories/order.ts: Image Studio is always first, whatever
+ * sort_order says). Image Studio itself is not a row: its case study is
+ * hand-built (lib/marketing/case-study-image-studio.ts).
+ *
+ * The words are single-language, as the administrator types them; the pages
+ * around them are translated.
+ */
+export const successStories = pgTable(
+  "success_stories",
+  {
+    id: pk(),
+    /** The page's address: /success-stories/<slug>. Lower-case letters, digits and hyphens. */
+    slug: text("slug").notNull(),
+    /** The business's or person's name. */
+    name: text("name").notNull(),
+    /** http(s) only (lib/blog/business.ts businessWebsite). */
+    websiteUrl: text("website_url"),
+    /** One of the blog's pictures (logo or portrait); null shows the name's initial. */
+    logoUrl: text("logo_url"),
+    title: text("title").notNull(),
+    /** The card's text, and the page's lede. */
+    summary: text("summary").notNull(),
+    /** The byline's label; null is "Customer story" in the reader's language. */
+    categoryLabel: text("category_label"),
+    /** Sanitised HTML (lib/articles/sanitize.ts), headings from H2. */
+    bodyHtml: text("body_html").default("").notNull(),
+    /** Key figures shown in a row under the title, e.g. { value: "291", label: "researched keywords" }. */
+    metrics: jsonb("metrics").$type<{ label: string; value: string }[]>().default([]).notNull(),
+    /** The business's /discover/<slug> profile, when it has one. */
+    discoverSlug: text("discover_slug"),
+    seoTitle: text("seo_title"),
+    seoDescription: text("seo_description"),
+    published: boolean("published").default(false).notNull(),
+    /** First published (kept through unpublishing): the page's datePublished. */
+    publishedAt: timestamp("published_at"),
+    /** Ascending, after Image Studio: the order of the cards. */
+    sortOrder: integer("sort_order").default(0).notNull(),
+    createdBy: text("created_by"),
+    updatedBy: text("updated_by"),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("success_stories_slug_uidx").on(table.slug),
+    index("success_stories_published_order_idx").on(table.published, table.sortOrder),
+  ],
+);
+
+/**
  * The bar above the public site's header (client, 2026-11-11: "a top banner
  * text with count that redirects to pricing page ... on the admin dashboard,
  * so we can change the texting quite often during different holidays").

@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { homeCustomerStories } from "@/lib/blog/engagement";
+import { customerStoriesSection } from "@/lib/success-stories/stories";
 import { countContentCreated } from "@/lib/marketing/content-count";
 import { listPublishedTestimonials } from "@/lib/marketing/testimonials-db";
 import { listPlansForPrebuiltPage } from "@/lib/billing";
@@ -53,7 +53,7 @@ export default async function LocalisedHomePage({
     listPlansForPrebuiltPage(),
     listPublishedTestimonials(),
     countContentCreated(),
-    homeCustomerStories(locale),
+    customerStoriesSection(locale),
   ]);
   // Keeps every in-page link inside the reader's language.
   const href = (path: string) => localePath(locale, path);
