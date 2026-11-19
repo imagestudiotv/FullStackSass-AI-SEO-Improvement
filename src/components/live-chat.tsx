@@ -96,7 +96,7 @@ declare global {
  */
 export function pushToCrisp(command: CrispCommand): void {
   try {
-    (window.$crisp ??= []).push(command);
+    (window.$crisp ??= [] as CrispCommand[]).push(command);
   } catch (error) {
     // Logged, never rethrown. A rejected chat setting is not worth a blank page.
     console.error("[live-chat] Crisp rejected", command[1] ?? command[0], error);
@@ -259,7 +259,7 @@ export function LiveChat({
   // This works under nonce CSP on both full loads and client navigation.
   useEffect(() => {
     if (!enabled || !websiteId) return;
-    window.$crisp ??= [];
+    window.$crisp ??= [] as CrispCommand[];
     window.CRISP_WEBSITE_ID = websiteId;
     window.CRISP_RUNTIME_CONFIG = { disable_full_view: true };
     const events = ["scroll", "wheel", "keydown", "touchstart", "pointerdown", "mousemove"];

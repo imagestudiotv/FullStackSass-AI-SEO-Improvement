@@ -97,6 +97,7 @@ export const ACTION_META: Record<AdminAction, ActionMeta> = {
   "testimonial.published": { label: "Testimonial published", icon: Quote },
   "testimonial.unpublished": { label: "Testimonial unpublished", icon: Quote },
   "testimonial.deleted": { label: "Testimonial deleted", icon: Quote },
+  "free_plan.cap_changed": { label: "Free plan cap changed", icon: Gauge },
   "success_story.created": { label: "Success story added", icon: Award },
   "success_story.saved": { label: "Success story saved", icon: Award },
   "success_story.published": { label: "Success story published", icon: Award },
