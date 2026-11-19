@@ -7,6 +7,7 @@ import { getPost, postVersions, relatedPosts } from "@/lib/blog/posts";
 import { sponsorshipConfigured } from "@/lib/blog/sponsorship";
 import { SPONSORSHIP_COPY } from "@/lib/blog/sponsorship-copy";
 
+import { articleAds } from "@/components/ads/article-ads";
 import { BlogPostView, postMetadata } from "../post-view";
 
 /**
@@ -42,7 +43,8 @@ export default async function BlogPostPage({
   // dead URL in the index indefinitely.
   if (!post) notFound();
 
-  const [related, versions, engagement] = await Promise.all([relatedPosts(post), postVersions(slug, "en"), blogEngagementFor(post)]);
+  // AdSense on articles only (ticket 2026-11-19), null while it is off.
+  const [related, versions, engagement, ads] = await Promise.all([relatedPosts(post), postVersions(slug, "en"), blogEngagementFor(post), articleAds("en")]);
 
   return (
     <BlogPostView
@@ -50,6 +52,7 @@ export default async function BlogPostPage({
       versions={versions}
       related={related}
       engagement={engagement}
+      ads={ads}
       sponsorship={
         <BlogSponsorship
           slug={post.slug}

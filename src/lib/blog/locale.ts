@@ -89,6 +89,8 @@ export type BlogChrome = {
   faq: string;
   sources: string;
   keepReading: string;
+  /** The label above an AdSense unit on an article (lib/ads/adsense.ts); AdSense allows "Advertisements" or "Sponsored links". */
+  advertisement: string;
   home: string;
   blog: string;
   /** The front page's h1, with the accent word last. */
@@ -140,6 +142,7 @@ export const BLOG_CHROME: Record<Locale, BlogChrome> = {
     faq: "FAQ",
     sources: "Sources",
     keepReading: "Keep reading",
+    advertisement: "Advertisement",
     home: "Home",
     blog: "Blog",
     titleLead: "The RepGet",
@@ -176,6 +179,7 @@ export const BLOG_CHROME: Record<Locale, BlogChrome> = {
     faq: "Preguntas frecuentes",
     sources: "Fuentes",
     keepReading: "Siga leyendo",
+    advertisement: "Publicidad",
     home: "Inicio",
     blog: "Blog",
     titleLead: "El blog de",
@@ -212,6 +216,7 @@ export const BLOG_CHROME: Record<Locale, BlogChrome> = {
     faq: "Questions fréquentes",
     sources: "Sources",
     keepReading: "À lire aussi",
+    advertisement: "Publicité",
     home: "Accueil",
     blog: "Blog",
     titleLead: "Le blog",
@@ -248,6 +253,7 @@ export const BLOG_CHROME: Record<Locale, BlogChrome> = {
     faq: "Domande frequenti",
     sources: "Fonti",
     keepReading: "Continui a leggere",
+    advertisement: "Pubblicità",
     home: "Home",
     blog: "Blog",
     titleLead: "Il blog di",
@@ -284,6 +290,7 @@ export const BLOG_CHROME: Record<Locale, BlogChrome> = {
     faq: "Häufige Fragen",
     sources: "Quellen",
     keepReading: "Weiterlesen",
+    advertisement: "Anzeige",
     home: "Startseite",
     blog: "Blog",
     titleLead: "Der RepGet",
