@@ -32,7 +32,7 @@ import { hasOnlySharedWork } from "@/lib/websites/accessible";
 
 import { DiscoverEarn } from "./discover-earn";
 import { EarnWays, EnterReferralCode, ReferralShare } from "./earn-client";
-import { RewardedAdCard } from "./rewarded-ad-card";
+import { RewardedAdCard, RewardedAdUnavailable } from "./rewarded-ad-card";
 import { ShareKit } from "./share-kit";
 
 const messagesFor = cache((userId: string) => getAppMessages(userId));
@@ -282,8 +282,13 @@ export default async function EarnCreditsPage() {
         </section>
       </div>
 
-      {/* Watch an ad to earn credits (ticket 2026-11-13): shown only when the deployment has it fully set up. */}
-      {rewardedAds ? <RewardedAdCard initial={rewardedAds} t={EARN_REWARDED_ADS_COPY[locale]} /> : null}
+      {/* Watch an ad to earn credits (ticket 2026-11-13): the card when the deployment has it fully set up. */}
+      {rewardedAds ? (
+        <RewardedAdCard initial={rewardedAds} t={EARN_REWARDED_ADS_COPY[locale]} />
+      ) : (
+        // Off on this deployment, or its state could not be read: said, never a silent gap (ticket 2026-11-19).
+        <RewardedAdUnavailable t={EARN_REWARDED_ADS_COPY[locale]} />
+      )}
 
       {discover && discover.businesses.length > 0 ? (
         <DiscoverEarn businesses={discover.businesses} progress={discover.progress} claimed={discover.claimed} t={EARN_DISCOVER_COPY[locale]} />
