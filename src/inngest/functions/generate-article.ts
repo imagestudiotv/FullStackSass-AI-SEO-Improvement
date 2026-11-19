@@ -60,7 +60,8 @@ import {
   type QuotaRule,
   type Reservation,
 } from "@/lib/billing/spend-quota";
-import { requireEntitledForSpend } from "@/lib/billing/entitled";
+import { isEntitledToSpend, requireEntitledForSpend } from "@/lib/billing/entitled";
+import { freePlanMessage } from "@/lib/plans/free-plan";
 import { endFreeTrialIfUsed } from "@/lib/billing/end-free-trial";
 import { freeArticlesDailyRule, freeArticlesUsedMessage, trialArticlesUsedMessage } from "@/lib/billing/free-articles";
 import { FREE_ARTICLES_ONLY, FREE_ARTICLES_ONLY_PAYPAL } from "@/lib/plans/features";
@@ -1401,6 +1402,11 @@ export async function queueArticleForCalendarItem(
   if (isInactive(entitlement.reason)) {
     return { ok: false, error: NOT_ENTITLED };
   }
+  // The Free plan writes only while its AI cost protection allows (lib/billing/entitled.ts).
+  if (entitlement.free) {
+    const entitled = await isEntitledToSpend(websiteId, { freeArticles: true });
+    if (!entitled.ok) return { ok: false, error: entitled.error };
+  }
 
   // Reuse an existing article for this item rather than creating a second one.
   const [existing] = await db
@@ -1473,9 +1479,11 @@ export async function queueArticleForCalendarItem(
         ok: false as const,
         error: allowance.freeArticles
           ? freeArticlesUsedMessage()
-          : allowance.trial
-            ? trialArticlesUsedMessage(allowance.rule.limit)
-            : `Your plan includes ${allowance.rule.limit} articles per month, and they have all been used.`,
+          : allowance.free
+            ? freePlanMessage("articlesUsed")
+            : allowance.trial
+              ? trialArticlesUsedMessage(allowance.rule.limit)
+              : `Your plan includes ${allowance.rule.limit} articles per month, and they have all been used.`,
         freeArticlesUsed: allowance.freeArticles,
       };
     }

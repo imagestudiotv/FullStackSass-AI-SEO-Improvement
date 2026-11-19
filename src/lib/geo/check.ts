@@ -26,6 +26,13 @@ import { anthropic, MODELS } from "@/lib/ai/client";
 export const ENGINE = "claude";
 
 /**
+ * Told the tokens of each model call, so the job can record what a check
+ * cost (usage_events, inngest/functions/check-geo.ts). Optional: a caller
+ * that does not meter passes nothing.
+ */
+export type OnUsage = (model: string, usage: { input_tokens: number; output_tokens: number }) => void;
+
+/**
  * Brands named in one answer, in the order they appeared.
  *
  * Order is the signal: assistants list their strongest recommendation first,
@@ -106,12 +113,13 @@ export function isSameBrand(candidate: string, brand: string): boolean {
  * produce it, and the measurement would report our own suggestion back to us.
  * The question is asked cold, exactly as a customer would ask it.
  */
-export async function askAssistant(prompt: string): Promise<string> {
+export async function askAssistant(prompt: string, onUsage?: OnUsage): Promise<string> {
   const response = await anthropic.messages.create({
     model: MODELS.GENERATION,
     max_tokens: 1024,
     messages: [{ role: "user", content: prompt }],
   });
+  onUsage?.(MODELS.GENERATION, response.usage);
 
   return response.content
     .filter((block): block is Anthropic.TextBlock => block.type === "text")
@@ -141,6 +149,7 @@ function stripFence(text: string): string {
 export async function extractBrands(
   answer: string,
   domain: string,
+  onUsage?: OnUsage,
 ): Promise<Extraction> {
   const response = await anthropic.messages.create({
     model: MODELS.EXTRACTION,
@@ -170,6 +179,7 @@ ${answer}
       },
     ],
   });
+  onUsage?.(MODELS.EXTRACTION, response.usage);
 
   const text = response.content
     .filter((block): block is Anthropic.TextBlock => block.type === "text")
@@ -254,9 +264,10 @@ export async function runCheck(
   prompt: string,
   brand: string,
   domain: string,
+  onUsage?: OnUsage,
 ): Promise<CheckOutcome> {
-  const answer = await askAssistant(prompt);
-  const extraction = await extractBrands(answer, domain);
+  const answer = await askAssistant(prompt, onUsage);
+  const extraction = await extractBrands(answer, domain, onUsage);
 
   const index = extraction.brands.findIndex((candidate) =>
     isSameBrand(candidate, brand),

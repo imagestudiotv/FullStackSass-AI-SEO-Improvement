@@ -6,6 +6,8 @@ import { spendCredits } from "@/lib/credits/spend";
 import { db } from "@/lib/db";
 import { chatMessages } from "@/lib/db/schema";
 import type { Executor } from "@/lib/db/types";
+import { FREE_PLAN } from "@/lib/plans/free-plan";
+import { isFreeWorkspace } from "@/lib/plans/free-plan-server";
 
 import { CHAT_FREE_PER_DAY, startOfUtcDay } from "./config";
 
@@ -31,8 +33,18 @@ export async function freeUsedToday(organizationId: string, now: Date = new Date
   return Number(row?.n ?? 0);
 }
 
+/**
+ * Free messages a day for this workspace: CHAT_FREE_PER_DAY, or the Free
+ * plan's FREE_PLAN.copilotPerDay ("3 Growth Copilot requests per day") for a
+ * workspace on Free. After them a message costs credits, as on every plan.
+ */
+export async function freePerDayFor(organizationId: string, executor: Pick<Executor, "select"> = db): Promise<number> {
+  return (await isFreeWorkspace(organizationId, executor)) ? FREE_PLAN.copilotPerDay : CHAT_FREE_PER_DAY;
+}
+
 export async function freeLeftToday(organizationId: string, now: Date = new Date()): Promise<number> {
-  return Math.max(0, CHAT_FREE_PER_DAY - (await freeUsedToday(organizationId, now)));
+  const [perDay, used] = await Promise.all([freePerDayFor(organizationId), freeUsedToday(organizationId, now)]);
+  return Math.max(0, perDay - used);
 }
 
 export type Allowance =
@@ -52,7 +64,7 @@ export async function takeAllowance(
   now: Date = new Date(),
 ): Promise<Allowance> {
   await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`chat:${input.organizationId}`}))`);
-  if ((await freeUsedToday(input.organizationId, now, tx)) < CHAT_FREE_PER_DAY) return { ok: true, free: true, spendKey: null };
+  if ((await freeUsedToday(input.organizationId, now, tx)) < (await freePerDayFor(input.organizationId, tx))) return { ok: true, free: true, spendKey: null };
   const spent = await spendCredits(tx, { organizationId: input.organizationId, action: "chat_message", key: input.key, websiteId: input.websiteId }, now);
   if (!spent.ok) return { ok: false, price: spent.price, available: spent.available };
   return { ok: true, free: false, spendKey: spent.spendId ? input.key : null };

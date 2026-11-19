@@ -4421,3 +4421,63 @@ export const rewardedAdViews = pgTable(
     check("rewarded_ad_views_reward_check", sql`${table.rewardCredits} > 0`),
   ],
 );
+
+/* ------------------------------------------------------------------------- */
+/* The Free Forever plan (lib/plans/free-plan.ts, 2026-11-19)                 */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * The workspaces that started Free, one row each: their Free website, and
+ * when they started. This IS the Free plan - it has no plans row and no
+ * subscription (nothing is charged, nothing at Stripe or PayPal) - and the
+ * launch counter is the number of rows ("430 / 500 free spots taken"),
+ * admitted one at a time under a lock against the cap
+ * (lib/plans/free-plan-server.ts startFreePlan).
+ *
+ * ONE PER WORKSPACE, ONE PER WEBSITE, ONE PER DOMAIN (unique indexes): Free
+ * covers one website, and a domain cannot be on two Free accounts (the
+ * client's worry is AI cost, and a second free account for the same site is
+ * the cheapest way to double it). `domain` is lower-case without "www.".
+ *
+ * A subscription on the website always wins (lib/usage.ts resolvePlan), so
+ * upgrading needs no change here: the row stays as the launch dashboard's
+ * history ("converted to paid"). Deleting the website keeps the row, with a
+ * null website: the workspace has used its Free start.
+ */
+export const freePlanAccounts = pgTable(
+  "free_plan_accounts",
+  {
+    id: pk(),
+    organizationId: organizationId(),
+    websiteId: uuid("website_id").references(() => websites.id, { onDelete: "set null" }),
+    domain: text("domain").notNull(),
+    /** Who pressed "Start Free". */
+    userId: userId(),
+    startedAt: timestamp("started_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("free_plan_accounts_org_uidx").on(table.organizationId),
+    uniqueIndex("free_plan_accounts_website_uidx").on(table.websiteId),
+    uniqueIndex("free_plan_accounts_domain_uidx").on(table.domain),
+    index("free_plan_accounts_started_idx").on(table.startedAt),
+  ],
+);
+
+/**
+ * What the launch dashboard cannot derive from other tables: a Free
+ * workspace pressing an upgrade prompt (kind "upgrade_click", with where:
+ * `source`). Checkouts started and plans bought are read from
+ * billing_checkouts and subscriptions instead.
+ */
+export const freePlanEvents = pgTable(
+  "free_plan_events",
+  {
+    id: pk(),
+    organizationId: organizationId(),
+    userId: userId(),
+    kind: text("kind").notNull(),
+    source: text("source"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [index("free_plan_events_org_kind_idx").on(table.organizationId, table.kind)],
+);

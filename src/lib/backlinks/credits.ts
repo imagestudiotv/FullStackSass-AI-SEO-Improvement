@@ -29,6 +29,7 @@ import {
 } from "@/lib/billing/entitlement-period";
 import { db } from "@/lib/db";
 import type { Executor } from "@/lib/db/types";
+import { grantFreePlanCredits } from "@/lib/plans/free-plan-server";
 import { backlinkRequests, creditLedger, plans, subscriptions } from "@/lib/db/schema";
 
 /**
@@ -411,6 +412,12 @@ export async function ensureMonthlyCredits(organizationId: string): Promise<void
     await grantMonthlyCredits(organizationId);
   } catch (error) {
     console.error("[credits] could not grant this month's plan credits", { organizationId, error });
+  }
+  // The Free plan's social posts, paid in credits like every plan's (lib/plans/free-plan-server.ts).
+  try {
+    await grantFreePlanCredits(organizationId);
+  } catch (error) {
+    console.error("[credits] could not grant this month's Free plan credits", { organizationId, error });
   }
 }
 

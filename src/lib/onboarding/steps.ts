@@ -8,6 +8,7 @@ import { articles, geoPrompts, websites } from "@/lib/db/schema";
 import { getSubscription } from "@/lib/billing";
 import { isAgencyWorkspace } from "@/lib/agency/core";
 import { TRIAL_DAYS } from "@/lib/plans/features";
+import { isFreePlanWebsite } from "@/lib/plans/free-plan-server";
 
 /**
  * Where a new customer is in setting up.
@@ -126,7 +127,7 @@ export const getOnboardingState = cache(async function getOnboardingState(
 
   const site = sites[0] ?? null;
 
-  const [promptCount, articleCount, trial] = site
+  const [promptCount, articleCount, trial, onFree] = site
     ? await Promise.all([
         db
           .select({ n: count() })
@@ -140,11 +141,13 @@ export const getOnboardingState = cache(async function getOnboardingState(
           .select({ on: sql<boolean>`${onFreeArticles(websites.id)}` })
           .from(websites)
           .where(eq(websites.id, site.id)),
+        // The Free plan (lib/plans/free-plan.ts): set up like a paid site, nothing to buy.
+        isFreePlanWebsite(site.id),
       ])
-    : [[{ n: 0 }], [{ n: 0 }], [{ on: false }]];
+    : [[{ n: 0 }], [{ n: 0 }], [{ on: false }], false];
   const freeArticles = Boolean(trial[0]?.on);
 
-  const hasPlan = agency || isEntitled(subscription?.status);
+  const hasPlan = agency || isEntitled(subscription?.status) || onFree;
   const hasWebsite = site !== null;
   /**
    * The profile step is done once analysis has finished, not once the customer

@@ -39,7 +39,8 @@ export type SocialAccess = {
  * suggest.ts and publish.ts never hand a post to bundle.social.
  */
 export async function socialAccess(websiteId: string): Promise<SocialAccess> {
-  if ((await isEntitledToSpend(websiteId)).ok) return { level: "paid", platforms: SOCIAL_PLATFORMS };
+  // The Free plan too: its social posts are paid in its monthly credits (lib/plans/free-plan.ts).
+  if ((await isEntitledToSpend(websiteId, { free: true })).ok) return { level: "paid", platforms: SOCIAL_PLATFORMS };
   if ((await isEntitledToSpend(websiteId, { freeArticles: true })).ok) return { level: "trial", platforms: TRIAL_PLATFORMS };
   if ((await isEntitledToSpend(websiteId, { internalTesting: true })).ok) return { level: "paid", platforms: SOCIAL_PLATFORMS, manualOnly: true };
   return { level: "none", platforms: [] };

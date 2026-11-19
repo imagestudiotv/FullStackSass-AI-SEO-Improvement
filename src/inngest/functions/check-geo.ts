@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { geoPrompts, geoResults, websites } from "@/lib/db/schema";
 import { ENGINE, runCheck } from "@/lib/geo/check";
 import { isEntitledToSpend } from "@/lib/billing/entitled";
+import { llmCostUsd, track } from "@/lib/usage";
 import {
   paidCall,
   releaseUnspent,
@@ -86,6 +87,7 @@ export const checkGeo = inngest.createFunction(
           websiteId: geoPrompts.websiteId,
           brandName: websites.brandName,
           domain: websites.domain,
+          organizationId: websites.organizationId,
         })
         .from(geoPrompts)
         .innerJoin(websites, eq(geoPrompts.websiteId, websites.id))
@@ -181,16 +183,38 @@ export const checkGeo = inngest.createFunction(
             weekly sweep paying for websites whose plan has ended - it used to
             check every site with active prompts, subscribed or not.
           */
-          const entitled = await isEntitledToSpend(target.websiteId);
+          /*
+            The Free plan's snapshot only when its owner asked for it (an
+            event run, counted against its month in runGeoCheck): the weekly
+            sweep never spends on a Free website.
+          */
+          const entitled = await isEntitledToSpend(target.websiteId, websiteId ? { free: true } : {});
           if (!entitled.ok) {
             return { ok: false as const, message: "not_entitled", stop: true };
           }
 
           try {
+            const tokens: { model: string; input: number; output: number }[] = [];
             const result = await paidCall(
               target.websiteId === websiteId ? reservations : undefined,
-              () => runCheck(prompt.prompt, brand, target.domain),
+              () => runCheck(prompt.prompt, brand, target.domain, (model, usage) => tokens.push({ model, input: usage.input_tokens, output: usage.output_tokens })),
             );
+            /*
+              What the check cost, per model call, on the owner's account: the
+              AI visibility checks were the one AI path not metered, and the
+              Free plan's cost cap (lib/plans/free-plan-server.ts) reads these.
+            */
+            for (const call of tokens) {
+              await track(target.organizationId, {
+                kind: "llm",
+                provider: "anthropic",
+                model: call.model,
+                quantity: call.input + call.output,
+                costUsd: llmCostUsd(call.model, call.input, call.output) ?? undefined,
+                websiteId: target.websiteId,
+                metadata: { purpose: "geo_check", inputTokens: call.input, outputTokens: call.output },
+              }).catch((error) => logger.error({ step: `check-${prompt.id}`, error: String(error) }, "Could not record the check's cost"));
+            }
 
             logger.info(
               {
