@@ -7,6 +7,8 @@ import { format } from "@/lib/i18n/format";
 import { pricingPageCopy, type PricingTierId } from "@/lib/i18n/pricing-page";
 import type { Testimonial } from "@/lib/marketing/testimonials";
 import { GROW_VISIBILITY_COMPARE_AT_CENTS, GROW_VISIBILITY_TIER, signUpForPlan } from "@/lib/plans/features";
+import { freePlanCopy } from "@/lib/i18n/free-plan";
+import { FREE_PLAN, freePlanDisplay, freePlanValues, type FreePlanCounter } from "@/lib/plans/free-plan";
 
 import { Reviews } from "../_home/sections/reviews";
 import { PlansBilling } from "./plans-billing";
@@ -38,7 +40,12 @@ function marks(text: string): ReactNode {
   return parts;
 }
 
-const TIERS: PricingTierId[] = ["launch", "grow", "scale"];
+/**
+ * The paid tiers ON SALE, in order. Launch is not one any more: the Free plan
+ * replaced it (2026-11-19, lib/plans/free-plan.ts) and its card comes first.
+ * Its words stay in lib/i18n/pricing-page.ts for its subscribers' Billing.
+ */
+const TIERS: PricingTierId[] = ["grow", "scale"];
 
 /** The design's icon for each plan. */
 const ICONS: Record<PricingTierId, ReactNode> = {
@@ -91,6 +98,7 @@ export function PricingView({
   plans,
   testimonials,
   offer,
+  freeCounter = null,
 }: {
   locale: Locale;
   /** The plans on sale (lib/billing.ts listPlans). */
@@ -99,8 +107,11 @@ export function PricingView({
   testimonials: Testimonial[];
   /** Whether the REPGET offer is on (REPGET_OFFER_ENABLED). */
   offer: boolean;
+  /** The Free plan's launch counter (lib/plans/free-plan-server.ts getFreePlanCounter), or null to leave it out. */
+  freeCounter?: FreePlanCounter | null;
 }) {
   const t = pricingPageCopy(locale);
+  const free = freePlanDisplay(locale);
   const href = (path: string) => localePath(locale, path);
   const number = (n: number) => n.toLocaleString(locale === "en" ? "en-IE" : locale);
 
@@ -260,6 +271,7 @@ export function PricingView({
           saving={offer ? t.billing.saving : t.billing.savingPlain}
         >
           <div className={c("plans")}>
+            <FreeCard locale={locale} counter={freeCounter} />
             {tiers.map((tier) => {
               const plan = monthly.get(tier)!;
               const yearRow = annual.get(tier) ?? null;
@@ -371,6 +383,7 @@ export function PricingView({
               <thead>
                 <tr>
                   <th>{t.compare.included}</th>
+                  <th>{free.name}</th>
                   {tiers.map((tier) => (
                     <th key={tier} className={tier === "grow" ? c("featured-col") : undefined}>
                       {monthly.get(tier)!.name}
@@ -380,7 +393,7 @@ export function PricingView({
                 </tr>
               </thead>
               <tbody>
-                {compareRows(t.compare).map((row) => (
+                {compareRows(t.compare, freePlanCopy(locale).compare, freePlanValues(locale)).map((row) => (
                   <tr key={row.key}>
                     <td>
                       {row.sub ? (
@@ -392,6 +405,7 @@ export function PricingView({
                         row.label
                       )}
                     </td>
+                    <td>{cell(row.free, t.compare, number)}</td>
                     {tiers.map((tier) => (
                       <td key={tier} className={tier === "grow" ? c("featured-col") : undefined}>
                         {cell(row.value(tier, monthly.get(tier)!), t.compare, number)}
@@ -541,7 +555,7 @@ export function PricingView({
 }
 
 type CompareCopy = ReturnType<typeof pricingPageCopy>["compare"];
-type CellValue = { kind: "count"; n: number } | { kind: "yes" } | { kind: "no" } | { kind: "included" } | { kind: "priority" };
+type CellValue = { kind: "count"; n: number } | { kind: "text"; text: string } | { kind: "yes" } | { kind: "no" } | { kind: "included" } | { kind: "priority" };
 
 const count = (n: number): CellValue => ({ kind: "count", n });
 const YES: CellValue = { kind: "yes" };
@@ -550,24 +564,33 @@ const NO: CellValue = { kind: "no" };
 const perk = (tier: PricingTierId): CellValue => (tier === "launch" ? NO : tier === "grow" ? { kind: "included" } : { kind: "priority" });
 const scaleOnly = (tier: PricingTierId): CellValue => (tier === "scale" ? YES : NO);
 
-/** The design's rows, in its order. Counts come from the plan rows. */
-function compareRows(t: CompareCopy): { key: string; label: string; sub?: string; value: (tier: PricingTierId, plan: PlanRow) => CellValue }[] {
+/**
+ * The design's rows, in its order. Counts come from the plan rows; the Free
+ * column (`free`) from lib/plans/free-plan.ts FREE_PLAN, the numbers its
+ * allowances enforce: no backlinks and no visibility perks on Free.
+ */
+function compareRows(
+  t: CompareCopy,
+  f: ReturnType<typeof freePlanCopy>["compare"],
+  values: ReturnType<typeof freePlanValues>,
+): { key: string; label: string; sub?: string; free: CellValue; value: (tier: PricingTierId, plan: PlanRow) => CellValue }[] {
+  const text = (words: string): CellValue => ({ kind: "text", text: format(words, values) });
   return [
-    { key: "articles", label: t.articles, value: (_tier, plan) => count(plan.articleLimit) },
-    { key: "posts", label: t.posts, value: (_tier, plan) => count(plan.socialPostLimit) },
-    { key: "terms", label: t.terms, value: (_tier, plan) => count(plan.keywordLimit) },
+    { key: "articles", label: t.articles, free: count(FREE_PLAN.articlesPerMonth), value: (_tier, plan) => count(plan.articleLimit) },
+    { key: "posts", label: t.posts, free: count(FREE_PLAN.socialPostsPerMonth), value: (_tier, plan) => count(plan.socialPostLimit) },
+    { key: "terms", label: t.terms, free: count(FREE_PLAN.searchTerms), value: (_tier, plan) => count(plan.keywordLimit) },
     // One website per subscription, on every plan (lib/plans/features.ts ONE_WEBSITE).
-    { key: "websites", label: t.websites, value: () => count(1) },
-    { key: "copilot", label: t.copilot.strong, sub: t.copilot.small, value: () => YES },
-    { key: "social", label: t.social.strong, sub: t.social.small, value: () => YES },
-    { key: "cms", label: t.cms, value: () => YES },
-    { key: "audits", label: t.audits, value: () => YES },
-    { key: "visibility", label: t.visibility, value: () => YES },
-    { key: "backlinks", label: t.backlinks, value: () => YES },
-    { key: "blog", label: t.blog.strong, sub: t.blog.small, value: (tier) => perk(tier) },
-    { key: "channels", label: t.channels.strong, sub: t.channels.small, value: (tier) => perk(tier) },
-    { key: "email", label: t.email.strong, sub: t.email.small, value: (tier) => perk(tier) },
-    { key: "custom", label: t.custom, value: (tier) => scaleOnly(tier) },
+    { key: "websites", label: t.websites, free: count(FREE_PLAN.websites), value: () => count(1) },
+    { key: "copilot", label: t.copilot.strong, sub: t.copilot.small, free: text(f.copilotPerDay), value: () => YES },
+    { key: "social", label: t.social.strong, sub: t.social.small, free: YES, value: () => YES },
+    { key: "cms", label: t.cms, free: YES, value: () => YES },
+    { key: "audits", label: t.audits, free: text(f.audits), value: () => YES },
+    { key: "visibility", label: t.visibility, free: text(f.snapshot), value: () => YES },
+    { key: "backlinks", label: t.backlinks, free: NO, value: () => YES },
+    { key: "blog", label: t.blog.strong, sub: t.blog.small, free: NO, value: (tier) => perk(tier) },
+    { key: "channels", label: t.channels.strong, sub: t.channels.small, free: NO, value: (tier) => perk(tier) },
+    { key: "email", label: t.email.strong, sub: t.email.small, free: NO, value: (tier) => perk(tier) },
+    { key: "custom", label: t.custom, free: NO, value: (tier) => scaleOnly(tier) },
   ];
 }
 
@@ -575,6 +598,8 @@ function cell(value: CellValue, t: CompareCopy, number: (n: number) => string): 
   switch (value.kind) {
     case "count":
       return number(value.n);
+    case "text":
+      return value.text;
     case "yes":
       return <span className={styles.yes}>✓</span>;
     case "no":
@@ -584,4 +609,91 @@ function cell(value: CellValue, t: CompareCopy, number: (n: number) => string): 
     case "priority":
       return <span className={c("compare-status compare-status-priority")}>{t.statusPriority}</span>;
   }
+}
+
+/** The Free card's asterisk tile, as the card draws it. */
+const ASTERISK = (
+  <svg fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.7" viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M12 4v16M5.1 8l13.8 8M5.1 16l13.8-8" />
+  </svg>
+);
+
+/**
+ * The Free plan's card (Daniel, 2026-11-19, free-plan-card.png), in the card
+ * system Grow and Scale use, first in the row where Launch was. Every word
+ * and figure is freePlanDisplay's (lib/plans/free-plan.ts), which the
+ * homepage, onboarding and the growth-plan flow draw too.
+ *
+ * The launch counter ("430 / 500 free spots taken", with its bar) sits under
+ * the button; at the cap the card says the spots are taken and the button
+ * leads to Grow's free trial instead. The price is the same monthly and
+ * yearly, so the billing switch leaves it alone.
+ */
+function FreeCard({ locale, counter }: { locale: Locale; counter: FreePlanCounter | null }) {
+  const card = freePlanDisplay(locale, counter);
+  return (
+    <article className={c("plan free-plan")}>
+      <div className={c("plan-top")}>
+        <div className={c("plan-icon")}>{ASTERISK}</div>
+      </div>
+      <h2>{card.name}</h2>
+      <p className={c("plan-desc")}>{card.desc}</p>
+      <div className={c("price-area")}>
+        <div className={c("price-offer-row")}>
+          <span className={c("price-offer-badge")}>{card.badge}</span>
+        </div>
+        <div className={c("price")}>
+          <strong>{card.price}</strong>
+          <span>{card.perMonth}</span>
+        </div>
+        <div className={c("billing-caption free-caption")}>{card.caption}</div>
+      </div>
+      <Link prefetch={false} className={c("btn btn-orange plan-cta free-cta")} href={card.ctaHref} aria-label={card.ctaLabel}>
+        {card.cta} <span aria-hidden="true">↗</span>
+      </Link>
+      {card.counter ? (
+        <div className={c("free-counter")}>
+          <div className={c("free-counter-text")}>
+            <span>{card.counter.text}</span>
+          </div>
+          <div
+            className={c("free-counter-bar")}
+            role="progressbar"
+            aria-label={card.counter.label}
+            aria-valuemin={0}
+            aria-valuemax={card.counter.cap}
+            aria-valuenow={card.counter.taken}
+          >
+            <div className={c("free-counter-fill")} style={{ width: `${card.counter.percent}%` }} />
+          </div>
+          {card.fullNote ? <p className={c("free-full-note")}>{card.fullNote}</p> : null}
+        </div>
+      ) : null}
+      <div className={c("plan-divider")} />
+      <div className={c("included-label")}>{card.includedLabel}</div>
+      <ul className={c("features")}>
+        {card.features.map((feature) => (
+          <li key={feature}>
+            <span className={c("check")} aria-hidden="true">
+              ✓
+            </span>
+            <span>{marks(feature)}</span>
+          </li>
+        ))}
+        {card.locked.map((feature) => (
+          <li key={feature} className={c("locked")}>
+            <span className={c("lock-mark")} aria-hidden="true">
+              ~
+            </span>
+            <span>{marks(feature)}</span>
+          </li>
+        ))}
+      </ul>
+      <div className={c("plan-more")}>
+        <a href="#compare">
+          {card.more} <span aria-hidden="true">↗</span>
+        </a>
+      </div>
+    </article>
+  );
 }

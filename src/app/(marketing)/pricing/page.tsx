@@ -1,4 +1,5 @@
 import { listPlans } from "@/lib/billing";
+import { getFreePlanCounter } from "@/lib/plans/free-plan-server";
 import { repgetOfferEnabled } from "@/lib/billing/repget-offer";
 import { listPublishedTestimonials } from "@/lib/marketing/testimonials-db";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
@@ -22,6 +23,6 @@ export const metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function PricingPage() {
-  const [plans, testimonials] = await Promise.all([listPlans(), listPublishedTestimonials()]);
-  return <PricingView locale="en" plans={plans} testimonials={testimonials} offer={repgetOfferEnabled()} />;
+  const [plans, testimonials, freeCounter] = await Promise.all([listPlans(), listPublishedTestimonials(), getFreePlanCounter()]);
+  return <PricingView locale="en" plans={plans} testimonials={testimonials} offer={repgetOfferEnabled()} freeCounter={freeCounter} />;
 }

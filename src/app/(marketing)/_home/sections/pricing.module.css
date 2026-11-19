@@ -98,3 +98,19 @@
 :global(.dark) .rgp-tier { color: #aaa59c; }
 :global(.dark) .rgp-price .rgp-time { color: #a8a69f; }
 :global(.dark) .rgp-bottom a { color: #db724c; }
+
+/* site: the Free plan's card (2026-11-19, lib/plans/free-plan.ts), first where Launch was: warm, its paid features greyed, its launch counter. */
+.rgp-free{border-color:#f6d9c9;background:linear-gradient(180deg,#fff 0%,#fff 60%,#fff8f3 100%)}
+.rgp-free .rgp-tier{color:#b04a24}
+.rgp-card li.rgp-locked{color:#9a9893}
+.rgp-card li.rgp-locked:before{content:"~";color:#b3b0aa}
+.rgp-free-counter{margin:-12px 0 20px;font-size:11px;font-weight:750;color:#62645d}
+.rgp-free-counter div{margin-top:7px;height:6px;border-radius:6px;background:#f3ece7;overflow:hidden}
+.rgp-free-counter i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,#f6a27e,#e2582b)}
+.rgp-free-action{background:#be532d;border-color:#be532d}
+.rgp-free-action:hover{background:#a84926}
+:global(.dark) .rgp-free{background:linear-gradient(180deg,#242823 0%,#242823 60%,#2b231f 100%);border-color:#604035}
+:global(.dark) .rgp-free .rgp-tier{color:#e08a62}
+:global(.dark) .rgp-card li.rgp-locked{color:#8f948a}
+:global(.dark) .rgp-free-counter{color:#c9ccc2}
+:global(.dark) .rgp-free-counter div{background:#3a3f37}

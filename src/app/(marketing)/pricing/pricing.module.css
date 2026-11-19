@@ -2340,3 +2340,97 @@
     transition: none !important;
   }
 }
+
+/*
+  The Free plan's card (Daniel, 2026-11-19, free-plan-card.png): the same
+  card as Grow and Scale, warmed with the brand's peach, its asterisk tile,
+  the "FREE FOREVER" badge, an orange button, the launch counter with its
+  bar, and the paid features greyed out under the list.
+*/
+.free-plan {
+  border-color: #f6d9c9;
+  background: linear-gradient(180deg, #fff 0%, #fff 55%, #fff8f3 100%);
+}
+.free-plan .plan-icon {
+  background: #fff1e9;
+  border-color: #ffe0ce;
+  color: #ec693b;
+}
+.free-plan .price-offer-row {
+  min-height: 0;
+  margin: 0 0 14px;
+}
+.free-caption {
+  font-weight: 750;
+  color: #5f605d;
+}
+.free-cta {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 9px 21px #f46a3926;
+}
+.free-counter {
+  margin: -8px 0 22px;
+}
+.free-counter-text {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 750;
+  color: #5b5c5b;
+  margin-bottom: 7px;
+}
+.free-counter-bar {
+  height: 6px;
+  border-radius: 6px;
+  background: #f3ece7;
+  overflow: hidden;
+}
+.free-counter-fill {
+  height: 100%;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #f6a27e, #e2582b);
+}
+.free-full-note {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #6b6c68;
+  margin-top: 8px;
+}
+.features li.locked,
+.features li.locked strong {
+  color: #8f8f8b;
+  font-weight: 650;
+}
+.lock-mark {
+  flex: 0 0 auto;
+  width: 17px;
+  text-align: center;
+  color: #a9a8a4;
+  font-weight: 800;
+}
+:global(.dark) .free-plan {
+  border-color: #604035;
+  background: linear-gradient(180deg, #191e20 0%, #191e20 55%, #241d1b 100%);
+}
+:global(.dark) .free-plan .plan-icon {
+  background: #392820;
+  border-color: #60402e;
+  color: #ff9e77;
+}
+:global(.dark) .free-caption,
+:global(.dark) .free-counter-text,
+:global(.dark) .free-full-note {
+  color: #bbc2c0;
+}
+:global(.dark) .free-counter-bar {
+  background: #353d3e;
+}
+:global(.dark) .features li.locked,
+:global(.dark) .features li.locked strong,
+:global(.dark) .lock-mark {
+  color: #858c8a;
+}

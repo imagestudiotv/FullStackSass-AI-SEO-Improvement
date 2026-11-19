@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { listPlans } from "@/lib/billing";
+import { getFreePlanCounter } from "@/lib/plans/free-plan-server";
 import { repgetOfferEnabled } from "@/lib/billing/repget-offer";
 import { isLocale } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
@@ -42,6 +43,6 @@ export default async function LocalisedPricingPage({
   const { locale } = await params;
   if (!isLocale(locale) || locale === "en") notFound();
 
-  const [plans, testimonials] = await Promise.all([listPlans(), listPublishedTestimonials()]);
-  return <PricingView locale={locale} plans={plans} testimonials={testimonials} offer={repgetOfferEnabled()} />;
+  const [plans, testimonials, freeCounter] = await Promise.all([listPlans(), listPublishedTestimonials(), getFreePlanCounter()]);
+  return <PricingView locale={locale} plans={plans} testimonials={testimonials} offer={repgetOfferEnabled()} freeCounter={freeCounter} />;
 }

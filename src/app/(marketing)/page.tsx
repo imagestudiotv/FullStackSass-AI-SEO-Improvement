@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { listPlansForPrebuiltPage } from "@/lib/billing";
+import { getFreePlanCounter } from "@/lib/plans/free-plan-server";
 import { homeCustomerStories } from "@/lib/blog/engagement";
 import { countContentCreated } from "@/lib/marketing/content-count";
 import { listPublishedTestimonials } from "@/lib/marketing/testimonials-db";
@@ -52,6 +53,8 @@ export default async function HomePage() {
     countContentCreated(),
     homeCustomerStories("en"),
   ]);
+  // The Free card's launch counter; optional, so a failed read only leaves it out.
+  const freeCounter = await getFreePlanCounter().catch(() => null);
   // English is unprefixed; the localised pages pass a prefixing builder.
   const href = (path: string) => path;
 
@@ -72,6 +75,7 @@ export default async function HomePage() {
         contentCount={contentCount}
         plans={plans}
         customerStories={customerStories}
+        freeCounter={freeCounter}
       />
     </>
   );

@@ -1,4 +1,5 @@
 import type { PlanRow } from "@/lib/billing-shared";
+import type { FreePlanCounter } from "@/lib/plans/free-plan";
 import type { Locale } from "@/lib/i18n/config";
 import type { Testimonial } from "@/lib/marketing/testimonials";
 import styles from "./_home/home.module.css";
@@ -41,6 +42,7 @@ export function HomePageSections({
   contentCount,
   plans,
   customerStories = null,
+  freeCounter = null,
 }: {
   locale: Locale;
   /** Builds locale-aware paths: unchanged on English, prefixed elsewhere. */
@@ -57,6 +59,8 @@ export function HomePageSections({
   plans: PlanRow[];
   /** The latest customer stories from the blog (lib/blog/engagement.ts homeCustomerStories); null hides the section. */
   customerStories?: { stories: HomeCustomerStory[]; viewAllHref: string } | null;
+  /** The Free plan's launch counter (lib/plans/free-plan-server.ts), on its pricing card; null leaves it out. */
+  freeCounter?: FreePlanCounter | null;
 }) {
   const props: SectionProps = { locale, href };
 
@@ -77,7 +81,7 @@ export function HomePageSections({
       ) : null}
       <Founder {...props} />
       <Reviews {...props} testimonials={testimonials} />
-      <Pricing {...props} plans={plans} />
+      <Pricing {...props} plans={plans} freeCounter={freeCounter} />
       <Faq {...props} />
       <FinalCta {...props} />
     </div>

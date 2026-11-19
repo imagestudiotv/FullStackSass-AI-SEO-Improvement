@@ -67,6 +67,12 @@ export type FreePlanCopy = {
     oneWebsite: string;
     trialHint: string;
     buyCredits: string;
+    /** The onboarding plan step: its heading on Free, the link to the paid plans, and the offer of Free beside a paid plan. */
+    stepTitle: string;
+    seePaid: string;
+    preferFree: string;
+    /** The launch dashboard's and the indicator's words for a paused Free workspace. */
+    pausedShort: string;
   };
 };
 
@@ -122,6 +128,10 @@ const en: FreePlanCopy = {
     oneWebsite: "Free includes 1 connected website. Upgrade to add another.",
     trialHint: "Grow and Scale start with a {days}-day free trial.",
     buyCredits: "Buy credits",
+    stepTitle: "Start growing, free",
+    seePaid: "See Grow and Scale, with a {days}-day free trial",
+    preferFree: "Prefer to start free? Start Free, no card required",
+    pausedShort: "Free AI paused",
   },
 };
 
@@ -177,6 +187,10 @@ const es: FreePlanCopy = {
     oneWebsite: "Free incluye 1 sitio web conectado. Mejore su plan para añadir otro.",
     trialHint: "Grow y Scale empiezan con {days} días de prueba gratuita.",
     buyCredits: "Comprar créditos",
+    stepTitle: "Empiece a crecer, gratis",
+    seePaid: "Ver Grow y Scale, con {days} días de prueba gratuita",
+    preferFree: "¿Prefiere empezar gratis? Empiece con Free, sin tarjeta",
+    pausedShort: "IA de Free en pausa",
   },
 };
 
@@ -232,6 +246,10 @@ const fr: FreePlanCopy = {
     oneWebsite: "Free comprend 1 site web connecté. Passez à un plan supérieur pour en ajouter un autre.",
     trialHint: "Grow et Scale commencent par {days} jours d'essai gratuit.",
     buyCredits: "Acheter des crédits",
+    stepTitle: "Commencez à grandir, gratuitement",
+    seePaid: "Voir Grow et Scale, avec {days} jours d'essai gratuit",
+    preferFree: "Vous préférez commencer gratuitement ? Démarrez Free, sans carte",
+    pausedShort: "IA de Free en pause",
   },
 };
 
@@ -287,6 +305,10 @@ const it: FreePlanCopy = {
     oneWebsite: "Free include 1 sito web collegato. Passi a un piano superiore per aggiungerne un altro.",
     trialHint: "Grow e Scale iniziano con {days} giorni di prova gratuita.",
     buyCredits: "Acquista crediti",
+    stepTitle: "Inizi a crescere, gratis",
+    seePaid: "Vedi Grow e Scale, con {days} giorni di prova gratuita",
+    preferFree: "Preferisce iniziare gratis? Inizi con Free, senza carta",
+    pausedShort: "IA di Free in pausa",
   },
 };
 
@@ -342,6 +364,10 @@ const de: FreePlanCopy = {
     oneWebsite: "Free umfasst 1 verbundene Website. Upgraden Sie, um eine weitere hinzuzufügen.",
     trialHint: "Grow und Scale starten mit {days} Tagen kostenloser Testphase.",
     buyCredits: "Credits kaufen",
+    stepTitle: "Kostenlos wachsen",
+    seePaid: "Grow und Scale ansehen, mit {days} Tagen kostenloser Testphase",
+    preferFree: "Lieber kostenlos starten? Free starten, keine Karte nötig",
+    pausedShort: "Free-KI pausiert",
   },
 };
 
