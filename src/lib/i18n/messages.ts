@@ -3554,7 +3554,7 @@ const en: Messages = {
     articles: {
       eyebrow: "Content engine",
       title: "Articles written for what your customers search",
-      sub: "RepGet researches each topic, writes in your language and tone, and publishes to your site - with images, internal links and a meta description.",
+      sub: "RepGet researches each topic, writes in your language and tone, and publishes to your site - with internal links and a meta description.",
       points: [
         "Topics chosen from real searches in your market",
         "Written natively in your language, in the tone you set",
@@ -3784,7 +3784,7 @@ const en: Messages = {
       },
       {
         label: "AI visibility",
-        body: "Whether ChatGPT, Claude and Perplexity name your business when someone asks for what you sell. Checked on your own prompts.",
+        body: "Whether Claude names your business when someone asks for what you sell. Asked weekly through its API, on your own questions.",
       },
       {
         label: "Articles published",
@@ -6818,7 +6818,7 @@ const es: Messages = {
     articles: {
       eyebrow: "Motor de contenido",
       title: "Artículos escritos para lo que buscan sus clientes",
-      sub: "RepGet investiga cada tema, escribe en su idioma y con su tono, y publica en su web - con imágenes, enlaces internos y una meta descripción.",
+      sub: "RepGet investiga cada tema, escribe en su idioma y con su tono, y publica en su web - con enlaces internos y una meta descripción.",
       points: [
         "Temas elegidos a partir de búsquedas reales en su mercado",
         "Escritos de forma nativa en su idioma, con el tono que usted elija",
@@ -7063,7 +7063,7 @@ const es: Messages = {
       },
       {
         label: "Visibilidad en IA",
-        body: "Si ChatGPT, Claude y Perplexity nombran su negocio cuando alguien pregunta por lo que usted vende. Comprobado con sus propias preguntas.",
+        body: "Si Claude nombra su negocio cuando alguien pregunta por lo que usted vende. Preguntado cada semana a través de su API, con sus propias preguntas.",
       },
       {
         label: "Artículos publicados",
@@ -10104,7 +10104,7 @@ const fr: Messages = {
     articles: {
       eyebrow: "Moteur de contenu",
       title: "Des articles écrits pour ce que recherchent vos clients",
-      sub: "RepGet étudie chaque sujet, rédige dans votre langue et avec votre ton, puis publie sur votre site - avec images, liens internes et méta-description.",
+      sub: "RepGet étudie chaque sujet, rédige dans votre langue et avec votre ton, puis publie sur votre site - avec liens internes et méta-description.",
       points: [
         "Des sujets choisis à partir de vraies recherches sur votre marché",
         "Rédigés nativement dans votre langue, avec le ton que vous choisissez",
@@ -10344,7 +10344,7 @@ const fr: Messages = {
       },
       {
         label: "Visibilité IA",
-        body: "Si ChatGPT, Claude et Perplexity citent votre entreprise quand on demande ce que vous vendez. Vérifié sur vos propres questions.",
+        body: "Si Claude cite votre entreprise quand on demande ce que vous vendez. Posé chaque semaine via son API, sur vos propres questions.",
       },
       {
         label: "Articles publiés",
@@ -13386,7 +13386,7 @@ const it: Messages = {
     articles: {
       eyebrow: "Motore dei contenuti",
       title: "Articoli scritti per ciò che cercano i suoi clienti",
-      sub: "RepGet studia ogni argomento, scrive nella sua lingua e con il suo tono, e pubblica sul suo sito - con immagini, link interni e meta description.",
+      sub: "RepGet studia ogni argomento, scrive nella sua lingua e con il suo tono, e pubblica sul suo sito - con link interni e meta description.",
       points: [
         "Argomenti scelti da ricerche reali nel suo mercato",
         "Scritti in modo nativo nella sua lingua, con il tono che sceglie",
@@ -13627,7 +13627,7 @@ const it: Messages = {
       },
       {
         label: "Visibilità IA",
-        body: "Se ChatGPT, Claude e Perplexity nominano la sua azienda quando qualcuno chiede ciò che lei vende. Verificato sulle sue domande.",
+        body: "Se Claude nomina la sua azienda quando qualcuno chiede ciò che lei vende. Chiesto ogni settimana tramite la sua API, sulle sue domande.",
       },
       {
         label: "Articoli pubblicati",
@@ -16658,13 +16658,13 @@ const de: Messages = {
       "Berichte aus Search Console und Analytics",
     ],
     publishesSub:
-      "Einmal verbinden. Kein manuelles Hochladen, kein Kopieren und Einfügen - Artikel erscheinen von selbst auf Ihrer Website, mit Bildern.",
+      "Einmal verbinden. Kein manuelles Hochladen, kein Kopieren und Einfügen - Artikel erscheinen von selbst auf Ihrer Website.",
     publishesPlugin:
       "Unser WordPress-Plugin verbindet sich mit einem einzigen Schlüssel und funktioniert auch dann, wenn Ihr Hoster die WordPress-API blockiert.",
     articles: {
       eyebrow: "Content-Engine",
       title: "Artikel für das, wonach Ihre Kunden suchen",
-      sub: "RepGet recherchiert jedes Thema, schreibt in Ihrer Sprache und Ihrem Ton und veröffentlicht auf Ihrer Website - mit Bildern, internen Links und einer Meta-Beschreibung.",
+      sub: "RepGet recherchiert jedes Thema, schreibt in Ihrer Sprache und Ihrem Ton und veröffentlicht auf Ihrer Website - mit internen Links und einer Meta-Beschreibung.",
       points: [
         "Themen aus echten Suchanfragen in Ihrem Markt",
         "Muttersprachlich in Ihrer Sprache geschrieben, im Ton Ihrer Wahl",
@@ -16904,7 +16904,7 @@ const de: Messages = {
       },
       {
         label: "KI-Sichtbarkeit",
-        body: "Ob ChatGPT, Claude und Perplexity Ihr Unternehmen nennen, wenn jemand nach dem fragt, was Sie anbieten. Geprüft anhand Ihrer eigenen Fragen.",
+        body: "Ob Claude Ihr Unternehmen nennt, wenn jemand nach dem fragt, was Sie anbieten. Wöchentlich über die API gefragt, anhand Ihrer eigenen Fragen.",
       },
       {
         label: "Veröffentlichte Artikel",

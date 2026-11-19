@@ -204,9 +204,9 @@ export function planFeatures(plan: PickerPlan): string[] {
    */
   const shared = [
     "Auto-publish to WordPress, Shopify, Ghost, Webflow and more",
-    "AI visibility tracked across ChatGPT, Claude, Gemini and Perplexity",
-    "Site audit, so your pages are AI- and Google-ready",
-    "Titles, metadata and schema written for every page",
+    "Weekly AI answer checks: does Claude name your business?",
+    "Site audit that lists what to fix for Google and AI crawlers",
+    "A title and meta description written for every article",
     "Backlinks from our partner network",
   ];
 
@@ -227,16 +227,15 @@ export function planFeatures(plan: PickerPlan): string[] {
    * it is a reason to upgrade rather than a limit to apologise for.
    */
   const scale = [
-    `${count(plan.articleLimit, "branded article")} a month${cadence(plan.articleLimit)}, with images`,
+    `${count(plan.articleLimit, "branded article")} a month${cadence(plan.articleLimit)}`,
     ...socialPosts,
     `${plan.keywordLimit.toLocaleString()} search terms researched and clustered`,
     ONE_WEBSITE,
-    "Priority processing - your articles are written first",
     "Custom feature requests",
   ];
 
   const grow = [
-    `${count(plan.articleLimit, "branded article")} a month${cadence(plan.articleLimit)}, with images`,
+    `${count(plan.articleLimit, "branded article")} a month${cadence(plan.articleLimit)}`,
     ...socialPosts,
     `${plan.keywordLimit.toLocaleString()} search terms researched and clustered`,
     ONE_WEBSITE,

@@ -22,6 +22,7 @@ import {
   websites,
 } from "@/lib/db/schema";
 import type { Executor } from "@/lib/db/types";
+import { planHasVisibilityPerks } from "@/lib/plans/benefits";
 import { isSubscriptionEnded } from "@/lib/websites/deletion";
 
 import { sendLifecycleEmail, type LifecycleOutcome } from "./lifecycle";
@@ -104,7 +105,7 @@ export async function emailSetupReminder(userId: string, executor: Executor = db
 /* Billing                                                                    */
 /* ------------------------------------------------------------------------- */
 
-/** A subscription row as the emails need it: attached to a website, with its plan's name. */
+/** A subscription row as the emails need it: attached to a website, with its plan's name and tier. */
 async function subscriptionFacts(executor: Executor, where: SQL) {
   const [row] = await executor
     .select({
@@ -118,6 +119,7 @@ async function subscriptionFacts(executor: Executor, where: SQL) {
       currentPeriodStart: subscriptions.currentPeriodStart,
       currentPeriodEnd: subscriptions.currentPeriodEnd,
       plan: plans.name,
+      tier: plans.tier,
       domain: websites.domain,
     })
     .from(subscriptions)
@@ -524,7 +526,14 @@ export async function emailTrialEnding(subscriptionId: string, executor: Executo
       organizationId: row.organizationId,
       kind: "trial_ending",
       dedupeKey: `${row.id}:${endsOn.toISOString()}`,
-      build: () => ({ kind: "trial_ending", websiteId, domain: row.domain, plan: row.plan ?? "RepGet", endsOn }),
+      build: () => ({
+        kind: "trial_ending",
+        websiteId,
+        domain: row.domain,
+        plan: row.plan ?? "RepGet",
+        endsOn,
+        visibilityPerks: planHasVisibilityPerks(row.tier),
+      }),
     },
     executor,
   );

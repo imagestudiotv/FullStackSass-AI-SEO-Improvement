@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { ESSENTIAL, LIFECYCLE_COPY, LIFECYCLE_KINDS, renderLifecycleEmail, type LifecycleEmail, type LifecycleKind } from "@/lib/email/lifecycle-copy";
 import { LOCALES } from "@/lib/i18n/config";
 import { EMAILS_COPY } from "@/lib/i18n/emails";
+import { planHasVisibilityPerks } from "@/lib/plans/benefits";
 
 /**
  * Every lifecycle email in all five languages: the same sentences, the same
@@ -30,7 +31,7 @@ const SAMPLES: Record<LifecycleKind, LifecycleEmail> = {
   setup_reminder: { kind: "setup_reminder" },
   trial_started: { kind: "trial_started", websiteId: "w1", domain: "example.com", plan: "Growth", endsOn: new Date("2026-12-01T00:00:00Z"), provider: "stripe" },
   trial_progress: { kind: "trial_progress", websiteId: "w1", domain: "example.com", articlesWritten: 2, articlesLive: 1, topicsPlanned: 8 },
-  trial_ending: { kind: "trial_ending", websiteId: "w1", domain: "example.com", plan: "Growth", endsOn: new Date("2026-12-01T00:00:00Z") },
+  trial_ending: { kind: "trial_ending", websiteId: "w1", domain: "example.com", plan: "Growth", endsOn: new Date("2026-12-01T00:00:00Z"), visibilityPerks: true },
   trial_ended: { kind: "trial_ended", websiteId: "w1", domain: "example.com" },
   plan_started: { kind: "plan_started", websiteId: "w1", domain: "example.com", plan: "Growth" },
   payment_failed: { kind: "payment_failed", websiteId: "w1", domain: "example.com", plan: "Growth" },
@@ -132,7 +133,7 @@ describe("the Email Autopilot additions (2026-11-11)", () => {
   it("the free trial ending keeps every billing fact, beside the growth message", () => {
     for (const locale of LOCALES) {
       const email = renderLifecycleEmail(
-        { kind: "trial_ending", websiteId: "w1", domain: "example.com", plan: "Grow", endsOn: new Date("2026-12-01T00:00:00Z") },
+        { kind: "trial_ending", websiteId: "w1", domain: "example.com", plan: "Grow", endsOn: new Date("2026-12-01T00:00:00Z"), visibilityPerks: true },
         { ...context, locale, unsubscribeUrl: null },
       );
       const c = LIFECYCLE_COPY[locale].trial_ending;
@@ -142,13 +143,35 @@ describe("the Email Autopilot additions (2026-11-11)", () => {
       expect(email.text, locale).toContain("2026");
     }
     const en = renderLifecycleEmail(
-      { kind: "trial_ending", websiteId: "w1", domain: "example.com", plan: "Grow", endsOn: new Date("2026-12-01T00:00:00Z") },
+      { kind: "trial_ending", websiteId: "w1", domain: "example.com", plan: "Grow", endsOn: new Date("2026-12-01T00:00:00Z"), visibilityPerks: true },
       { ...context, unsubscribeUrl: null },
     );
     expect(en.text).toMatch(/The free trial for example.com ends on .*2026. Your Grow plan then starts and the first payment is taken./);
     expect(en.text).toContain("Continue growing with RepGet");
-    expect(en.text).toContain("DR 60+");
+    expect(en.text).toContain("You can earn links from relevant websites in RepGet's partner network.");
     expect(ESSENTIAL.trial_ending).toBe(true);
+  });
+
+  it("the free trial ending tells only a plan with visibility perks of the blog post and the social mention, and claims no domain rating", () => {
+    for (const locale of LOCALES) {
+      const c = LIFECYCLE_COPY[locale].trial_ending;
+      const ending = (plan: string, tier: string) =>
+        renderLifecycleEmail(
+          { kind: "trial_ending", websiteId: "w1", domain: "example.com", plan, endsOn: new Date("2026-12-01T00:00:00Z"), visibilityPerks: planHasVisibilityPerks(tier) },
+          { ...context, locale, unsubscribeUrl: null },
+        );
+      const launch = ending("Launch", "launch");
+      for (const sentence of [c.blogPost, c.social]) expect(launch.text, locale).not.toContain(sentence);
+      for (const sentence of [c.body.split("{")[0], c.backlink, c.cancel]) expect(launch.text, locale).toContain(sentence);
+      for (const tier of ["grow", "scale"]) {
+        const email = ending("Grow", tier);
+        for (const sentence of [c.blogPost, c.social, c.backlink]) expect(email.text, `${locale} ${tier}`).toContain(sentence);
+      }
+      for (const email of [launch, ending("Grow", "grow")]) {
+        expect(email.text, locale).not.toMatch(/DR ?60|dofollow/i);
+        expect(email.html, locale).not.toMatch(/DR ?60|dofollow/i);
+      }
+    }
   });
 
   it("the win-back says first payment, the figures given, and opens Billing", () => {

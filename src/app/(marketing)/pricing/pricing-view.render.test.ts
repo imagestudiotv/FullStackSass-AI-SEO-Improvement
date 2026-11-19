@@ -167,3 +167,17 @@ describe("the pricing page", () => {
     }
   });
 });
+
+describe("no unverified claims (2026-11-19)", () => {
+  it("claims no follower count, domain rating, round-the-clock support or promotion terms", () => {
+    for (const locale of LOCALES) {
+      const html = render({ locale });
+      expect(html, locale).not.toMatch(/40K|DR ?-?60|24\/7|24 ?h\/24|rund um die Uhr/);
+      expect(html, locale).not.toMatch(/promotion terms|offer terms|campaign terms|condiciones de (promoción|la oferta|campaña)|conditions (de promotion|de l&#x27;offre|de campagne)|condizioni (di promozione|dell&#x27;offerta|di campagna)|Werbebedingungen|Angebotsbedingungen|Kampagnenbedingungen/);
+      // The perks stay listed: Grow, Scale and the bundle are sold with them.
+      expect(html, locale).toContain(esc(pricingPageCopy(locale).plans.grow.perks![0].strong));
+      expect(html, locale).toContain(esc(pricingPageCopy(locale).plans.scale.perks![0].strong));
+      expect(html, locale).toContain(esc(pricingPageCopy(locale).bundle.bonuses[0].strong));
+    }
+  });
+});
