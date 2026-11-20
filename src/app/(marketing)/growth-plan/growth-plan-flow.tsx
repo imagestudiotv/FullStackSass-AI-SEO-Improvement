@@ -303,8 +303,8 @@ export function GrowthPlanFlow({
       const id = steps[index];
       if (!id) return;
       setViewing(index);
-      // Past the plan choice is having made it: the choice on screen is the one going on.
-      if (index > chooseIndex) setChose(true);
+      // Moving on from the plan choice is making it (a jump past it from elsewhere is not).
+      if (viewing === chooseIndex && index > chooseIndex) setChose(true);
       setRound((value) => value + 1);
       setHovering(false);
       setAnnouncement(fill(t.nav.announce, { index: index + 1, total: steps.length, label: t.phases[id] }));
@@ -312,7 +312,7 @@ export function GrowthPlanFlow({
       const top = stage.current?.getBoundingClientRect().top ?? 0;
       if (top < 0) stage.current?.scrollIntoView({ block: "start", behavior: reducedMotion ? "auto" : "smooth" });
     },
-    [chooseIndex, reducedMotion, steps, t],
+    [chooseIndex, reducedMotion, steps, t, viewing],
   );
   const goTo = (id: StepId) => go(Math.max(0, steps.indexOf(id)));
 
