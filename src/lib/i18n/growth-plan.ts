@@ -187,6 +187,8 @@ export type GrowthPlanCopy = {
     intro: string;
     /** The first says {host}. */
     perks: [string, string, string];
+    /** The same three when Free is chosen: no card, no payment page. */
+    freePerks: [string, string, string];
     /** {email}. */
     signedIn: string;
     /** The link to the usual sign-up page, the fallback. */
@@ -394,6 +396,7 @@ const en: GrowthPlanCopy = {
     heading: "Create your account",
     intro: "Your growth plan for {host} goes into it. Billing is the next step, right here.",
     perks: ["We add {host} to your account for you", "Payment details only on Stripe's or PayPal's secure page", "Cancel anytime"],
+    freePerks: ["We add {host} to your account for you", "No credit card needed for Free", "Upgrade anytime"],
     signedIn: "You are signed in as {email}.",
     fallback: "Prefer the usual sign-up page?",
   },
@@ -583,6 +586,7 @@ const es: GrowthPlanCopy = {
     heading: "Cree su cuenta",
     intro: "Su plan de crecimiento para {host} se guarda en ella. La facturación es el siguiente paso, aquí mismo.",
     perks: ["Añadimos {host} a su cuenta por usted", "Los datos de pago, solo en la página segura de Stripe o PayPal", "Cancele cuando quiera"],
+    freePerks: ["Añadimos {host} a su cuenta por usted", "Sin tarjeta de crédito para el plan Free", "Mejore su plan cuando quiera"],
     signedIn: "Ha iniciado sesión como {email}.",
     fallback: "¿Prefiere la página de registro habitual?",
   },
@@ -772,6 +776,7 @@ const fr: GrowthPlanCopy = {
     heading: "Créez votre compte",
     intro: "Votre plan de croissance pour {host} y est enregistré. La facturation est l’étape suivante, ici même.",
     perks: ["Nous ajoutons {host} à votre compte pour vous", "Les informations de paiement uniquement sur la page sécurisée de Stripe ou PayPal", "Résiliable à tout moment"],
+    freePerks: ["Nous ajoutons {host} à votre compte pour vous", "Aucune carte bancaire pour le plan Free", "Passez à une offre supérieure à tout moment"],
     signedIn: "Vous êtes connecté en tant que {email}.",
     fallback: "Vous préférez la page d’inscription habituelle ?",
   },
@@ -961,6 +966,7 @@ const it: GrowthPlanCopy = {
     heading: "Crea il tuo account",
     intro: "Il tuo piano di crescita per {host} viene salvato qui. La fatturazione è il passo successivo, proprio qui.",
     perks: ["Aggiungiamo noi {host} al tuo account", "I dati di pagamento solo sulla pagina sicura di Stripe o PayPal", "Disdici quando vuoi"],
+    freePerks: ["Aggiungiamo noi {host} al tuo account", "Nessuna carta di credito per il piano Free", "Passa a un piano superiore quando vuoi"],
     signedIn: "Hai effettuato l’accesso come {email}.",
     fallback: "Preferisci la solita pagina di registrazione?",
   },
@@ -1150,6 +1156,7 @@ const de: GrowthPlanCopy = {
     heading: "Erstellen Sie Ihr Konto",
     intro: "Ihr Wachstumsplan für {host} wird darin gespeichert. Die Abrechnung ist der nächste Schritt, gleich hier.",
     perks: ["Wir fügen {host} Ihrem Konto für Sie hinzu", "Zahlungsdaten nur auf der sicheren Seite von Stripe oder PayPal", "Jederzeit kündbar"],
+    freePerks: ["Wir fügen {host} Ihrem Konto für Sie hinzu", "Für Free ist keine Kreditkarte nötig", "Jederzeit upgraden"],
     signedIn: "Sie sind angemeldet als {email}.",
     fallback: "Lieber die gewohnte Registrierungsseite?",
   },

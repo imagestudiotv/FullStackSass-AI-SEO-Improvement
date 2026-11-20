@@ -519,6 +519,7 @@ export function GrowthPlanFlow({
                       goTo("billing");
                     }}
                     onContinue={() => goTo("billing")}
+                    free={freeChosen}
                   />
                 ) : (
                   <Fallback t={t} trialDays={trialDays} links={links} />

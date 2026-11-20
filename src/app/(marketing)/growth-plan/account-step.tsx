@@ -79,6 +79,7 @@ export function AccountStep({
   links,
   onSignedIn,
   onContinue,
+  free = false,
 }: {
   t: GrowthPlanCopy;
   auth: AccountAuthCopy;
@@ -94,6 +95,8 @@ export function AccountStep({
   };
   onSignedIn: (account: SignedInAccount) => void;
   onContinue: () => void;
+  /** Free is the chosen plan: the perks promise no card instead of a payment page. */
+  free?: boolean;
 }) {
   const id = useId();
   const [name, setName] = useState("");
@@ -150,7 +153,7 @@ export function AccountStep({
         <p className={styles.kicker}>{t.account.heading}</p>
         <p className={styles.billingLead}>{fill(t.account.intro, { host })}</p>
         <ul className={styles.perks}>
-          {t.account.perks.map((perk) => (
+          {(free ? t.account.freePerks : t.account.perks).map((perk) => (
             <li key={perk}>
               <Check size={15} aria-hidden="true" />
               {fill(perk, { host })}
