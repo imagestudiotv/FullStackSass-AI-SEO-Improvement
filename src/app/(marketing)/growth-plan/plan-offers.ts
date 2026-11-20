@@ -16,9 +16,10 @@ import { isDirectPurchaseTier, toPickerPlan, type PickerPlan } from "@/lib/plans
  * so this step cannot quote a price checkout does not charge; the words are
  * the pricing page's own (lib/i18n/pricing-page.ts, lib/plans/benefits.ts).
  *
- * Nothing is bought here: the chosen tier is carried through sign-up to the
- * plan step (flow-steps.ts startLinks), which checks out with Stripe or
- * PayPal as it always has.
+ * These are only the words and figures to choose by: the billing step reads
+ * the plan rows again for the signed-in account (billing-actions.ts,
+ * checkout-terms.ts) and checks out with Stripe or PayPal as the plan step
+ * does.
  */
 export type GrowthPlanOffer = {
   tier: string;
@@ -33,6 +34,8 @@ export type GrowthPlanOffer = {
   regular: string | null;
   /** The yearly plan quoted per month ("€49.17") with the year's total, or null without a yearly row. */
   yearly: { perMonth: string; total: string } | null;
+  /** What paying yearly saves against twelve monthly payments, in whole percent (the plan step's figure), or null. */
+  yearlySaving: number | null;
   /** The first lines of what it includes, `**bold**` marked. */
   features: string[];
   /** The tier the pricing page marks "Most popular". */
@@ -77,12 +80,21 @@ export function growthPlanOffers(
         price: prices.monthly.price,
         regular: prices.monthly.regular !== prices.monthly.price ? prices.monthly.regular : null,
         yearly: prices.yearly ? { perMonth: prices.yearly.price, total: prices.yearly.total } : null,
+        yearlySaving: yearlySaving(plan.priceCents, annual?.priceCents ?? null),
         features: (benefits?.features ?? []).slice(0, OFFER_FEATURES),
         popular: plan.tier === POPULAR_TIER,
         dueToday: formatPrice(0, plan.currency),
         paypal: paypalOn && Boolean(row.paypalPlanId && row.paypalTrialPlanId),
       };
     });
+}
+
+/** The plan step's saving (onboarding/plan/plan-step.tsx): from the two catalogue prices, never a round number. */
+export function yearlySaving(monthlyCents: number, annualCents: number | null): number | null {
+  if (annualCents === null) return null;
+  const full = monthlyCents * 12;
+  if (full <= annualCents) return null;
+  return Math.round(((full - annualCents) / full) * 100);
 }
 
 /** The plan chosen when the step opens: the popular one, else the first. */

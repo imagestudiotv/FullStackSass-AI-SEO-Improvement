@@ -12,6 +12,7 @@ import { authClient } from "@/lib/auth-client";
 import { confirmEmail } from "@/lib/auth/confirm-email-actions";
 import type { FreePlanDisplay } from "@/lib/plans/free-plan";
 import { startFreePlanAction } from "@/lib/plans/free-plan-actions";
+import type { StartFreePlanRefusal } from "@/lib/plans/free-plan-server";
 import { WIZARD_STEPS, wizardStepIndex } from "@/lib/onboarding/wizard";
 
 /** `**words**` bold, as the card writes them. */
@@ -61,54 +62,29 @@ export function FreeStep({
   title: string;
 }) {
   const router = useRouter();
-  const [verified, setVerified] = useState(emailVerified);
-  const [codeSent, setCodeSent] = useState(false);
-  const [code, setCode] = useState("");
-  const [busy, setBusy] = useState<"send" | "confirm" | "start" | null>(null);
-  const [full, setFull] = useState(card.counter?.full ?? false);
-
-  async function sendCode() {
-    setBusy("send");
-    const { error } = await authClient.emailOtp.sendVerificationOtp({ email, type: "email-verification" });
-    setBusy(null);
-    if (error) {
-      toast.error("We could not send the code. Please try again in a minute.");
-      return;
-    }
-    setCodeSent(true);
-    setCode("");
-    toast.success(`We sent a 6-digit code to ${email}.`);
-  }
-
-  async function submitCode(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setBusy("confirm");
-    const result = await confirmEmail(code);
-    setBusy(null);
-    if (result.ok) {
-      setVerified(true);
-      toast.success("Email confirmed.");
-      return;
-    }
-    toast.error(
-      result.error === "INVALID"
-        ? "That code is not right. Check the email and try again."
-        : "That code no longer works. Send a new one.",
-    );
-  }
-
-  async function start() {
-    setBusy("start");
-    const result = await startFreePlanAction(websiteId);
-    if (result.ok) {
-      router.push(result.next);
-      return;
-    }
-    setBusy(null);
-    if (result.reason === "full") setFull(true);
-    if (result.reason === "email_unverified") setVerified(false);
-    toast.error(result.error);
-  }
+  const emailCode = useEmailCode({
+    email,
+    emailVerified,
+    onNotice: (notice) => {
+      if (notice === "sent") toast.success(`We sent a 6-digit code to ${email}.`);
+      else if (notice === "confirmed") toast.success("Email confirmed.");
+      else if (notice === "send_failed") toast.error("We could not send the code. Please try again in a minute.");
+      else if (notice === "invalid") toast.error("That code is not right. Check the email and try again.");
+      else toast.error("That code no longer works. Send a new one.");
+    },
+  });
+  const freeStart = useStartFree({
+    websiteId,
+    full: card.counter?.full ?? false,
+    onStarted: (next) => router.push(next),
+    onRefused: (error, reason) => {
+      if (reason === "email_unverified") emailCode.setVerified(false);
+      toast.error(error);
+    },
+  });
+  const { verified, codeSent, code, setCode, sendCode, submitCode } = emailCode;
+  const { full, start } = freeStart;
+  const busy = emailCode.busy ?? (freeStart.starting ? "start" : null);
 
   return (
     <div>
@@ -170,7 +146,7 @@ export function FreeStep({
                   <form onSubmit={submitCode} className="mt-3 flex flex-wrap gap-2">
                     <Input
                       value={code}
-                      onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                      onChange={(event) => setCode(event.target.value)}
                       inputMode="numeric"
                       autoComplete="one-time-code"
                       placeholder="6-digit code"
@@ -240,4 +216,94 @@ export function FreeStep({
       )}
     </div>
   );
+}
+
+/** What the email code did, for the screen to say in its own words. */
+export type EmailCodeNotice = "sent" | "send_failed" | "confirmed" | "invalid" | "expired";
+
+/**
+ * The email code before Free (and before the paid plans' free trial): sent
+ * only when asked for, through Better Auth's own rate-limited route, then
+ * confirmed by confirmEmail. Shared with the growth plan's billing step
+ * ((marketing)/growth-plan/billing-step.tsx), which says the same things in
+ * the visitor's language, so the two cannot come to behave differently.
+ */
+export function useEmailCode({
+  email,
+  emailVerified,
+  onNotice,
+}: {
+  email: string;
+  emailVerified: boolean;
+  onNotice: (notice: EmailCodeNotice) => void;
+}) {
+  const [verified, setVerified] = useState(emailVerified);
+  const [codeSent, setCodeSent] = useState(false);
+  const [code, setCodeValue] = useState("");
+  const [busy, setBusy] = useState<"send" | "confirm" | null>(null);
+
+  async function sendCode() {
+    setBusy("send");
+    const { error } = await authClient.emailOtp.sendVerificationOtp({ email, type: "email-verification" });
+    setBusy(null);
+    if (error) {
+      onNotice("send_failed");
+      return;
+    }
+    setCodeSent(true);
+    setCodeValue("");
+    onNotice("sent");
+  }
+
+  async function submitCode(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBusy("confirm");
+    const result = await confirmEmail(code);
+    setBusy(null);
+    if (result.ok) {
+      setVerified(true);
+      onNotice("confirmed");
+      return;
+    }
+    onNotice(result.error === "INVALID" ? "invalid" : "expired");
+  }
+
+  /** Digits only, never more than six: a pasted code often carries a space or the sentence around it. */
+  const setCode = (value: string) => setCodeValue(value.replace(/\D/g, "").slice(0, 6));
+
+  return { verified, setVerified, codeSent, code, setCode, busy, sendCode, submitCode };
+}
+
+/**
+ * The one button that starts Free (startFreePlanAction), shared with the
+ * growth plan's billing step. `onRefused` gets the server's words, already in
+ * the reader's language; "full" also turns the card to the paid plans.
+ */
+export function useStartFree({
+  websiteId,
+  full: initiallyFull,
+  onStarted,
+  onRefused,
+}: {
+  websiteId: string;
+  full: boolean;
+  onStarted: (next: string) => void;
+  onRefused: (error: string, reason: StartFreePlanRefusal) => void;
+}) {
+  const [starting, setStarting] = useState(false);
+  const [full, setFull] = useState(initiallyFull);
+
+  async function start() {
+    setStarting(true);
+    const result = await startFreePlanAction(websiteId);
+    if (result.ok) {
+      onStarted(result.next);
+      return;
+    }
+    setStarting(false);
+    if (result.reason === "full") setFull(true);
+    onRefused(result.error, result.reason);
+  }
+
+  return { starting, full, start };
 }

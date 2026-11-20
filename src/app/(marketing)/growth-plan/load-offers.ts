@@ -1,3 +1,4 @@
+import { getSession } from "@/lib/auth-guard";
 import { listPlans } from "@/lib/billing";
 import { repgetOfferEnabled } from "@/lib/billing/repget-offer";
 import type { Locale } from "@/lib/i18n/config";
@@ -16,6 +17,21 @@ import { growthPlanOffers, type GrowthPlanOffer } from "./plan-offers";
  * A database that fails costs the visitor the plan cards, never the page: the
  * last step then offers the trial and /pricing as the page did before.
  */
+/**
+ * Who is signed in, for the flow to skip its account step. Only the name and
+ * address the page shows; the billing step's server action reads the session
+ * again for itself. A failed read is "not signed in": the account step then
+ * offers sign-up and sign-in as usual.
+ */
+export async function signedInAccount(): Promise<{ name: string; email: string } | null> {
+  try {
+    const session = await getSession();
+    return session ? { name: session.user.name ?? "", email: session.user.email } : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function loadGrowthPlanOffers(locale: Locale): Promise<GrowthPlanOffer[]> {
   try {
     const [rows, paypal] = await Promise.all([listPlans(), isPayPalAvailable()]);
