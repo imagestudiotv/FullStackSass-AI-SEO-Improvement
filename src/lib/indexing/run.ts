@@ -145,7 +145,8 @@ export async function submitQueued(now: Date = new Date()): Promise<SubmitOutcom
   // Only websites with a plan; decided once per website per run.
   const entitled = new Map<string, boolean>();
   for (const websiteId of new Set(queued.map((row) => row.websiteId))) {
-    entitled.set(websiteId, (await isEntitledToSpend(websiteId, { freeArticles: true })).ok);
+    // Not on the Free plan: automatic indexing is paid automation (lib/plans/free-plan.ts).
+    entitled.set(websiteId, (await isEntitledToSpend(websiteId, { freeArticles: true, free: false })).ok);
   }
   const skip = queued.filter((row) => !entitled.get(row.websiteId)).map((row) => row.id);
   if (skip.length > 0) {

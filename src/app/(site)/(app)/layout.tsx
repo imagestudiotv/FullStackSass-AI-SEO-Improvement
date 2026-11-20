@@ -8,6 +8,7 @@ import { MobileNav } from "@/components/mobile-nav";
 import { NotificationBell } from "@/components/notification-bell";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { BrandLogo, BrandMark } from "@/components/brand-logo";
+import { CrispOnboarding } from "@/components/crisp-onboarding";
 import { LiveChat } from "@/components/live-chat";
 import { SidebarNav } from "@/components/sidebar-nav";
 import { PhoneDailyClaim, SidebarCredits, SidebarUsage } from "@/components/sidebar-usage";
@@ -26,10 +27,13 @@ import { ReferralClaim } from "@/components/referral-claim";
 import { ResearchWatcher } from "@/components/research-watcher";
 import { readReferralCookie } from "@/lib/referrals/cookie";
 import { getLaunchState } from "@/lib/onboarding/launch";
+import { FreePlanIndicator } from "@/components/free-plan/free-plan-indicator";
 import { WEBSITE_PROJECT_COPY } from "@/lib/i18n/website-projects";
 import { websiteProjectKindOf, websiteProjectsHref } from "@/lib/website-projects/shared";
 import { SetupTracker } from "@/components/setup-tracker";
 import { getSubscription } from "@/lib/billing";
+import { crispEmailSignature } from "@/lib/support/crisp-identity";
+import { onboardingWelcomeOn, welcomeForLayout } from "@/lib/support/onboarding-welcome";
 import { requireOrg } from "@/lib/tenant";
 import {
   hasOnlySharedWork,
@@ -260,7 +264,35 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
    * header's pill and the line under "Earn Credits".
    */
   const showCredits = !selectedShared && !sharedWorkOnly;
+  /*
+    The Free plan's one-line indicator ("Free plan · 3 of 4 articles left ·
+    Upgrade", lib/plans/free-plan.ts), for an owner on their Free website;
+    nothing otherwise.
+  */
+  const freeIndicator =
+    selectedOwned && fallbackWebsiteId ? <FreePlanIndicator websiteId={fallbackWebsiteId} organizationId={orgId} locale={locale} /> : null;
   const creditWords = t.app.credits;
+
+  /**
+   * The live chat's onboarding welcome (lib/support/onboarding-welcome.ts):
+   * whether to start the dashboard's 60-second wait for this person. Only
+   * with the chat and the welcome switched on (onboardingWelcomeOn) and an
+   * owned site whose setup is not finished; a failure here only means no
+   * welcome.
+   */
+  const welcome =
+    onboardingWelcomeOn() && ownedLaunch && fallbackWebsiteId
+      ? await welcomeForLayout({
+          userId: session.user.id,
+          organizationId: orgId,
+          accountCreatedAt: new Date(session.user.createdAt),
+          ownsWorkspace: !sharedWorkOnly,
+          setupComplete: ownedLaunch.live,
+        }).catch((error: unknown) => {
+          console.error("[support] welcome check failed", error);
+          return false;
+        })
+      : false;
 
   return (
     /*
@@ -297,7 +329,10 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             is this person's own workspace, so the number would be THEIR
             balance beside credits they cannot spend there.
           */
-          <SidebarUsage organizationId={orgId} showCredits={showCredits} locale={locale} t={t.app.nav} tc={creditWords} />
+          <>
+            {freeIndicator}
+            <SidebarUsage organizationId={orgId} showCredits={showCredits} locale={locale} t={t.app.nav} tc={creditWords} />
+          </>
         }
       >
         <SidebarNav
@@ -325,7 +360,12 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             addons={sidebarAddons}
             hideAddons={hideAddons}
             hideCredits={sharedWorkOnly}
-            footer={<SidebarUsage organizationId={orgId} showCredits={showCredits} locale={locale} t={t.app.nav} tc={creditWords} />}
+            footer={
+              <>
+                {freeIndicator}
+                <SidebarUsage organizationId={orgId} showCredits={showCredits} locale={locale} t={t.app.nav} tc={creditWords} />
+              </>
+            }
           />
           <HeaderBrand>
             <Link href="/dashboard" aria-label="RepGet" className="flex items-center">
@@ -406,8 +446,25 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           name: session.user.name,
           organization: org?.name ?? null,
           plan: subscription?.planName ?? null,
+          emailSignature: crispEmailSignature(session.user.email),
+          /*
+            What the onboarding spec asks Crisp to know (ticket 2026-11-19):
+            ids to find the account in the admin, the subscription status
+            ("trialing" is the trial), setup progress and the app language.
+          */
+          data: {
+            user_id: session.user.id,
+            workspace_id: orgId,
+            subscription_status: subscription?.status ?? "none",
+            setup_complete: onboardingComplete,
+            ...(setupProgress ? { setup_steps_done: `${setupProgress.done}/${setupProgress.total}` } : {}),
+            language: locale,
+          },
         }}
       />
+      {welcome && ownedLaunch && fallbackWebsiteId ? (
+        <CrispOnboarding websiteId={fallbackWebsiteId} baselineDone={ownedLaunch.doneCount} />
+      ) : null}
     </div>
   );
 }

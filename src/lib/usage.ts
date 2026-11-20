@@ -1,6 +1,7 @@
 import { and, count, eq, gte, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
+import { OPENAI_IMAGE_PER_IMAGE_USD, OPENAI_IMAGE_TOKEN_RATES, REPLICATE_FLUX_SCHNELL_PER_IMAGE_USD } from "@/lib/images/pricing";
 import { UNLIMITED, type LimitCheck } from "@/lib/usage-shared";
 import { agencyLimits } from "@/lib/agency/core";
 import type { QuotaRule } from "@/lib/billing/spend-quota";
@@ -12,8 +13,10 @@ import {
   trialAllowance,
 } from "@/lib/billing/entitlement-period";
 import { FREE_ARTICLES, TRIAL_DAYS } from "@/lib/plans/features";
+import { FREE_PLAN } from "@/lib/plans/free-plan";
 import {
   articles,
+  freePlanAccounts,
   keywords,
   plans,
   spendReservations,
@@ -46,7 +49,7 @@ export type UsageKind =
  *
  * Units differ per kind:
  *  - llm / embedding: USD per 1,000 tokens
- *  - image:           USD per image
+ *  - image:           USD per 1M tokens (OpenAI) or per image (lib/images/pricing.ts)
  *  - crawl:           USD per page fetched
  *  - seo_api:         USD per API call
  *  - geo_query:       USD per prompt checked per engine
@@ -77,8 +80,15 @@ export const PRICING = {
     "text-embedding-3-small": { per1k: 0.00002 },
   },
   image: {
-    // TODO: set once the image provider is chosen.
-    default: { perImage: 0 },
+    /**
+     * Images are priced in lib/images/pricing.ts (OpenAI per token, measured
+     * from each response; a per-image estimate without usage; Replicate flat)
+     * and each one records its cost on its usage_events row - so the Free
+     * plan's caps count pictures. Listed here so this stays the one table.
+     */
+    openaiTokensPer1M: OPENAI_IMAGE_TOKEN_RATES,
+    openaiPerImageEstimate: OPENAI_IMAGE_PER_IMAGE_USD,
+    replicateFluxSchnell: { perImage: REPLICATE_FLUX_SCHNELL_PER_IMAGE_USD },
   },
   crawl: {
     // Self-hosted crawling: bandwidth/compute only.
@@ -120,6 +130,16 @@ export type TrackInput = {
   websiteId?: string;
   metadata?: Record<string, unknown>;
 };
+
+/**
+ * What one model call cost, from PRICING, or null for a model not priced
+ * here (its usage_events row then has no cost, rather than a wrong one).
+ */
+export function llmCostUsd(model: string, inputTokens: number, outputTokens: number): number | null {
+  const price = PRICING.llm[model as keyof typeof PRICING.llm];
+  if (!price) return null;
+  return Number(((inputTokens / 1000) * price.inputPer1k + (outputTokens / 1000) * price.outputPer1k).toFixed(6));
+}
 
 /** Records one metered event against an organization. */
 export async function track(orgId: string, event: TrackInput): Promise<void> {
@@ -259,6 +279,37 @@ async function resolvePlan(
     .where(eq(subscriptions.websiteId, websiteId))
     .limit(1);
 
+  /*
+    The Free plan (lib/plans/free-plan.ts, 2026-11-19): a website whose
+    workspace started Free for it and that does not pay. Its limits are
+    FREE_PLAN's, written in code - Free has no plans row - over the UTC
+    calendar month. A subscription that grants access always wins, so an
+    upgrade needs nothing here; one that has ended falls back to Free.
+  */
+  const paying =
+    Boolean(agency) ||
+    Boolean(sub && sub.articleLimit !== null && sub.keywordLimit !== null && ENTITLED_STATUSES.has(sub.status));
+  if (!paying) {
+    const [free] = await executor
+      .select({ id: freePlanAccounts.id })
+      .from(freePlanAccounts)
+      .where(eq(freePlanAccounts.websiteId, websiteId))
+      .limit(1);
+    if (free) {
+      return {
+        ok: true as const,
+        orgId,
+        planLimits: { articles: FREE_PLAN.articlesPerMonth, keywords: FREE_PLAN.searchTerms },
+        monthlyArticles: FREE_PLAN.articlesPerMonth,
+        from: calendarMonth().start,
+        freeArticles: false,
+        paypalFreeArticles: false,
+        trial: false,
+        free: true,
+      };
+    }
+  }
+
   // leftJoin makes every plan column nullable; no plan row means no plan.
   if (
     !agency &&
@@ -324,7 +375,7 @@ async function resolvePlan(
   // The plan's monthly article allowance, unchanged by the trial: what pacing and planning read.
   const monthlyArticles = agency ? agency.articles : sub!.articleLimit!;
 
-  return { ok: true as const, orgId, planLimits, monthlyArticles, from, freeArticles, paypalFreeArticles, trial };
+  return { ok: true as const, orgId, planLimits, monthlyArticles, from, freeArticles, paypalFreeArticles, trial, free: false };
 }
 
 /** Ledger key for a website's monthly article allowance. */
@@ -439,6 +490,8 @@ export async function articleAllowanceRule(
       freeArticles: boolean;
       /** In the free trial (TRIAL_DAYS): rule.limit is the plan's allowance pro-rated to it. */
       trial: boolean;
+      /** On the Free plan (lib/plans/free-plan.ts): rule.limit is FREE_PLAN's monthly articles. */
+      free: boolean;
     }
   | { ok: false; reason: "no_active_plan" | "subscription_inactive" }
 > {
@@ -449,6 +502,7 @@ export async function articleAllowanceRule(
     organizationId: plan.orgId,
     freeArticles: plan.freeArticles,
     trial: plan.trial,
+    free: plan.free,
     rule: {
       key: articleAllowanceKey(websiteId),
       limit: plan.planLimits.articles,
@@ -487,7 +541,7 @@ export async function checkLimit(
   if (!plan.ok) {
     return { allowed: false, used: 0, limit: 0, reason: plan.reason };
   }
-  const { orgId, planLimits, monthlyArticles, from, freeArticles, paypalFreeArticles, trial } = plan;
+  const { orgId, planLimits, monthlyArticles, from, freeArticles, paypalFreeArticles, trial, free } = plan;
 
   let used: number;
   let limit: number;
@@ -529,6 +583,7 @@ export async function checkLimit(
     freeArticles,
     paypalFreeArticles,
     trial,
+    ...(free ? { free: true } : {}),
     ...(kind === "articles" ? { monthlyLimit: trial ? monthlyArticles : limit } : {}),
   };
 }

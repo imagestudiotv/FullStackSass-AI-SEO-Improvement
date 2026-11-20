@@ -6,6 +6,7 @@ import type { PlanRow } from "@/lib/billing-shared";
 import { LOCALES } from "@/lib/i18n/config";
 import { pricingPageCopy } from "@/lib/i18n/pricing-page";
 import type { Testimonial } from "@/lib/marketing/testimonials";
+import { freePlanCounter, freePlanDisplay } from "@/lib/plans/free-plan";
 import { catalogRows } from "../../../../scripts/plan-catalog.mjs";
 
 /**
@@ -94,14 +95,16 @@ describe("the price display", () => {
 describe("the pricing page", () => {
   it("shows the design's monthly and yearly figures, from the plan rows", () => {
     const html = render();
-    for (const text of ["€59", "€89", "€209", "€99", "€149", "€349", "€49.17", "€74.17", "€174.17", "€82.50", "€124.17", "€290.83"]) {
+    for (const text of ["€89", "€209", "€149", "€349", "€74.17", "€174.17", "€124.17", "€290.83"]) {
       expect(html).toContain(`>${text}<`);
     }
-    expect(html).toContain("Billed €590/year · was €990/year");
     expect(html).toContain("Billed €890/year · was €1,490/year");
     expect(html).toContain("Billed €2,090/year · was €3,490/year");
-    expect(html.match(/40% off regular price · billed monthly/g)).toHaveLength(3);
-    expect(html.match(/>40% OFF</g)).toHaveLength(3);
+    // Launch is off sale (2026-11-19): its rows are still active, its card is gone.
+    expect(html).not.toContain("Billed €590/year");
+    expect(html).not.toContain("<h2>Launch</h2>");
+    expect(html.match(/40% off regular price · billed monthly/g)).toHaveLength(2);
+    expect(html.match(/>40% OFF</g)).toHaveLength(2);
     // The plan rows' allowances, not the design's numbers written in.
     expect(html).toContain("<strong>500 search terms</strong> researched");
     expect(html).toContain("<strong>240 social posts</strong> across platforms");
@@ -110,7 +113,7 @@ describe("the pricing page", () => {
 
   it("links each plan through sign-up to its plan step, exactly as the design does, and the rest to the site's pages", () => {
     const html = render();
-    for (const tier of ["launch", "grow", "scale"]) {
+    for (const tier of ["free", "grow", "scale"]) {
       expect(html).toContain(`href="/sign-up?next=%2Fonboarding%2Fwebsite%3Fplan%3D${tier}"`);
     }
     expect(html).toContain('href="/refunds"');
@@ -126,9 +129,9 @@ describe("the pricing page", () => {
     expect(html).toContain('href="/sign-up?next=%2Fonboarding%2Fwebsite%3Fplan%3Dgrow_visibility"');
     expect(html).toContain("€99 billed at checkout, then monthly. The 3-day free trial does not apply to this offer.");
     expect(html).toContain("Your first €99 payment is collected at checkout");
-    expect(html).toContain("25 answers to explore");
-    // Not one of the standard cards.
-    expect(html.match(/Explore full feature comparison/g)).toHaveLength(3);
+    expect(html).toContain("26 answers to explore");
+    // Not one of the standard cards (Grow and Scale; Free says "See full comparison").
+    expect(html.match(/Explore full feature comparison/g)).toHaveLength(2);
     expect(html).not.toContain("<h2>Grow + Visibility</h2>");
   });
 
@@ -137,14 +140,14 @@ describe("the pricing page", () => {
     expect(html).not.toContain("SAVE 67%");
     expect(html).not.toContain("grow_visibility");
     expect(html).not.toContain("Grow + Visibility");
-    expect(html).toContain("23 answers to explore");
+    expect(html).toContain("24 answers to explore");
   });
 
   it("without the REPGET offer, no discount is claimed", () => {
     const html = render({ offer: false });
     expect(html).not.toContain("40% OFF");
     expect(html).not.toContain("plus 40% off");
-    expect(html).toContain("Billed €990/year");
+    expect(html).toContain("Billed €1,490/year");
   });
 
   it("shows no customer stories while none is published, and no plans while none is on sale", () => {
@@ -161,10 +164,51 @@ describe("the pricing page", () => {
       expect(html).toContain(esc(t.hero.titleAccent));
       expect(html).toContain(esc(t.compare.title));
       expect(html).toContain(esc(t.trial.titleLines[0]));
-      expect(html).toContain(">€59<");
-      expect(t.faq.groups.flatMap((group) => group.items)).toHaveLength(25);
+      expect(html).toContain(">€89<");
+      expect(html).toContain(esc(freePlanDisplay(locale).cta));
+      expect(t.faq.groups.flatMap((group) => group.items)).toHaveLength(26);
       expect(html).not.toMatch(/\{(articles|posts|terms|price|regular|pct|n)\}/);
     }
+  });
+});
+
+describe("the Free plan's card (Daniel, 2026-11-19)", () => {
+  it("comes first, as the card draws it: €0, no card, its allowances, and the paid features greyed", () => {
+    const html = render();
+    const free = html.slice(html.indexOf("<h2>Free</h2>"), html.indexOf("</article>", html.indexOf("<h2>Free</h2>")));
+    expect(html.indexOf("<h2>Free</h2>")).toBeLessThan(html.indexOf("<h2>Grow</h2>"));
+    expect(free).toContain("FREE FOREVER · NO CREDIT CARD");
+    expect(free).toContain(">€0<");
+    expect(free).toContain("Always free · upgrade anytime");
+    expect(free).toContain("Start Free · No card required");
+    expect(free).toContain("<strong>4 AI SEO articles</strong> per month");
+    expect(free).toContain("<strong>3 Growth Copilot requests</strong> per day");
+    expect(free).toContain("<strong>Backlink placements</strong> available on Grow");
+    expect(free).toContain('href="#compare"');
+    // No counter unless the page could read it.
+    expect(free).not.toContain("free spots");
+  });
+
+  it("shows the launch counter with its bar, and at the cap sends the button to the paid plans' free trial", () => {
+    const open = render({ freeCounter: freePlanCounter(430, 500) });
+    expect(open).toContain("430 / 500 free spots taken");
+    expect(open).toContain('aria-valuenow="430"');
+    expect(open).toContain("width:86%");
+    const full = render({ freeCounter: freePlanCounter(500, 500) });
+    expect(full).toContain("All 500 free spots are taken");
+    expect(full).toContain("Start a 3-day free trial");
+    expect(full).toContain('href="/sign-up?next=%2Fonboarding%2Fwebsite%3Fplan%3Dgrow"');
+    expect(full).not.toContain("plan%3Dfree");
+  });
+
+  it("has its column in the comparison: no backlinks, its limited audit and snapshot", () => {
+    const html = render();
+    const table = html.slice(html.indexOf('id="compare"'));
+    expect(table).toContain("<th>Free</th>");
+    expect(table).toContain("1 limited / month");
+    expect(table).toContain("1 snapshot");
+    expect(table).toContain("3 / day");
+    expect(table).not.toContain("<th>Launch</th>");
   });
 });
 

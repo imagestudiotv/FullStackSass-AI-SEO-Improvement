@@ -1,4 +1,5 @@
 import type { PlanRow } from "@/lib/billing-shared";
+import type { FreePlanCounter } from "@/lib/plans/free-plan";
 import type { Locale } from "@/lib/i18n/config";
 import type { Testimonial } from "@/lib/marketing/testimonials";
 import styles from "./_home/home.module.css";
@@ -41,6 +42,7 @@ export function HomePageSections({
   contentCount,
   plans,
   customerStories = null,
+  freeCounter = null,
 }: {
   locale: Locale;
   /** Builds locale-aware paths: unchanged on English, prefixed elsewhere. */
@@ -55,8 +57,10 @@ export function HomePageSections({
   contentCount: number | null;
   /** The plans on sale (lib/billing.ts), which the pricing section shows. */
   plans: PlanRow[];
-  /** The latest customer stories from the blog (lib/blog/engagement.ts homeCustomerStories); null hides the section. */
+  /** The customer stories, Image Studio first (lib/success-stories/stories.ts customerStoriesSection); null hides the section. */
   customerStories?: { stories: HomeCustomerStory[]; viewAllHref: string } | null;
+  /** The Free plan's launch counter (lib/plans/free-plan-server.ts), on its pricing card; null leaves it out. */
+  freeCounter?: FreePlanCounter | null;
 }) {
   const props: SectionProps = { locale, href };
 
@@ -71,13 +75,13 @@ export function HomePageSections({
       <Steps {...props} />
       {/* The guest Growth Copilot (2026-11-11), where the Copilot section was: its anchor stays. */}
       <GuestCopilot locale={locale} id="repget-copilot-connect" />
-      {/* Customer stories (2026-11-11): the latest three from the blog's category; none, no section. */}
+      {/* Customer stories (2026-11-11): the first three, Image Studio first (2026-11-19); none, no section. */}
       {customerStories ? (
         <CustomerStories locale={locale} stories={customerStories.stories} viewAllHref={customerStories.viewAllHref} />
       ) : null}
       <Founder {...props} />
       <Reviews {...props} testimonials={testimonials} />
-      <Pricing {...props} plans={plans} />
+      <Pricing {...props} plans={plans} freeCounter={freeCounter} />
       <Faq {...props} />
       <FinalCta {...props} />
     </div>

@@ -1,5 +1,4 @@
-import { CHAT_FREE_PER_DAY } from "@/lib/chat/config";
-import { freeLeftToday } from "@/lib/chat/quota";
+import { freeLeftToday, freePerDayFor } from "@/lib/chat/quota";
 import { listThreads } from "@/lib/chat/store";
 import { readCreditSettings } from "@/lib/credits/prices";
 import { CHAT_COPY } from "@/lib/i18n/chat";
@@ -32,8 +31,10 @@ export async function Assistant({
   /** "{count} credit|{count} credits" */
   creditsCount: string;
 }) {
-  const [freeLeft, settings, threads] = await Promise.all([
+  const [freeLeft, freePerDay, settings, threads] = await Promise.all([
     freeLeftToday(ownerOrgId),
+    // 3 a day on the Free plan, 5 on a paid one (lib/chat/quota.ts).
+    freePerDayFor(ownerOrgId),
     readCreditSettings(),
     canUse ? listThreads(websiteId, userId) : Promise.resolve([]),
   ]);
@@ -44,7 +45,7 @@ export async function Assistant({
       locale={locale}
       t={CHAT_COPY[locale]}
       creditsCount={creditsCount}
-      freePerDay={CHAT_FREE_PER_DAY}
+      freePerDay={freePerDay}
       initialFreeLeft={freeLeft}
       prices={{
         chat_message: settings.prices.chat_message ?? 0,

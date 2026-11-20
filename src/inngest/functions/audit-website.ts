@@ -4,6 +4,8 @@ import { inngest } from "@/inngest/client";
 import { crawlSite } from "@/lib/audit/crawler";
 import { detectPlatform, parseCrawlerAccess } from "@/lib/audit/ai-crawlers";
 import { ACCOUNT_AUDIT_MAX_PAGES } from "@/lib/audit/limits";
+import { FREE_PLAN } from "@/lib/plans/free-plan";
+import { isFreePlanWebsite } from "@/lib/plans/free-plan-server";
 import { fetchRobotsTxt } from "@/lib/audit/robots";
 import { auditPage, auditSite, scoreAudit } from "@/lib/audit/rules";
 import { db } from "@/lib/db";
@@ -127,12 +129,14 @@ export const auditWebsite = inngest.createFunction(
 
     const crawled = await step.run("crawl-site", async () => {
       const startedAt = Date.now();
+      // The Free plan's audit is limited to its first FREE_PLAN.auditPages pages (lib/plans/free-plan.ts).
+      const maxPages = (await isFreePlanWebsite(websiteId)) ? FREE_PLAN.auditPages : MAX_PAGES;
       // Entitlement re-checked inside the spending step, so a retry after
       // cancellation stops here rather than replaying an earlier "yes".
       const result = await paidCall(
         reservations,
         () =>
-          crawlSite(crawlRow.url, MAX_PAGES, async (done, found) => {
+          crawlSite(crawlRow.url, maxPages, async (done, found) => {
             await db
               .update(crawls)
               .set({ pagesCrawled: done, pagesFound: found })
@@ -168,7 +172,7 @@ export const auditWebsite = inngest.createFunction(
           pagesCrawled: result.pages.length,
           pagesDiscovered: result.discovered,
           failures: result.failures.length,
-          maxPages: MAX_PAGES,
+          maxPages,
           durationMs: Date.now() - startedAt,
         },
         "Crawl finished",

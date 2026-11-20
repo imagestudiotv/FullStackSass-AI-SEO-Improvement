@@ -227,7 +227,11 @@ async function refreshCustomerStories(liveIn: string[]) {
   if (liveIn.length === 0) return;
   const stories = await customerStoriesCategory();
   if (!stories || !liveIn.includes(stories.name)) return;
-  for (const locale of LOCALES) revalidatePath(localePath(locale, "/"));
+  for (const locale of LOCALES) {
+    revalidatePath(localePath(locale, "/"));
+    // /success-stories lists them too, after Image Studio (lib/success-stories/stories.ts).
+    revalidatePath(localePath(locale, "/success-stories"));
+  }
 }
 
 /** Every post, drafts included, most recently edited first. */

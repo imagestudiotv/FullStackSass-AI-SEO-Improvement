@@ -116,6 +116,8 @@ describe("localePath", () => {
       "/blog/category/[category]": [],
       // Business profiles: database pages with an address of their own in each language (lib/discover/paths.ts).
       "/discover/[slug]": [],
+      // Stories added in Admin -> Success stories: database pages, canonical in English (story-page.tsx).
+      "/success-stories/[slug]": [],
     };
     const pages: string[] = [];
     const walk = (dir: string, at: string) => {

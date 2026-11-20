@@ -1,8 +1,10 @@
 import { notFound } from "next/navigation";
 
 import { isLocale } from "@/lib/i18n/config";
+import { getFreePlanCounter } from "@/lib/plans/free-plan-server";
 
 import { GrowthPlanPageContent, growthPlanMetadata } from "@/app/(marketing)/growth-plan/growth-plan-page";
+import { loadGrowthPlanOffers, signedInAccount } from "@/app/(marketing)/growth-plan/load-offers";
 
 // Per request, like the English page: one visitor's website.
 export const dynamic = "force-dynamic";
@@ -17,5 +19,13 @@ export default async function LocalisedGrowthPlanPage({ params, searchParams }: 
   const { locale } = await params;
   // English lives at /growth-plan.
   if (!isLocale(locale) || locale === "en") notFound();
-  return <GrowthPlanPageContent locale={locale} searchParams={await searchParams} />;
+  const [query, offers, freeCounter, account] = await Promise.all([
+    searchParams,
+    loadGrowthPlanOffers(locale),
+    // Optional: a failed read only leaves the counter (and the full-cap check) out.
+    getFreePlanCounter().catch(() => null),
+    // Signed in already: the flow skips its account step.
+    signedInAccount(),
+  ]);
+  return <GrowthPlanPageContent locale={locale} searchParams={query} offers={offers} freeCounter={freeCounter} account={account} />;
 }

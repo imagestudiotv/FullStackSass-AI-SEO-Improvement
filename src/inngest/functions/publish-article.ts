@@ -3,6 +3,7 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import { inngest } from "@/inngest/client";
 import { db } from "@/lib/db";
 import { articles, publishLogs, websites } from "@/lib/db/schema";
+import { track } from "@/lib/usage";
 import {
   loadCredentialsById,
   resolveIntegration,
@@ -449,6 +450,33 @@ export const publishArticleJob = inngest.createFunction(
             null,
             { scene: scene?.scene, alt: scene?.alt },
           );
+          /*
+            Paid for, so recorded like every other article picture
+            (generate-article.ts): this one used to cost nothing on paper,
+            which the Free plan's monthly cap and daily budget - sums of
+            usage_events.cost_usd - could not see. A failed write never
+            stops the publish.
+          */
+          const imageCostUsd = generated.costUsd;
+          await db
+            .select({ organizationId: websites.organizationId })
+            .from(websites)
+            .where(eq(websites.id, websiteId))
+            .limit(1)
+            .then(([site]) =>
+              site
+                ? track(site.organizationId, {
+                    kind: "image",
+                    websiteId,
+                    provider: "image",
+                    costUsd: imageCostUsd,
+                    metadata: { purpose: "article_header_publish", articleId },
+                  })
+                : undefined,
+            )
+            .catch((error: unknown) =>
+              logger.warn({ step: "upload-image", articleId, websiteId, reason: error instanceof Error ? error.message : "unknown" }, "Image cost not recorded"),
+            );
         }
         /*
           Loaded here, inside the step that sends it, rather than carried in

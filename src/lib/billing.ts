@@ -11,6 +11,7 @@ import {
 } from "@/lib/db/schema";
 import { formatPrice, type CurrentSubscription, type PlanRow, type WebsiteSubscription } from "@/lib/billing-shared";
 import { TRIAL_DAYS } from "@/lib/plans/features";
+import { isRetiredFromSale } from "@/lib/plans/free-plan";
 
 /**
  * Server-side billing queries.
@@ -37,13 +38,22 @@ export async function startingOffer(): Promise<{ price: string | null; trialDays
   return { price: cheapest ? formatPrice(cheapest.priceCents, cheapest.currency) : null, trialDays: TRIAL_DAYS };
 }
 
-/** Active plans, cheapest first. */
+/**
+ * The plans ON SALE, cheapest first: active rows, without the tiers retired
+ * from sale (lib/plans/free-plan.ts RETIRED_FROM_SALE_TIERS - Launch, which
+ * the Free plan replaces on 2026-11-19). Every surface a customer chooses a
+ * plan from reads this, so Launch leaves them all at once; its rows stay
+ * active, so its subscribers keep their plan, price, limits and renewals,
+ * and the webhooks still map their price ids. Checkout refuses a retired
+ * tier as a new purchase (lib/stripe/actions.ts, lib/paypal/actions.ts).
+ */
 export async function listPlans(): Promise<PlanRow[]> {
-  return db
+  const rows = await db
     .select()
     .from(plans)
     .where(eq(plans.isActive, true))
     .orderBy(asc(plans.sortOrder), asc(plans.priceCents));
+  return rows.filter((plan) => !isRetiredFromSale(plan.tier));
 }
 
 /**

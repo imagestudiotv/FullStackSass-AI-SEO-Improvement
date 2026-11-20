@@ -215,6 +215,7 @@ describe("the AI draft", () => {
     imageUrl: null,
     logoUrl: null,
     href: "/blog/lakeside",
+    publishedAt: null,
   };
   const answer = (text: string) =>
     vi.fn<(body: Anthropic.MessageCreateParamsNonStreaming) => Promise<Anthropic.Message>>(async () => ({ content: [{ type: "text", text }] }) as unknown as Anthropic.Message);

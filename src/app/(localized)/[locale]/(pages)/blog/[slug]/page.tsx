@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { blogEngagementFor } from "@/components/blog-engagement/blog-engagement-section";
+import { articleAds } from "@/components/ads/article-ads";
 import { BlogSponsorship } from "@/components/blog-sponsorship";
 import { getPost, postVersions, relatedPosts } from "@/lib/blog/posts";
 import { sponsorshipConfigured } from "@/lib/blog/sponsorship";
@@ -41,10 +42,12 @@ export default async function LocaleBlogPostPage({ params, searchParams }: Props
   if (!found) notFound();
   // Back from Stripe without paying (lib/blog/sponsorship-actions.ts): the panel says nothing was charged.
   const cancelled = (await searchParams).featured === "cancelled";
-  const [related, versions, engagement] = await Promise.all([
+  const [related, versions, engagement, ads] = await Promise.all([
     relatedPosts(found.post),
     postVersions(found.post.slug, found.locale),
     blogEngagementFor(found.post),
+    // AdSense on articles only (ticket 2026-11-19), null while it is off.
+    articleAds(found.locale),
   ]);
   return (
     <BlogPostView
@@ -52,6 +55,7 @@ export default async function LocaleBlogPostPage({ params, searchParams }: Props
       versions={versions}
       related={related}
       engagement={engagement}
+      ads={ads}
       sponsorship={
         <BlogSponsorship
           slug={found.post.slug}

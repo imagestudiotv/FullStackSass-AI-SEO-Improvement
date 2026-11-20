@@ -3,6 +3,7 @@ import { withSentryConfig } from "@sentry/nextjs/config";
 import type { NextConfig } from "next";
 
 import { isPreviewDeployment, PREVIEW_ROBOTS_HEADER } from "./src/lib/deployment";
+import { adsenseConfig } from "./src/lib/ads/adsense-config";
 import { cspIntegrations, cspMode, securityHeaders } from "./src/lib/security-headers";
 import { partnerLinkRedirects } from "./src/lib/partners/presentation/link-redirect";
 import { legacyHostRedirects } from "./src/lib/site-url";
@@ -125,7 +126,8 @@ const nextConfig: NextConfig = {
         headers: [
           ...securityHeaders({
             production: process.env.NODE_ENV === "production",
-            integrations: cspIntegrations(process.env),
+            // AdSense: static pages link into blog articles, which keep this document's policy (lib/ads/adsense-config.ts isBlogPath).
+            integrations: { ...cspIntegrations(process.env), adsense: adsenseConfig(process.env).client !== null },
             cspMode: CSP_MODE,
           }),
           /*

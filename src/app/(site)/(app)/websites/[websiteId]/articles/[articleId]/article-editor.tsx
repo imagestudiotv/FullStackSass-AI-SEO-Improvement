@@ -3,6 +3,7 @@
 import {
   BarChart3,
   ChevronRight,
+  Download,
   ExternalLink,
   Eye,
   FileText,
@@ -30,10 +31,12 @@ import { regenerateArticle, updateArticle, type ArticleDetail } from "@/lib/arti
 import { listReusableImages, uploadInlineImage } from "@/lib/articles/image-actions";
 import { articleStats } from "@/lib/articles/stats";
 import { ARTICLE_DELIVERY } from "@/lib/i18n/article-delivery";
+import { ARTICLE_DOWNLOAD_COPY } from "@/lib/i18n/article-download";
 import type { Locale } from "@/lib/i18n/config";
 import { CONTENT_COPY } from "@/lib/i18n/content-improvements";
 import { format, formatNumber, intlTag, plural } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
+import { localiseFreePlanMessage } from "@/lib/plans/free-plan";
 import { publishArticle } from "@/lib/publishing/actions";
 
 import type { HistoryRow } from "./article-data";
@@ -95,6 +98,11 @@ export type ArticleEditorProps = {
   failureKind: GenerationFailureKind | null;
   /** The latest direct send got no answer: the notice with its confirmation. */
   uncertain: boolean;
+  /**
+   * The text may leave RepGet (checkReleasable, the publishing gate): the
+   * Download button is offered. False for a draft the team has not approved.
+   */
+  downloadable?: boolean;
   /** article.updatedAt, formatted on the server. */
   lastSaved: string;
   rewriteLimit: number;
@@ -134,6 +142,7 @@ export function ArticleEditor({
   historyLimit,
   failureKind,
   uncertain,
+  downloadable = false,
   lastSaved,
   rewriteLimit,
   imageMaxAttempts,
@@ -156,7 +165,8 @@ export function ArticleEditor({
   /** Edits wait while a rewrite would replace them or a delivery holds the row. */
   const editable = canEdit && !working && !delivering && !textLocked;
   const delivery = ARTICLE_DELIVERY[locale];
-  const errorText = (error: string) => actionErrorText(error, { t, tWorkspace, tImage, delivery });
+  // The Free plan's refusals (a rewrite, the paused AI) come from the server in English, like every refusal.
+  const errorText = (error: string) => actionErrorText(localiseFreePlanMessage(error, locale), { t, tWorkspace, tImage, delivery });
   /** The two-step flow's words for "this goes back to the team" (lib/i18n/article-delivery.ts). */
   const backToTeam = facts.liveOnSite ? delivery.saveNoteLive : delivery.saveNote;
   /** Finished by the team and not on the website yet. */
@@ -508,6 +518,14 @@ export function ArticleEditor({
               <span className="text-xs">{format(t.lastSaved, { date: lastSaved })}</span>
             </div>
           </div>
+          {downloadable && hasBody && !working && article.status !== "failed" ? (
+            <Button variant="outline" asChild className="shrink-0 self-start">
+              <a href={`/websites/${websiteId}/articles/${article.id}/download`} download title={ARTICLE_DOWNLOAD_COPY[locale].hint}>
+                <Download aria-hidden="true" />
+                {ARTICLE_DOWNLOAD_COPY[locale].download}
+              </a>
+            </Button>
+          ) : null}
           {liveUrl ? (
             <Button variant="outline" asChild className="shrink-0 self-start">
               <a href={liveUrl} target="_blank" rel="noopener noreferrer">

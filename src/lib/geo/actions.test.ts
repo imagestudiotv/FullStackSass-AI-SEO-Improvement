@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { usageEvents, websites } from "@/lib/db/schema";
+import { freePlanAccounts, usageEvents, websites } from "@/lib/db/schema";
 import { createTestDb, type TestDb } from "@/test/db";
 import { seedWebsite } from "@/test/fixtures";
 
@@ -249,5 +249,35 @@ describe("the check-geo job", () => {
       [websiteId],
     );
     expect(rows.map((r) => r.state)).toEqual(["consumed", "consumed"]);
+  });
+
+  /** A website with `count` active questions, created a minute apart (oldest first). */
+  async function withPrompts(count: number, options: { status?: string | null } = {}) {
+    const seeded = await seedWebsite(test, options);
+    const start = Date.UTC(2026, 9, 1);
+    await test.db.insert(geoPrompts).values(
+      Array.from({ length: count }, (_, n) => ({ websiteId: seeded.websiteId, prompt: `question ${n + 1}`, createdAt: new Date(start + n * 60_000) })),
+    );
+    return seeded;
+  }
+
+  it("asks a Free website's snapshot only the Free plan's questions, oldest first, though a trial left it more", async () => {
+    const { FREE_PLAN } = await import("@/lib/plans/free-plan");
+    const { orgId, websiteId } = await withPrompts(8, { status: null });
+    await test.db.insert(freePlanAccounts).values({ organizationId: orgId, websiteId, domain: `${orgId}.example` });
+    geoProvider.runCheck.mockResolvedValue(RESULT);
+
+    const outcome = await job.handler({ event: { data: { websiteId } }, step, logger });
+
+    expect(outcome.checked).toBe(FREE_PLAN.visibilityQuestions);
+    expect(geoProvider.runCheck.mock.calls.map((call) => call[0])).toEqual(
+      Array.from({ length: FREE_PLAN.visibilityQuestions }, (_, n) => `question ${n + 1}`),
+    );
+  });
+
+  it("still asks a paying website every active question", async () => {
+    const { websiteId } = await withPrompts(8);
+    geoProvider.runCheck.mockResolvedValue(RESULT);
+    expect((await job.handler({ event: { data: { websiteId } }, step, logger })).checked).toBe(8);
   });
 });

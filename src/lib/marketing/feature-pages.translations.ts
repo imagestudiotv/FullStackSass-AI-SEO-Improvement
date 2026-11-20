@@ -190,7 +190,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
         },
         {
           title: "Seguimiento de su visibilidad en la IA",
-          body: "Añada las preguntas que sus clientes harían a un asistente, 20 en Launch y Grow y 50 en Scale. Cada semana RepGet se las hace a Claude y le muestra si su negocio aparece nombrado y en qué lugar. No se consulta a ChatGPT.",
+          body: "Añada las preguntas que sus clientes harían a un asistente, 20 en Grow y 50 en Scale (el plan Free hace una instantánea de 5 al mes). Cada semana RepGet se las hace a Claude y le muestra si su negocio aparece nombrado y en qué lugar. No se consulta a ChatGPT.",
         },
       ],
       compare: {
@@ -435,7 +435,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
         },
         {
           title: "Le suivi de votre visibilité dans l’IA",
-          body: "Ajoutez les questions que vos clients poseraient à un assistant, 20 avec Launch et Grow et 50 avec Scale. Chaque semaine, RepGet les pose à Claude et vous montre si votre entreprise est citée, et à quel endroit. ChatGPT n’est pas interrogé.",
+          body: "Ajoutez les questions que vos clients poseraient à un assistant, 20 avec Grow et 50 avec Scale (le plan Free prend un instantané de 5 par mois). Chaque semaine, RepGet les pose à Claude et vous montre si votre entreprise est citée, et à quel endroit. ChatGPT n’est pas interrogé.",
         },
       ],
       compare: {
@@ -680,7 +680,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
         },
         {
           title: "Monitoraggio della visibilità nell’AI",
-          body: "Aggiunga le domande che i suoi clienti farebbero a un assistente, 20 con Launch e Grow e 50 con Scale. Ogni settimana RepGet le pone a Claude e le mostra se la sua attività viene nominata, e in quale punto. ChatGPT non viene interrogato.",
+          body: "Aggiunga le domande che i suoi clienti farebbero a un assistente, 20 con Grow e 50 con Scale (il piano Free scatta un'istantanea di 5 al mese). Ogni settimana RepGet le pone a Claude e le mostra se la sua attività viene nominata, e in quale punto. ChatGPT non viene interrogato.",
         },
       ],
       compare: {
@@ -925,7 +925,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
         },
         {
           title: "Tracking der KI-Sichtbarkeit",
-          body: "Fügen Sie die Fragen hinzu, die Ihre Kunden einem Assistenten stellen würden, 20 bei Launch und Grow, 50 bei Scale. Jede Woche stellt RepGet sie Claude und zeigt, ob und an welcher Stelle Ihr Unternehmen genannt wird. ChatGPT selbst wird nicht abgefragt.",
+          body: "Fügen Sie die Fragen hinzu, die Ihre Kunden einem Assistenten stellen würden, 20 bei Grow, 50 bei Scale (der Free-Plan macht eine Momentaufnahme mit 5 pro Monat). Jede Woche stellt RepGet sie Claude und zeigt, ob und an welcher Stelle Ihr Unternehmen genannt wird. ChatGPT selbst wird nicht abgefragt.",
         },
       ],
       compare: {

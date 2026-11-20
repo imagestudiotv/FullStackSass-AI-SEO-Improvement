@@ -72,6 +72,12 @@ export type AdminAction =
   | "testimonial.published"
   | "testimonial.unpublished"
   | "testimonial.deleted"
+  /* Success stories (lib/admin/success-stories.ts). */
+  | "success_story.created"
+  | "success_story.saved"
+  | "success_story.published"
+  | "success_story.unpublished"
+  | "success_story.deleted"
   /* Operations (lib/admin/operations.ts). */
   | "platform.control_changed"
   | "publication.dispatch_resolved"
@@ -79,6 +85,8 @@ export type AdminAction =
   | "valuation.policy_published"
   /* What credits buy (lib/admin/credits.ts). */
   | "credits.settings_saved"
+  /* The Free plan's launch cap (lib/admin/free-plan.ts). */
+  | "free_plan.cap_changed"
   /* The bar above the public site's header (lib/admin/site-banner.ts). */
   | "site.banner_saved"
   /* Earn Credits claims (lib/earn/admin.ts). */

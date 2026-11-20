@@ -106,6 +106,15 @@ export type CspIntegrations = {
    * src/proxy.ts sets it, for /earn-credits, while the feature is on.
    */
   rewardedAds?: boolean;
+  /**
+   * AdSense units on the blog's articles (lib/ads/adsense-config.ts, ticket
+   * 2026-11-19), while NEXT_PUBLIC_ADSENSE_CLIENT is set: src/proxy.ts for
+   * the blog's pages, next.config.ts for the static baseline (the home page
+   * links into articles). Never for the app's pages, which the proxy sets
+   * without it. Only the policy is that wide; the loader and the units are
+   * on articles alone (components/ads/article-ads.tsx).
+   */
+  adsense?: boolean;
 };
 
 /** Mirrors measurementId()/tagManagerId() in lib/google-analytics.ts, which loads the tags (no imports here). */
@@ -252,6 +261,29 @@ export function contentSecurityPolicy(integrations: CspIntegrations, nonce?: str
     : [];
   const gptMedia = rewarded ? ["https://*.googlevideo.com", "https://*.gstatic.com", "https://*.googlesyndication.com"] : [];
   /*
+    AdSense on the blog's articles (only there, only while configured - see
+    src/proxy.ts). As for GPT, Google supports its ad code under a STRICT
+    policy only (nonce and 'strict-dynamic', support.google.com/adsense/answer/16283098)
+    and publishes no host list: adsbygoogle.js is added by the nonced bundle
+    (components/ads/adsense-slot.tsx), so 'strict-dynamic' lets it and what it
+    loads run, and the script hosts are only for browsers without it. The
+    rest is what the page itself must allow: the ad, measurement and
+    traffic-quality requests (connect-src), the ad frames (frame-src) and,
+    from the AdSense account, Google's consent message (Funding Choices).
+    Google's own example policy also allows 'unsafe-eval'; that is NOT added -
+    the CSP reports (Sentry) say whether any unit needs it.
+  */
+  const adsense = integrations.adsense === true;
+  const adsenseScript = adsense
+    ? ["https://pagead2.googlesyndication.com", "https://tpc.googlesyndication.com", "https://*.adtrafficquality.google", "https://fundingchoicesmessages.google.com"]
+    : [];
+  const adsenseConnect = adsense
+    ? ["https://pagead2.googlesyndication.com", "https://*.googlesyndication.com", "https://*.g.doubleclick.net", "https://adservice.google.com", "https://*.adtrafficquality.google", "https://www.google.com", "https://fundingchoicesmessages.google.com", "https://csi.gstatic.com"]
+    : [];
+  const adsenseFrame = adsense
+    ? ["https://googleads.g.doubleclick.net", "https://tpc.googlesyndication.com", "https://*.safeframe.googlesyndication.com", "https://*.adtrafficquality.google", "https://www.google.com", "https://fundingchoicesmessages.google.com"]
+    : [];
+  /*
     The Meta Pixel (lib/meta-pixel.ts): fbevents.js and the pixel's
     configuration script from connect.facebook.net; its hits go to
     www.facebook.com/tr, as an image (img-src already allows https:) or by
@@ -274,16 +306,16 @@ export function contentSecurityPolicy(integrations: CspIntegrations, nonce?: str
     [
       "script-src",
       nonce
-        ? ["'self'", `'nonce-${nonce}'`, THEME_SCRIPT_HASH, "'strict-dynamic'", ...crispScript, ...gaScript, ...adsScript, ...metaScript, ...gptScript]
-        : ["'self'", "'unsafe-inline'", ...crispScript, ...gaScript, ...adsScript, ...metaScript, ...gptScript],
+        ? unique(["'self'", `'nonce-${nonce}'`, THEME_SCRIPT_HASH, "'strict-dynamic'", ...crispScript, ...gaScript, ...adsScript, ...metaScript, ...gptScript, ...adsenseScript])
+        : unique(["'self'", "'unsafe-inline'", ...crispScript, ...gaScript, ...adsScript, ...metaScript, ...gptScript, ...adsenseScript]),
     ],
     ["script-src-attr", ["'none'"]],
     ["style-src", ["'self'", "'unsafe-inline'", ...crispScript]],
     ["img-src", ["'self'", "data:", "blob:", "https:"]],
     ["font-src", ["'self'", "data:", ...crispScript]],
-    ["connect-src", unique(["'self'", ...crispConnect, ...gaConnect, ...adsConnect, ...metaConnect, ...brandConnect, ...(sentry ? [sentry] : []), ...storage, ...gptConnect])],
+    ["connect-src", unique(["'self'", ...crispConnect, ...gaConnect, ...adsConnect, ...metaConnect, ...brandConnect, ...(sentry ? [sentry] : []), ...storage, ...gptConnect, ...adsenseConnect])],
     ["media-src", ["'self'", "blob:", ...storage, ...crispScript, ...gptMedia]],
-    ["frame-src", unique(["'self'", youtube, ...adsFrame, ...gptFrame])],
+    ["frame-src", unique(["'self'", youtube, ...adsFrame, ...gptFrame, ...adsenseFrame])],
     ["worker-src", ["'self'", "blob:"]],
     ["manifest-src", ["'self'"]],
     // Nobody else may frame RepGet (click-jacking); X-Frame-Options below

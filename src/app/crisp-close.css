@@ -212,3 +212,30 @@
     display: none !important;
   }
 }
+
+/*
+ * A compact message preview on phones (onboarding welcome, ticket
+ * 2026-11-19: "On mobile, use a compact notification that doesn't cover
+ * onboarding buttons or forms").
+ *
+ * A message from a Crisp trigger shows as a preview stacked above the
+ * launcher ([data-id=new_messages]) - up to 300px wide and 260px tall,
+ * several messages deep. Crisp shrinks it only in full view, which
+ * live-chat.tsx turns off, so on a phone it would sit over the page's
+ * buttons. These are Crisp's own full-view sizes (max 260x140, only the
+ * latest message), applied to the windowed mode below 640px.
+ *
+ * Same fragility as above: the cc-* classes are content hashes, verified
+ * against build b8befba (2026-11-19); [data-id=new_messages] is a data
+ * attribute and has been stable longer. If Crisp rebuilds, the preview
+ * simply returns to its normal size - nothing breaks.
+ */
+@media (max-width: 639.98px) {
+  .crisp-client [data-id="new_messages"] .cc-1k3vn:not(:last-child) {
+    display: none !important;
+  }
+  .crisp-client [data-id="new_messages"] .cc-1k3vn .cc-11lzj .cc-fodm8 {
+    max-width: 260px !important;
+    max-height: 140px !important;
+  }
+}

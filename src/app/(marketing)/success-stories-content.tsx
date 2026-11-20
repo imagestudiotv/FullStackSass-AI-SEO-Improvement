@@ -6,15 +6,20 @@ import {
   Link2,
   type LucideIcon,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { businessInitial } from "@/lib/blog/business";
+import { CUSTOMER_STORIES_COPY } from "@/lib/i18n/blog-engagement";
 import { localePath, type Locale } from "@/lib/i18n/config";
 import { format, formatDate, formatNumber } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
+import { SUCCESS_STORY_COPY } from "@/lib/i18n/success-stories";
 import { CASE_STUDY_COPY, CASE_STUDY_PATH, IMAGE_STUDIO } from "@/lib/marketing/case-study-image-studio";
 import { TRIAL_DAYS } from "@/lib/plans/features";
+import type { StoryCard } from "@/lib/success-stories/order";
 
 /**
  * Success stories.
@@ -25,7 +30,10 @@ import { TRIAL_DAYS } from "@/lib/plans/features";
  *
  * The first is Image Studio (client, 2026-10-15), a live case study that says
  * it shares an owner with RepGet (lib/marketing/case-study-image-studio.ts):
- * its card leads the page. Below it, what every case study reports - things
+ * its card leads the page, ALWAYS (client, 2026-11-19: "imagestudio website
+ * will be always first stable fixed"). Then every other customer story -
+ * the blog's and those from Admin -> Success stories - in the one order
+ * lib/success-stories/order.ts keeps for every page. Below them, what every case study reports - things
  * the product genuinely measures and shows in a dashboard - and what the first
  * months honestly look like, then the invitation to be the next one.
  *
@@ -44,8 +52,19 @@ import { TRIAL_DAYS } from "@/lib/plans/features";
  */
 const RESULT_ICONS: LucideIcon[] = [BarChart3, Bot, FileText, Link2];
 
-export function SuccessStoriesContent({ t, locale }: { t: Messages; locale: Locale }) {
+export function SuccessStoriesContent({
+  t,
+  locale,
+  stories = [],
+}: {
+  t: Messages;
+  locale: Locale;
+  /** The stories after Image Studio's, in order (lib/success-stories/stories.ts otherStoryCards). */
+  stories?: StoryCard[];
+}) {
   const copy = t.successStories;
+  const more = SUCCESS_STORY_COPY[locale];
+  const byline = CUSTOMER_STORIES_COPY[locale];
   const study = CASE_STUDY_COPY[locale];
   const n = (value: number) => formatNumber(value, locale);
   const day = (iso: string) =>
@@ -97,6 +116,49 @@ export function SuccessStoriesContent({ t, locale }: { t: Messages; locale: Loca
             </Button>
           </div>
         </article>
+
+        {/* Every other story, after Image Studio's (lib/success-stories/order.ts). */}
+        {stories.length > 0 ? (
+          <section aria-labelledby="more-stories" className="mt-12">
+            <h2 id="more-stories" className="text-2xl font-semibold tracking-tight">
+              {more.moreTitle}
+            </h2>
+            <ul className="mt-6 grid gap-4 sm:grid-cols-2">
+              {stories.map((story) => (
+                <li key={story.id} className="flex flex-col rounded-2xl border bg-card p-6">
+                  <div className="flex items-center gap-3">
+                    <span className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-background">
+                      {story.logoUrl ? (
+                        <Image src={story.logoUrl} alt={format(byline.logoLabel, { name: story.name })} width={48} height={48} sizes="48px" className="size-full object-cover" />
+                      ) : (
+                        <span className="text-lg font-semibold text-primary" role="img" aria-label={format(byline.logoLabel, { name: story.name })}>
+                          {businessInitial(story.name)}
+                        </span>
+                      )}
+                    </span>
+                    <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">
+                      {story.name} · {story.label ?? byline.byline}
+                    </p>
+                  </div>
+                  <h3 className="mt-4 text-lg font-semibold tracking-tight text-balance">
+                    <Link href={story.href} className="hover:underline">
+                      {story.title}
+                    </Link>
+                  </h3>
+                  <p className="mt-2 flex-1 text-sm text-muted-foreground">{story.description}</p>
+                  <Link
+                    href={story.href}
+                    className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-primary underline-offset-4 hover:underline"
+                    aria-label={format(byline.openStory, { name: story.name })}
+                  >
+                    {more.readStory}
+                    <ArrowRight className="size-4" aria-hidden="true" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
 
         {/* What the dashboard reports. Everything here is a real feature. */}
         <h2 className="mt-16 text-2xl font-semibold tracking-tight">{copy.resultsTitle}</h2>

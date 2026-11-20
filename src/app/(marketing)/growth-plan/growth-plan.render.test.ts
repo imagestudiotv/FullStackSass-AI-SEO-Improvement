@@ -6,9 +6,11 @@ import { LOCALES, localePath } from "@/lib/i18n/config";
 
 /**
  * The growth plan page (growth-plan-page.tsx) as the server sends it: the
- * visitor's website in the heading, the three steps with only the first one
- * under way, the work log, and nothing asked of the server until the browser
- * runs it. Without a usable address the page sends the visitor home.
+ * visitor's website in the heading, every step listed and none disabled (any
+ * step can be opened), only the first under way, the work log, and nothing
+ * asked of the server until the browser runs it. Someone signed in has no
+ * account step; the flow's own return opens at billing. Without a usable
+ * address the page sends the visitor home.
  */
 
 const redirected = vi.hoisted(() => ({ to: null as string | null }));
@@ -21,26 +23,48 @@ vi.mock("next/navigation", () => ({
 }));
 const actions = vi.hoisted(() => ({ suggestSite: vi.fn(), auditForPlan: vi.fn() }));
 vi.mock("./actions", () => actions);
+const billing = vi.hoisted(() => ({ prepareGrowthPlanBilling: vi.fn() }));
+vi.mock("./billing-actions", () => billing);
 
 import { GrowthPlanPageContent, growthPlanMetadata } from "./growth-plan-page";
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/'/g, "&#x27;").replace(/"/g, "&quot;");
 
 describe("the growth plan page", () => {
-  it.each(LOCALES)("%s: names the website, starts at the first step, and asks nothing on the server", (locale) => {
+  it.each(LOCALES)("%s: names the website, lists every step openable, starts at the first, asks nothing on the server", (locale) => {
     const t = growthPlanCopy(locale);
     const html = renderToStaticMarkup(GrowthPlanPageContent({ locale, searchParams: { domain: "https://www.acme.com/shop" } }));
 
     expect(html).toContain(`<h1`);
     expect(html).toContain(esc(fill(t.title, { domain: "acme.com" })));
-    for (const phase of t.phases) expect(html).toContain(esc(phase));
+    for (const phase of Object.values(t.phases)) expect(html).toContain(esc(phase));
     expect(html.match(/data-state="active"/g)).toHaveLength(1);
-    expect(html.match(/data-state="next"/g)).toHaveLength(2);
+    expect(html.match(/data-state="next"/g)).toHaveLength(5);
+    // Any step can be opened at any time: no step button is disabled.
+    expect(html).not.toMatch(/<button type="button" class="[^"]*" disabled=""/);
+    // The read steps after the first are queued behind it, and say so in the list.
+    expect(html.match(/data-queued="true"/g)).toHaveLength(2);
     expect(html).toContain(`aria-label="${esc(t.logLabel)}"`);
     expect(html).toContain('role="log"');
     expect(html).toContain(`href="${localePath(locale, "/")}"`);
     expect(actions.suggestSite).not.toHaveBeenCalled();
     expect(actions.auditForPlan).not.toHaveBeenCalled();
+    expect(billing.prepareGrowthPlanBilling).not.toHaveBeenCalled();
+  });
+
+  it("someone signed in skips the account step; the flow's return opens at billing", () => {
+    const t = growthPlanCopy("en");
+    const html = renderToStaticMarkup(
+      GrowthPlanPageContent({
+        locale: "en",
+        searchParams: { domain: "acme.com", plan: "grow", step: "billing" },
+        account: { name: "Ana", email: "ana@acme.com" },
+      }),
+    );
+    expect(html).not.toContain(esc(t.phases.account));
+    expect(html.match(/<li class="[^"]*" data-state=/g)).toHaveLength(5);
+    expect(html).toMatch(new RegExp(`aria-current="step" aria-label="${esc(t.phases.billing)}`));
+    expect(billing.prepareGrowthPlanBilling).not.toHaveBeenCalled();
   });
 
   it.each(LOCALES)("%s: sends the visitor home without a usable address", (locale) => {

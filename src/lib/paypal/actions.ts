@@ -21,6 +21,7 @@ import { metaCheckoutEvent, rememberPayer } from "@/lib/conversions/conversions"
 import type { MetaCheckout } from "@/lib/meta-pixel";
 import { db } from "@/lib/db";
 import { plans, subscriptions, websites } from "@/lib/db/schema";
+import { mayCheckoutTier } from "@/lib/plans/free-plan-server";
 import { isPayPalConfigured, PayPalError, payPalCheckoutPaused } from "@/lib/paypal/client";
 import { CONFIRM_EMAIL_FIRST, isDirectPurchaseTier } from "@/lib/plans/features";
 import { startPlanChange } from "@/lib/paypal/plan-changes";
@@ -177,6 +178,10 @@ export async function createPayPalCheckout(
     .limit(1);
 
   if (!plan || !plan.isActive) {
+    return { error: "Plan not found" };
+  }
+  // Launch is retired from sale (the Free plan replaced it): only a Launch website may change billing period on it.
+  if (!(await mayCheckoutTier(websiteId, plan.tier))) {
     return { error: "Plan not found" };
   }
   if (!plan.paypalPlanId) {

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { formatPrice, type PlanRow } from "@/lib/billing-shared";
 import { pricingCopy, type HomePackageId } from "@/lib/i18n/home/pricing";
 import { signUpForPlan } from "@/lib/plans/features";
+import { freePlanDisplay, isRetiredFromSale, type FreePlanCounter } from "@/lib/plans/free-plan";
 import type { SectionProps } from "../types";
 import styles from "./pricing.module.css";
 
@@ -26,10 +27,19 @@ const c = (names: string) =>
  *
  * Every "Get Started" goes through sign-up to that plan, "Talk to our team" to
  * the contact page.
+ *
+ * THE FREE PLAN COMES FIRST, where Launch was (Daniel, 2026-11-19: "We will
+ * replace it with our basic Launch plan"): its words and figures are
+ * freePlanDisplay's (lib/plans/free-plan.ts), the card /pricing and onboarding
+ * draw too, with the launch counter when the page could read it. This page
+ * is built ahead and refreshed in the background, so the counter can trail
+ * by up to the page's refresh time.
  */
-export function Pricing({ locale, href, plans }: SectionProps & { plans: PlanRow[] }) {
+export function Pricing({ locale, href, plans, freeCounter = null }: SectionProps & { plans: PlanRow[]; freeCounter?: FreePlanCounter | null }) {
   const t = pricingCopy(locale);
-  const packages = plans.filter((plan) => plan.interval === "month" && plan.tier in t.packages);
+  const packages = plans.filter((plan) => plan.interval === "month" && plan.tier in t.packages && !isRetiredFromSale(plan.tier));
+  const free = freePlanDisplay(locale, freeCounter);
+  const plain = (text: string) => text.replaceAll("**", "");
 
   return (
     <section className={c("rgp-packages")} id="pricing" aria-labelledby="rgp-title">
@@ -48,6 +58,50 @@ export function Pricing({ locale, href, plans }: SectionProps & { plans: PlanRow
         </header>
         {packages.length > 0 ? (
           <div className={c("rgp-grid")} aria-label={t.gridLabel}>
+            <article className={c("rgp-card rgp-free")} aria-label={free.name}>
+              <div className={c("rgp-card-top")}>
+                <span className={c("rgp-tier")}>01 / {free.badge}</span>
+              </div>
+              <h3>{free.name}</h3>
+              <p className={c("rgp-intro")}>{free.desc}</p>
+              <div className={c("rgp-price")}>
+                <span className={c("rgp-euro")}>€</span>
+                <strong>0</strong>
+                <span className={c("rgp-time")}>{t.perMonth}</span>
+              </div>
+              <p className={c("rgp-free-caption")}>{free.caption}</p>
+              <div className={c("rgp-capacity")}>
+                <div>
+                  <strong>{free.limits.articlesPerMonth}</strong>
+                  <small>{t.articles}</small>
+                </div>
+                <div>
+                  <strong>{free.limits.socialPostsPerMonth}</strong>
+                  <small>{t.posts}</small>
+                </div>
+              </div>
+              <ul>
+                {free.features.slice(2).map((feature) => (
+                  <li key={feature}>{plain(feature)}</li>
+                ))}
+                {free.locked.map((feature) => (
+                  <li key={feature} className={c("rgp-locked")}>
+                    {plain(feature)}
+                  </li>
+                ))}
+              </ul>
+              {free.counter ? (
+                <div className={c("rgp-free-counter")}>
+                  <span>{free.counter.text}</span>
+                  <div role="progressbar" aria-label={free.counter.label} aria-valuemin={0} aria-valuemax={free.counter.cap} aria-valuenow={free.counter.taken}>
+                    <i style={{ width: `${free.counter.percent}%` }} />
+                  </div>
+                </div>
+              ) : null}
+              <Link prefetch={false} className={c("rgp-action rgp-free-action")} href={free.ctaHref} aria-label={free.ctaLabel}>
+                {free.cta} <span aria-hidden="true">↗</span>
+              </Link>
+            </article>
             {packages.map((plan, index) => {
               const words = t.packages[plan.tier as HomePackageId];
               const featured = plan.tier === "grow";
@@ -58,7 +112,7 @@ export function Pricing({ locale, href, plans }: SectionProps & { plans: PlanRow
                 <article key={plan.id} className={c(featured ? "rgp-card rgp-featured" : "rgp-card")} aria-label={words.label}>
                   <div className={c("rgp-card-top")}>
                     <span className={c("rgp-tier")}>
-                      {String(index + 1).padStart(2, "0")} / {t.allInOne}
+                      {String(index + 2).padStart(2, "0")} / {t.allInOne}
                     </span>
                     {featured ? <span className={c("rgp-popular")}>{t.popular}</span> : null}
                   </div>

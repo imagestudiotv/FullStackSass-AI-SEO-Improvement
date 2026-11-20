@@ -6,6 +6,7 @@ import {
   creditLedger,
   creditSettings,
   creditSpends,
+  freePlanAccounts,
   keywords,
   socialAccounts,
   socialSuggestions,
@@ -51,6 +52,7 @@ vi.mock("@/lib/ai/client", () => ({
 vi.mock("@/lib/providers/dataforseo", () => ({ isDataForSeoConfigured: () => true, discussionSearch: vi.fn() }));
 
 import { recordCredit } from "@/lib/backlinks/credits";
+import { FREE_PLAN } from "@/lib/plans/free-plan";
 import { connectSocialUsername, editScheduledPost, postSocialSuggestion, saveSocialDraft, skipSocialSuggestion } from "./actions";
 import { checkPublished, publishSuggestion } from "./publish";
 import { suggestForWebsite, type SuggestDeps } from "./suggest";
@@ -90,6 +92,15 @@ async function site(options: { trial?: boolean } = {}) {
     { websiteId: seeded.websiteId, term: "wedding photography tips", priorityScore: 9 },
     { websiteId: seeded.websiteId, term: "image studio prices", priorityScore: 8 },
   ]);
+  return seeded;
+}
+
+/** A website on the Free plan (lib/plans/free-plan.ts): no subscription, a free_plan_accounts row. */
+async function freeSite() {
+  const seeded = await seedWebsite(test, { status: null });
+  await test.db.update(websites).set({ brandName: "Image Studio", language: "English", country: "Ireland" }).where(eq(websites.id, seeded.websiteId));
+  await test.db.insert(freePlanAccounts).values({ organizationId: seeded.orgId, websiteId: seeded.websiteId, domain: `${seeded.orgId}.example` });
+  await test.db.insert(keywords).values([{ websiteId: seeded.websiteId, term: "wedding photography tips", priorityScore: 9 }]);
   return seeded;
 }
 
@@ -403,6 +414,77 @@ describe("the one-click post", () => {
     expect(await postSocialSuggestion(websiteId, row.id, { body: "More on my site: imagestudio.io" })).toEqual({ ok: false, error: "warmup_link" });
     expect(await postSocialSuggestion(websiteId, row.id, { body: "At Image Studio we test first." })).toEqual({ ok: false, error: "warmup_brand" });
     expect(await postSocialSuggestion(websiteId, row.id, { body: "x".repeat(281) })).toEqual({ ok: false, error: "too_long" });
+  });
+});
+
+describe("the Free plan's social posts", () => {
+  const thread = (n: number) => `https://x.com/someone/status/${1000 + n}`;
+
+  it("cost no credit and stop at the month's eight, however many credits the workspace has; a refused one is not counted", async () => {
+    const { orgId, websiteId } = await freeSite();
+    await account(websiteId, "x");
+    // Bought credits do not post more on Free.
+    await recordCredit(orgId, { type: "adjustment", amount: 50, note: "test" });
+    const rows = [];
+    for (let n = 0; n <= FREE_PLAN.socialPostsPerMonth; n += 1) rows.push(await suggestion(websiteId, { threadUrl: thread(n) }));
+
+    for (const row of rows.slice(0, FREE_PLAN.socialPostsPerMonth)) {
+      expect((await postSocialSuggestion(websiteId, row.id, { body: row.body })).ok).toBe(true);
+    }
+    const last = rows[FREE_PLAN.socialPostsPerMonth];
+    expect(await postSocialSuggestion(websiteId, last.id, { body: last.body })).toEqual({ ok: false, error: "free_posts_used" });
+    const [waiting] = await test.db.select().from(socialSuggestions).where(eq(socialSuggestions.id, last.id));
+    expect(waiting.status).toBe("new");
+    // Clicking a counted post again (a closed tab) takes nothing more.
+    expect((await postSocialSuggestion(websiteId, rows[0].id, { body: rows[0].body })).ok).toBe(true);
+    expect(await test.db.select().from(creditSpends).where(eq(creditSpends.organizationId, orgId))).toEqual([]);
+
+    // A post the platform refused gives its place back.
+    await test.db.update(socialSuggestions).set({ status: "failed" }).where(eq(socialSuggestions.id, rows[1].id));
+    expect((await postSocialSuggestion(websiteId, last.id, { body: last.body })).ok).toBe(true);
+  });
+
+  it("count only this month's: last month's posts leave this month's eight", async () => {
+    const { websiteId } = await freeSite();
+    await account(websiteId, "x");
+    const lastMonth = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1) - DAY);
+    for (let n = 0; n < FREE_PLAN.socialPostsPerMonth; n += 1) {
+      await suggestion(websiteId, { threadUrl: thread(n), status: "posted", postedAt: lastMonth });
+    }
+    const row = await suggestion(websiteId, { threadUrl: thread(50) });
+    expect((await postSocialSuggestion(websiteId, row.id, { body: row.body })).ok).toBe(true);
+  });
+
+  it("are published by RepGet without a credit, until the month's are used", async () => {
+    const { orgId, websiteId } = await freeSite();
+    await account(websiteId, "x", { bundle: true });
+    await test.db.insert(socialTeams).values({ websiteId, teamId: "team_free" });
+    const first = await suggestion(websiteId, { kind: "post", threadUrl: null, status: "scheduled", scheduledFor: NOW, body: "Shade beats golden hour." });
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ id: "post_free", status: "SCHEDULED", error: null, errors: null, externalData: null }), { status: 200 })));
+    expect(await publishSuggestion(first.id, NOW)).toBe("posting");
+    expect(await test.db.select().from(creditSpends).where(eq(creditSpends.organizationId, orgId))).toEqual([]);
+
+    for (let n = 1; n < FREE_PLAN.socialPostsPerMonth; n += 1) {
+      await suggestion(websiteId, { threadUrl: thread(n), status: "posted", postedAt: NOW });
+    }
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    const next = await suggestion(websiteId, { kind: "post", threadUrl: null, status: "scheduled", scheduledFor: NOW, body: "Another tip." });
+    expect(await publishSuggestion(next.id, NOW)).toBe("free_posts_used");
+    expect(fetch).not.toHaveBeenCalled();
+    const [saved] = await test.db.select().from(socialSuggestions).where(eq(socialSuggestions.id, next.id));
+    expect(saved).toMatchObject({ status: "failed", error: "free_posts_used" });
+  });
+
+  it("get the month's drafts from the AI, not ten a day", async () => {
+    const { websiteId } = await freeSite();
+    await account(websiteId, "reddit");
+    for (let n = 0; n < FREE_PLAN.socialSuggestionsPerMonth; n += 1) {
+      await suggestion(websiteId, { platform: "reddit", threadUrl: `https://www.reddit.com/r/photography/comments/f${n}/x/`, day: "2026-10-02", status: "dismissed" });
+    }
+    const write = writer({ posts: [], replies: [] });
+    expect(await suggestForWebsite(websiteId, { now: NOW, search, write })).toMatchObject({ created: 0, reason: "this month's Free suggestions are made" });
+    expect(write).not.toHaveBeenCalled();
   });
 });
 

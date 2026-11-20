@@ -43,6 +43,8 @@ import { organizationId, pk, timestamps, userId } from "./columns";
 export * from "./auth-tables";
 // The cash partner program (docs/partner-program.md).
 export * from "./partner-tables";
+// The live chat's onboarding welcome and support tracking (ticket 2026-11-19).
+export * from "./support-tables";
 
 /** FK to websites.id. Declared here because websites lives in this module. */
 const websiteId = () =>
@@ -3324,6 +3326,59 @@ export const testimonials = pgTable(
 );
 
 /**
+ * Success stories written in Admin -> Success stories (lib/admin/
+ * success-stories.ts; client, 2026-11-19: "adding success stories from the
+ * dashboard ... the dumitruculiuc website for example, and other websites
+ * too"). Each published one has its page at /success-stories/<slug> and a
+ * card after Image Studio's on the homepage, /success-stories and /discover
+ * (lib/success-stories/order.ts: Image Studio is always first, whatever
+ * sort_order says). Image Studio itself is not a row: its case study is
+ * hand-built (lib/marketing/case-study-image-studio.ts).
+ *
+ * The words are single-language, as the administrator types them; the pages
+ * around them are translated.
+ */
+export const successStories = pgTable(
+  "success_stories",
+  {
+    id: pk(),
+    /** The page's address: /success-stories/<slug>. Lower-case letters, digits and hyphens. */
+    slug: text("slug").notNull(),
+    /** The business's or person's name. */
+    name: text("name").notNull(),
+    /** http(s) only (lib/blog/business.ts businessWebsite). */
+    websiteUrl: text("website_url"),
+    /** One of the blog's pictures (logo or portrait); null shows the name's initial. */
+    logoUrl: text("logo_url"),
+    title: text("title").notNull(),
+    /** The card's text, and the page's lede. */
+    summary: text("summary").notNull(),
+    /** The byline's label; null is "Customer story" in the reader's language. */
+    categoryLabel: text("category_label"),
+    /** Sanitised HTML (lib/articles/sanitize.ts), headings from H2. */
+    bodyHtml: text("body_html").default("").notNull(),
+    /** Key figures shown in a row under the title, e.g. { value: "291", label: "researched keywords" }. */
+    metrics: jsonb("metrics").$type<{ label: string; value: string }[]>().default([]).notNull(),
+    /** The business's /discover/<slug> profile, when it has one. */
+    discoverSlug: text("discover_slug"),
+    seoTitle: text("seo_title"),
+    seoDescription: text("seo_description"),
+    published: boolean("published").default(false).notNull(),
+    /** First published (kept through unpublishing): the page's datePublished. */
+    publishedAt: timestamp("published_at"),
+    /** Ascending, after Image Studio: the order of the cards. */
+    sortOrder: integer("sort_order").default(0).notNull(),
+    createdBy: text("created_by"),
+    updatedBy: text("updated_by"),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("success_stories_slug_uidx").on(table.slug),
+    index("success_stories_published_order_idx").on(table.published, table.sortOrder),
+  ],
+);
+
+/**
  * The bar above the public site's header (client, 2026-11-11: "a top banner
  * text with count that redirects to pricing page ... on the admin dashboard,
  * so we can change the texting quite often during different holidays").
@@ -4420,4 +4475,64 @@ export const rewardedAdViews = pgTable(
     index("rewarded_ad_views_day_idx").on(table.day, table.status),
     check("rewarded_ad_views_reward_check", sql`${table.rewardCredits} > 0`),
   ],
+);
+
+/* ------------------------------------------------------------------------- */
+/* The Free Forever plan (lib/plans/free-plan.ts, 2026-11-19)                 */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * The workspaces that started Free, one row each: their Free website, and
+ * when they started. This IS the Free plan - it has no plans row and no
+ * subscription (nothing is charged, nothing at Stripe or PayPal) - and the
+ * launch counter is the number of rows ("430 / 500 free spots taken"),
+ * admitted one at a time under a lock against the cap
+ * (lib/plans/free-plan-server.ts startFreePlan).
+ *
+ * ONE PER WORKSPACE, ONE PER WEBSITE, ONE PER DOMAIN (unique indexes): Free
+ * covers one website, and a domain cannot be on two Free accounts (the
+ * client's worry is AI cost, and a second free account for the same site is
+ * the cheapest way to double it). `domain` is lower-case without "www.".
+ *
+ * A subscription on the website always wins (lib/usage.ts resolvePlan), so
+ * upgrading needs no change here: the row stays as the launch dashboard's
+ * history ("converted to paid"). Deleting the website keeps the row, with a
+ * null website: the workspace has used its Free start.
+ */
+export const freePlanAccounts = pgTable(
+  "free_plan_accounts",
+  {
+    id: pk(),
+    organizationId: organizationId(),
+    websiteId: uuid("website_id").references(() => websites.id, { onDelete: "set null" }),
+    domain: text("domain").notNull(),
+    /** Who pressed "Start Free". */
+    userId: userId(),
+    startedAt: timestamp("started_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("free_plan_accounts_org_uidx").on(table.organizationId),
+    uniqueIndex("free_plan_accounts_website_uidx").on(table.websiteId),
+    uniqueIndex("free_plan_accounts_domain_uidx").on(table.domain),
+    index("free_plan_accounts_started_idx").on(table.startedAt),
+  ],
+);
+
+/**
+ * What the launch dashboard cannot derive from other tables: a Free
+ * workspace pressing an upgrade prompt (kind "upgrade_click", with where:
+ * `source`). Checkouts started and plans bought are read from
+ * billing_checkouts and subscriptions instead.
+ */
+export const freePlanEvents = pgTable(
+  "free_plan_events",
+  {
+    id: pk(),
+    organizationId: organizationId(),
+    userId: userId(),
+    kind: text("kind").notNull(),
+    source: text("source"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [index("free_plan_events_org_kind_idx").on(table.organizationId, table.kind)],
 );

@@ -14,6 +14,7 @@ import { ensureMonthlyCredits } from "@/lib/backlinks/credits";
 import { isRelevantPair } from "@/lib/backlinks/matching";
 import { withdrawPlacement } from "@/lib/backlinks/placements";
 import { db } from "@/lib/db";
+import { isFreePlanWebsite } from "@/lib/plans/free-plan-server";
 import {
   articles,
   articleVersions,
@@ -281,6 +282,15 @@ export async function placeManagedLink(input: PlaceInput): Promise<{ placementId
     }
     if (!host.accepting) throw new PlacementError("The host website is not taking part in the Partner Network");
     if (!beneficiary.accepting) throw new PlacementError("That website is not taking part in the Partner Network");
+    /*
+      The Free plan (lib/plans/free-plan.ts, 2026-11-19) HOSTS links - its
+      articles may carry paying brands' mentions and links - but never
+      receives one: backlink placements are a paid feature ("available on
+      Grow"). Credits it earned or bought do not change that.
+    */
+    if (await isFreePlanWebsite(beneficiary.id, tx)) {
+      throw new PlacementError("That website is on the Free plan: it can host links, but receiving them needs a paid plan");
+    }
 
     /*
       The beneficiary's minimum authority, on the metric everyone sees

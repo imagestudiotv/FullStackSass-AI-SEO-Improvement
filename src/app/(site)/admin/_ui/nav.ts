@@ -1,4 +1,5 @@
 import {
+  Award,
   Banknote,
   Building2,
   ChartLine,
@@ -11,6 +12,7 @@ import {
   Handshake,
   Inbox,
   LayoutDashboard,
+  LifeBuoy,
   Link2,
   Mail,
   Megaphone,
@@ -20,6 +22,7 @@ import {
   PanelsTopLeft,
   Quote,
   Receipt,
+  Rocket,
   ScrollText,
   ShieldAlert,
   TicketPercent,
@@ -108,6 +111,20 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         description: "Ideas and problems sent by customers and visitors",
       },
       {
+        href: "/admin/free-plan",
+        label: "Free plan launch",
+        icon: Rocket,
+        keywords: ["free", "launch", "cap", "signups", "conversion", "upgrade", "ai cost", "spend", "observation"],
+        description: "Free signups against the cap, milestones, upgrades and AI cost",
+      },
+      {
+        href: "/admin/onboarding-help",
+        label: "Onboarding help",
+        icon: LifeBuoy,
+        keywords: ["crisp", "welcome", "chat", "support", "onboarding", "proactive", "dismissed", "answered"],
+        description: "The Crisp onboarding welcome: welcomed, opened, dismissed, answered, setup completed",
+      },
+      {
         href: "/admin/earn-credits",
         label: "Earn Credits",
         icon: Gift,
@@ -160,6 +177,13 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         icon: Quote,
         keywords: ["reviews", "quotes", "feedback", "customers", "homepage"],
         description: "The homepage's testimonial cards",
+      },
+      {
+        href: "/admin/success-stories",
+        label: "Success stories",
+        icon: Award,
+        keywords: ["customer stories", "case studies", "brands", "homepage", "discover", "image studio"],
+        description: "The customer stories after Image Studio's, on the homepage, /success-stories and /discover",
       },
       {
         href: "/admin/banner",

@@ -35,6 +35,12 @@ export type LimitCheck = {
    */
   trial?: boolean;
   /**
+   * The website is on the Free plan (lib/plans/free-plan.ts): the limits are
+   * FREE_PLAN's, over the UTC calendar month, and paid features need an
+   * upgrade (lib/billing/entitled.ts).
+   */
+  free?: boolean;
+  /**
    * Articles only: the plan's MONTHLY allowance, even in the free trial, where
    * `limit` is pro-rated to it. Pacing and planning (the daily queue, the
    * calendar's cadence, the topic clusters) read this, so a trial runs at

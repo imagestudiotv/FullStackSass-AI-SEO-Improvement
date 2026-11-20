@@ -10,7 +10,9 @@ import { blogLocale, blogPath } from "@/lib/blog/locale";
 import { db, isDatabaseConfigured } from "@/lib/db";
 import { blogComments, blogPosts, blogPostUpvotes, blogPostViewKeys, blogPostViews } from "@/lib/db/schema";
 import { DEFAULT_LOCALE, LOCALES, type Locale } from "@/lib/i18n/config";
+import { isImageStudioCard } from "@/lib/success-stories/order";
 
+import { sortDirectory } from "./directory-order";
 import { isDiscoverSlug, profileParagraphs } from "./profile-fields";
 
 /**
@@ -76,6 +78,8 @@ export type DiscoverEntry = {
   views: number;
   /** ISO; "Most upvoted" puts the newest first among equals. */
   publishedAt: string;
+  /** Image Studio's profile: always row 1 of the directory (lib/discover/directory-order.ts). */
+  pinned: boolean;
 };
 
 /** One business's page. */
@@ -212,36 +216,40 @@ async function totals(ids: string[]): Promise<Map<string, { upvotes: number; com
 }
 
 function entryOf(row: Row, counts: { upvotes: number; comments: number; views: number }): DiscoverEntry {
+  const name = row.businessName?.trim() || row.author;
+  const websiteUrl = row.businessWebsiteUrl ? businessWebsite(row.businessWebsiteUrl) : null;
   return {
     postId: row.id,
     slug: row.businessSlug ?? "",
     locale: blogLocale(row.locale),
-    name: row.businessName?.trim() || row.author,
+    name,
     tagline: row.businessTagline?.trim() || row.description,
     category: row.businessCategory?.trim() || null,
     logoUrl: row.businessLogoUrl || null,
-    websiteUrl: row.businessWebsiteUrl ? businessWebsite(row.businessWebsiteUrl) : null,
+    websiteUrl,
     ...counts,
     publishedAt: (row.publishedAt ?? new Date(0)).toISOString(),
+    // The stories' own rule, so the directory and the stories never disagree on who Image Studio is.
+    pinned: isImageStudioCard({ source: "blog", name, websiteUrl }),
   };
-}
-
-/** "Most upvoted": every upvote, then the newest. */
-export function byUpvotes(a: Pick<DiscoverEntry, "upvotes" | "publishedAt">, b: Pick<DiscoverEntry, "upvotes" | "publishedAt">): number {
-  return b.upvotes - a.upvotes || b.publishedAt.localeCompare(a.publishedAt);
 }
 
 /**
  * The directory in a language: every business with a published profile, in
- * that language where it has one (else English), most upvoted first. Empty
- * with no database, or before migration 0091.
+ * that language where it has one (else English), Image Studio first, then
+ * most upvoted (lib/discover/directory-order.ts). Empty with no database, or
+ * before migration 0091.
  */
 export async function listDiscoverProfiles(locale: Locale): Promise<DiscoverEntry[]> {
   if (!isDatabaseConfigured()) return [];
   try {
     const rows = pickVersions(await profileRows(locale === DEFAULT_LOCALE ? [DEFAULT_LOCALE] : [locale, DEFAULT_LOCALE]), locale);
     const counts = await totals(rows.map((row) => row.id));
-    return rows.map((row) => entryOf(row, counts.get(row.id)!)).sort(byUpvotes);
+    return sortDirectory(
+      rows.map((row) => entryOf(row, counts.get(row.id)!)),
+      "votes",
+      locale,
+    );
   } catch (error) {
     if (!isMissingSchema(error)) throw error;
     console.warn("[discover] the profile columns do not exist yet (migration 0091): listing none");

@@ -1,3 +1,5 @@
+import { localiseFreePlanMessage } from "@/lib/plans/free-plan";
+import type { Locale } from "@/lib/i18n/config";
 import {
   CHECK_WAIT_LIMIT_MS,
   checkBaseline,
@@ -441,7 +443,7 @@ export const isAllowanceError = (error: string) => /^Your plan tracks up to \d+ 
  * the server text stays; this maps each known one to its translation. An
  * unknown message is shown as written rather than replaced by a vaguer one.
  */
-export function localiseGeoError(error: string, t: GeoText, tw: WorkspaceText): string {
+export function localiseGeoError(error: string, t: GeoText, tw: WorkspaceText, locale?: Locale): string {
   switch (error) {
     case "You have view-only access to this website.":
       return tw.viewOnly;
@@ -468,6 +470,8 @@ export function localiseGeoError(error: string, t: GeoText, tw: WorkspaceText): 
     case "You are already tracking that question":
       return t.errDuplicate;
   }
+  // The Free plan's refusals (lib/plans/free-plan.ts), in the reader's language when it is known.
+  if (locale) return localiseFreePlanMessage(error, locale);
   const allowance = /^Your plan tracks up to (\d+) questions/.exec(error);
   if (allowance) return format(t.errAllowance, { count: allowance[1] });
   return error;

@@ -38,8 +38,14 @@ export type ChatContext = {
   brandName: string | null;
   /** The language the answer is written in (en, es, fr, it, de). */
   locale: string;
-  level: "paid" | "trial";
+  /** "free": the Free plan (lib/plans/free-plan.ts), which is not a trial - it does not end. */
+  level: "paid" | "trial" | "free";
 };
+
+/** The plan in the model's words. */
+export function planWords(level: ChatContext["level"]): string {
+  return level === "free" ? "Free plan" : level === "trial" ? "free trial" : "paid plan";
+}
 
 type JsonSchema = { type: "object"; properties: Record<string, unknown>; required?: string[] };
 
@@ -73,7 +79,7 @@ export const READ_TOOLS: ReadTool[] = [
         getNextActions(ctx.websiteId, ctx.ownerOrgId, true),
       ]);
       return {
-        website: { domain: ctx.domain, brand: ctx.brandName, plan: ctx.level === "trial" ? "free trial" : "paid plan" },
+        website: { domain: ctx.domain, brand: ctx.brandName, plan: planWords(ctx.level) },
         // A held article's title marker, in words (lib/i18n/article-delivery.ts).
         todaysArticle: overview?.todaysArticle.ok && overview.todaysArticle.data
           ? { ...overview.todaysArticle, data: { ...overview.todaysArticle.data, title: titleFor(ctx, overview.todaysArticle.data.title) } }

@@ -11,6 +11,7 @@ import { faqCopy } from "@/lib/i18n/home/faq";
 import { pricingCopy } from "@/lib/i18n/home/pricing";
 import { getMessages } from "@/lib/i18n/messages";
 import type { Testimonial } from "@/lib/marketing/testimonials";
+import { FREE_PLAN, freePlanDisplay } from "@/lib/plans/free-plan";
 import { TIERS } from "../../../scripts/plan-catalog.mjs";
 
 /**
@@ -244,24 +245,27 @@ describe("homepage sections", () => {
     return html.slice(at, html.indexOf("</article>", at)).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ");
   };
 
-  it.each(LOCALES)("%s: shows the catalog's three packages, from the plans on sale", (locale) => {
+  it.each(LOCALES)("%s: shows the Free plan where Launch was, then the paid packages on sale", (locale) => {
     const html = renderHome(locale);
     const { packages } = pricingCopy(locale);
-    expect(card(html, packages.launch.label)).toMatch(/Launch .*€ 99 .* 30 .* 60 /);
+    // Free replaced Launch on sale (2026-11-19): its card, from FREE_PLAN; Launch's is gone even though its rows are active.
+    expect(card(html, freePlanDisplay(locale).name)).toMatch(/Free .*€ 0 .* 4 .* 8 /);
+    expect(html).not.toContain(esc(packages.launch.label));
     expect(card(html, packages.grow.label)).toMatch(/Grow .*€ 149 .* 60 .* 90 /);
     expect(card(html, packages.scale.label)).toMatch(/Scale .*€ 349 .* 100 .* 240 /);
   });
 
   it("shows what the plans table charges, not a figure of its own", () => {
-    const html = renderHome("en", { plans: [plan({ tier: "launch", name: "Launch", priceCents: 12300, articleLimit: 41, socialPostLimit: 77 })] });
-    const text = card(html, pricingCopy("en").packages.launch.label);
+    const html = renderHome("en", { plans: [plan({ tier: "grow", name: "Grow", priceCents: 12300, articleLimit: 41, socialPostLimit: 77 })] });
+    const text = card(html, pricingCopy("en").packages.grow.label);
     expect(text).toMatch(/€ 123 .* 41 .* 77 /);
-    expect(html).not.toContain(pricingCopy("en").packages.grow.label);
+    expect(html).not.toContain(pricingCopy("en").packages.scale.label);
   });
 
   it("leaves out the social posts of a plan that states none, and the cards when no plan can be read", () => {
     const old = renderHome("en", { plans: PLANS });
-    expect(old).not.toContain(pricingCopy("en").posts);
+    // The Free card always states its posts; a paid card without them says nothing.
+    expect(card(old, pricingCopy("en").packages.grow.label)).not.toContain(pricingCopy("en").posts);
     expect(old).toContain("€");
     const none = renderHome("en", { plans: [] });
     expect(none).toContain('id="pricing"');
@@ -271,7 +275,7 @@ describe("homepage sections", () => {
 
   it("takes each Get Started to its own plan", () => {
     const html = renderHome("en");
-    for (const tier of ["launch", "grow", "scale"]) {
+    for (const tier of ["free", "grow", "scale"]) {
       expect(html).toContain(`href="/sign-up?next=%2Fonboarding%2Fwebsite%3Fplan%3D${tier}"`);
     }
   });
@@ -288,10 +292,11 @@ describe("homepage sections", () => {
 
   it.each(LOCALES)("%s: the FAQ's social post figures are the catalog's", (locale) => {
     const answers = faqCopy(locale).groups.flatMap((group) => group.items.map((item) => item.answer));
-    const answer = answers.find((text) => text.includes("Launch") && text.includes("Scale"));
+    const answer = answers.find((text) => text.includes("Free") && text.includes("Scale"));
     const figures = answer?.match(/\d+/g)?.map(Number);
-    // Launch, Grow and Scale, then the 1 credit a post costs (Admin -> Credits).
-    expect(figures).toEqual([...TIERS.map((tier) => tier.socialPostLimit), 1]);
+    // Free, Grow and Scale (Launch is off sale, 2026-11-19), then the 1 credit a post costs (Admin -> Credits).
+    const onSale = TIERS.filter((tier) => tier.tier !== "launch").map((tier) => tier.socialPostLimit);
+    expect(figures).toEqual([FREE_PLAN.socialPostsPerMonth, ...onSale, 1]);
   });
 
   it("publishes no FAQ markup of its own - /faq carries it", () => {

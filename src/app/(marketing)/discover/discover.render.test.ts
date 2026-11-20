@@ -101,6 +101,20 @@ describe("the directory", () => {
     expect(html.indexOf("Business 2")).toBeLessThan(html.indexOf("Business 1"));
     expect(html.indexOf("Business 1")).toBeLessThan(html.indexOf("Business 3"));
 
+    // Image Studio is row 1 however few votes it has (client, 2026-11-19), in every language.
+    for (const locale of LOCALES) {
+      const pinned = renderToStaticMarkup(
+        createElement(DiscoverDirectory, {
+          locale,
+          copy: DISCOVER_COPY[locale].directory,
+          entries: [entry(1, { upvotes: 5 }), entry(4, { name: "Image Studio", upvotes: 0, pinned: true }), entry(2, { upvotes: 3 })],
+        }),
+      );
+      expect(pinned.indexOf("Image Studio")).toBeLessThan(pinned.indexOf("Business 1"));
+      expect(pinned.match(/>Image Studio</g)).toHaveLength(1);
+      expect(pinned).toMatch(/class="[^"]*rank[^"]*">1<\/span>.*?\/discover\/business-4"/);
+    }
+
     const one = renderToStaticMarkup(createElement(DiscoverDirectory, { locale: "en", copy: t, entries: [entry(1)] }));
     expect(one).toContain("1 business<");
     const none = renderToStaticMarkup(createElement(DiscoverDirectory, { locale: "en", copy: t, entries: [] }));
@@ -122,6 +136,7 @@ const profile = (extra: Partial<DiscoverProfile> = {}): DiscoverProfile => ({
   comments: 0,
   views: 5000,
   publishedAt: "2026-11-01T00:00:00.000Z",
+  pinned: true,
   tags: ["Creative Production", "Photography", "Film & Video"],
   location: "Rome & Milan, Italy",
   availability: "Worldwide",

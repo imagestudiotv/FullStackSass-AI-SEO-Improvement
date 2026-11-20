@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { listPlansForPrebuiltPage } from "@/lib/billing";
-import { homeCustomerStories } from "@/lib/blog/engagement";
+import { getFreePlanCounter } from "@/lib/plans/free-plan-server";
 import { countContentCreated } from "@/lib/marketing/content-count";
 import { listPublishedTestimonials } from "@/lib/marketing/testimonials-db";
 import { HomePageSections } from "./home-page";
@@ -9,6 +9,7 @@ import { OrganizationSchema } from "./organization-schema";
 import { siteUrl as canonicalSiteUrl } from "@/lib/site-url";
 import { HOME_META } from "@/lib/seo/home-metadata";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
+import { customerStoriesSection } from "@/lib/success-stories/stories";
 
 /**
  * Marketing homepage, following the supplied landing design.
@@ -50,8 +51,10 @@ export default async function HomePage() {
     listPlansForPrebuiltPage(),
     listPublishedTestimonials(),
     countContentCreated(),
-    homeCustomerStories("en"),
+    customerStoriesSection("en"),
   ]);
+  // The Free card's launch counter; optional, so a failed read only leaves it out.
+  const freeCounter = await getFreePlanCounter().catch(() => null);
   // English is unprefixed; the localised pages pass a prefixing builder.
   const href = (path: string) => path;
 
@@ -72,6 +75,7 @@ export default async function HomePage() {
         contentCount={contentCount}
         plans={plans}
         customerStories={customerStories}
+        freeCounter={freeCounter}
       />
     </>
   );

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, inArray, isNotNull, notInArray, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull, notInArray, sql } from "drizzle-orm";
 
 import { isAiConfigured } from "@/lib/ai/client";
 import { customerTitleSql, publicRevisionSql, publicFieldSql } from "@/lib/articles/review";
@@ -8,6 +8,9 @@ import { mainLanguageCode } from "@/lib/articles/translation-languages";
 import { db } from "@/lib/db";
 import { articles, brandVoice, keywords, socialSuggestions, websites } from "@/lib/db/schema";
 import { discussionSearch, isDataForSeoConfigured } from "@/lib/providers/dataforseo";
+import { calendarMonth } from "@/lib/billing/entitlement-period";
+import { FREE_PLAN } from "@/lib/plans/free-plan";
+import { isFreePlanWebsite } from "@/lib/plans/free-plan-server";
 import { labsMarket } from "@/lib/providers/dataforseo-markets";
 import { PRICING, track } from "@/lib/usage";
 
@@ -80,8 +83,17 @@ export async function suggestForWebsite(websiteId: string, deps: Partial<Suggest
   );
   if (accounts.length === 0) return { created: 0, scheduled: [], reason: access.level === "none" ? "no plan" : "no accounts" };
 
-  const remaining = SUGGESTIONS_PER_DAY - (await countOnDay(websiteId, day));
-  if (remaining <= 0) return { created: 0, scheduled: [], reason: "today's suggestions are made" };
+  /*
+    The Free plan gets its month's drafts (FREE_PLAN.socialSuggestionsPerMonth),
+    not ten a day: each run is a model call and Google searches, paid by RepGet,
+    for a plan that posts FREE_PLAN.socialPostsPerMonth a month.
+  */
+  const free = await isFreePlanWebsite(websiteId);
+  const remaining = await roomFor(websiteId, day, free, now);
+  if (remaining <= 0) {
+    const monthDone = free && (await countInMonth(websiteId, now)) >= FREE_PLAN.socialSuggestionsPerMonth;
+    return { created: 0, scheduled: [], reason: monthDone ? "this month's Free suggestions are made" : "today's suggestions are made" };
+  }
   if (!isAiConfigured()) return { created: 0, scheduled: [], reason: "AI is not configured" };
 
   const brand = { brandName: site.brandName, domain: site.domain };
@@ -259,7 +271,7 @@ export async function suggestForWebsite(websiteId: string, deps: Partial<Suggest
     replies += 1;
   }
 
-  return save(websiteId, day, rows);
+  return save(websiteId, day, rows, free, now);
 }
 
 /**
@@ -309,15 +321,30 @@ async function countOnDay(websiteId: string, day: string, executor: Pick<typeof 
   return Number(row?.n ?? 0);
 }
 
+/** This UTC month's suggestions so far (the Free plan's allowance of them). */
+async function countInMonth(websiteId: string, now: Date, executor: Pick<typeof db, "select"> = db): Promise<number> {
+  const [row] = await executor
+    .select({ n: sql<number>`count(*)::int` })
+    .from(socialSuggestions)
+    .where(and(eq(socialSuggestions.websiteId, websiteId), gte(socialSuggestions.day, calendarMonth(now).start.toISOString().slice(0, 10))));
+  return Number(row?.n ?? 0);
+}
+
+/** How many more suggestions may be written today: the day's ten, and on Free what is left of the month's. */
+async function roomFor(websiteId: string, day: string, free: boolean, now: Date, executor: Pick<typeof db, "select"> = db): Promise<number> {
+  const today = SUGGESTIONS_PER_DAY - (await countOnDay(websiteId, day, executor));
+  return free ? Math.min(today, FREE_PLAN.socialSuggestionsPerMonth - (await countInMonth(websiteId, now, executor))) : today;
+}
+
 /**
- * Saves the drafts, re-counting the day under a per-website lock so two runs
- * at once still add up to the day's ten, and skipping a discussion another
- * run has just suggested.
+ * Saves the drafts, re-counting the day (and on Free the month) under a
+ * per-website lock so two runs at once still add up to the day's ten, and
+ * skipping a discussion another run has just suggested.
  */
-async function save(websiteId: string, day: string, rows: (typeof socialSuggestions.$inferInsert)[]): Promise<SuggestResult> {
+async function save(websiteId: string, day: string, rows: (typeof socialSuggestions.$inferInsert)[], free: boolean, now: Date): Promise<SuggestResult> {
   return db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`social:${websiteId}`}))`);
-    const room = SUGGESTIONS_PER_DAY - (await countOnDay(websiteId, day, tx));
+    const room = await roomFor(websiteId, day, free, now, tx);
     if (room <= 0 || rows.length === 0) return { created: 0, scheduled: [], reason: rows.length === 0 ? "no draft passed the checks" : undefined };
     const saved = await tx
       .insert(socialSuggestions)

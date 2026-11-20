@@ -20,9 +20,14 @@ import { db } from "@/lib/db";
 import { getOnboardingState } from "@/lib/onboarding/steps";
 import { isPayPalAvailable } from "@/lib/paypal/actions";
 import { planBenefits } from "@/lib/plans/benefits";
-import { isDirectPurchaseTier, toPickerPlan } from "@/lib/plans/features";
+import { isDirectPurchaseTier, toPickerPlan, TRIAL_DAYS } from "@/lib/plans/features";
 import { requireOrg } from "@/lib/tenant";
+import { format } from "@/lib/i18n/format";
+import { freePlanCopy } from "@/lib/i18n/free-plan";
+import { FREE_TIER, freePlanDisplay } from "@/lib/plans/free-plan";
+import { getFreePlanCounter } from "@/lib/plans/free-plan-server";
 import { CheckoutPending } from "./checkout-pending";
+import { FreeStep } from "./free-step";
 import { PlanStep } from "./plan-step";
 
 export const metadata = { title: "Choose your plan" };
@@ -146,6 +151,17 @@ export default async function OnboardingPlanPage({
     : allPlans.filter((plan) => plan.interval === "year" && !isDirectPurchaseTier(plan.tier)).map(toPickerPlan);
   // REPGET is applied by itself (2026-11-11): the launch price, said on screen while it is on; else the win-back offer, for an account that was sent it.
   const offerOn = await planScreenOffer(db, orgId);
+  /*
+    The Free plan (2026-11-19, lib/plans/free-plan.ts), in Launch's place:
+    on screen alone when its button was pressed (?plan=free) - one click, no
+    card, no billing - and offered under a paid plan otherwise, while spots
+    are left. The paid plans keep their free trial.
+  */
+  const freeCounter = await getFreePlanCounter();
+  const freeCard = freePlanDisplay(locale, freeCounter);
+  const freeWords = freePlanCopy(locale).app;
+  const sitePart = siteParam ? `site=${encodeURIComponent(siteParam)}&` : "";
+  const showFree = chosenTier === FREE_TIER && !direct;
   // What each plan includes, in the reader's language: the pricing page's own lists (lib/plans/benefits.ts).
   const benefits: Record<string, string[]> = {};
   for (const plan of [...monthlyPlans, ...annualPlans]) {
@@ -211,25 +227,47 @@ export default async function OnboardingPlanPage({
         */}
         <div className="grid items-stretch gap-10 lg:grid-cols-2 lg:gap-12">
           <div>
-            <PlanStep
-            initialTier={chosenTier}
-              t={t.app.onboarding}
-              monthlyPlans={monthlyPlans}
-              annualPlans={annualPlans}
-              paypalAvailable={paypalAvailable}
-              offerCopy={offerOn === "repget" ? OFFER_CODE[locale] : offerOn === "winback" ? WINBACK_OFFER_CODE[locale] : null}
-              directPurchase={direct ? DIRECT_PURCHASE[locale] : null}
-              paypalPlanIds={paypalPlanIds}
-              paypalTrialPlanIds={paypalTrialPlanIds}
-              websiteId={state.websiteId}
-              trialEligible={trialEligible}
-              emailVerified={session.user.emailVerified === true}
-              email={session.user.email}
-              benefits={benefits}
-              descriptions={descriptions}
-              usageNote={page.compare.usageNote}
-              paypalPendingCopy={PAYPAL_PENDING_COPY[locale]}
-            />
+            {showFree ? (
+              <FreeStep
+                websiteId={state.websiteId}
+                card={freeCard}
+                emailVerified={session.user.emailVerified === true}
+                email={session.user.email}
+                paidHref={`/onboarding/plan?${sitePart}plan=grow`}
+                paidLabel={format(freeWords.seePaid, { days: TRIAL_DAYS })}
+                title={freeWords.stepTitle}
+              />
+            ) : (
+              <>
+                <PlanStep
+                  initialTier={chosenTier}
+                  t={t.app.onboarding}
+                  monthlyPlans={monthlyPlans}
+                  annualPlans={annualPlans}
+                  paypalAvailable={paypalAvailable}
+                  offerCopy={offerOn === "repget" ? OFFER_CODE[locale] : offerOn === "winback" ? WINBACK_OFFER_CODE[locale] : null}
+                  directPurchase={direct ? DIRECT_PURCHASE[locale] : null}
+                  paypalPlanIds={paypalPlanIds}
+                  paypalTrialPlanIds={paypalTrialPlanIds}
+                  websiteId={state.websiteId}
+                  trialEligible={trialEligible}
+                  emailVerified={session.user.emailVerified === true}
+                  email={session.user.email}
+                  benefits={benefits}
+                  descriptions={descriptions}
+                  usageNote={page.compare.usageNote}
+                  paypalPendingCopy={PAYPAL_PENDING_COPY[locale]}
+                />
+                {/* Free, offered beside the paid plan while spots are left (never beside a direct purchase). */}
+                {!direct && !freeCard.counter?.full ? (
+                  <p className="mt-4 text-center text-sm text-muted-foreground">
+                    <a href={`/onboarding/plan?${sitePart}plan=${FREE_TIER}`} className="font-medium text-foreground underline underline-offset-2">
+                      {freeWords.preferFree}
+                    </a>
+                  </p>
+                ) : null}
+              </>
+            )}
             {/*
               No "free trial or paid plan" comparison here any more (it was
               under the card from 2026-10-27): the 3-day trial IS the plan,

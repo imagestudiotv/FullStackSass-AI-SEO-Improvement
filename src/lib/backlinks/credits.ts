@@ -412,6 +412,7 @@ export async function ensureMonthlyCredits(organizationId: string): Promise<void
   } catch (error) {
     console.error("[credits] could not grant this month's plan credits", { organizationId, error });
   }
+  // The Free plan grants no credits: its social posts are a monthly limit of their own (lib/plans/free-plan-server.ts takeFreePlanPost).
 }
 
 export type LedgerRow = {

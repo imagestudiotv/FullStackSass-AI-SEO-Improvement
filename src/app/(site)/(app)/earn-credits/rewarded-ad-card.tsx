@@ -25,6 +25,38 @@ import { loadGpt, requestRewardedAd, type RewardedOutcome } from "./rewarded-ad-
  * said only once the claim action confirmed the credits.
  */
 
+/**
+ * Whether this document was loaded on /earn-credits itself.
+ *
+ * The page's Content-Security-Policy is the one of the page the browser
+ * LOADED, and a click on an in-app link (the sidebar's "Earn Credits", the
+ * Credits page, the daily check-in) changes the page without loading a new
+ * document. Only /earn-credits' own policy allows Google Publisher Tag's
+ * requests and frames (src/proxy.ts), so arriving from the dashboard kept
+ * the dashboard's policy and every ad was blocked - "on dashboard the video
+ * ads are not displaying" (ticket 2026-11-19). Pressing "Watch an ad" then
+ * loads the page for real first (?watch=1 carries the press over).
+ */
+export function loadedOnEarnCredits(entry: { name: string } | undefined): boolean {
+  if (!entry) return true;
+  try {
+    return new URL(entry.name).pathname === "/earn-credits";
+  } catch {
+    return true;
+  }
+}
+
+function documentEntry(): { name: string } | undefined {
+  try {
+    return performance.getEntriesByType("navigation")[0];
+  } catch {
+    return undefined;
+  }
+}
+
+/** The address that loads Earn Credits as a document and starts the ad the member asked for. */
+export const WATCH_URL = "/earn-credits?watch=1";
+
 type Phase =
   | { kind: "idle" }
   | { kind: "loading" }
@@ -53,6 +85,16 @@ export function RewardedAdCard({ initial, t }: { initial: RewardedAdState; t: Ea
     [],
   );
 
+  // Back from the full load that "Watch an ad" asked for: carry the press over once, and tidy the address.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("watch") !== "1") return;
+    window.history.replaceState(null, "", "/earn-credits");
+    const timer = window.setTimeout(() => void watch(), 0);
+    return () => window.clearTimeout(timer);
+    // Once, on arrival; watch() reads the state it needs when it runs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const cooldownLeft = state.cooldownUntil ? Math.max(0, Date.parse(state.cooldownUntil) - now) : 0;
   const limitReached = state.watchedToday >= state.dailyLimit;
   const blockedToday = limitReached || state.capReached || state.attemptsExhausted;
@@ -75,6 +117,13 @@ export function RewardedAdCard({ initial, t }: { initial: RewardedAdState; t: Ea
 
   async function watch() {
     setPhase({ kind: "loading" });
+    // Arrived by an in-app link: this document still has the previous page's policy, which blocks the ad. Load the page for real.
+    if (!loadedOnEarnCredits(documentEntry())) {
+      // A full load on purpose: router.push would keep this document and its policy.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+      window.location.assign(WATCH_URL);
+      return;
+    }
     let started;
     try {
       started = await startRewardedAdAction();
@@ -210,6 +259,33 @@ export function RewardedAdCard({ initial, t }: { initial: RewardedAdState; t: Ea
       </div>
 
       <p className="mt-4 border-t pt-3 text-xs text-muted-foreground">{t.note}</p>
+    </section>
+  );
+}
+
+/**
+ * The card when no ad can be offered at all: the feature is not set up on
+ * this deployment (lib/earn/rewarded-ads-config.ts) or its state could not be
+ * read. Said plainly rather than leaving a gap where the card was - the gap
+ * read as "the video ads are not displaying" (ticket 2026-11-19).
+ */
+export function RewardedAdUnavailable({ t }: { t: EarnRewardedAdsCopy }) {
+  return (
+    <section aria-labelledby="watch-ad" className="rounded-2xl border bg-card p-5 sm:p-6">
+      <div className="flex min-w-0 gap-4">
+        <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-muted text-muted-foreground">
+          <MonitorPlay className="size-6" aria-hidden="true" />
+        </span>
+        <div className="min-w-0">
+          <h2 id="watch-ad" className="text-lg font-semibold tracking-tight">
+            {t.title}
+          </h2>
+          <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
+            <Info className="size-4 shrink-0" aria-hidden="true" />
+            {t.errors.disabled}
+          </p>
+        </div>
+      </div>
     </section>
   );
 }

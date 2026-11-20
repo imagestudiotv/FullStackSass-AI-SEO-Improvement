@@ -1,3 +1,4 @@
+import { localiseFreePlanMessage } from "@/lib/plans/free-plan";
 import { explainCrawlError } from "@/lib/audit/explain";
 import { fixFor } from "@/lib/audit/fixes";
 import { ACCOUNT_AUDIT_MAX_PAGES } from "@/lib/audit/limits";
@@ -516,7 +517,7 @@ export function notAssessed(summary: AuditSummary | null, t: HealthText): string
 }
 
 /** Localised error for a refused startAudit (lib/audit/actions.ts) or entitlement check. */
-export function localiseStartError(error: string, t: HealthText, tw: WorkspaceText): string {
+export function localiseStartError(error: string, t: HealthText, tw: WorkspaceText, locale?: Locale): string {
   switch (error) {
     case "You have view-only access to this website.":
       return tw.viewOnly;
@@ -533,7 +534,8 @@ export function localiseStartError(error: string, t: HealthText, tw: WorkspaceTe
     case "You have run this many times in the last hour. Please try again shortly.":
       return t.errQuota;
   }
-  return error;
+  // The Free plan's refusals (lib/plans/free-plan.ts), in the reader's language when it is known.
+  return locale ? localiseFreePlanMessage(error, locale) : error;
 }
 
 /**

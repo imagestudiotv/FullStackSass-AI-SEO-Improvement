@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import type { ArticleAds } from "@/components/ads/article-ads";
 import { BlogArticle } from "@/components/blog-article";
 import { PublishPostVersions } from "@/components/post-languages";
 import { BLOG_CHROME, blogPath, categoryPath, homePath, LANGUAGE_NAMES } from "@/lib/blog/locale";
@@ -92,6 +93,7 @@ export function BlogPostView({
   related,
   sponsorship,
   engagement,
+  ads,
 }: {
   post: BlogPost;
   versions: PostVersion[];
@@ -100,6 +102,8 @@ export function BlogPostView({
   sponsorship?: ReactNode;
   /** Comments and upvote (components/blog-engagement), after the FAQ and before the related posts. */
   engagement?: ReactNode;
+  /** AdSense on the article (components/ads/article-ads.tsx); null or absent when it is off. */
+  ads?: ArticleAds | null;
 }) {
   const locale: Locale = post.locale ?? DEFAULT_LOCALE;
   const t = BLOG_CHROME[locale];
@@ -216,7 +220,7 @@ export function BlogPostView({
           </p>
         ) : null}
 
-        <BlogArticle post={post} sponsorship={sponsorship} />
+        <BlogArticle post={post} sponsorship={sponsorship} ads={ads} />
 
         {engagement}
 

@@ -34,6 +34,7 @@ import {
   summarize,
 } from "@/lib/articles/internal-links";
 import { applyTableOfContents } from "@/lib/articles/toc";
+import { emailTeamArticleHeld } from "@/lib/articles/team-notify";
 import { checkReleasable, heldFromCustomer, PREPARING_MESSAGE, reviewStatusForNewDraft, twoStepArticles } from "@/lib/articles/review";
 import { ArticleInFlightError, lockForEdit } from "@/lib/publishing/dispatch";
 import {
@@ -60,7 +61,8 @@ import {
   type QuotaRule,
   type Reservation,
 } from "@/lib/billing/spend-quota";
-import { requireEntitledForSpend } from "@/lib/billing/entitled";
+import { isEntitledToSpend, requireEntitledForSpend } from "@/lib/billing/entitled";
+import { freePlanMessage } from "@/lib/plans/free-plan";
 import { endFreeTrialIfUsed } from "@/lib/billing/end-free-trial";
 import { freeArticlesDailyRule, freeArticlesUsedMessage, trialArticlesUsedMessage } from "@/lib/billing/free-articles";
 import { FREE_ARTICLES_ONLY, FREE_ARTICLES_ONLY_PAYPAL } from "@/lib/plans/features";
@@ -1241,6 +1243,14 @@ export const generateArticle = inngest.createFunction(
       return true;
     });
 
+    /*
+      The team, for an article held for its review (ticket 2026-11-19: "we
+      receive a notification"): an email to ADMIN_EMAILS with its review
+      page, the first article of a new client said so. Does nothing for an
+      article that is not held, and never fails the run.
+    */
+    await step.run("notify-team", () => emailTeamArticleHeld({ articleId }));
+
     await step.run("notify-ready", async () => {
       /*
         The two-step flow: written is not ready. The customer hears when the
@@ -1401,6 +1411,11 @@ export async function queueArticleForCalendarItem(
   if (isInactive(entitlement.reason)) {
     return { ok: false, error: NOT_ENTITLED };
   }
+  // The Free plan writes only while its AI cost protection allows (lib/billing/entitled.ts).
+  if (entitlement.free) {
+    const entitled = await isEntitledToSpend(websiteId, { freeArticles: true });
+    if (!entitled.ok) return { ok: false, error: entitled.error };
+  }
 
   // Reuse an existing article for this item rather than creating a second one.
   const [existing] = await db
@@ -1473,9 +1488,11 @@ export async function queueArticleForCalendarItem(
         ok: false as const,
         error: allowance.freeArticles
           ? freeArticlesUsedMessage()
-          : allowance.trial
-            ? trialArticlesUsedMessage(allowance.rule.limit)
-            : `Your plan includes ${allowance.rule.limit} articles per month, and they have all been used.`,
+          : allowance.free
+            ? freePlanMessage("articlesUsed")
+            : allowance.trial
+              ? trialArticlesUsedMessage(allowance.rule.limit)
+              : `Your plan includes ${allowance.rule.limit} articles per month, and they have all been used.`,
         freeArticlesUsed: allowance.freeArticles,
       };
     }
@@ -1588,6 +1605,17 @@ export async function requeueArticle(input: {
   */
   if (entitlement.freeArticles && !["failed", "queued", "generating"].includes(current.status)) {
     return { ok: false, error: entitlement.paypalFreeArticles ? FREE_ARTICLES_ONLY_PAYPAL : FREE_ARTICLES_ONLY };
+  }
+  /*
+    The Free plan the same way. A rewrite takes no article from the month's
+    FREE_PLAN.articlesPerMonth - only a rewrite slot (ten a day) - so
+    rewriting a written article over and over would be a full article's AI
+    cost each time, past the allowance. An article whose writing failed (or
+    whose job died) may still be tried again: it never delivered the article
+    its allowance paid for. Anything else needs an upgrade.
+  */
+  if (entitlement.free && !["failed", "queued", "generating"].includes(current.status)) {
+    return { ok: false, error: freePlanMessage("rewriteLocked") };
   }
 
   const slot = await reserveAll(

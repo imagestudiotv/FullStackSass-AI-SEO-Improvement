@@ -341,3 +341,37 @@ describe("rewarded ads (Earn Credits, ticket 2026-11-13)", () => {
     for (const name of ["connect-src", "frame-src"]) expect(new Set(page[name]).size, name).toBe(page[name].length);
   });
 });
+
+describe("AdSense on blog articles (ticket 2026-11-19)", () => {
+  /*
+    Like GPT: Google supports the AdSense code under a strict policy only;
+    src/proxy.ts asks for these hosts on article pages alone while
+    NEXT_PUBLIC_ADSENSE_CLIENT is set.
+  */
+  it("adds AdSense's request and frame hosts only when asked for, without loosening anything else", () => {
+    for (const policy of [contentSecurityPolicy(ALL), contentSecurityPolicy(ALL, NONCE), contentSecurityPolicy(NONE, NONCE)]) {
+      expect(policy).not.toMatch(/fundingchoicesmessages|adservice\.google\.com|safeframe/);
+    }
+    const page = directives(contentSecurityPolicy({ ...NONE, adsense: true }, NONCE));
+    expect(page["script-src"]).toEqual(expect.arrayContaining(["'strict-dynamic'", `'nonce-${NONCE}'`, "https://pagead2.googlesyndication.com"]));
+    expect(page["script-src"]).not.toContain("'unsafe-inline'");
+    expect(page["script-src"]).not.toContain("'unsafe-eval'");
+    expect(page["connect-src"]).toEqual(expect.arrayContaining(["https://pagead2.googlesyndication.com", "https://*.g.doubleclick.net", "https://adservice.google.com", "https://fundingchoicesmessages.google.com"]));
+    expect(page["frame-src"]).toEqual(expect.arrayContaining(["https://googleads.g.doubleclick.net", "https://tpc.googlesyndication.com", "https://*.safeframe.googlesyndication.com"]));
+    for (const [name, values] of Object.entries(page)) {
+      if (name !== "img-src") expect(values, name).not.toContain("https:");
+      expect(values, name).not.toContain("*");
+    }
+    expect(page["object-src"]).toEqual(["'none'"]);
+  });
+
+  it("lists each source once where Google Ads, rewarded ads and AdSense share a host", () => {
+    const page = directives(contentSecurityPolicy({ ...ALL, rewardedAds: true, adsense: true }, NONCE));
+    for (const name of ["script-src", "connect-src", "frame-src"]) expect(new Set(page[name]).size, name).toBe(page[name].length);
+  });
+
+  it("never reaches the build-wide policy of the cached pages", () => {
+    const headers = securityHeaders({ production: true, integrations: cspIntegrations({ NEXT_PUBLIC_ADSENSE_CLIENT: "ca-pub-8510275614015789" }) });
+    expect(header(headers, "Content-Security-Policy")).not.toMatch(/fundingchoicesmessages|safeframe/);
+  });
+});
