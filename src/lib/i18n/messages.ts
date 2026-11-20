@@ -104,6 +104,8 @@ export type Messages = {
     message: string;
     /** The same, while the Meta Pixel is configured too (lib/meta-pixel.ts). */
     messageWithMeta: string;
+    /** Added to the message while AdSense is on (lib/ads/adsense-config.ts): the blog's ads (approved by Daniel, 2026-11-20). */
+    ads: string;
     /** Link text to the (English) privacy policy. */
     privacy: string;
     accept: string;
@@ -3447,6 +3449,7 @@ const en: Messages = {
     label: "Cookie choice",
     message: "We would like to use Google Analytics and Google Ads cookies to understand how people use our website, measure our ads and show them to past visitors. They are only set if you accept.",
     messageWithMeta: "We would like to use cookies from Google Analytics, Google Ads and Meta (Facebook) to understand how people use our website, measure our ads and show them to past visitors. They are only set if you accept.",
+    ads: "Our blog articles show Google ads. If you accept, Google may use cookies to show you more relevant ads.",
     privacy: "Privacy policy",
     accept: "Accept",
     decline: "Decline",
@@ -6713,6 +6716,7 @@ const es: Messages = {
     label: "Preferencias de cookies",
     message: "Nos gustaría usar cookies de Google Analytics y Google Ads para entender cómo se usa nuestro sitio web, medir nuestros anuncios y mostrarlos a quienes ya nos visitaron. Solo se instalan si las acepta.",
     messageWithMeta: "Nos gustaría usar cookies de Google Analytics, Google Ads y Meta (Facebook) para entender cómo se usa nuestro sitio web, medir nuestros anuncios y mostrarlos a quienes ya nos visitaron. Solo se instalan si las acepta.",
+    ads: "Nuestros artículos del blog muestran anuncios de Google. Si acepta, Google puede usar cookies para mostrarle anuncios más relevantes.",
     privacy: "Política de privacidad",
     accept: "Aceptar",
     decline: "Rechazar",
@@ -9997,6 +10001,7 @@ const fr: Messages = {
     label: "Choix des cookies",
     message: "Nous aimerions utiliser les cookies de Google Analytics et de Google Ads pour comprendre comment notre site est utilisé, mesurer nos annonces et les montrer aux personnes qui nous ont déjà rendu visite. Ils ne sont déposés que si vous les acceptez.",
     messageWithMeta: "Nous aimerions utiliser les cookies de Google Analytics, de Google Ads et de Meta (Facebook) pour comprendre comment notre site est utilisé, mesurer nos annonces et les montrer aux personnes qui nous ont déjà rendu visite. Ils ne sont déposés que si vous les acceptez.",
+    ads: "Nos articles de blog affichent des annonces Google. Si vous acceptez, Google peut utiliser des cookies pour vous montrer des annonces plus pertinentes.",
     privacy: "Politique de confidentialité",
     accept: "Accepter",
     decline: "Refuser",
@@ -13281,6 +13286,7 @@ const it: Messages = {
     label: "Scelta dei cookie",
     message: "Vorremmo usare i cookie di Google Analytics e Google Ads per capire come viene usato il nostro sito, misurare i nostri annunci e mostrarli a chi ci ha già visitato. Vengono installati solo se li accetta.",
     messageWithMeta: "Vorremmo usare i cookie di Google Analytics, Google Ads e Meta (Facebook) per capire come viene usato il nostro sito, misurare i nostri annunci e mostrarli a chi ci ha già visitato. Vengono installati solo se li accetta.",
+    ads: "I nostri articoli del blog mostrano annunci Google. Se accetta, Google può usare i cookie per mostrarLe annunci più pertinenti.",
     privacy: "Informativa sulla privacy",
     accept: "Accetta",
     decline: "Rifiuta",
@@ -16565,6 +16571,7 @@ const de: Messages = {
     label: "Cookie-Auswahl",
     message: "Wir würden gern Cookies von Google Analytics und Google Ads verwenden, um zu verstehen, wie unsere Website genutzt wird, unsere Anzeigen zu messen und sie früheren Besuchern zu zeigen. Sie werden nur gesetzt, wenn Sie zustimmen.",
     messageWithMeta: "Wir würden gern Cookies von Google Analytics, Google Ads und Meta (Facebook) verwenden, um zu verstehen, wie unsere Website genutzt wird, unsere Anzeigen zu messen und sie früheren Besuchern zu zeigen. Sie werden nur gesetzt, wenn Sie zustimmen.",
+    ads: "Unsere Blogartikel zeigen Google-Anzeigen. Wenn Sie zustimmen, kann Google Cookies verwenden, um Ihnen passendere Anzeigen zu zeigen.",
     privacy: "Datenschutzerklärung",
     accept: "Akzeptieren",
     decline: "Ablehnen",
