@@ -7,6 +7,7 @@ import {
   openAiSize,
   toArticleImage,
 } from "@/lib/images/process";
+import { openAiImageCostUsd, REPLICATE_FLUX_SCHNELL_PER_IMAGE_USD, type OpenAiImageUsage } from "@/lib/images/pricing";
 
 /**
  * Downloading a generated image from the URL a provider returned: public
@@ -52,27 +53,12 @@ export type GeneratedImage = {
   costUsd: number;
 };
 
-/**
- * OpenAI bills image generation by TOKEN, not per image — output tokens vary
- * with resolution and quality, so there is no fixed per-image price to hard
- * code. $30 per 1M output tokens is the published gpt-image-2 rate; the actual
- * token count comes back on each response, so cost is measured rather than
- * assumed.
- *
- * Re-check before quoting margins: these drift.
+/*
+ * What each image costs - OpenAI measured from the response's token usage
+ * (text input, image input and image output, each at its published rate),
+ * a per-image estimate when the response has none, Replicate's flat rate -
+ * is in lib/images/pricing.ts, with the price pages it comes from.
  */
-const OPENAI_OUTPUT_PER_1M_USD = 30;
-
-/**
- * Fallback when a response omits usage. Roughly a medium-quality 1024x1024
- * image. Only used so a missing field records an approximate cost instead of
- * a free one — an image that appears to cost nothing quietly breaks unit
- * economics, which is the whole reason usage is tracked.
- */
-const OPENAI_FALLBACK_USD = 0.04;
-
-/** Replicate flux-schnell bills per run, so a flat rate is accurate there. */
-const REPLICATE_PER_IMAGE_USD = 0.003;
 
 /** The configured provider, or null when none is set up. */
 export function activeProvider(): ImageProvider | null {
@@ -203,20 +189,17 @@ async function generateWithOpenAi(
 
   const body = (await response.json()) as {
     data?: { b64_json?: string; url?: string }[];
-    usage?: { output_tokens?: number; total_tokens?: number };
+    usage?: OpenAiImageUsage & { total_tokens?: number };
   };
   const first = body.data?.[0];
 
   /**
    * Cost is read from the response rather than assumed. Output tokens vary
    * with resolution and quality, so a hardcoded per-image figure would drift
-   * from the real bill as soon as either changes.
+   * from the real bill as soon as either changes. The prompt's input tokens
+   * are billed too, so they are counted (lib/images/pricing.ts).
    */
-  const outputTokens = body.usage?.output_tokens;
-  const costUsd =
-    typeof outputTokens === "number"
-      ? (outputTokens / 1_000_000) * OPENAI_OUTPUT_PER_1M_USD
-      : OPENAI_FALLBACK_USD;
+  const costUsd = openAiImageCostUsd(openAiModel(), body.usage, quality);
 
   if (first?.b64_json) {
     return { data: Buffer.from(first.b64_json, "base64"), costUsd };
@@ -289,7 +272,7 @@ async function generateWithReplicate(
   if (!image.ok) throw new Error("Could not download the generated image");
   return {
     data: Buffer.from(await image.arrayBuffer()),
-    costUsd: REPLICATE_PER_IMAGE_USD,
+    costUsd: REPLICATE_FLUX_SCHNELL_PER_IMAGE_USD,
   };
 }
 

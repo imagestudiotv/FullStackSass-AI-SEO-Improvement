@@ -324,6 +324,28 @@ describe("the AI cost protection", () => {
     expect(await isEntitledToSpend(light.websiteId, { freeArticles: true })).toEqual({ ok: true });
   });
 
+  it("counts the pictures too: 4 articles' text stays under the cap, with their images it does not", async () => {
+    vi.stubEnv("FREE_PLAN_MONTHLY_AI_COST_CAP_CENTS", "300");
+    vi.stubEnv("FREE_PLAN_DAILY_AI_BUDGET_CENTS", "100000");
+    const { track } = await import("@/lib/usage");
+    const { openAiImageCostUsd } = await import("@/lib/images/pricing");
+    const site = await unpaidSite();
+    await startFree(site);
+    // Four articles' writing, about $0.10 each: $0.40.
+    for (let i = 0; i < 4; i += 1) await track(site.orgId, { kind: "llm", websiteId: site.websiteId, costUsd: 0.1 });
+    expect(await freePlanPause(site.websiteId)).toEqual({ paused: false });
+    // Each with a header and three body pictures, as generate-article records them (high quality, 1536x1024, a 300-token prompt).
+    const picture = openAiImageCostUsd("gpt-image-2", { input_tokens: 300, output_tokens: 6208, input_tokens_details: { text_tokens: 300, image_tokens: 0 } });
+    for (let i = 0; i < 12; i += 1) {
+      await track(site.orgId, { kind: "image", websiteId: site.websiteId, provider: "image", costUsd: picture, metadata: { purpose: "article_body_image" } });
+    }
+    // 0.40 + 12 x 0.18774 = 2.65: still under; a 13th and 14th picture take it past $3.
+    expect(await freePlanPause(site.websiteId)).toEqual({ paused: false });
+    for (let i = 0; i < 2; i += 1) await track(site.orgId, { kind: "image", websiteId: site.websiteId, provider: "image", costUsd: picture });
+    expect(await freePlanPause(site.websiteId)).toEqual({ paused: true, reason: "monthly_cap" });
+    expect(await freePlanDaySpendCents()).toBe(Math.round((0.4 + 14 * picture) * 100));
+  });
+
   it("counts only this month's spend toward the cap", async () => {
     vi.stubEnv("FREE_PLAN_MONTHLY_AI_COST_CAP_CENTS", "300");
     const site = await unpaidSite();

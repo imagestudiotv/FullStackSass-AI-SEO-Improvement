@@ -21,6 +21,7 @@ import {
   publishLogs,
   websites,
   articleVersions,
+  usageEvents,
 } from "@/lib/db/schema";
 import { member, user } from "@/lib/db/auth-tables";
 import { createTestDb, type TestDb } from "@/test/db";
@@ -1960,6 +1961,11 @@ describe("review of the combined diff: what stays true on the edges", () => {
     await twoStep(false);
     await expect(runJob(off)).resolves.toMatchObject({ status: "publish" });
     expect(images.generated).toHaveLength(1);
+    // The picture generated at send time is paid for, so it is recorded (Free plan caps add these up).
+    const spent = await test.db.select().from(usageEvents).where(eq(usageEvents.websiteId, off.websiteId));
+    expect(spent.filter((event) => event.kind === "image")).toEqual([
+      expect.objectContaining({ costUsd: "0.040000", metadata: { purpose: "article_header_publish", articleId: off.post.id } }),
+    ]);
     images.configured = false;
   });
 

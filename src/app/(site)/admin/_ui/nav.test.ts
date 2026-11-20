@@ -21,6 +21,7 @@ describe("activeNavItem", () => {
     expect(label("/admin/blog/new")).toBe("Blog");
     expect(label("/admin/payments")).toBe("Payments");
     expect(label("/admin/activity")).toBe("Activity");
+    expect(label("/admin/onboarding-help")).toBe("Onboarding help");
   });
 
   it("lights the affiliate program's sections, on their detail pages too", () => {
@@ -59,6 +60,7 @@ describe("activeNavItem", () => {
         "/admin/network/operations",
         "/admin/payments",
         "/admin/activity",
+        "/admin/onboarding-help",
       ]),
     );
   });
