@@ -112,8 +112,32 @@ describe("the directory", () => {
     ]);
     const list = await listDiscoverProfiles("en");
     expect(list.find((entry) => entry.postId === loud.id)).toMatchObject({ upvotes: 2, comments: 1, views: 7 });
+    expect(list.find((entry) => entry.postId === loud.id)?.pinned).toBe(false);
     expect(list.find((entry) => entry.postId === quiet.id)).toMatchObject({ upvotes: 0, comments: 0, views: 0 });
     expect(list.findIndex((entry) => entry.postId === loud.id)).toBeLessThan(list.findIndex((entry) => entry.postId === quiet.id));
+  });
+});
+
+describe("Image Studio in the directory (client, 2026-11-19: always first)", () => {
+  it.each(["en", "it", "de"] as const)("%s: imagestudio.com's profile is row 1 with no votes; a namesake elsewhere is not pinned", async (locale) => {
+    const site = await story({ businessSlug: `pin-studio-${locale}`, businessName: "IMAGE STUDIO srl", businessWebsiteUrl: "https://www.imagestudio.com/" });
+    const namesake = await story({ businessSlug: `pin-namesake-${locale}`, businessName: "Image Studio", businessWebsiteUrl: "https://image-studio.example/" });
+    const popular = await story({ businessSlug: `pin-popular-${locale}`, businessName: "Popular" });
+    const [a, b] = [await member(), await member()];
+    await test.db.insert(blogPostUpvotes).values([
+      { postId: popular.id, discussionId: popular.id, userId: a },
+      { postId: popular.id, discussionId: popular.id, userId: b },
+    ]);
+
+    const list = await listDiscoverProfiles(locale);
+    const firstUnpinned = list.findIndex((entry) => !entry.pinned);
+    // Every pinned entry comes before every other one, and each business is listed once.
+    expect(list.slice(firstUnpinned).some((entry) => entry.pinned)).toBe(false);
+    expect(list.find((entry) => entry.postId === site.id)?.pinned).toBe(true);
+    expect(list.findIndex((entry) => entry.postId === site.id)).toBeLessThan(firstUnpinned);
+    expect(list.find((entry) => entry.postId === namesake.id)?.pinned).toBe(false);
+    expect(list.filter((entry) => entry.postId === site.id)).toHaveLength(1);
+    expect(new Set(list.map((entry) => entry.postId)).size).toBe(list.length);
   });
 });
 

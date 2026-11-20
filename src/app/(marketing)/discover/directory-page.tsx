@@ -28,7 +28,8 @@ export function directoryMetadata(locale: Locale): Metadata {
  * section (client, 2026-11-19: "Customer stories on the homepage, and on
  * discover page also"), Image Studio first as everywhere, with room for two
  * rows here. The directory keeps its own sorting (most upvoted, A-Z), which
- * the visitor chooses.
+ * the visitor chooses, under Image Studio, which is row 1 in every sort too
+ * (lib/discover/directory-order.ts).
  */
 export async function DirectoryPage({ locale }: { locale: Locale }) {
   const [entries, stories] = await Promise.all([
@@ -52,6 +53,7 @@ export async function DirectoryPage({ locale }: { locale: Locale }) {
           comments: entry.comments,
           views: entry.views,
           publishedAt: entry.publishedAt,
+          pinned: entry.pinned,
         }))}
       />
       <CustomerStories

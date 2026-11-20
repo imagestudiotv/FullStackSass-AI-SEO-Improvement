@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { safeNext } from "@/lib/auth/next";
 import { togglePostUpvote } from "@/lib/blog/engagement-actions";
 import { loadDiscoverViewer } from "@/lib/discover/actions";
+import { sortDirectory, type DirectorySort } from "@/lib/discover/directory-order";
 import { discoverPath } from "@/lib/discover/paths";
 import { monogram } from "@/lib/discover/profile-fields";
 import { localePath, type Locale } from "@/lib/i18n/config";
@@ -28,9 +29,11 @@ export type DirectoryEntry = {
   comments: number;
   views: number;
   publishedAt: string;
+  /** Image Studio: row 1 whatever the sort or filter (lib/discover/directory-order.ts). */
+  pinned?: boolean;
 };
 
-type Sort = "votes" | "az";
+type Sort = DirectorySort;
 
 const EYE = (
   <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -88,8 +91,8 @@ export function BusinessAvatar({ name, logoUrl, className }: { name: string; log
  * The customer directory (client's design, 2026-11-11 round 2,
  * repget_growth_businesses_brand_colors.html): every business growing with
  * RepGet, filtered by category, searched by name, tagline and category, and
- * sorted by upvotes or name - in the browser, over the list the page read
- * (it is short). Each row links to the business's profile, its comments and
+ * sorted by upvotes or name (Image Studio always first) - in the browser,
+ * over the list the page read (it is short, and not paged). Each row links to the business's profile, its comments and
  * its website, and upvotes it: a member's toggle (the story's own upvote,
  * one per member), a visitor goes to sign-in and back here.
  */
@@ -131,9 +134,8 @@ export function DiscoverDirectory({ locale, copy, entries }: { locale: Locale; c
     const list = entries
       .map((entry) => ({ ...entry, upvotes: counts[entry.postId] ?? entry.upvotes }))
       .filter((entry) => (filter === null || entry.category === filter) && `${entry.name} ${entry.tagline} ${entry.category ?? ""}`.toLocaleLowerCase(locale).includes(needle));
-    return list.sort((a, b) =>
-      sort === "az" ? a.name.localeCompare(b.name, locale) : b.upvotes - a.upvotes || b.publishedAt.localeCompare(a.publishedAt),
-    );
+    // Image Studio first in either sort, whenever the filter and search still show it.
+    return sortDirectory(list, sort, locale);
   }, [entries, counts, filter, query, sort, locale]);
 
   async function vote(entry: DirectoryEntry) {
