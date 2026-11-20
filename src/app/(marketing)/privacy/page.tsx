@@ -1,5 +1,6 @@
 import { LegalPage } from "../legal-page";
 import { CookieSettingsButton } from "@/components/consent-banner";
+import { adsenseConfig } from "@/lib/ads/adsense-config";
 import { SUPPORT_EMAIL } from "@/lib/config/site";
 import { consentMode } from "@/lib/google-analytics";
 import { metaPixelId } from "@/lib/meta-pixel";
@@ -29,8 +30,10 @@ export default function PrivacyPage() {
   const advanced = consentMode() === "advanced";
   // The Meta Pixel (lib/meta-pixel.ts) is described only while it is configured.
   const meta = metaPixelId() !== null;
+  // The blog's AdSense units (components/ads/article-ads.tsx) are described only while AdSense is on.
+  const ads = adsenseConfig(process.env).client !== null;
   return (
-    <LegalPage title="Privacy Policy" updated={meta ? "18 November 2026" : "19 October 2026"}>
+    <LegalPage title="Privacy Policy" updated={ads ? "20 November 2026" : meta ? "18 November 2026" : "19 October 2026"}>
       <p>
         This policy explains what information RepGet (&quot;we&quot;,
         &quot;the service&quot;) collects, why we collect it, and what we do
@@ -122,6 +125,21 @@ export default function PrivacyPage() {
         Privacy Framework. If you decline, no Google cookie is set and nothing
         about your account is sent to Google.
       </p>
+      {ads ? (
+        <p>
+          <strong>Google ads on our blog, only if you accept.</strong> Our
+          blog articles - and no other page - show ads from Google AdSense.
+          The same answer covers them: nothing is loaded from AdSense unless
+          you accept, and never inside your account. If you accept, Google may
+          use cookies and similar identifiers to choose, measure and limit the
+          ads it shows you, as described in Google&apos;s{" "}
+          <a href="https://policies.google.com/technologies/ads" target="_blank" rel="noopener noreferrer">
+            advertising policies
+          </a>
+          . We do not send Google anything about you or your account for
+          these ads. If you decline, the blog shows no ads.
+        </p>
+      ) : null}
       {meta ? (
         <p>
           <strong>Meta (Facebook), only if you accept.</strong> The same
@@ -242,8 +260,8 @@ export default function PrivacyPage() {
         </li>
         <li>
           <strong>Google</strong> - visit statistics (Google Analytics) and
-          advertising measurement (Google Ads), only for visitors who accept
-          cookies
+          advertising measurement (Google Ads){ads ? " and the ads on our blog articles (Google AdSense)" : ""}, only for
+          visitors who accept cookies
         </li>
         {meta ? (
           <li>
@@ -292,6 +310,7 @@ export default function PrivacyPage() {
         cookies for six months. If you accept, Google Analytics also sets the
         two cookies described above, and Google Ads may set its own (names
         starting with <code>_gcl_</code>).
+        {ads ? " On our blog articles, Google AdSense may also set cookies of its own to show and measure ads." : null}
         {meta ? (
           <>
             {" "}

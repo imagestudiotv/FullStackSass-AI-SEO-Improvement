@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { Button } from "@/components/ui/button";
+import { adsenseConfig } from "@/lib/ads/adsense-config";
 import { onConsentChange, onConsentSettingsOpen, openConsentSettings, readConsent, saveConsent, type Consent } from "@/lib/consent";
 import {
   cleanReferrer,
@@ -24,8 +25,14 @@ import { cn } from "@/lib/utils";
 const TAGS = googleTags();
 const GA_ID = TAGS.ga;
 const META_ID = metaPixelId();
-/** Whether there is anything to ask about: GA, a Tag Manager container, the Meta Pixel. Without any, "Cookie settings" says so. */
-const ASKS = Boolean(TAGS.ga || TAGS.gtm || META_ID);
+/**
+ * The blog's AdSense units (components/ads/article-ads.tsx), which load only
+ * after Accept: the banner then says so (Daniel, 2026-11-20). Spelled out, so
+ * the NEXT_PUBLIC_ values are inlined in the browser bundle.
+ */
+const ADS = adsenseConfig({ NEXT_PUBLIC_ADSENSE_CLIENT: process.env.NEXT_PUBLIC_ADSENSE_CLIENT }).client !== null;
+/** Whether there is anything to ask about: GA, a Tag Manager container, the Meta Pixel, the blog's ads. Without any, "Cookie settings" says so. */
+const ASKS = Boolean(TAGS.ga || TAGS.gtm || META_ID || ADS);
 const MODE = consentMode();
 
 type Copy = Messages["consent"];
@@ -149,7 +156,8 @@ export function ConsentBanner({ copy, locale }: { copy: Partial<Record<Locale, C
       className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-50 rounded-xl border bg-background p-4 text-sm shadow-lg sm:inset-x-auto sm:bottom-4 sm:left-4 sm:w-[22rem]"
     >
       <p className="text-foreground">
-        {ASKS ? (META_ID ? t.messageWithMeta : t.message) : t.nothingToChoose}{" "}
+        {ASKS ? (META_ID ? t.messageWithMeta : t.message) : t.nothingToChoose}
+        {ADS ? ` ${t.ads}` : null}{" "}
         <Link prefetch={false} href="/privacy" className="font-medium underline underline-offset-4 hover:no-underline">
           {t.privacy}
         </Link>

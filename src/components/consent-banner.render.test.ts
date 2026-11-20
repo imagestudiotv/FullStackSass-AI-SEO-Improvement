@@ -76,12 +76,16 @@ describe("banner words", () => {
     const english = chrome.en.consent;
     for (const locale of LOCALES) {
       const words = chrome[locale].consent;
-      expect(Object.keys(words).sort()).toEqual(["accept", "close", "decline", "label", "message", "messageWithMeta", "nothingToChoose", "privacy", "settings"]);
+      expect(Object.keys(words).sort()).toEqual(["accept", "ads", "close", "decline", "label", "message", "messageWithMeta", "nothingToChoose", "privacy", "settings"]);
       for (const value of Object.values(words)) expect(value.trim()).not.toBe("");
       if (locale !== "en") {
         expect(words.message).not.toBe(english.message);
         expect(words.accept).not.toBe(english.accept);
+        expect(words.ads).not.toBe(english.ads);
       }
+      // The blog's ads line (Daniel, 2026-11-20): says they are Google's, on the blog, and depend on Accept.
+      expect(words.ads).toMatch(/Google/);
+      expect(words.ads).toMatch(/blog/i);
       // Says what the cookies are for, by name.
       expect(words.message).toContain("Google Analytics");
     }
