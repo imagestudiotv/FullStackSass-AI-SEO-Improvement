@@ -4,7 +4,7 @@ import { and, asc, desc, eq, inArray, isNotNull, min, notLike } from "drizzle-or
 
 import { recordCredit } from "@/lib/backlinks/credits";
 import { db } from "@/lib/db";
-import { creditLedger, subscriptions } from "@/lib/db/schema";
+import { creditLedger, freePlanAccounts, subscriptions } from "@/lib/db/schema";
 import type { Executor } from "@/lib/db/types";
 
 import { readCreditSettings, TRIAL_CREDIT_DAYS } from "./prices";
@@ -62,13 +62,16 @@ export function trialGrantKey(organizationId: string, trialDay: number): string 
  *  - "trial": a website is in its trial (the free trial, or legacy free
  *    articles), in day `day` (0-based) of the trial's first TRIAL_CREDIT_DAYS;
  *  - "trial_over": in its trial, after those days;
+ *  - "free": on the Free plan (lib/plans/free-plan.ts), every day, at the
+ *    Free plan's own amount (client, 2026-11-20);
  *  - "none": anything else.
- * A paid plan wins over a trial on another website.
+ * A paid plan wins over a trial on another website, and either over Free.
  */
 export type DailyEarning =
   | { kind: "paid" }
   | { kind: "trial"; day: number; endsAt: Date }
   | { kind: "trial_over"; endsAt: Date }
+  | { kind: "free" }
   | { kind: "none" };
 
 export async function dailyEarning(
@@ -97,7 +100,14 @@ export async function dailyEarning(
   // One trial per workspace, ever (isTrialEligible), so the first is the one: any trialing website.
   const trial = rows.find((row) => row.status === "trialing");
   const start = trial?.currentPeriodStart;
-  if (!start) return { kind: "none" };
+  if (!start) {
+    const [free] = await executor
+      .select({ id: freePlanAccounts.id })
+      .from(freePlanAccounts)
+      .where(eq(freePlanAccounts.organizationId, organizationId))
+      .limit(1);
+    return free ? { kind: "free" } : { kind: "none" };
+  }
 
   const endsAt = new Date(start.getTime() + TRIAL_CREDIT_DAYS * DAY_MS);
   const day = Math.floor((now.getTime() - start.getTime()) / DAY_MS);
@@ -245,7 +255,7 @@ async function loadStatus(
   organizationId: string,
   now: Date,
 ): Promise<{ status: DailyCredits; grant: { key: string; amount: number; note: string; referenceId: string | null } | null }> {
-  const { dailyFree, trialDailyFree } = await readCreditSettings();
+  const { dailyFree, trialDailyFree, freeDailyFree } = await readCreditSettings();
   const earning = await dailyEarning(db, organizationId, now);
   const closed: DailyCredits = {
     plan: earning.kind,
@@ -266,7 +276,8 @@ async function loadStatus(
   }
 
   const trial = earning.kind === "trial" ? earning : null;
-  const amount = trial ? trialDailyFree : dailyFree;
+  // Free counts its days as a paid plan does (one dated grant a UTC day, the 7-day strip), at its own amount.
+  const amount = trial ? trialDailyFree : earning.kind === "free" ? freeDailyFree : dailyFree;
   const key = trial ? trialGrantKey(organizationId, trial.day) : dailyGrantKey(organizationId, now);
   const { grants, firstDatedKey } = await readGrants(organizationId);
   const today = grants.find((grant) => grant.key === key)?.amount ?? 0;
@@ -295,7 +306,7 @@ async function loadStatus(
         ? {
             key,
             amount,
-            note: trial ? `Trial credits, day ${trial.day + 1} of ${TRIAL_CREDIT_DAYS}` : "Daily credits",
+            note: trial ? `Trial credits, day ${trial.day + 1} of ${TRIAL_CREDIT_DAYS}` : earning.kind === "free" ? "Daily credits (Free plan)" : "Daily credits",
             referenceId: trial ? utcDay(now) : null,
           }
         : null,

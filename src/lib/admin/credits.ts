@@ -8,6 +8,7 @@ import { requireAdmin } from "@/lib/admin/guard";
 import {
   CREDIT_ACTIONS,
   DAILY_FREE_KEY,
+  FREE_DAILY_FREE_KEY,
   MAX_ACTION_PRICE,
   MAX_ADDON_PRICE,
   MAX_DAILY_FREE,
@@ -106,6 +107,8 @@ export async function saveCreditSettings(input: {
   dailyFree: number;
   /** A trial's daily credits on its first days; left out, it keeps its value. */
   trialDailyFree?: number;
+  /** The Free plan's daily credits; left out, it keeps its value. */
+  freeDailyFree?: number;
   prices: Partial<Record<string, number>>;
   /** By add-on id. */
   addonPrices?: Partial<Record<string, number>>;
@@ -119,6 +122,11 @@ export async function saveCreditSettings(input: {
     input.trialDailyFree === undefined ? before.trialDailyFree : wholeNumber(input.trialDailyFree, MAX_DAILY_FREE);
   if (trialDailyFree === null) {
     return { ok: false, error: `Trial daily credits must be a whole number from 0 to ${MAX_DAILY_FREE}` };
+  }
+  const freeDailyFree =
+    input.freeDailyFree === undefined ? before.freeDailyFree : wholeNumber(input.freeDailyFree, MAX_DAILY_FREE);
+  if (freeDailyFree === null) {
+    return { ok: false, error: `Free plan daily credits must be a whole number from 0 to ${MAX_DAILY_FREE}` };
   }
   const prices = { ...before.prices };
   for (const [action, value] of Object.entries(input.prices ?? {})) {
@@ -145,6 +153,7 @@ export async function saveCreditSettings(input: {
     ...(before.trialDailyFree !== trialDailyFree
       ? [`trial daily credits ${before.trialDailyFree} -> ${trialDailyFree}`]
       : []),
+    ...(before.freeDailyFree !== freeDailyFree ? [`Free plan daily credits ${before.freeDailyFree} -> ${freeDailyFree}`] : []),
     ...CREDIT_ACTIONS.filter((action) => before.prices[action] !== prices[action]).map(
       (action) => `${action} ${before.prices[action]} -> ${prices[action]}`,
     ),
@@ -156,6 +165,7 @@ export async function saveCreditSettings(input: {
   const rows = [
     { key: DAILY_FREE_KEY, value: dailyFree },
     { key: TRIAL_DAILY_FREE_KEY, value: trialDailyFree },
+    { key: FREE_DAILY_FREE_KEY, value: freeDailyFree },
     ...CREDIT_ACTIONS.map((action) => ({ key: priceKey(action), value: prices[action] })),
   ];
   await db.transaction(async (tx) => {
@@ -178,8 +188,8 @@ export async function saveCreditSettings(input: {
         targetType: "credit_settings",
         summary: `Changed credit prices: ${changes.join(", ")}`,
         detail: {
-          before: { dailyFree: before.dailyFree, trialDailyFree: before.trialDailyFree, prices: before.prices },
-          after: { dailyFree, trialDailyFree, prices },
+          before: { dailyFree: before.dailyFree, trialDailyFree: before.trialDailyFree, freeDailyFree: before.freeDailyFree, prices: before.prices },
+          after: { dailyFree, trialDailyFree, freeDailyFree, prices },
           addons: addonChanges,
         },
       },

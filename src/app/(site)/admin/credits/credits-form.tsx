@@ -25,6 +25,7 @@ export type PriceField = {
 export function CreditsForm({
   dailyFree,
   trialDailyFree,
+  freeDailyFree,
   trialDays,
   prices,
   services,
@@ -34,6 +35,8 @@ export function CreditsForm({
 }: {
   dailyFree: number;
   trialDailyFree: number;
+  /** The Free plan's daily credits (FREE_DAILY_FREE_KEY). */
+  freeDailyFree: number;
   /** How many of a trial's first days get trialDailyFree (TRIAL_CREDIT_DAYS). */
   trialDays: number;
   prices: PriceField[];
@@ -47,12 +50,14 @@ export function CreditsForm({
   const [pending, start] = useTransition();
   const [daily, setDaily] = useState(String(dailyFree));
   const [trialDaily, setTrialDaily] = useState(String(trialDailyFree));
+  const [freeDaily, setFreeDaily] = useState(String(freeDailyFree));
   const [values, setValues] = useState<Record<string, string>>(
     Object.fromEntries([...prices, ...services].map((field) => [field.key, String(field.value)])),
   );
   const changed =
     daily !== String(dailyFree) ||
     trialDaily !== String(trialDailyFree) ||
+    freeDaily !== String(freeDailyFree) ||
     [...prices, ...services].some((field) => values[field.key] !== String(field.value));
 
   function save() {
@@ -60,6 +65,7 @@ export function CreditsForm({
       const result = await saveCreditSettings({
         dailyFree: Number(daily),
         trialDailyFree: Number(trialDaily),
+        freeDailyFree: Number(freeDaily),
         prices: Object.fromEntries(prices.map((field) => [field.key, Number(values[field.key])])),
         addonPrices: Object.fromEntries(services.map((field) => [field.key, Number(values[field.key])])),
       }).catch(() => null);
@@ -155,6 +161,29 @@ export function CreditsForm({
             value={trialDaily}
             onChange={(event) => setTrialDaily(event.target.value)}
             aria-describedby={`${id}-trial-daily-help`}
+          />
+        </div>
+
+        <div className="grid gap-2 px-4 py-4 sm:grid-cols-[1fr_9rem] sm:items-center sm:px-5">
+          <div className="min-w-0">
+            <label htmlFor={`${id}-free-daily`} className="text-sm font-medium">
+              Free plan daily credits
+            </label>
+            <p id={`${id}-free-daily-help`} className="text-xs text-muted-foreground">
+              A workspace on the Free plan can claim these once a day with its check-in, like a paid plan. They never expire. 0
+              turns them off.
+            </p>
+          </div>
+          <Input
+            id={`${id}-free-daily`}
+            type="number"
+            inputMode="numeric"
+            min={0}
+            max={maxDaily}
+            step={1}
+            value={freeDaily}
+            onChange={(event) => setFreeDaily(event.target.value)}
+            aria-describedby={`${id}-free-daily-help`}
           />
         </div>
 

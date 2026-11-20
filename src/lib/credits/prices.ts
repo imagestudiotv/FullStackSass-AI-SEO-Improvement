@@ -79,6 +79,13 @@ export const DAILY_FREE_KEY = "daily_free";
  */
 export const TRIAL_DAILY_FREE_KEY = "trial_daily_free";
 export const TRIAL_CREDIT_DAYS = 3;
+/**
+ * Daily credits on the Free plan (client, 2026-11-20: "maybe 1 credit daily
+ * for free users"). Every day, like a paid plan's, at its own amount.
+ */
+export const FREE_DAILY_FREE_KEY = "free_daily_free";
+/** The Free plan's daily amount until an administrator sets one (Admin -> Credits). */
+export const FREE_DAILY_FREE_DEFAULT = 1;
 export const priceKey = (action: CreditAction) => `price:${action}`;
 
 export type CreditSettings = {
@@ -86,6 +93,8 @@ export type CreditSettings = {
   dailyFree: number;
   /** Credits a trial can claim on each of its first TRIAL_CREDIT_DAYS days. 0 = off. */
   trialDailyFree: number;
+  /** Credits a Free plan workspace can claim on each UTC day. 0 = off. */
+  freeDailyFree: number;
   prices: Record<CreditAction, number>;
   /** The latest change, for the admin page. */
   updatedAt: Date | null;
@@ -93,7 +102,8 @@ export type CreditSettings = {
 };
 
 /**
- * The settings in force. Missing rows are the defaults (0); a row for an
+ * The settings in force. Missing rows are the defaults (0, and
+ * FREE_DAILY_FREE_DEFAULT for the Free plan's daily credits); a row for an
  * action that no longer exists is ignored.
  */
 export async function readCreditSettings(executor: Executor = db): Promise<CreditSettings> {
@@ -109,6 +119,7 @@ export async function readCreditSettings(executor: Executor = db): Promise<Credi
   return {
     dailyFree: values.get(DAILY_FREE_KEY) ?? 0,
     trialDailyFree: values.get(TRIAL_DAILY_FREE_KEY) ?? 0,
+    freeDailyFree: values.get(FREE_DAILY_FREE_KEY) ?? FREE_DAILY_FREE_DEFAULT,
     prices,
     updatedAt: latest?.updatedAt ?? null,
     updatedBy: latest?.updatedBy ?? null,
