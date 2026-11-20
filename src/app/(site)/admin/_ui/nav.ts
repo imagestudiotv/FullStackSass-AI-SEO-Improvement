@@ -12,6 +12,7 @@ import {
   Handshake,
   Inbox,
   LayoutDashboard,
+  LifeBuoy,
   Link2,
   Mail,
   Megaphone,
@@ -115,6 +116,13 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         icon: Rocket,
         keywords: ["free", "launch", "cap", "signups", "conversion", "upgrade", "ai cost", "spend", "observation"],
         description: "Free signups against the cap, milestones, upgrades and AI cost",
+      },
+      {
+        href: "/admin/onboarding-help",
+        label: "Onboarding help",
+        icon: LifeBuoy,
+        keywords: ["crisp", "welcome", "chat", "support", "onboarding", "proactive", "dismissed", "answered"],
+        description: "The Crisp onboarding welcome: welcomed, opened, dismissed, answered, setup completed",
       },
       {
         href: "/admin/earn-credits",
