@@ -69,6 +69,7 @@ export function Pricing({ locale, href, plans, freeCounter = null }: SectionProp
                 <strong>0</strong>
                 <span className={c("rgp-time")}>{t.perMonth}</span>
               </div>
+              <p className={c("rgp-free-caption")}>{free.caption}</p>
               <div className={c("rgp-capacity")}>
                 <div>
                   <strong>{free.limits.articlesPerMonth}</strong>

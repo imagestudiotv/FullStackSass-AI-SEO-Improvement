@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/auth-tables";
 import { getAppMessages } from "@/lib/i18n/app-locale";
+import { LOCALES, localePath } from "@/lib/i18n/config";
 import { format } from "@/lib/i18n/format";
 import { freePlanCopy } from "@/lib/i18n/free-plan";
 import { freePlanValues } from "@/lib/plans/free-plan";
@@ -54,6 +55,11 @@ export async function startFreePlanAction(websiteId: string): Promise<StartFreeP
 
   if (result.ok) {
     revalidatePath("/dashboard");
+    // The launch counter (taken / cap) on the homepages and pricing pages, built ahead: one more spot taken.
+    for (const locale of LOCALES) {
+      revalidatePath(localePath(locale, "/"));
+      revalidatePath(localePath(locale, "/pricing"));
+    }
     return { ok: true, next: `/onboarding/google?site=${encodeURIComponent(websiteId)}` };
   }
 

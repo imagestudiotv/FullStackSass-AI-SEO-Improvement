@@ -102,6 +102,8 @@
 /* site: the Free plan's card (2026-11-19, lib/plans/free-plan.ts), first where Launch was: warm, its paid features greyed, its launch counter. */
 .rgp-free{border-color:#f6d9c9;background:linear-gradient(180deg,#fff 0%,#fff 60%,#fff8f3 100%)}
 .rgp-free .rgp-tier{color:#b04a24}
+.rgp-free-caption{margin:-6px 0 0;font-size:12px;font-weight:710;color:#75736d}
+:global(.dark) .rgp-free-caption{color:#a8a69f}
 .rgp-card li.rgp-locked{color:#9a9893}
 .rgp-card li.rgp-locked:before{content:"~";color:#b3b0aa}
 .rgp-free-counter{margin:-12px 0 20px;font-size:11px;font-weight:750;color:#62645d}
