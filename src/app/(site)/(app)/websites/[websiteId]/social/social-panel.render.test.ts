@@ -208,3 +208,30 @@ describe("the Opportunities page", () => {
     expect(html).not.toMatch(/\{(count|total|platform|state|price|time|max|reason|name|date)\}/);
   });
 });
+
+describe("the Free plan's allowance under the list (8 social posts a month, a hard limit)", () => {
+  const amp = (s: string) => s.replace(/&/g, "&amp;").replace(/'/g, "&#x27;");
+
+  it.each(LOCALES)("%s: shows the month's posts against 8, with the day's drafts while the month has drafts left", (locale) => {
+    const t = getMessages(locale).app.social;
+    const month = t.freeMonthPosts.replace("{count}", "3").replace("{max}", "8");
+    const today = t.todayCount.replace("{count}", "4").replace("{max}", "10");
+    const html = render({ freeMonth: { posts: 3, postsMax: 8, draftsLeft: 5 }, priceLabel: t.free }, locale);
+    expect(html).toContain(amp(`${month} · ${today} · `));
+    expect(html).not.toMatch(/\{(count|max)\}/);
+  });
+
+  it("drops the day's count once the month's drafts are used up, and the finder with it", () => {
+    const t = getMessages("en").app.social;
+    const html = render({ freeMonth: { posts: 8, postsMax: 8, draftsLeft: 0 }, priceLabel: t.free });
+    expect(html).toContain("8 of 8 posts this month · Each post or reply costs");
+    expect(html).not.toContain("4 of 10 today");
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>(?:(?!<\/button>).)*Find suggestions/);
+  });
+
+  it("leaves a paid plan's line as it was: the day's count and the price", () => {
+    const html = render();
+    expect(html).toContain("4 of 10 today · Each post or reply costs 1 credit.");
+    expect(html).not.toContain("this month");
+  });
+});

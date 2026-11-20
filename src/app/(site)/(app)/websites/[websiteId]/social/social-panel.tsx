@@ -74,6 +74,12 @@ export function SocialPanel(props: {
   posted: SuggestionView[];
   todayCount: number;
   perDay: number;
+  /**
+   * Free plan only (null otherwise): its posts this UTC month against its
+   * hard monthly allowance, and the AI drafts left of the month's. Shown
+   * before the day's count, which is kept only while drafts are left.
+   */
+  freeMonth?: { posts: number; postsMax: number; draftsLeft: number } | null;
   priceLabel: string;
   boards: string[];
   notice: { kind: ConnectNotice; platform: string | null } | null;
@@ -124,7 +130,7 @@ export function SocialPanel(props: {
           <Button
             variant="outline"
             className="self-start sm:self-auto"
-            disabled={finder.pending || props.todayCount >= props.perDay}
+            disabled={finder.pending || props.todayCount >= props.perDay || props.freeMonth?.draftsLeft === 0}
             onClick={() => finder.run(() => findSocialSuggestions(websiteId), { success: t.findQueued })}
           >
             <RefreshCw aria-hidden="true" className={cn(finder.pending && "motion-safe:animate-spin")} />
@@ -281,9 +287,7 @@ export function SocialPanel(props: {
 
         <div className="flex flex-col gap-1 border-t px-4 py-3 text-xs text-muted-foreground sm:flex-row sm:justify-between sm:px-6">
           <span role="status">{plural(t.inView, visible.length)}</span>
-          <span>
-            {format(t.todayCount, { count: String(props.todayCount), max: String(props.perDay) })} · {format(t.price, { price: props.priceLabel })}
-          </span>
+          <span>{usageLine(props, t)}</span>
         </div>
       </section>
 
@@ -317,6 +321,23 @@ export function SocialPanel(props: {
       />
     </div>
   );
+}
+
+/**
+ * The list's footer: "3 of 10 today · Price: 2 credits" on a paid plan. On
+ * Free, "1 of 8 posts this month" first - its hard monthly allowance, which
+ * is what runs out - then the day's drafts only while the month still has
+ * drafts left (after that none come today anyway), then the price (free).
+ */
+function usageLine(
+  props: { todayCount: number; perDay: number; freeMonth?: { posts: number; postsMax: number; draftsLeft: number } | null; priceLabel: string },
+  t: Pick<T, "todayCount" | "freeMonthPosts" | "price">,
+): string {
+  const today = format(t.todayCount, { count: String(props.todayCount), max: String(props.perDay) });
+  const price = format(t.price, { price: props.priceLabel });
+  if (!props.freeMonth) return `${today} · ${price}`;
+  const month = format(t.freeMonthPosts, { count: String(Math.min(props.freeMonth.posts, props.freeMonth.postsMax)), max: String(props.freeMonth.postsMax) });
+  return props.freeMonth.draftsLeft > 0 ? `${month} · ${today} · ${price}` : `${month} · ${price}`;
 }
 
 function NextToPublish({

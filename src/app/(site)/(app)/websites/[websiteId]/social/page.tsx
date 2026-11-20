@@ -1,13 +1,15 @@
 import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import type { Metadata } from "next";
 
+import { calendarMonth } from "@/lib/billing/entitlement-period";
 import { requireWebsitePlan } from "@/lib/billing/require-plan";
 import { readCreditSettings } from "@/lib/credits/prices";
 import { db } from "@/lib/db";
 import { socialSuggestions } from "@/lib/db/schema";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { plural } from "@/lib/i18n/format";
-import { isFreePlanWebsite } from "@/lib/plans/free-plan-server";
+import { FREE_PLAN } from "@/lib/plans/free-plan";
+import { freePlanPostsThisMonth, isFreePlanWebsite } from "@/lib/plans/free-plan-server";
 import { inWarmup, listAccounts, pinterestBoards, socialAccess } from "@/lib/social/accounts";
 import { isBundleConfigured } from "@/lib/social/bundle";
 import { isConnectNotice } from "@/lib/social/connect-return";
@@ -79,6 +81,26 @@ export default async function WebsiteSocialPage({ params, searchParams }: PagePr
   // Best effort: a slow bundle.social must not keep the page from opening.
   const boards = bundle && pinterest ? await pinterestBoards(site.id).catch(() => []) : [];
 
+  /*
+    Free: its hard FREE_PLAN.socialPostsPerMonth posts a month are what limits
+    it, so that is the count it is shown - with the day's drafts only while
+    the month's drafts (FREE_PLAN.socialSuggestionsPerMonth, lib/social/
+    suggest.ts) are not used up, when no more come today anyway.
+  */
+  const freeMonth = free
+    ? await Promise.all([
+        freePlanPostsThisMonth(site.id, now),
+        db
+          .select({ n: sql<number>`count(*)::int` })
+          .from(socialSuggestions)
+          .where(and(eq(socialSuggestions.websiteId, site.id), gte(socialSuggestions.day, calendarMonth(now).start.toISOString().slice(0, 10)))),
+      ]).then(([posts, drafts]) => ({
+        posts,
+        postsMax: FREE_PLAN.socialPostsPerMonth,
+        draftsLeft: Math.max(0, FREE_PLAN.socialSuggestionsPerMonth - Number(drafts[0]?.n ?? 0)),
+      }))
+    : null;
+
   // The video platforms' accounts are on the Videos page.
   const accountViews: AccountView[] = accounts.filter((account) => isSocialPlatform(account.platform)).map((account) => ({
     platform: account.platform,
@@ -128,6 +150,7 @@ export default async function WebsiteSocialPage({ params, searchParams }: PagePr
       posted={posted.map(view)}
       todayCount={Number(todayCount[0]?.n ?? 0)}
       perDay={SUGGESTIONS_PER_DAY}
+      freeMonth={freeMonth}
       priceLabel={price > 0 ? plural(t.app.credits.creditsCount, price) : t.app.social.free}
       boards={boards}
       notice={isConnectNotice(notice) ? { kind: notice, platform: noticePlatform } : null}

@@ -2879,6 +2879,8 @@ export type Messages = {
       /** Under Connect: bundle.social signs in on Bluesky's own page, which refuses app passwords (tested 2026-10-29). */
       blueskyNote: string;
       todayCount: string;
+      /** Free plan: its social posts this UTC month against its hard monthly allowance (lib/plans/free-plan.ts socialPostsPerMonth). */
+      freeMonthPosts: string;
       findNow: string;
       finding: string;
       findQueued: string;
@@ -6183,6 +6185,7 @@ const en: Messages = {
       pinterestNote: "Pins use the pictures of your published articles.",
       blueskyNote: "Bluesky asks you to sign in with your normal Bluesky password. App passwords do not work here.",
       todayCount: "{count} of {max} today",
+      freeMonthPosts: "{count} of {max} posts this month",
       findNow: "Find suggestions",
       finding: "Looking…",
       findQueued: "Looking for new suggestions. They appear here in a minute or two.",
@@ -9465,6 +9468,7 @@ const es: Messages = {
       pinterestNote: "Los pines usan las imágenes de sus artículos publicados.",
       blueskyNote: "Bluesky le pedirá que inicie sesión con su contraseña habitual de Bluesky. Las contraseñas de aplicación no funcionan aquí.",
       todayCount: "{count} de {max} hoy",
+      freeMonthPosts: "{count} de {max} publicaciones este mes",
       findNow: "Buscar sugerencias",
       finding: "Buscando…",
       findQueued: "Buscando nuevas sugerencias. Aparecerán aquí en un minuto o dos.",
@@ -12748,6 +12752,7 @@ const fr: Messages = {
       pinterestNote: "Les épingles utilisent les images de vos articles publiés.",
       blueskyNote: "Bluesky vous demande de vous connecter avec votre mot de passe Bluesky habituel. Les mots de passe d’application ne fonctionnent pas ici.",
       todayCount: "{count} sur {max} aujourd’hui",
+      freeMonthPosts: "{count} sur {max} publications ce mois-ci",
       findNow: "Trouver des suggestions",
       finding: "Recherche…",
       findQueued: "Recherche de nouvelles suggestions. Elles apparaîtront ici d’ici une ou deux minutes.",
@@ -16030,6 +16035,7 @@ const it: Messages = {
       pinterestNote: "I Pin usano le immagini dei suoi articoli pubblicati.",
       blueskyNote: "Bluesky le chiederà di accedere con la sua normale password di Bluesky. Le password per app qui non funzionano.",
       todayCount: "{count} di {max} oggi",
+      freeMonthPosts: "{count} di {max} post questo mese",
       findNow: "Trova suggerimenti",
       finding: "Ricerca…",
       findQueued: "Cerco nuovi suggerimenti. Appariranno qui fra un minuto o due.",
@@ -19309,6 +19315,7 @@ const de: Messages = {
       pinterestNote: "Pins verwenden die Bilder Ihrer veröffentlichten Artikel.",
       blueskyNote: "Bluesky fragt nach Ihrem normalen Bluesky-Passwort. App-Passwörter funktionieren hier nicht.",
       todayCount: "{count} von {max} heute",
+      freeMonthPosts: "{count} von {max} Beiträgen diesen Monat",
       findNow: "Vorschläge finden",
       finding: "Suche läuft…",
       findQueued: "Neue Vorschläge werden gesucht. Sie erscheinen hier in ein bis zwei Minuten.",
