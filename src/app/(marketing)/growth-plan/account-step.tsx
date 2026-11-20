@@ -2,6 +2,7 @@
 
 import { Check, Eye, EyeOff, Loader2, Lock, Mail, UserRound } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useId, useState, type FormEvent } from "react";
 
 import { JoinWithGoogle } from "@/app/(marketing)/_home/join-with-google";
@@ -99,6 +100,7 @@ export function AccountStep({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -133,6 +135,8 @@ export function AccountStep({
         return;
       }
       onSignedIn(person);
+      // The header (and anything else read on the server) learns of the new session; the flow keeps its place.
+      router.refresh();
     } catch {
       setError(auth.connectionFailed);
     } finally {
