@@ -5,6 +5,8 @@ import { and, eq, gt, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { payments, supportChatState } from "@/lib/db/schema";
 
+import { crispConversationExists, type CrispConversationCheck } from "./crisp-conversations";
+
 /**
  * "RepGet - Proactive Human Support During Onboarding" (ticket 2026-11-19,
  * item 6): who may get the one onboarding welcome in the live chat, and the
@@ -38,8 +40,12 @@ import { payments, supportChatState } from "@/lib/db/schema";
  *  - NO CONVERSATION: no message sent or received in the in-app chat since
  *    this shipped (first_message_at), and - checked in the browser, because
  *    only Crisp knows it - no conversation already ongoing in that browser.
- *    LIMIT: a conversation from before this shipped, or one started by email,
- *    is invisible to both checks.
+ *    And, at the claim, Crisp's REST API by the person's email
+ *    (lib/support/crisp-conversations.ts), which also sees a conversation
+ *    from before this shipped or one started by email. Found, it is noted
+ *    in first_message_at (with last_message_at left empty: a message we
+ *    never saw) so Crisp is not asked again. With the API unset, failing or
+ *    slow, the claim goes on as before: such a conversation stays invisible.
  */
 
 export const WELCOME_WINDOW_DAYS = 7;
@@ -104,6 +110,8 @@ export type WelcomeContext = {
   accountCreatedAt: Date;
   ownsWorkspace: boolean;
   setupComplete: boolean;
+  /** The signed-in email, for the claim's question to Crisp (crisp-conversations.ts); without it Crisp is not asked. */
+  email?: string | null;
 };
 
 /** Every fact for one person, read from the database; the caller supplies what the page already computed. */
@@ -125,15 +133,46 @@ export async function loadWelcomeFacts(context: WelcomeContext, executor: Execut
 export type ClaimResult = { ok: true } | { ok: false; reason: WelcomeRefusal };
 
 /**
+ * Notes a conversation Crisp holds but the app never saw: first_message_at,
+ * so neither the layout nor a later claim offers the welcome again, and
+ * last_message_at left empty, which is how Admin -> Onboarding help tells it
+ * from an in-app message (recordSupportChatEvent always sets both). Never
+ * over a welcome already claimed.
+ */
+export async function recordConversationFoundInCrisp(userId: string, organizationId: string, now: Date = new Date(), executor: Executor = db): Promise<void> {
+  await executor
+    .insert(supportChatState)
+    .values({ userId, organizationId, firstMessageAt: now, createdAt: now, updatedAt: now })
+    .onConflictDoUpdate({
+      target: supportChatState.userId,
+      set: { firstMessageAt: sql`coalesce(${supportChatState.firstMessageAt}, ${now.toISOString()}::timestamp)`, updatedAt: now },
+      setWhere: isNull(supportChatState.welcomedAt),
+    });
+}
+
+/**
  * Claims the one welcome. Atomic: the row is written with
  * `ON CONFLICT ... DO UPDATE ... WHERE welcomed_at IS NULL AND
  * first_message_at IS NULL RETURNING`, so of two tabs or devices asking at
  * the same moment exactly one gets a row back - and only that one pushes the
- * event to Crisp. A refusal writes nothing.
+ * event to Crisp. A refusal writes nothing, except a conversation found in
+ * Crisp (recordConversationFoundInCrisp), so it is asked once.
+ *
+ * Crisp is asked only when everything else allows the welcome, and only
+ * with the person's email (context.email); `checkCrisp` is for tests.
  */
-export async function claimWelcome(context: WelcomeContext, now: Date = new Date(), executor: Executor = db): Promise<ClaimResult> {
+export async function claimWelcome(
+  context: WelcomeContext,
+  now: Date = new Date(),
+  executor: Executor = db,
+  checkCrisp: (email: string | null | undefined) => Promise<CrispConversationCheck> = crispConversationExists,
+): Promise<ClaimResult> {
   const reason = welcomeRefusal(await loadWelcomeFacts(context, executor), now);
   if (reason) return { ok: false, reason };
+  if (context.email && (await checkCrisp(context.email)) === "exists") {
+    await recordConversationFoundInCrisp(context.userId, context.organizationId, now, executor);
+    return { ok: false, reason: "conversation" };
+  }
   const claimed = await executor
     .insert(supportChatState)
     .values({ userId: context.userId, organizationId: context.organizationId, welcomedAt: now, createdAt: now, updatedAt: now })

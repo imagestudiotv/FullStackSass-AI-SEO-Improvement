@@ -38,6 +38,8 @@ export async function claimOnboardingWelcomeAction(input: { websiteId: string; b
       accountCreatedAt: new Date(session.user.createdAt),
       ownsWorkspace: !(await hasOnlySharedWork()),
       setupComplete: launch.live,
+      // Crisp is asked by this email whether a conversation already exists (lib/support/crisp-conversations.ts).
+      email: session.user.email,
     });
   } catch (error) {
     // A failed claim means no welcome this time; it never breaks the page.
