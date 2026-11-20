@@ -1,5 +1,6 @@
 import type { CostItem, CreativeDirection, HookType, MediaItem, ResolvedAsset, ShotScene, VisualSource } from "./formats";
 import { FOOTAGE_LIMITS, bestCandidate, configuredProviders, searchProvider, type StockCandidate, type StockProvider } from "./footage";
+import { AI_PROVIDER } from "./footage/ai-library";
 import type { HookCandidate } from "./footage/hooks";
 
 /**
@@ -254,7 +255,7 @@ async function hookClipFor(type: HookType, query: string, usedStock: Set<string>
   for (const candidate of candidates) {
     try {
       const stored = await deps.storeStock(candidate, query, 0);
-      await deps.record({ kind: "footage", provider: candidate.provider, usd: 0, basis: "measured", note: `free provider, hook clip ${candidate.providerId}` });
+      await deps.record({ kind: "footage", provider: candidate.provider, usd: 0, basis: "measured", note: candidate.provider === AI_PROVIDER ? `RepGet AI hook clip ${candidate.providerId} (made once, nothing per video)` : `free provider, hook clip ${candidate.providerId}` });
       return { ...fromCached(0, stored), climaxMs: candidate.climaxMs, focalX: candidate.focalX };
     } catch (error) {
       log(`Scene 0: hook clip ${candidate.providerId} could not be stored (${(error as Error).message}).`);

@@ -9,12 +9,19 @@ export type HookCandidate = StockCandidate & { climaxMs: number | null; focalX: 
  * The library's clips of a type for a video, in the order to try: the ones
  * whose tags share the most words with the search words first, rotated by the
  * video's seed so two videos with the same words still open on different
- * clips. Clips the video already uses are left out. Pure.
+ * clips. Clips the video already uses ("<provider>:<id>") are left out. Pure.
  */
-export function libraryPicks(type: HookType, query: string, seed: number, exclude: Set<string> = new Set(), library: readonly HookLibraryClip[] = HOOK_LIBRARY): HookLibraryClip[] {
+export function libraryPicks<Clip extends HookLibraryClip = HookLibraryClip>(
+  type: HookType,
+  query: string,
+  seed: number,
+  exclude: Set<string> = new Set(),
+  library: readonly Clip[] = HOOK_LIBRARY as readonly Clip[],
+  provider = "pixabay",
+): Clip[] {
   const words = new Set(query.toLowerCase().split(/[^a-z0-9]+/).filter((word) => word.length > 2));
   const scored = library
-    .filter((clip) => clip.type === type && !exclude.has(`pixabay:${clip.id}`))
+    .filter((clip) => clip.type === type && !exclude.has(`${provider}:${clip.id}`))
     .map((clip) => ({ clip, hits: clip.tags.filter((tag) => tag.toLowerCase().split(/\s+/).some((word) => words.has(word))).length }))
     .sort((a, b) => b.hits - a.hits || a.clip.id.localeCompare(b.clip.id));
   if (!scored.length) return [];
@@ -23,4 +30,19 @@ export function libraryPicks(type: HookType, query: string, seed: number, exclud
   const shift = Math.abs(seed) % matching;
   const front = scored.slice(0, matching);
   return [...front.slice(shift), ...front.slice(0, shift), ...scored.slice(matching)].map((entry) => entry.clip);
+}
+
+/** The share of hooked videos that open on one of RepGet's AI clips, the rest on a Pixabay clip (client, 2026-11-19: "AI:pixabay = 65%:35%"). */
+export const AI_HOOK_SHARE = 0.65;
+
+/**
+ * Whether a video opens on an AI clip: fixed for the video (its seed), true
+ * for about AI_HOOK_SHARE of videos. The seed is mixed first, so the choice
+ * never moves in step with the clip rotation in libraryPicks (seed % n). Pure.
+ */
+export function opensOnAiClip(seed: number, share: number = AI_HOOK_SHARE): boolean {
+  let x = Math.imul(seed ^ (seed >>> 16), 0x45d9f3b);
+  x = Math.imul(x ^ (x >>> 16), 0x45d9f3b);
+  x ^= x >>> 16;
+  return (x >>> 0) % 1000 < Math.round(share * 1000);
 }

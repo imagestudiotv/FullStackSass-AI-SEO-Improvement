@@ -34,7 +34,8 @@ import {
 } from "./cost-math";
 import { STOCK_PROVIDERS, footageStatus, type StockCandidate } from "./footage";
 import { collectionCost } from "./footage/collection";
-import { libraryPicks, type HookCandidate } from "./footage/hooks";
+import { AI_CLIP_SIZE, AI_HOOK_LIBRARY, AI_LICENCE, AI_PROVIDER, aiClipPath, type AiHookClip } from "./footage/ai-library";
+import { libraryPicks, opensOnAiClip, type HookCandidate } from "./footage/hooks";
 import { pixabayVideoById } from "./footage/pixabay";
 import { cachedAsset, cachedForQuery, storeCandidate } from "./footage/store";
 import {
@@ -63,7 +64,7 @@ import { MUSIC_VOLUME, musicTrack, musicUrl, pickProductionTrack, pickTrack } fr
 import { remuxNoMusic, renderReelLocally, renderSlides, type CoverRequest } from "./render";
 import { autoPublishTime, releaseScheduleSlot } from "./schedule";
 import { readVideoSettings, websiteBrand } from "./settings";
-import { storeVideoFile } from "./storage";
+import { sharedFileUrl, storeVideoFile } from "./storage";
 import { stableHash } from "./strategy/creative";
 import { canHook } from "./strategy/hooks";
 import { isVoiceConfigured, speakScript, UnsupportedVoiceLanguageError, voiceLanguage, VOICE_COST_PER_MINUTE, VoiceServiceError } from "./voice";
@@ -301,10 +302,22 @@ function resolverDeps(idea: VideoIdea): ResolverDeps {
   };
 }
 
-/** Up to three hook library clips for a video: already stored ones need no lookup, the others are looked up by id (free). */
+/**
+ * Up to three hook clips for a video, in the order to try: RepGet's AI clips
+ * (in storage already) and the Pixabay library's, about 65:35 across videos
+ * (opensOnAiClip), the other source kept as the fallback. Pixabay clips
+ * already stored need no lookup, the others are looked up by id (free).
+ */
 async function hookCandidates(type: HookType, query: string, exclude: Set<string>, seed: number): Promise<HookCandidate[]> {
+  const ai = libraryPicks(type, query, seed, exclude, AI_HOOK_LIBRARY, AI_PROVIDER).slice(0, 2).map(aiCandidate);
+  const aiFirst = opensOnAiClip(seed);
+  const stock = await pixabayCandidates(type, query, exclude, seed, aiFirst ? 3 - ai.length : 3 - Math.min(1, ai.length));
+  return aiFirst ? [...ai, ...stock] : [...stock, ...ai];
+}
+
+async function pixabayCandidates(type: HookType, query: string, exclude: Set<string>, seed: number, count: number): Promise<HookCandidate[]> {
   const out: HookCandidate[] = [];
-  for (const pick of libraryPicks(type, query, seed, exclude).slice(0, 3)) {
+  for (const pick of libraryPicks(type, query, seed, exclude).slice(0, count)) {
     const stored = await cachedAsset("pixabay", pick.id, "video");
     const candidate: StockCandidate | null = stored
       ? { provider: stored.provider, providerId: stored.providerId, kind: "video", downloadUrl: stored.url, width: stored.width ?? 0, height: stored.height ?? 0, durationMs: stored.durationMs, sizeBytes: null, licence: stored.licence, sourceUrl: stored.sourceUrl ?? stored.url, author: stored.author, tags: [] }
@@ -312,6 +325,25 @@ async function hookCandidates(type: HookType, query: string, exclude: Set<string
     if (candidate) out.push({ ...candidate, climaxMs: pick.climaxMs, focalX: pick.focalX ?? null });
   }
   return out;
+}
+
+function aiCandidate(clip: AiHookClip): HookCandidate {
+  const url = sharedFileUrl(aiClipPath(clip.id));
+  return {
+    provider: AI_PROVIDER,
+    providerId: clip.id,
+    kind: "video",
+    downloadUrl: url,
+    ...AI_CLIP_SIZE,
+    durationMs: clip.durationMs,
+    sizeBytes: null,
+    licence: AI_LICENCE,
+    sourceUrl: url,
+    author: "RepGet",
+    tags: clip.tags,
+    climaxMs: clip.climaxMs,
+    focalX: null,
+  };
 }
 
 /**
