@@ -1,6 +1,7 @@
 import { and, count, eq, gte, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
+import { OPENAI_IMAGE_PER_IMAGE_USD, OPENAI_IMAGE_TOKEN_RATES, REPLICATE_FLUX_SCHNELL_PER_IMAGE_USD } from "@/lib/images/pricing";
 import { UNLIMITED, type LimitCheck } from "@/lib/usage-shared";
 import { agencyLimits } from "@/lib/agency/core";
 import type { QuotaRule } from "@/lib/billing/spend-quota";
@@ -48,7 +49,7 @@ export type UsageKind =
  *
  * Units differ per kind:
  *  - llm / embedding: USD per 1,000 tokens
- *  - image:           USD per image
+ *  - image:           USD per 1M tokens (OpenAI) or per image (lib/images/pricing.ts)
  *  - crawl:           USD per page fetched
  *  - seo_api:         USD per API call
  *  - geo_query:       USD per prompt checked per engine
@@ -79,8 +80,15 @@ export const PRICING = {
     "text-embedding-3-small": { per1k: 0.00002 },
   },
   image: {
-    // TODO: set once the image provider is chosen.
-    default: { perImage: 0 },
+    /**
+     * Images are priced in lib/images/pricing.ts (OpenAI per token, measured
+     * from each response; a per-image estimate without usage; Replicate flat)
+     * and each one records its cost on its usage_events row - so the Free
+     * plan's caps count pictures. Listed here so this stays the one table.
+     */
+    openaiTokensPer1M: OPENAI_IMAGE_TOKEN_RATES,
+    openaiPerImageEstimate: OPENAI_IMAGE_PER_IMAGE_USD,
+    replicateFluxSchnell: { perImage: REPLICATE_FLUX_SCHNELL_PER_IMAGE_USD },
   },
   crawl: {
     // Self-hosted crawling: bandwidth/compute only.
