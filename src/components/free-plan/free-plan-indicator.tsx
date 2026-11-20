@@ -18,14 +18,22 @@ import { UpgradeLink } from "./upgrade-link";
  * Renders nothing for any other website, and never breaks the shell: a
  * failed read leaves it out.
  */
-export async function FreePlanIndicator({ websiteId, organizationId, locale }: { websiteId: string; organizationId: string; locale: Locale }) {
+export async function FreePlanIndicator({
+  websiteId,
+  locale,
+}: {
+  websiteId: string;
+  /** The shell passes the workspace; the pause is read per website now (freePlanPause), so it is not needed. */
+  organizationId?: string;
+  locale: Locale;
+}) {
   // Read first, render after: a failed read leaves the line out, and JSX is
   // never built inside the try (React would not catch its errors there).
   let line: string;
   let upgrade: string;
   try {
     if (!(await isFreePlanWebsite(websiteId))) return null;
-    const [articles, pause] = await Promise.all([checkLimit(websiteId, "articles"), freePlanPause(organizationId)]);
+    const [articles, pause] = await Promise.all([checkLimit(websiteId, "articles"), freePlanPause(websiteId)]);
     const t = freePlanCopy(locale).app;
     const values = freePlanValues(locale);
     const left = Math.max(0, articles.limit - articles.used);

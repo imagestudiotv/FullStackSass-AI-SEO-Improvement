@@ -465,7 +465,7 @@ function OpportunityRow({
         </p>
         {stage === "failed" ? (
           <p className="mt-1 text-xs text-destructive">
-            {row.error === "not_enough_credits" ? t.failedCredits : format(t.failed, { reason: row.error ?? "-" })}
+            {row.error === "not_enough_credits" ? t.failedCredits : row.error === "free_posts_used" ? t.errors.free_posts_used : format(t.failed, { reason: row.error ?? "-" })}
           </p>
         ) : null}
       </div>

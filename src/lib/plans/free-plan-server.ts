@@ -1,17 +1,17 @@
 import "server-only";
 
-import { and, count, eq, gte, inArray, sql, type AnyColumn, type SQL } from "drizzle-orm";
+import { and, count, eq, gte, inArray, isNull, or, sql, type AnyColumn, type SQL } from "drizzle-orm";
 
 import { calendarMonth } from "@/lib/billing/entitlement-period";
 import { db, isDatabaseConfigured } from "@/lib/db";
 import {
   audits,
-  creditLedger,
   creditSettings,
   freePlanAccounts,
   freePlanEvents,
   geoResults,
   plans,
+  socialSuggestions,
   subscriptions,
   usageEvents,
   websites,
@@ -306,19 +306,58 @@ const cents = (usd: string | number | null | undefined) => Math.round(Number(usd
 
 const startOfUtcDay = (now: Date) => new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 
-/** A workspace's recorded AI and API cost this UTC month, in US cents (usage_events). */
-export async function freePlanMonthSpendCents(organizationId: string, now: Date = new Date(), executor: Pick<Executor, "select"> = db): Promise<number> {
+/**
+ * Which usage_events rows are a Free website's AI and API cost: what the
+ * monthly cap, the day's budget and the launch dashboard add up. The caller
+ * also scopes the rows to the website's workspace, which is what
+ * usage_events is indexed by (usage_events_org_created_idx).
+ *
+ * PER WEBSITE, NOT PER WORKSPACE. A workspace may pay for one website and
+ * keep its Free one beside it (startFreePlan asks only whether THIS website
+ * pays). The paid website's spend is paid for: it must not pause the Free
+ * one, nor show on the dashboard as what Free costs.
+ *
+ * Every AI or API call a Free website can reach records its website (the
+ * lib/usage.ts track callers: articles with their research and pictures,
+ * the website check and audit, AI visibility, Growth Copilot, social
+ * suggestions). A row without one belongs to a deleted website
+ * (usage_events.website_id is set null on delete). Those rows count while
+ * the workspace pays for no website, so deleting the Free website and
+ * starting Free on a new one (startFreePlan) does not hand the month's
+ * budget back. A workspace that pays keeps them out: they may be its paid
+ * website's.
+ */
+export function freePlanSpendOf(websiteId: AnyColumn | SQL | string, organizationId: AnyColumn | SQL | string): SQL {
+  return sql`(${usageEvents.websiteId} = ${websiteId} or (${usageEvents.websiteId} is null and not exists (
+    select 1 from ${subscriptions} fs
+    where fs.organization_id = ${organizationId}
+      and fs.status in ('active', 'trialing', 'past_due')
+      and fs.plan_id is not null
+  )))`;
+}
+
+/** A Free website's recorded AI and API cost this UTC month, in US cents (usage_events, freePlanSpendOf). */
+export async function freePlanMonthSpendCents(websiteId: string, now: Date = new Date(), executor: Pick<Executor, "select"> = db): Promise<number> {
+  const [site] = await executor.select({ organizationId: websites.organizationId }).from(websites).where(eq(websites.id, websiteId)).limit(1);
+  if (!site) return 0;
   const [row] = await executor
     .select({ usd: sql<string>`coalesce(sum(${usageEvents.costUsd}), 0)` })
     .from(usageEvents)
-    .where(and(eq(usageEvents.organizationId, organizationId), gte(usageEvents.createdAt, calendarMonth(now).start)));
+    .where(
+      and(
+        eq(usageEvents.organizationId, site.organizationId),
+        gte(usageEvents.createdAt, calendarMonth(now).start),
+        freePlanSpendOf(websiteId, site.organizationId),
+      ),
+    );
   return cents(row?.usd);
 }
 
 /**
- * Every Free workspace's recorded AI cost today (UTC), in US cents. A
- * workspace that has since bought a plan is no longer counted: its spend is
- * paid for.
+ * Every Free website's recorded AI cost today (UTC), in US cents. A website
+ * that has since bought a plan is no longer counted: its spend is paid for.
+ * Nor is the paid website of a workspace that also keeps a Free one
+ * (freePlanSpendOf).
  */
 export async function freePlanDaySpendCents(now: Date = new Date(), executor: Pick<Executor, "select"> = db): Promise<number> {
   const [row] = await executor
@@ -327,14 +366,17 @@ export async function freePlanDaySpendCents(now: Date = new Date(), executor: Pi
     .where(
       and(
         gte(usageEvents.createdAt, startOfUtcDay(now)),
-        sql`${usageEvents.organizationId} in (
-          select f.organization_id from ${freePlanAccounts} f
-          where not exists (
-            select 1 from ${subscriptions} s
-            where s.organization_id = f.organization_id
-              and s.status in ('active', 'trialing', 'past_due')
-              and s.plan_id is not null
-          )
+        sql`exists (
+          select 1 from ${freePlanAccounts} f
+          where f.organization_id = ${usageEvents.organizationId}
+            and f.website_id is not null
+            and not exists (
+              select 1 from ${subscriptions} s
+              where s.website_id = f.website_id
+                and s.status in ('active', 'trialing', 'past_due')
+                and s.plan_id is not null
+            )
+            and ${freePlanSpendOf(sql`f.website_id`, sql`f.organization_id`)}
         )`,
       ),
     );
@@ -344,18 +386,18 @@ export async function freePlanDaySpendCents(now: Date = new Date(), executor: Pi
 export type FreePlanPause = { paused: false } | { paused: true; reason: "monthly_cap" | "daily_budget" };
 
 /**
- * Whether Free AI generation is paused for this workspace: its own month's
+ * Whether Free AI generation is paused for this website: its own month's
  * AI cost has reached FREE_PLAN_MONTHLY_AI_COST_CAP_CENTS, or all Free
- * workspaces together have reached FREE_PLAN_DAILY_AI_BUDGET_CENTS today.
+ * websites together have reached FREE_PLAN_DAILY_AI_BUDGET_CENTS today.
  *
  * Read from what was RECORDED, so it trails the spend by the call in flight:
  * the cap can be passed by at most one article's cost, never run away.
  */
-export async function freePlanPause(organizationId: string, now: Date = new Date(), executor: Pick<Executor, "select"> = db): Promise<FreePlanPause> {
+export async function freePlanPause(websiteId: string, now: Date = new Date(), executor: Pick<Executor, "select"> = db): Promise<FreePlanPause> {
   const limits = freePlanCostLimits();
   if (limits.dailyBudgetCents === 0) return { paused: true, reason: "daily_budget" };
   const [month, day] = await Promise.all([
-    freePlanMonthSpendCents(organizationId, now, executor),
+    freePlanMonthSpendCents(websiteId, now, executor),
     freePlanDaySpendCents(now, executor),
   ]);
   if (month >= limits.monthlyCapCents) return { paused: true, reason: "monthly_cap" };
@@ -384,40 +426,60 @@ export async function freePlanSnapshotsThisMonth(websiteId: string, now: Date = 
   return Number(row?.n ?? 0);
 }
 
-/** The ledger key of a Free workspace's credits for one month. */
-export function freePlanGrantKey(organizationId: string, now: Date): string {
-  return `free_plan:${organizationId}:${now.toISOString().slice(0, 7)}`;
+/**
+ * Social posts this Free website has had this UTC month: handed to the
+ * platform by RepGet (lib/social/publish.ts) or posted with one click
+ * (lib/social/actions.ts). A post the platform refused is "failed" and not
+ * counted, so trying it again does not cost a second one of the month's.
+ */
+export async function freePlanPostsThisMonth(websiteId: string, now: Date = new Date(), executor: Pick<Executor, "select"> = db): Promise<number> {
+  const { start } = calendarMonth(now);
+  const [row] = await executor
+    .select({ n: count() })
+    .from(socialSuggestions)
+    .where(
+      and(
+        eq(socialSuggestions.websiteId, websiteId),
+        inArray(socialSuggestions.status, ["posting", "posted"]),
+        // Posted: when it went out. Still posting: when it was handed over (no postedAt yet).
+        or(gte(socialSuggestions.postedAt, start), and(isNull(socialSuggestions.postedAt), gte(socialSuggestions.updatedAt, start))),
+      ),
+    );
+  return Number(row?.n ?? 0);
 }
 
 /**
- * Free's social posts, paid like every plan's: in credits (1 a post, Admin ->
- * Credits), FREE_PLAN.socialPostsPerMonth of them each UTC month. Granted
- * where the paid plans' monthly credits are (lib/backlinks/credits.ts
- * ensureMonthlyCredits), once per month by its idempotency key. Like every
- * credit they do not expire.
+ * Takes one of Free's FREE_PLAN.socialPostsPerMonth posts for this UTC
+ * month, INSIDE the transaction that marks the post posting or posted - false
+ * when the month's are used.
+ *
+ * A HARD LIMIT, NOT CREDITS. Free's posts used to be 8 credits granted each
+ * month; credits never expire, so unused months piled up (16, 24...) and
+ * paid for Copilot messages as well. Free's posts are now part of the plan,
+ * like its monthly audit: no credit is charged for them and none granted,
+ * and credits a Free workspace buys do not post more (they pay for Growth
+ * Copilot past its free messages). A per-website lock
+ * (`free-plan:social:<website>`) makes two posts at once count one after
+ * the other, so the eighth cannot be taken twice. A transaction is needed
+ * for the lock to hold until the post's own write commits.
  */
-export async function grantFreePlanCredits(organizationId: string, now: Date = new Date()): Promise<boolean> {
-  const websiteId = await freePlanWebsiteOf(organizationId);
-  if (!websiteId) return false;
-  // Written here rather than through recordCredit (lib/backlinks/credits.ts), which calls this: no import cycle.
-  const key = freePlanGrantKey(organizationId, now);
-  const rows = await db
-    .insert(creditLedger)
-    .values({
-      organizationId,
-      type: "plan_grant",
-      amount: FREE_PLAN.socialPostsPerMonth,
-      referenceId: key,
-      note: "Free plan: this month's social posts",
-      idempotencyKey: key,
-    })
-    .onConflictDoNothing()
-    .returning({ id: creditLedger.id });
-  return rows.length > 0;
+export async function takeFreePlanPost(tx: Executor, websiteId: string, now: Date = new Date()): Promise<boolean> {
+  await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`free-plan:social:${websiteId}`}))`);
+  return (await freePlanPostsThisMonth(websiteId, now, tx)) < FREE_PLAN.socialPostsPerMonth;
 }
 
-/** Where an upgrade prompt was pressed, for the launch dashboard. */
-export async function recordFreePlanEvent(input: { organizationId: string; userId: string | null; kind: "upgrade_click"; source: string }): Promise<void> {
+/** The shortest gap between two recorded clicks of one prompt by one workspace. */
+const EVENT_THROTTLE_MS = 60 * 1000;
+
+/**
+ * Where an upgrade prompt was pressed, for the launch dashboard. At most one
+ * row per workspace and prompt a minute: the action is a public endpoint,
+ * and a double click or a script must not fill the table or the count.
+ */
+export async function recordFreePlanEvent(
+  input: { organizationId: string; userId: string | null; kind: "upgrade_click"; source: string },
+  now: Date = new Date(),
+): Promise<void> {
   try {
     const [row] = await db
       .select({ id: freePlanAccounts.id })
@@ -426,11 +488,26 @@ export async function recordFreePlanEvent(input: { organizationId: string; userI
       .limit(1);
     // Only Free workspaces are tracked: the dashboard is about them.
     if (!row) return;
+    const source = input.source.slice(0, 80);
+    const [recent] = await db
+      .select({ id: freePlanEvents.id })
+      .from(freePlanEvents)
+      .where(
+        and(
+          eq(freePlanEvents.organizationId, input.organizationId),
+          eq(freePlanEvents.kind, input.kind),
+          eq(freePlanEvents.source, source),
+          gte(freePlanEvents.createdAt, new Date(now.getTime() - EVENT_THROTTLE_MS)),
+        ),
+      )
+      .limit(1);
+    if (recent) return;
     await db.insert(freePlanEvents).values({
       organizationId: input.organizationId,
       userId: input.userId,
       kind: input.kind,
-      source: input.source.slice(0, 80),
+      source,
+      createdAt: now,
     });
   } catch (error) {
     console.error("[free-plan] could not record an event", error);

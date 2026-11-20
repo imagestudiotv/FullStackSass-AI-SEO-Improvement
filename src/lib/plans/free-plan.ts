@@ -46,14 +46,22 @@ export const FREE_TIER = "free";
  *   20 or 50, lib/geo/shared.ts): each is two model calls.
  * - auditPages: the "limited" SEO audit - the same audit, over at most this
  *   many pages of the site (a paid audit reads the whole sitemap).
- * - socialPostsPerMonth is paid the way every plan pays posts: in credits
- *   (scripts/plan-catalog.mjs, "SOCIAL POSTS ARE NOT A SECOND METER"). Free
- *   is granted this many credits each month (lib/plans/free-plan-server.ts
- *   grantFreePlanCredits), at the client's 1 credit a post.
+ * - socialPostsPerMonth is a hard limit of its own, unlike a paid plan's
+ *   posts, which are paid in credits (scripts/plan-catalog.mjs, "SOCIAL
+ *   POSTS ARE NOT A SECOND METER"). Free's are part of the plan: no credit
+ *   is charged or granted for them, and bought credits do not add more
+ *   (lib/plans/free-plan-server.ts takeFreePlanPost). Granted credits never
+ *   expire, so a monthly grant piled up and paid for Copilot as well.
+ * - socialSuggestionsPerMonth: the drafts the AI writes for the posts each
+ *   UTC month (a paid plan gets lib/social/platforms.ts SUGGESTIONS_PER_DAY
+ *   a day). Each daily run is a model call and a few Google searches, so
+ *   Free gets enough to choose its posts from - twice the posts - and the
+ *   runs stop once they are written.
  */
 export const FREE_PLAN = {
   articlesPerMonth: 4,
   socialPostsPerMonth: 8,
+  socialSuggestionsPerMonth: 16,
   searchTerms: 10,
   websites: 1,
   auditsPerMonth: 1,
@@ -138,8 +146,10 @@ export function freePlanMessage(key: FreePlanMessageKey, locale: Locale = "en"):
 
 /** A paid feature refused on Free (lib/billing/entitled.ts). */
 export const FREE_PLAN_LOCKED = freePlanMessage("upgradeTitle");
-/** Free AI generation paused by the cost protection (lib/plans/free-plan-server.ts freePlanPause). */
+/** Free AI generation paused by the cost protection (lib/plans/free-plan-server.ts freePlanPause): this website's month. */
 export const FREE_PLAN_PAUSED = freePlanMessage("paused");
+/** The same, for the day's budget of every Free website together (or the kill switch). */
+export const FREE_PLAN_PAUSED_TODAY = freePlanMessage("pausedToday");
 
 /** A server's English Free line in the reader's language; any other text unchanged. */
 export function localiseFreePlanMessage(message: string, locale: Locale): string {

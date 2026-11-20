@@ -5,7 +5,7 @@ import { getLaunchState } from "@/lib/onboarding/launch";
 import { requireOrg } from "@/lib/tenant";
 import { hasOnlySharedWork, listAccessibleWebsites } from "@/lib/websites/accessible";
 
-import { claimWelcome, isSupportChatEvent, recordSupportChatEvent, type WelcomeRefusal } from "./onboarding-welcome";
+import { claimWelcome, isSupportChatEvent, onboardingWelcomeOn, recordSupportChatEvent, type WelcomeRefusal } from "./onboarding-welcome";
 
 /**
  * The live chat's two calls from the browser (components/crisp-onboarding.tsx,
@@ -17,10 +17,11 @@ import { claimWelcome, isSupportChatEvent, recordSupportChatEvent, type WelcomeR
 export type WelcomeClaim =
   | { ok: true }
   /** "progressed": setup moved on during the wait; the browser starts waiting again from `done`. */
-  | { ok: false; reason: WelcomeRefusal | "progressed" | "unknown_site" | "error"; done?: number };
+  | { ok: false; reason: WelcomeRefusal | "off" | "progressed" | "unknown_site" | "error"; done?: number };
 
 export async function claimOnboardingWelcomeAction(input: { websiteId: string; baselineDone: number }): Promise<WelcomeClaim> {
   try {
+    if (!onboardingWelcomeOn()) return { ok: false, reason: "off" };
     const session = await requireSession();
     const { orgId, userId } = await requireOrg();
     const websiteId = String(input?.websiteId ?? "");

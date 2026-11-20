@@ -140,7 +140,7 @@ const IT: SocialPublishingCopy = {
     },
     {
       title: "Piani e prova",
-      body: "Contenuti social è incluso nei piani RepGet a pagamento: Grow e Scale. Se al momento dell’acquisto Le viene offerto un periodo di prova, la funzione è disponibile anche durante la prova. Prezzi e condizioni sono nella pagina dei piani e al checkout.",
+      body: "Contenuti social è incluso in tutti i piani RepGet: Free (8 post al mese), Grow e Scale. Se al momento dell’acquisto Le viene offerto un periodo di prova, la funzione è disponibile anche durante la prova. Prezzi e condizioni sono nella pagina dei piani e al checkout.",
     },
     {
       title: "Crediti e limiti",

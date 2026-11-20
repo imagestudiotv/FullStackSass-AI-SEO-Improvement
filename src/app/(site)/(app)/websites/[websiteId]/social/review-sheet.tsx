@@ -168,7 +168,11 @@ function Review({
               ) : null
             }
           >
-            {suggestion.error === "not_enough_credits" ? t.failedCredits : format(t.failed, { reason: suggestion.error ?? "-" })}
+            {suggestion.error === "not_enough_credits"
+              ? t.failedCredits
+              : suggestion.error === "free_posts_used"
+                ? t.errors.free_posts_used
+                : format(t.failed, { reason: suggestion.error ?? "-" })}
           </Notice>
         ) : null}
         {!canEdit ? <Notice>{t.errors.view_only}</Notice> : !editable ? <Notice>{t.errors.not_included}</Notice> : null}

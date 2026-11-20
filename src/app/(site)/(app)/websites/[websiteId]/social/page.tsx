@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { socialSuggestions } from "@/lib/db/schema";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { plural } from "@/lib/i18n/format";
+import { isFreePlanWebsite } from "@/lib/plans/free-plan-server";
 import { inWarmup, listAccounts, pinterestBoards, socialAccess } from "@/lib/social/accounts";
 import { isBundleConfigured } from "@/lib/social/bundle";
 import { isConnectNotice } from "@/lib/social/connect-return";
@@ -41,8 +42,9 @@ export default async function WebsiteSocialPage({ params, searchParams }: PagePr
 
   const now = new Date();
   const today = now.toISOString().slice(0, 10);
-  const [plan, accounts, open, posted, todayCount, credits, { t, locale }, query] = await Promise.all([
+  const [plan, free, accounts, open, posted, todayCount, credits, { t, locale }, query] = await Promise.all([
     socialAccess(site.id),
+    isFreePlanWebsite(site.id),
     listAccounts(site.id),
     // Waiting for the customer (a saved draft too), or for RepGet: the last week's.
     db
@@ -107,7 +109,8 @@ export default async function WebsiteSocialPage({ params, searchParams }: PagePr
     createdAt: row.createdAt.toISOString(),
   });
 
-  const price = credits.prices.social_post;
+  // A Free website's posts cost no credit: they are the month's (lib/plans/free-plan-server.ts takeFreePlanPost).
+  const price = free ? 0 : credits.prices.social_post;
   const notice = typeof query.social === "string" ? query.social : null;
   // Only a platform's own name reaches the toast, never whatever a link carries.
   const noticePlatform = typeof query.platform === "string" && isSocialPlatform(query.platform) ? query.platform : null;

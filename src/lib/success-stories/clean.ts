@@ -6,6 +6,7 @@ import { isBlogImageUrl } from "@/lib/blog/image-files";
 import { blogSiteHosts } from "@/lib/blog/site-hosts";
 import { isDiscoverSlug } from "@/lib/discover/profile-fields";
 
+import { isImageStudioCard } from "./order";
 import { isStorySlug, RESERVED_STORY_SLUGS, STORY_LIMITS, storySlug, type StoryMetric, type SuccessStoryInput } from "./fields";
 
 /**
@@ -66,6 +67,15 @@ export function cleanSuccessStory(input: SuccessStoryInput): CleanSuccessStory {
   const websiteUrl = rawWebsite ? businessWebsite(rawWebsite) : null;
   if (rawWebsite && !websiteUrl) {
     throw new SuccessStoryError(`"${rawWebsite.slice(0, 60)}" is not a website address - use a full address starting with https://`);
+  }
+  /*
+    Image Studio is the one pinned story (Daniel, 2026-11-19: "always first
+    stable fixed"), with its own page at /success-stories/image-studio. A
+    second story about it would take that card's place on the homepage and
+    /discover and be missing from /success-stories, which lists the others.
+  */
+  if (isImageStudioCard({ source: "story", name, websiteUrl })) {
+    throw new SuccessStoryError("Image Studio is already the pinned first story - add a different business");
   }
 
   const logo = oneLine(value.logoUrl);

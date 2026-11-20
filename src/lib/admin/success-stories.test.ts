@@ -117,6 +117,8 @@ describe("saving", () => {
     [{ metrics: [{ value: "12", label: "" }] }, /both a value and a label/],
     [{ metrics: Array.from({ length: 7 }, (_, i) => ({ value: String(i), label: "figures" })) }, /6 key figures/],
     [{ discoverSlug: "Not A Slug!" }, /Discover profile/],
+    [{ websiteUrl: "https://www.imagestudio.com/" }, /already the pinned first story/],
+    [{ name: "Image Studio", websiteUrl: "", slug: "image-studio-again" }, /already the pinned first story/],
   ] as [Partial<SuccessStoryInput>, RegExp][])("refuses %o", async (over, error) => {
     expect(await saveSuccessStory({ id: null, story: input(over) })).toEqual({ ok: false, error: expect.stringMatching(error) });
     expect(await test.db.select().from(successStories)).toEqual([]);

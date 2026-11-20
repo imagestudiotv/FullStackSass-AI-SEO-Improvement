@@ -16,8 +16,11 @@ import { createPostgresTestDb, testPostgresUrl } from "@/test/postgres";
 
 vi.mock("@/lib/db", () => ({ db: new Proxy({}, { get: () => { throw new Error("the shared db is not used here"); } }), isDatabaseConfigured: () => true }));
 
-import { creditSettings, freePlanAccounts, organization, websites } from "@/lib/db/schema";
-import { FREE_PLAN_CAP_KEY, startFreePlan } from "./free-plan-server";
+import { eq } from "drizzle-orm";
+
+import { creditSettings, freePlanAccounts, organization, socialSuggestions, websites } from "@/lib/db/schema";
+import { FREE_PLAN } from "./free-plan";
+import { FREE_PLAN_CAP_KEY, startFreePlan, takeFreePlanPost } from "./free-plan-server";
 
 const available = Boolean(testPostgresUrl());
 
@@ -63,5 +66,34 @@ describe.skipIf(!available)("the Free plan's cap on real Postgres", () => {
     const results = await Promise.all([startFreePlan(one, dbs[1] as never), startFreePlan(one, dbs[3] as never)]);
     expect(results.every((result) => result.ok)).toBe(true);
     expect(results.map((result) => result.ok && result.alreadyStarted).sort()).toEqual([false, true]);
+  });
+
+  it("lets only one of two posts at once take the month's last social post", async () => {
+    const one = await site();
+    const now = new Date();
+    const row = (n: number, status: string) => ({
+      websiteId: one.websiteId,
+      platform: "x",
+      kind: "reply",
+      day: now.toISOString().slice(0, 10),
+      threadUrl: `https://x.com/someone/status/${9000 + n}`,
+      body: "A reply.",
+      status,
+      postedAt: status === "posted" ? now : null,
+    });
+    await dbs[0].insert(socialSuggestions).values(Array.from({ length: FREE_PLAN.socialPostsPerMonth - 1 }, (_, n) => row(n, "posted")));
+    const waiting = await dbs[0].insert(socialSuggestions).values([row(100, "new"), row(101, "new")]).returning({ id: socialSuggestions.id });
+
+    // Each post as its caller makes it: take the post, then mark it posted, in one transaction.
+    const post = (db: (typeof dbs)[number], id: string) =>
+      db.transaction(async (tx) => {
+        if (!(await takeFreePlanPost(tx as never, one.websiteId, now))) return false;
+        await tx.update(socialSuggestions).set({ status: "posted", postedAt: now }).where(eq(socialSuggestions.id, id));
+        return true;
+      });
+    const results = await Promise.all([post(dbs[1], waiting[0].id), post(dbs[2], waiting[1].id)]);
+    expect(results.filter(Boolean)).toHaveLength(1);
+    const posted = await dbs[0].select().from(socialSuggestions).where(eq(socialSuggestions.websiteId, one.websiteId));
+    expect(posted.filter((suggestion) => suggestion.status === "posted")).toHaveLength(FREE_PLAN.socialPostsPerMonth);
   });
 });

@@ -11,7 +11,7 @@ import { defaultTier, growthPlanOffers } from "./plan-offers";
  * at /pricing's figures, in the reader's language.
  */
 
-const row = (tier: string, interval: "month" | "year", priceCents: number, extra: { name?: string; paypalPlanId?: string | null } = {}) => ({
+const row = (tier: string, interval: "month" | "year", priceCents: number, extra: { name?: string; paypalPlanId?: string | null; paypalTrialPlanId?: string | null } = {}) => ({
   id: `${tier}-${interval}`,
   tier,
   name: extra.name ?? (interval === "year" ? `${tier[0].toUpperCase()}${tier.slice(1)} (Annual)` : `${tier[0].toUpperCase()}${tier.slice(1)}`),
@@ -24,6 +24,7 @@ const row = (tier: string, interval: "month" | "year", priceCents: number, extra
   siteLimit: 1,
   monthlyCredits: 0,
   paypalPlanId: extra.paypalPlanId === undefined ? `P-${tier}-${interval}` : extra.paypalPlanId,
+  paypalTrialPlanId: extra.paypalTrialPlanId === undefined ? `P-${tier}-${interval}-trial` : extra.paypalTrialPlanId,
 });
 
 const ROWS = [
@@ -59,10 +60,12 @@ describe("growthPlanOffers", () => {
     }
   });
 
-  it("says PayPal only for a plan PayPal can take, while PayPal is on", () => {
+  it("says PayPal only for a plan PayPal can take with the free trial, while PayPal is on", () => {
     const on = growthPlanOffers(ROWS, "en", false, true);
     expect(on.map((offer) => offer.paypal)).toEqual([true, true, false]);
     expect(growthPlanOffers(ROWS, "en", false, false).every((offer) => !offer.paypal)).toBe(true);
+    // No trial PayPal plan: PayPal would charge today, so the "€0 today" summary names the card only.
+    expect(growthPlanOffers([row("grow", "month", 9900, { paypalTrialPlanId: null })], "en", false, true)[0].paypal).toBe(false);
   });
 
   it("uses the pricing page's words in the reader's language", () => {

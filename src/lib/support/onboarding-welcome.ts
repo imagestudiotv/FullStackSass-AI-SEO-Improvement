@@ -44,6 +44,16 @@ import { payments, supportChatState } from "@/lib/db/schema";
 
 export const WELCOME_WINDOW_DAYS = 7;
 
+/**
+ * The welcome is OFF until the owner sets CRISP_ONBOARDING_WELCOME=1, after
+ * the Crisp trigger exists. A claim is final (welcomed_at), so a claim made
+ * before the trigger exists would use up the person's one welcome on an
+ * event nothing answers.
+ */
+export function onboardingWelcomeOn(): boolean {
+  return process.env.CRISP_ONBOARDING_WELCOME?.trim() === "1" && Boolean(process.env.NEXT_PUBLIC_CRISP_WEBSITE_ID?.trim());
+}
+
 /** A new support request after this much quiet; messages closer together are one request. */
 export const SUPPORT_REQUEST_GAP_HOURS = 6;
 

@@ -1606,6 +1606,17 @@ export async function requeueArticle(input: {
   if (entitlement.freeArticles && !["failed", "queued", "generating"].includes(current.status)) {
     return { ok: false, error: entitlement.paypalFreeArticles ? FREE_ARTICLES_ONLY_PAYPAL : FREE_ARTICLES_ONLY };
   }
+  /*
+    The Free plan the same way. A rewrite takes no article from the month's
+    FREE_PLAN.articlesPerMonth - only a rewrite slot (ten a day) - so
+    rewriting a written article over and over would be a full article's AI
+    cost each time, past the allowance. An article whose writing failed (or
+    whose job died) may still be tried again: it never delivered the article
+    its allowance paid for. Anything else needs an upgrade.
+  */
+  if (entitlement.free && !["failed", "queued", "generating"].includes(current.status)) {
+    return { ok: false, error: freePlanMessage("rewriteLocked") };
+  }
 
   const slot = await reserveAll(
     [

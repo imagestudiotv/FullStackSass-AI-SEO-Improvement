@@ -1,11 +1,8 @@
-import { eq } from "drizzle-orm";
 import { NonRetriableError } from "inngest";
 
 import { isInternalTestingWebsite } from "@/lib/billing/internal-testing";
-import { db } from "@/lib/db";
-import { websites } from "@/lib/db/schema";
 import { FREE_ARTICLES_ONLY, FREE_ARTICLES_ONLY_PAYPAL } from "@/lib/plans/features";
-import { FREE_PLAN_LOCKED, FREE_PLAN_PAUSED } from "@/lib/plans/free-plan";
+import { FREE_PLAN_LOCKED, FREE_PLAN_PAUSED, FREE_PLAN_PAUSED_TODAY } from "@/lib/plans/free-plan";
 import { freePlanPause } from "@/lib/plans/free-plan-server";
 import { checkLimit } from "@/lib/usage";
 
@@ -49,9 +46,13 @@ import { checkLimit } from "@/lib/usage";
  * by default, so a paid path nobody thought about stays paid.
  *
  * And Free spends only while its AI cost protection allows: past the
- * workspace's monthly AI cost cap, or the day's budget for all Free
- * workspaces, every Free spend is refused (FREE_PLAN_PAUSED) - here, where
- * every server action and every job step asks before paying.
+ * website's monthly AI cost cap (FREE_PLAN_PAUSED), or the day's budget for
+ * all Free websites (FREE_PLAN_PAUSED_TODAY), every Free spend is refused -
+ * here, where every server action and every job step asks before paying.
+ * Credit-paid spend too (Copilot past its free messages): the credits a
+ * workspace holds are one balance, bought or earned alike, a message's price
+ * need not cover what the model costs, and the pause is what bounds Free's
+ * AI bill. So the words say "upgrade", never "buy credits".
  */
 export async function isEntitledToSpend(
   websiteId: string,
@@ -77,8 +78,8 @@ export async function isEntitledToSpend(
   if (limit.free) {
     const allowed = options.free ?? options.freeArticles ?? false;
     if (!allowed) return { ok: false, error: FREE_PLAN_LOCKED };
-    const [site] = await db.select({ organizationId: websites.organizationId }).from(websites).where(eq(websites.id, websiteId)).limit(1);
-    if (site && (await freePlanPause(site.organizationId)).paused) return { ok: false, error: FREE_PLAN_PAUSED };
+    const pause = await freePlanPause(websiteId);
+    if (pause.paused) return { ok: false, error: pause.reason === "monthly_cap" ? FREE_PLAN_PAUSED : FREE_PLAN_PAUSED_TODAY };
     return { ok: true };
   }
 

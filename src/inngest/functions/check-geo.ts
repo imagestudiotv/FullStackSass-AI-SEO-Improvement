@@ -1,8 +1,9 @@
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 
 import { inngest } from "@/inngest/client";
 import { db } from "@/lib/db";
 import { geoPrompts, geoResults, websites } from "@/lib/db/schema";
+import { maxPromptsFor } from "@/lib/geo/allowance";
 import { ENGINE, runCheck } from "@/lib/geo/check";
 import { isEntitledToSpend } from "@/lib/billing/entitled";
 import { llmCostUsd, track } from "@/lib/usage";
@@ -137,6 +138,15 @@ export const checkGeo = inngest.createFunction(
       const prompts = await step.run(
         `select-prompts-${target.websiteId}`,
         async () => {
+          /*
+            No more than the website's plan allows. maxPromptsFor only stops
+            new questions being added, so a website that kept a paid plan's
+            twenty (a trial that ended on Free, a downgrade) still has them
+            all active - and on Free a snapshot asks
+            FREE_PLAN.visibilityQuestions, not twenty. Oldest first, so the
+            same questions are asked each time and the answers compare.
+          */
+          const limit = Math.min(MAX_PER_RUN, await maxPromptsFor(target.websiteId));
           const rows = await db
             .select({ id: geoPrompts.id, prompt: geoPrompts.prompt })
             .from(geoPrompts)
@@ -146,7 +156,8 @@ export const checkGeo = inngest.createFunction(
                 eq(geoPrompts.active, true),
               ),
             )
-            .limit(MAX_PER_RUN);
+            .orderBy(asc(geoPrompts.createdAt), asc(geoPrompts.id))
+            .limit(limit);
 
           /*
             `usedFallbackBrand` records that matching is running against a bare
@@ -161,6 +172,7 @@ export const checkGeo = inngest.createFunction(
               promptCount: rows.length,
               usedFallbackBrand: !target.brandName?.trim(),
               cappedAtMaxPerRun: rows.length === MAX_PER_RUN,
+              cappedAtPlan: rows.length === limit && limit < MAX_PER_RUN,
             },
             "Prompts selected for website",
           );

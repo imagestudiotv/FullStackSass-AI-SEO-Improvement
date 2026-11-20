@@ -7,7 +7,7 @@
  * NO IMPORTS: src/proxy.ts reads this.
  *
  *   NEXT_PUBLIC_ADSENSE_CLIENT=ca-pub-8510275614015789   the publisher; the switch
- *   NEXT_PUBLIC_ADSENSE_SLOT_ARTICLE_TOP=1234567890      in-article unit after the introduction
+ *   NEXT_PUBLIC_ADSENSE_SLOT_ARTICLE_TOP=1234567890      in-article unit before the second section
  *   NEXT_PUBLIC_ADSENSE_SLOT_ARTICLE_END=1234567890      display unit after the article body
  *
  * ARTICLE PAGES ONLY - /blog/<slug> and /<locale>/blog/<slug> - never the
@@ -34,13 +34,17 @@ export function adsenseConfig(env: Record<string, string | undefined>): AdsenseC
   return { client, slots: { top: slot(env.NEXT_PUBLIC_ADSENSE_SLOT_ARTICLE_TOP), end: slot(env.NEXT_PUBLIC_ADSENSE_SLOT_ARTICLE_END) } };
 }
 
-/** The pages that are not articles under /blog/: its index, categories, the author page, sponsorship's thank-you. */
-const NOT_ARTICLES = new Set(["category", "author", "sponsorship", "feed", "rss"]);
-
-/** Whether a path is one blog article: /blog/<slug> or /<locale>/blog/<slug>, nothing deeper. */
-export function isBlogArticlePath(pathname: string): boolean {
-  const match = /^(?:\/[a-z]{2})?\/blog\/([^/]+)\/?$/.exec(pathname);
-  return Boolean(match && !NOT_ARTICLES.has(match[1]));
+/**
+ * Whether a page's CSP must allow AdSense: every blog page, not only the
+ * articles. A CSP belongs to the document, and a reader who clicks from the
+ * blog's index or a category into an article (next/link) stays in that
+ * document, so its policy must already allow the units the article loads.
+ * The static pages (home, pricing) get the same allowance from the baseline
+ * policy (next.config.ts). Only the policy widens: the loader and the units
+ * are still on articles alone.
+ */
+export function isBlogPath(pathname: string): boolean {
+  return /^(?:\/[a-z]{2})?\/blog(?:\/|$)/.test(pathname);
 }
 
 export function adsenseScriptUrl(client: string): string {

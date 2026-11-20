@@ -7,12 +7,14 @@ import { recordAdminAction } from "@/lib/admin/audit";
 import { countSupportRequests } from "@/lib/admin/free-plan-support";
 import { requireAdmin } from "@/lib/admin/guard";
 import { db } from "@/lib/db";
-import { creditSettings } from "@/lib/db/schema";
+import { creditSettings, usageEvents } from "@/lib/db/schema";
+import { LOCALES, localePath } from "@/lib/i18n/config";
 import { FREE_PLAN_OBSERVATION_DAYS } from "@/lib/plans/free-plan";
 import {
   FREE_PLAN_CAP_KEY,
   freePlanCostLimits,
   freePlanDaySpendCents,
+  freePlanSpendOf,
   readFreePlanCap,
 } from "@/lib/plans/free-plan-server";
 
@@ -27,8 +29,9 @@ import {
  * (integrations), its articles (first written, first live), its social posts,
  * its checkouts and subscriptions, and usage_events for the AI and API cost.
  * Only the upgrade-prompt clicks have their own table (free_plan_events).
- * Support requests come from Crisp (countSupportRequests, wired at
- * integration). Every action checks admin access on the server.
+ * Support requests are the Crisp conversations recorded in
+ * support_chat_state (countSupportRequests). Every action checks admin
+ * access on the server.
  */
 
 /** One Free workspace and its milestones. Dates are null until reached. */
@@ -51,7 +54,7 @@ export type FreePlanAccountRow = {
   /** Recorded AI and API cost since starting Free, and this UTC month, in US cents. */
   spendTotalCents: number;
   spendMonthCents: number;
-  /** Crisp conversations (countSupportRequests); null until wired. */
+  /** Crisp conversations (countSupportRequests); null when they cannot be read. */
   supportRequests: number | null;
 };
 
@@ -91,6 +94,8 @@ export async function getFreePlanLaunch(now: Date = new Date()): Promise<FreePla
   await requireAdmin();
 
   const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  // The Free website's own spend, not its workspace's: a paid website beside it is paid for (freePlanSpendOf).
+  const freeSpend = freePlanSpendOf(sql`f.website_id`, sql`f.organization_id`);
   const accounts = rowsOf(
     await db.execute(sql`
       select
@@ -111,10 +116,12 @@ export async function getFreePlanLaunch(now: Date = new Date()): Promise<FreePla
           where s.organization_id = f.organization_id and s.plan_id is not null
             and s.status in ('active', 'trialing', 'past_due')
             and (s.stripe_subscription_id is not null or s.paypal_subscription_id is not null)) as converted,
-        (select coalesce(sum(ue.cost_usd), 0) from usage_events ue
-          where ue.organization_id = f.organization_id and ue.created_at >= f.started_at) as spend_total,
-        (select coalesce(sum(ue.cost_usd), 0) from usage_events ue
-          where ue.organization_id = f.organization_id and ue.created_at >= ${monthStart.toISOString()}::timestamp) as spend_month
+        (select coalesce(sum(${usageEvents.costUsd}), 0) from ${usageEvents}
+          where ${usageEvents.organizationId} = f.organization_id and ${usageEvents.createdAt} >= f.started_at
+            and ${freeSpend}) as spend_total,
+        (select coalesce(sum(${usageEvents.costUsd}), 0) from ${usageEvents}
+          where ${usageEvents.organizationId} = f.organization_id and ${usageEvents.createdAt} >= ${monthStart.toISOString()}::timestamp
+            and ${freeSpend}) as spend_month
       from free_plan_accounts f
       left join organization o on o.id = f.organization_id
       left join "user" u on u.id = f.user_id
@@ -150,10 +157,11 @@ export async function getFreePlanLaunch(now: Date = new Date()): Promise<FreePla
   const since = new Date(now.getTime() - 29 * 24 * 60 * 60 * 1000);
   const perDayRows = rowsOf(
     await db.execute(sql`
-      select to_char(date_trunc('day', ue.created_at), 'YYYY-MM-DD') as day, coalesce(sum(ue.cost_usd), 0) as usd
-      from usage_events ue
-      join free_plan_accounts f on f.organization_id = ue.organization_id and ue.created_at >= f.started_at
-      where ue.created_at >= ${new Date(Date.UTC(since.getUTCFullYear(), since.getUTCMonth(), since.getUTCDate())).toISOString()}::timestamp
+      select to_char(date_trunc('day', ${usageEvents.createdAt}), 'YYYY-MM-DD') as day, coalesce(sum(${usageEvents.costUsd}), 0) as usd
+      from ${usageEvents}
+      join free_plan_accounts f on f.organization_id = ${usageEvents.organizationId} and ${usageEvents.createdAt} >= f.started_at
+      where ${usageEvents.createdAt} >= ${new Date(Date.UTC(since.getUTCFullYear(), since.getUTCMonth(), since.getUTCDate())).toISOString()}::timestamp
+        and ${freeSpend}
       group by 1
     `),
   );
@@ -222,6 +230,11 @@ export async function setFreePlanCap(value: number): Promise<{ ok: true } | { ok
     detail: { before, after: cap },
   });
   revalidatePath("/admin/free-plan");
-  revalidatePath("/pricing");
+  // The counter is on the pricing page and the homepage, in every language. The homepages are built ahead
+  // (app/(marketing)/page.tsx): without this they would show the old cap until their next rebuild.
+  for (const locale of LOCALES) {
+    revalidatePath(localePath(locale, "/"));
+    revalidatePath(localePath(locale, "/pricing"));
+  }
   return { ok: true };
 }

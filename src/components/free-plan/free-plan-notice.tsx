@@ -14,7 +14,7 @@ type NoticeKey = "onFree" | "lockedBacklinks" | "lockedVideos" | "lockedAutomati
  * spent allowance is (Daniel, 2026-11-19: "continue warning to upgrade the
  * plan"; the brief: friendly, no popups). One sentence saying what needs a
  * paid plan, the paid plans' free trial, and Upgrade - with Buy credits too
- * where credits would do (posts, the paused AI budget).
+ * where credits would do (Copilot messages past the day's free ones).
  *
  * Rendered only for a website on Free: the page asks isFreePlanWebsite first.
  */
@@ -34,7 +34,9 @@ export function FreePlanNotice({
 }) {
   const t = freePlanCopy(locale).app;
   const values = freePlanValues(locale);
-  const credits = reason === "postsUsed" || reason === "paused";
+  // Credits buy Growth Copilot messages past the day's free ones (lib/chat/quota.ts). They do not buy Free more
+  // posts (a monthly limit, takeFreePlanPost) nor lift the AI cost pause (lib/billing/entitled.ts).
+  const credits = reason === "copilotUsed";
   return (
     <div className={`flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm ${className}`}>
       <Sparkles className="size-4 shrink-0 text-primary" aria-hidden="true" />

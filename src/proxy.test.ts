@@ -127,14 +127,14 @@ describe("Earn Credits' rewarded ads (ticket 2026-11-13)", () => {
 });
 
 describe("AdSense on blog articles (ticket 2026-11-19)", () => {
-  it("allows AdSense on an article page only, and only while the publisher is set", () => {
+  it("allows AdSense on the blog's pages only (articles are reached from its index by client navigation), and only while the publisher is set", () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("NEXT_PUBLIC_ADSENSE_CLIENT", "ca-pub-8510275614015789");
     const policy = (url: string) => proxy(new NextRequest(url)).headers.get("Content-Security-Policy") ?? "";
-    for (const article of ["https://repget.test/blog/seo-guide", "https://repget.test/es/blog/guia-seo"]) {
-      expect(policy(article), article).toContain("https://fundingchoicesmessages.google.com");
+    for (const blog of ["https://repget.test/blog/seo-guide", "https://repget.test/es/blog/guia-seo", "https://repget.test/blog", "https://repget.test/blog/category/guides", "https://repget.test/es/blog"]) {
+      expect(policy(blog), blog).toContain("https://fundingchoicesmessages.google.com");
     }
-    for (const other of ["https://repget.test/blog", "https://repget.test/blog/category/guides", "https://repget.test/es/blog", "https://repget.test/dashboard", "https://repget.test/growth-plan"]) {
+    for (const other of ["https://repget.test/dashboard", "https://repget.test/growth-plan", "https://repget.test/discover", "https://repget.test/blogger"]) {
       expect(policy(other), other).not.toContain("fundingchoicesmessages");
     }
     vi.stubEnv("NEXT_PUBLIC_ADSENSE_CLIENT", "");

@@ -2983,6 +2983,8 @@ export type Messages = {
         warmup_brand: string;
         bad_link: string;
         not_enough_credits: string;
+        /** A Free website's posts of the month are used (lib/plans/free-plan-server.ts takeFreePlanPost). */
+        free_posts_used: string;
         no_board: string;
         generic: string;
       };
@@ -6275,6 +6277,7 @@ const en: Messages = {
         warmup_brand: "No product or brand names during the warm-up.",
         bad_link: "Only one link, to your own website.",
         not_enough_credits: "Not enough credits: this costs {price} and you have {available}.",
+        free_posts_used: "You have used this month's free social posts. Upgrade to post more, or wait for next month.",
         no_board: "Choose a board.",
         generic: "Something went wrong. Please try again.",
       },
@@ -9556,6 +9559,7 @@ const es: Messages = {
         warmup_brand: "Sin nombres de productos ni de marca durante el calentamiento.",
         bad_link: "Solo un enlace, a su propio sitio web.",
         not_enough_credits: "Créditos insuficientes: cuesta {price} y tiene {available}.",
+        free_posts_used: "Ha usado las publicaciones sociales gratuitas de este mes. Mejore su plan para publicar más, o espere al mes que viene.",
         no_board: "Elija un tablero.",
         generic: "Algo salió mal. Inténtelo de nuevo.",
       },
@@ -12838,6 +12842,7 @@ const fr: Messages = {
         warmup_brand: "Pas de noms de produits ni de marque pendant la mise en route.",
         bad_link: "Un seul lien, vers votre propre site.",
         not_enough_credits: "Crédits insuffisants : cela coûte {price} et vous en avez {available}.",
+        free_posts_used: "Vous avez utilisé les publications sociales gratuites de ce mois. Passez à un plan supérieur pour publier davantage, ou attendez le mois prochain.",
         no_board: "Choisissez un tableau.",
         generic: "Une erreur s’est produite. Veuillez réessayer.",
       },
@@ -16119,6 +16124,7 @@ const it: Messages = {
         warmup_brand: "Niente nomi di prodotti o del marchio durante il riscaldamento.",
         bad_link: "Un solo link, al suo sito.",
         not_enough_credits: "Crediti insufficienti: costa {price} e ne ha {available}.",
+        free_posts_used: "Ha usato i post social gratuiti di questo mese. Passi a un piano superiore per pubblicarne altri, o attenda il mese prossimo.",
         no_board: "Scelga una bacheca.",
         generic: "Qualcosa è andato storto. Riprovi.",
       },
@@ -19397,6 +19403,7 @@ const de: Messages = {
         warmup_brand: "Keine Produkt- oder Markennamen während der Aufwärmphase.",
         bad_link: "Nur ein Link, zu Ihrer eigenen Website.",
         not_enough_credits: "Nicht genug Credits: Das kostet {price}, und Sie haben {available}.",
+        free_posts_used: "Sie haben die kostenlosen Social-Media-Beiträge dieses Monats genutzt. Upgraden Sie, um mehr zu posten, oder warten Sie auf den nächsten Monat.",
         no_board: "Wählen Sie eine Pinnwand.",
         generic: "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
       },

@@ -86,9 +86,10 @@ describe("the footer product pages", () => {
   it("claims no figure the product does not back, in any language", () => {
     for (const locale of LOCALES) {
       const words = JSON.stringify(PATHS.map((path) => featurePageContent(path, locale).page));
-      // No prices, percentages or customer counts: the only numbers are the free trial's days and the plan allowances.
+      // No prices, percentages or customer counts: the only numbers are the free trial's days and the plan allowances
+      // (20 and 50 tracked questions on Grow and Scale, Free's snapshot of 5).
       expect(words).not.toMatch(/[$€£]\s?\d|\d+\s?%|\d[\d,]*\+/);
-      expect(words.match(/\d+/g)).toEqual(["3", "3", "20", "50"]);
+      expect(words.match(/\d+/g)).toEqual(["3", "3", "20", "50", "5"]);
     }
   });
 

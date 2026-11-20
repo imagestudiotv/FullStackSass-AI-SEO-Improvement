@@ -12,7 +12,7 @@ export type ArticleAds = { top: ReactNode; end: ReactNode };
 
 /**
  * The AdSense units for one blog article (lib/ads/adsense-config.ts), for the
- * article pages only: one in-article unit after the introduction, one display
+ * article pages only: one in-article unit before the body's second section (components/blog-article.tsx), one display
  * unit after the body. Null when AdSense is off. With the publisher set and
  * no unit ids yet, only the loader (after consent).
  *

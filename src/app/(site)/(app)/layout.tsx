@@ -33,7 +33,7 @@ import { websiteProjectKindOf, websiteProjectsHref } from "@/lib/website-project
 import { SetupTracker } from "@/components/setup-tracker";
 import { getSubscription } from "@/lib/billing";
 import { crispEmailSignature } from "@/lib/support/crisp-identity";
-import { welcomeForLayout } from "@/lib/support/onboarding-welcome";
+import { onboardingWelcomeOn, welcomeForLayout } from "@/lib/support/onboarding-welcome";
 import { requireOrg } from "@/lib/tenant";
 import {
   hasOnlySharedWork,
@@ -276,11 +276,12 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   /**
    * The live chat's onboarding welcome (lib/support/onboarding-welcome.ts):
    * whether to start the dashboard's 60-second wait for this person. Only
-   * with the chat configured and an owned site whose setup is not finished;
-   * a failure here only means no welcome.
+   * with the chat and the welcome switched on (onboardingWelcomeOn) and an
+   * owned site whose setup is not finished; a failure here only means no
+   * welcome.
    */
   const welcome =
-    process.env.NEXT_PUBLIC_CRISP_WEBSITE_ID?.trim() && ownedLaunch && fallbackWebsiteId
+    onboardingWelcomeOn() && ownedLaunch && fallbackWebsiteId
       ? await welcomeForLayout({
           userId: session.user.id,
           organizationId: orgId,

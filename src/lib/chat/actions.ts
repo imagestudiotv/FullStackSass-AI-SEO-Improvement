@@ -11,6 +11,7 @@ import { refundSpend } from "@/lib/credits/spend";
 import { db } from "@/lib/db";
 import { chatActions, chatMessages, chatThreads } from "@/lib/db/schema";
 import { getAppMessages } from "@/lib/i18n/app-locale";
+import { isFreePlanWebsite } from "@/lib/plans/free-plan-server";
 import { PRICING, track } from "@/lib/usage";
 import { requireEditor } from "@/lib/websites/require-editor";
 
@@ -50,7 +51,11 @@ async function guard(websiteId: string): Promise<{ ok: true; ctx: ChatContext } 
   const editor = await requireEditor(websiteId);
   if (!editor.ok) return fail("view_only");
   const { site, userId, ownerOrgId, access } = editor.context;
-  const level = (await isEntitledToSpend(websiteId)).ok ? "paid" : (await isEntitledToSpend(websiteId, { freeArticles: true })).ok ? "trial" : null;
+  const level = (await isEntitledToSpend(websiteId)).ok
+    ? "paid"
+    : (await isEntitledToSpend(websiteId, { freeArticles: true })).ok
+      ? (await isFreePlanWebsite(websiteId)) ? "free" : "trial"
+      : null;
   if (!level) return fail("no_plan");
   const { locale } = await getAppMessages(userId);
   return {

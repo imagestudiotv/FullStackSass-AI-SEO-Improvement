@@ -43,6 +43,15 @@ export function BlogArticle({
   const cleanBody = sanitizeHtml(post.body, { siteHosts });
   const toc = tableOfContents(cleanBody);
   const body = withHeadingIds(cleanBody);
+  /*
+    The top ad unit goes before the body's SECOND section, not above the
+    body: there it would be in the first screen, and a filled in-article
+    unit taller than its reserved box would push the text the reader is on.
+    With no second section it follows the body (it may be only the AdSense
+    loader, which the end unit needs).
+  */
+  const split = ads?.top ? body.indexOf("<h2", body.indexOf("<h2") + 1) : -1;
+  const parts = split > 0 ? [body.slice(0, split), body.slice(split)] : [body];
   const locale = post.locale ?? "en";
   const t = BLOG_CHROME[locale];
 
@@ -137,8 +146,6 @@ export function BlogArticle({
         </nav>
       ) : null}
 
-      {ads?.top ?? null}
-
       {/*
         Sanitised HTML (see above).
 
@@ -150,11 +157,17 @@ export function BlogArticle({
         scroll-mt on headings keeps an anchored heading clear of the fixed
         nav, which would otherwise cover the thing you just jumped to.
       */}
-      <div
-        className={`${ARTICLE_TABLE_CLASSES} mt-10 [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-4 [&_em]:italic [&_h2]:mt-10 [&_h2]:scroll-mt-24 [&_h2]:text-2xl [&_h2]:font-semibold [&_h2]:tracking-tight [&_h3]:mt-8 [&_h3]:text-xl [&_h3]:font-semibold [&_li]:my-1.5 [&_p]:my-4 [&_p]:leading-7 [&_strong]:font-semibold [&_ul]:my-4 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:my-4 [&_ol]:list-decimal [&_ol]:pl-6 [&_blockquote]:my-4 [&_blockquote]:border-l-2 [&_blockquote]:pl-4 [&_blockquote]:text-muted-foreground [&_img]:my-6 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-lg`}
-        dangerouslySetInnerHTML={{ __html: body }}
-      />
+      {parts.map((html, index) => (
+        <div key={index}>
+          {index === 1 ? ads?.top : null}
+          <div
+            className={`${ARTICLE_TABLE_CLASSES} ${index === 0 ? "mt-10" : ""} [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-4 [&_em]:italic [&_h2]:mt-10 [&_h2]:scroll-mt-24 [&_h2]:text-2xl [&_h2]:font-semibold [&_h2]:tracking-tight [&_h3]:mt-8 [&_h3]:text-xl [&_h3]:font-semibold [&_li]:my-1.5 [&_p]:my-4 [&_p]:leading-7 [&_strong]:font-semibold [&_ul]:my-4 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:my-4 [&_ol]:list-decimal [&_ol]:pl-6 [&_blockquote]:my-4 [&_blockquote]:border-l-2 [&_blockquote]:pl-4 [&_blockquote]:text-muted-foreground [&_img]:my-6 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-lg`}
+            dangerouslySetInnerHTML={{ __html: html }}
+          />
+        </div>
+      ))}
 
+      {parts.length === 1 ? (ads?.top ?? null) : null}
       {ads?.end ?? null}
 
       {/*

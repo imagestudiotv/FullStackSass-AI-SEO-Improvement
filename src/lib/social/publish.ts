@@ -5,6 +5,7 @@ import { and, eq } from "drizzle-orm";
 import { refundSpend, spendCredits } from "@/lib/credits/spend";
 import { db } from "@/lib/db";
 import { socialAccounts, socialSuggestions, socialTeams, websites } from "@/lib/db/schema";
+import { isFreePlanWebsite, takeFreePlanPost } from "@/lib/plans/free-plan-server";
 
 import { socialAccess } from "./accounts";
 import { BundleError, createPost, getPost, isBundleConfigured, uploadFromUrl, type BundlePost } from "./bundle";
@@ -19,7 +20,9 @@ import { PLATFORMS, type SocialPlatform } from "./platforms";
  * lock, so publishing, "Post now" and a retry publish it once. Its credit
  * (1, Admin -> Credits "social_post") is charged as it is handed to
  * bundle.social, keyed by the suggestion, and given back if the platform
- * refuses it.
+ * refuses it. A Free website's post costs no credit: it takes one of the
+ * month's FREE_PLAN.socialPostsPerMonth instead, and a refused post is not
+ * counted.
  *
  * A REFUSAL PAUSES THE ACCOUNT'S AUTOMATIC POSTING (the anti-ban rule): a
  * platform that refused a post - spam filter, rate limit, suspended account -
@@ -27,9 +30,12 @@ import { PLATFORMS, type SocialPlatform } from "./platforms";
  * likely. The customer sees why, and resumes it on the Social page.
  */
 
-export type PublishOutcome = "posting" | "posted" | "skipped" | "failed" | "no_credits";
+export type PublishOutcome = "posting" | "posted" | "skipped" | "failed" | "no_credits" | "free_posts_used";
 
 const spendKey = (id: string) => `social:${id}`;
+
+/** A Free website's post refused because the month's are used: the stored error, shown in the reader's language. */
+export const FREE_POSTS_USED = "free_posts_used";
 
 /** A bundle.social error that will not go away by trying again. */
 function isPermanent(error: unknown): boolean {
@@ -89,18 +95,30 @@ export async function publishSuggestion(id: string, now: Date = new Date()): Pro
       return { outcome: "skipped" as const };
     }
 
-    const [site] = await tx.select({ organizationId: websites.organizationId }).from(websites).where(eq(websites.id, row.websiteId));
-    const spent = await spendCredits(tx, { organizationId: site.organizationId, action: "social_post", key: spendKey(id), websiteId: row.websiteId }, now);
-    if (!spent.ok) {
-      await tx
-        .update(socialSuggestions)
-        .set({ status: "failed", error: "not_enough_credits", updatedAt: now })
-        .where(eq(socialSuggestions.id, id));
-      return { outcome: "no_credits" as const };
+    // The Free plan's posts are a monthly limit, not credits (lib/plans/free-plan-server.ts takeFreePlanPost).
+    const free = await isFreePlanWebsite(row.websiteId, tx);
+    if (free) {
+      if (!(await takeFreePlanPost(tx, row.websiteId, now))) {
+        await tx
+          .update(socialSuggestions)
+          .set({ status: "failed", error: FREE_POSTS_USED, updatedAt: now })
+          .where(eq(socialSuggestions.id, id));
+        return { outcome: "free_posts_used" as const };
+      }
+    } else {
+      const [site] = await tx.select({ organizationId: websites.organizationId }).from(websites).where(eq(websites.id, row.websiteId));
+      const spent = await spendCredits(tx, { organizationId: site.organizationId, action: "social_post", key: spendKey(id), websiteId: row.websiteId }, now);
+      if (!spent.ok) {
+        await tx
+          .update(socialSuggestions)
+          .set({ status: "failed", error: "not_enough_credits", updatedAt: now })
+          .where(eq(socialSuggestions.id, id));
+        return { outcome: "no_credits" as const };
+      }
     }
     await tx
       .update(socialSuggestions)
-      .set({ status: "posting", creditSpendKey: spendKey(id), updatedAt: now })
+      .set({ status: "posting", creditSpendKey: free ? null : spendKey(id), updatedAt: now })
       .where(eq(socialSuggestions.id, id));
     return { outcome: "claimed" as const, row, account, teamId: team.teamId };
   });

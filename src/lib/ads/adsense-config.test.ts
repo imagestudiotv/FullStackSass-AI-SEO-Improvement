@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { adsenseConfig, adsenseScriptUrl, isBlogArticlePath } from "./adsense-config";
+import { adsenseConfig, adsenseScriptUrl, isBlogPath } from "./adsense-config";
 
 describe("adsenseConfig", () => {
   it("is off without a valid publisher id, and ignores malformed unit ids", () => {
@@ -14,11 +14,9 @@ describe("adsenseConfig", () => {
   });
 });
 
-describe("isBlogArticlePath", () => {
-  it("matches one article, in English or another language, and nothing else", () => {
-    for (const path of ["/blog/seo-guide", "/blog/seo-guide/", "/it/blog/guida-seo"]) expect(isBlogArticlePath(path), path).toBe(true);
-    for (const path of ["/", "/pricing", "/blog", "/es/blog", "/blog/category/guides", "/blog/author/repget-team", "/blog/sponsorship/thanks", "/blog/category", "/dashboard", "/websites/x/blog/y"]) {
-      expect(isBlogArticlePath(path), path).toBe(false);
-    }
+describe("isBlogPath", () => {
+  it("matches the blog's pages, in English or another language, and nothing else", () => {
+    for (const path of ["/blog", "/blog/", "/blog/seo-guide", "/it/blog/guida-seo", "/es/blog", "/blog/category/guides"]) expect(isBlogPath(path), path).toBe(true);
+    for (const path of ["/", "/pricing", "/blogger", "/dashboard", "/websites/x/blog/y", "/growth-plan"]) expect(isBlogPath(path), path).toBe(false);
   });
 });

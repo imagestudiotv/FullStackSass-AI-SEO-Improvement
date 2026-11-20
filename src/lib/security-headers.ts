@@ -108,9 +108,11 @@ export type CspIntegrations = {
   rewardedAds?: boolean;
   /**
    * AdSense units on the blog's articles (lib/ads/adsense-config.ts, ticket
-   * 2026-11-19). Like rewardedAds, never build-wide: only src/proxy.ts sets
-   * it, for /blog/<slug> and /<locale>/blog/<slug>, while
-   * NEXT_PUBLIC_ADSENSE_CLIENT is set.
+   * 2026-11-19), while NEXT_PUBLIC_ADSENSE_CLIENT is set: src/proxy.ts for
+   * the blog's pages, next.config.ts for the static baseline (the home page
+   * links into articles). Never for the app's pages, which the proxy sets
+   * without it. Only the policy is that wide; the loader and the units are
+   * on articles alone (components/ads/article-ads.tsx).
    */
   adsense?: boolean;
 };

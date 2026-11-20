@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { audits, creditLedger, creditSettings, freePlanAccounts, plans, subscriptions, usageEvents, websites } from "@/lib/db/schema";
+import { articles, audits, creditLedger, creditSettings, freePlanAccounts, freePlanEvents, plans, subscriptions, usageEvents, websites } from "@/lib/db/schema";
 import { createTestDb, type TestDb } from "@/test/db";
 import { seedWebsite } from "@/test/fixtures";
 
@@ -45,6 +45,8 @@ vi.mock("@/lib/ai/client", () => ({
   MODELS: { GENERATION: "claude-sonnet-5", EXTRACTION: "claude-haiku-4-5" },
 }));
 
+import { requeueArticle } from "@/inngest/functions/generate-article";
+import { ensureMonthlyCredits } from "@/lib/backlinks/credits";
 import { listPlans } from "@/lib/billing";
 import { isEntitledToSpend } from "@/lib/billing/entitled";
 import { startAudit } from "@/lib/audit/actions";
@@ -57,6 +59,7 @@ import {
   FREE_PLAN,
   FREE_PLAN_LOCKED,
   FREE_PLAN_PAUSED,
+  FREE_PLAN_PAUSED_TODAY,
   freePlanCounter,
   freePlanDisplay,
   freePlanMessage,
@@ -65,11 +68,12 @@ import {
 } from "./free-plan";
 import {
   FREE_PLAN_CAP_KEY,
+  freePlanDaySpendCents,
   freePlanPause,
-  grantFreePlanCredits,
   isFreePlanWebsite,
   mayCheckoutTier,
   readFreePlanCap,
+  recordFreePlanEvent,
   startFreePlan,
 } from "./free-plan-server";
 
@@ -195,15 +199,12 @@ describe("Free's allowances", () => {
     expect(await isEntitledToSpend(site.websiteId)).toEqual({ ok: true });
   });
 
-  it("give 8 credits a month for the social posts, once per month", async () => {
+  it("grant no credits: the social posts are a monthly limit of their own (lib/social/social.test.ts), so nothing piles up", async () => {
     const site = await unpaidSite();
     await startFree(site);
-    const now = new Date("2026-12-03T10:00:00Z");
-    expect(await grantFreePlanCredits(site.orgId, now)).toBe(true);
-    expect(await grantFreePlanCredits(site.orgId, now)).toBe(false);
-    const rows = await test.db.select().from(creditLedger).where(eq(creditLedger.organizationId, site.orgId));
-    expect(rows.map((row) => row.amount)).toEqual([FREE_PLAN.socialPostsPerMonth]);
-    expect(await grantFreePlanCredits((await unpaidSite()).orgId, now)).toBe(false);
+    await ensureMonthlyCredits(site.orgId);
+    await ensureMonthlyCredits(site.orgId);
+    expect(await test.db.select().from(creditLedger).where(eq(creditLedger.organizationId, site.orgId))).toEqual([]);
   });
 
   it("allow 3 Growth Copilot messages a day, where a paid workspace has 5", async () => {
@@ -251,9 +252,62 @@ describe("what Free may spend on", () => {
 });
 
 describe("the AI cost protection", () => {
-  async function spend(orgId: string, usd: number, at = new Date()) {
-    await test.db.insert(usageEvents).values({ organizationId: orgId, kind: "llm", costUsd: usd.toFixed(6), createdAt: at });
+  /** A recorded AI cost; without a website, as a deleted website's rows are. */
+  async function spend(orgId: string, usd: number, at = new Date(), websiteId: string | null = null) {
+    await test.db.insert(usageEvents).values({ organizationId: orgId, websiteId, kind: "llm", costUsd: usd.toFixed(6), createdAt: at });
   }
+
+  /** A workspace paying for one website, with a second website on Free. */
+  async function paidAndFree() {
+    const paid = await seedWebsite(test, { status: "active" });
+    const [second] = await test.db
+      .insert(websites)
+      .values({ organizationId: paid.orgId, url: "https://side.example", domain: `side-${randomUUID().slice(0, 8)}.example`, status: "ready" })
+      .returning();
+    const free = { orgId: paid.orgId, websiteId: second.id };
+    expect(await startFree(free)).toEqual({ ok: true, alreadyStarted: false });
+    return { paid, free };
+  }
+
+  it("counts the Free website's own spend, not the paid website's beside it in the same workspace", async () => {
+    vi.stubEnv("FREE_PLAN_MONTHLY_AI_COST_CAP_CENTS", "300");
+    vi.stubEnv("FREE_PLAN_DAILY_AI_BUDGET_CENTS", "100000");
+    const { paid, free } = await paidAndFree();
+    await spend(paid.orgId, 40, new Date(), paid.websiteId);
+    // Rows with no website left (a deleted one) are not Free's either while the workspace pays: they may be the paid one's.
+    await spend(paid.orgId, 40);
+    expect(await freePlanPause(free.websiteId)).toEqual({ paused: false });
+    expect(await isEntitledToSpend(free.websiteId, { freeArticles: true })).toEqual({ ok: true });
+    await spend(free.orgId, 3, new Date(), free.websiteId);
+    expect(await freePlanPause(free.websiteId)).toEqual({ paused: true, reason: "monthly_cap" });
+    expect(await isEntitledToSpend(paid.websiteId)).toEqual({ ok: true });
+  });
+
+  it("counts the Free website of a workspace that pays for another in the day's budget, and only it", async () => {
+    vi.stubEnv("FREE_PLAN_MONTHLY_AI_COST_CAP_CENTS", "100000");
+    vi.stubEnv("FREE_PLAN_DAILY_AI_BUDGET_CENTS", "500");
+    const { paid, free } = await paidAndFree();
+    await spend(paid.orgId, 100, new Date(), paid.websiteId);
+    expect(await freePlanDaySpendCents()).toBe(0);
+    await spend(free.orgId, 5, new Date(), free.websiteId);
+    expect(await freePlanDaySpendCents()).toBe(500);
+    expect(await isEntitledToSpend(free.websiteId, { freeArticles: true })).toEqual({ ok: false, error: FREE_PLAN_PAUSED_TODAY });
+  });
+
+  it("keeps a deleted Free website's month: starting Free on a new website does not reset the cap", async () => {
+    vi.stubEnv("FREE_PLAN_MONTHLY_AI_COST_CAP_CENTS", "300");
+    vi.stubEnv("FREE_PLAN_DAILY_AI_BUDGET_CENTS", "100000");
+    const site = await unpaidSite();
+    await startFree(site);
+    await spend(site.orgId, 3.5, new Date(), site.websiteId);
+    await test.db.delete(websites).where(eq(websites.id, site.websiteId));
+    const [next] = await test.db
+      .insert(websites)
+      .values({ organizationId: site.orgId, url: "https://again.example", domain: `again-${randomUUID().slice(0, 6)}.example`, status: "ready" })
+      .returning();
+    await startFree({ orgId: site.orgId, websiteId: next.id });
+    expect(await freePlanPause(next.id)).toEqual({ paused: true, reason: "monthly_cap" });
+  });
 
   it("pauses one Free workspace at its monthly AI cost cap, not the others", async () => {
     vi.stubEnv("FREE_PLAN_MONTHLY_AI_COST_CAP_CENTS", "300");
@@ -262,10 +316,10 @@ describe("the AI cost protection", () => {
     const light = await unpaidSite();
     await startFree(heavy);
     await startFree(light);
-    await spend(heavy.orgId, 2.99);
-    expect(await freePlanPause(heavy.orgId)).toEqual({ paused: false });
-    await spend(heavy.orgId, 0.02);
-    expect(await freePlanPause(heavy.orgId)).toEqual({ paused: true, reason: "monthly_cap" });
+    await spend(heavy.orgId, 2.99, new Date(), heavy.websiteId);
+    expect(await freePlanPause(heavy.websiteId)).toEqual({ paused: false });
+    await spend(heavy.orgId, 0.02, new Date(), heavy.websiteId);
+    expect(await freePlanPause(heavy.websiteId)).toEqual({ paused: true, reason: "monthly_cap" });
     expect(await isEntitledToSpend(heavy.websiteId, { freeArticles: true })).toEqual({ ok: false, error: FREE_PLAN_PAUSED });
     expect(await isEntitledToSpend(light.websiteId, { freeArticles: true })).toEqual({ ok: true });
   });
@@ -274,8 +328,8 @@ describe("the AI cost protection", () => {
     vi.stubEnv("FREE_PLAN_MONTHLY_AI_COST_CAP_CENTS", "300");
     const site = await unpaidSite();
     await startFree(site);
-    await spend(site.orgId, 50, new Date(Date.UTC(2020, 0, 15)));
-    expect(await freePlanPause(site.orgId)).toEqual({ paused: false });
+    await spend(site.orgId, 50, new Date(Date.UTC(2020, 0, 15)), site.websiteId);
+    expect(await freePlanPause(site.websiteId)).toEqual({ paused: false });
   });
 
   it("pauses every Free workspace once all of them together reach the day's budget", async () => {
@@ -284,9 +338,9 @@ describe("the AI cost protection", () => {
     const b = await unpaidSite();
     await startFree(a);
     await startFree(b);
-    await spend(a.orgId, 2.5);
-    await spend(b.orgId, 2.5);
-    expect(await freePlanPause(b.orgId)).toEqual({ paused: true, reason: "daily_budget" });
+    await spend(a.orgId, 2.5, new Date(), a.websiteId);
+    await spend(b.orgId, 2.5, new Date(), b.websiteId);
+    expect(await freePlanPause(b.websiteId)).toEqual({ paused: true, reason: "daily_budget" });
     // A paying workspace's spend is not Free spend, and it is never paused.
     const paid = await seedWebsite(test, { status: "active" });
     await spend(paid.orgId, 100);
@@ -297,7 +351,38 @@ describe("the AI cost protection", () => {
     vi.stubEnv("FREE_PLAN_DAILY_AI_BUDGET_CENTS", "0");
     const site = await unpaidSite();
     await startFree(site);
-    expect(await isEntitledToSpend(site.websiteId, { freeArticles: true })).toEqual({ ok: false, error: FREE_PLAN_PAUSED });
+    expect(await isEntitledToSpend(site.websiteId, { freeArticles: true })).toEqual({ ok: false, error: FREE_PLAN_PAUSED_TODAY });
+  });
+
+  it("says what is true when paused or out of posts: upgrade, or wait - never that credits help", () => {
+    for (const locale of ["en", "es", "fr", "it", "de"] as const) {
+      for (const key of ["paused", "pausedToday", "postsUsed"] as const) {
+        expect(freePlanMessage(key, locale)).not.toMatch(/credit|crédit/i);
+      }
+    }
+  });
+});
+
+describe("rewriting an article on Free", () => {
+  async function article(websiteId: string, status: string) {
+    const [row] = await test.db.insert(articles).values({ websiteId, title: "Soft light", targetKeyword: "soft light", status }).returning();
+    return row;
+  }
+
+  it("is refused for a written article - a rewrite takes no article from the month - while a failed one may be tried again", async () => {
+    const site = await unpaidSite();
+    await startFree(site);
+    const written = await article(site.websiteId, "draft");
+    expect(await requeueArticle({ websiteId: site.websiteId, articleId: written.id, status: "queued" })).toEqual({
+      ok: false,
+      error: freePlanMessage("rewriteLocked"),
+    });
+    const [unchanged] = await test.db.select().from(articles).where(eq(articles.id, written.id));
+    expect(unchanged.status).toBe("draft");
+    expect(localiseFreePlanMessage(freePlanMessage("rewriteLocked"), "fr")).toBe(freePlanMessage("rewriteLocked", "fr"));
+
+    const failed = await article(site.websiteId, "failed");
+    expect(await requeueArticle({ websiteId: site.websiteId, articleId: failed.id, status: "queued" })).toMatchObject({ ok: true });
   });
 });
 
@@ -358,7 +443,7 @@ describe("Admin -> Free plan launch", () => {
     const b = await unpaidSite();
     await startFree(a);
     await startFree(b);
-    await test.db.insert(usage).values({ organizationId: a.orgId, kind: "llm", costUsd: "1.250000" });
+    await test.db.insert(usage).values({ organizationId: a.orgId, websiteId: a.websiteId, kind: "llm", costUsd: "1.250000" });
     await test.db.insert(freePlanEvents).values({ organizationId: b.orgId, kind: "upgrade_click", source: "indicator" });
 
     const data = await getFreePlanLaunch();
@@ -368,13 +453,46 @@ describe("Admin -> Free plan launch", () => {
     expect(data.totals.spendCents).toBe(125);
     expect(data.totals.averageCents).toBe(63);
     expect(data.totals.upgradeClicks).toBe(1);
-    expect(data.totals.supportRequests).toBeNull();
+    expect(data.totals.supportRequests).toBe(0);
     expect(data.perDay).toHaveLength(30);
     expect(data.accounts.find((row) => row.organizationId === a.orgId)?.spendTotalCents).toBe(125);
 
     expect(await setFreePlanCap(120)).toEqual({ ok: true });
     expect(await readFreePlanCap()).toBe(120);
     expect((await setFreePlanCap(-1)).ok).toBe(false);
+    // The counter is fresh on the homepage and the pricing page, in every language.
+    const { revalidatePath } = await import("next/cache");
+    const paths = vi.mocked(revalidatePath).mock.calls.map((call) => call[0]);
+    expect(paths).toEqual(expect.arrayContaining(["/", "/pricing", "/de", "/de/pricing"]));
+  });
+
+  it("puts only the Free website's spend on its row, not a paid website's beside it", async () => {
+    const { getFreePlanLaunch } = await import("@/lib/admin/free-plan");
+    const paid = await seedWebsite(test, { status: "active" });
+    const [side] = await test.db
+      .insert(websites)
+      .values({ organizationId: paid.orgId, url: "https://side.example", domain: `side-${randomUUID().slice(0, 8)}.example`, status: "ready" })
+      .returning();
+    await startFree({ orgId: paid.orgId, websiteId: side.id });
+    await test.db.insert(usageEvents).values([
+      { organizationId: paid.orgId, websiteId: paid.websiteId, kind: "llm", costUsd: "20.000000" },
+      { organizationId: paid.orgId, websiteId: side.id, kind: "llm", costUsd: "0.500000" },
+    ]);
+    const row = (await getFreePlanLaunch()).accounts.find((account) => account.organizationId === paid.orgId);
+    expect(row).toMatchObject({ spendTotalCents: 50, spendMonthCents: 50 });
+  });
+
+  it("records an upgrade click at most once a minute per workspace and prompt", async () => {
+    const site = await unpaidSite();
+    await startFree(site);
+    const now = new Date("2026-12-03T10:00:00Z");
+    const click = (source: string, at: Date) => recordFreePlanEvent({ organizationId: site.orgId, userId: null, kind: "upgrade_click", source }, at);
+    await click("indicator", now);
+    await click("indicator", new Date(now.getTime() + 10_000));
+    await click("videos", new Date(now.getTime() + 10_000));
+    await click("indicator", new Date(now.getTime() + 61_000));
+    const rows = await test.db.select().from(freePlanEvents).where(eq(freePlanEvents.organizationId, site.orgId));
+    expect(rows.map((row) => row.source).sort()).toEqual(["indicator", "indicator", "videos"]);
   });
 });
 

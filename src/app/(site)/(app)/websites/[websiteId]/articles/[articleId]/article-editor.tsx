@@ -36,6 +36,7 @@ import type { Locale } from "@/lib/i18n/config";
 import { CONTENT_COPY } from "@/lib/i18n/content-improvements";
 import { format, formatNumber, intlTag, plural } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
+import { localiseFreePlanMessage } from "@/lib/plans/free-plan";
 import { publishArticle } from "@/lib/publishing/actions";
 
 import type { HistoryRow } from "./article-data";
@@ -164,7 +165,8 @@ export function ArticleEditor({
   /** Edits wait while a rewrite would replace them or a delivery holds the row. */
   const editable = canEdit && !working && !delivering && !textLocked;
   const delivery = ARTICLE_DELIVERY[locale];
-  const errorText = (error: string) => actionErrorText(error, { t, tWorkspace, tImage, delivery });
+  // The Free plan's refusals (a rewrite, the paused AI) come from the server in English, like every refusal.
+  const errorText = (error: string) => actionErrorText(localiseFreePlanMessage(error, locale), { t, tWorkspace, tImage, delivery });
   /** The two-step flow's words for "this goes back to the team" (lib/i18n/article-delivery.ts). */
   const backToTeam = facts.liveOnSite ? delivery.saveNoteLive : delivery.saveNote;
   /** Finished by the team and not on the website yet. */

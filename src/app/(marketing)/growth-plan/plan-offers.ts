@@ -39,7 +39,11 @@ export type GrowthPlanOffer = {
   popular: boolean;
   /** Nothing in its currency ("€0"): what the free trial charges today. */
   dueToday: string;
-  /** Whether the plan step will offer PayPal for it (a PayPal plan, and PayPal on), so the step says so only then. */
+  /**
+   * Whether the plan step will offer PayPal WITH the free trial for it (a PayPal plan and its trial plan, and
+   * PayPal on), so the order summary, which says "€0 today", names PayPal only then. Without the trial plan
+   * PayPal charges the first month at once (onboarding/plan/page.tsx paypalTrialPlanIds).
+   */
   paypal: boolean;
 };
 
@@ -50,7 +54,7 @@ export const OFFER_FEATURES = 5;
 export const POPULAR_TIER = "grow";
 
 export function growthPlanOffers(
-  rows: readonly (PickerPlan & { paypalPlanId?: string | null })[],
+  rows: readonly (PickerPlan & { paypalPlanId?: string | null; paypalTrialPlanId?: string | null })[],
   locale: Locale,
   offerOn: boolean,
   paypalOn: boolean,
@@ -76,7 +80,7 @@ export function growthPlanOffers(
         features: (benefits?.features ?? []).slice(0, OFFER_FEATURES),
         popular: plan.tier === POPULAR_TIER,
         dueToday: formatPrice(0, plan.currency),
-        paypal: paypalOn && Boolean(row.paypalPlanId),
+        paypal: paypalOn && Boolean(row.paypalPlanId && row.paypalTrialPlanId),
       };
     });
 }

@@ -7,6 +7,7 @@ import { queueJob } from "@/inngest/send";
 import { spendCredits } from "@/lib/credits/spend";
 import { db } from "@/lib/db";
 import { socialAccounts, socialSuggestions, socialTeams, websites } from "@/lib/db/schema";
+import { isFreePlanWebsite, takeFreePlanPost } from "@/lib/plans/free-plan-server";
 import { siteUrl } from "@/lib/site-url";
 import { requireEditor } from "@/lib/websites/require-editor";
 
@@ -47,6 +48,7 @@ export type SocialError =
   | "warmup_brand"
   | "bad_link"
   | "not_enough_credits"
+  | "free_posts_used"
   | "no_board";
 
 export type SocialResult<T = null> =
@@ -227,8 +229,9 @@ async function checkEdit(
 
 /**
  * The one-click post: charges its credit (once - a second click on the same
- * suggestion is free) and returns where to post it, and whether that page
- * has the text filled in (X, Threads) or the customer pastes it (Quora, and
+ * suggestion is free; on the Free plan it takes one of the month's posts
+ * instead, lib/plans/free-plan-server.ts takeFreePlanPost) and returns where
+ * to post it, and whether that page has the text filled in (X, Threads) or the customer pastes it (Quora, and
  * replies on Reddit and Bluesky). The page has already copied the text and
  * opened a window; it sends that window here.
  */
@@ -255,13 +258,19 @@ export async function postSocialSuggestion(
   const result = await db.transaction(async (tx) => {
     const [locked] = await tx.select().from(socialSuggestions).where(eq(socialSuggestions.id, id)).for("update");
     if (!locked || !ONE_CLICK.includes(locked.status)) return fail("already_handled");
-    const spent = await spendCredits(tx, {
-      organizationId: checked.site.organizationId,
-      action: "social_post",
-      key: `social:${id}`,
-      websiteId,
-    });
-    if (!spent.ok) return { ok: false as const, error: "not_enough_credits" as const, price: spent.price, available: spent.available };
+    const free = await isFreePlanWebsite(websiteId, tx);
+    if (free) {
+      // A second click on a post already counted takes nothing more, as it charges nothing more on a paid plan.
+      if (locked.status !== "posted" && !(await takeFreePlanPost(tx, websiteId))) return fail("free_posts_used");
+    } else {
+      const spent = await spendCredits(tx, {
+        organizationId: checked.site.organizationId,
+        action: "social_post",
+        key: `social:${id}`,
+        websiteId,
+      });
+      if (!spent.ok) return { ok: false as const, error: "not_enough_credits" as const, price: spent.price, available: spent.available };
+    }
     await tx
       .update(socialSuggestions)
       .set({
@@ -269,7 +278,8 @@ export async function postSocialSuggestion(
         body,
         title,
         error: null,
-        creditSpendKey: `social:${id}`,
+        // Free charges nothing: a key left from an earlier, paid charge stays with it.
+        creditSpendKey: free ? locked.creditSpendKey : `social:${id}`,
         postedAt: locked.postedAt ?? new Date(),
         updatedAt: new Date(),
       })
