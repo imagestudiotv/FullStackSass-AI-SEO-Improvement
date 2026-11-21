@@ -304,7 +304,7 @@ describe("the free trial (TRIAL_DAYS)", () => {
     return site;
   }
 
-  it("pro-rates the plan's monthly articles to the trial: Grow's 60 are 6", async () => {
+  it("pro-rates the plan's monthly articles to the trial: 60 a month are 6", async () => {
     const { websiteId } = await onGrowTrial();
     expect(await checkLimit(websiteId, "articles")).toMatchObject({
       limit: 6,

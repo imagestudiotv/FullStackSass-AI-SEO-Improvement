@@ -335,7 +335,7 @@ async function resolvePlan(
   /*
     The free trial (lib/plans/features.ts TRIAL_DAYS, 2026-11-13): the plan's
     normal service at the plan's daily pace - every MONTHLY allowance
-    pro-rated to the trial (Grow's 60 articles: 6 in 3 days). Articles are the
+    pro-rated to the trial (Scale's 60 articles: 6 in 3 days). Articles are the
     one monthly count kept here. The keyword limit is not monthly (topics
     kept, not used up), so it is the plan's; social posts and videos are paid
     in credits, which the trial's daily credits cover (lib/credits/daily.ts).

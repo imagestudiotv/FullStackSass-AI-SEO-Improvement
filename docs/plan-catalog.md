@@ -55,16 +55,20 @@ The win-back offer (20% off the first payment, `WINBACK20`, docs/emails.md) appl
 
 ## Grow + Visibility (2026-11-11)
 
-A direct purchase: EUR 99 a month (struck EUR 299 on the page), the Grow allowances, no free trial, no free articles, no REPGET. The visibility perks (blog feature, social channels, email spotlight) are delivered by the team by hand: buyers show as "Grow + Visibility" in Admin -> Users / Organizations. Its row is `BUNDLES` in `scripts/plan-catalog.mjs`, monthly only, kept out of the standard plan grids and of Billing's plan list (except for the website on it).
+A direct purchase: EUR 99 a month (struck EUR 299 on the page), the Grow articles with more social posts and search terms (30 / 120 / 400 since 2026-11-21), no free trial, no free articles, no REPGET. The visibility perks (blog feature, social channels, email spotlight) are delivered by the team by hand: buyers show as "Grow + Visibility" in Admin -> Users / Organizations. Its row is `BUNDLES` in `scripts/plan-catalog.mjs`, monthly only, kept out of the standard plan grids and of Billing's plan list (except for the website on it).
 
 **At Stripe (2026-11-12, the client: "We need like auto apply coupon code"):** its price is the struck-through EUR 299, and every bundle checkout carries the `forever` coupon `REPGET_GV_M` (EUR 200 off, named "REPGET (67% off)"), so Checkout shows the discount line and charges EUR 99 on every payment, with no promotion-code box. The app reads the Stripe price first: on the old EUR 99 price it adds no coupon, and at any other amount it refuses the checkout and tells staff. PayPal has no discount line; its plan stays EUR 99. The launch-price coupons are named "REPGET (40% off)", which is what Checkout shows for Launch, Grow and Scale. `stripe:setup` makes the EUR 299 price (the EUR 99 one is deactivated), creates `REPGET_GV_M` and renames the existing coupons.
 
 On a database already selling catalog 2, with the usual backup first:
 
-1. `npm run db:seed`: writes the bundle row, inactive (and raises Grow's search terms to 500, as the page says).
+1. `npm run db:seed`: writes the bundle row, inactive (on 2026-11-11 it also raised Grow's search terms to 500, as the page then said).
 2. `npm run stripe:setup -- --live`: creates the "Grow + Visibility" product and its EUR 99 monthly price, and the six REPGET launch-price coupons (`LP40_...`).
 3. `PAYPAL_ENV=live npm run paypal:setup -- --live`: its PayPal plan (only the plan itself; no free-articles or offer plans). Optional: without it the bundle is card only.
 4. `npm run plans:activate`, then `npm run plans:activate -- --apply`: puts the bundle on sale. Until then the pricing page leaves its card out.
+
+## The allowances of 2026-11-21 (in place, catalog 2)
+
+The client lowered the allowances without changing a price: Grow 30 articles / 90 social posts / 300 search terms, Scale 60 / 180 / 1,200, Grow + Visibility 30 / 120 / 400. They are written onto the catalog 2 rows in place, not as a catalog 3, so everyone already on those rows gets the new limits too. The production step is `node scripts/ops/plan-limits-2026-11-21.mjs` (a dry run; `--apply --confirm-host=<host>` writes), after a backup, together with the merge: the homepage, /pricing and onboarding read the numbers from the rows, while the FAQ answers quote them as text. The reasoning and what a subscriber sees are in `review-reports/2026-11-21/ticket/plan-limits-production.md`. Running `npm run db:seed` would write the same three columns (and the rest of each row), so it is not needed for this change.
 
 ## What happens to existing subscribers
 
