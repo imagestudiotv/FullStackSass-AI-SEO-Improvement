@@ -17,6 +17,7 @@ import {
 } from "@/lib/publishing/policy";
 import { lastDeliveryRefusedSql, releasableSql } from "@/lib/articles/review";
 import { isControlEnabled } from "@/lib/publishing/controls";
+import { moveMissedTopicsForward } from "@/lib/publishing/missed-days";
 import { checkLimit } from "@/lib/usage";
 import { UNLIMITED } from "@/lib/usage-shared";
 
@@ -351,6 +352,26 @@ export const scheduledArticles = inngest.createFunction(
       }
 
       const result = await step.run(`queue-${site.websiteId}`, async () => {
+        /*
+          Days missed while writing was stopped (a pause, a used-up plan) are
+          skipped, not caught up: the topics move forward so the calendar
+          restarts from today (lib/publishing/missed-days.ts). Without this,
+          every overdue topic stayed inside the window and each run wrote
+          another batch of them - many articles at once after a pause.
+        */
+        const missed = await moveMissedTopicsForward(site.websiteId);
+        if (missed.moved > 0) {
+          logger.info(
+            {
+              step: `queue-${site.websiteId}`,
+              websiteId: site.websiteId,
+              daysSkipped: missed.days,
+              topicsMoved: missed.moved,
+            },
+            "Missed days skipped - planned topics moved forward to restart from today",
+          );
+        }
+
         /**
          * The plan limit is checked here as well as inside the queue
          * function. Checking first means a customer who is out of articles

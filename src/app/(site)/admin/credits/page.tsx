@@ -51,6 +51,7 @@ export default async function AdminCreditsPage() {
       <CreditsForm
         dailyFree={settings.dailyFree}
         trialDailyFree={settings.trialDailyFree}
+        freeDailyFree={settings.freeDailyFree}
         trialDays={TRIAL_CREDIT_DAYS}
         prices={usage.filter(({ action }) => isCreditAction(action)).map(({ action }) => ({
           key: action,
