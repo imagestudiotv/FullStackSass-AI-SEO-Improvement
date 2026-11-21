@@ -17,6 +17,7 @@ import {
 } from "@/lib/publishing/policy";
 import { lastDeliveryRefusedSql, releasableSql } from "@/lib/articles/review";
 import { isControlEnabled } from "@/lib/publishing/controls";
+import { articlesStartedToday, dailyCapFor } from "@/lib/publishing/daily-cap";
 import { moveMissedTopicsForward } from "@/lib/publishing/missed-days";
 import { checkLimit } from "@/lib/usage";
 import { UNLIMITED } from "@/lib/usage-shared";
@@ -465,9 +466,32 @@ export const scheduledArticles = inngest.createFunction(
             return { queued: 0, limited: false };
           }
         }
-        const take = firstRun
+        const planned = firstRun
           ? Math.min(1, remaining)
           : Math.min(batch, remaining);
+
+        /*
+          A temporary per-day cap for one website, whatever its monthly
+          allowance (lib/publishing/daily-cap.ts: imagestudio.com, one a day
+          until 2026-12-01). Today's articles are counted however they were
+          started, so a second run the same day writes nothing.
+        */
+        const cap = dailyCapFor(site.websiteId);
+        const capLeft =
+          cap === null ? planned : Math.max(cap - (await articlesStartedToday(site.websiteId)), 0);
+        if (cap !== null && capLeft === 0) {
+          logger.info(
+            {
+              step: `queue-${site.websiteId}`,
+              websiteId: site.websiteId,
+              organizationId: site.organizationId,
+              perDay: cap,
+            },
+            "Daily cap reached for this website - nothing more queued today",
+          );
+          return { queued: 0, limited: false };
+        }
+        const take = Math.min(planned, capLeft);
         if (take === 0) {
           // Allowed by the plan check above but with no headroom left, which
           // is the same outcome for the customer and needs the same record.
