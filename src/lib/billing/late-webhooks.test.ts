@@ -246,6 +246,8 @@ describe("paid acquisition end to end through verified webhook routes", () => {
           id: "in_acquisition", amount_paid: 0, amount_due: 9900, currency: "eur",
           parent: { subscription_details: { subscription: sub } }, lines: { data: [] },
         }, { keepProviderState: true })).toBe(200);
+        // A failed payment shows what was asked for, not the 0 Stripe reports as paid (Admin -> Payments showed €0.00).
+        expect((await test.db.select().from(payments))[0]).toMatchObject({ status: "failed", amountCents: 9900 });
         status = await sendStripe("invoice.paid", {
           id: "in_acquisition", amount_paid: 4900, currency: "eur", status_transitions: { paid_at: paidAt.getTime() / 1000 },
           parent: { subscription_details: { subscription: sub } }, lines: { data: [] },
