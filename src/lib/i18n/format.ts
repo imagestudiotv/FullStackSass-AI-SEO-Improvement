@@ -35,6 +35,9 @@ export function formatDate(
   // An unparseable value renders as an em dash rather than "Invalid Date",
   // which is a stack trace leaking into the interface.
   if (Number.isNaN(date.getTime())) return "-";
+  // toLocaleDateString throws on timeStyle ("Invalid option : timeStyle"), which took down the
+  // whole Social Content page once a video was scheduled or posted; a date with a time is toLocaleString's.
+  if (options?.timeStyle) return date.toLocaleString(intlTag(locale), options);
   return date.toLocaleDateString(intlTag(locale), options);
 }
 
