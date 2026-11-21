@@ -21,12 +21,17 @@ import {
   POSTING_FREQUENCIES,
   PUBLISH_MODES,
   TONE_PRESETS,
+  VIDEO_PLATFORM_SPECS,
+  VIDEO_PLATFORMS,
   VIRAL_TECHNIQUES,
   AUDIO_MODES,
+  type DestinationState,
   type IdeaCategory,
   type TonePreset,
   type VideoFormat,
+  type VideoPlatform,
 } from "@/lib/video/formats";
+import { fitCaption } from "@/lib/video/destinations";
 import type { VideoSettings } from "@/lib/video/settings";
 
 // ---------------------------------------------------------------- filters
@@ -116,6 +121,74 @@ export function undoTarget(last: LastAction | null, now: number, undoSeconds: nu
   if (!last) return null;
   if (last.kind === "make" && now - last.at > undoSeconds * 1000) return null;
   return last;
+}
+
+// ---------------------------------------------------------------- the deck's keys
+
+/**
+ * ← and → browse Today's ideas (client, 2026-11-21: one idea at a time, with
+ * Skip, Edit and Approve as buttons; a key never makes or skips a video).
+ * Never with a modifier, a held key, inside a field or button, or while a
+ * dialog or menu is open.
+ */
+export function browseKey(event: Omit<UndoKeyEvent, "repeat"> & { repeat: boolean }, overlay: boolean): -1 | 1 | null {
+  if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return null;
+  if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.repeat || event.defaultPrevented || overlay) return null;
+  const target = event.target as { closest?: (selector: string) => unknown } | null;
+  if (typeof target?.closest === "function" && target.closest(`${FIELD_SELECTOR}, button, a, [role=slider]`)) return null;
+  return event.key === "ArrowLeft" ? -1 : 1;
+}
+
+// ---------------------------------------------------------------- Saved Videos and Posted
+
+/** Saved Videos (client, 2026-11-21): approved videos not scheduled or published yet - being made, ready, or failed. */
+export const SAVED_STATUSES = ["approved", "making", "ready", "draft", "failed"] as const;
+/** Posted: what is scheduled, on its way, or out. */
+export const POSTED_STATUSES = ["scheduled", "posting", "posted"] as const;
+
+// ---------------------------------------------------------------- the publishing window
+
+/** Where each platform's own posting page is, for "Open <platform>" in manual publishing (official addresses only). */
+export const PLATFORM_POST_URLS: Record<VideoPlatform, string> = {
+  instagram: "https://www.instagram.com/",
+  tiktok: "https://www.tiktok.com/upload",
+  youtube: "https://www.youtube.com/upload",
+  facebook: "https://www.facebook.com/",
+  pinterest: "https://www.pinterest.com/pin-creation-tool/",
+  linkedin: "https://www.linkedin.com/feed/?shareActive=true",
+  x: "https://x.com/compose/post",
+};
+
+/** The platforms a video can be posted to by hand: all of them, a carousel only where carousels go. */
+export function manualPlatforms(format: string): VideoPlatform[] {
+  return VIDEO_PLATFORMS.filter((platform) => format !== "carousel" || VIDEO_PLATFORM_SPECS[platform].carousel);
+}
+
+/** Links taken out (X counts each as 23 characters and charges more for a post with one; the automatic post does the same). */
+export function stripLinks(text: string): string {
+  return text
+    .replace(/https?:\/\/\S+/gi, "")
+    .replace(/[ \t]+/g, " ")
+    .replace(/ +\n/g, "\n")
+    .trim();
+}
+
+/**
+ * Each platform's own text to start from: a title where the platform has one
+ * (a YouTube Short's, a Pin's: the idea's title, to its limit), and the post
+ * text fitted to the platform's limit without breaking a word or hashtag -
+ * on X without links, in 280 characters.
+ */
+export function platformText(idea: { title: string; caption: string }, platform: VideoPlatform): { title: string | null; caption: string } {
+  const spec = VIDEO_PLATFORM_SPECS[platform];
+  const title = spec.titleMax ? [...idea.title.trim()].slice(0, spec.titleMax).join("") : null;
+  const source = platform === "x" ? stripLinks(idea.caption) : idea.caption.trim();
+  return { title, caption: fitCaption(source, spec.captionMax) };
+}
+
+/** The platforms a video is on (by RepGet or marked by hand), among those offered. */
+export function postedOn(destinations: Record<string, DestinationState | undefined>, platforms: readonly string[]): string[] {
+  return platforms.filter((platform) => destinations[platform]?.status === "posted");
 }
 
 // ---------------------------------------------------------------- strategy

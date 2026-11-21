@@ -51,6 +51,7 @@ export async function Assistant({
         chat_message: settings.prices.chat_message ?? 0,
         audit_rerun: settings.prices.audit_rerun ?? 0,
         video_post: settings.prices.video_post ?? 0,
+        video_ideas: settings.prices.video_ideas ?? 0,
       }}
       initialThreads={threads}
       standalone={standalone}

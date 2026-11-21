@@ -82,6 +82,8 @@ export type MediaView = { id: string; url: string; kind: "image" | "video"; name
 export type TrackView = { id: string; title: string; mood: string };
 /** What every action on this page answers: VideoResult (actions.ts) and PublishResult (publish-actions.ts) both fit. */
 export type ActionResult<D = unknown> = { ok: true; data: D } | { ok: false; error: string; available?: number; price?: number; retryAt?: string; field?: string };
+/** Opens the publishing window for a video (publish-popup.tsx): from Approve (the idea as the deck had it), Saved Videos or Posted. */
+export type OpenPublish = (idea: IdeaView) => void;
 export type Run = (action: () => Promise<ActionResult>, success?: string, after?: () => void) => void;
 
 export const platformName = (platform: string) => (isVideoPlatform(platform) ? VIDEO_PLATFORM_SPECS[platform].name : platform);
@@ -90,14 +92,14 @@ export const opportunitiesHref = (websiteId: string) => `/websites/${websiteId}/
 /** The dropdowns here sit beside h-9 buttons. */
 export const selectClass = "data-[size=default]:h-9";
 
-/** The error words: the original codes, and the ones the viral content work added (t.viral.errors). */
-const errorWords = (t: T): Record<string, string | undefined> => ({ ...t.viral.errors, ...t.errors });
+/** The error words: the original codes, the ones the viral content work added (t.viral.errors) and the review flow's (t.flow.errors, which word extra_used_up for paid batches). */
+const errorWords = (t: T): Record<string, string | undefined> => ({ ...t.viral.errors, ...t.errors, ...t.flow.errors });
 
 /*
   Every code the server can answer, or leave on a destination, has words in
   the five languages: a new code without copy fails the type check here.
 */
-type ErrorCopyKey = keyof T["errors"] | keyof T["viral"]["errors"];
+type ErrorCopyKey = keyof T["errors"] | keyof T["viral"]["errors"] | keyof T["flow"]["errors"];
 type MissingErrorCopy = Exclude<VideoError | PublishError | DestinationCode | MakeErrorCode, ErrorCopyKey>;
 export const ERROR_COPY_COMPLETE: [MissingErrorCopy] extends [never] ? true : MissingErrorCopy = true;
 

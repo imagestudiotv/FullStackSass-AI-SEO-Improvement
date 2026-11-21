@@ -83,7 +83,8 @@ export async function refreshStats(id: string, now: Date = new Date()): Promise<
     if (!followsStats(platform, idea.format)) continue;
     // Each destination's own bundle.social post (X goes apart); before 2026-11-12, the video's one post.
     const state = destinations[platform];
-    if (state && state.status !== "posted") continue;
+    // Posted by hand (marked in the publishing window): there is no bundle.social post to read.
+    if ((state && state.status !== "posted") || state?.manual) continue;
     const postId = state?.bundlePostId ?? idea.bundlePostId;
     const latest = await postStats(postId, VIDEO_PLATFORM_SPECS[platform].bundleType).catch(() => null);
     if (latest) stats[platform] = latest;
