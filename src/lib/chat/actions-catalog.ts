@@ -110,7 +110,7 @@ export const ACTION_SPECS: Record<ChatActionKind, ActionSpec> = {
     },
   },
   new_video_ideas: {
-    description: `Offer to write video ideas, free. kind "daily": today's ${DAILY_BATCH_SIZE} ideas, when the day does not have them yet. kind "mixed" (the usual mix), "viral" (all viral) or "website" (about the business's own services and pages): one of the day's ${EXTRA_BATCHES_PER_DAY} extra batches of ${EXTRA_BATCH_SIZE}. get_videos says what is left today; never offer more than that.`,
+    description: `Offer to write video ideas. kind "daily": today's ${DAILY_BATCH_SIZE} ideas, free, when the day does not have them yet. kind "mixed" (the usual mix), "viral" (all viral) or "website" (about the business's own services and pages): one of the day's ${EXTRA_BATCHES_PER_DAY} extra batches of ${EXTRA_BATCH_SIZE}, which costs the new-ideas price in credits (the card shows it). get_videos says what is left today; never offer more than that.`,
     input_schema: { type: "object", properties: { kind: { type: "string", enum: [...BATCH_KINDS] } } },
     check: async (ctx, input) => {
       const kind: BatchKind = (BATCH_KINDS as readonly string[]).includes(String(input.kind)) ? (input.kind as BatchKind) : "daily";

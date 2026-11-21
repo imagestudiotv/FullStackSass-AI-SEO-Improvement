@@ -28,7 +28,8 @@ export const ACTION_PRICE: Record<ChatActionKind, { credits: CreditAction } | "a
   rerun_website_check: { credits: "audit_rerun" },
   find_social_posts: "free",
   make_video: { credits: "video_post" },
-  new_video_ideas: "free",
+  // The day's twenty are free; an extra batch costs the "video_ideas" price (client, 2026-11-21).
+  new_video_ideas: { credits: "video_ideas" },
   snooze_task: "free",
   add_backlink_page: "free",
 };

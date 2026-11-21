@@ -11,7 +11,7 @@ import { articles, brandVoice, videoIdeaBatches, videoIdeas, videoMedia, website
 import { PRICING, track } from "@/lib/usage";
 import { normalizeLanguage } from "@/lib/websites/languages";
 
-import { claimBatch, dailyBatch, dailyWritten, releaseBatch, utcDay, type BatchRow } from "./batches";
+import { claimBatch, dailyBatch, dailyWritten, refundEmptyBatch, releaseBatch, utcDay, type BatchRow } from "./batches";
 import {
   DAILY_BATCH_SIZE,
   EXTRA_BATCH_SIZE,
@@ -629,6 +629,8 @@ export async function writeExtraBatch(
       .update(videoIdeaBatches)
       .set({ status: "failed", error: ready.reason, finishedAt: now, updatedAt: now })
       .where(and(eq(videoIdeaBatches.id, batchId), eq(videoIdeaBatches.status, "reserved")));
+    // Paid for and never written: the credits come back.
+    await refundEmptyBatch(batchId, now);
     return { created: 0, reason: ready.reason };
   }
   const claimed = await claimBatch(batchId, now, options);
@@ -643,6 +645,8 @@ export async function writeExtraBatch(
     // Nothing usable: the job tries again while it has an attempt left.
     if (rows.length === 0 && !(options.final ?? true)) throw new Error("no usable ideas");
     const stored = await storeBatch(claimed, rows, rows.length, now);
+    // No usable idea on the last attempt: the batch failed, and what it cost comes back.
+    if (stored === 0) await refundEmptyBatch(batchId, now);
     return { created: stored };
   } catch (error) {
     await releaseBatch(batchId, error instanceof Error ? error.message : "failed", options.final ?? true, now);
