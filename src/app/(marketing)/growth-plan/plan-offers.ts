@@ -103,10 +103,24 @@ export function defaultTier(offers: readonly GrowthPlanOffer[]): string | null {
 }
 
 /**
+ * The order the plan choice draws the paid plans in: the popular one (Grow)
+ * first, the chosen one when the step opens, then the others in catalogue
+ * order. The Free card comes after all of them (growth-plan-flow.tsx Choose).
+ *
+ * Daniel, 2026-11-21: "there is some wrong perceive free plan and the banner
+ * on right which reflects the grow plan - I suggest to displaying the grow
+ * plan first". Free was drawn first, at the top in green, while the order
+ * summary beside it described Grow, the plan actually chosen.
+ */
+export function offerOrder(offers: readonly GrowthPlanOffer[]): GrowthPlanOffer[] {
+  return [...offers.filter((offer) => offer.popular), ...offers.filter((offer) => !offer.popular)];
+}
+
+/**
  * INTEGRATION(free-plan): the Free plan's card, in this shape, comes from
  * agent A's src/lib/plans/free-plan.ts (display data in the reader's
  * language). The page passes null until it is wired (growth-plan-page.tsx);
- * with it, the card is drawn first and choosing it sends the visitor through
+ * with it, the card is drawn after the paid plans (offerOrder) and choosing it sends the visitor through
  * sign-up with ?plan=<tier>, like the paid ones, but promising no card.
  */
 export type FreePlanOption = {

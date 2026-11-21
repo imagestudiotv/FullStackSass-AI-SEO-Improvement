@@ -121,7 +121,7 @@ describe("prepareGrowthPlanBilling", () => {
     const result = await prepareGrowthPlanBilling("https://www.acme.com/shop", "grow");
     expect(m.addWebsite).toHaveBeenCalledTimes(1);
     expect(m.addWebsite).toHaveBeenCalledWith("https://www.acme.com/shop");
-    expect(result).toMatchObject({ ok: true, websiteId: "site-new", next: "/onboarding/google?site=site-new" });
+    expect(result).toMatchObject({ ok: true, websiteId: "site-new", next: "/dashboard?site=site-new&welcome=1" });
     expect(m.claimReferral).toHaveBeenCalled();
   });
 
@@ -165,6 +165,6 @@ describe("prepareGrowthPlanBilling", () => {
 
   it("a website that already has a plan: nothing to buy, setup goes on", async () => {
     m.getOnboardingState.mockResolvedValue({ hasPlan: true });
-    expect(await prepareGrowthPlanBilling("acme.com", "scale")).toMatchObject({ ok: true, hasPlan: true, next: "/onboarding/google?site=site-new" });
+    expect(await prepareGrowthPlanBilling("acme.com", "scale")).toMatchObject({ ok: true, hasPlan: true, next: "/dashboard?site=site-new&welcome=1" });
   });
 });

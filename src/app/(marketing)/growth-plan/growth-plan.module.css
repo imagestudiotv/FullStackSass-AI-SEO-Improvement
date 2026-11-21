@@ -263,67 +263,48 @@
   }
 }
 
-/* The work log, under the steps */
-.terminal {
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  background: var(--mist);
-}
-
-.terminalBar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-  color: var(--mute);
-  font-size: 11.5px;
-  font-weight: 800;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-}
-
-.terminalDot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--good);
-}
-
-.terminalDot[data-busy] {
-  background: var(--coral);
-  animation: pulse 1.6s ease-in-out infinite;
-}
-
-.log {
+/*
+  The work log under its step (2026-11-21, explee.com's way): ✓ for a line
+  done, › for the newest while RepGet is on the step, typed in once. On a
+  phone the list is a row of segments, so one step's lines sit under it
+  (.compactLog) instead.
+*/
+.stepLog,
+.compactLog {
   display: grid;
-  gap: 5px;
-  max-height: 190px;
+  gap: 4px;
   margin: 0;
-  padding: 0;
-  overflow-y: auto;
+  padding: 8px 14px 4px 22px;
   list-style: none;
+  color: var(--mute);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 12px;
   line-height: 1.45;
 }
 
-.logLine {
+.stepLog li,
+.compactLog li {
   display: grid;
-  grid-template-columns: 40px minmax(0, 1fr);
+  grid-template-columns: 14px minmax(0, 1fr);
   gap: 6px;
-  color: var(--ink2);
 }
 
-.logLine[data-tone="good"] .logText {
+.stepLog li[data-newest],
+.compactLog li[data-newest] {
+  color: var(--ink);
+}
+
+.stepLog li[data-tone="good"],
+.compactLog li[data-tone="good"] {
   color: var(--good);
 }
 
-.logLine[data-tone="warn"] .logText {
+.stepLog li[data-tone="warn"],
+.compactLog li[data-tone="warn"] {
   color: var(--warn);
 }
 
-.logTime {
+.logMark {
   color: var(--soft);
 }
 
@@ -331,7 +312,7 @@
   overflow-wrap: anywhere;
 }
 
-.logText[data-typing] {
+li[data-newest] .logText {
   animation: type 0.5s steps(24) both;
 }
 
@@ -344,22 +325,8 @@
   }
 }
 
-.cursorLine {
-  padding-left: 46px;
-}
-
-.cursor {
-  display: inline-block;
-  width: 7px;
-  height: 13px;
-  background: var(--coral);
-  animation: blink 1s steps(2) infinite;
-}
-
-@keyframes blink {
-  50% {
-    opacity: 0;
-  }
+.compactLog {
+  display: none;
 }
 
 .another {
@@ -441,10 +408,10 @@
   font-weight: 800;
 }
 
+/* No entrance animation: a step that changes by itself must not look like a reload. */
 .scene {
   min-height: 360px;
   padding: 26px 28px 28px;
-  animation: rise 0.35s ease-out both;
 }
 
 @keyframes rise {
@@ -1320,46 +1287,6 @@
   border-color: var(--line);
 }
 
-/* The newest lines of the work log, inside a step still loading */
-.live {
-  margin-top: 22px;
-  padding: 14px 16px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: var(--mist);
-}
-
-.liveTitle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 0 8px;
-  color: var(--ink2);
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.6px;
-  text-transform: uppercase;
-}
-
-.live ul {
-  display: grid;
-  gap: 4px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  color: var(--ink2);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 12.5px;
-}
-
-.live li[data-tone="good"] {
-  color: var(--good);
-}
-
-.live li[data-tone="warn"] {
-  color: var(--warn);
-}
-
 /* The yearly switch on the plan choice */
 .periodRow {
   display: flex;
@@ -1961,8 +1888,18 @@ button.primary {
     order: 1;
   }
 
-  .terminal {
+  .another {
     order: 2;
+  }
+
+  /* No room under a segment: the lines of the step on screen go under the row. */
+  .stepLog {
+    display: none;
+  }
+
+  .compactLog {
+    display: grid;
+    padding: 10px 0 0;
   }
 
   .compactLabel {
@@ -2067,10 +2004,6 @@ button.primary {
   .footActions {
     justify-content: flex-end;
   }
-
-  .log {
-    max-height: 150px;
-  }
 }
 
 @media (max-width: 640px) {
@@ -2150,7 +2083,7 @@ button.primary {
     transition: none !important;
   }
 
-  .logText[data-typing] {
+  li[data-newest] .logText {
     clip-path: none;
   }
 }

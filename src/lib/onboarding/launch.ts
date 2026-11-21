@@ -280,7 +280,7 @@ export const getLaunchState = cache(async function getLaunchState(
     },
     {
       id: "search-console",
-      title: "Connect Google Search Console",
+      title: "Connect Google: Search Console and Analytics",
       description:
         "Your real rankings and clicks, measured rather than estimated. Optional, but the numbers are better with it.",
       done: gsc.length > 0,
