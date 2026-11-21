@@ -2472,7 +2472,7 @@ const viralDe: ViralCopy = {
 
 const en: VideosCopy = {
   title: "Social Content",
-  intro: "Short animated videos and photo carousels made from your website, with an AI voice, captions and music. Swipe through today's ideas: the ones you keep are made and published for you.",
+  intro: "Short animated videos and photo carousels made from your website, with an AI voice, captions and music. Every day brings 20 new ideas: skip, edit or approve each one, then publish the video yourself or automatically, or save it for later.",
   tabs: { ideas: "Today's ideas", videos: "Saved Videos", posted: "Posted", settings: "Settings" },
   today: "{approved} of {goal} made today",
   dayComplete: "Today is complete",
@@ -2676,7 +2676,7 @@ const en: VideosCopy = {
 
 const es: VideosCopy = {
   title: "Contenido social",
-  intro: "Vídeos animados cortos y carruseles de fotos creados a partir de su sitio web, con voz de IA, subtítulos y música. Deslice las ideas de hoy: las que conserve se crean y se publican por usted.",
+  intro: "Vídeos animados cortos y carruseles de fotos creados a partir de su sitio web, con voz de IA, subtítulos y música. Cada día llegan 20 ideas nuevas: omita, edite o apruebe cada una y publique el vídeo usted mismo o automáticamente, o guárdelo para más tarde.",
   tabs: { ideas: "Ideas de hoy", videos: "Vídeos guardados", posted: "Publicados", settings: "Ajustes" },
   today: "{approved} de {goal} creados hoy",
   dayComplete: "El día de hoy está completo",
@@ -2880,7 +2880,7 @@ const es: VideosCopy = {
 
 const fr: VideosCopy = {
   title: "Contenu social",
-  intro: "De courtes vidéos animées et des carrousels de photos créés à partir de votre site, avec une voix IA, des sous-titres et de la musique. Faites défiler les idées du jour : celles que vous gardez sont créées et publiées pour vous.",
+  intro: "De courtes vidéos animées et des carrousels de photos créés à partir de votre site, avec une voix IA, des sous-titres et de la musique. Chaque jour, 20 nouvelles idées : ignorez, modifiez ou approuvez chacune, puis publiez la vidéo vous-même ou automatiquement, ou gardez-la pour plus tard.",
   tabs: { ideas: "Idées du jour", videos: "Vidéos enregistrées", posted: "Publiées", settings: "Paramètres" },
   today: "{approved} sur {goal} créées aujourd’hui",
   dayComplete: "La journée est terminée",
@@ -3084,7 +3084,7 @@ const fr: VideosCopy = {
 
 const it: VideosCopy = {
   title: "Contenuti social",
-  intro: "Brevi video animati e caroselli di foto creati dal suo sito, con voce IA, sottotitoli e musica. Scorra le idee di oggi: quelle che tiene vengono create e pubblicate per lei.",
+  intro: "Brevi video animati e caroselli di foto creati dal suo sito, con voce IA, sottotitoli e musica. Ogni giorno arrivano 20 nuove idee: salti, modifichi o approvi ciascuna, poi pubblichi il video da sé o automaticamente, oppure lo salvi per dopo.",
   tabs: { ideas: "Idee di oggi", videos: "Video salvati", posted: "Pubblicati", settings: "Impostazioni" },
   today: "{approved} di {goal} creati oggi",
   dayComplete: "La giornata è completa",
@@ -3288,7 +3288,7 @@ const it: VideosCopy = {
 
 const de: VideosCopy = {
   title: "Social Content",
-  intro: "Kurze animierte Videos und Foto-Karussells aus Ihrer Website, mit KI-Stimme, Untertiteln und Musik. Wischen Sie durch die Ideen von heute: Die, die Sie behalten, werden für Sie erstellt und veröffentlicht.",
+  intro: "Kurze animierte Videos und Foto-Karussells aus Ihrer Website, mit KI-Stimme, Untertiteln und Musik. Jeden Tag kommen 20 neue Ideen: Überspringen, bearbeiten oder freigeben Sie jede, und veröffentlichen Sie das Video selbst oder automatisch, oder speichern Sie es für später.",
   tabs: { ideas: "Ideen von heute", videos: "Gespeicherte Videos", posted: "Gepostet", settings: "Einstellungen" },
   today: "{approved} von {goal} heute erstellt",
   dayComplete: "Für heute erledigt",
