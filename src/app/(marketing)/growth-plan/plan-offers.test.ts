@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { cardPrices } from "@/app/(marketing)/pricing/prices";
 import { pricingPageCopy } from "@/lib/i18n/pricing-page";
 
-import { defaultTier, growthPlanOffers } from "./plan-offers";
+import { defaultTier, growthPlanOffers, offerOrder } from "./plan-offers";
 
 /**
  * The plans the growth plan's last step offers (plan-offers.ts): the
@@ -91,5 +91,17 @@ describe("defaultTier", () => {
     expect(defaultTier(offers)).toBe("grow");
     expect(defaultTier(offers.filter((offer) => offer.tier !== "grow"))).toBe("launch");
     expect(defaultTier([])).toBeNull();
+  });
+});
+
+describe("offerOrder", () => {
+  it("draws the popular plan (Grow, the one chosen) first, then the others in catalogue order", () => {
+    const offers = growthPlanOffers(ROWS, "en", false, true);
+    expect(offerOrder(offers).map((offer) => offer.tier)).toEqual(["grow", "launch", "scale"]);
+    expect(offerOrder(offers)[0].tier).toBe(defaultTier(offers));
+    // Nothing is lost or added, and the input is left as it was.
+    expect(offers.map((offer) => offer.tier)).toEqual(["launch", "grow", "scale"]);
+    expect(offerOrder(offers.filter((offer) => offer.tier !== "grow")).map((offer) => offer.tier)).toEqual(["launch", "scale"]);
+    expect(offerOrder([])).toEqual([]);
   });
 });

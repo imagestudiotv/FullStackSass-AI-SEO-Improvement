@@ -17,11 +17,41 @@
  * resolved on the server cannot be pointed anywhere we did not write.
  */
 
-/** Where the customer was when they started paying. */
-export type CheckoutOrigin = "onboarding" | "billing";
+/**
+ * Where the customer was when they started paying.
+ *
+ * "growth-plan" (Daniel, 2026-11-21): the public growth plan flow
+ * (/growth-plan), which ends in its own billing step. Paying there goes
+ * straight to the dashboard, not into the onboarding steps after the plan
+ * (Connect Google, AI visibility, the content plan): those wait on the
+ * Tasks page instead (lib/tasks/tasks.ts ONBOARDING_STEP_TASKS).
+ */
+export type CheckoutOrigin = "onboarding" | "billing" | "growth-plan";
 
 export function isCheckoutOrigin(value: unknown): value is CheckoutOrigin {
-  return value === "onboarding" || value === "billing";
+  return value === "onboarding" || value === "billing" || value === "growth-plan";
+}
+
+/**
+ * The dashboard for the website the growth plan set up, saying it was just
+ * started (`welcome=1`: the dashboard's note pointing to Tasks). Where the
+ * growth plan sends someone who started Free, or whose website already had a
+ * plan: nothing to wait for.
+ */
+export function growthPlanDashboardPath(websiteId: string): string {
+  return `/dashboard?site=${encodeURIComponent(websiteId)}&welcome=1`;
+}
+
+/** A return from a checkout, as a page's ?checkout= (Stripe) or ?paypal= says it. */
+export type CheckoutReturn = { provider: "stripe" | "paypal"; outcome: "success" | "cancelled" };
+
+/** What a page's ?checkout= / ?paypal= say, or null when neither is a return. */
+export function readCheckoutReturn(params: Record<string, string | string[] | undefined>): CheckoutReturn | null {
+  const outcome = (value: unknown) => (value === "success" || value === "cancelled" ? value : null);
+  const paypal = outcome(params.paypal);
+  if (paypal) return { provider: "paypal", outcome: paypal };
+  const stripe = outcome(params.checkout);
+  return stripe ? { provider: "stripe", outcome: stripe } : null;
 }
 
 /**
@@ -54,6 +84,17 @@ export function checkoutReturnPath(
 ): string {
   const key = provider === "paypal" ? "paypal" : "checkout";
   const site = websiteId ? `&site=${websiteId}` : "";
+  /*
+    The growth plan. Paid: the dashboard for the website just paid for,
+    which waits there for the webhook (the dashboard page's checkout wait)
+    rather than trusting this redirect. Walked away: the onboarding plan
+    screen for that website, which releases an abandoned PayPal approval and
+    offers the plans again - the growth plan's own page needs the address
+    typed on the homepage, which this return does not carry.
+  */
+  if (origin === "growth-plan") {
+    return outcome === "success" ? `/dashboard?${key}=success${site}` : `/onboarding/plan?${key}=cancelled${site}`;
+  }
   if (origin === "onboarding") {
     return `/onboarding/plan?${key}=${outcome}${site}`;
   }

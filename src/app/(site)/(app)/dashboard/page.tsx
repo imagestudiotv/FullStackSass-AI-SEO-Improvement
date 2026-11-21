@@ -1,7 +1,9 @@
-import { CirclePause, Plus, Users } from "lucide-react";
+import { CirclePause, ListChecks, Plus, Users } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { NextActions } from "@/components/dashboard/next-actions";
+import { CheckoutPending } from "@/app/(site)/(onboarding)/onboarding/plan/checkout-pending";
+import { PayPalReturn } from "@/components/paypal-return";
 
 import { AchievementsSection } from "@/components/dashboard/achievements";
 import {
@@ -19,10 +21,16 @@ import { DailyClaimBanner } from "@/components/dashboard/daily-claim-banner";
 import { PageHeader, PageShell } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/states";
 import { requireSession } from "@/lib/auth-guard";
+import { readCheckoutReturn } from "@/lib/billing/return-to";
+import { arrivedFromGrowthPlan, waitsForPayment } from "@/lib/dashboard/checkout-wait";
 import { resolveDashboard } from "@/lib/dashboard/gate";
 import { getDashboardOverview } from "@/lib/dashboard/overview";
 import { format } from "@/lib/i18n/format";
 import { getAppMessages } from "@/lib/i18n/app-locale";
+import type { Locale } from "@/lib/i18n/config";
+import { TASKS_COPY } from "@/lib/i18n/tasks";
+import { getOnboardingState } from "@/lib/onboarding/steps";
+import { requireOrg } from "@/lib/tenant";
 import { listAccessibleWebsites } from "@/lib/websites/accessible";
 import { readSelectedWebsite, resolveWebsiteId } from "@/lib/websites/selected";
 
@@ -67,6 +75,29 @@ export default async function DashboardPage({
   */
   const params = await searchParams;
   const requested = typeof params.site === "string" ? params.site : null;
+
+  /*
+    Back from paying in the growth plan (lib/billing/return-to.ts): the
+    webhook may not have landed yet, and the gate's paywall would send
+    someone who has just paid to the plan screen. Until the website has its
+    plan, the waiting screen - which refreshes until it does - instead. Read
+    for the caller's own workspace only; it grants nothing (checkout-wait.ts).
+  */
+  const back = readCheckoutReturn(params);
+  if (back?.outcome === "success" && requested) {
+    const { orgId } = await requireOrg();
+    if (waitsForPayment(back, requested, await getOnboardingState(orgId, requested))) {
+      const { t } = await getAppMessages(session.user.id);
+      return (
+        <PageShell>
+          {/* Back from PayPal: the subscription is read back from PayPal, so a late webhook does not keep them waiting. */}
+          {back.provider === "paypal" ? <PayPalReturn outcome="success" websiteId={requested} /> : null}
+          <CheckoutPending websiteId={requested} t={t.app.onboarding} />
+        </PageShell>
+      );
+    }
+  }
+
   // May redirect: to the plan screen or onboarding, for the caller's OWN site.
   const gate = await resolveDashboard(requested);
   const { t, locale } = await getAppMessages(session.user.id);
@@ -188,8 +219,14 @@ export default async function DashboardPage({
   const shellShared = accessible.some(
     (site) => site.id === shellId && site.access !== "owner",
   );
+  /*
+    Also when the owner has just started this website from the growth plan
+    (paid, or Free): the dashboard opens on it, so the shell follows, even
+    when it was on another site of their own.
+  */
+  const welcome = ctx.access === "owner" && ctx.site.id === requested && arrivedFromGrowthPlan(back, params.welcome);
   const remember =
-    shellId !== ctx.site.id && (ctx.access !== "owner" || shellShared) ? (
+    shellId !== ctx.site.id && (ctx.access !== "owner" || shellShared || welcome) ? (
       <RememberWebsite websiteId={ctx.site.id} />
     ) : null;
 
@@ -301,6 +338,17 @@ export default async function DashboardPage({
 
       <PendingInvitations invitations={inviteCards} t={inviteText} />
 
+      {/* PayPal's return, settled for this website (renders nothing); the webhook would record it too. */}
+      {back?.provider === "paypal" && ctx.access === "owner" && ctx.site.id === requested ? (
+        <PayPalReturn outcome={back.outcome} websiteId={ctx.site.id} />
+      ) : null}
+
+      {/*
+        Just started from the growth plan: the onboarding steps it skips
+        (Connect Google, AI visibility, the content plan...) are on Tasks.
+      */}
+      {welcome ? growthPlanWelcome(ctx.site.id, overview.domain, locale) : null}
+
       {ctx.access === "owner" ? <DailyClaimBanner locale={locale} /> : null}
 
       {/* The AI chat moved to its own page, Growth Copilot (client, 2026-11-02). */}
@@ -335,5 +383,31 @@ export default async function DashboardPage({
 
       <SearchPanels overview={overview} t={r} locale={locale} />
     </PageShell>
+  );
+}
+
+/**
+ * The note on a website just started from the growth plan (Daniel,
+ * 2026-11-21): paying there lands here rather than in the onboarding steps
+ * after the plan, and those steps wait on Tasks (lib/tasks/tasks.ts
+ * ONBOARDING_STEP_TASKS). Shown while the address says so (?checkout=success,
+ * ?paypal=success or ?welcome=1); the sidebar's Dashboard link drops it.
+ * Drawn inline (not as a component) so the page's tree carries its link.
+ */
+function growthPlanWelcome(websiteId: string, domain: string, locale: Locale) {
+  const w = TASKS_COPY[locale].welcome;
+  return (
+    <section className="flex flex-col gap-4 rounded-xl border border-primary/30 bg-primary/5 p-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-start gap-3">
+        <ListChecks className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
+        <div>
+          <h2 className="font-semibold">{format(w.title, { domain })}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{w.body}</p>
+        </div>
+      </div>
+      <Button asChild className="shrink-0">
+        <Link href={`/tasks?site=${encodeURIComponent(websiteId)}`}>{w.cta}</Link>
+      </Button>
+    </section>
   );
 }
