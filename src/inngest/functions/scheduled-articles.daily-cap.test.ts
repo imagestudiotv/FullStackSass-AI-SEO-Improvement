@@ -3,16 +3,16 @@ import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { articles, calendarItems, organization, websites } from "@/lib/db/schema";
-import { TEMPORARY_DAILY_CAPS } from "@/lib/publishing/daily-cap";
+import { articles, calendarItems, creditSettings, organization, websites } from "@/lib/db/schema";
+import { dailyLimitKey, DEFAULT_DAILY_LIMITS } from "@/lib/publishing/daily-cap";
 import { createTestDb, type TestDb } from "@/test/db";
 
 /**
- * The scheduler itself, on PGlite, for imagestudio.com's temporary cap
- * (lib/publishing/daily-cap.ts; client, 2026-11-21: one article a day for
- * testing). Its agency allowance of 500 a month is a batch of 34 per run; with
- * the cap, both daily runs together write ONE article a day, and only for that
- * website.
+ * The scheduler itself, on PGlite, with the daily article limits set on
+ * Admin -> Websites (lib/publishing/daily-cap.ts; client, 2026-11-21: one
+ * article a day for imagestudio.com, for testing). Its agency allowance of 500
+ * a month is a batch of 34 per run; with the limit, both daily runs together
+ * write ONE article a day, and only for that website.
  */
 
 const state = vi.hoisted(() => ({ db: null as unknown, used: new Map<string, number>() }));
@@ -55,7 +55,7 @@ const run = (at: string) => {
   return (scheduledArticles as unknown as Job).handler({ step, logger });
 };
 
-const IMAGESTUDIO = TEMPORARY_DAILY_CAPS[0]!.websiteId;
+const IMAGESTUDIO = DEFAULT_DAILY_LIMITS[0]!.websiteId;
 
 let test: TestDb;
 beforeAll(async () => {
@@ -115,5 +115,33 @@ describe("scheduled articles with imagestudio.com's daily cap", () => {
     await run("2026-11-24T06:00:00Z");
     await run("2026-11-24T14:00:00Z");
     expect(await writtenOn(IMAGESTUDIO, "2026-11-24")).toBe(1);
+  });
+
+  it("stays at one a day after 1 December: the limit no longer ends by itself", async () => {
+    await run("2026-12-01T06:00:00Z");
+    await run("2026-12-01T14:00:00Z");
+    await run("2026-12-02T06:00:00Z");
+    expect(await writtenOn(IMAGESTUDIO, "2026-12-01")).toBe(1);
+    expect(await writtenOn(IMAGESTUDIO, "2026-12-02")).toBe(1);
+  });
+
+  it("follows the administrator's setting: 3 a day, then 'No limit' gives the normal batch back", async () => {
+    await test.db.insert(creditSettings).values({ key: dailyLimitKey(IMAGESTUDIO), value: 3 });
+    await run("2026-12-03T06:00:00Z");
+    await run("2026-12-03T14:00:00Z");
+    expect(await writtenOn(IMAGESTUDIO, "2026-12-03")).toBe(3);
+
+    await test.db.update(creditSettings).set({ value: 0 }).where(eq(creditSettings.key, dailyLimitKey(IMAGESTUDIO)));
+    await run("2026-12-04T06:00:00Z");
+    expect(await writtenOn(IMAGESTUDIO, "2026-12-04")).toBeGreaterThan(3);
+  });
+
+  it("limits any website an administrator sets, not only imagestudio.com", async () => {
+    const other = randomUUID();
+    await site(other);
+    await test.db.insert(creditSettings).values({ key: dailyLimitKey(other), value: 2 });
+    await run("2026-12-05T06:00:00Z");
+    await run("2026-12-05T14:00:00Z");
+    expect(await writtenOn(other, "2026-12-05")).toBe(2);
   });
 });

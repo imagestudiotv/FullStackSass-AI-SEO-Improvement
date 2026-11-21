@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, CreditCard, ExternalLink, FileText, MoreHorizontal, Trash2 } from "lucide-react";
+import { Building2, CalendarClock, CreditCard, ExternalLink, FileText, MoreHorizontal, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+import { DailyLimitDialog } from "./daily-limit-dialog";
 import { DeleteWebsiteDialog } from "./delete-website";
 
 /**
@@ -27,6 +28,7 @@ export function WebsiteActions({
   articleCount,
   organizationId,
   organizationName,
+  perDay,
 }: {
   websiteId: string;
   domain: string;
@@ -34,8 +36,11 @@ export function WebsiteActions({
   articleCount: number;
   organizationId: string;
   organizationName: string | null;
+  /** Articles per day in force (lib/publishing/daily-cap.ts); null when there is no limit. */
+  perDay: number | null;
 }) {
   const [deleting, setDeleting] = useState(false);
+  const [limiting, setLimiting] = useState(false);
   // Only a web address opens: the value is customer-entered.
   const external = /^https?:\/\//i.test(url) ? url : null;
 
@@ -81,12 +86,28 @@ export function WebsiteActions({
             </Link>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
+          <DropdownMenuItem onSelect={() => setLimiting(true)}>
+            <CalendarClock aria-hidden="true" />
+            Articles per day…
+            <span className="ml-auto pl-3 text-xs tabular-nums text-muted-foreground">{perDay ?? "No limit"}</span>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
           <DropdownMenuItem variant="destructive" onSelect={() => setDeleting(true)}>
             <Trash2 aria-hidden="true" />
             Delete website…
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {/* Keyed by the limit, so reopening after a save starts from the value now in force. */}
+      <DailyLimitDialog
+        key={perDay ?? "none"}
+        websiteId={websiteId}
+        domain={domain}
+        perDay={perDay}
+        open={limiting}
+        onClose={() => setLimiting(false)}
+      />
 
       <DeleteWebsiteDialog
         websiteId={websiteId}
