@@ -84,11 +84,19 @@ export function IdeasDeck(props: {
   const [last, setLast] = useState<LastAction | null>(null);
   const [editing, setEditing] = useState<IdeaView | null>(null);
   const [index, setIndex] = useState(0);
+  // The idea brought back by Undo stays on screen by its id: the refresh that follows may list the ideas in another order.
+  const [focus, setFocus] = useState<string | null>(null);
   const [details, setDetails] = useState(false);
 
   const deck = visibleIdeas(props.ideas, gone, props.category, "all");
   const counts = categoryCounts(props.ideas, gone, "all");
-  const at = clampIndex(index, deck.length);
+  const focused = focus === null ? -1 : deck.findIndex((idea) => idea.id === focus);
+  const at = focused >= 0 ? focused : clampIndex(index, deck.length);
+  /** Shows the idea at `position`, letting go of an Undo's focus (browsing, filtering). */
+  const show = useCallback((position: number) => {
+    setFocus(null);
+    setIndex(position);
+  }, []);
   const current = deck[at];
 
   const back = useCallback(
@@ -131,6 +139,7 @@ export function IdeasDeck(props: {
       }
       onUndone(id);
       back(id);
+      setFocus(id);
       toast.success(t.undone);
       router.refresh();
     },
@@ -145,6 +154,7 @@ export function IdeasDeck(props: {
       const without = new Set(gone);
       without.delete(id);
       setIndex(Math.max(0, visibleIdeas(props.ideas, without, props.category, "all").findIndex((idea) => idea.id === id)));
+      setFocus(id);
       props.run(() => restoreVideoIdea(websiteId, id), v.undoSkip);
     },
     [back, gone, props, websiteId, v.undoSkip],
@@ -176,11 +186,11 @@ export function IdeasDeck(props: {
       const step = browseKey(event, overlayOpen(document));
       if (step === null) return;
       event.preventDefault();
-      setIndex((value) => browse(clampIndex(value, deck.length), step, deck.length));
+      show(browse(at, step, deck.length));
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [deck.length, editing]);
+  }, [deck.length, editing, at, show]);
 
   // Ctrl/Cmd+Z: the last make (inside its 10 s) or the last skip - never inside a field, and not while a dialog or menu is open.
   useEffect(() => {
@@ -212,7 +222,7 @@ export function IdeasDeck(props: {
       value={props.category}
       onChange={(event) => {
         props.onCategory(event.target.value as CategoryFilter);
-        setIndex(0);
+        show(0);
       }}
     >
       {CATEGORIES.map((key) => (
@@ -234,7 +244,7 @@ export function IdeasDeck(props: {
             variant="outline"
             onClick={() => {
               props.onCategory("all");
-              setIndex(0);
+              show(0);
             }}
           >
             {v.filters.clear}
@@ -281,7 +291,7 @@ export function IdeasDeck(props: {
               <div aria-hidden="true" className="absolute inset-x-0 top-1.5 -bottom-0.5 -z-10 -translate-x-4 -rotate-[4deg] rounded-3xl bg-gradient-to-br from-slate-700 via-slate-400 to-slate-800 opacity-60 shadow-md" />
             </>
           ) : null}
-          <button type="button" className={`${arrow} -left-11 sm:-left-16`} aria-label={v.browse.previous} title={v.browse.previous} disabled={deck.length < 2} onClick={() => setIndex(browse(at, -1, deck.length))}>
+          <button type="button" className={`${arrow} -left-11 sm:-left-16`} aria-label={v.browse.previous} title={v.browse.previous} disabled={deck.length < 2} onClick={() => show(browse(at, -1, deck.length))}>
             <ChevronLeft className="size-4 sm:size-5" aria-hidden="true" />
           </button>
           <div className="overflow-hidden rounded-3xl bg-card shadow-lg">
@@ -293,7 +303,7 @@ export function IdeasDeck(props: {
               <ReelPreview key={current.id} props={current.props} />
             )}
           </div>
-          <button type="button" className={`${arrow} -right-11 sm:-right-16`} aria-label={v.browse.next} title={v.browse.next} disabled={deck.length < 2} onClick={() => setIndex(browse(at, 1, deck.length))}>
+          <button type="button" className={`${arrow} -right-11 sm:-right-16`} aria-label={v.browse.next} title={v.browse.next} disabled={deck.length < 2} onClick={() => show(browse(at, 1, deck.length))}>
             <ChevronRight className="size-4 sm:size-5" aria-hidden="true" />
           </button>
         </div>
