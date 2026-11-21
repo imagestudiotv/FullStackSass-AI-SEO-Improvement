@@ -116,6 +116,7 @@ function writer(count = 25) {
       why: null,
       techniques: [],
       visualHook: null,
+      povClip: null,
       scenes: [],
       claims: [],
       controversial: false,

@@ -46,6 +46,8 @@ import { allowedDirections, assignDirections, buildPlan, enforceRecipes, settleD
 import { lengthPlan, maxPointsFor, MIN_POINTS, TEMPLATE_MAX_POINTS } from "./strategy/duration";
 import { canHook, hookQuery, hookTypeFor, withOneHook, withoutHooks } from "./strategy/hooks";
 import { LEARNING_DAYS, learnFrom, NO_LEARNING, type Learning } from "./strategy/learning";
+import { hookPick, hookPickKey, pickPovClip, POV_LENGTH, povLook, povScript, povSlots } from "./strategy/pov";
+import { AI_POV_LIBRARY, type AiPovClip } from "./footage/ai-library";
 import { ideaSchema, maxTokensFor, systemPrompt, userContent, type IdeaInput, type SlotBrief, type WrittenIdea } from "./strategy/prompt";
 
 /**
@@ -119,6 +121,8 @@ export function formatFor(index: number): VideoFormat {
 
 export type IdeaDeps = {
   write: typeof writeIdeas;
+  /** The AI POV clips (client, 2026-11-21); tests inject their own. */
+  povLibrary: readonly AiPovClip[];
 };
 
 /* ---------------------------------------------------------------- material */
@@ -221,7 +225,8 @@ async function loadMaterial(site: Site, now: Date): Promise<Material> {
 
 /* ---------------------------------------------------------------- planning */
 
-type PlannedSlot = Slot & { slot: number; index: number; techniques: ViralTechnique[] };
+/** `pov`: a POV clip video slot (strategy/pov.ts; client, 2026-11-21). */
+type PlannedSlot = Slot & { slot: number; index: number; techniques: ViralTechnique[]; pov: boolean };
 
 /**
  * The chosen techniques, in turn, for the viral slots (trend-inspired only
@@ -240,18 +245,41 @@ function techniquesFor(settings: VideoSettings, viralIndex: number, weights: Lea
   return withOneHook(second && second !== first ? [first, second] : [first]);
 }
 
-function planSlots(categories: IdeaCategory[], formatOffset: number, material: Material): PlannedSlot[] {
+/**
+ * The batch's slots: category, format and techniques; half of the viral reels
+ * and Stories are POV clip videos (client, 2026-11-21: "POV clip: 5, others:
+ * 5"), which never open on a visual hook.
+ */
+function planSlots(categories: IdeaCategory[], formatOffset: number, material: Material, povLibrary: readonly AiPovClip[]): PlannedSlot[] {
   let viral = 0;
+  const formats = categories.map((_, index) => formatAt(formatOffset + index, material.settings.formats));
+  const pov = povSlots(
+    categories.map((category, index) => ({ category, format: formats[index] })),
+    povLibrary,
+  );
   return categories.map((category, index) => {
-    const format = formatAt(formatOffset + index, material.settings.formats);
+    const format = formats[index];
+    const techniques = category === "viral" ? techniquesFor(material.settings, viral++, material.learning.techniqueWeights, format) : [];
     return {
       slot: index + 1,
       index: formatOffset + index,
       category,
       format,
-      techniques: category === "viral" ? techniquesFor(material.settings, viral++, material.learning.techniqueWeights, format) : [],
+      techniques: pov[index] ? withoutHooks(techniques) : techniques,
+      pov: pov[index],
     };
   });
+}
+
+/** The batch's directions: assigned for the ideas, meme for the POV clip videos, which count apart (they have no alternatives). */
+function planDirections(slots: PlannedSlot[], material: Material, seed: number): CreativeDirection[] {
+  const assigned = assignDirections(
+    slots.filter((slot) => !slot.pov),
+    material.audioMode,
+    { seed, weights: material.learning.directionWeights, recent: material.recentDirections },
+  );
+  let next = 0;
+  return slots.map((slot) => (slot.pov ? "meme" : assigned[next++]));
 }
 
 /** The audio of an idea: fixed by the settings or the direction, or the writer's choice under Auto. Carousels have none. */
@@ -266,6 +294,10 @@ function resolveAudio(direction: CreativeDirection, format: VideoFormat, mode: A
 function briefs(slots: PlannedSlot[], directions: CreativeDirection[], material: Material): SlotBrief[] {
   return slots.map((slot, k) => {
     const direction = directions[k];
+    if (slot.pov) {
+      // A POV clip video: one line over the clip, music and no voice, no other direction.
+      return { slot: slot.slot, category: slot.category, direction: "meme", alternatives: [], format: slot.format, audio: "text_music", techniques: slot.techniques, length: POV_LENGTH, pov: true };
+    }
     const fixed: ResolvedAudio | "choose" =
       slot.format === "carousel" || direction === "text_music" ? "text_music" : direction === "voiceover" ? "voiceover" : material.audioMode === "auto" ? "choose" : material.audioMode;
     return {
@@ -280,9 +312,14 @@ function briefs(slots: PlannedSlot[], directions: CreativeDirection[], material:
       audio: fixed,
       techniques: slot.techniques,
       length: lengthPlan(durationFor(slot.format, material.settings.duration), fixed === "choose" ? "voiceover" : fixed, slot.format, direction),
+      pov: false,
     };
   });
 }
+
+/** The POV clips the writer picks from, when the batch has a POV slot (client, 2026-11-21). */
+const povClipsFor = (slots: PlannedSlot[], library: readonly AiPovClip[]) =>
+  slots.some((slot) => slot.pov) ? library.map((clip) => ({ id: clip.id, shows: clip.shows })) : [];
 
 function writerStrategy(settings: VideoSettings): IdeaInput["strategy"] {
   return {
@@ -341,22 +378,29 @@ function acceptIdeas(ideas: WrittenIdea[], slots: PlannedSlot[], planned: Creati
     const written = bySlot.get(slot.slot);
     if (written) accepted.push({ slot, written, k });
   });
-  const proposals = accepted.map(({ written }) => (isCreativeDirection(written.direction) ? written.direction : null));
-  const settled = settleDirections(
-    accepted.map(({ slot }) => slot),
-    accepted.map(({ k }) => planned[k]),
-    proposals,
+  // A POV clip video stays a meme; the other ideas' directions are settled among themselves.
+  const regular = accepted.filter(({ slot }) => !slot.pov);
+  const settledRegular = settleDirections(
+    regular.map(({ slot }) => slot),
+    regular.map(({ k }) => planned[k]),
+    regular.map(({ written }) => (isCreativeDirection(written.direction) ? written.direction : null)),
     material.audioMode,
   );
+  let next = 0;
+  const settled = accepted.map(({ slot }): CreativeDirection => (slot.pov ? "meme" : settledRegular[next++]));
   return accepted.flatMap(({ slot, written }, j) => {
     const checked = checkIdea(written, slot, settled[j], seenTitles, hooks);
     return checked ? [checked] : [];
   });
 }
 
-/** One written idea held to its slot: a script that fits, a new title and hook, no trend claim in what is shown big. */
+/**
+ * One written idea held to its slot: a script that fits, a new title and hook,
+ * no trend claim in what is shown big. A POV clip video's script is its POV
+ * line and closing line only: no points, no proof (client, 2026-11-21).
+ */
 function checkIdea(written: WrittenIdea, slot: PlannedSlot, direction: CreativeDirection, seenTitles: Set<string>, hooks: Set<string>): Composed | null {
-  const script = cleanScript(written, maxPointsFor(direction, slot.format));
+  const script = slot.pov ? povScript(written) : cleanScript(written, maxPointsFor(direction, slot.format));
   const title = clip(written.title ?? "", 90);
   if (!script || !title || seenTitles.has(title.toLowerCase())) return null;
   // Left out rather than rewritten into something odd.
@@ -383,20 +427,31 @@ type RowContext = {
   material: Material;
   seed: number;
   ledger: (count: number) => CostLedger;
+  /** The AI POV clips (client, 2026-11-21). */
+  povLibrary: readonly AiPovClip[];
 };
 
 function composeRows(composed: Composed[], context: RowContext): (typeof videoIdeas.$inferInsert)[] {
   const { material } = context;
   const { settings } = material;
   const pictures = material.live.flatMap((article) => (article.imageUrl ? [article.imageUrl] : []));
-  const parts = composed.map((item) => {
-    const { slot, written, script, direction } = item;
+  // One POV clip per POV clip video, none twice in a batch; a POV idea without a clip is left out.
+  const usedPov = new Set<string>();
+  const parts = composed.flatMap((item) => {
+    const { slot, written, script } = item;
+    const povClip = slot.pov ? pickPovClip(written.povClip ?? null, script.hook, usedPov, stableHash(item.title), context.povLibrary) : null;
+    if (slot.pov && !povClip) return [];
+    if (povClip) usedPov.add(povClip);
+    const direction: CreativeDirection = povClip ? "meme" : item.direction;
     const article = written.article && written.article >= 1 ? material.live[written.article - 1] : undefined;
     const techniques = usedTechniques(slot, written);
     // A visual hook opens on a stock clip: the writer's search words when safe, else a safe one of its type.
-    const hookType = hookTypeFor(techniques, slot.format, direction);
+    const hookType = povClip ? null : hookTypeFor(techniques, slot.format, direction);
     const hook = hookType ? { type: hookType, query: hookQuery(hookType, written.visualHook?.clip, stableHash(item.title)) } : null;
-    const audio = resolveAudio(direction, slot.format, material.audioMode, written.audio === "text_music" || written.audio === "voiceover" ? written.audio : null);
+    // A POV clip video has music and no voice.
+    const audio: ResolvedAudio = povClip
+      ? "text_music"
+      : resolveAudio(direction, slot.format, material.audioMode, written.audio === "text_music" || written.audio === "voiceover" ? written.audio : null);
     const production: ProductionChoices = {
       audio,
       narration: settings.narration,
@@ -407,12 +462,15 @@ function composeRows(composed: Composed[], context: RowContext): (typeof videoId
       includeCta: settings.includeCta,
       ctaText: settings.includeCta ? settings.defaultCta : null,
     };
-    const planFor = (variant?: { pacing: number; transitions: number; mood: number }) =>
-      buildPlan({
+    // A POV clip video's one scene is its clip, with the POV line on top.
+    const shows = povClip ? context.povLibrary.find((clip) => clip.id === povClip)?.shows ?? item.title : null;
+    const scenes = shows !== null ? [{ query: shows, kind: "video" as const, overlay: script.hook, reaction: null }] : Array.isArray(written.scenes) ? written.scenes : [];
+    const planFor = (variant?: { pacing: number; transitions: number; mood: number }): ShotPlan => {
+      const plan = buildPlan({
         direction,
         format: slot.format,
         script,
-        scenes: Array.isArray(written.scenes) ? written.scenes : [],
+        scenes,
         captionStyle: production.captionStyle,
         music: production.music,
         ownMedia: material.ownMedia.length > 0,
@@ -421,15 +479,26 @@ function composeRows(composed: Composed[], context: RowContext): (typeof videoId
         fallbackQuery: item.title,
         hook,
       });
-    return { item, article, audio, production, planFor, techniques };
+      // Its own recipe, so the variety rules never count it as one of the memes.
+      return povClip ? { ...plan, recipe: `${plan.recipe}|pov` } : plan;
+    };
+    return { item: { ...item, direction }, article, audio, production, planFor, techniques, povClip, hookType: hook?.type ?? null, hookQuery: hook?.query ?? "" };
   });
   const plans = enforceRecipes(parts, (part) => part.planFor(), (part, variant) => part.planFor(variant), material.recentRecipes, context.seed);
   const ledger = context.ledger(parts.length);
+  // Hook clips are chosen now, so the idea's preview plays the clip the video is made with (client, 2026-11-21).
+  const usedHooks = new Set<string>();
 
   return parts.map((part, j) => {
-    const { item, article, audio, production, techniques } = part;
+    const { item, article, audio, production, techniques, povClip } = part;
     const { slot, written, script, direction } = item;
-    const plan: ShotPlan = plans[j];
+    const plan: ShotPlan = { ...plans[j] };
+    if (povClip) plan.povClip = { id: povClip, ...povLook(stableHash(item.title)) };
+    if (part.hookType) {
+      const pick = hookPick(part.hookType, part.hookQuery, stableHash(item.title), usedHooks);
+      if (pick) usedHooks.add(hookPickKey(pick));
+      plan.hookClip = { type: part.hookType, pick };
+    }
     const index = slot.index;
     const caption = captionText(withoutClaimsOfTrendOrPromise(written.caption) ?? "", Array.isArray(written.hashtags) ? written.hashtags : []);
     const claims = checkClaims(Array.isArray(written.claims) ? written.claims : [], {
@@ -486,11 +555,12 @@ async function writeBatchIdeas(
   categories: IdeaCategory[],
   formatOffset: number,
   seed: number,
-  write: typeof writeIdeas,
+  deps: IdeaDeps,
   meta: { kind: BatchKind; batchId: string | null; day: string; now: Date },
 ): Promise<(typeof videoIdeas.$inferInsert)[]> {
-  const base = planSlots(categories, formatOffset, material);
-  const planned = assignDirections(base, material.audioMode, { seed, weights: material.learning.directionWeights, recent: material.recentDirections });
+  const { write, povLibrary } = deps;
+  const base = planSlots(categories, formatOffset, material, povLibrary);
+  const planned = planDirections(base, material, seed);
   // A slot planned as the animated templates keeps its other techniques: no clip to open on.
   const slots = base.map((slot, k) =>
     canHook(slot.format, planned[k]) ? slot : { ...slot, techniques: slot.category === "viral" ? withoutHooks(slot.techniques) : slot.techniques },
@@ -504,6 +574,7 @@ async function writeBatchIdeas(
     slots: briefs(slots, planned, material),
     strategy: writerStrategy(material.settings),
     learning: material.learning.summary,
+    povClips: povClipsFor(slots, povLibrary),
   });
   const cost = usageCost(usage);
   await track(site.organizationId, {
@@ -525,8 +596,12 @@ async function writeBatchIdeas(
     material,
     seed,
     ledger: (count) => planningLedger(cost, count, meta.now),
+    povLibrary,
   });
 }
+
+/** The writer and the POV clips, the real ones unless a test gives its own. */
+const depsOf = (deps: Partial<IdeaDeps>): IdeaDeps => ({ write: deps.write ?? writeIdeas, povLibrary: deps.povLibrary ?? AI_POV_LIBRARY });
 
 async function readySite(websiteId: string): Promise<{ site: Site } | { reason: string }> {
   const [site] = await db.select().from(websites).where(eq(websites.id, websiteId));
@@ -572,7 +647,7 @@ export async function suggestVideoIdeas(
   deps: Partial<IdeaDeps> = {},
   options: JobOptions = {},
 ): Promise<SuggestVideoResult> {
-  const write = deps.write ?? writeIdeas;
+  const resolved = depsOf(deps);
   const ready = await readySite(websiteId);
   if ("reason" in ready) return { created: 0, reason: ready.reason };
   const { site } = ready;
@@ -604,7 +679,7 @@ export async function suggestVideoIdeas(
       wanted,
     });
     const seed = stableHash(`${websiteId}:${day}:0:${written}`);
-    const rows = (await writeBatchIdeas(site, material, categories, written, seed, write, { kind: "daily", batchId: batch.id, day, now })).slice(0, wanted);
+    const rows = (await writeBatchIdeas(site, material, categories, written, seed, resolved, { kind: "daily", batchId: batch.id, day, now })).slice(0, wanted);
     const stored = await storeBatch(claimed, rows, written + rows.length, now);
     return { created: stored };
   } catch (error) {
@@ -620,7 +695,7 @@ export async function writeExtraBatch(
   deps: Partial<IdeaDeps> = {},
   options: JobOptions = {},
 ): Promise<SuggestVideoResult> {
-  const write = deps.write ?? writeIdeas;
+  const resolved = depsOf(deps);
   const [batch] = await db.select().from(videoIdeaBatches).where(eq(videoIdeaBatches.id, batchId));
   if (!batch || batch.slot === 0) return { created: 0, reason: "not an extra batch" };
   const ready = await readySite(batch.websiteId);
@@ -639,7 +714,7 @@ export async function writeExtraBatch(
     const categories = batchCategories({ kind, viralMix: material.settings.viralMix, goal: material.settings.goal, services: material.services.length });
     const offset = DAILY_BATCH_SIZE + (claimed.slot - 1) * EXTRA_BATCH_SIZE;
     const seed = stableHash(`${claimed.websiteId}:${claimed.day}:${claimed.slot}:${claimed.attempts}`);
-    const rows = (await writeBatchIdeas(ready.site, material, categories, offset, seed, write, { kind, batchId, day: claimed.day, now })).slice(0, claimed.size);
+    const rows = (await writeBatchIdeas(ready.site, material, categories, offset, seed, resolved, { kind, batchId, day: claimed.day, now })).slice(0, claimed.size);
     // Nothing usable: the job tries again while it has an attempt left.
     if (rows.length === 0 && !(options.final ?? true)) throw new Error("no usable ideas");
     const stored = await storeBatch(claimed, rows, rows.length, now);
@@ -656,7 +731,7 @@ export async function writeExtraBatch(
  * which counts the day's free rewrites first.
  */
 export async function rewriteIdea(websiteId: string, ideaId: string, now: Date = new Date(), deps: Partial<IdeaDeps> = {}): Promise<{ ok: boolean; reason?: string }> {
-  const write = deps.write ?? writeIdeas;
+  const { write, povLibrary } = depsOf(deps);
   const ready = await readySite(websiteId);
   if ("reason" in ready) return { ok: false, reason: ready.reason };
   const [row] = await db.select().from(videoIdeas).where(and(eq(videoIdeas.id, ideaId), eq(videoIdeas.websiteId, websiteId)));
@@ -670,18 +745,24 @@ export async function rewriteIdea(websiteId: string, ideaId: string, now: Date =
   const techniques = (row.techniques ?? []).filter((t): t is ViralTechnique => (VIRAL_TECHNIQUES as readonly string[]).includes(t));
   const overrides = (row.overrides ?? {}) as IdeaOverrides;
   const chosen = category === "viral" && techniques.length === 0 ? techniquesFor(material.settings, 0, {}, format) : techniques;
-  const fitted = canHook(format, direction) ? withOneHook(chosen) : category === "viral" ? withoutHooks(chosen) : chosen;
-  const slot: PlannedSlot = { slot: 1, index: 0, category, format, techniques: fitted };
-  const brief: SlotBrief = {
-    slot: 1,
-    category,
-    direction,
-    alternatives: [],
-    format,
-    audio: format === "carousel" ? "text_music" : audio,
-    techniques: slot.techniques,
-    length: lengthPlan(production?.duration ?? durationFor(format, material.settings.duration), audio, format, direction),
-  };
+  // A POV clip video is rewritten as one (client, 2026-11-21), while there are clips to pick from.
+  const povClip = (row.plan as ShotPlan | null)?.povClip ?? null;
+  const pov = Boolean(povClip) && povLibrary.length > 0;
+  const fitted = pov || !canHook(format, direction) ? (category === "viral" ? withoutHooks(chosen) : chosen) : withOneHook(chosen);
+  const slot: PlannedSlot = { slot: 1, index: 0, category, format, techniques: fitted, pov };
+  const brief: SlotBrief = pov
+    ? { slot: 1, category, direction: "meme", alternatives: [], format, audio: "text_music", techniques: slot.techniques, length: POV_LENGTH, pov: true }
+    : {
+        slot: 1,
+        category,
+        direction,
+        alternatives: [],
+        format,
+        audio: format === "carousel" ? "text_music" : audio,
+        techniques: slot.techniques,
+        length: lengthPlan(production?.duration ?? durationFor(format, material.settings.duration), audio, format, direction),
+        pov: false,
+      };
   const { ideas, usage } = await write({
     count: 1,
     language: material.languageName,
@@ -692,6 +773,7 @@ export async function rewriteIdea(websiteId: string, ideaId: string, now: Date =
     strategy: writerStrategy({ ...material.settings, tonePreset: overrides.tonePreset ?? material.settings.tonePreset }),
     learning: [],
     rewrite: { title: row.title, hook: (row.script as VideoScript).hook, overrides },
+    povClips: povClipsFor([slot], povLibrary),
   });
   const cost = usageCost(usage);
   await track(ready.site.organizationId, {
@@ -705,7 +787,9 @@ export async function rewriteIdea(websiteId: string, ideaId: string, now: Date =
   });
   // The idea's own production stays: only its words, shots and claims are new.
   const materialForIdea: Material = { ...material, audioMode: audio === "text_music" ? "text_music" : "voiceover" };
-  const checked = ideas[0] ? checkIdea(ideas[0], slot, direction, new Set(), new Set()) : null;
+  // A rewritten POV clip video keeps its clip unless the writer picked another.
+  const written = ideas[0] && pov ? { ...ideas[0], povClip: ideas[0].povClip ?? povClip?.id ?? null } : ideas[0];
+  const checked = written ? checkIdea(written, slot, pov ? "meme" : direction, new Set(), new Set()) : null;
   if (!checked) return { ok: false, reason: "bad_script" };
   const composed = [checked];
   const others = material.recentRecipes.filter((recipe) => recipe !== (row.plan as ShotPlan | null)?.recipe);
@@ -717,7 +801,9 @@ export async function rewriteIdea(websiteId: string, ideaId: string, now: Date =
     material: { ...materialForIdea, recentRecipes: others },
     seed: stableHash(`${ideaId}:${now.toISOString()}`),
     ledger: () => planningLedger(cost, 1, now, row.cost as CostLedger | null),
+    povLibrary,
   });
+  if (!next) return { ok: false, reason: "bad_script" };
   const [updated] = await db
     .update(videoIdeas)
     .set({

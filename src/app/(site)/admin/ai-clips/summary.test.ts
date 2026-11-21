@@ -23,7 +23,7 @@ describe("summarizeClips", () => {
   it("answers an empty library with zeros and no batches", () => {
     const summary = summarizeClips([], now);
     expect(summary).toMatchObject({ count: 0, totalUsd: 0, monthCount: 0, monthUsd: 0, month: "2026-11", batches: [] });
-    expect(summary.byType).toEqual({ anticipation: 0, impossible: 0, danger: 0 });
+    expect(summary.byType).toEqual({ anticipation: 0, impossible: 0, danger: 0, pov: 0 });
   });
 
   it("counts the clips, their cost, this UTC month's and each hook type", () => {
@@ -40,7 +40,7 @@ describe("summarizeClips", () => {
     expect(summary.totalUsd).toBe(1.42);
     expect(summary.monthCount).toBe(3);
     expect(summary.monthUsd).toBe(1.32);
-    expect(summary.byType).toEqual({ anticipation: 2, impossible: 1, danger: 1 });
+    expect(summary.byType).toEqual({ anticipation: 2, impossible: 1, danger: 1, pov: 0 });
   });
 
   it("groups batches by day, newest first, keeping the library's order inside one", () => {
@@ -68,6 +68,14 @@ describe("summarizeClips", () => {
       ["2026-11-19", 1, 1, 1.12],
       ["2026-11-18", 0, 1, 0.56],
     ]);
+  });
+
+  it("counts POV clips (client, 2026-11-21) next to the hook types", () => {
+    const pov = { id: "2026-11-21-pov-a", type: "pov" as const, costUsd: 0.7, madeOn: "2026-11-21" };
+    const summary = summarizeClips([clip("2026-11-19-a", "2026-11-19", "danger"), pov], now);
+    expect(summary.byType).toEqual({ anticipation: 0, impossible: 0, danger: 1, pov: 1 });
+    expect(summary.totalUsd).toBe(1.26);
+    expect(summary.batches.map((batch) => batch.madeOn)).toEqual(["2026-11-21", "2026-11-19"]);
   });
 
   it("does not count the same month of another year as this month", () => {

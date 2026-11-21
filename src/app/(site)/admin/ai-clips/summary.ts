@@ -1,5 +1,5 @@
-import type { AiHookClip, AiRejectedTake } from "@/lib/video/footage/ai-library";
-import { HOOK_TYPES, type HookType } from "@/lib/video/formats";
+import type { AiRejectedTake } from "@/lib/video/footage/ai-library";
+import { HOOK_TYPES } from "@/lib/video/formats";
 
 /**
  * The figures on Admin -> AI clips (client, 2026-11-19: "it's not clear how
@@ -8,7 +8,14 @@ import { HOOK_TYPES, type HookType } from "@/lib/video/formats";
  * in. Pure, so the sums are tested without a database.
  */
 
-export type ClipBatch<T extends AiHookClip = AiHookClip> = {
+/** The hook types and the POV clips (client, 2026-11-21). */
+export const CLIP_KINDS = [...HOOK_TYPES, "pov"] as const;
+export type ClipKind = (typeof CLIP_KINDS)[number];
+
+/** What the figures need of a clip, hook or POV. */
+export type SummaryClip = { id: string; type: ClipKind; costUsd: number; madeOn: string };
+
+export type ClipBatch<T extends SummaryClip = SummaryClip> = {
   /** The day the batch was made (YYYY-MM-DD). */
   madeOn: string;
   clips: T[];
@@ -18,7 +25,7 @@ export type ClipBatch<T extends AiHookClip = AiHookClip> = {
   costUsd: number;
 };
 
-export type ClipSummary<T extends AiHookClip = AiHookClip> = {
+export type ClipSummary<T extends SummaryClip = SummaryClip> = {
   count: number;
   /** Takes paid for but not kept. */
   rejected: number;
@@ -28,7 +35,7 @@ export type ClipSummary<T extends AiHookClip = AiHookClip> = {
   month: string;
   monthCount: number;
   monthUsd: number;
-  byType: Record<HookType, number>;
+  byType: Record<ClipKind, number>;
   /** Newest batch first; clips keep the library's order. */
   batches: ClipBatch<T>[];
 };
@@ -38,9 +45,9 @@ function sum(values: number[]): number {
   return Math.round(values.reduce((total, value) => total + value, 0) * 10_000) / 10_000;
 }
 
-export function summarizeClips<T extends AiHookClip>(clips: readonly T[], now: Date = new Date(), rejected: readonly AiRejectedTake[] = []): ClipSummary<T> {
+export function summarizeClips<T extends SummaryClip>(clips: readonly T[], now: Date = new Date(), rejected: readonly AiRejectedTake[] = []): ClipSummary<T> {
   const month = now.toISOString().slice(0, 7);
-  const byType = Object.fromEntries(HOOK_TYPES.map((type) => [type, 0])) as Record<HookType, number>;
+  const byType = Object.fromEntries(CLIP_KINDS.map((type) => [type, 0])) as Record<ClipKind, number>;
   const byDay = new Map<string, T[]>();
   for (const clip of clips) {
     byType[clip.type] = (byType[clip.type] ?? 0) + 1;

@@ -46,6 +46,7 @@ import { readDestinations } from "@/lib/video/destinations";
 import { readNativeAudio } from "@/lib/video/native-audio";
 import { videoPublishingStatus } from "@/lib/video/publish-actions";
 import { reviewBlocksAutoPublish } from "@/lib/video/review";
+import { previewClips } from "@/lib/video/preview-media";
 import { videoProfile } from "@/lib/video/strategy/profile";
 
 import { VideosPanel, type IdeaView, type VideoAccountView } from "./videos-panel";
@@ -151,6 +152,9 @@ export default async function WebsiteVideosPage({ params, searchParams }: PagePr
     tonePreset: profile?.tonePreset ?? settings.tonePreset,
   };
   const brand = brandLook(site, settings.logoUrl);
+  // The clip each idea's preview plays before it is made (client, 2026-11-21): its POV clip or the hook clip picked for it.
+  const clips = await previewClips(ideas.map((row) => row.plan as ShotPlan | null));
+  const previewClipOf = new Map(ideas.map((row, i) => [row.id, clips[i]]));
   const view = (row: (typeof ideas)[number]): IdeaView => {
     const script = row.script as VideoScript;
     const timing = row.timing as { words: ReelProps["words"]; sceneStartsMs: number[] } | null;
@@ -174,6 +178,7 @@ export default async function WebsiteVideosPage({ params, searchParams }: PagePr
       format: isVideoFormat(row.format) ? row.format : "reel",
       concept: !voiced,
       language: row.language,
+      ...(!voiced && previewClipOf.get(row.id) ? { sceneMedia: [previewClipOf.get(row.id)!] } : {}),
     };
     return {
       id: row.id,

@@ -7,6 +7,7 @@ import { ConceptBadge, type DirectionProps } from "./directions/common";
 import { FootageProduction } from "./directions/Footage";
 import { HookClipLayer } from "./directions/HookClip";
 import { MemeProduction } from "./directions/Meme";
+import { PovClipProduction } from "./directions/PovClip";
 import { StorytellingProduction } from "./directions/Storytelling";
 import { TextMusicProduction } from "./directions/TextMusic";
 import { VoiceoverProduction } from "./directions/Voiceover";
@@ -47,16 +48,20 @@ function ProductionReel(props: ProductionReelProps) {
   const pal = palette(props.brand, "story");
   const safe = safeArea(props.format === "story");
   const direction: DirectionProps = { ...props, timeline, pal, safe };
+  // A POV clip video (client, 2026-11-21) is its own production, whatever the direction says ("meme").
+  const pov = Boolean(props.plan?.povClip);
   return (
     <AbsoluteFill style={{ fontFamily: FONT, background: "#050508", color: "#fff", overflow: "hidden" }}>
-      {props.direction === "meme" ? <MemeProduction {...direction} /> : null}
-      {props.direction === "footage" ? <FootageProduction {...direction} /> : null}
-      {props.direction === "storytelling" ? <StorytellingProduction {...direction} /> : null}
-      {props.direction === "text_music" ? <TextMusicProduction {...direction} /> : null}
-      {props.direction === "voiceover" ? <VoiceoverProduction {...direction} /> : null}
-      {props.plan?.hookClip ? <HookClipLayer {...direction} /> : null}
+      {pov ? <PovClipProduction {...direction} /> : null}
+      {!pov && props.direction === "meme" ? <MemeProduction {...direction} /> : null}
+      {!pov && props.direction === "footage" ? <FootageProduction {...direction} /> : null}
+      {!pov && props.direction === "storytelling" ? <StorytellingProduction {...direction} /> : null}
+      {!pov && props.direction === "text_music" ? <TextMusicProduction {...direction} /> : null}
+      {!pov && props.direction === "voiceover" ? <VoiceoverProduction {...direction} /> : null}
+      {!pov && props.plan?.hookClip ? <HookClipLayer {...direction} /> : null}
       {/* A meme's caption bar fills the top: its badge (preview only, never rendered) sits under the text area on the right, clear of the bar and the captions. */}
-      {props.concept ? (props.direction === "meme" ? <ConceptBadge top={safe.bottom + 30} right /> : <ConceptBadge top={safe.top + 60} />) : null}
+      {/* A POV clip video with its clip is the video itself (minus the music): no badge. */}
+      {props.concept && !(pov && props.sceneMedia?.[0]) ? (props.direction === "meme" ? <ConceptBadge top={safe.bottom + 30} right /> : <ConceptBadge top={safe.top + 60} />) : null}
       {timeline.voiced && props.voiceUrl ? <Audio src={props.voiceUrl} /> : null}
       {props.music ? <Music url={props.music.url} volume={props.music.volume} durationInFrames={timeline.durationInFrames} /> : null}
     </AbsoluteFill>

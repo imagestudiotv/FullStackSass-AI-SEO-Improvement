@@ -72,16 +72,28 @@ export function wordCount(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
 
+/** A POV clip video (client, 2026-11-21): the clip's length when unknown, the longest clip played, and the closing card. */
+export const POV_CLIP_MS = 10_000;
+const POV_MAX_CLIP_MS = 15_000;
+export const POV_CTA_MS = 2_000;
+
 /**
  * The parts a production shows, in order: the hook only when showHook (else
  * the video opens straight on the first point), the CTA only when includeCta
- * (with ctaText when set).
+ * (with ctaText when set). A POV clip video (plan.povClip, client,
+ * 2026-11-21) is its POV line - always shown, it is the video - then the CTA
+ * when included; no points or proof.
  */
 export function productionParts(script: VideoScript, production: ProductionChoices, plan: ShotPlan | null | undefined): ProductionPart[] {
   const spoken = spokenParts(script);
   const n = script.points.length;
   const cta = production.ctaText?.trim() || script.cta;
   const parts: ProductionPart[] = [];
+  if (plan?.povClip) {
+    parts.push({ part: 0, role: "hook", spoken: script.hook, title: script.hook, detail: null, scene: plan.scenes?.[0] ?? null });
+    if (production.includeCta) parts.push({ part: n + 2, role: "cta", spoken: cta, title: cta, detail: null, scene: plan.scenes?.[n + 2] ?? null });
+    return parts;
+  }
   spoken.forEach((text, part) => {
     const role: SceneRole = part === 0 ? "hook" : part <= n ? "point" : part === n + 1 ? "proof" : "cta";
     if (role === "hook" && !production.showHook) return;
@@ -184,6 +196,7 @@ export function pacedWords(text: string, startMs: number, durationMs: number): C
 export function productionTimeline(props: ProductionReelProps, fps: number = REEL.fps): ProductionTimeline {
   const production = productionOf(props);
   const parts = productionParts(props.script, production, props.plan);
+  if (props.plan?.povClip) return povTimeline(props, parts, fps);
   const story = props.format === "story";
   const hardMs = (story ? STORY_MAX_SECONDS : MAX_REEL_SECONDS) * 1000;
   const spokenIndexes = props.spokenParts ?? null;
@@ -224,6 +237,21 @@ export function productionTimeline(props: ProductionReelProps, fps: number = REE
     starts.push(Math.max(0, Math.min(Math.max(frame, floor), durationInFrames - (parts.length - i) * 6)));
   });
   return { parts, starts, durationInFrames, fits: fits && totalMs <= hardMs + PRODUCTION_TAIL_MS, voiced, words };
+}
+
+/**
+ * A POV clip video's timeline (client, 2026-11-21): silent, the POV line for
+ * the clip's whole length (sceneMedia[0], else POV_CLIP_MS; at most 15 s),
+ * then the closing card for POV_CTA_MS when shown. The component draws the
+ * line itself, so there are no word captions.
+ */
+function povTimeline(props: ProductionReelProps, parts: ProductionPart[], fps: number): ProductionTimeline {
+  const clipMs = props.sceneMedia?.[0]?.durationMs;
+  const hookMs = Math.min(POV_MAX_CLIP_MS, typeof clipMs === "number" && clipMs > 0 ? clipMs : POV_CLIP_MS);
+  const hookFrames = Math.max(1, Math.round((hookMs / 1000) * fps));
+  const ctaFrames = parts.length > 1 ? Math.round((POV_CTA_MS / 1000) * fps) : 0;
+  const starts = parts.map((_, i) => (i === 0 ? 0 : hookFrames));
+  return { parts, starts, durationInFrames: hookFrames + ctaFrames, fits: true, voiced: false, words: [] };
 }
 
 /** The frame part `index` ends at. */

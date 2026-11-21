@@ -189,7 +189,109 @@ export const AI_HOOK_LIBRARY: readonly AiHookClip[] = [
 ];
 
 /** The checked POV clips, newest batch last (ids "<day>-pov-<subject>"). */
-export const AI_POV_LIBRARY: readonly AiPovClip[] = [];
+export const AI_POV_LIBRARY: readonly AiPovClip[] = [
+  // Batch 1, 2026-11-21: Daniel's 8 reference reels re-made with original characters, plus 2 of ours (suit dog, capybara).
+  {
+    id: "2026-11-21-pov-wizard-cat-typing",
+    shows: "A ginger cat in a wizard hat types frantically at a keyboard, then looks at the camera and throws a paw up in frustration.",
+    tags: ["frustrated", "manual work", "overwhelmed", "typing", "computer", "busy", "doing it yourself"],
+    durationMs: 10000,
+    costUsd: 0.7,
+    madeOn: "2026-11-21",
+    prompt:
+      "Photorealistic funny meme video. A fluffy ginger cat wearing a dark blue pointed wizard hat sits at a computer keyboard in a cosy office lit with purple light, typing frantically with both front paws, eyes wide. At about 6 seconds it stops, looks straight at the camera and throws one paw up in the air in frustration. Vertical 9:16 framing, the cat in the lower two thirds, the top fifth of the frame calm and empty for a caption added later. One continuous shot, no cuts. No text, no captions, no logos, no watermark.",
+  },
+  {
+    id: "2026-11-21-pov-tea-cat-seaside",
+    shows: "A cut-out cat in sunglasses and a headscarf calmly sips tea in front of a sunny empty seaside promenade.",
+    tags: ["relaxed", "calm", "sipping tea", "no stress", "while it works", "chill", "luxury"],
+    durationMs: 10000,
+    costUsd: 0.7,
+    madeOn: "2026-11-21",
+    prompt:
+      "Funny meme video in a cut-out collage style: a photo cut-out of a cat wearing a patterned orange headscarf and black sunglasses, with a slightly rough hand-cut edge like a sticker, floats in the middle of the frame holding a tiny white teacup in its paws and sipping calmly, then slowly lowering the cup with a satisfied look. Behind it, a still photo of an empty minimal seaside promenade under a clear deep-blue sky, a single seagull gliding past. Vertical 9:16, the top fifth of the frame plain sky for a caption added later. One continuous shot, no cuts. No text, no captions, no logos, no watermark.",
+  },
+  {
+    id: "2026-11-21-pov-crying-owl-goggles",
+    shows: "An original cartoon owl with aviator goggles slowly tears up, emotional, against a night highway.",
+    tags: ["tears", "crying", "expensive", "agency bill", "relief", "emotional", "finally"],
+    durationMs: 10000,
+    costUsd: 0.7,
+    madeOn: "2026-11-21",
+    prompt:
+      "Funny meme video, 2D cartoon style: an original chubby round cartoon owl with brown leather aviator goggles pushed up on its forehead fills the lower half of the frame. Its big shiny eyes slowly fill with tears, its beak trembles, and at about 5 seconds a big tear rolls down its cheek while it sniffs. Behind it, a real night photo of a highway with blurred car lights under a starry sky. Vertical 9:16, the top fifth of the frame dark starry sky for a caption added later. One continuous shot, no cuts. No text, no captions, no logos, no watermark.",
+  },
+  {
+    id: "2026-11-21-pov-smug-pug-sideeye",
+    shows: "A cut-out pug in an empty arena slowly gives the camera a heavy, judging side-eye.",
+    tags: ["smug", "side eye", "confident", "winning", "ahead of competitors", "know something"],
+    durationMs: 10000,
+    costUsd: 0.7,
+    madeOn: "2026-11-21",
+    prompt:
+      "Funny meme video in a cut-out collage style: a photo cut-out of a chubby fawn pug wearing a tiny gold chain necklace, with a slightly rough hand-cut edge like a sticker, shown from the chest up and filling the lower half of the frame, looking straight ahead. At about 2 seconds it slowly slides its big round eyes all the way to the side towards the camera, eyelids lowering into a heavy, exaggerated smug side-eye, its mouth curling into a tiny smirk, and it holds that look; at about 7 seconds it gives one slow satisfied nod. Behind it, a still photo of an empty dim indoor basketball arena. Vertical 9:16, the top fifth of the frame calm and dark for a caption added later. One continuous shot, no cuts. No text, no captions, no logos, no watermark.",
+  },
+  {
+    id: "2026-11-21-pov-monkey-flip-phone",
+    shows: "A cut-out monkey holds an old flip phone to its ear, listening seriously, in front of mountains.",
+    tags: ["phone call", "calling", "new customer", "booking", "serious", "business call", "listening"],
+    durationMs: 10000,
+    costUsd: 0.7,
+    madeOn: "2026-11-21",
+    prompt:
+      "Funny meme video in a cut-out collage style: a photo cut-out of a macaque monkey, with a slightly rough hand-cut edge like a sticker, holds an old silver flip phone to its ear, listening very seriously, nodding twice and raising its eyebrows as if hearing great news. Behind it, a still photo of a dramatic alpine mountain range with green forest and moody clouds. The monkey fills the lower third of the frame. Vertical 9:16, the top fifth of the frame cloudy sky for a caption added later. One continuous shot, no cuts. No text, no captions, no logos, no watermark.",
+  },
+  {
+    id: "2026-11-21-pov-lizard-zoom-dust",
+    shows: "An original cartoon lizard in red sneakers grins on an office desk, then zooms off so fast it leaves a dust cloud.",
+    tags: ["fast", "speed", "before competitors", "gone", "quick", "zoom", "first"],
+    durationMs: 10000,
+    costUsd: 0.7,
+    madeOn: "2026-11-21",
+    prompt:
+      "Funny meme video, 2D cartoon style: an original small green cartoon lizard wearing bright red sneakers stands on a desk next to a laptop in a sunny high-rise office with floor-to-ceiling windows and a city skyline at golden hour (realistic photo background). It grins at the camera, crouches, and at about 4 seconds zooms off upward out of the frame so fast that it leaves behind a puffy white cartoon dust cloud in its shape, which slowly drifts apart and fades. Vertical 9:16, the top fifth of the frame bright window light for a caption added later. One continuous shot, no cuts. No text, no captions, no logos, no watermark.",
+  },
+  {
+    id: "2026-11-21-pov-teary-white-cat",
+    shows: "A cut-out white cat looks at the camera with huge teary eyes, heartbroken, over a garden staircase.",
+    tags: ["sad", "disappointed", "wasted money", "regret", "teary", "wrong choice", "heartbroken"],
+    durationMs: 10000,
+    costUsd: 0.7,
+    madeOn: "2026-11-21",
+    prompt:
+      "Funny meme video in a cut-out collage style: a photo cut-out of a fluffy white cat's head and chest, with a slightly rough hand-cut edge like a sticker, looking at the camera with huge glossy teary eyes and a trembling mouth, slowly blinking and tilting its head sadly. Behind it, a still photo looking down a curved concrete garden staircase with green ferns. The cat fills the middle of the frame. Vertical 9:16, the top fifth of the frame plain pale stone for a caption added later. One continuous shot, no cuts. No text, no captions, no logos, no watermark.",
+  },
+  {
+    id: "2026-11-21-pov-nachos-dog-phone",
+    shows: "A shih tzu lies back on a sofa scrolling its phone and munching nachos, totally relaxed.",
+    tags: ["lazy", "relaxing", "on the sofa", "while it works", "scrolling", "weekend", "horizontal"],
+    durationMs: 10000,
+    costUsd: 0.7,
+    madeOn: "2026-11-21",
+    prompt:
+      "Photorealistic funny meme video: a fluffy shih tzu dog lies back like a person on a sofa, holding a smartphone in one paw and scrolling, a bowl of nachos resting on its belly. It slowly munches a nacho, glances at the phone, then looks at the camera, totally relaxed. A small dip bowl and a plain unlabeled can sit on a wooden tray beside it. Warm sunset light makes stripes on a brown wall behind. Vertical 9:16, the dog in the lower two thirds, the top fifth of the frame plain wall for a caption added later. One continuous shot, no cuts. No text, no captions, no logos, no labels, no watermark.",
+  },
+  {
+    id: "2026-11-21-pov-suit-dog-confetti",
+    shows: "A golden retriever in a business suit reads a laptop and nods, then confetti rains down around it.",
+    tags: ["success", "new leads", "celebration", "results", "proud", "boss", "it worked"],
+    durationMs: 10000,
+    costUsd: 0.7,
+    madeOn: "2026-11-21",
+    prompt:
+      "Photorealistic funny meme video: a golden retriever wearing a tiny navy business suit and tie sits upright at an office desk in front of an open laptop, reading the screen and nodding slowly and confidently. At about 5 seconds colourful confetti bursts and rains down all around it while it keeps a proud calm face. Bright modern office. Vertical 9:16, the dog in the lower two thirds, the top fifth of the frame plain bright wall for a caption added later. One continuous shot, no cuts. No text, no captions, no logos, no watermark.",
+  },
+  {
+    id: "2026-11-21-pov-capybara-hot-spring",
+    shows: "A capybara with sunglasses relaxes in a hot spring and ignores a phone buzzing with notifications.",
+    tags: ["calm", "unbothered", "notifications", "chill", "no stress", "relaxing", "while it works"],
+    durationMs: 10000,
+    costUsd: 0.7,
+    madeOn: "2026-11-21",
+    prompt:
+      "Photorealistic funny meme video: a capybara sits relaxed in a steaming outdoor hot spring, wearing tiny round sunglasses with a small yellow citrus fruit balanced on its head. On a flat rock beside it a smartphone keeps lighting up and buzzing with notifications. The capybara ignores it completely, slowly closes its eyes and sinks a little lower into the warm water. Soft evening light, gentle steam. Vertical 9:16, the capybara in the lower two thirds, the top fifth of the frame calm steam and trees for a caption added later. One continuous shot, no cuts. No text, no captions, no logos, no watermark.",
+  },
+];
 
 export function povClipById(id: string): AiPovClip | null {
   return AI_POV_LIBRARY.find((clip) => clip.id === id) ?? null;
@@ -202,5 +304,7 @@ export function povClipById(id: string): AiPovClip | null {
 export type AiRejectedTake = { id: string; madeOn: string; costUsd: number; why: string };
 
 export const AI_REJECTED_TAKES: readonly AiRejectedTake[] = [
+  { id: "2026-11-21-pov-smug-hamster", madeOn: "2026-11-21", costUsd: 0.7, why: "a blank stare, no smug side-eye" },
+  { id: "2026-11-21-pov-smug-hamster-sideeye", madeOn: "2026-11-21", costUsd: 0.7, why: "still no readable side-eye (hamster eyes too small); remade as 2026-11-21-pov-smug-pug-sideeye" },
   { id: "2026-11-19-slackline-clouds", madeOn: "2026-11-19", costUsd: 0.56, why: "the walker was too small to see the wobble; remade closer as 2026-11-19-slackline-wobble" },
 ];
