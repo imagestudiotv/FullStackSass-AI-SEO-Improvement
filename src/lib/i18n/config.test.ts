@@ -82,7 +82,7 @@ describe("localePath", () => {
   it("prefixes the pages that exist in that language", () => {
     expect(localePath("es", "/")).toBe("/es");
     expect(localePath("es", "/pricing")).toBe("/es/pricing");
-    expect(localePath("de", "/backlink-exchange")).toBe("/de/backlink-exchange");
+    expect(localePath("de", "/backlinks")).toBe("/de/backlinks");
   });
 
   it("links English-only pages as they are", () => {

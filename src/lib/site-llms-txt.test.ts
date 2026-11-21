@@ -52,7 +52,7 @@ describe("buildSiteLlmsTxt", () => {
     expect(file).toContain(`- [Ghost vs WordPress](${SITE}/blog/ghost-vs-wordpress): Which one fits a small business.`);
   });
 
-  it("leaves out the pages whose link-exchange wording is being rewritten", () => {
+  it("leaves out the removed link-exchange pages", () => {
     expect(file).not.toContain("/backlink-exchange");
     expect(file).not.toContain("/publishers");
   });

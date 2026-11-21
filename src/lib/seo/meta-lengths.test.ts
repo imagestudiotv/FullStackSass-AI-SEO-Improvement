@@ -61,9 +61,7 @@ function pagesIn(locale: Locale): Meta[] {
     ["/faq", t.faq],
     ["/contact", t.contact],
     ["/success-stories", t.successStories],
-    ["/publishers", t.publishers],
     ["/affiliate", t.affiliate],
-    ["/backlink-exchange", t.backlinkExchange],
   ] as const) {
     add(page, section.metaTitle, section.metaDescription);
   }

@@ -24,9 +24,9 @@ import { TOOLS } from "@/lib/tools/registry";
  * i18n ones read from the English messages (the guides' from lib/publishing/docs.ts, the tools hub's from lib/tools/i18n/common.ts), the rest kept identical to the
  * page (site-llms-txt.test.ts checks each against its page file).
  *
- * Left out for now: /backlink-exchange and /publishers. Their descriptions use
- * the link-exchange framing the client asked to reword, and this file would
- * repeat it to every assistant. Add them back once the new wording is approved.
+ * Never listed: /backlink-exchange and /publishers. Their link-exchange
+ * framing was being reworded, and since 2026-11-21 both pages are gone - they
+ * redirect to /backlinks and /partners (lib/seo/moved-pages.ts).
  */
 
 export type LlmsPost = { slug: string; title: string; description: string };

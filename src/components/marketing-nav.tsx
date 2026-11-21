@@ -440,13 +440,14 @@ export function MarketingFooterLinks({ chrome }: { chrome: SiteChrome }) {
         // English-only pages for now: href() leaves them on their own path.
         { href: href("/backlinks"), label: t.footer.backlinks },
         { href: href("/rank-on-chatgpt"), label: t.footer.rankOnChatgpt },
-        { href: href("/backlink-exchange"), label: t.footer.backlinkExchange },
-        { href: href("/publishers"), label: t.footer.publishers },
         /*
           The cash Affiliate Program only (client, 2026-10-23: two
           "partner" links side by side confused visitors). The credit
           referral page, /affiliate, is still linked from /partners and
           customers keep their referral link in Settings.
+          "Backlink exchange" and "Monetize your blog" are gone (client,
+          2026-11-21): their pages now open /backlinks and this program
+          (lib/seo/moved-pages.ts).
         */
         { href: href("/partners"), label: t.footer.partners },
       ],

@@ -83,6 +83,21 @@ describe("the footer's program link", () => {
   });
 });
 
+/**
+ * "Backlink exchange" and "Monetize your blog" are out of the footer (client,
+ * 2026-11-21); their pages redirect to /backlinks and /partners, both still listed.
+ */
+describe("the footer's removed pages", () => {
+  it.each(["/", "/es", "/fr", "/it", "/de"])("on %s are not listed", (pathname) => {
+    nav.pathname = pathname;
+    const html = renderToStaticMarkup(createElement(MarketingFooterLinks, { chrome: siteChrome() }));
+    const links = hrefs(html);
+    expect(links.filter((href) => href.endsWith("/backlink-exchange") || href.endsWith("/publishers"))).toEqual([]);
+    expect(links).toContain(pathname === "/" ? "/backlinks" : `${pathname}/backlinks`);
+    expect(links).toContain(pathname === "/" ? "/partners" : `${pathname}/partners`);
+  });
+});
+
 /** The customer directory (client, 2026-11-12), right after Success Stories, in the page's language. */
 describe("the footer's customer directory link", () => {
   it.each([
