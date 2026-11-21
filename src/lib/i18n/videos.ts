@@ -288,6 +288,70 @@ export type ViralCopy = {
     rewriteHelp: string;
     rewritten: string;
   };
+  /** The simplified video editor (client, 2026-11-21): preview left, Script / Style / Video on the right. */
+  editor: {
+    heading: string;
+    intro: string;
+    close: string;
+    tabs: { script: string; style: string; video: string };
+    preview: string;
+    /** The chips under the preview that show one text in it. */
+    showPart: string;
+    /** point: "Point {index}" */
+    parts: { hook: string; point: string; proof: string; cta: string };
+    /** "Slide {index} of {total}" */
+    slideOf: string;
+    previousSlide: string;
+    nextSlide: string;
+    videoTitle: string;
+    titlePrivate: string;
+    onScreen: string;
+    onScreenHint: string;
+    hookOff: string;
+    ctaOff: string;
+    ctaReplaced: string;
+    /** "{max}" points at most. */
+    tooManyPoints: string;
+    /** "Remove point {index}" */
+    removePoint: string;
+    voiceoverScript: string;
+    optional: string;
+    voiceoverHint: string;
+    voiceoverSilent: string;
+    /** "Point {index}: the voice adds" */
+    pointAdds: string;
+    socialCaption: string;
+    captionHint: string;
+    profileCallout: string;
+    more: string;
+    moreHint: string;
+    rewrite: string;
+    look: string;
+    lookHint: string;
+    textStyle: string;
+    textStyleTemplate: string;
+    textStyleCaptions: string;
+    textStyleFixed: string;
+    templateAlways: string;
+    videoFormat: string;
+    /** "{ratio} · {name}" */
+    formatOption: string;
+    voiceover: string;
+    voiceLocked: { text_music: string; voiceover: string };
+    captionsOnVideo: string;
+    captionsHint: string;
+    musicMoods: string;
+    musicTracks: string;
+    picturesHint: string;
+    videoCallout: string;
+    readOnly: { title: string; body: string };
+    problems: { title: string; hook: string; point: string; caption: string };
+    unsaved: string;
+    keepEditing: string;
+    discard: string;
+    reset: string;
+    saveApprove: string;
+  };
   /** Platform checks; {platform} and {length} are filled in. */
   compat: { title: string; no_story: string; too_long: string; no_carousel: string; other: string; too_short: string; x_not_configured: string };
   draft: { badge: string; body: string };
@@ -576,6 +640,62 @@ const viralEn: ViralCopy = {
     rewrite: "Rewrite with these",
     rewriteHelp: "Rewriting is free: RepGet writes the script again with your choices.",
     rewritten: "Rewritten. The new script is in the idea.",
+  },
+  editor: {
+    heading: "Edit your video",
+    intro: "Change what this video says and how it looks. Saving is free; only creating uses credits.",
+    close: "Close",
+    tabs: { script: "Script", style: "Style", video: "Video" },
+    preview: "Video preview",
+    showPart: "Show in the preview",
+    parts: { hook: "Hook", point: "Point {index}", proof: "Proof", cta: "End" },
+    slideOf: "Slide {index} of {total}",
+    previousSlide: "Previous slide",
+    nextSlide: "Next slide",
+    videoTitle: "Video title",
+    titlePrivate: "Only you see this",
+    onScreen: "Text on screen",
+    onScreenHint: "Click a text to see it in the preview.",
+    hookOff: "Not shown: the hook is switched off under Style.",
+    ctaOff: "Not shown: the call to action is switched off under Style.",
+    ctaReplaced: "The video ends on your call to action from Style.",
+    tooManyPoints: "This look shows up to {max} points; the last ones are left out.",
+    removePoint: "Remove point {index}",
+    voiceoverScript: "Voiceover script",
+    optional: "Optional",
+    voiceoverHint: "The voice reads the texts on screen and adds these lines. They also show as the smaller line under each point.",
+    voiceoverSilent: "This video has no voiceover: these lines show as the smaller line under each point.",
+    pointAdds: "Point {index}: the voice adds",
+    socialCaption: "Social media caption",
+    captionHint: "Posted with the video. It is not shown in the video.",
+    profileCallout: "RepGet uses your business profile for audience, brand voice and tone. You do not need to repeat them here.",
+    more: "More options",
+    moreHint: "Only for this video. Your business profile stays as it is.",
+    rewrite: "Rewrite with AI",
+    look: "Video look",
+    lookHint: "How the video is produced.",
+    textStyle: "Text style",
+    textStyleTemplate: "The template sets the look of every text.",
+    textStyleCaptions: "How the captions look on the video.",
+    textStyleFixed: "This look sets its own text style.",
+    templateAlways: "The animated templates always open on the hook and end on the closing line.",
+    videoFormat: "Video format",
+    formatOption: "{ratio} · {name}",
+    voiceover: "Voiceover",
+    voiceLocked: { text_music: "This look and format have no voiceover.", voiceover: "This look always has a voiceover." },
+    captionsOnVideo: "Captions on video",
+    captionsHint: "Words appear as they are spoken or read.",
+    musicMoods: "Mood",
+    musicTracks: "From the library",
+    picturesHint: "Used in the scenes. Adding or removing a picture is saved straight away.",
+    videoCallout: "Your usual audience, tone and look come from your business profile. Here you change only this video.",
+    readOnly: { title: "This video can no longer be edited", body: "It is being made or already made. Only new ideas and videos that failed can be changed." },
+    problems: { title: "Add a video title.", hook: "Add the hook.", point: "Every point needs a text on screen.", caption: "Add the social media caption." },
+    unsaved: "Discard your changes?",
+    keepEditing: "Keep editing",
+    discard: "Discard changes",
+    reset: "Undo changes",
+    saveApprove: "Save & approve",
   },
   compat: {
     title: "Check before publishing",
@@ -903,6 +1023,70 @@ const viralEs: ViralCopy = {
     rewriteHelp: "Reescribir es gratis: RepGet vuelve a escribir el guion con sus elecciones.",
     rewritten: "Reescrito. El nuevo guion está en la idea.",
   },
+  editor: {
+    heading: "Editar su vídeo",
+    intro: "Cambie lo que dice este vídeo y cómo se ve. Guardar es gratis; solo crearlo usa créditos.",
+    close: "Cerrar",
+    tabs: { script: "Guion", style: "Estilo", video: "Vídeo" },
+    preview: "Vista previa del vídeo",
+    showPart: "Mostrar en la vista previa",
+    parts: { hook: "Gancho", point: "Punto {index}", proof: "Prueba", cta: "Final" },
+    slideOf: "Diapositiva {index} de {total}",
+    previousSlide: "Diapositiva anterior",
+    nextSlide: "Diapositiva siguiente",
+    videoTitle: "Título del vídeo",
+    titlePrivate: "Solo lo ve usted",
+    onScreen: "Texto en pantalla",
+    onScreenHint: "Haga clic en un texto para verlo en la vista previa.",
+    hookOff: "No se muestra: el gancho está desactivado en Estilo.",
+    ctaOff: "No se muestra: la llamada a la acción está desactivada en Estilo.",
+    ctaReplaced: "El vídeo termina con su llamada a la acción de Estilo.",
+    tooManyPoints: "Este estilo muestra hasta {max} puntos; los últimos se omiten.",
+    removePoint: "Quitar el punto {index}",
+    voiceoverScript: "Guion de la voz en off",
+    optional: "Opcional",
+    voiceoverHint: "La voz lee los textos en pantalla y añade estas frases. También aparecen como la línea pequeña bajo cada punto.",
+    voiceoverSilent: "Este vídeo no tiene voz en off: estas frases aparecen como la línea pequeña bajo cada punto.",
+    pointAdds: "Punto {index}: la voz añade",
+    socialCaption: "Texto para redes sociales",
+    captionHint: "Se publica con el vídeo. No aparece en el vídeo.",
+    profileCallout: "RepGet usa su perfil de empresa para el público, la voz de marca y el tono. No hace falta repetirlos aquí.",
+    more: "Más opciones",
+    moreHint: "Solo para este vídeo. Su perfil de empresa no cambia.",
+    rewrite: "Reescribir con IA",
+    look: "Estilo del vídeo",
+    lookHint: "Cómo se produce el vídeo.",
+    textStyle: "Estilo del texto",
+    textStyleTemplate: "La plantilla define el aspecto de todos los textos.",
+    textStyleCaptions: "Cómo se ven los subtítulos en el vídeo.",
+    textStyleFixed: "Este estilo define su propio estilo de texto.",
+    templateAlways: "Las plantillas animadas siempre empiezan con el gancho y terminan con la frase final.",
+    videoFormat: "Formato del vídeo",
+    formatOption: "{ratio} · {name}",
+    voiceover: "Voz en off",
+    voiceLocked: { text_music: "Este estilo y formato no tienen voz en off.", voiceover: "Este estilo siempre lleva voz en off." },
+    captionsOnVideo: "Subtítulos en el vídeo",
+    captionsHint: "Las palabras aparecen a medida que se dicen o se leen.",
+    musicMoods: "Ambiente",
+    musicTracks: "De la biblioteca",
+    picturesHint: "Se usan en las escenas. Añadir o quitar una imagen se guarda al momento.",
+    videoCallout: "Su público, tono y estilo habituales vienen de su perfil de empresa. Aquí solo cambia este vídeo.",
+    readOnly: {
+      title: "Este vídeo ya no se puede editar",
+      body: "Se está creando o ya está creado. Solo se pueden cambiar las ideas nuevas y los vídeos que fallaron.",
+    },
+    problems: {
+      title: "Añada un título al vídeo.",
+      hook: "Añada el gancho.",
+      point: "Cada punto necesita un texto en pantalla.",
+      caption: "Añada el texto para redes sociales.",
+    },
+    unsaved: "¿Descartar sus cambios?",
+    keepEditing: "Seguir editando",
+    discard: "Descartar cambios",
+    reset: "Deshacer cambios",
+    saveApprove: "Guardar y aprobar",
+  },
   compat: {
     title: "Revise antes de publicar",
     no_story: "{platform} no acepta Historias de RepGet, así que esta Historia no se envía allí.",
@@ -1228,6 +1412,70 @@ const viralFr: ViralCopy = {
     rewrite: "Réécrire avec ces choix",
     rewriteHelp: "La réécriture est gratuite : RepGet rédige à nouveau le script avec vos choix.",
     rewritten: "Réécrit. Le nouveau script est dans l’idée.",
+  },
+  editor: {
+    heading: "Modifier votre vidéo",
+    intro: "Modifiez ce que dit cette vidéo et son apparence. L’enregistrement est gratuit ; seule la création utilise des crédits.",
+    close: "Fermer",
+    tabs: { script: "Script", style: "Style", video: "Vidéo" },
+    preview: "Aperçu de la vidéo",
+    showPart: "Afficher dans l’aperçu",
+    parts: { hook: "Accroche", point: "Point {index}", proof: "Preuve", cta: "Fin" },
+    slideOf: "Diapositive {index} sur {total}",
+    previousSlide: "Diapositive précédente",
+    nextSlide: "Diapositive suivante",
+    videoTitle: "Titre de la vidéo",
+    titlePrivate: "Vous seul le voyez",
+    onScreen: "Texte à l’écran",
+    onScreenHint: "Cliquez sur un texte pour le voir dans l’aperçu.",
+    hookOff: "Non affiché : l’accroche est désactivée dans Style.",
+    ctaOff: "Non affiché : l’appel à l’action est désactivé dans Style.",
+    ctaReplaced: "La vidéo se termine sur votre appel à l’action de Style.",
+    tooManyPoints: "Ce style affiche jusqu’à {max} points ; les derniers sont laissés de côté.",
+    removePoint: "Retirer le point {index}",
+    voiceoverScript: "Script de la voix off",
+    optional: "Facultatif",
+    voiceoverHint: "La voix lit les textes à l’écran et ajoute ces phrases. Elles s’affichent aussi en petite ligne sous chaque point.",
+    voiceoverSilent: "Cette vidéo n’a pas de voix off : ces phrases s’affichent en petite ligne sous chaque point.",
+    pointAdds: "Point {index} : la voix ajoute",
+    socialCaption: "Légende pour les réseaux sociaux",
+    captionHint: "Publiée avec la vidéo. Elle n’apparaît pas dans la vidéo.",
+    profileCallout: "RepGet utilise votre profil d’entreprise pour le public, la voix de marque et le ton. Inutile de les répéter ici.",
+    more: "Plus d’options",
+    moreHint: "Pour cette vidéo uniquement. Votre profil d’entreprise ne change pas.",
+    rewrite: "Réécrire avec l’IA",
+    look: "Style de la vidéo",
+    lookHint: "La façon dont la vidéo est produite.",
+    textStyle: "Style du texte",
+    textStyleTemplate: "Le modèle définit l’apparence de tous les textes.",
+    textStyleCaptions: "L’apparence des sous-titres dans la vidéo.",
+    textStyleFixed: "Ce style définit son propre style de texte.",
+    templateAlways: "Les modèles animés commencent toujours par l’accroche et finissent par la phrase de fin.",
+    videoFormat: "Format de la vidéo",
+    formatOption: "{ratio} · {name}",
+    voiceover: "Voix off",
+    voiceLocked: { text_music: "Ce style et ce format n’ont pas de voix off.", voiceover: "Ce style a toujours une voix off." },
+    captionsOnVideo: "Sous-titres dans la vidéo",
+    captionsHint: "Les mots apparaissent au fil de la voix ou de la lecture.",
+    musicMoods: "Ambiance",
+    musicTracks: "De la bibliothèque",
+    picturesHint: "Utilisées dans les scènes. L’ajout ou le retrait d’une image est enregistré aussitôt.",
+    videoCallout: "Votre public, votre ton et votre style habituels viennent de votre profil d’entreprise. Ici, vous ne changez que cette vidéo.",
+    readOnly: {
+      title: "Cette vidéo ne peut plus être modifiée",
+      body: "Elle est en cours de création ou déjà créée. Seules les nouvelles idées et les vidéos en échec peuvent être modifiées.",
+    },
+    problems: {
+      title: "Ajoutez un titre à la vidéo.",
+      hook: "Ajoutez l’accroche.",
+      point: "Chaque point doit avoir un texte à l’écran.",
+      caption: "Ajoutez la légende pour les réseaux sociaux.",
+    },
+    unsaved: "Abandonner vos modifications ?",
+    keepEditing: "Continuer à modifier",
+    discard: "Abandonner les modifications",
+    reset: "Annuler les modifications",
+    saveApprove: "Enregistrer et approuver",
   },
   compat: {
     title: "À vérifier avant de publier",
@@ -1555,6 +1803,70 @@ const viralIt: ViralCopy = {
     rewriteHelp: "Riscrivere è gratis: RepGet scrive di nuovo il testo con le sue scelte.",
     rewritten: "Riscritto. Il nuovo testo è nell’idea.",
   },
+  editor: {
+    heading: "Modifichi il suo video",
+    intro: "Cambi ciò che dice questo video e il suo aspetto. Salvare è gratuito; solo la creazione usa crediti.",
+    close: "Chiudi",
+    tabs: { script: "Testo", style: "Stile", video: "Video" },
+    preview: "Anteprima del video",
+    showPart: "Mostra nell’anteprima",
+    parts: { hook: "Gancio", point: "Punto {index}", proof: "Prova", cta: "Fine" },
+    slideOf: "Slide {index} di {total}",
+    previousSlide: "Slide precedente",
+    nextSlide: "Slide successiva",
+    videoTitle: "Titolo del video",
+    titlePrivate: "Lo vede solo lei",
+    onScreen: "Testo sullo schermo",
+    onScreenHint: "Clicchi su un testo per vederlo nell’anteprima.",
+    hookOff: "Non mostrato: il gancio è disattivato in Stile.",
+    ctaOff: "Non mostrato: l’invito all’azione è disattivato in Stile.",
+    ctaReplaced: "Il video finisce con il suo invito all’azione di Stile.",
+    tooManyPoints: "Questo stile mostra fino a {max} punti; gli ultimi vengono esclusi.",
+    removePoint: "Rimuovi il punto {index}",
+    voiceoverScript: "Testo della voce fuori campo",
+    optional: "Facoltativo",
+    voiceoverHint: "La voce legge i testi sullo schermo e aggiunge queste frasi. Compaiono anche come riga piccola sotto ogni punto.",
+    voiceoverSilent: "Questo video non ha voce fuori campo: queste frasi compaiono come riga piccola sotto ogni punto.",
+    pointAdds: "Punto {index}: la voce aggiunge",
+    socialCaption: "Testo per i social",
+    captionHint: "Pubblicato con il video. Non compare nel video.",
+    profileCallout: "RepGet usa il suo profilo aziendale per pubblico, voce del marchio e tono. Non serve ripeterli qui.",
+    more: "Altre opzioni",
+    moreHint: "Solo per questo video. Il suo profilo aziendale resta com’è.",
+    rewrite: "Riscrivi con l’IA",
+    look: "Stile del video",
+    lookHint: "Come viene prodotto il video.",
+    textStyle: "Stile del testo",
+    textStyleTemplate: "Il modello stabilisce l’aspetto di tutti i testi.",
+    textStyleCaptions: "L’aspetto dei sottotitoli nel video.",
+    textStyleFixed: "Questo stile ha un suo stile di testo.",
+    templateAlways: "I modelli animati iniziano sempre con il gancio e finiscono con la frase di chiusura.",
+    videoFormat: "Formato del video",
+    formatOption: "{ratio} · {name}",
+    voiceover: "Voce fuori campo",
+    voiceLocked: { text_music: "Questo stile e formato non hanno voce fuori campo.", voiceover: "Questo stile ha sempre la voce fuori campo." },
+    captionsOnVideo: "Sottotitoli nel video",
+    captionsHint: "Le parole compaiono mentre vengono dette o lette.",
+    musicMoods: "Atmosfera",
+    musicTracks: "Dalla libreria",
+    picturesHint: "Usate nelle scene. Aggiungere o togliere un’immagine viene salvato subito.",
+    videoCallout: "Il pubblico, il tono e lo stile abituali vengono dal suo profilo aziendale. Qui cambia solo questo video.",
+    readOnly: {
+      title: "Questo video non si può più modificare",
+      body: "È in creazione o già creato. Si possono cambiare solo le idee nuove e i video non riusciti.",
+    },
+    problems: {
+      title: "Aggiunga un titolo al video.",
+      hook: "Aggiunga il gancio.",
+      point: "Ogni punto ha bisogno di un testo sullo schermo.",
+      caption: "Aggiunga il testo per i social.",
+    },
+    unsaved: "Scartare le modifiche?",
+    keepEditing: "Continua a modificare",
+    discard: "Scarta le modifiche",
+    reset: "Annulla le modifiche",
+    saveApprove: "Salva e approva",
+  },
   compat: {
     title: "Da controllare prima di pubblicare",
     no_story: "{platform} non accetta Storie da RepGet, quindi questa Storia non viene inviata lì.",
@@ -1880,6 +2192,70 @@ const viralDe: ViralCopy = {
     rewrite: "Damit neu schreiben",
     rewriteHelp: "Neu schreiben ist kostenlos: RepGet schreibt das Skript mit Ihren Vorgaben neu.",
     rewritten: "Neu geschrieben. Das neue Skript steht in der Idee.",
+  },
+  editor: {
+    heading: "Ihr Video bearbeiten",
+    intro: "Ändern Sie, was dieses Video sagt und wie es aussieht. Speichern ist kostenlos; nur das Erstellen verbraucht Credits.",
+    close: "Schließen",
+    tabs: { script: "Skript", style: "Stil", video: "Video" },
+    preview: "Videovorschau",
+    showPart: "In der Vorschau zeigen",
+    parts: { hook: "Hook", point: "Punkt {index}", proof: "Beleg", cta: "Schluss" },
+    slideOf: "Folie {index} von {total}",
+    previousSlide: "Vorherige Folie",
+    nextSlide: "Nächste Folie",
+    videoTitle: "Videotitel",
+    titlePrivate: "Nur für Sie sichtbar",
+    onScreen: "Text im Bild",
+    onScreenHint: "Klicken Sie auf einen Text, um ihn in der Vorschau zu sehen.",
+    hookOff: "Nicht gezeigt: Der Hook ist unter Stil ausgeschaltet.",
+    ctaOff: "Nicht gezeigt: Der Call-to-Action ist unter Stil ausgeschaltet.",
+    ctaReplaced: "Das Video endet mit Ihrem Call-to-Action aus Stil.",
+    tooManyPoints: "Dieser Look zeigt bis zu {max} Punkte; die letzten werden weggelassen.",
+    removePoint: "Punkt {index} entfernen",
+    voiceoverScript: "Sprechertext",
+    optional: "Optional",
+    voiceoverHint: "Die Stimme liest die Texte im Bild und ergänzt diese Sätze. Sie erscheinen auch als kleinere Zeile unter jedem Punkt.",
+    voiceoverSilent: "Dieses Video hat keine Sprecherstimme: Diese Sätze erscheinen als kleinere Zeile unter jedem Punkt.",
+    pointAdds: "Punkt {index}: Die Stimme ergänzt",
+    socialCaption: "Text für Social Media",
+    captionHint: "Wird mit dem Video gepostet. Er erscheint nicht im Video.",
+    profileCallout: "RepGet nutzt Ihr Unternehmensprofil für Zielgruppe, Markenstimme und Ton. Sie müssen sie hier nicht wiederholen.",
+    more: "Weitere Optionen",
+    moreHint: "Nur für dieses Video. Ihr Unternehmensprofil bleibt, wie es ist.",
+    rewrite: "Mit KI neu schreiben",
+    look: "Video-Look",
+    lookHint: "Wie das Video produziert wird.",
+    textStyle: "Textstil",
+    textStyleTemplate: "Die Vorlage bestimmt das Aussehen aller Texte.",
+    textStyleCaptions: "Wie die Untertitel im Video aussehen.",
+    textStyleFixed: "Dieser Look hat seinen eigenen Textstil.",
+    templateAlways: "Die animierten Vorlagen beginnen immer mit dem Hook und enden mit dem Schlusssatz.",
+    videoFormat: "Videoformat",
+    formatOption: "{ratio} · {name}",
+    voiceover: "Sprecherstimme",
+    voiceLocked: { text_music: "Dieser Look und dieses Format haben keine Sprecherstimme.", voiceover: "Dieser Look hat immer eine Sprecherstimme." },
+    captionsOnVideo: "Untertitel im Video",
+    captionsHint: "Die Wörter erscheinen, während sie gesprochen oder gelesen werden.",
+    musicMoods: "Stimmung",
+    musicTracks: "Aus der Bibliothek",
+    picturesHint: "Werden in den Szenen verwendet. Hinzufügen oder Entfernen eines Bildes wird sofort gespeichert.",
+    videoCallout: "Ihre übliche Zielgruppe, Ihr Ton und Ihr Look kommen aus Ihrem Unternehmensprofil. Hier ändern Sie nur dieses Video.",
+    readOnly: {
+      title: "Dieses Video kann nicht mehr bearbeitet werden",
+      body: "Es wird gerade erstellt oder ist fertig. Nur neue Ideen und fehlgeschlagene Videos lassen sich ändern.",
+    },
+    problems: {
+      title: "Geben Sie einen Videotitel ein.",
+      hook: "Geben Sie den Hook ein.",
+      point: "Jeder Punkt braucht einen Text im Bild.",
+      caption: "Geben Sie den Text für Social Media ein.",
+    },
+    unsaved: "Ihre Änderungen verwerfen?",
+    keepEditing: "Weiter bearbeiten",
+    discard: "Änderungen verwerfen",
+    reset: "Änderungen zurücknehmen",
+    saveApprove: "Speichern & freigeben",
   },
   compat: {
     title: "Vor dem Veröffentlichen prüfen",
