@@ -1,4 +1,4 @@
-import { AlertTriangle, Globe } from "lucide-react";
+import { AlertTriangle, CalendarClock, Globe } from "lucide-react";
 
 import {
   Table,
@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/table";
 import { listWebsites, type AdminWebsite } from "@/lib/admin/actions";
 import { DATE_RANGES, pageFrom } from "@/lib/admin/shared";
+import { listDailyLimits } from "@/lib/publishing/daily-cap";
 
 import { ExpandableText } from "../_ui/expandable-text";
 import { AdminPage, AdminPageHeader } from "../_ui/page";
@@ -95,6 +96,9 @@ export default async function AdminWebsitesPage({
   });
   const { total, pageSize } = result;
   const rows = oncePerWebsite(result.rows);
+  // Articles per day (lib/publishing/daily-cap.ts): every limit in force, shown above the table and in each row's menu.
+  const limits = await listDailyLimits();
+  const perDayOf = new Map(limits.map((limit) => [limit.websiteId, limit.perDay]));
 
   const listParams = {
     q: search || undefined,
@@ -130,6 +134,44 @@ export default async function AdminWebsitesPage({
         ]}
         resultLabel={plural(total, "website")}
       />
+
+      {/*
+        The websites the scheduler writes for at a daily limit, whatever page
+        they are on: the one place to see them all. Each is changed from its
+        row menu, "Articles per day…" (the domain link finds the row).
+      */}
+      <section aria-labelledby="daily-limits" className="rounded-xl border bg-card p-4 text-sm">
+        <h2 id="daily-limits" className="flex items-center gap-2 font-semibold">
+          <CalendarClock className="size-4 text-muted-foreground" aria-hidden="true" />
+          Daily article limits
+        </h2>
+        {limits.length === 0 ? (
+          <p className="mt-1 text-muted-foreground">
+            No website has one: each is written at its monthly allowance&apos;s pace. Set one from a website&apos;s menu,
+            &quot;Articles per day…&quot;.
+          </p>
+        ) : (
+          <>
+            <ul className="mt-2 flex flex-wrap gap-2">
+              {limits.map((limit) => (
+                <li key={limit.websiteId}>
+                  <RelatedLink
+                    href={`${BASE}?q=${encodeURIComponent(limit.domain)}`}
+                    label={`${limit.domain}: ${limit.perDay} a day - show its row`}
+                    className="inline-flex rounded-md border px-2 py-1"
+                  >
+                    {limit.domain}: {limit.perDay} a day
+                  </RelatedLink>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 text-xs text-muted-foreground">
+              The most articles written on their own per day, whatever the monthly allowance. Change or remove one from
+              the website&apos;s menu, &quot;Articles per day…&quot;.
+            </p>
+          </>
+        )}
+      </section>
 
       <BulkSelectionProvider items={rows.map((row) => ({ id: row.id, label: row.domain }))}>
         <AdminTableCard
@@ -251,6 +293,7 @@ export default async function AdminWebsitesPage({
                           articleCount={row.articleCount}
                           organizationId={row.organizationId}
                           organizationName={row.organizationName}
+                          perDay={perDayOf.get(row.id) ?? null}
                         />
                       </TableCell>
                     </BulkRow>

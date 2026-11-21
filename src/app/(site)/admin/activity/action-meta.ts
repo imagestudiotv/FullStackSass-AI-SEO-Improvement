@@ -57,6 +57,7 @@ export const ACTION_META: Record<AdminAction, ActionMeta> = {
   "organization.reactivated": { label: "Workspace reactivated", icon: Building2 },
   "organization.deleted": { label: "Workspace deleted", icon: Trash2, removal: true },
   "website.deleted": { label: "Website deleted", icon: Trash2, removal: true },
+  "website.articles_per_day_changed": { label: "Articles per day changed", icon: Gauge },
   "user.deleted": { label: "User deleted", icon: Trash2, removal: true },
 
   "article.updated": { label: "Article edited", icon: FileText },
