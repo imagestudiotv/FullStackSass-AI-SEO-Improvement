@@ -471,12 +471,12 @@ export const scheduledArticles = inngest.createFunction(
           : Math.min(batch, remaining);
 
         /*
-          A temporary per-day cap for one website, whatever its monthly
-          allowance (lib/publishing/daily-cap.ts: imagestudio.com, one a day
-          until 2026-12-01). Today's articles are counted however they were
-          started, so a second run the same day writes nothing.
+          A website's daily limit, whatever its monthly allowance, set by an
+          administrator on Admin -> Websites (lib/publishing/daily-cap.ts;
+          imagestudio.com: one a day). Today's articles are counted however
+          they were started, so a second run the same day writes nothing more.
         */
-        const cap = dailyCapFor(site.websiteId);
+        const cap = await dailyCapFor(site.websiteId);
         const capLeft =
           cap === null ? planned : Math.max(cap - (await articlesStartedToday(site.websiteId)), 0);
         if (cap !== null && capLeft === 0) {
