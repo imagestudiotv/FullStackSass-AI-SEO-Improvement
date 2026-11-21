@@ -443,6 +443,17 @@ export type ShotScene = {
   overlay: string | null;
 };
 
+/**
+ * The hook clip chosen when the idea is written (client, 2026-11-21: the new
+ * viral videos must show on the dashboard), so the idea's preview plays it
+ * and the video is made with it: one of RepGet's AI clips ("ai") or a Pixabay
+ * library clip, about AI_HOOK_SHARE of them AI (footage/hooks.ts).
+ */
+export type HookClipPick = { provider: "ai" | "pixabay"; id: string };
+
+/** A POV clip video's clip and its per-video look: mirrored or not, a zoom of 1-1.12, a hue turn of -8..8 degrees. */
+export type PovClipPlan = { id: string; mirror: boolean; zoom: number; hue: number };
+
 export type ShotPlan = {
   direction: CreativeDirection;
   pacing: Pacing;
@@ -455,7 +466,15 @@ export type ShotPlan = {
    * screen, runs small in a corner during the points and pays off behind the
    * proof (src/remotion/directions/HookClip.tsx). Absent = no visual hook.
    */
-  hookClip?: { type: HookType } | null;
+  hookClip?: { type: HookType; pick?: HookClipPick | null } | null;
+  /**
+   * A POV clip video (client, 2026-11-21): one of RepGet's AI POV clips
+   * (footage/ai-library.ts AI_POV_LIBRARY) full screen for its whole length,
+   * the idea's POV line (script.hook) on top, music, no voice. The look is
+   * varied per video so two customers' copies of a clip never match
+   * (src/remotion/directions/PovClip.tsx). Absent = not a POV clip video.
+   */
+  povClip?: PovClipPlan | null;
   /**
    * A fingerprint of the production recipe (direction/pacing/transition set/
    * caption style/music mood/visual mix) the variety rules compare, so a day

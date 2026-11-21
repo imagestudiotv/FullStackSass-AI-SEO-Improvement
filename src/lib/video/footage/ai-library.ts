@@ -8,8 +8,9 @@ import type { HookLibraryClip } from "./hook-library";
  * (scripts/ai-clips-upload.mjs) - never generated while a customer's video is
  * made, so a video costs nothing more for it.
  *
- * About 65% of videos with a visual hook open on one of these, the rest on
- * the Pixabay library's (hook-library.ts; client: "AI:pixabay = 65%:35%"),
+ * About 70% of videos with a visual hook open on one of these, the rest on
+ * the Pixabay library's (hook-library.ts; client: "AI:pixabay = 65%:35%",
+ * then 70:30 on 2026-11-21),
  * each with the other as the fallback, then a Pixabay search
  * (footage/hooks.ts opensOnAiClip, make.ts). The
  * customer's text, brand and voice go over the clip as with any hook clip;
@@ -23,6 +24,29 @@ export type AiHookClip = HookLibraryClip & {
   /** What making it cost, in USD (the Gemini API's price per second). */
   costUsd: number;
   /** The day it was made (YYYY-MM-DD). */
+  madeOn: string;
+};
+
+/**
+ * RepGet's own AI-made POV clips (client, 2026-11-21: "similar videos, of
+ * course without text, the text will be added individually to each client"):
+ * a funny reaction character - mostly animals, original cartoon ones too -
+ * in the meme cut-out style, 10 s, the top fifth left calm for the caption.
+ * A POV clip video (ShotPlan.povClip) shows one full screen with the
+ * customer's own POV line on top; half of the viral reels and Stories are
+ * POV clip videos (client: "POV clip: 5, others: 5"). Original characters
+ * only: never a copyrighted character or a real person.
+ */
+export type AiPovClip = {
+  id: string;
+  /** What it shows, for the idea writer to pick one that fits the POV line (English, one sentence). */
+  shows: string;
+  /** The situations it fits, for matching and the admin page. */
+  tags: string[];
+  /** Length in ms (all 9:16, 720x1280). */
+  durationMs: number;
+  prompt: string;
+  costUsd: number;
   madeOn: string;
 };
 
@@ -163,6 +187,13 @@ export const AI_HOOK_LIBRARY: readonly AiHookClip[] = [
       "Medium shot from slightly below: a person in a red helmet and climbing harness, filling a third of the frame, balances on a thin slackline high above a sea of clouds and a deep rocky drop. The line bounces and sways hard under their feet, they wobble sideways with arms flailing and one foot slipping off the line. At about 5 seconds they catch the line with the foot, crouch low and freeze perfectly balanced, arms out. No close-up of the face. Photorealistic, golden morning light, vertical 9:16 framing with the walker centred, one continuous shot, no cuts. Natural wind sounds only, no music, no dialogue, no text, no captions, no logos.",
   },
 ];
+
+/** The checked POV clips, newest batch last (ids "<day>-pov-<subject>"). */
+export const AI_POV_LIBRARY: readonly AiPovClip[] = [];
+
+export function povClipById(id: string): AiPovClip | null {
+  return AI_POV_LIBRARY.find((clip) => clip.id === id) ?? null;
+}
 
 /**
  * Takes that were paid for but not kept (too weak to read in the corner box,
