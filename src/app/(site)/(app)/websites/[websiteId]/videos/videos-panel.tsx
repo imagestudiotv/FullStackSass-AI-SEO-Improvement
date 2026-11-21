@@ -1,12 +1,11 @@
 "use client";
 
-import { Check, ChevronDown, Clapperboard, Coins, Focus, Lightbulb, Loader2, PanelRight, RefreshCw, Settings } from "lucide-react";
+import { Check, ChevronDown, Clapperboard, Coins, Lightbulb, Loader2, RefreshCw, Settings } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState, useSyncExternalStore, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 
-import { NativeLikeSelect } from "@/components/ui/native-like-select";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { PageHeader } from "@/components/ui/page-header";
@@ -20,66 +19,32 @@ import type { VideoPublishingStatus } from "@/lib/video/publish-actions";
 import type { VideoSettings } from "@/lib/video/settings";
 
 import { IdeasDeck } from "./ideas-deck";
-import type { CategoryFilter, FormatFilter, ProfileForm } from "./logic";
+import type { CategoryFilter, ProfileForm } from "./logic";
 import { MadeList } from "./made-list";
 import { PostedList } from "./posted-list";
+import { PublishPopup, type CloseReason } from "./publish-popup";
 import { SettingsPanel, type SettingsPane } from "./settings-panel";
-import { errorText, platformName, type ActionResult, selectClass, type IdeaView, type MediaView, type T, type Tab, type TrackView, type VideoAccountView } from "./shared";
+import { errorText, platformName, type ActionResult, type IdeaView, type MediaView, type T, type Tab, type TrackView, type VideoAccountView } from "./shared";
 
 export type { IdeaView, VideoAccountView } from "./shared";
 
-/*
-  Focus mode, remembered in this browser (client, 2026-11-02). Read through
-  useSyncExternalStore: the server renders it off, and the browser's value
-  arrives without a mismatch. A browser that refuses storage (a private
-  window) still toggles, for the visit.
-*/
-const FOCUS_KEY = "repget.videos.focus";
-const focusListeners = new Set<() => void>();
-let focusFallback = false;
-function readFocus(): boolean {
-  try {
-    return window.localStorage.getItem(FOCUS_KEY) === "1";
-  } catch {
-    return focusFallback;
-  }
-}
-function writeFocus(on: boolean) {
-  focusFallback = on;
-  try {
-    if (on) window.localStorage.setItem(FOCUS_KEY, "1");
-    else window.localStorage.removeItem(FOCUS_KEY);
-  } catch {
-    // Kept in memory instead.
-  }
-  focusListeners.forEach((listener) => listener());
-}
-function useFocusMode(): [boolean, (on: boolean) => void] {
-  const focus = useSyncExternalStore(
-    (listener) => {
-      focusListeners.add(listener);
-      return () => focusListeners.delete(listener);
-    },
-    readFocus,
-    () => false,
-  );
-  return [focus, writeFocus];
-}
-
-/** The New ideas menu's three batches (client's mockup), each ten free ideas. */
+/** The New ideas menu's three batches (client's mockup), ten ideas each at the "video_ideas" price. */
 const BATCHES: ExtraBatchKind[] = ["mixed", "viral", "website"];
+const BUY_HREF = "/billing#addons";
+const EARN_HREF = "/earn-credits";
 
 /**
  * The Social Content page (client, 2026-10-29; redesigned from the client's
- * mockups, 2026-11-02 and 2026-11-12). A strip of three real numbers - ideas
- * ready, made today against the day's goal, the credits available - then
- * four tabs:
- *  - Today's ideas: category chips and a format filter over the day's ideas,
- *    a swipe deck beside the idea's details (ideas-deck.tsx);
- *  - Your videos: cards with Preview, Download, Publish, Instagram audio (made-list.tsx);
- *  - Posted: where each video is, and its numbers (posted-list.tsx);
+ * mockups, 2026-11-02, 2026-11-12 and 2026-11-21). A strip of three real
+ * numbers - ideas ready, made today against the day's goal, the credits
+ * available - then four tabs:
+ *  - Today's ideas: one idea at a time - Skip, Edit, Approve (ideas-deck.tsx);
+ *  - Saved Videos: approved videos not published yet (made-list.tsx);
+ *  - Posted: scheduled and published videos, and their numbers (posted-list.tsx);
  *  - Settings: "Preferences" in panes, saved on the server (settings-panel.tsx).
- * "New ideas" asks for ten more free ideas: daily, viral or from the website.
+ * Approve, and Publish on a saved or posted video, open the publishing window
+ * (publish-popup.tsx). "New ideas" asks for ten more ideas at the
+ * "video_ideas" price: daily, viral or from the website.
  */
 export function VideosPanel(props: {
   websiteId: string;
@@ -95,9 +60,12 @@ export function VideosPanel(props: {
   ideasFailed: boolean;
   approvedToday: number;
   goal: number;
-  /** The free extra batches: used, left, one being written, or asked too soon. */
+  /** The extra batches: used, left, one being written, or asked too soon. */
   allowance: Omit<Allowance, "nextAllowedAt"> & { tooSoon: boolean };
   priceLabel: string;
+  /** A batch of new ideas: its price in credits (0: free) and in words. */
+  ideasPrice: number;
+  ideasPriceLabel: string;
   /** The workspace's balance, for its owner only (null for a guest, or when it could not be read). */
   credits: { available: number; label: string } | null;
   settings: VideoSettings;
@@ -114,6 +82,7 @@ export function VideosPanel(props: {
 }) {
   const { t, websiteId } = props;
   const v = t.viral;
+  const f = t.flow;
   const router = useRouter();
   const [tab, setTab] = useState<Tab>(props.initialTab);
   const [pane, setPane] = useState<SettingsPane>("strategy");
@@ -121,9 +90,9 @@ export function VideosPanel(props: {
   const [asking, startAsking] = useTransition();
   // Ideas handled on this screen leave the deck (and the count) at once; the server agrees a moment later.
   const [gone, setGone] = useState<Set<string>>(new Set());
-  const [filter, setFilter] = useState<FormatFilter>("all");
   const [category, setCategory] = useState<CategoryFilter>("all");
-  const [focus, setFocus] = useFocusMode();
+  // The publishing window: the video's id, and the idea as it was opened until the page knows it as approved.
+  const [publishing, setPublishing] = useState<IdeaView | null>(null);
 
   const run = useCallback(
     (action: () => Promise<ActionResult>, success?: string, after?: () => void) => {
@@ -140,7 +109,11 @@ export function VideosPanel(props: {
   );
 
   // While something is being written, made or published, the page looks again every few seconds.
-  const busy = props.writing || props.allowance.busy || props.made.some((idea) => ["approved", "making", "posting"].includes(idea.status));
+  const busy =
+    props.writing ||
+    props.allowance.busy ||
+    publishing !== null ||
+    [...props.made, ...props.posted].some((idea) => ["approved", "making", "posting"].includes(idea.status));
   useEffect(() => {
     if (!busy) return;
     const timer = setInterval(() => router.refresh(), props.refreshSeconds * 1000);
@@ -156,12 +129,33 @@ export function VideosPanel(props: {
     window.history.replaceState(null, "", url.toString());
   }
 
+  const openPublish = useCallback((idea: IdeaView) => setPublishing(idea), []);
+  const closePublishFor = useCallback((id: string) => setPublishing((open) => (open?.id === id ? null : open)), []);
+  // The window's video as the page knows it now (made, posted), else as it was opened - an approved idea is being made.
+  const live = publishing
+    ? ([...props.made, ...props.posted].find((idea) => idea.id === publishing.id) ??
+      (publishing.status === "new" ? { ...publishing, status: "approved" } : publishing))
+    : null;
+  function closePublish(reason: CloseReason) {
+    const saved = reason === "saved" && live && !["scheduled", "posting", "posted"].includes(live.status);
+    setPublishing(null);
+    if (saved) toast.success(f.popup.saved);
+  }
+
+  const short = props.credits !== null && props.ideasPrice > 0 && props.credits.available < props.ideasPrice;
   function ask(kind: ExtraBatchKind) {
     startAsking(async () => {
       const key = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
       const result = await requestVideoIdeas(websiteId, kind, key).catch(() => null);
       if (!result) return void toast.error(t.errors.generic);
-      if (!result.ok) return void toast.error(errorText(t, result, props.priceLabel));
+      if (!result.ok) {
+        if (result.error === "not_enough_credits") {
+          return void toast.error(format(f.ideas.short, { price: props.ideasPriceLabel, available: String(result.available ?? 0) }), {
+            action: { label: f.ideas.buy, onClick: () => router.push(BUY_HREF) },
+          });
+        }
+        return void toast.error(errorText(t, result, props.ideasPriceLabel));
+      }
       toast.success(v.newIdeas.queued);
       // The new ones show where they belong: a viral batch under Viral, the others under All ideas.
       setCategory(kind === "viral" ? "viral" : "all");
@@ -177,7 +171,7 @@ export function VideosPanel(props: {
   const editable = props.canEdit && props.level !== "none";
   const { allowance } = props;
   const writingMore = asking || allowance.busy;
-  const blocked = writingMore ? v.newIdeas.busy : allowance.extraLeft <= 0 ? v.newIdeas.usedUp : allowance.tooSoon ? v.newIdeas.tooSoon : null;
+  const blocked = writingMore ? v.newIdeas.busy : allowance.extraLeft <= 0 ? f.ideas.usedUp : allowance.tooSoon ? v.newIdeas.tooSoon : null;
 
   return (
     <div className="space-y-6">
@@ -191,16 +185,16 @@ export function VideosPanel(props: {
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" aria-busy={writingMore}>
                     {writingMore ? <Loader2 className="animate-spin" aria-hidden="true" /> : <RefreshCw aria-hidden="true" />}
-                    {writingMore ? v.newIdeas.writing : t.newIdeas}
+                    {writingMore ? v.newIdeas.writing : `${t.newIdeas} · ${props.ideasPriceLabel}`}
                     <ChevronDown aria-hidden="true" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-[min(20rem,calc(100vw-2rem))]">
                   <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
-                    {format(v.newIdeas.left, { left: String(allowance.extraLeft), total: String(EXTRA_BATCHES_PER_DAY) })}
+                    {format(f.ideas.left, { price: props.ideasPriceLabel, left: String(allowance.extraLeft), total: String(EXTRA_BATCHES_PER_DAY) })}
                   </DropdownMenuLabel>
                   {BATCHES.map((kind) => (
-                    <DropdownMenuItem key={kind} disabled={Boolean(blocked)} onSelect={() => ask(kind)} className="items-start py-2">
+                    <DropdownMenuItem key={kind} disabled={Boolean(blocked) || short} onSelect={() => ask(kind)} className="items-start py-2">
                       <span className="flex flex-col">
                         <span className="font-medium">{v.newIdeas.kinds[kind].title}</span>
                         <span className="text-xs text-muted-foreground">{v.newIdeas.kinds[kind].body}</span>
@@ -208,7 +202,21 @@ export function VideosPanel(props: {
                     </DropdownMenuItem>
                   ))}
                   <DropdownMenuSeparator />
-                  <p className="px-2 py-1.5 text-xs text-muted-foreground">{blocked ?? v.newIdeas.free}</p>
+                  {short && !blocked ? (
+                    <div className="space-y-1.5 px-2 py-1.5 text-xs">
+                      <p className="text-destructive">{format(f.ideas.short, { price: props.ideasPriceLabel, available: props.credits?.label ?? "0" })}</p>
+                      <p className="flex flex-wrap gap-x-3 gap-y-1">
+                        <Link href={BUY_HREF} className="font-medium text-primary underline-offset-2 hover:underline">
+                          {f.ideas.buy}
+                        </Link>
+                        <Link href={EARN_HREF} className="font-medium text-primary underline-offset-2 hover:underline">
+                          {f.ideas.earn}
+                        </Link>
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="px-2 py-1.5 text-xs text-muted-foreground">{blocked ?? f.ideas.note}</p>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : null}
@@ -243,36 +251,20 @@ export function VideosPanel(props: {
 
       <MetaStrip ready={ready} approved={props.approvedToday} goal={props.goal} credits={props.credits} t={t} />
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div role="tablist" aria-label={t.title} className="flex max-w-full gap-1 self-start overflow-x-auto rounded-xl border bg-muted/40 p-1">
-          {(["ideas", "videos", "posted", "settings"] as const).map((key) => (
-            <button
-              key={key}
-              role="tab"
-              type="button"
-              aria-selected={tab === key}
-              onClick={() => selectTab(key)}
-              className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium whitespace-nowrap transition focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none ${tab === key ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              {t.tabs[key]}
-              {counts[key] > 0 ? <span className="ml-1.5 text-xs text-muted-foreground tabular-nums">{counts[key]}</span> : null}
-            </button>
-          ))}
-        </div>
-        {tab === "ideas" && props.ideas.length > 0 ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <NativeLikeSelect aria-label={t.filter.label} className={`${selectClass} w-40`} value={filter} onChange={(event) => setFilter(event.target.value as FormatFilter)}>
-              <option value="all">{t.filter.all}</option>
-              <option value="reel">{t.filter.reel}</option>
-              <option value="story">{v.formats.stories}</option>
-              <option value="carousel">{t.filter.carousel}</option>
-            </NativeLikeSelect>
-            <Button variant={focus ? "secondary" : "outline"} size="lg" onClick={() => setFocus(!focus)}>
-              {focus ? <PanelRight aria-hidden="true" /> : <Focus aria-hidden="true" />}
-              {focus ? t.focus.off : t.focus.on}
-            </Button>
-          </div>
-        ) : null}
+      <div role="tablist" aria-label={t.title} className="flex max-w-full gap-1 self-start overflow-x-auto rounded-xl border bg-muted/40 p-1 sm:w-fit">
+        {(["ideas", "videos", "posted", "settings"] as const).map((key) => (
+          <button
+            key={key}
+            role="tab"
+            type="button"
+            aria-selected={tab === key}
+            onClick={() => selectTab(key)}
+            className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium whitespace-nowrap transition focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none ${tab === key ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            {t.tabs[key]}
+            {counts[key] > 0 ? <span className="ml-1.5 text-xs text-muted-foreground tabular-nums">{counts[key]}</span> : null}
+          </button>
+        ))}
       </div>
 
       {tab === "ideas" ? (
@@ -282,24 +274,57 @@ export function VideosPanel(props: {
           setGone={setGone}
           category={category}
           onCategory={setCategory}
-          filter={filter}
-          onFilter={setFilter}
-          focus={focus}
-          onFocus={setFocus}
           complete={complete}
           run={run}
           pending={pending}
+          onApproved={openPublish}
+          onUndone={closePublishFor}
         />
       ) : tab === "videos" ? (
-        <MadeList {...props} run={run} pending={pending} onSettings={() => selectTab("settings")} />
+        <MadeList {...props} run={run} pending={pending} onPublish={openPublish} />
       ) : tab === "posted" ? (
-        <PostedList posted={props.posted} locale={props.locale} t={t} onTab={selectTab} />
+        <PostedList
+          websiteId={websiteId}
+          canEdit={props.canEdit}
+          posted={props.posted}
+          run={run}
+          pending={pending}
+          onPublish={openPublish}
+          locale={props.locale}
+          t={t}
+          onTab={selectTab}
+        />
       ) : (
         <SettingsPanel {...props} pane={pane} onPane={setPane} run={run} pending={pending} />
       )}
+
+      {live ? (
+        <PublishPopup
+          key={live.id}
+          idea={live}
+          websiteId={websiteId}
+          canEdit={props.canEdit}
+          accounts={props.accounts}
+          bundle={props.bundle}
+          settings={props.settings}
+          publishing={props.publishing}
+          priceLabel={props.priceLabel}
+          run={run}
+          pending={pending}
+          locale={props.locale}
+          t={t}
+          onClose={closePublish}
+          onConnect={() => {
+            setPublishing(null);
+            setPane("publishing");
+            selectTab("settings");
+          }}
+        />
+      ) : null}
     </div>
   );
 }
+
 
 /**
  * The three numbers above the tabs (client, 2026-11-02, "he especially likes

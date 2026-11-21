@@ -1,4 +1,5 @@
 import type { Locale } from "@/lib/i18n/config";
+import { VIDEO_FLOW_COPY, type FlowCopy } from "@/lib/i18n/videos-flow";
 
 /**
  * The Videos page's words (lib/video; client, 2026-10-29). Five languages,
@@ -196,6 +197,8 @@ export type VideosCopy = {
   };
   /** The viral social content additions (2026-11-12). */
   viral: ViralCopy;
+  /** The review flow and publishing window (2026-11-21; lib/i18n/videos-flow.ts). */
+  flow: FlowCopy;
 };
 
 /**
@@ -721,7 +724,7 @@ const viralEn: ViralCopy = {
       platformsBody: "New platforms such as LinkedIn and X are never added for you.",
       modes: {
         manual: { title: "Review before publishing", body: "Ready videos wait for you to press Publish." },
-        draft: { title: "Save as draft", body: "Made videos stay in Your videos as drafts. Nothing is posted until you publish." },
+        draft: { title: "Save as draft", body: "Made videos stay in Saved Videos. Nothing is posted until you publish." },
         auto: { title: "Auto-publish approved ideas", body: "Each video you make is published at the best available time." },
       },
       autoNote: "Automatic posting never creates or charges for videos by itself. It only publishes the videos you make, at most 3 a day.",
@@ -1047,7 +1050,7 @@ const viralEs: ViralCopy = {
       platformsBody: "Las plataformas nuevas, como LinkedIn y X, nunca se añaden por usted.",
       modes: {
         manual: { title: "Revisar antes de publicar", body: "Los vídeos listos esperan a que pulse Publicar." },
-        draft: { title: "Guardar como borrador", body: "Los vídeos creados quedan en Sus vídeos como borradores. No se publica nada hasta que usted lo haga." },
+        draft: { title: "Guardar como borrador", body: "Los vídeos creados quedan en Vídeos guardados. No se publica nada hasta que usted lo haga." },
         auto: { title: "Publicar automáticamente las ideas aprobadas", body: "Cada vídeo que crea se publica en el mejor momento disponible." },
       },
       autoNote: "La publicación automática nunca crea vídeos ni cobra por sí sola. Solo publica los vídeos que usted crea, como máximo 3 al día.",
@@ -1373,7 +1376,7 @@ const viralFr: ViralCopy = {
       platformsBody: "Les nouvelles plateformes comme LinkedIn et X ne sont jamais ajoutées à votre place.",
       modes: {
         manual: { title: "Relire avant de publier", body: "Les vidéos prêtes attendent que vous cliquiez sur Publier." },
-        draft: { title: "Enregistrer comme brouillon", body: "Les vidéos créées restent dans Vos vidéos comme brouillons. Rien n’est publié tant que vous ne le faites pas." },
+        draft: { title: "Enregistrer comme brouillon", body: "Les vidéos créées restent dans Vidéos enregistrées. Rien n’est publié tant que vous ne le faites pas." },
         auto: { title: "Publier automatiquement les idées approuvées", body: "Chaque vidéo que vous créez est publiée au meilleur moment disponible." },
       },
       autoNote: "La publication automatique ne crée ni ne facture jamais de vidéos d’elle-même. Elle publie seulement les vidéos que vous créez, 3 par jour au maximum.",
@@ -1699,7 +1702,7 @@ const viralIt: ViralCopy = {
       platformsBody: "Le nuove piattaforme come LinkedIn e X non vengono mai aggiunte al posto suo.",
       modes: {
         manual: { title: "Controlla prima di pubblicare", body: "I video pronti aspettano che prema Pubblica." },
-        draft: { title: "Salva come bozza", body: "I video creati restano in I suoi video come bozze. Nulla viene pubblicato finché non lo fa lei." },
+        draft: { title: "Salva come bozza", body: "I video creati restano in Video salvati. Nulla viene pubblicato finché non lo fa lei." },
         auto: { title: "Pubblica automaticamente le idee approvate", body: "Ogni video che crea viene pubblicato nel miglior momento disponibile." },
       },
       autoNote: "La pubblicazione automatica non crea né addebita mai video da sola. Pubblica solo i video che crea lei, al massimo 3 al giorno.",
@@ -2025,7 +2028,7 @@ const viralDe: ViralCopy = {
       platformsBody: "Neue Plattformen wie LinkedIn und X werden nie ohne Ihre Wahl hinzugefügt.",
       modes: {
         manual: { title: "Vor dem Veröffentlichen prüfen", body: "Fertige Videos warten, bis Sie auf Veröffentlichen tippen." },
-        draft: { title: "Als Entwurf speichern", body: "Erstellte Videos bleiben als Entwürfe unter Ihre Videos. Nichts wird gepostet, bis Sie veröffentlichen." },
+        draft: { title: "Als Entwurf speichern", body: "Erstellte Videos bleiben unter Gespeicherte Videos. Nichts wird gepostet, bis Sie veröffentlichen." },
         auto: { title: "Freigegebene Ideen automatisch veröffentlichen", body: "Jedes Video, das Sie erstellen, wird zur besten freien Zeit veröffentlicht." },
       },
       autoNote: "Automatisches Posten erstellt oder berechnet nie selbst Videos. Es veröffentlicht nur die Videos, die Sie erstellen, höchstens 3 am Tag.",
@@ -2094,7 +2097,7 @@ const viralDe: ViralCopy = {
 const en: VideosCopy = {
   title: "Social Content",
   intro: "Short animated videos and photo carousels made from your website, with an AI voice, captions and music. Swipe through today's ideas: the ones you keep are made and published for you.",
-  tabs: { ideas: "Today's ideas", videos: "Your videos", posted: "Posted", settings: "Settings" },
+  tabs: { ideas: "Today's ideas", videos: "Saved Videos", posted: "Posted", settings: "Settings" },
   today: "{approved} of {goal} made today",
   dayComplete: "Today is complete",
   dayCompleteBody: "You have made today's {goal} videos. You can make more from the ideas left; each one uses a credit.",
@@ -2121,7 +2124,7 @@ const en: VideosCopy = {
   undone: "Taken back: it will not be made, and the credit is returned.",
   edit: "Edit",
   approve: "Create · {price}",
-  approved: "Being made. You will find it under Your videos.",
+  approved: "Being made. You will find it under Saved Videos.",
   swipeHint: "Swipe right (on a phone) or press → to make it, left or ← to skip. Made one by mistake? Press Undo within 10 seconds.",
   previewNote: "Preview without the voice. The finished video has the AI voice, captions and music.",
   slide: "Slide {index}",
@@ -2259,7 +2262,7 @@ const en: VideosCopy = {
     seconds: "{seconds} s",
     slides: "{count} slides",
   },
-  postedEmpty: { ideas: "Discover ideas", videos: "View your videos" },
+  postedEmpty: { ideas: "Discover ideas", videos: "View Saved Videos" },
   cards: {
     style: "Video and carousel style",
     styleBody: "How your content looks and sounds.",
@@ -2292,12 +2295,13 @@ const en: VideosCopy = {
     generic: "Something went wrong. Please try again.",
   },
   viral: viralEn,
+  flow: VIDEO_FLOW_COPY.en,
 };
 
 const es: VideosCopy = {
   title: "Contenido social",
   intro: "Vídeos animados cortos y carruseles de fotos creados a partir de su sitio web, con voz de IA, subtítulos y música. Deslice las ideas de hoy: las que conserve se crean y se publican por usted.",
-  tabs: { ideas: "Ideas de hoy", videos: "Sus vídeos", posted: "Publicados", settings: "Ajustes" },
+  tabs: { ideas: "Ideas de hoy", videos: "Vídeos guardados", posted: "Publicados", settings: "Ajustes" },
   today: "{approved} de {goal} creados hoy",
   dayComplete: "El día de hoy está completo",
   dayCompleteBody: "Ya ha creado los {goal} vídeos de hoy. Puede crear más con las ideas restantes; cada uno usa un crédito.",
@@ -2324,7 +2328,7 @@ const es: VideosCopy = {
   undone: "Deshecho: no se creará y se le devuelve el crédito.",
   edit: "Editar",
   approve: "Crear · {price}",
-  approved: "Se está creando. Lo encontrará en Sus vídeos.",
+  approved: "Se está creando. Lo encontrará en Vídeos guardados.",
   swipeHint: "Deslice a la derecha (en el móvil) o pulse → para crearlo, a la izquierda o ← para omitirlo. ¿Lo creó por error? Pulse Deshacer en 10 segundos.",
   previewNote: "Vista previa sin la voz. El vídeo final tiene la voz de IA, subtítulos y música.",
   slide: "Diapositiva {index}",
@@ -2462,7 +2466,7 @@ const es: VideosCopy = {
     seconds: "{seconds} s",
     slides: "{count} diapositivas",
   },
-  postedEmpty: { ideas: "Descubrir ideas", videos: "Ver sus vídeos" },
+  postedEmpty: { ideas: "Descubrir ideas", videos: "Ver Vídeos guardados" },
   cards: {
     style: "Estilo de vídeos y carruseles",
     styleBody: "Cómo se ve y cómo suena su contenido.",
@@ -2495,12 +2499,13 @@ const es: VideosCopy = {
     generic: "Algo salió mal. Inténtelo de nuevo.",
   },
   viral: viralEs,
+  flow: VIDEO_FLOW_COPY.es,
 };
 
 const fr: VideosCopy = {
   title: "Contenu social",
   intro: "De courtes vidéos animées et des carrousels de photos créés à partir de votre site, avec une voix IA, des sous-titres et de la musique. Faites défiler les idées du jour : celles que vous gardez sont créées et publiées pour vous.",
-  tabs: { ideas: "Idées du jour", videos: "Vos vidéos", posted: "Publiées", settings: "Paramètres" },
+  tabs: { ideas: "Idées du jour", videos: "Vidéos enregistrées", posted: "Publiées", settings: "Paramètres" },
   today: "{approved} sur {goal} créées aujourd’hui",
   dayComplete: "La journée est terminée",
   dayCompleteBody: "Vous avez créé les {goal} vidéos du jour. Vous pouvez en créer d’autres avec les idées restantes ; chacune utilise un crédit.",
@@ -2527,7 +2532,7 @@ const fr: VideosCopy = {
   undone: "Annulé : elle ne sera pas créée et le crédit vous est rendu.",
   edit: "Modifier",
   approve: "Créer · {price}",
-  approved: "En cours de création. Vous la trouverez dans Vos vidéos.",
+  approved: "En cours de création. Vous la trouverez dans Vidéos enregistrées.",
   swipeHint: "Balayez vers la droite (sur mobile) ou appuyez sur → pour la créer, vers la gauche ou ← pour l’ignorer. Créée par erreur ? Appuyez sur Annuler dans les 10 secondes.",
   previewNote: "Aperçu sans la voix. La vidéo finale comporte la voix IA, les sous-titres et la musique.",
   slide: "Diapositive {index}",
@@ -2665,7 +2670,7 @@ const fr: VideosCopy = {
     seconds: "{seconds} s",
     slides: "{count} diapositives",
   },
-  postedEmpty: { ideas: "Découvrir des idées", videos: "Voir vos vidéos" },
+  postedEmpty: { ideas: "Découvrir des idées", videos: "Voir Vidéos enregistrées" },
   cards: {
     style: "Style des vidéos et carrousels",
     styleBody: "L’apparence et le son de votre contenu.",
@@ -2698,12 +2703,13 @@ const fr: VideosCopy = {
     generic: "Une erreur s’est produite. Veuillez réessayer.",
   },
   viral: viralFr,
+  flow: VIDEO_FLOW_COPY.fr,
 };
 
 const it: VideosCopy = {
   title: "Contenuti social",
   intro: "Brevi video animati e caroselli di foto creati dal suo sito, con voce IA, sottotitoli e musica. Scorra le idee di oggi: quelle che tiene vengono create e pubblicate per lei.",
-  tabs: { ideas: "Idee di oggi", videos: "I suoi video", posted: "Pubblicati", settings: "Impostazioni" },
+  tabs: { ideas: "Idee di oggi", videos: "Video salvati", posted: "Pubblicati", settings: "Impostazioni" },
   today: "{approved} di {goal} creati oggi",
   dayComplete: "La giornata è completa",
   dayCompleteBody: "Ha creato i {goal} video di oggi. Può crearne altri con le idee rimaste; ognuno usa un credito.",
@@ -2730,7 +2736,7 @@ const it: VideosCopy = {
   undone: "Annullato: non verrà creato e il credito le viene restituito.",
   edit: "Modifica",
   approve: "Crea · {price}",
-  approved: "In creazione. Lo troverà in I suoi video.",
+  approved: "In creazione. Lo troverà in Video salvati.",
   swipeHint: "Scorra a destra (sul telefono) o prema → per crearlo, a sinistra o ← per saltarlo. Creato per errore? Prema Annulla entro 10 secondi.",
   previewNote: "Anteprima senza voce. Il video finito ha la voce IA, i sottotitoli e la musica.",
   slide: "Slide {index}",
@@ -2868,7 +2874,7 @@ const it: VideosCopy = {
     seconds: "{seconds} s",
     slides: "{count} slide",
   },
-  postedEmpty: { ideas: "Scopra le idee", videos: "Veda i suoi video" },
+  postedEmpty: { ideas: "Scopra le idee", videos: "Veda Video salvati" },
   cards: {
     style: "Stile di video e caroselli",
     styleBody: "Come appaiono e come suonano i suoi contenuti.",
@@ -2901,12 +2907,13 @@ const it: VideosCopy = {
     generic: "Qualcosa è andato storto. Riprovi.",
   },
   viral: viralIt,
+  flow: VIDEO_FLOW_COPY.it,
 };
 
 const de: VideosCopy = {
   title: "Social Content",
   intro: "Kurze animierte Videos und Foto-Karussells aus Ihrer Website, mit KI-Stimme, Untertiteln und Musik. Wischen Sie durch die Ideen von heute: Die, die Sie behalten, werden für Sie erstellt und veröffentlicht.",
-  tabs: { ideas: "Ideen von heute", videos: "Ihre Videos", posted: "Gepostet", settings: "Einstellungen" },
+  tabs: { ideas: "Ideen von heute", videos: "Gespeicherte Videos", posted: "Gepostet", settings: "Einstellungen" },
   today: "{approved} von {goal} heute erstellt",
   dayComplete: "Für heute erledigt",
   dayCompleteBody: "Sie haben die {goal} Videos von heute erstellt. Mit den übrigen Ideen können Sie weitere erstellen; jedes kostet einen Credit.",
@@ -2933,7 +2940,7 @@ const de: VideosCopy = {
   undone: "Zurückgenommen: Es wird nicht erstellt, und der Credit ist zurück.",
   edit: "Bearbeiten",
   approve: "Erstellen · {price}",
-  approved: "Wird erstellt. Sie finden es unter Ihre Videos.",
+  approved: "Wird erstellt. Sie finden es unter Gespeicherte Videos.",
   swipeHint: "Nach rechts wischen (am Handy) oder → drücken zum Erstellen, nach links oder ← zum Überspringen. Versehentlich erstellt? Innerhalb von 10 Sekunden auf Rückgängig tippen.",
   previewNote: "Vorschau ohne Stimme. Das fertige Video hat KI-Stimme, Untertitel und Musik.",
   slide: "Folie {index}",
@@ -3071,7 +3078,7 @@ const de: VideosCopy = {
     seconds: "{seconds} s",
     slides: "{count} Folien",
   },
-  postedEmpty: { ideas: "Ideen entdecken", videos: "Ihre Videos ansehen" },
+  postedEmpty: { ideas: "Ideen entdecken", videos: "Gespeicherte Videos ansehen" },
   cards: {
     style: "Stil von Videos und Karussells",
     styleBody: "Wie Ihre Inhalte aussehen und klingen.",
@@ -3104,6 +3111,7 @@ const de: VideosCopy = {
     generic: "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
   },
   viral: viralDe,
+  flow: VIDEO_FLOW_COPY.de,
 };
 
 /** One full translation per locale; keep the five objects in step when a key changes. */
