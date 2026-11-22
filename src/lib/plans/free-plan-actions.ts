@@ -9,6 +9,7 @@ import { getAppMessages } from "@/lib/i18n/app-locale";
 import { LOCALES, localePath } from "@/lib/i18n/config";
 import { format } from "@/lib/i18n/format";
 import { freePlanCopy } from "@/lib/i18n/free-plan";
+import { planFirstIfDue } from "@/lib/keywords/first-plan";
 import { freePlanValues } from "@/lib/plans/free-plan";
 import { recordFreePlanEvent, startFreePlan, type StartFreePlanRefusal } from "@/lib/plans/free-plan-server";
 import { requireOrg } from "@/lib/tenant";
@@ -54,6 +55,12 @@ export async function startFreePlanAction(websiteId: string): Promise<StartFreeP
   });
 
   if (result.ok) {
+    /*
+      The first content plan starts now, so the first article does not wait
+      for the onboarding's last step (lib/keywords/first-plan.ts). Never
+      fails the start: the every-10-minutes sweep tries again.
+    */
+    await planFirstIfDue(websiteId).catch((error) => console.error("[free-plan] first content plan not started", error));
     revalidatePath("/dashboard");
     // The launch counter (taken / cap) on the homepages and pricing pages, built ahead: one more spot taken.
     for (const locale of LOCALES) {
