@@ -34,7 +34,8 @@ import {
 } from "./cost-math";
 import { STOCK_PROVIDERS, footageStatus, type StockCandidate } from "./footage";
 import { collectionCost } from "./footage/collection";
-import { AI_CLIP_SIZE, AI_HOOK_LIBRARY, AI_LICENCE, AI_PROVIDER, aiClipPath, type AiHookClip } from "./footage/ai-library";
+import { AI_CLIP_SIZE, AI_HOOK_LIBRARY, AI_LICENCE, AI_PROVIDER, aiClipPath, povClipById, type AiHookClip, type AiPovClip } from "./footage/ai-library";
+import { HOOK_LIBRARY, type HookLibraryClip } from "./footage/hook-library";
 import { libraryPicks, opensOnAiClip, type HookCandidate } from "./footage/hooks";
 import { pixabayVideoById } from "./footage/pixabay";
 import { cachedAsset, cachedForQuery, storeCandidate } from "./footage/store";
@@ -50,6 +51,7 @@ import {
   spokenParts,
   type CaptionWord,
   type CreativeDirection,
+  type HookClipPick,
   type HookType,
   type MediaItem,
   type ProductionChoices,
@@ -281,7 +283,7 @@ function resolverDeps(idea: VideoIdea): ResolverDeps {
     findCached: (query, kind, exclude) => cachedForQuery(query, kind, exclude),
     storeStock: (candidate, query, cost) => storeCandidate(candidate, query, cost),
     stockCost: (candidate) => (candidate.provider === "collection" ? collectionCost(candidate.providerId) : Promise.resolve(null)),
-    hookCandidates: (type, query, exclude) => hookCandidates(type, query, exclude, stableHash(idea.id)),
+    hookCandidates: (type, query, exclude) => hookCandidates(type, query, exclude, stableHash(idea.id), (idea.plan as ShotPlan | null)?.hookClip?.pick ?? null),
     ai: {
       provider: () => activeProvider(),
       estimateUsd: () => imageEstimate(activeProvider()),
@@ -303,21 +305,34 @@ function resolverDeps(idea: VideoIdea): ResolverDeps {
 }
 
 /**
- * Up to three hook clips for a video, in the order to try: RepGet's AI clips
- * (in storage already) and the Pixabay library's, about 65:35 across videos
- * (opensOnAiClip), the other source kept as the fallback. Pixabay clips
- * already stored need no lookup, the others are looked up by id (free).
+ * Up to three hook clips for a video, in the order to try: the clip picked
+ * when the idea was written (ShotPlan.hookClip.pick: the one its preview
+ * showed), then RepGet's AI clips (in storage already) and the Pixabay
+ * library's, about 70:30 across videos (opensOnAiClip), the other source
+ * kept as the fallback. Pixabay clips already stored need no lookup, the
+ * others are looked up by id (free).
  */
-async function hookCandidates(type: HookType, query: string, exclude: Set<string>, seed: number): Promise<HookCandidate[]> {
-  const ai = libraryPicks(type, query, seed, exclude, AI_HOOK_LIBRARY, AI_PROVIDER).slice(0, 2).map(aiCandidate);
+async function hookCandidates(type: HookType, query: string, exclude: Set<string>, seed: number, pick: HookClipPick | null = null): Promise<HookCandidate[]> {
+  const picked = pick && !exclude.has(`${pick.provider}:${pick.id}`) ? await pickedCandidate(pick) : null;
+  const skip = picked ? new Set([...exclude, `${picked.provider}:${picked.providerId}`]) : exclude;
+  const ai = libraryPicks(type, query, seed, skip, AI_HOOK_LIBRARY, AI_PROVIDER).slice(0, 2).map(aiCandidate);
   const aiFirst = opensOnAiClip(seed);
-  const stock = await pixabayCandidates(type, query, exclude, seed, aiFirst ? 3 - ai.length : 3 - Math.min(1, ai.length));
-  return aiFirst ? [...ai, ...stock] : [...stock, ...ai];
+  const stock = await pixabayCandidates(libraryPicks(type, query, seed, skip).slice(0, aiFirst ? 3 - ai.length : 3 - Math.min(1, ai.length)));
+  return [...(picked ? [picked] : []), ...(aiFirst ? [...ai, ...stock] : [...stock, ...ai])];
 }
 
-async function pixabayCandidates(type: HookType, query: string, exclude: Set<string>, seed: number, count: number): Promise<HookCandidate[]> {
+async function pickedCandidate(pick: HookClipPick): Promise<HookCandidate | null> {
+  if (pick.provider === AI_PROVIDER) {
+    const clip = AI_HOOK_LIBRARY.find((entry) => entry.id === pick.id);
+    return clip ? aiCandidate(clip) : null;
+  }
+  const clip = HOOK_LIBRARY.find((entry) => entry.id === pick.id);
+  return clip ? ((await pixabayCandidates([clip]))[0] ?? null) : null;
+}
+
+async function pixabayCandidates(picks: readonly HookLibraryClip[]): Promise<HookCandidate[]> {
   const out: HookCandidate[] = [];
-  for (const pick of libraryPicks(type, query, seed, exclude).slice(0, count)) {
+  for (const pick of picks) {
     const stored = await cachedAsset("pixabay", pick.id, "video");
     const candidate: StockCandidate | null = stored
       ? { provider: stored.provider, providerId: stored.providerId, kind: "video", downloadUrl: stored.url, width: stored.width ?? 0, height: stored.height ?? 0, durationMs: stored.durationMs, sizeBytes: null, licence: stored.licence, sourceUrl: stored.sourceUrl ?? stored.url, author: stored.author, tags: [] }
@@ -325,6 +340,12 @@ async function pixabayCandidates(type: HookType, query: string, exclude: Set<str
     if (candidate) out.push({ ...candidate, climaxMs: pick.climaxMs, focalX: pick.focalX ?? null });
   }
   return out;
+}
+
+/** A POV clip video's clip (client, 2026-11-21): in storage already, recorded like a hook clip. */
+function povCandidate(clip: AiPovClip): StockCandidate {
+  const url = sharedFileUrl(aiClipPath(clip.id));
+  return { provider: AI_PROVIDER, providerId: clip.id, kind: "video", downloadUrl: url, ...AI_CLIP_SIZE, durationMs: clip.durationMs, sizeBytes: null, licence: AI_LICENCE, sourceUrl: url, author: "RepGet", tags: clip.tags };
 }
 
 function aiCandidate(clip: AiHookClip): HookCandidate {
@@ -359,6 +380,7 @@ export async function prepareAssets(id: string): Promise<{ assets: number; notes
   if (direction === "animated") return { assets: 0, notes: [] };
   const plan = idea.plan as ShotPlan;
   const existing = storedAssets(idea.assets);
+  if (plan.povClip) return preparePovClip(idea, plan.povClip.id, existing);
   let result;
   try {
     result = await resolveSceneAssets(
@@ -379,6 +401,41 @@ export async function prepareAssets(id: string): Promise<{ assets: number; notes
     );
   }
   return { assets: result.assets.length, notes: result.notes };
+}
+
+/**
+ * A POV clip video's one asset: its AI clip, already in RepGet's storage
+ * (checked there once, recorded at no cost per video). A retry keeps it.
+ */
+async function preparePovClip(idea: VideoIdea, clipId: string, existing: StoredAsset[]): Promise<{ assets: number; notes: string[] }> {
+  if (existing.some((asset) => asset.sceneIndex === 0)) return { assets: existing.length, notes: [] };
+  const clip = povClipById(clipId);
+  if (!clip) throw new ProductionError("This video's POV clip is no longer in the library. Choose another idea.");
+  const deps = resolverDeps(idea);
+  let stored;
+  try {
+    stored = await deps.storeStock(povCandidate(clip), clip.shows, 0);
+  } catch (error) {
+    throw new ProductionError(`The POV clip could not be loaded (${(error as Error).message}).`);
+  }
+  await deps.record({ kind: "footage", provider: AI_PROVIDER, usd: 0, basis: "measured", note: `RepGet AI POV clip ${clip.id} (made once, nothing per video)` });
+  const asset: StoredAsset = {
+    sceneIndex: 0,
+    url: stored.url,
+    kind: "video",
+    source: "stock",
+    provider: stored.provider,
+    providerId: stored.providerId,
+    licence: stored.licence,
+    sourceUrl: stored.sourceUrl,
+    author: stored.author,
+    assetId: stored.id,
+    durationMs: stored.durationMs ?? clip.durationMs,
+    width: stored.width,
+    height: stored.height,
+  };
+  await db.update(videoIdeas).set({ assets: [asset], updatedAt: new Date() }).where(eq(videoIdeas.id, idea.id));
+  return { assets: 1, notes: [] };
 }
 
 /* ------------------------------------------------------------------ voice */

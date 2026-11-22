@@ -19,6 +19,7 @@ import {
   type ViralTechnique,
 } from "../formats";
 import type { LengthPlan } from "./duration";
+import { POV_LINE_MAX } from "./pov";
 
 /**
  * The idea writer's instructions and answer format (client, 2026-11-12).
@@ -54,6 +55,8 @@ export const ideaSchema = z.object({
       why: z.string().nullable(),
       techniques: z.array(z.enum(VIRAL_TECHNIQUES)),
       visualHook: z.object({ type: z.enum(HOOK_TYPES), clip: z.string() }).nullable(),
+      /** A POV clip slot's chosen clip id (POV CLIP VIDEO); null for every other idea (client, 2026-11-21). */
+      povClip: z.string().nullable(),
       scenes: z.array(
         z.object({
           query: z.string(),
@@ -83,6 +86,8 @@ export type SlotBrief = {
   audio: ResolvedAudio | "choose";
   techniques: ViralTechnique[];
   length: LengthPlan;
+  /** A POV clip video slot (client, 2026-11-21: "POV clip: 5, others: 5"): one POV line over an AI POV clip, music, no points or proof. */
+  pov?: boolean;
 };
 
 export type WriterStrategy = {
@@ -111,6 +116,8 @@ export type IdeaInput = {
   learning: string[];
   /** A rewrite of one idea: its current title and hook, and the video's own overrides. */
   rewrite?: { title: string; hook: string; overrides: IdeaOverrides };
+  /** The AI POV clips a POV slot picks from (footage/ai-library.ts AI_POV_LIBRARY); empty or absent without a POV slot. */
+  povClips?: { id: string; shows: string }[];
 };
 
 const DIRECTION_TEXT: Record<CreativeDirection, string> = {
@@ -152,6 +159,19 @@ const VISUAL_HOOK_TEXT = `VISUAL HOOK (slots whose techniques include anticipati
 - danger: controlled tension where one wrong move ends it, by trained people ("surfer inside a big wave barrel", "acrobat balancing on a partner's hands", "paraglider launching off a ridge", "climber on a rock face"). Never real injury, accidents, crashes, fire, weapons, vehicles at speed, animals or children at risk, or anything people could copy dangerously.
 - Never a real person, brand or famous stunt in "clip".`;
 
+/** The POV clip video rules (client, 2026-11-21), for batches with a POV slot. The clips are RepGet's own and have no text in them. */
+function povClipText(clips: { id: string; shows: string }[], language: string): string {
+  return `POV CLIP VIDEO (slots marked POV CLIP): one of RepGet's own funny reaction clips plays full screen for about 10 seconds with music and no voice, and the idea's POV line sits on top of it for its whole length. The clip has no text: the line makes it this business's video. So:
+- "povClip": the id of the clip below whose situation best fits a relatable moment for THIS business's audience. A different clip for each POV CLIP slot of the batch.
+- "hook": the POV line, starting "POV:" (or its natural equivalent in ${language}), at most ${POV_LINE_MAX} characters, about this business's customers or owner - funny or relatable, never mocking anyone, never claiming a fact that is not in the material. The tone of these examples, adapted to the business (never mention RepGet): "POV: calling the shop because ChatGPT just recommended it", "POV: your bookings fill up while you stay horizontal".
+- "points": [] and "proof": "". "direction": meme. "audio": text_music. "visualHook": null.
+- "scenes": exactly one: "query" = the chosen clip's description below, "kind": video, "overlay" = the hook, "reaction": null.
+- "cta", "caption", "hashtags", "why", "techniques" and "claims" as for any viral idea.
+Every idea that is not a POV CLIP slot: "povClip": null.
+The clips (id: what it shows):
+${clips.map((clip) => `- ${clip.id}: ${clip.shows}`).join("\n")}`;
+}
+
 const TONE_TEXT: Record<TonePreset, string> = {
   professional: "professional: clear, refined and confident",
   bold: "bold: more energy and stronger openers",
@@ -181,6 +201,18 @@ const CORE_PROTECTIONS = `CORE RULES (always, whatever else is asked):
 - Never say or suggest that something is trending, viral right now or currently popular, and never promise views or virality: RepGet has no trend data.`;
 
 function slotLine(slot: SlotBrief): string {
+  if (slot.pov) {
+    return [
+      `Slot ${slot.slot}: ${slot.category}`,
+      "POV CLIP slot (POV CLIP VIDEO above): direction meme",
+      `format ${slot.format}`,
+      "audio: text_music (music, no voice)",
+      slot.techniques.length ? `techniques: ${slot.techniques.join(", ")}` : null,
+      `one POV line of at most ${POV_LINE_MAX} characters over a ${slot.length.seconds.min} s clip; no points, no proof`,
+    ]
+      .filter(Boolean)
+      .join("; ");
+  }
   const parts = [
     `Slot ${slot.slot}: ${slot.category}`,
     `direction ${slot.direction}${slot.alternatives.length ? ` (or, only when the concept clearly needs it: ${slot.alternatives.join(", ")})` : ""}`,
@@ -201,6 +233,8 @@ export function systemPrompt(input: IdeaInput): string {
   const categories = [...new Set(input.slots.map((slot) => slot.category))];
   const techniques = [...new Set(input.slots.flatMap((slot) => slot.techniques))];
   const narrated = input.slots.some((slot) => slot.audio !== "text_music" && slot.format !== "carousel");
+  // POV clip videos (client, 2026-11-21): only with a POV slot and clips to pick from.
+  const pov = input.slots.some((slot) => slot.pov) && (input.povClips?.length ?? 0) > 0;
   return `You plan and write short vertical social videos (TikTok, Instagram Reels, YouTube Shorts, Facebook Reels, LinkedIn) and photo carousels for a business, from its website's public content and business profile. They must feel native to those platforms - made by a sharp creator, not a conventional advert - and genuinely different from each other: different situations, angles, hooks, pacing and visuals.
 
 Write exactly ${input.count} ideas, one per slot below, in the order given. Write every customer-facing text (title, hook, points, proof, cta, caption, hashtags, why, overlays, reactions, claims) in ${input.language}${input.language === "Romanian" ? " (română, with correct diacritics: ă, â, î, ș, ț)" : ""}. Only scenes[].query is in English.
@@ -212,7 +246,7 @@ ${directions.map((direction) => `- ${DIRECTION_TEXT[direction]}`).join("\n")}
 
 CATEGORIES:
 ${categories.map((category) => `- ${CATEGORY_TEXT[category]}`).join("\n")}
-${techniques.some(isHookTechnique) ? `\n${VISUAL_HOOK_TEXT}\n` : ""}${techniques.length ? `\nTECHNIQUES (for the slots that name them; they shape the angle, they never justify invented claims):\n${techniques.map((technique) => `- ${technique}: ${TECHNIQUE_TEXT[technique]}`).join("\n")}\n` : ""}
+${techniques.some(isHookTechnique) ? `\n${VISUAL_HOOK_TEXT}\n` : ""}${pov ? `\n${povClipText(input.povClips ?? [], input.language)}\n` : ""}${techniques.length ? `\nTECHNIQUES (for the slots that name them; they shape the angle, they never justify invented claims):\n${techniques.map((technique) => `- ${technique}: ${TECHNIQUE_TEXT[technique]}`).join("\n")}\n` : ""}
 STYLE:
 - Tone: ${TONE_TEXT[s.tonePreset]}, together with the business's own tone and words to avoid (business profile).
 - ${HUMOR_TEXT[s.humor]}
@@ -233,6 +267,7 @@ EACH IDEA:
 - "why": viral ideas only (else null): one sentence on why it could perform well, never a guarantee.
 - "techniques": the slot's techniques this idea really uses (viral only, else []).
 - "visualHook": only for a slot with a hook technique (VISUAL HOOK above); null for every other idea.
+- "povClip": ${pov ? "only for a POV CLIP slot (POV CLIP VIDEO above, which also sets its hook, points, proof and scenes); null for every other idea" : "null"}.
 - "scenes": exactly one per spoken part, in order: the hook, each point, the proof, the cta (points + 3 scenes). "query": 3-8 concrete, filmable English stock-search words ("barista pouring latte art close-up"); "kind": video, or image for carousels and still pictures; "overlay" and "reaction": memes and stories only (else null), in ${input.language}.
 - "claims": every factual statement in the script or caption (figures, rankings, comparisons, facts about the business) with its "source": "article:N" for the N-th article, "profile" for the business profile, or null when it is not in the material.
 - "controversial": true for a provocative angle or hot take. "sensitive": true for health, legal, financial, safety or other regulated topics.

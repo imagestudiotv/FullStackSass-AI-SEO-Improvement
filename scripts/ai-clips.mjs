@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 /**
- * Makes AI hook clips for the library (src/lib/video/footage/ai-library.ts),
- * for a person to check before any is added. Nothing here runs in the app.
+ * Makes AI clips for the library (src/lib/video/footage/ai-library.ts): hook
+ * clips and POV clips, for a person to check before any is added. Nothing
+ * here runs in the app.
  *
- *   GEMINI_API_KEY=... node scripts/ai-clips.mjs <prompts.json> <out-dir> [budget=9]
+ *   GEMINI_API_KEY=... node scripts/ai-clips.mjs <prompts.json> <out-dir> [budget=9] [seconds=8]
  *
  * prompts.json: [{ "id": "2026-11-19-marble-run", "type": "anticipation",
  * "tags": [...], "prompt": "..." }, ...]. Each clip is made once with Google's
- * Gemini Omni Flash (Gemini API): 9:16, 720p, 8 seconds; a clip already in
+ * Gemini Omni Flash (Gemini API): 9:16, 720p, 8 seconds (seconds=, 3-15; the
+ * POV clips are 10); a clip already in
  * <out-dir> is skipped, so a stopped run picks up where it was. The run stops
  * before a clip that would take the estimated spend over budget= (USD).
  *
@@ -18,7 +20,7 @@
  * clip goes into AI_HOOK_LIBRARY with its climax checked by eye.
  *
  * Price (Gemini API pricing page, 2026-11-19): $0.07 a second at 720p, so
- * $0.56 a clip. No free tier: the project's prepaid credit pays; at $0 the
+ * $0.56 an 8-second clip, $0.70 a 10-second one. No free tier: the project's prepaid credit pays; at $0 the
  * key gets 402 and the run stops. Needs ffmpeg on PATH. The key is read from
  * the environment and never printed.
  */
@@ -27,16 +29,16 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 const MODEL = "gemini-omni-1.2-flash";
-const SECONDS = 8;
 const RESOLUTION = "720p";
 const USD_PER_SECOND = 0.07;
 const API = "https://generativelanguage.googleapis.com/v1beta/interactions";
 
 const [promptsFile, outArg] = process.argv.slice(2);
 const budget = Number(process.argv.find((a) => a.startsWith("budget="))?.slice(7) ?? 9);
+const SECONDS = Number(process.argv.find((a) => a.startsWith("seconds="))?.slice(8) ?? 8);
 const key = process.env.GEMINI_API_KEY?.trim();
-if (!promptsFile || !outArg) {
-  console.error("Usage: node scripts/ai-clips.mjs <prompts.json> <out-dir> [budget=9]");
+if (!promptsFile || !outArg || !Number.isInteger(SECONDS) || SECONDS < 3 || SECONDS > 15) {
+  console.error("Usage: node scripts/ai-clips.mjs <prompts.json> <out-dir> [budget=9] [seconds=8 (3-15)]");
   process.exit(1);
 }
 if (!key) {
@@ -105,7 +107,7 @@ for (const item of prompts) {
   writeFileSync(file, data);
   spent += clipCost;
   const strip = path.join(out, `${item.id}.png`);
-  execFileSync("ffmpeg", ["-nostdin", "-v", "error", "-y", "-i", file, "-vf", `fps=1,scale=180:-2,tile=8x1:padding=4:color=white`, "-frames:v", "1", strip]);
+  execFileSync("ffmpeg", ["-nostdin", "-v", "error", "-y", "-i", file, "-vf", `fps=8/${SECONDS},scale=180:-2,tile=8x1:padding=4:color=white`, "-frames:v", "1", strip]);
   const clip = { ...item, model: MODEL, seconds: SECONDS, resolution: RESOLUTION, estimatedUsd: clipCost, suggestedClimaxMs: suggestedClimaxMs(file), madeAt: new Date().toISOString(), tookSeconds: Math.round((Date.now() - started) / 1000) };
   made.push(clip);
   writeFileSync(listFile, JSON.stringify(made, null, 2));

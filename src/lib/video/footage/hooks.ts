@@ -32,8 +32,8 @@ export function libraryPicks<Clip extends HookLibraryClip = HookLibraryClip>(
   return [...front.slice(shift), ...front.slice(0, shift), ...scored.slice(matching)].map((entry) => entry.clip);
 }
 
-/** The share of hooked videos that open on one of RepGet's AI clips, the rest on a Pixabay clip (client, 2026-11-19: "AI:pixabay = 65%:35%"). */
-export const AI_HOOK_SHARE = 0.65;
+/** The share of hooked videos that open on one of RepGet's AI clips, the rest on a Pixabay clip (client: "AI:pixabay = 65%:35%" on 2026-11-19, 70:30 on 2026-11-21). */
+export const AI_HOOK_SHARE = 0.7;
 
 /**
  * Whether a video opens on an AI clip: fixed for the video (its seed), true

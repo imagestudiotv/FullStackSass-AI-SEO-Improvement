@@ -41,6 +41,7 @@ import { contentHash, reviewAfterEdit } from "./review";
 import { readVideoSettings, resetVideoSettings, saveVideoSettings, validateVideoSettings, videoAccess, type SettingsInput, type VideoSettings } from "./settings";
 import { durationFor } from "./strategy/allocation";
 import { alignPlan, recipeOf } from "./strategy/creative";
+import { POV_LINE_MAX } from "./strategy/pov";
 import { maxPointsFor } from "./strategy/duration";
 import { cleanOverrides, mergeProduction, productionOf } from "./strategy/production";
 import { cleanVideoProfile, type VideoProfileInput } from "./strategy/profile";
@@ -216,14 +217,16 @@ function cleanEdit(edit: IdeaEdit, row: IdeaRow, settings: VideoSettings): Parti
   const out: Partial<typeof videoIdeas.$inferInsert> = {};
   const text = (value: unknown, max: number) => (typeof value === "string" ? value.replace(/\s+/g, " ").trim().slice(0, max) : "");
 
+  // A POV clip video (client, 2026-11-21) stays one: its clip full screen, its POV line on top, no voice.
+  const pov = Boolean((row.plan as ShotPlan | null)?.povClip);
   let format: VideoFormat = isVideoFormat(row.format) ? row.format : "reel";
   if (edit.format !== undefined) {
-    if (!isVideoFormat(edit.format)) return null;
+    if (!isVideoFormat(edit.format) || (pov && edit.format === "carousel")) return null;
     format = edit.format;
     out.format = edit.format;
   }
   let direction: CreativeDirection = isCreativeDirection(row.direction) ? row.direction : "animated";
-  if (edit.direction !== undefined) {
+  if (edit.direction !== undefined && !pov) {
     if (!isCreativeDirection(edit.direction)) return null;
     direction = edit.direction;
     out.direction = edit.direction;
@@ -238,7 +241,13 @@ function cleanEdit(edit: IdeaEdit, row: IdeaRow, settings: VideoSettings): Parti
     out.title = title;
   }
   let script = row.script as VideoScript;
-  if (edit.script) {
+  if (edit.script && pov) {
+    // Its words are the POV line and the closing line: no points, no proof.
+    const clean: VideoScript = { hook: text(edit.script.hook, POV_LINE_MAX), points: [], proof: "", cta: text(edit.script.cta, 80) };
+    if (!clean.hook) return null;
+    script = clean;
+    out.script = clean;
+  } else if (edit.script) {
     const { hook, points, proof, cta } = edit.script;
     const clean: VideoScript = {
       hook: text(hook, 80),
@@ -281,7 +290,7 @@ function cleanEdit(edit: IdeaEdit, row: IdeaRow, settings: VideoSettings): Parti
     if (edit.voice !== null && !isVoice(edit.voice)) return null;
     if (edit.production?.audio === undefined) production = { ...production, audio: edit.voice === null ? "text_music" : "voiceover" };
   }
-  if (direction === "text_music" || format === "carousel") production = { ...production, audio: "text_music" };
+  if (pov || direction === "text_music" || format === "carousel") production = { ...production, audio: "text_music" };
   else if (direction === "voiceover") production = { ...production, audio: "voiceover" };
   production = { ...production, duration: durationFor(format, production.duration) };
   if (edit.musicTrack !== undefined) {
@@ -306,7 +315,7 @@ function cleanEdit(edit: IdeaEdit, row: IdeaRow, settings: VideoSettings): Parti
   let plan = (row.plan as ShotPlan | null) ?? null;
   if (plan && (out.script || out.direction)) {
     plan = alignPlan({ ...plan, direction }, script);
-    plan = { ...plan, recipe: recipeOf(plan) };
+    plan = { ...plan, recipe: pov ? `${recipeOf(plan)}|pov` : recipeOf(plan) };
     out.plan = plan;
   }
   // A new script, voice or production choice is voiced again; new words or shots pick their pictures and clips again.

@@ -54,6 +54,7 @@ import {
   saveVideoSettingsAction,
 } from "./actions";
 import { HOOK_TECHNIQUES, HOOK_TECHNIQUES_FROM, hookTypeOf, isHookTechnique, type ProductionChoices, type ShotPlan, type VideoScript } from "./formats";
+import type { AiPovClip } from "./footage/ai-library";
 import { suggestVideoIdeas, WRITE_CHUNK, writeChunks, writeExtraBatch, type IdeaInput } from "./ideas";
 import { maxTokensFor } from "./strategy/prompt";
 import { contentHash, reviewBlocksAutoPublish } from "./review";
@@ -101,6 +102,8 @@ function writer(options: { audio?: "voiceover" | "text_music"; tag?: string } = 
       techniques: slot.techniques,
       // As the model does: a clip for a slot with a visual hook.
       visualHook: slot.techniques.map(hookTypeOf).find(Boolean) ? { type: slot.techniques.map(hookTypeOf).find(Boolean)!, clip: "domino chain falling close-up" } : null,
+      // The answer format asks every idea for one (client, 2026-11-21); null outside a POV clip slot.
+      povClip: null,
       scenes: Array.from({ length: POINTS.length + 3 }, () => ({ query: "photographer adjusting softbox in studio", kind: "video" as const, overlay: "POV: your first shoot", reaction: "wait..." })),
       claims: [],
       controversial: false,
@@ -136,7 +139,8 @@ describe("the day's ideas", () => {
     for (const count of byDirection.values()) expect(count).toBeLessThanOrEqual(8);
     for (const row of rows) {
       expect(row.caption).not.toMatch(/trending/i);
-      expect((row.plan as ShotPlan).scenes).toHaveLength(6);
+      // A POV clip video (client, 2026-11-21) has no points: hook, proof and CTA scenes.
+      expect((row.plan as ShotPlan).scenes).toHaveLength((row.plan as ShotPlan).povClip ? 3 : 6);
       expect(row.batchId).not.toBeNull();
       expect(row.cost).toMatchObject({ budgetUsd: 0.3, reservedUsd: 0, items: [{ kind: "planning", provider: "anthropic", basis: "measured" }] });
       const production = row.production as ProductionChoices;
@@ -185,6 +189,86 @@ describe("the day's ideas", () => {
     const rows = await ideasOf(websiteId);
     expect(rows.every((row) => row.voice === null && (row.production as ProductionChoices).audio === "text_music")).toBe(true);
     expect(rows.some((row) => row.direction === "voiceover")).toBe(false);
+  });
+});
+
+describe("POV clip videos", () => {
+  const LIBRARY: AiPovClip[] = Array.from({ length: 10 }, (_, i) => ({
+    id: `2026-11-21-pov-clip-${i}`,
+    shows: `A cartoon character number ${i} reacts to a surprise.`,
+    tags: ["surprise", `clip${i}`],
+    durationMs: 10_000,
+    prompt: "p",
+    costUsd: 0.7,
+    madeOn: "2026-11-21",
+  }));
+
+  /** The writer as the model answers a POV slot: a POV line, no points or proof, one scene; every POV idea asks for the same clip. */
+  function povWriter() {
+    const base = writer({ tag: "Pov" });
+    return vi.fn(async (input: IdeaInput) => {
+      const answer = await base(input);
+      return {
+        ...answer,
+        ideas: answer.ideas.map((idea, index) =>
+          input.slots[index].pov
+            ? { ...idea, direction: "storytelling" as const, audio: "voiceover" as const, hook: `POV: customer number ${index + 1} found you`, points: [], proof: "", visualHook: null, povClip: input.povClips![0].id, scenes: [{ query: "x", kind: "video" as const, overlay: "POV", reaction: null }] }
+            : { ...idea, povClip: null },
+        ),
+      };
+    });
+  }
+
+  it("are half of the viral reels and Stories, accepted without points or proof, each with its own clip", async () => {
+    const { websiteId } = await site();
+    await test.db.insert(videoSettings).values({ websiteId, viralMix: 100, techniques: [...HOOK_TECHNIQUES], updatedAt: HOOK_TECHNIQUES_FROM });
+    const write = povWriter();
+    expect(await suggestVideoIdeas(websiteId, NOW, { write, povLibrary: LIBRARY })).toEqual({ created: 20 });
+    const input = write.mock.calls[0][0];
+    const clipSlots = input.slots.filter((slot) => slot.format !== "carousel");
+    const povSlots = input.slots.filter((slot) => slot.pov);
+    expect(povSlots).toHaveLength(Math.ceil(clipSlots.length / 2));
+    for (const slot of povSlots) {
+      expect(slot).toMatchObject({ direction: "meme", alternatives: [], audio: "text_music" });
+      expect(slot.techniques.some(isHookTechnique)).toBe(false);
+    }
+    expect(input.povClips).toEqual(LIBRARY.map(({ id, shows }) => ({ id, shows })));
+
+    const rows = await ideasOf(websiteId);
+    const povRows = rows.filter((row) => (row.plan as ShotPlan).povClip);
+    expect(povRows).toHaveLength(povSlots.length);
+    for (const row of povRows) {
+      const plan = row.plan as ShotPlan;
+      expect(row).toMatchObject({ direction: "meme", voice: null, format: expect.not.stringMatching(/carousel/) });
+      expect((row.production as ProductionChoices).audio).toBe("text_music");
+      expect(row.script).toMatchObject({ points: [], proof: "" });
+      expect((row.script as VideoScript).hook).toMatch(/^POV: /);
+      expect(plan.direction).toBe("meme");
+      expect(plan.recipe).toMatch(/|pov$/);
+      expect(plan.hookClip).toBeUndefined();
+      expect(plan.povClip!.zoom).toBeGreaterThanOrEqual(1);
+      expect(plan.povClip!.zoom).toBeLessThanOrEqual(1.12);
+    }
+    // The writer asked for one clip every time: each POV video still has its own.
+    expect(new Set(povRows.map((row) => (row.plan as ShotPlan).povClip!.id)).size).toBe(povRows.length);
+    expect(povRows.map((row) => (row.plan as ShotPlan).povClip!.id)).toContain(LIBRARY[0].id);
+
+    // The other viral reels open on a hook clip chosen now, none twice.
+    const hooked = rows.filter((row) => (row.plan as ShotPlan).hookClip);
+    expect(hooked.length).toBeGreaterThan(0);
+    const picks = hooked.map((row) => (row.plan as ShotPlan).hookClip!.pick!);
+    for (const pick of picks) expect(["ai", "pixabay"]).toContain(pick.provider);
+    expect(new Set(picks.map((pick) => `${pick.provider}:${pick.id}`)).size).toBe(picks.length);
+  });
+
+  it("are none while the library is empty", async () => {
+    const { websiteId } = await site();
+    await test.db.insert(videoSettings).values({ websiteId, viralMix: 100 });
+    const write = writer();
+    await suggestVideoIdeas(websiteId, NOW, { write, povLibrary: [] });
+    expect(write.mock.calls[0][0].slots.some((slot) => slot.pov)).toBe(false);
+    expect(write.mock.calls[0][0].povClips).toEqual([]);
+    expect((await ideasOf(websiteId)).some((row) => (row.plan as ShotPlan).povClip)).toBe(false);
   });
 });
 
@@ -244,7 +328,7 @@ describe("one video's changes", () => {
   async function oneIdea() {
     const { websiteId } = await site();
     await suggestVideoIdeas(websiteId, NOW, { write: writer() });
-    const [row] = (await ideasOf(websiteId)).filter((idea) => idea.format === "reel");
+    const [row] = (await ideasOf(websiteId)).filter((idea) => idea.format === "reel" && !(idea.plan as ShotPlan).povClip);
     return { websiteId, row };
   }
 

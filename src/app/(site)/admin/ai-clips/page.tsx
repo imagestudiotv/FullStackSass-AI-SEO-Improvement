@@ -6,29 +6,38 @@ import { Badge } from "@/components/ui/badge";
 import { db } from "@/lib/db";
 import { videoStockAssets } from "@/lib/db/schema";
 import { formatDate, formatNumber } from "@/lib/i18n/format";
-import { AI_HOOK_LIBRARY, AI_PROVIDER, AI_REJECTED_TAKES, aiClipPath, type AiHookClip } from "@/lib/video/footage/ai-library";
-import type { HookType } from "@/lib/video/formats";
+import { AI_HOOK_LIBRARY, AI_POV_LIBRARY, AI_PROVIDER, AI_REJECTED_TAKES, aiClipPath } from "@/lib/video/footage/ai-library";
 import { sharedFileUrl } from "@/lib/video/storage";
 
 import { AdminPage, AdminPageHeader, AdminSection, AdminStat } from "../_ui/page";
 import { AdminEmpty, AdminUnavailable } from "../_ui/states";
-import { formatSeconds, formatUsd, summarizeClips } from "./summary";
+import { formatSeconds, formatUsd, summarizeClips, type ClipKind } from "./summary";
 
 export const metadata: Metadata = { title: "AI clips" };
 
 /**
  * Admin -> AI clips (client, 2026-11-19: "it's not clear how much we spend,
- * what exact videos we generate"): every clip in RepGet's AI hook library
+ * what exact videos we generate"): every clip in RepGet's AI hook and POV
+ * libraries (POV clips: client, 2026-11-21)
  * (lib/video/footage/ai-library.ts), what each cost to make, the batch it came
  * in, and when a customer's video last used it. Reads the library and one
  * query; makes no AI call.
  */
 
-const TYPE_LABEL: Record<HookType, { label: string; hint: string }> = {
+const TYPE_LABEL: Record<ClipKind, { label: string; hint: string }> = {
   anticipation: { label: "Anticipation", hint: "An ending the viewer has to see" },
   impossible: { label: "Impossible", hint: "Something that looks impossible" },
   danger: { label: "Danger", hint: "One wrong move ends it" },
+  pov: { label: "POV clip", hint: "A full-screen reaction clip under the customer's own POV line" },
 };
+
+/** A clip as the page shows it: a hook clip (with its climax) or a POV clip (with what it shows). */
+type LibraryClip = { id: string; type: ClipKind; tags: string[]; durationMs: number; costUsd: number; madeOn: string; prompt: string; climaxMs: number | null; shows: string | null };
+
+const CLIPS: LibraryClip[] = [
+  ...AI_HOOK_LIBRARY.map((clip) => ({ ...clip, shows: null })),
+  ...AI_POV_LIBRARY.map((clip) => ({ ...clip, type: "pov" as const, climaxMs: null })),
+];
 
 const DAY: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" };
 
@@ -54,19 +63,19 @@ async function lastUsedByClip(ids: string[]): Promise<Map<string, Date> | null> 
 }
 
 export default async function AdminAiClipsPage() {
-  const summary = summarizeClips(AI_HOOK_LIBRARY, new Date(), AI_REJECTED_TAKES);
-  const used = await lastUsedByClip(AI_HOOK_LIBRARY.map((clip) => clip.id));
-  const usedCount = used ? AI_HOOK_LIBRARY.filter((clip) => used.has(clip.id)).length : null;
+  const summary = summarizeClips(CLIPS, new Date(), AI_REJECTED_TAKES);
+  const used = await lastUsedByClip(CLIPS.map((clip) => clip.id));
+  const usedCount = used ? CLIPS.filter((clip) => used.has(clip.id)).length : null;
   const monthName = formatDate(`${summary.month}-01T00:00:00Z`, "en", { month: "long", year: "numeric", timeZone: "UTC" });
 
   return (
     <AdminPage>
       <AdminPageHeader
         title="AI clips"
-        description="RepGet's own AI-made hook clips (Google Gemini Omni Flash, 8 s, vertical 720p) that open viral videos; the customer's text and brand go on top. They are made in batches of about 10 per ticket and checked by hand before they are added. A customer's video costs nothing more for using one."
+        description="RepGet's own AI-made clips (Google Gemini Omni Flash, vertical 720p) for viral videos: hook clips (8 s) that open a video, and POV clips (10 s) that play full screen under the customer's own POV line. The customer's text and brand go on top. They are made in batches of about 10 per ticket and checked by hand before they are added. A customer's video costs nothing more for using one."
       />
 
-      <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-7">
         <AdminStat
           label="Clips"
           value={formatNumber(summary.count, "en")}
@@ -78,7 +87,7 @@ export default async function AdminAiClipsPage() {
           value={formatUsd(summary.monthUsd)}
           hint={`${formatNumber(summary.monthCount, "en")} ${summary.monthCount === 1 ? "clip" : "clips"} made in ${monthName} (UTC).`}
         />
-        {(Object.keys(TYPE_LABEL) as HookType[]).map((type) => (
+        {(Object.keys(TYPE_LABEL) as ClipKind[]).map((type) => (
           <AdminStat key={type} label={TYPE_LABEL[type].label} value={formatNumber(summary.byType[type], "en")} hint={TYPE_LABEL[type].hint} />
         ))}
       </div>
@@ -121,7 +130,7 @@ export default async function AdminAiClipsPage() {
 }
 
 /** One clip: the preview, its facts, its tags and the prompt it was made from. */
-function ClipCard({ clip, lastUsed }: { clip: AiHookClip; lastUsed: Date | null | undefined }) {
+function ClipCard({ clip, lastUsed }: { clip: LibraryClip; lastUsed: Date | null | undefined }) {
   return (
     <li className="flex min-w-0 flex-col gap-3 rounded-lg border p-3">
       <video
@@ -138,11 +147,16 @@ function ClipCard({ clip, lastUsed }: { clip: AiHookClip; lastUsed: Date | null 
         <p className="min-w-0 font-mono text-xs [overflow-wrap:anywhere]">{clip.id}</p>
         <Badge variant="secondary">{TYPE_LABEL[clip.type].label}</Badge>
       </div>
+      {clip.shows ? <p className="text-sm text-foreground/85">{clip.shows}</p> : null}
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
         <dt className="text-muted-foreground">Length</dt>
         <dd className="tabular-nums">{formatSeconds(clip.durationMs)}</dd>
-        <dt className="text-muted-foreground">Climax at</dt>
-        <dd className="tabular-nums">{formatSeconds(clip.climaxMs)}</dd>
+        {clip.climaxMs !== null ? (
+          <>
+            <dt className="text-muted-foreground">Climax at</dt>
+            <dd className="tabular-nums">{formatSeconds(clip.climaxMs)}</dd>
+          </>
+        ) : null}
         <dt className="text-muted-foreground">Cost</dt>
         <dd className="tabular-nums">{formatUsd(clip.costUsd)}</dd>
         <dt className="text-muted-foreground">Last used</dt>
