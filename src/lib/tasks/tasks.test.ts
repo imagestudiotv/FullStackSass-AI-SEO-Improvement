@@ -11,7 +11,8 @@ vi.mock("@/lib/billing/entitled", () => ({
     ok: state.plan === "paid" || (state.plan === "trial" && Boolean(options?.freeArticles)),
   }),
 }));
-import { getTasks } from "./tasks";
+import { WIZARD_STEPS } from "@/lib/onboarding/wizard";
+import { getTasks, ONBOARDING_STEP_TASKS } from "./tasks";
 
 let test: TestDb;
 beforeAll(async () => { test = await createTestDb(); state.db = test.db; });
@@ -99,5 +100,25 @@ describe("tasks page", () => {
     expect(tasks.setup).toEqual([]);
     expect(tasks.accounts).toEqual([]);
     expect(tasks.total).toBe(0);
+  });
+});
+
+describe("the onboarding steps the growth plan skips", () => {
+  it("each have a set-up task on this page, ticked from the same state", async () => {
+    // Every wizard step after the plan, except the end, which is the dashboard's checklist itself.
+    const after = WIZARD_STEPS.slice(WIZARD_STEPS.findIndex((step) => step.id === "plan") + 1).filter((step) => step.id !== "done");
+    expect(after.map((step) => step.id).sort()).toEqual(Object.keys(ONBOARDING_STEP_TASKS).sort());
+
+    const a = await fixture();
+    const tasks = (await getTasks(a.id, a.orgId, true, NOW))!;
+    for (const id of Object.values(ONBOARDING_STEP_TASKS)) {
+      const row = tasks.setup.find((s) => s.id === id);
+      expect(row, id).toBeDefined();
+      // A new website has done none of them yet.
+      expect(row!.done, id).toBe(false);
+      expect(row!.href.startsWith(`/websites/${a.id}`), id).toBe(true);
+    }
+    // The business profile (with competitors) the website step used to ask for is a row too.
+    expect(tasks.setup.map((s) => s.id)).toContain("profile");
   });
 });

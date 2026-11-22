@@ -46,7 +46,9 @@ export type PublishError =
   | "bad_audio"
   /** Native Instagram music: why it cannot be used (connect Instagram, reconnect it through Facebook Login). */
   | NativeAudioUnavailable
-  | "search_failed";
+  | "search_failed"
+  /** Marked as posted before the video exists (it is still being made). */
+  | "not_ready";
 
 export type PublishResult<T = null> =
   | { ok: true; data: T }
@@ -154,6 +156,67 @@ export async function publishVideoIdea(
   revalidatePath(pagePath(websiteId));
   return { ok: true, data: { at: at.toISOString() } };
 }
+
+/**
+ * Manual publishing (client, 2026-11-21): the customer posted the video on a
+ * platform themselves - copied the text, downloaded the video, opened the
+ * platform - and marks it so, or takes the mark back. Kept per destination
+ * in video_ideas.destinations ({ status: "posted", manual: true }; no
+ * bundle.social post, so no numbers are read for it), so automatic
+ * publishing never sends it there again (postedPlatforms).
+ *
+ * A ready (or saved, or failed-to-publish) video with a mark goes to Posted;
+ * a scheduled one keeps its schedule for the other platforms. Taking the last
+ * mark back returns it to Saved Videos. Only the customer's own marks can be
+ * taken back, never a post RepGet made; not while it is being published.
+ */
+export async function markVideoPosted(websiteId: string, id: string, platform: string, posted: boolean): Promise<PublishResult<{ status: string }>> {
+  if (!isVideoPlatform(platform)) return fail("not_found");
+  const checked = await guard(websiteId);
+  if (!checked.ok) return fail(checked.error);
+  const result = await db.transaction(async (tx) => {
+    const [row] = await tx
+      .select()
+      .from(videoIdeas)
+      .where(and(eq(videoIdeas.id, id), eq(videoIdeas.websiteId, websiteId)))
+      .for("update");
+    if (!row) return fail("not_found");
+    if (["approved", "making"].includes(row.status)) return fail("not_ready");
+    if (!MARKABLE.includes(row.status) || (!row.videoUrl && !row.slideUrls?.length)) return fail("already_handled");
+    const destinations = readDestinations(row.destinations);
+    const current = destinations[platform];
+    if (current?.status === "posting") return fail("already_handled");
+    const now = new Date();
+    if (posted) {
+      // Already there (RepGet's own post, or marked before): nothing changes.
+      if (current?.status === "posted") return { ok: true as const, data: { status: row.status } };
+      destinations[platform] = { status: "posted", bundlePostId: null, url: null, error: null, attempts: current?.attempts ?? 0, manual: true };
+    } else {
+      if (!current?.manual) return { ok: true as const, data: { status: row.status } };
+      delete destinations[platform];
+    }
+    const on = postedPlatforms(destinations);
+    // A scheduled video keeps its schedule; the publish job leaves out the platforms it is already on.
+    const status = row.status === "scheduled" ? "scheduled" : on.length > 0 ? "posted" : row.status === "posted" ? "ready" : row.status;
+    await tx
+      .update(videoIdeas)
+      .set({
+        status,
+        destinations,
+        // A video posted by hand lists where it is; a scheduled one keeps the platforms it waits for.
+        ...(status === "posted" ? { platforms: [...new Set([...(row.status === "posted" ? (row.platforms ?? []).filter((item) => posted || item !== platform) : []), ...on])] } : {}),
+        postedAt: on.length > 0 ? (row.postedAt ?? now) : null,
+        updatedAt: now,
+      })
+      .where(eq(videoIdeas.id, id));
+    return { ok: true as const, data: { status } };
+  });
+  revalidatePath(pagePath(websiteId));
+  return result;
+}
+
+/** What can be marked as posted by hand: a made video that is not being published right now. */
+const MARKABLE = ["ready", "draft", "failed", "scheduled", "posted"];
 
 /** Takes a scheduled video off the schedule; it stays ready (or posted, where it already is) and its slot is given back. */
 export async function unscheduleVideoIdea(websiteId: string, id: string): Promise<PublishResult> {

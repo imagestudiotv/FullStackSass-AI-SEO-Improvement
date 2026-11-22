@@ -149,7 +149,7 @@ const en: PricingPageCopy = {
     coreEyebrow: "01 / THE COMPLETE GROW PLAN",
     corePill: "All standard features",
     stats: [
-      { strong: "branded articles / mo", small: "2 daily" },
+      { strong: "branded articles / mo", small: "1 a day" },
       { strong: "social posts / mo", small: "For your channels" },
       { strong: "search terms", small: "Researched & clustered" },
     ],
@@ -378,7 +378,7 @@ const en: PricingPageCopy = {
         items: [
           {
             q: "How does RepGet research keywords in my niche?",
-            a: "RepGet researches and clusters search terms so you can plan content around relevant topics. Research allowances depend on your plan: Free includes 10 terms, Grow includes 500, and Scale includes 1,500.",
+            a: "RepGet researches and clusters search terms so you can plan content around relevant topics. Research allowances depend on your plan: Free includes 10 terms, Grow includes 300, and Scale includes 1,200.",
           },
           {
             q: "Which AI assistants does RepGet check?",
@@ -470,7 +470,7 @@ const es: PricingPageCopy = {
     coreEyebrow: "01 / EL PLAN GROW COMPLETO",
     corePill: "Todas las funciones estándar",
     stats: [
-      { strong: "artículos de marca / mes", small: "2 al día" },
+      { strong: "artículos de marca / mes", small: "1 al día" },
       { strong: "publicaciones sociales / mes", small: "Para sus canales" },
       { strong: "términos de búsqueda", small: "Investigados y agrupados" },
     ],
@@ -699,7 +699,7 @@ const es: PricingPageCopy = {
         items: [
           {
             q: "¿Cómo investiga RepGet las palabras clave de mi sector?",
-            a: "RepGet investiga y agrupa términos de búsqueda para que pueda planificar contenido sobre temas relevantes. La investigación depende de su plan: Free incluye 10 términos, Grow incluye 500 y Scale incluye 1.500.",
+            a: "RepGet investiga y agrupa términos de búsqueda para que pueda planificar contenido sobre temas relevantes. La investigación depende de su plan: Free incluye 10 términos, Grow incluye 300 y Scale incluye 1.200.",
           },
           {
             q: "¿Qué asistentes de IA comprueba RepGet?",
@@ -791,7 +791,7 @@ const fr: PricingPageCopy = {
     coreEyebrow: "01 / LA FORMULE GROW COMPLÈTE",
     corePill: "Toutes les fonctions standard",
     stats: [
-      { strong: "articles de marque / mois", small: "2 par jour" },
+      { strong: "articles de marque / mois", small: "1 par jour" },
       { strong: "publications sociales / mois", small: "Pour vos canaux" },
       { strong: "termes de recherche", small: "Étudiés et regroupés" },
     ],
@@ -1020,7 +1020,7 @@ const fr: PricingPageCopy = {
         items: [
           {
             q: "Comment RepGet étudie-t-il les mots-clés de mon secteur ?",
-            a: "RepGet étudie et regroupe les termes de recherche pour vous permettre de planifier du contenu autour de sujets pertinents. Le volume de recherche dépend de votre formule : Free comprend 10 termes, Grow 500 et Scale 1 500.",
+            a: "RepGet étudie et regroupe les termes de recherche pour vous permettre de planifier du contenu autour de sujets pertinents. Le volume de recherche dépend de votre formule : Free comprend 10 termes, Grow 300 et Scale 1 200.",
           },
           {
             q: "Quels assistants d'IA RepGet vérifie-t-il ?",
@@ -1112,7 +1112,7 @@ const it: PricingPageCopy = {
     coreEyebrow: "01 / IL PIANO GROW COMPLETO",
     corePill: "Tutte le funzioni standard",
     stats: [
-      { strong: "articoli brandizzati / mese", small: "2 al giorno" },
+      { strong: "articoli brandizzati / mese", small: "1 al giorno" },
       { strong: "post social / mese", small: "Per i suoi canali" },
       { strong: "termini di ricerca", small: "Analizzati e raggruppati" },
     ],
@@ -1341,7 +1341,7 @@ const it: PricingPageCopy = {
         items: [
           {
             q: "Come ricerca RepGet le parole chiave del mio settore?",
-            a: "RepGet ricerca e raggruppa i termini di ricerca per aiutarla a pianificare contenuti su argomenti pertinenti. Il volume di ricerca dipende dal piano: Free include 10 termini, Grow 500 e Scale 1.500.",
+            a: "RepGet ricerca e raggruppa i termini di ricerca per aiutarla a pianificare contenuti su argomenti pertinenti. Il volume di ricerca dipende dal piano: Free include 10 termini, Grow 300 e Scale 1.200.",
           },
           {
             q: "Quali assistenti IA controlla RepGet?",
@@ -1433,7 +1433,7 @@ const de: PricingPageCopy = {
     coreEyebrow: "01 / DER KOMPLETTE GROW-TARIF",
     corePill: "Alle Standardfunktionen",
     stats: [
-      { strong: "Markenartikel / Monat", small: "2 täglich" },
+      { strong: "Markenartikel / Monat", small: "1 täglich" },
       { strong: "Social-Media-Beiträge / Monat", small: "Für Ihre Kanäle" },
       { strong: "Suchbegriffe", small: "Recherchiert & gruppiert" },
     ],
@@ -1662,7 +1662,7 @@ const de: PricingPageCopy = {
         items: [
           {
             q: "Wie recherchiert RepGet Keywords in meiner Branche?",
-            a: "RepGet recherchiert und gruppiert Suchbegriffe, damit Sie Inhalte zu relevanten Themen planen können. Der Rechercheumfang hängt von Ihrem Tarif ab: Free umfasst 10 Begriffe, Grow 500 und Scale 1.500.",
+            a: "RepGet recherchiert und gruppiert Suchbegriffe, damit Sie Inhalte zu relevanten Themen planen können. Der Rechercheumfang hängt von Ihrem Tarif ab: Free umfasst 10 Begriffe, Grow 300 und Scale 1.200.",
           },
           {
             q: "Welche KI-Assistenten prüft RepGet?",

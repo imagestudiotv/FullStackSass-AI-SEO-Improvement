@@ -1,56 +1,92 @@
 "use client";
 
-import { Check, Wand2 } from "lucide-react";
-import { useState } from "react";
+import { Player, Thumbnail, type PlayerRef } from "@remotion/player";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Info, Plus, RotateCcw, Wand2, X } from "lucide-react";
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 
-import { NativeLikeSelect } from "@/components/ui/native-like-select";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { NativeLikeSelect } from "@/components/ui/native-like-select";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Notice } from "@/components/workspace/notice";
 import { format } from "@/lib/i18n/format";
 import { addMediaToIdea, editVideoIdea, removeMediaFromIdea, rewriteVideoIdea, type IdeaEdit } from "@/lib/video/actions";
 import { compatibility } from "@/lib/video/destinations";
 import {
-  CAPTION_STYLES,
   CREATIVE_DIRECTIONS,
   DURATION_RANGES,
   IDEA_CATEGORIES,
   isVideoFormat,
   MUSIC_DIRECTIONS,
   NARRATION_STYLES,
+  REEL,
+  SLIDE,
   TONE_PRESETS,
   VIDEO_FORMATS,
-  VIDEO_STYLES,
   VOICES,
   type CreativeDirection,
   type IdeaCategory,
-  type IdeaOverrides,
   type ProductionChoices,
-  type ReelProps,
-  type ResolvedAudio,
   type TonePreset,
-  type VideoScript,
-  type VideoStyle,
+  type VideoPoint,
 } from "@/lib/video/formats";
 import type { VideoSettings } from "@/lib/video/settings";
+import type { ProductionReelProps } from "@/remotion/props";
+import { Reel } from "@/remotion/Reel";
+import { carouselSlideCount, Slide } from "@/remotion/Slide";
 
-import { CarouselPreview, ReelPreview } from "./preview";
+import {
+  audioLock,
+  canEditIdea,
+  captionsApply,
+  ctaSwitchApplies,
+  editFromForm,
+  editorProblems,
+  effectiveAudio,
+  figuresApply,
+  formFromIdea,
+  hookSwitchApplies,
+  isDirty,
+  maxPoints,
+  MIN_POINTS,
+  musicChoice,
+  partFrame,
+  partSlide,
+  previewProps,
+  textStyles,
+  textStyleValue,
+  visibleParts,
+  VOICE_OFF,
+  voiceChoice,
+  withMusicChoice,
+  withTextStyle,
+  withVoiceChoice,
+  type EditorForm,
+  type PartKey,
+} from "./editor-logic";
+import { reelFrames } from "./preview";
 import { Field, MediaThumb, platformName, selectClass, type IdeaView, type MediaView, type Run, type T, type TrackView } from "./shared";
 
-const RESOLVED_AUDIO: ResolvedAudio[] = ["voiceover", "text_music"];
 const cap = (value: string) => value[0].toUpperCase() + value.slice(1);
+type EditorTab = "script" | "style" | "video";
+const RATIO: Record<(typeof VIDEO_FORMATS)[number], string> = { reel: "9:16", story: "9:16", carousel: "4:5" };
 
 /**
- * The full editor (client, 2026-11-02; extended 2026-11-12). Everything it
- * had - hook, points and figures, proof, closing line, post text, style,
- * format, voice, music, captions, pictures - plus the idea's title,
- * category, creative direction, audio and its styles, length, hook and CTA
- * switches, and this video's own audience/tone/avoid. "Rewrite with these"
- * (free) has the script written again with the choices; the platform checks
- * are shown before saving or creating.
+ * The video editor (client, 2026-11-21: "more simple and focused", the
+ * no-scenes reference). A large panel: the live preview on the left - the
+ * real template, following the format and showing the text being edited -
+ * and three tabs on the right: Script (the texts on screen, the voiceover
+ * lines, the post's caption), Style (the look and the text styles the
+ * renderer really has) and Video (format, length, voice, captions, music,
+ * pictures). Only what the video uses is offered (editor-logic.ts); the
+ * per-video audience/tone and the AI rewrite sit under More options.
+ *
+ * Same contract as the dialog it replaces: Save (editVideoIdea, free, new and
+ * failed ideas only), Save & approve (onApprove with the edit). Escape or
+ * Cancel with unsaved changes asks before closing.
  */
 export function EditDialog(props: {
   idea: IdeaView;
@@ -70,58 +106,40 @@ export function EditDialog(props: {
   const { t, idea } = props;
   const v = t.viral;
   const e = v.edit;
-  const [title, setTitle] = useState(idea.title);
-  const [script, setScript] = useState<VideoScript>(idea.props.script);
-  const [caption, setCaption] = useState(idea.caption);
-  const [style, setStyle] = useState(idea.style);
-  const [formatValue, setFormat] = useState(idea.format);
-  const [category, setCategory] = useState<IdeaCategory>(idea.category);
-  const [direction, setDirection] = useState<CreativeDirection>(idea.direction);
-  const [production, setProduction] = useState<ProductionChoices>(() => ({
-    ...idea.production,
-    // An idea saved with no music reads as the "No music" direction.
-    music: idea.musicTrack === "none" ? "none" : idea.production.music,
-  }));
-  const [voice, setVoice] = useState<string>(idea.voice ?? props.settings.voice ?? VOICES[0]);
-  const [music, setMusic] = useState<string | null>(idea.musicTrack === "none" ? null : idea.musicTrack);
-  const [captions, setCaptions] = useState(idea.captions);
-  const [overrides, setOverrides] = useState<IdeaOverrides>(idea.overrides);
+  const c = v.editor;
+  const editable = canEditIdea(idea.status);
+  const [initial] = useState<EditorForm>(() => formFromIdea(idea, idea.voice ?? props.settings.voice ?? VOICES[0]));
+  const [form, setForm] = useState<EditorForm>(initial);
   const [media, setMedia] = useState(idea.props.media);
+  const [tab, setTab] = useState<EditorTab>("script");
+  const [selected, setSelected] = useState<PartKey>(0);
+  const [confirming, setConfirming] = useState(false);
 
-  const video = formatValue !== "carousel";
-  const narrated = video && production.audio === "voiceover";
-  const choose = <K extends keyof ProductionChoices>(key: K, value: ProductionChoices[K]) => setProduction((value0) => ({ ...value0, [key]: value }));
-  const cleanOverrides: IdeaOverrides = Object.fromEntries(
-    Object.entries(overrides).filter(([, value]) => typeof value === "string" && value.trim() !== ""),
-  ) as IdeaOverrides;
+  const dirty = editable && isDirty(initial, form);
+  const edit = editFromForm(form);
+  const problems = editable ? editorProblems(form) : [];
+  const preview = useMemo(() => previewProps(idea.props as ProductionReelProps, form, media), [idea.props, form, media]);
+  const video = form.format !== "carousel";
+  const audio = effectiveAudio(form);
+  const narrated = video && audio === "voiceover";
+  const lock = audioLock(form.direction, form.format);
+  const max = maxPoints(form);
+  const styles = textStyles(form);
+  const update = (change: Partial<EditorForm>) => setForm((value) => ({ ...value, ...change }));
+  const choose = <K extends keyof ProductionChoices>(key: K, value: ProductionChoices[K]) => setForm((value0) => ({ ...value0, production: { ...value0.production, [key]: value } }));
+  const setScript = (change: Partial<EditorForm["script"]>) => setForm((value) => ({ ...value, script: { ...value.script, ...change } }));
+  const setPoint = (index: number, change: Partial<VideoPoint>) =>
+    setForm((value) => ({ ...value, script: { ...value.script, points: value.script.points.map((point, at) => (at === index ? { ...point, ...change } : point)) } }));
 
-  const edit: IdeaEdit = {
-    title: title.trim(),
-    script,
-    caption,
-    style,
-    format: formatValue,
-    category,
-    direction,
-    production: { ...production, ctaText: production.ctaText?.trim() ? production.ctaText.trim() : null },
-    overrides: cleanOverrides,
-    // Today's fields follow the new choices, so an older server reads them the same way.
-    voice: narrated ? voice : null,
-    musicTrack: production.music === "none" ? "none" : music,
-    captions,
-  };
-  const preview: ReelProps = { ...idea.props, script, style: style as VideoStyle, captions, media };
   const check = compatibility({
-    format: isVideoFormat(formatValue) ? formatValue : "reel",
-    duration: formatValue === "carousel" ? null : production.duration,
+    format: isVideoFormat(form.format) ? form.format : "reel",
+    duration: form.format === "carousel" ? null : form.production.duration,
     platforms: props.settings.platforms,
     xAvailable: props.xAvailable,
   });
-  const problems = Object.entries(check.problems) as [string, string][];
+  const platformProblems = Object.entries(check.problems) as [string, string][];
 
-  const setPoint = (index: number, change: Partial<VideoScript["points"][number]>) =>
-    setScript((value) => ({ ...value, points: value.points.map((point, at) => (at === index ? { ...point, ...change } : point)) }));
-
+  const requestClose = () => (dirty ? setConfirming(true) : props.onClose());
   const save = () => props.run(() => editVideoIdea(props.websiteId, idea.id, edit), t.saved, props.onClose);
   const rewrite = () =>
     props.run(
@@ -134,154 +152,305 @@ export function EditDialog(props: {
       props.onClose,
     );
 
+  const n = form.script.points.length;
+  const onScreen = (part: PartKey) => ({ onFocus: () => setSelected(part) });
+
   return (
-    <Dialog open onOpenChange={(open) => !open && props.onClose()}>
-      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-4xl">
-        <DialogHeader>
-          <DialogTitle>{t.editTitle}</DialogTitle>
-          <DialogDescription>{e.description}</DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-6 md:grid-cols-[260px_1fr]">
-          <div className="mx-auto w-full max-w-[260px] space-y-2">
-            {formatValue === "carousel" ? <CarouselPreview props={preview} /> : <ReelPreview props={preview} autoPlay={false} />}
-            <p className="text-center text-xs text-muted-foreground">{direction === "animated" ? t.previewNote : v.previewConcept}</p>
+    <Dialog open onOpenChange={(open) => !open && requestClose()}>
+      <DialogContent
+        closeLabel={c.close}
+        onEscapeKeyDown={(event) => {
+          // Escape on the question keeps editing; with changes it asks first.
+          if (confirming) {
+            event.preventDefault();
+            setConfirming(false);
+          } else if (dirty) {
+            event.preventDefault();
+            setConfirming(true);
+          }
+        }}
+        className="inset-0 flex h-dvh max-h-none w-full max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none p-0 sm:inset-4 sm:h-auto sm:w-auto sm:max-w-none sm:rounded-xl"
+      >
+        <header className="flex items-start gap-3 border-b px-4 py-3 pr-12">
+          <div className="min-w-0 flex-1">
+            <DialogTitle className="text-base font-semibold">{c.heading}</DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">{c.intro}</DialogDescription>
           </div>
-          <div className="min-w-0 space-y-6">
-            <section className="space-y-4" aria-label={e.script}>
-              <h3 className="text-sm font-semibold">{e.script}</h3>
-              <Field label={e.title}>
-                <Input value={title} maxLength={90} onChange={(event) => setTitle(event.target.value)} />
-              </Field>
-              <Field label={t.hook}>
-                <Input value={script.hook} maxLength={80} onChange={(event) => setScript({ ...script, hook: event.target.value })} />
-              </Field>
-              {script.points.map((point, index) => (
-                <fieldset key={index} className="space-y-2 rounded-xl border p-3">
-                  <legend className="px-1 text-xs font-medium text-muted-foreground">{format(t.point, { index: String(index + 1) })}</legend>
-                  <Field label={t.pointTitle}>
-                    <Input value={point.title} maxLength={48} onChange={(event) => setPoint(index, { title: event.target.value })} />
+          {dirty ? (
+            <Button variant="ghost" size="sm" onClick={() => setForm(initial)}>
+              <RotateCcw aria-hidden="true" />
+              {c.reset}
+            </Button>
+          ) : null}
+        </header>
+
+        <div className="min-h-0 flex-1 overflow-y-auto md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] md:overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(0,30rem)]">
+          <section aria-label={c.preview} className="flex flex-col items-center gap-3 bg-muted/40 px-4 py-4 md:justify-center md:overflow-y-auto">
+            <EditorPreview props={preview} part={selected} onPart={setSelected} t={t} />
+            <p className="max-w-sm text-center text-xs text-muted-foreground">{form.direction === "animated" ? t.previewNote : v.previewConcept}</p>
+          </section>
+
+          <div className="min-w-0 border-t md:overflow-y-auto md:border-t-0 md:border-l">
+            <Tabs value={tab} onValueChange={(value) => setTab(value as EditorTab)} className="gap-0">
+              <div className="sticky top-0 z-10 border-b bg-popover px-4 py-2">
+                <TabsList className="w-full">
+                  <TabsTrigger value="script">{c.tabs.script}</TabsTrigger>
+                  <TabsTrigger value="style">{c.tabs.style}</TabsTrigger>
+                  <TabsTrigger value="video">{c.tabs.video}</TabsTrigger>
+                </TabsList>
+              </div>
+              {editable ? null : (
+                <div className="px-4 pt-4">
+                  <Notice tone="info" title={c.readOnly.title}>
+                    {c.readOnly.body}
+                  </Notice>
+                </div>
+              )}
+              <fieldset disabled={!editable} className="min-w-0">
+                <TabsContent value="script" className="space-y-5 p-4">
+                  <Field label={c.videoTitle} hint={c.titlePrivate}>
+                    <Input value={form.title} maxLength={90} aria-invalid={problems.includes("title") || undefined} onChange={(event) => update({ title: event.target.value })} />
                   </Field>
-                  <Field label={t.pointDetail}>
-                    <Input value={point.detail} maxLength={180} onChange={(event) => setPoint(index, { detail: event.target.value })} />
-                  </Field>
-                  {style === "numbers" ? (
-                    <div className="grid grid-cols-3 gap-2">
-                      <Field label={t.statValue}>
+
+                  <section className="space-y-3" aria-label={c.onScreen}>
+                    <div>
+                      <h3 className="text-sm font-semibold">{c.onScreen}</h3>
+                      <p className="text-xs text-muted-foreground">{c.onScreenHint}</p>
+                    </div>
+                    <TextRow selected={selected === 0} note={hookSwitchApplies(form) && !form.production.showHook ? c.hookOff : null}>
+                      <Field label={t.hook}>
+                        <Input value={form.script.hook} maxLength={80} aria-invalid={problems.includes("hook") || undefined} {...onScreen(0)} onChange={(event) => setScript({ hook: event.target.value })} />
+                      </Field>
+                    </TextRow>
+                    {form.script.points.map((point, index) => (
+                      <TextRow key={index} selected={selected === index + 1} muted={index >= max}>
+                        <div className="flex items-end gap-2">
+                          <div className="min-w-0 flex-1">
+                            <Field label={format(t.point, { index: String(index + 1) })}>
+                              <Input
+                                value={point.title}
+                                maxLength={48}
+                                aria-invalid={(index < max && problems.includes("point") && !point.title.trim()) || undefined}
+                                {...onScreen(index + 1)}
+                                onChange={(event) => setPoint(index, { title: event.target.value })}
+                              />
+                            </Field>
+                          </div>
+                          {n > MIN_POINTS ? (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label={format(c.removePoint, { index: String(index + 1) })}
+                              onClick={() => {
+                                setScript({ points: form.script.points.filter((_, at) => at !== index) });
+                                setSelected(0);
+                              }}
+                            >
+                              <X aria-hidden="true" />
+                            </Button>
+                          ) : null}
+                        </div>
+                        {figuresApply(form) ? <FigureFields point={point} onChange={(change) => setPoint(index, change)} onFocus={() => setSelected(index + 1)} t={t} /> : null}
+                      </TextRow>
+                    ))}
+                    {n > max ? <p className="text-xs text-muted-foreground">{format(c.tooManyPoints, { max: String(max) })}</p> : null}
+                    {n < max ? (
+                      <Button variant="outline" size="sm" onClick={() => setScript({ points: [...form.script.points, { title: "", detail: "", stat: null }] })}>
+                        <Plus aria-hidden="true" />
+                        {t.addPoint}
+                      </Button>
+                    ) : null}
+                    <TextRow selected={selected === n + 1}>
+                      <Field label={t.proof}>
+                        <Input value={form.script.proof} maxLength={160} {...onScreen(n + 1)} onChange={(event) => setScript({ proof: event.target.value })} />
+                      </Field>
+                    </TextRow>
+                    <TextRow
+                      selected={selected === n + 2}
+                      note={ctaSwitchApplies(form) ? (!form.production.includeCta ? c.ctaOff : form.production.ctaText?.trim() ? c.ctaReplaced : null) : null}
+                    >
+                      <Field label={t.cta}>
+                        <Input value={form.script.cta} maxLength={80} {...onScreen(n + 2)} onChange={(event) => setScript({ cta: event.target.value })} />
+                      </Field>
+                    </TextRow>
+                  </section>
+
+                  <Accordion title={c.voiceoverScript} badge={c.optional}>
+                    <p className="text-xs text-muted-foreground">{narrated ? c.voiceoverHint : c.voiceoverSilent}</p>
+                    {form.script.points.slice(0, max).map((point, index) => (
+                      <Field key={index} label={format(c.pointAdds, { index: String(index + 1) })}>
+                        <Textarea rows={2} maxLength={180} value={point.detail} onFocus={() => setSelected(index + 1)} onChange={(event) => setPoint(index, { detail: event.target.value })} />
+                      </Field>
+                    ))}
+                  </Accordion>
+
+                  <Accordion title={c.socialCaption} open={problems.includes("caption")}>
+                    <Field label={t.caption} hint={c.captionHint}>
+                      <Textarea rows={5} maxLength={2200} value={form.caption} aria-invalid={problems.includes("caption") || undefined} onChange={(event) => update({ caption: event.target.value })} />
+                    </Field>
+                  </Accordion>
+
+                  <Callout>{c.profileCallout}</Callout>
+
+                  <Accordion title={c.more}>
+                    <p className="text-xs text-muted-foreground">{c.moreHint}</p>
+                    <Field label={e.category}>
+                      <NativeLikeSelect className={selectClass} value={form.category} onChange={(event) => update({ category: event.target.value as IdeaCategory })}>
+                        {IDEA_CATEGORIES.map((value) => (
+                          <option key={value} value={value}>
+                            {v.categories[value]}
+                          </option>
+                        ))}
+                      </NativeLikeSelect>
+                    </Field>
+                    <Field label={e.audience}>
+                      <Textarea
+                        rows={2}
+                        maxLength={300}
+                        value={form.overrides.audience ?? ""}
+                        placeholder={e.samePlaceholder}
+                        onChange={(event) => update({ overrides: { ...form.overrides, audience: event.target.value } })}
+                      />
+                    </Field>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Field label={e.tonePreset}>
+                        <NativeLikeSelect
+                          className={selectClass}
+                          value={form.overrides.tonePreset ?? ""}
+                          onChange={(event) => update({ overrides: { ...form.overrides, tonePreset: (event.target.value || undefined) as TonePreset | undefined } })}
+                        >
+                          <option value="">{e.sameAsBrand}</option>
+                          {TONE_PRESETS.map((value) => (
+                            <option key={value} value={value}>
+                              {v.tonePresets[value].title}
+                            </option>
+                          ))}
+                        </NativeLikeSelect>
+                      </Field>
+                      <Field label={e.tone}>
                         <Input
-                          type="number"
-                          value={point.stat?.value ?? ""}
-                          onChange={(event) =>
-                            setPoint(index, {
-                              stat: event.target.value === "" ? null : { value: Number(event.target.value), suffix: point.stat?.suffix ?? "", label: point.stat?.label ?? "" },
-                            })
-                          }
+                          value={form.overrides.tone ?? ""}
+                          maxLength={300}
+                          placeholder={e.samePlaceholder}
+                          onChange={(event) => update({ overrides: { ...form.overrides, tone: event.target.value } })}
                         />
                       </Field>
-                      <Field label={t.statSuffix}>
-                        <Input value={point.stat?.suffix ?? ""} maxLength={6} disabled={!point.stat} onChange={(event) => point.stat && setPoint(index, { stat: { ...point.stat, suffix: event.target.value } })} />
-                      </Field>
-                      <Field label={t.statLabel}>
-                        <Input value={point.stat?.label ?? ""} maxLength={40} disabled={!point.stat} onChange={(event) => point.stat && setPoint(index, { stat: { ...point.stat, label: event.target.value } })} />
-                      </Field>
                     </div>
-                  ) : null}
-                  {script.points.length > 2 ? (
-                    <Button variant="ghost" size="sm" onClick={() => setScript({ ...script, points: script.points.filter((_, at) => at !== index) })}>
-                      {t.removePoint}
-                    </Button>
-                  ) : null}
-                </fieldset>
-              ))}
-              {script.points.length < 4 ? (
-                <Button variant="outline" size="sm" onClick={() => setScript({ ...script, points: [...script.points, { title: "", detail: "", stat: null }] })}>
-                  {t.addPoint}
-                </Button>
-              ) : null}
-              <Field label={t.proof}>
-                <Input value={script.proof} maxLength={160} onChange={(event) => setScript({ ...script, proof: event.target.value })} />
-              </Field>
-              <Field label={t.cta}>
-                <Input value={script.cta} maxLength={80} onChange={(event) => setScript({ ...script, cta: event.target.value })} />
-              </Field>
-              <Field label={t.caption}>
-                <Textarea value={caption} rows={4} maxLength={2200} onChange={(event) => setCaption(event.target.value)} />
-              </Field>
-            </section>
+                    <Field label={e.avoid}>
+                      <Input
+                        value={form.overrides.avoid ?? ""}
+                        maxLength={300}
+                        placeholder={e.samePlaceholder}
+                        onChange={(event) => update({ overrides: { ...form.overrides, avoid: event.target.value } })}
+                      />
+                    </Field>
+                    <div className="space-y-1">
+                      <Button variant="outline" size="sm" disabled={props.pending || problems.length > 0} onClick={rewrite}>
+                        <Wand2 aria-hidden="true" />
+                        {c.rewrite}
+                      </Button>
+                      <p className="text-xs text-muted-foreground">{e.rewriteHelp}</p>
+                    </div>
+                  </Accordion>
+                </TabsContent>
 
-            <section className="space-y-4 border-t pt-4" aria-label={e.making}>
-              <h3 className="text-sm font-semibold">{e.making}</h3>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Field label={e.category}>
-                  <NativeLikeSelect className={selectClass} value={category} onChange={(event) => setCategory(event.target.value as IdeaCategory)}>
-                    {IDEA_CATEGORIES.map((value) => (
-                      <option key={value} value={value}>
-                        {v.categories[value]}
-                      </option>
-                    ))}
-                  </NativeLikeSelect>
-                </Field>
-                <Field label={e.direction}>
-                  <NativeLikeSelect className={selectClass} value={direction} onChange={(event) => setDirection(event.target.value as CreativeDirection)}>
-                    {CREATIVE_DIRECTIONS.map((value) => (
-                      <option key={value} value={value}>
-                        {v.directions[value]}
-                      </option>
-                    ))}
-                  </NativeLikeSelect>
-                </Field>
-                <Field label={t.format}>
-                  <NativeLikeSelect className={selectClass} value={formatValue} onChange={(event) => setFormat(event.target.value)}>
-                    {VIDEO_FORMATS.map((value) => (
-                      <option key={value} value={value}>
-                        {v.formats[value]}
-                      </option>
-                    ))}
-                  </NativeLikeSelect>
-                </Field>
-                {direction === "animated" ? (
-                  <Field label={t.style}>
-                    <NativeLikeSelect className={selectClass} value={style} onChange={(event) => setStyle(event.target.value)}>
-                      {VIDEO_STYLES.map((value) => (
+                <TabsContent value="style" className="space-y-5 p-4">
+                  <Field label={c.look} hint={c.lookHint}>
+                    <NativeLikeSelect className={selectClass} value={form.direction} onChange={(event) => update({ direction: event.target.value as CreativeDirection })}>
+                      {CREATIVE_DIRECTIONS.map((value) => (
                         <option key={value} value={value}>
-                          {t.styles[value]}
+                          {v.directions[value]}
                         </option>
                       ))}
                     </NativeLikeSelect>
                   </Field>
-                ) : null}
-                {video ? (
-                  <>
-                    <Field label={e.duration}>
-                      <NativeLikeSelect className={selectClass} value={production.duration} onChange={(event) => choose("duration", event.target.value as ProductionChoices["duration"])}>
-                        {DURATION_RANGES.map((value) => (
-                          <option key={value} value={value}>
-                            {v.durations[value]}
-                          </option>
-                        ))}
-                      </NativeLikeSelect>
-                    </Field>
-                    <Field label={e.audio}>
-                      <NativeLikeSelect className={selectClass} value={production.audio} onChange={(event) => choose("audio", event.target.value as ResolvedAudio)}>
-                        {RESOLVED_AUDIO.map((value) => (
-                          <option key={value} value={value}>
-                            {v.audio[value]}
-                          </option>
-                        ))}
-                      </NativeLikeSelect>
-                    </Field>
-                    {narrated ? (
+
+                  <fieldset className="min-w-0 space-y-2">
+                    <legend className="text-sm font-semibold">{c.textStyle}</legend>
+                    {styles.kind === "fixed" ? (
+                      <p className="text-xs text-muted-foreground">{c.textStyleFixed}</p>
+                    ) : (
                       <>
-                        <Field label={t.voice}>
-                          <NativeLikeSelect className={selectClass} value={voice} onChange={(event) => setVoice(event.target.value)}>
-                            {VOICES.map((value) => (
-                              <option key={value} value={value}>
-                                {cap(value)}
-                              </option>
-                            ))}
-                          </NativeLikeSelect>
-                        </Field>
+                        <p className="text-xs text-muted-foreground">{styles.kind === "template" ? c.textStyleTemplate : c.textStyleCaptions}</p>
+                        <div className="grid grid-cols-3 gap-2">
+                          {styles.options.map((value) => (
+                            <StyleTile
+                              key={value}
+                              value={value}
+                              kind={styles.kind}
+                              label={styles.kind === "template" ? t.styles[value as keyof T["styles"]] : v.captionStyles[value as keyof T["viral"]["captionStyles"]]}
+                              help={styles.kind === "template" ? t.styleHelp[value as keyof T["styleHelp"]] : undefined}
+                              pressed={textStyleValue(form) === value}
+                              onPress={() => setForm((value0) => withTextStyle(value0, value))}
+                            />
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </fieldset>
+
+                  <div className="space-y-3 border-t pt-4">
+                    {hookSwitchApplies(form) ? (
+                      <SwitchRow label={e.showHook} checked={form.production.showHook} onChange={(on) => choose("showHook", on)} />
+                    ) : null}
+                    {ctaSwitchApplies(form) ? (
+                      <>
+                        <SwitchRow label={e.includeCta} checked={form.production.includeCta} onChange={(on) => choose("includeCta", on)} />
+                        {form.production.includeCta ? (
+                          <Field label={e.ctaText} hint={e.ctaHint}>
+                            <Input value={form.production.ctaText ?? ""} maxLength={150} placeholder={form.script.cta} onFocus={() => setSelected(n + 2)} onChange={(event) => choose("ctaText", event.target.value)} />
+                          </Field>
+                        ) : null}
+                      </>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">{c.templateAlways}</p>
+                    )}
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="video" className="space-y-5 p-4">
+                  <fieldset className="min-w-0 space-y-2">
+                    <legend className="text-sm font-semibold">{c.videoFormat}</legend>
+                    <div className="grid grid-cols-3 gap-2">
+                      {VIDEO_FORMATS.map((value) => (
+                        <button
+                          key={value}
+                          type="button"
+                          aria-pressed={form.format === value}
+                          onClick={() => update({ format: value })}
+                          className="flex flex-col items-center gap-2 rounded-xl border bg-background px-2 py-3 text-xs font-medium transition hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none aria-pressed:border-primary aria-pressed:bg-primary/5 aria-pressed:text-foreground"
+                        >
+                          <span aria-hidden="true" className={`block rounded-[3px] border-2 border-current ${value === "carousel" ? "h-5 w-4" : "h-6 w-3.5"}`} />
+                          {format(c.formatOption, { ratio: RATIO[value], name: v.formats[value] })}
+                        </button>
+                      ))}
+                    </div>
+                  </fieldset>
+
+                  {video ? (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Field label={e.duration}>
+                        <NativeLikeSelect className={selectClass} value={form.production.duration} onChange={(event) => choose("duration", event.target.value as ProductionChoices["duration"])}>
+                          {DURATION_RANGES.map((value) => (
+                            <option key={value} value={value}>
+                              {v.durations[value]}
+                            </option>
+                          ))}
+                        </NativeLikeSelect>
+                      </Field>
+                      <Field label={c.voiceover} hint={lock ? c.voiceLocked[lock] : undefined}>
+                        <NativeLikeSelect className={selectClass} value={voiceChoice(form)} disabled={lock === "text_music"} onChange={(event) => setForm((value) => withVoiceChoice(value, event.target.value))}>
+                          {lock === "voiceover" ? null : <option value={VOICE_OFF}>{t.voiceOff}</option>}
+                          {VOICES.map((value) => (
+                            <option key={value} value={value}>
+                              {cap(value)}
+                            </option>
+                          ))}
+                        </NativeLikeSelect>
+                      </Field>
+                      {narrated ? (
                         <Field label={e.narration}>
-                          <NativeLikeSelect className={selectClass} value={production.narration} onChange={(event) => choose("narration", event.target.value as ProductionChoices["narration"])}>
+                          <NativeLikeSelect className={selectClass} value={form.production.narration} onChange={(event) => choose("narration", event.target.value as ProductionChoices["narration"])}>
                             {NARRATION_STYLES.map((value) => (
                               <option key={value} value={value}>
                                 {v.narration[value]}
@@ -289,172 +458,319 @@ export function EditDialog(props: {
                             ))}
                           </NativeLikeSelect>
                         </Field>
-                      </>
-                    ) : null}
-                    <Field label={e.musicDirection}>
-                      <NativeLikeSelect className={selectClass} value={production.music} onChange={(event) => choose("music", event.target.value as ProductionChoices["music"])}>
-                        {MUSIC_DIRECTIONS.map((value) => (
-                          <option key={value} value={value}>
-                            {v.music[value]}
-                          </option>
-                        ))}
-                      </NativeLikeSelect>
-                    </Field>
-                    {production.music !== "none" ? (
+                      ) : null}
                       <Field label={t.music}>
-                        <NativeLikeSelect className={selectClass} value={music ?? ""} onChange={(event) => setMusic(event.target.value === "" ? null : event.target.value)}>
-                          <option value="">{t.musicAuto}</option>
-                          {props.tracks.map((track) => (
-                            <option key={track.id} value={track.id}>
-                              {track.title}
-                            </option>
-                          ))}
+                        <NativeLikeSelect className={selectClass} value={musicChoice(form)} onChange={(event) => setForm((value) => withMusicChoice(value, event.target.value))}>
+                          <optgroup label={c.musicMoods}>
+                            {MUSIC_DIRECTIONS.map((value) => (
+                              <option key={value} value={`mood:${value}`}>
+                                {v.music[value]}
+                              </option>
+                            ))}
+                          </optgroup>
+                          {props.tracks.length > 0 ? (
+                            <optgroup label={c.musicTracks}>
+                              {props.tracks.map((track) => (
+                                <option key={track.id} value={`track:${track.id}`}>
+                                  {track.title}
+                                </option>
+                              ))}
+                            </optgroup>
+                          ) : null}
                         </NativeLikeSelect>
                       </Field>
-                    ) : null}
-                    {captions ? (
-                      <Field label={e.captionStyle}>
-                        <NativeLikeSelect className={selectClass} value={production.captionStyle} onChange={(event) => choose("captionStyle", event.target.value as ProductionChoices["captionStyle"])}>
-                          {CAPTION_STYLES.map((value) => (
-                            <option key={value} value={value}>
-                              {v.captionStyles[value]}
-                            </option>
-                          ))}
-                        </NativeLikeSelect>
-                      </Field>
-                    ) : null}
-                  </>
-                ) : null}
-              </div>
-              <div className="space-y-3">
-                {video ? (
-                  <label className="flex items-center gap-2 text-sm">
-                    <Switch checked={captions} onCheckedChange={setCaptions} />
-                    {t.captions}
-                  </label>
-                ) : null}
-                <label className="flex items-center gap-2 text-sm">
-                  <Switch checked={production.showHook} onCheckedChange={(on) => choose("showHook", on)} />
-                  {e.showHook}
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <Switch checked={production.includeCta} onCheckedChange={(on) => choose("includeCta", on)} />
-                  {e.includeCta}
-                </label>
-                {production.includeCta ? (
-                  <Field label={e.ctaText} hint={e.ctaHint}>
-                    <Input value={production.ctaText ?? ""} maxLength={150} placeholder={script.cta} onChange={(event) => choose("ctaText", event.target.value)} />
-                  </Field>
-                ) : null}
-              </div>
-            </section>
+                    </div>
+                  ) : null}
 
-            <section className="space-y-3 rounded-xl border border-dashed p-3" aria-label={e.onlyThis}>
-              <div>
-                <h3 className="text-sm font-semibold">{e.onlyThis}</h3>
-                <p className="text-xs text-muted-foreground">{e.onlyThisBody}</p>
-              </div>
-              <Field label={e.audience}>
-                <Textarea rows={2} maxLength={300} value={overrides.audience ?? ""} placeholder={e.samePlaceholder} onChange={(event) => setOverrides({ ...overrides, audience: event.target.value })} />
-              </Field>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Field label={e.tonePreset}>
-                  <NativeLikeSelect
-                    className={selectClass}
-                    value={overrides.tonePreset ?? ""}
-                    onChange={(event) => setOverrides({ ...overrides, tonePreset: (event.target.value || undefined) as TonePreset | undefined })}
-                  >
-                    <option value="">{e.sameAsBrand}</option>
-                    {TONE_PRESETS.map((value) => (
-                      <option key={value} value={value}>
-                        {v.tonePresets[value].title}
-                      </option>
-                    ))}
-                  </NativeLikeSelect>
-                </Field>
-                <Field label={e.tone}>
-                  <Input value={overrides.tone ?? ""} maxLength={300} placeholder={e.samePlaceholder} onChange={(event) => setOverrides({ ...overrides, tone: event.target.value })} />
-                </Field>
-              </div>
-              <Field label={e.avoid}>
-                <Input value={overrides.avoid ?? ""} maxLength={300} placeholder={e.samePlaceholder} onChange={(event) => setOverrides({ ...overrides, avoid: event.target.value })} />
-              </Field>
-            </section>
+                  {captionsApply(form) ? (
+                    <SwitchRow label={c.captionsOnVideo} hint={c.captionsHint} checked={form.captions} onChange={(on) => update({ captions: on })} />
+                  ) : null}
 
-            <div className="space-y-2">
-              <p className="text-sm font-medium">{t.pictures}</p>
-              {media.length === 0 ? <p className="text-xs text-muted-foreground">{t.noPictures}</p> : null}
-              <div className="flex flex-wrap gap-2">
-                {media.map((item) => (
-                  <MediaThumb
-                    key={item.url}
-                    url={item.url}
-                    kind={item.kind}
-                    removeLabel={t.remove}
-                    onRemove={() =>
-                      props.run(() => removeMediaFromIdea(props.websiteId, idea.id, item.url), undefined, () =>
-                        setMedia((list) => list.filter((entry) => entry.url !== item.url)),
-                      )
-                    }
-                  />
-                ))}
-              </div>
-              {props.media.length > 0 ? (
-                <details className="text-sm">
-                  <summary className="cursor-pointer text-primary">{t.addPicture}</summary>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {props.media
-                      .filter((item) => !media.some((entry) => entry.url === item.url))
-                      .map((item) => (
-                        <button
-                          key={item.id}
-                          type="button"
-                          aria-label={item.name ?? t.addPicture}
-                          className="rounded-lg ring-primary hover:ring-2 focus-visible:ring-2 focus-visible:outline-none"
-                          onClick={() =>
-                            props.run(() => addMediaToIdea(props.websiteId, idea.id, item.url, item.kind), undefined, () =>
-                              setMedia((list) => [{ url: item.url, kind: item.kind }, ...list]),
-                            )
+                  <div className="space-y-2 border-t pt-4">
+                    <p className="text-sm font-semibold">{t.pictures}</p>
+                    <p className="text-xs text-muted-foreground">{media.length === 0 ? t.noPictures : c.picturesHint}</p>
+                    <div className="flex flex-wrap gap-2">
+                      {media.map((item) => (
+                        <MediaThumb
+                          key={item.url}
+                          url={item.url}
+                          kind={item.kind}
+                          removeLabel={t.remove}
+                          onRemove={
+                            editable
+                              ? () =>
+                                  props.run(() => removeMediaFromIdea(props.websiteId, idea.id, item.url), undefined, () =>
+                                    setMedia((list) => list.filter((entry) => entry.url !== item.url)),
+                                  )
+                              : undefined
                           }
-                        >
-                          <MediaThumb url={item.url} kind={item.kind} />
-                        </button>
+                        />
                       ))}
+                    </div>
+                    {editable && props.media.length > 0 ? (
+                      <details className="text-sm">
+                        <summary className="cursor-pointer text-primary">{t.addPicture}</summary>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {props.media
+                            .filter((item) => !media.some((entry) => entry.url === item.url))
+                            .map((item) => (
+                              <button
+                                key={item.id}
+                                type="button"
+                                aria-label={item.name ?? t.addPicture}
+                                className="rounded-lg ring-primary hover:ring-2 focus-visible:ring-2 focus-visible:outline-none"
+                                onClick={() =>
+                                  props.run(() => addMediaToIdea(props.websiteId, idea.id, item.url, item.kind), undefined, () =>
+                                    setMedia((list) => [{ url: item.url, kind: item.kind }, ...list]),
+                                  )
+                                }
+                              >
+                                <MediaThumb url={item.url} kind={item.kind} />
+                              </button>
+                            ))}
+                        </div>
+                      </details>
+                    ) : null}
                   </div>
-                </details>
-              ) : null}
-            </div>
 
-            {problems.length > 0 ? (
-              <Notice tone="warning" title={v.compat.title}>
-                <ul className="list-disc space-y-0.5 pl-5">
-                  {problems.map(([platform, code]) => (
-                    <li key={platform}>{compatText(t, { platform, code }, production.duration)}</li>
-                  ))}
-                </ul>
-              </Notice>
-            ) : null}
+                  {platformProblems.length > 0 ? (
+                    <Notice tone="warning" title={v.compat.title}>
+                      <ul className="list-disc space-y-0.5 pl-5">
+                        {platformProblems.map(([platform, code]) => (
+                          <li key={platform}>{compatText(t, { platform, code }, form.production.duration)}</li>
+                        ))}
+                      </ul>
+                    </Notice>
+                  ) : null}
+
+                  <Callout>{c.videoCallout}</Callout>
+                </TabsContent>
+              </fieldset>
+            </Tabs>
           </div>
         </div>
-        <DialogFooter className="flex-wrap gap-2">
-          <Button variant="outline" onClick={props.onClose}>
-            {t.cancel}
-          </Button>
-          <Button variant="outline" disabled={props.pending} title={e.rewriteHelp} onClick={rewrite}>
-            <Wand2 aria-hidden="true" />
-            {e.rewrite}
-          </Button>
-          <Button variant="outline" disabled={props.pending} onClick={save}>
-            {t.save}
-          </Button>
-          <Button disabled={props.pending} onClick={() => props.onApprove(edit)}>
-            <Check aria-hidden="true" />
-            {t.saveAndApprove} · {props.priceLabel}
-          </Button>
-        </DialogFooter>
-        <p className="text-right text-xs text-muted-foreground">{e.rewriteHelp}</p>
+
+        <footer className="border-t bg-muted/50 px-4 py-3">
+          {confirming ? (
+            <div className="flex flex-wrap items-center justify-end gap-2" role="group" aria-label={c.unsaved}>
+              <p className="mr-auto text-sm font-medium" aria-live="assertive">
+                {c.unsaved}
+              </p>
+              <Button variant="outline" autoFocus onClick={() => setConfirming(false)}>
+                {c.keepEditing}
+              </Button>
+              <Button variant="destructive" onClick={props.onClose}>
+                {c.discard}
+              </Button>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {problems.length > 0 ? (
+                <p className="mr-auto text-xs text-destructive" aria-live="polite">
+                  {problems.map((problem) => c.problems[problem]).join(" ")}
+                </p>
+              ) : null}
+              <Button variant="outline" onClick={requestClose}>
+                {editable ? t.cancel : c.close}
+              </Button>
+              {editable ? (
+                <>
+                  <Button variant="outline" disabled={props.pending || !dirty || problems.length > 0} onClick={save}>
+                    {t.save}
+                  </Button>
+                  <Button disabled={props.pending || problems.length > 0} onClick={() => props.onApprove(edit)}>
+                    <Check aria-hidden="true" />
+                    {c.saveApprove} · {props.priceLabel}
+                  </Button>
+                </>
+              ) : null}
+            </div>
+          )}
+        </footer>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * The live preview: the reel's real template paused on the text being edited
+ * (9:16 for a reel or a Story), or the carousel's slide for it (4:5); the
+ * chips under it show each text the video has.
+ */
+function EditorPreview({ props, part, onPart, t }: { props: ProductionReelProps; part: PartKey; onPart: (part: PartKey) => void; t: T }) {
+  const c = t.viral.editor;
+  const player = useRef<PlayerRef>(null);
+  const carousel = props.format === "carousel";
+  const frame = carousel ? 0 : partFrame(props, part);
+  const parts = visibleParts(props);
+  const n = props.script.points.length;
+  const label = (key: PartKey) => (key === 0 ? c.parts.hook : key <= n ? format(c.parts.point, { index: String(key) }) : key === n + 1 ? c.parts.proof : c.parts.cta);
+  // The part shown: the one asked for, or the next one the video has (a hook or CTA switched off).
+  const slide = partSlide(props, part);
+  const slides = carousel ? carouselSlideCount(props) : 0;
+
+  // The words being edited stay on screen while they are typed.
+  useEffect(() => {
+    const current = player.current;
+    if (!current) return;
+    current.pause();
+    current.seekTo(frame);
+  }, [frame, props]);
+
+  return (
+    <div className="flex w-full flex-col items-center gap-3">
+      {carousel ? (
+        <div className="w-full max-w-[260px] space-y-2 md:max-w-[min(360px,calc((100dvh_-_15rem)*0.8))]">
+          <Thumbnail
+            component={Slide}
+            inputProps={{ ...props, index: slide }}
+            compositionWidth={SLIDE.width}
+            compositionHeight={SLIDE.height}
+            frameToDisplay={0}
+            durationInFrames={1}
+            fps={30}
+            style={{ width: "100%", aspectRatio: `${SLIDE.width} / ${SLIDE.height}`, borderRadius: 12, overflow: "hidden" }}
+          />
+          <div className="flex items-center justify-between gap-2">
+            <Button variant="ghost" size="icon-sm" aria-label={c.previousSlide} disabled={slide <= 0} onClick={() => onPart(parts[slide - 1])}>
+              <ChevronLeft aria-hidden="true" />
+            </Button>
+            <span className="text-xs text-muted-foreground tabular-nums">{format(c.slideOf, { index: String(slide + 1), total: String(slides) })}</span>
+            <Button variant="ghost" size="icon-sm" aria-label={c.nextSlide} disabled={slide >= parts.length - 1} onClick={() => onPart(parts[slide + 1])}>
+              <ChevronRight aria-hidden="true" />
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="w-full max-w-[220px] md:max-w-[min(340px,calc((100dvh_-_15rem)*0.5625))]">
+          <Player
+            ref={player}
+            component={Reel}
+            inputProps={props}
+            durationInFrames={reelFrames(props)}
+            compositionWidth={REEL.width}
+            compositionHeight={REEL.height}
+            fps={REEL.fps}
+            initialFrame={frame}
+            initiallyMuted
+            loop
+            controls
+            clickToPlay
+            acknowledgeRemotionLicense
+            style={{ width: "100%", aspectRatio: `${REEL.width} / ${REEL.height}`, borderRadius: 16, overflow: "hidden" }}
+          />
+        </div>
+      )}
+      <div role="group" aria-label={c.showPart} className="flex max-w-full flex-wrap justify-center gap-1.5">
+        {parts.map((key, index) => (
+          <button
+            key={key}
+            type="button"
+            aria-pressed={slide === index}
+            onClick={() => onPart(key)}
+            className="h-7 rounded-full border bg-background px-2.5 text-xs font-medium text-muted-foreground transition hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+          >
+            {label(key)}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** One text on screen: highlighted while it is the one in the preview, a note when the video leaves it out. */
+function TextRow({ selected, muted, note, children }: { selected: boolean; muted?: boolean; note?: string | null; children: ReactNode }) {
+  return (
+    <div className={`space-y-2 rounded-xl border p-3 transition-colors ${selected ? "border-primary/60 bg-primary/5" : ""} ${muted || note ? "opacity-70" : ""}`}>
+      {children}
+      {note ? <p className="text-xs text-muted-foreground">{note}</p> : null}
+    </div>
+  );
+}
+
+/** The Numbers template's figure for a point: number, unit, label. */
+function FigureFields({ point, onChange, onFocus, t }: { point: VideoPoint; onChange: (change: Partial<VideoPoint>) => void; onFocus: () => void; t: T }) {
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      <Field label={t.statValue}>
+        <Input
+          type="number"
+          value={point.stat?.value ?? ""}
+          onFocus={onFocus}
+          onChange={(event) => onChange({ stat: event.target.value === "" ? null : { value: Number(event.target.value), suffix: point.stat?.suffix ?? "", label: point.stat?.label ?? "" } })}
+        />
+      </Field>
+      <Field label={t.statSuffix}>
+        <Input value={point.stat?.suffix ?? ""} maxLength={6} disabled={!point.stat} onFocus={onFocus} onChange={(event) => point.stat && onChange({ stat: { ...point.stat, suffix: event.target.value } })} />
+      </Field>
+      <Field label={t.statLabel}>
+        <Input value={point.stat?.label ?? ""} maxLength={40} disabled={!point.stat} onFocus={onFocus} onChange={(event) => point.stat && onChange({ stat: { ...point.stat, label: event.target.value } })} />
+      </Field>
+    </div>
+  );
+}
+
+/** A closed-by-default section (native details: keyboard and screen readers for free). */
+function Accordion({ title, badge, open, children }: { title: string; badge?: string; open?: boolean; children: ReactNode }) {
+  return (
+    <details className="group rounded-xl border" open={open || undefined}>
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-sm font-medium focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
+        {title}
+        <span className="flex items-center gap-1.5 text-xs font-normal text-muted-foreground">
+          {badge}
+          <ChevronDown aria-hidden="true" className="size-4 transition-transform group-open:rotate-180" />
+        </span>
+      </summary>
+      <div className="space-y-3 border-t px-3 py-3">{children}</div>
+    </details>
+  );
+}
+
+function Callout({ children }: { children: ReactNode }) {
+  return (
+    <p className="flex gap-2 rounded-xl bg-muted/60 px-3 py-2.5 text-xs text-muted-foreground">
+      <Info aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
+      <span>{children}</span>
+    </p>
+  );
+}
+
+function SwitchRow({ label, hint, checked, onChange }: { label: string; hint?: string; checked: boolean; onChange: (on: boolean) => void }) {
+  const id = useId();
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <label htmlFor={id} className="min-w-0 text-sm">
+        <span className="block font-medium">{label}</span>
+        {hint ? <span className="block text-xs text-muted-foreground">{hint}</span> : null}
+      </label>
+      <Switch id={id} checked={checked} onCheckedChange={onChange} />
+    </div>
+  );
+}
+
+/** A text style as a small sample of how it reads on the video. */
+function StyleTile({ value, kind, label, help, pressed, onPress }: { value: string; kind: "template" | "captions"; label: string; help?: string; pressed: boolean; onPress: () => void }) {
+  const sample: Record<string, ReactNode> = {
+    "template:bold": <span className="text-lg leading-none font-black text-white uppercase">Aa</span>,
+    "template:numbers": <span className="text-lg leading-none font-black text-amber-300 tabular-nums">42%</span>,
+    "template:story": <span className="bg-white px-1.5 py-0.5 text-sm leading-none font-extrabold text-neutral-900">Aa</span>,
+    "captions:bold": <span className="rounded bg-white px-1.5 py-0.5 text-sm leading-none font-extrabold text-neutral-900">Aa</span>,
+    "captions:editorial": <span className="text-sm leading-none font-semibold text-white">Aa bb</span>,
+    "captions:minimal": <span className="text-[10px] leading-none font-medium text-white/85 lowercase">aa bb</span>,
+  };
+  return (
+    <button
+      type="button"
+      aria-pressed={pressed}
+      title={help}
+      onClick={onPress}
+      className="flex flex-col overflow-hidden rounded-xl border bg-background text-left text-xs font-medium transition hover:border-foreground/30 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none aria-pressed:border-primary aria-pressed:ring-2 aria-pressed:ring-primary/30"
+    >
+      <span aria-hidden="true" className="flex h-12 items-center justify-center bg-gradient-to-br from-neutral-800 to-neutral-950">
+        {sample[`${kind}:${value}`]}
+      </span>
+      <span className="px-2 py-1.5 leading-tight">{label}</span>
+    </button>
   );
 }
 
@@ -465,4 +781,3 @@ export function compatText(t: T, problem: { platform: string; code: string }, du
   const words = c[problem.code as keyof Omit<T["viral"]["compat"], "title">] ?? c.other;
   return format(words, { platform, length: t.viral.durations[duration] });
 }
-

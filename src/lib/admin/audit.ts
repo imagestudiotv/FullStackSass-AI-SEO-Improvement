@@ -33,6 +33,8 @@ export type AdminAction =
   | "user.deleted"
   | "organization.deleted"
   | "website.deleted"
+  /* Articles per day for one website (lib/admin/daily-limits.ts). */
+  | "website.articles_per_day_changed"
   /* The managed Partner Network (lib/backlinks/managed.ts). */
   | "network.placement_added"
   | "network.placement_removed"

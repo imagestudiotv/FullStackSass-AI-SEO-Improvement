@@ -1,31 +1,86 @@
-import { describe, expect, it } from "vitest";
+import { randomUUID } from "node:crypto";
 
-import { dailyCapFor, TEMPORARY_DAILY_CAPS, utcDayStart } from "./daily-cap";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { creditSettings, organization, websites } from "@/lib/db/schema";
+import { createTestDb, type TestDb } from "@/test/db";
+
+const state = vi.hoisted(() => ({ db: null as unknown }));
+vi.mock("@/lib/db", () => ({
+  db: new Proxy({}, { get: (_t, p) => Reflect.get(state.db as object, p) }),
+}));
+
+import { dailyCapFor, dailyLimitKey, DEFAULT_DAILY_LIMITS, listDailyLimits, resolveDailyLimit, utcDayStart } from "./daily-cap";
 
 const IMAGESTUDIO = "4aec4382-f158-4deb-b7a3-b4968aac6b41";
 
+let test: TestDb;
+beforeAll(async () => {
+  test = await createTestDb();
+  state.db = test.db;
+});
+beforeEach(async () => {
+  await test.db.delete(creditSettings);
+});
+
+async function site(id: string = randomUUID(), domain = `${id}.example`) {
+  const orgId = `org_${randomUUID()}`;
+  await test.db.insert(organization).values({ id: orgId, name: "W", slug: orgId, createdAt: new Date() });
+  await test.db.insert(websites).values({ id, organizationId: orgId, url: `https://${domain}`, domain, status: "ready" });
+  return id;
+}
+const save = (websiteId: string, value: number) => test.db.insert(creditSettings).values({ key: dailyLimitKey(websiteId), value });
+
+describe("resolveDailyLimit", () => {
+  it("keeps imagestudio.com at one a day until an administrator saves another value, with no end date", () => {
+    expect(resolveDailyLimit(IMAGESTUDIO, undefined)).toBe(1);
+    expect(DEFAULT_DAILY_LIMITS.find((d) => d.websiteId === IMAGESTUDIO)?.perDay).toBe(1);
+  });
+
+  it("follows a saved value, where 0 is no limit", () => {
+    expect(resolveDailyLimit(IMAGESTUDIO, 3)).toBe(3);
+    expect(resolveDailyLimit(IMAGESTUDIO, 0)).toBeNull();
+    expect(resolveDailyLimit("other", 2)).toBe(2);
+  });
+
+  it("leaves every other website without a limit", () => {
+    expect(resolveDailyLimit("dfab7d9c-7323-4cbf-b489-4a1696d7f116", undefined)).toBeNull();
+  });
+});
+
 describe("dailyCapFor", () => {
-  it("caps imagestudio.com at one a day until 1 December", () => {
-    expect(dailyCapFor(IMAGESTUDIO, new Date("2026-11-22T06:00:00Z"))).toBe(1);
-    expect(dailyCapFor(IMAGESTUDIO, new Date("2026-11-30T23:59:59Z"))).toBe(1);
+  it("reads the administrator's setting for the website", async () => {
+    const id = await site();
+    expect(await dailyCapFor(id)).toBeNull();
+    await save(id, 5);
+    expect(await dailyCapFor(id)).toBe(5);
   });
 
-  it("ends by itself at 00:00 UTC on 1 December", () => {
-    expect(dailyCapFor(IMAGESTUDIO, new Date("2026-12-01T00:00:00Z"))).toBeNull();
-    expect(dailyCapFor(IMAGESTUDIO, new Date("2026-12-01T06:00:00Z"))).toBeNull();
+  it("is one a day for imagestudio.com with nothing saved, any date - and none once 'No limit' is saved", async () => {
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date("2027-03-01T06:00:00Z") });
+    expect(await dailyCapFor(IMAGESTUDIO)).toBe(1);
+    vi.useRealTimers();
+    await save(IMAGESTUDIO, 0);
+    expect(await dailyCapFor(IMAGESTUDIO)).toBeNull();
+  });
+});
+
+describe("listDailyLimits", () => {
+  it("lists every limit in force with its domain, saved or by default, and leaves out 'No limit'", async () => {
+    await site(IMAGESTUDIO, "imagestudio.com");
+    const a = await site(randomUUID(), "a-site.example");
+    const b = await site(randomUUID(), "b-site.example");
+    await save(a, 2);
+    await save(b, 0);
+    expect(await listDailyLimits()).toEqual([
+      { websiteId: a, domain: "a-site.example", perDay: 2, saved: true },
+      { websiteId: IMAGESTUDIO, domain: "imagestudio.com", perDay: 1, saved: false },
+    ]);
   });
 
-  it("leaves every other website alone", () => {
-    expect(dailyCapFor("dfab7d9c-7323-4cbf-b489-4a1696d7f116", new Date("2026-11-22T06:00:00Z"))).toBeNull();
-  });
-
-  it("reads the list it is given", () => {
-    const caps = [{ websiteId: "w", perDay: 3, until: new Date("2030-01-01T00:00:00Z"), site: "x" }];
-    expect(dailyCapFor("w", new Date("2029-06-01T00:00:00Z"), caps)).toBe(3);
-  });
-
-  it("names a site for every cap", () => {
-    for (const cap of TEMPORARY_DAILY_CAPS) expect(cap.site).not.toBe("");
+  it("skips the setting of a website that no longer exists", async () => {
+    await save(randomUUID(), 4);
+    expect((await listDailyLimits()).every((limit) => limit.domain)).toBe(true);
   });
 });
 

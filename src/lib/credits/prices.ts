@@ -30,7 +30,7 @@ import type { Executor } from "@/lib/db/types";
  * charging, and give it a name in `app.credits.actions` (every language) and
  * in ACTION_NOTES below.
  */
-export const CREDIT_ACTIONS = ["audit_rerun", "social_post", "video_post", "chat_message"] as const;
+export const CREDIT_ACTIONS = ["audit_rerun", "social_post", "video_post", "video_ideas", "chat_message"] as const;
 export type CreditAction = (typeof CREDIT_ACTIONS)[number];
 
 export function isCreditAction(value: string): value is CreditAction {
@@ -51,6 +51,10 @@ export const ACTION_ADMIN: Record<CreditAction, { label: string; help: string }>
     label: "Video or carousel",
     help: "Videos: each idea the customer approves, made into a reel or a photo carousel (client: 1 credit). The 20 daily ideas are free; a video that cannot be made gives its credit back.",
   },
+  video_ideas: {
+    label: "New video ideas (one batch of 10)",
+    help: "Social Content -> New ideas: each extra batch of 10 ideas, at most 3 a day (client, 2026-11-21: new ideas cost credits). The 20 daily ideas stay free; a batch that writes no idea gives its credits back. 1 credit until a price is saved here.",
+  },
   chat_message: {
     label: "AI chat message",
     help: "Home page chat: each message after the workspace's free messages of the day (CHAT_FREE_PER_DAY, client: 5 free, then 1 credit). What the chat does for the customer costs that action's own price.",
@@ -62,6 +66,7 @@ export const ACTION_NOTES: Record<CreditAction, string> = {
   audit_rerun: "Website check run again",
   social_post: "Social media post",
   video_post: "Video made",
+  video_ideas: "New video ideas",
   chat_message: "Growth Copilot message",
 };
 
@@ -87,6 +92,13 @@ export const FREE_DAILY_FREE_KEY = "free_daily_free";
 /** The Free plan's daily amount until an administrator sets one (Admin -> Credits). */
 export const FREE_DAILY_FREE_DEFAULT = 1;
 export const priceKey = (action: CreditAction) => `price:${action}`;
+/**
+ * What an action costs until an administrator saves a price for it. The
+ * other actions are free (0) until then; a batch of new video ideas costs 1
+ * credit from the start (client, 2026-11-21: "generating new ideas costs
+ * credits").
+ */
+export const PRICE_DEFAULTS: Partial<Record<CreditAction, number>> = { video_ideas: 1 };
 
 export type CreditSettings = {
   /** Credits a paying workspace can claim on each UTC day (lib/credits/daily.ts). 0 = off. */
@@ -102,15 +114,15 @@ export type CreditSettings = {
 };
 
 /**
- * The settings in force. Missing rows are the defaults (0, and
- * FREE_DAILY_FREE_DEFAULT for the Free plan's daily credits); a row for an
+ * The settings in force. Missing rows are the defaults (0 or PRICE_DEFAULTS,
+ * and FREE_DAILY_FREE_DEFAULT for the Free plan's daily credits); a row for an
  * action that no longer exists is ignored.
  */
 export async function readCreditSettings(executor: Executor = db): Promise<CreditSettings> {
   const rows = await executor.select().from(creditSettings);
   const values = new Map(rows.map((row) => [row.key, row.value]));
   const prices = Object.fromEntries(
-    CREDIT_ACTIONS.map((action) => [action, values.get(priceKey(action)) ?? 0]),
+    CREDIT_ACTIONS.map((action) => [action, values.get(priceKey(action)) ?? PRICE_DEFAULTS[action] ?? 0]),
   ) as Record<CreditAction, number>;
   const latest = rows.reduce<(typeof rows)[number] | null>(
     (newest, row) => (!newest || row.updatedAt > newest.updatedAt ? row : newest),

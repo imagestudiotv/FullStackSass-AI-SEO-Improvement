@@ -3,7 +3,7 @@
 import { CheckCircle2, Clapperboard, Lock, MessagesSquare, PenLine, Sparkles, Wrench, type LucideIcon } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type FocusEvent, type PointerEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type FocusEvent, type ReactNode } from "react";
 
 import { JoinWithGoogle } from "@/app/(marketing)/_home/join-with-google";
 import { ConversionEvents } from "@/components/conversion-events";
@@ -18,6 +18,7 @@ import { prepareGrowthPlanBilling } from "./billing-actions";
 import type { BillingAppCopy, BillingState } from "./billing-step";
 import {
   autoAdvanceTarget,
+  compactLogStep,
   countdownRuns,
   DWELL_MS,
   flowReturnPath,
@@ -26,14 +27,18 @@ import {
   nextStep,
   previousStep,
   READ_STEPS,
+  scrollsToStage,
+  showsLog,
   startLinks,
   stepViews,
   type BillingPeriod,
   type Progress,
+  type ReadStepId,
+  type StepChange,
   type StepId,
 } from "./flow-steps";
 import styles from "./growth-plan.module.css";
-import { defaultTier, type FreePlanOption, type GrowthPlanOffer } from "./plan-offers";
+import { defaultTier, offerOrder, type FreePlanOption, type GrowthPlanOffer } from "./plan-offers";
 import { SiteIcon } from "./site-icon";
 
 /*
@@ -47,7 +52,8 @@ const BillingStep = dynamic(() => import("./billing-step").then((module) => modu
 /** Research, check, plan; then done. */
 type Phase = 0 | 1 | 2 | 3;
 type Tone = "plain" | "good" | "warn";
-type Line = { id: number; text: string; tone: Tone; seconds: number };
+/** A line of the work log, written for one read step (flow-steps.ts showsLog). */
+type Line = { id: number; step: ReadStepId; text: string; tone: Tone };
 
 /** Each step stays on screen at least this long, so it can be read before the next one. */
 const MIN_STEP_MS = 1400;
@@ -81,25 +87,30 @@ export type GrowthPlanLinks = {
  * Two requests start together on arrival: the site's suggestion card (fast)
  * and the free audit (up to a minute). RepGet works through the three read
  * steps as each real answer arrives, never before, and the log writes out
- * what was actually found, timed from the visitor's arrival: no invented
- * progress, no percentage. A failed request is said once in the log and the
- * plan goes on without it.
+ * what was actually found: no invented progress, no percentage. A failed
+ * request is said once in the log and the plan goes on without it.
  *
  * What the visitor sees is separate from that work (flow-steps.ts has the
  * rules): a step list with every step's state and a line of what it found,
  * EVERY step one press away at any time (a step still loading says what
  * RepGet is doing for it and fills in when its answer arrives), and a card
- * for the step on screen. An answered read step continues by itself after a
- * few seconds, a thin bar filling as it goes, unless the visitor is busy with
- * it: the pointer over it, the keyboard in it, a scroll, a key or a touch
- * (which start the count again), a hidden tab, or Pause. Under reduced motion
- * it never moves by itself: Continue does it.
+ * for the step on screen. Since 2026-11-21 the log is written under its own
+ * step in that list, as explee.com does it (✓ for a line done, › for the
+ * newest while RepGet is on it), not in a box at the bottom nobody saw. An
+ * answered read step continues by itself after a few seconds, a thin bar
+ * filling as it goes, and reading the page never stops it or starts it
+ * again (Daniel: "If I scroll it's reloading the step"): only Pause, the
+ * keyboard in the card or a hidden tab hold it, and continuing by itself
+ * never scrolls the page. Under reduced motion it never moves by itself:
+ * Continue does it.
  *
  * Since 2026-11-20 the flow ends in the page itself: the plan choice, the
  * account (sign-up as /sign-up does it, account-step.tsx; skipped by someone
  * already signed in), then billing (billing-step.tsx): the website added to
  * the account, then Free started, or the order and the existing Stripe or
- * PayPal checkout, whose own pages take the card and billing details.
+ * PayPal checkout, whose own pages take the card and billing details. Once
+ * paid (or Free started) the visitor lands on the dashboard, not in the
+ * onboarding steps (billing-step.tsx).
  */
 export function GrowthPlanFlow({
   domain,
@@ -124,7 +135,7 @@ export function GrowthPlanFlow({
   links: GrowthPlanLinks;
   /** The plans on sale (plan-offers.ts), empty when they could not be read. */
   offers?: GrowthPlanOffer[];
-  /** The Free plan's card, drawn first; null when it is not offered. */
+  /** The Free plan's card, drawn after the paid plans; null when it is not offered. */
   free?: FreePlanOption | null;
   /** The Free card's full display (counter, the note once spots are gone), for the billing step. */
   freeCard?: FreePlanDisplay | null;
@@ -153,18 +164,14 @@ export function GrowthPlanFlow({
   const [chose, setChose] = useState(initial.step === "billing");
   const [account, setAccount] = useState<SignedInAccount | null>(initialAccount);
   const [billing, setBilling] = useState<BillingState>(null);
-  // What holds the countdown (flow-steps.ts Holds).
-  const [hovering, setHovering] = useState(false);
+  // What holds the countdown (flow-steps.ts Holds). Reading the page is not one of them.
   const [focused, setFocused] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [paused, setPaused] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
-  /** Bumped to start the bar again from empty (a scroll, a key, a touch, a new step). */
-  const [round, setRound] = useState(0);
   const [announcement, setAnnouncement] = useState("");
   const started = useRef(false);
   const asking = useRef<string | null>(null);
-  const logEnd = useRef<HTMLOListElement>(null);
   const stage = useRef<HTMLElement>(null);
 
   const host = domain.replace(/^[a-z][a-z0-9+.-]*:\/\//i, "").replace(/\/.*$/, "").replace(/^www\./i, "");
@@ -178,54 +185,52 @@ export function GrowthPlanFlow({
     started.current = true;
     const began = performance.now();
     let id = 0;
-    const log = (text: string, tone: Tone = "plain") =>
-      setLines((all) => [...all, { id: id++, text, tone, seconds: Math.round((performance.now() - began) / 1000) }]);
+    // Each line is written for the read step it belongs to, and drawn under that step.
+    const log = (step: ReadStepId, text: string, tone: Tone = "plain") => setLines((all) => [...all, { id: id++, step, text, tone }]);
 
     const auditing = auditForPlan(domain, locale).catch((): PlanAudit => ({ ok: false, message: "" }));
     void (async () => {
-      log(fill(t.log.open, { domain: host }));
+      log("business", fill(t.log.open, { domain: host }));
       const card = await suggestSite(domain).catch(() => null);
       await wait(Math.max(0, MIN_STEP_MS - (performance.now() - began)));
       setSite(card);
       if (card) {
-        log(fill(t.log.found, { name: card.name }), "good");
-        if (card.platform) log(fill(t.log.platform, { platform: card.platform }));
-        if (card.language) log(fill(t.log.language, { language: languageName(card.language, locale) }));
+        log("business", fill(t.log.found, { name: card.name }), "good");
+        if (card.platform) log("business", fill(t.log.platform, { platform: card.platform }));
+        if (card.language) log("business", fill(t.log.language, { language: languageName(card.language, locale) }));
       } else {
-        log(t.log.noPreview, "warn");
+        log("business", t.log.noPreview, "warn");
       }
 
       setPhase(1);
       const checking = performance.now();
-      log(fill(t.log.auditStart, { pages: maxPages }));
-      log(t.log.auditWaiting);
+      log("pages", fill(t.log.auditStart, { pages: maxPages }));
+      log("pages", t.log.auditWaiting);
       const result = await auditing;
       await wait(Math.max(0, MIN_STEP_MS - (performance.now() - checking)));
       setAudit(result);
       if (result.ok) {
-        log(fill(t.log.pages, { count: result.pagesChecked }));
-        log(fill(t.log.score, { score: result.score }), result.score >= 80 ? "good" : "warn");
-        log(fill(t.log.problems, { critical: result.counts.critical, warnings: result.counts.warning }), result.counts.critical ? "warn" : "plain");
+        log("pages", fill(t.log.pages, { count: result.pagesChecked }));
+        log("pages", fill(t.log.score, { score: result.score }), result.score >= 80 ? "good" : "warn");
+        log("pages", fill(t.log.problems, { critical: result.counts.critical, warnings: result.counts.warning }), result.counts.critical ? "warn" : "plain");
         if (result.crawlersChecked > 0) {
-          log(result.blockedCrawlers.length ? fill(t.log.crawlersBlocked, { owners: result.blockedCrawlers.join(", ") }) : t.log.crawlersOpen, result.blockedCrawlers.length ? "warn" : "good");
+          log(
+            "pages",
+            result.blockedCrawlers.length ? fill(t.log.crawlersBlocked, { owners: result.blockedCrawlers.join(", ") }) : t.log.crawlersOpen,
+            result.blockedCrawlers.length ? "warn" : "good",
+          );
         }
       } else {
-        log(fill(t.log.auditFailed, { message: result.message || "-" }), "warn");
+        log("pages", fill(t.log.auditFailed, { message: result.message || "-" }), "warn");
       }
 
       setPhase(2);
-      log(t.log.planStart);
+      log("plan", t.log.planStart);
       await wait(PLAN_MS);
-      log(t.log.planDone, "good");
+      log("plan", t.log.planDone, "good");
       setPhase(3);
     })();
   }, [domain, host, locale, maxPages, t]);
-
-  // The newest line in view, inside the log only (never scrolls the page).
-  useEffect(() => {
-    const list = logEnd.current;
-    if (list) list.scrollTop = list.scrollHeight;
-  }, [lines]);
 
   // Reduced motion and a hidden tab both stop the countdown (flow-steps.ts Holds).
   useEffect(() => {
@@ -240,19 +245,6 @@ export function GrowthPlanFlow({
       motion.removeEventListener("change", readMotion);
       document.removeEventListener("visibilitychange", readHidden);
     };
-  }, []);
-
-  // Scrolling the page is reading it: the count starts again (at most a few times a second).
-  useEffect(() => {
-    let last = 0;
-    const onScroll = () => {
-      const now = performance.now();
-      if (now - last < 250) return;
-      last = now;
-      setRound((value) => value + 1);
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   const current = steps[viewing];
@@ -289,7 +281,7 @@ export function GrowthPlanFlow({
     signedIn: Boolean(account),
   };
   const views = stepViews(steps, viewing, progress);
-  const holds = { reducedMotion, hovering, focused, hidden, paused };
+  const holds = { reducedMotion, focused, hidden, paused };
   const target = autoAdvanceTarget(steps, viewing, progress);
   const runs = countdownRuns(steps, viewing, progress, holds);
   const dwell = DWELL_MS[current];
@@ -299,18 +291,17 @@ export function GrowthPlanFlow({
   const chooseIndex = steps.indexOf("choose");
 
   const go = useCallback(
-    (index: number) => {
+    (index: number, change: StepChange = "visitor") => {
       const id = steps[index];
       if (!id) return;
       setViewing(index);
       // Moving on from the plan choice is making it (a jump past it from elsewhere is not).
       if (viewing === chooseIndex && index > chooseIndex) setChose(true);
-      setRound((value) => value + 1);
-      setHovering(false);
       setAnnouncement(fill(t.nav.announce, { index: index + 1, total: steps.length, label: t.phases[id] }));
-      // A step changed below the fold (a phone, read from further down): its card's top back in view.
-      const top = stage.current?.getBoundingClientRect().top ?? 0;
-      if (top < 0) stage.current?.scrollIntoView({ block: "start", behavior: reducedMotion ? "auto" : "smooth" });
+      // A step the visitor opened below the fold (a phone, read from further down): its card's top back in view. Never on auto-continue.
+      if (scrollsToStage(change, stage.current?.getBoundingClientRect().top ?? 0)) {
+        stage.current?.scrollIntoView({ block: "start", behavior: reducedMotion ? "auto" : "smooth" });
+      }
     },
     [chooseIndex, reducedMotion, steps, t, viewing],
   );
@@ -344,7 +335,10 @@ export function GrowthPlanFlow({
   const done = phase === 3;
   const barStyle = { "--dwell": `${dwell ?? 0}ms`, animationPlayState: runs ? "running" : "paused" } as CSSProperties;
   const showBar = target !== null && !reducedMotion;
-  const restart = () => setRound((value) => value + 1);
+  // The work log under its steps (flow-steps.ts showsLog), and on a phone one step's lines under the row.
+  const working = progress.working;
+  const written = new Set(lines.map((line) => line.step));
+  const compact = compactLogStep(current, working, written);
   const returnPath = flowReturnPath(links.growthPlanPath, domain, tier, period);
   const signUpReturn = `${links.signUpPath}?next=${encodeURIComponent(returnPath)}`;
   const signInReturn = `${links.signInPath}?next=${encodeURIComponent(returnPath)}`;
@@ -405,48 +399,43 @@ export function GrowthPlanFlow({
                       </span>
                       <span className={styles.stepTrack} aria-hidden="true">
                         {viewing === index && showBar ? (
+                          /*
+                            One bar per step: keyed by the step alone, so
+                            nothing but a change of step starts it again
+                            from empty (a scroll used to).
+                          */
                           <span
-                            key={`${viewing}-${round}`}
+                            key={view.id}
                             className={styles.stepFill}
                             style={barStyle}
                             onAnimationEnd={() => {
-                              if (target !== null) go(target);
+                              if (target !== null) go(target, "auto");
                             }}
                           />
                         ) : null}
                       </span>
                     </button>
+                    {showsLog(view.id, current, working) && written.has(view.id as ReadStepId) ? (
+                      <StepLog lines={lines.filter((line) => line.step === view.id)} busy={view.busy} className={styles.stepLog} />
+                    ) : null}
                   </li>
                 ))}
               </ol>
+              {/* A phone has no room under each segment: one step's newest lines under the row. */}
+              {compact ? (
+                <StepLog lines={lines.filter((line) => line.step === compact).slice(-4)} busy={working === compact} className={styles.compactLog} />
+              ) : null}
             </nav>
 
-            <section className={styles.terminal} aria-label={t.logLabel}>
-              <div className={styles.terminalBar}>
-                <span className={styles.terminalDot} data-busy={!done || undefined} aria-hidden="true" />
-                {t.logTitle}
-              </div>
-              <ol ref={logEnd} className={styles.log} role="log">
-                {lines.map((line, index) => (
-                  <li key={line.id} className={styles.logLine} data-tone={line.tone}>
-                    <span className={styles.logTime} aria-hidden="true">
-                      {`00:${String(Math.min(line.seconds, 99)).padStart(2, "0")}`}
-                    </span>
-                    <span className={styles.logText} data-typing={index === lines.length - 1 || undefined}>
-                      {line.text}
-                    </span>
-                  </li>
-                ))}
-                {!done ? (
-                  <li className={styles.cursorLine} aria-hidden="true">
-                    <span className={styles.cursor} />
-                  </li>
-                ) : null}
-              </ol>
-              <Link prefetch={false} href={links.home} className={styles.another}>
-                {t.another}
-              </Link>
-            </section>
+            {/* The whole log for screen readers, as it is written (the lines on screen are drawn for the eye). */}
+            <ol className={styles.srOnly} role="log" aria-label={t.logLabel}>
+              {lines.map((line) => (
+                <li key={line.id}>{line.text}</li>
+              ))}
+            </ol>
+            <Link prefetch={false} href={links.home} className={styles.another}>
+              {t.another}
+            </Link>
           </aside>
 
           <section ref={stage} className={styles.stage} aria-labelledby="growth-plan-step">
@@ -462,31 +451,25 @@ export function GrowthPlanFlow({
             </div>
 
             {/*
-              The card the countdown watches: the pointer over it or the
-              keyboard in it holds it; a key, a touch or a wheel starts it
-              again. The buttons under it are outside, so pressing Continue
+              The card the countdown watches: only the keyboard in it holds
+              it. Reading it - the pointer over it, a scroll, a wheel, a
+              touch - neither holds the bar nor starts it again (flow-steps.ts
+              Holds). The buttons under it are outside, so pressing Continue
               never holds the next step.
             */}
             <div
               key={current}
               className={styles.scene}
-              onPointerEnter={(event: PointerEvent) => {
-                if (event.pointerType === "mouse") setHovering(true);
-              }}
-              onPointerLeave={() => setHovering(false)}
               onFocus={(event: FocusEvent<HTMLDivElement>) => {
                 if (event.target instanceof HTMLElement && event.target.matches(":focus-visible")) setFocused(true);
               }}
               onBlur={(event: FocusEvent<HTMLDivElement>) => {
                 if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFocused(false);
               }}
-              onKeyDown={restart}
-              onTouchStart={restart}
-              onWheel={restart}
             >
-              {current === "business" ? <Research t={t} host={host} site={site} language={language} lines={lines} /> : null}
-              {current === "pages" ? <Audit t={t} audit={audit} queued={phase < 1} host={host} maxPages={maxPages} lines={lines} /> : null}
-              {current === "plan" ? <Plan t={t} items={items} ready={done} queued={phase < 2} lines={lines} /> : null}
+              {current === "business" ? <Research t={t} host={host} site={site} language={language} /> : null}
+              {current === "pages" ? <Audit t={t} audit={audit} queued={phase < 1} host={host} maxPages={maxPages} /> : null}
+              {current === "plan" ? <Plan t={t} items={items} ready={done} queued={phase < 2} /> : null}
               {current === "choose" ? (
                 <Choose
                   t={t}
@@ -652,38 +635,29 @@ function Skeleton({ label, queued = false }: { label: string; queued?: boolean }
 }
 
 /**
- * Inside a step still loading: the newest lines of the work log, so the step
- * the visitor opened early shows what RepGet is doing for it right now.
+ * A step's lines of the work log, under the step (explee.com's way): ✓ for a
+ * line done, › for the newest while RepGet is still on the step, typed in
+ * once as it arrives. For the eye only: the screen reader's log is the page's
+ * role="log" list.
  */
-function Live({ t, lines }: { t: GrowthPlanCopy; lines: Line[] }) {
-  const recent = lines.slice(-3);
-  if (recent.length === 0) return null;
+function StepLog({ lines, busy, className }: { lines: Line[]; busy: boolean; className: string }) {
   return (
-    <div className={styles.live}>
-      <p className={styles.liveTitle}>
-        <span className={styles.terminalDot} data-busy aria-hidden="true" />
-        {t.flow.liveTitle}
-      </p>
-      <ul>
-        {recent.map((line) => (
-          <li key={line.id} data-tone={line.tone}>
-            {line.text}
+    <ol className={className} aria-hidden="true">
+      {lines.map((line, index) => {
+        const newest = busy && index === lines.length - 1;
+        return (
+          <li key={line.id} data-tone={line.tone} data-newest={newest || undefined}>
+            <span className={styles.logMark}>{newest ? "›" : "✓"}</span>
+            <span className={styles.logText}>{line.text}</span>
           </li>
-        ))}
-      </ul>
-    </div>
+        );
+      })}
+    </ol>
   );
 }
 
-function Research({ t, host, site, language, lines }: { t: GrowthPlanCopy; host: string; site: SiteCard | null | undefined; language: string | null; lines: Line[] }) {
-  if (site === undefined) {
-    return (
-      <div>
-        <Skeleton label={fill(t.research.loading, { domain: host })} />
-        <Live t={t} lines={lines} />
-      </div>
-    );
-  }
+function Research({ t, host, site, language }: { t: GrowthPlanCopy; host: string; site: SiteCard | null | undefined; language: string | null }) {
+  if (site === undefined) return <Skeleton label={fill(t.research.loading, { domain: host })} />;
   return (
     <div className={styles.research}>
       <p className={styles.kicker}>{t.research.heading}</p>
@@ -720,14 +694,12 @@ function Audit({
   queued,
   host,
   maxPages,
-  lines,
 }: {
   t: GrowthPlanCopy;
   audit: PlanAudit | undefined;
   queued: boolean;
   host: string;
   maxPages: number;
-  lines: Line[];
 }) {
   if (audit === undefined) {
     return (
@@ -741,7 +713,6 @@ function Audit({
             </li>
           ))}
         </ul>
-        <Live t={t} lines={lines} />
       </div>
     );
   }
@@ -805,15 +776,8 @@ function Audit({
   );
 }
 
-function Plan({ t, items, ready, queued, lines }: { t: GrowthPlanCopy; items: PlanItem[]; ready: boolean; queued: boolean; lines: Line[] }) {
-  if (!ready) {
-    return (
-      <div>
-        <Skeleton label={queued ? t.flow.queuedPlan : t.log.planStart} queued={queued} />
-        <Live t={t} lines={lines} />
-      </div>
-    );
-  }
+function Plan({ t, items, ready, queued }: { t: GrowthPlanCopy; items: PlanItem[]; ready: boolean; queued: boolean }) {
+  if (!ready) return <Skeleton label={queued ? t.flow.queuedPlan : t.log.planStart} queued={queued} />;
   return (
     <div className={styles.plan}>
       <p className={styles.kicker}>{t.plan.heading}</p>
@@ -861,8 +825,9 @@ function Fallback({ t, trialDays, links }: { t: GrowthPlanCopy; trialDays: numbe
 }
 
 /**
- * The plan choice: the onboarding plan step's plans (plan-offers.ts), Free
- * first, with the yearly switch, and an order summary beside them. Choosing
+ * The plan choice: the onboarding plan step's plans (plan-offers.ts), the
+ * popular one (Grow, chosen when the step opens) first and Free last
+ * (offerOrder), with the yearly switch, and an order summary beside them. Choosing
  * only picks: Continue goes on to the account step (or straight to billing
  * for someone signed in), where the plan is started. Without plans to show
  * (the database did not answer): the trial and /pricing, as before.
@@ -927,26 +892,7 @@ function Choose({
       ) : null}
       <div className={styles.billingGrid}>
         <div role="radiogroup" aria-label={t.billing.options} className={styles.options}>
-          {free ? (
-            <label className={styles.option} data-free data-chosen={freeChosen || undefined}>
-              <input type="radio" name="growth-plan-tier" value={free.tier} checked={freeChosen} onChange={() => onChoose(free.tier)} />
-              <span className={styles.optionHead}>
-                <span className={styles.optionName}>{free.name}</span>
-                <span className={styles.badge}>{free.badge}</span>
-              </span>
-              <span className={styles.optionDesc}>{free.description}</span>
-              <span className={styles.optionPrice}>
-                <strong>{free.price}</strong> <span>{t.billing.perMonth}</span>
-              </span>
-              <span className={styles.optionNote}>{free.priceNote}</span>
-              <ul className={styles.optionList}>
-                {free.features.map((feature) => (
-                  <li key={feature}>{bold(feature)}</li>
-                ))}
-              </ul>
-            </label>
-          ) : null}
-          {offers.map((offer) => {
+          {offerOrder(offers).map((offer) => {
             const yearly = yearlyOn && offer.yearly ? offer.yearly : null;
             return (
               <label key={offer.tier} className={styles.option} data-chosen={offer.tier === tier || undefined} data-popular={offer.popular || undefined}>
@@ -976,6 +922,29 @@ function Choose({
               </label>
             );
           })}
+          {/* Free last (2026-11-21): first, in green, it read as the plan the order beside it described. */}
+          {free ? (
+            <label className={styles.option} data-free data-chosen={freeChosen || undefined}>
+              <input type="radio" name="growth-plan-tier" value={free.tier} checked={freeChosen} onChange={() => onChoose(free.tier)} />
+              <span className={styles.optionHead}>
+                <span className={styles.optionName}>{free.name}</span>
+                <span className={styles.badge}>{free.badge}</span>
+              </span>
+              <span className={styles.optionDesc}>{free.description}</span>
+              <span className={styles.optionPrice}>
+                <strong>{free.price}</strong> <span>{t.billing.perMonth}</span>
+              </span>
+              <span className={styles.optionNote}>{free.priceNote}</span>
+              <ul className={styles.optionList}>
+                {free.features.map((feature) => (
+                  <li key={feature}>{bold(feature)}</li>
+                ))}
+              </ul>
+              <span className={styles.optionCheck} aria-hidden="true">
+                {freeChosen ? `✓ ${t.billing.selected}` : null}
+              </span>
+            </label>
+          ) : null}
         </div>
 
         <aside className={styles.order} aria-label={t.billing.orderTitle}>

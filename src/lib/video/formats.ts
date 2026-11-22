@@ -543,6 +543,8 @@ export type DestinationState = {
   url: string | null;
   error: string | null;
   attempts: number;
+  /** Posted by the customer themselves and marked so in the publishing window (client, 2026-11-21): no bundle.social post, no stats. */
+  manual?: boolean;
 };
 
 /** Instagram native audio chosen for a reel (bundle.social Instagram audio). */

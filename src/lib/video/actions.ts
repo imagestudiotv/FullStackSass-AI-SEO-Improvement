@@ -120,18 +120,22 @@ export type IdeasRequested = {
 };
 
 /**
- * Asks for ideas, free (client, 2026-11-12: idea exploration is never
- * charged; only making a video costs its credit).
+ * Asks for ideas. The day's twenty are free; an extra batch costs the
+ * "video_ideas" price (client, 2026-11-21: "generating new ideas costs
+ * credits"; until then, 2026-11-12, all ideas were free).
  *
  *  - "daily": today's ideas, up to the day's twenty (the page asks on
- *    opening when there are none). The twenty are a day's worth however
+ *    opening when there are none), free. The twenty are a day's worth however
  *    they were used - made, skipped or still waiting - so a full day says so
  *    ("day_full") instead of promising ideas that never come.
  *  - "mixed" | "viral" | "website": one of the day's EXTRA_BATCHES_PER_DAY
  *    extra batches of EXTRA_BATCH_SIZE, reserved before the job writes it
  *    (lib/video/batches.ts): "extra_used_up" once the three are used,
  *    "busy" while a batch is being written, "too_soon" within
- *    EXTRA_REQUEST_GAP_MS of the last request (retryAt says when).
+ *    EXTRA_REQUEST_GAP_MS of the last request (retryAt says when),
+ *    "not_enough_credits" (with price and available) when the workspace
+ *    cannot pay for it - nothing is reserved then. A batch that writes no
+ *    idea gives its credits back (lib/video/batches.ts).
  *
  * `requestKey` (any string the caller keeps for one click, e.g. a UUID)
  * makes a retried request return its first batch instead of taking another.
@@ -155,10 +159,17 @@ export async function requestVideoIdeas(
   const reserved = await reserveExtraBatch(
     websiteId,
     kind,
-    { requestKey: typeof requestKey === "string" ? requestKey : null, requestedBy: checked.userId, via: via === "chat" ? "chat" : "button" },
+    {
+      requestKey: typeof requestKey === "string" ? requestKey : null,
+      requestedBy: checked.userId,
+      via: via === "chat" ? "chat" : "button",
+      // The website owner's workspace pays, as for a video (approveVideoIdea).
+      payer: checked.site.organizationId,
+    },
     now,
   );
   if (!reserved.ok) {
+    if (reserved.error === "not_enough_credits") return { ok: false, error: "not_enough_credits", price: reserved.price, available: reserved.available };
     return { ok: false, error: reserved.error, ...(reserved.nextAllowedAt ? { retryAt: reserved.nextAllowedAt.toISOString() } : {}) };
   }
   const { batch } = reserved;

@@ -55,13 +55,20 @@ type Paid = Extract<GrowthPlanBilling, { kind: "paid" }>;
  *     (prepareGrowthPlanBilling, billing-actions.ts, with the onboarding
  *     website step's own addWebsite), shown as it happens.
  *  3. Free: the onboarding plan step's Free start (free-step.tsx useEmailCode
- *     and useStartFree: the email code, then startFreePlanAction), then on to
- *     the next setup step it names.
+ *     and useStartFree: the email code, then startFreePlanAction), then the
+ *     dashboard for the website (billing-actions.ts `next`).
  *     Paid: the order with the plan step's terms (checkout-terms.ts) and its
  *     two buttons, calling createCheckoutSession and createPayPalCheckout
- *     with the plan step's arguments (plan, website, "onboarding"), so paying
- *     returns to the plan step's waiting screen and setup carries on there.
- *     Card and PayPal details are entered on Stripe's or PayPal's own page.
+ *     with the plan and website and the "growth-plan" origin, so paying
+ *     returns to the dashboard, which waits there for the webhook
+ *     (lib/billing/return-to.ts). Card and PayPal details are entered on
+ *     Stripe's or PayPal's own page.
+ *
+ * Daniel, 2026-11-21: "once payment is made they are redirect to the
+ * dashboard and not on the other steps reinsert website, connect google,
+ * mentions and other options we have. All those can be added on the
+ * dashboard we have tasks page." The onboarding steps after the plan are
+ * the Tasks page's set-up rows (lib/tasks/tasks.ts ONBOARDING_STEP_TASKS).
  *
  * Anything refused is said here, with a retry where one helps and the usual
  * setup pages as the way round.
@@ -379,7 +386,8 @@ function FreeStart({
   const freeStart = useStartFree({
     websiteId: ready.websiteId,
     full: freeCard?.counter?.full ?? false,
-    onStarted: (next) => router.push(next),
+    // To the dashboard (ready.next), not the onboarding steps the plan step's own start names.
+    onStarted: () => router.push(ready.next),
     onRefused: (error, reason) => {
       if (reason === "email_unverified") emailCode.setVerified(false);
       setNotice({ text: error, tone: "bad" });
@@ -525,11 +533,11 @@ function PaidCheckout({
   async function handleCheckout(provider: "stripe" | "paypal", afterCancel = false) {
     setPending(provider);
     setError(null);
-    // The plan step's call, word for word: this plan, this website, back to onboarding once paid.
+    // The plan step's call, with this flow's return: paid, straight to the dashboard (lib/billing/return-to.ts).
     const result =
       provider === "paypal"
-        ? await createPayPalCheckout(checkoutPlan.id, ready.websiteId, "onboarding").catch(() => ({ error: "", pendingPayPal: false }))
-        : await createCheckoutSession(checkoutPlan.id, ready.websiteId, "onboarding").catch(() => ({ error: "", pendingPayPal: false }));
+        ? await createPayPalCheckout(checkoutPlan.id, ready.websiteId, "growth-plan").catch(() => ({ error: "", pendingPayPal: false }))
+        : await createCheckoutSession(checkoutPlan.id, ready.websiteId, "growth-plan").catch(() => ({ error: "", pendingPayPal: false }));
     if ("error" in result) {
       setPending(null);
       if (result.pendingPayPal) {

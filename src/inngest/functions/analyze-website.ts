@@ -9,6 +9,7 @@ import {
   type Reservation,
 } from "@/lib/billing/spend-quota";
 import { db } from "@/lib/db";
+import { planFirstIfDue } from "@/lib/keywords/first-plan";
 import { competitors, pages, websites } from "@/lib/db/schema";
 import { keepLiveDomains } from "@/lib/websites/verify-domain";
 import { PRICING, track } from "@/lib/usage";
@@ -378,8 +379,24 @@ export const analyzeWebsite = inngest.createFunction(
       );
     });
 
+    /*
+      A website that already has a plan (Free started before the analysis
+      finished, or paid) gets its first content plan now, without waiting for
+      the onboarding step (lib/keywords/first-plan.ts). After save-profile,
+      because research reads the profile and the competitors. A failure here
+      is the sweep's to retry: it never fails the analysis.
+    */
+    const firstPlan = await step.run("start-first-plan", async () => {
+      try {
+        return await planFirstIfDue(websiteId);
+      } catch (error) {
+        logger.warn({ step: "start-first-plan", websiteId, error: String(error) }, "First content plan not started - the sweep retries");
+        return "failed";
+      }
+    });
+
     logger.info(
-      { step: "done", websiteId, status: "ready" },
+      { step: "done", websiteId, status: "ready", firstPlan },
       "Analysis complete",
     );
     return { websiteId, status: "ready", profile };

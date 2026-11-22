@@ -145,6 +145,7 @@ export function readDestinations(raw: unknown): Partial<Record<VideoPlatform, De
       url: typeof item.url === "string" ? item.url : null,
       error: typeof item.error === "string" ? item.error : null,
       attempts: Number.isFinite(Number(item.attempts)) ? Math.max(0, Math.floor(Number(item.attempts))) : 0,
+      ...(item.manual === true ? { manual: true } : {}),
     };
   }
   return out;

@@ -125,7 +125,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
           { label: "Cómo paga", cells: ["Por enlace, o con su tiempo", "Una cuota mensual", "Créditos incluidos en su plan"] },
         ],
       },
-      related: { label: "Cómo funcionan los créditos para enlaces", href: "/backlink-exchange" },
+      related: { label: "Vea los créditos de cada plan", href: "/pricing" },
       faqTitle: "Preguntas sobre backlinks",
       faq: [
         {
@@ -370,7 +370,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
           { label: "Comment vous payez", cells: ["Au lien, ou avec votre temps", "Un forfait mensuel", "Des crédits inclus dans votre formule"] },
         ],
       },
-      related: { label: "Comment fonctionnent les crédits pour les liens", href: "/backlink-exchange" },
+      related: { label: "Voir les crédits de chaque formule", href: "/pricing" },
       faqTitle: "Questions sur les backlinks",
       faq: [
         {
@@ -615,7 +615,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
           { label: "Come paga", cells: ["A link, o con il suo tempo", "Un canone mensile", "Crediti inclusi nel piano"] },
         ],
       },
-      related: { label: "Come funzionano i crediti per i link", href: "/backlink-exchange" },
+      related: { label: "Veda i crediti di ogni piano", href: "/pricing" },
       faqTitle: "Domande sui backlink",
       faq: [
         {
@@ -860,7 +860,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
           { label: "Wie Sie bezahlen", cells: ["Pro Link oder mit Ihrer Zeit", "Eine monatliche Gebühr", "Credits in Ihrem Tarif enthalten"] },
         ],
       },
-      related: { label: "So funktionieren Credits für Links", href: "/backlink-exchange" },
+      related: { label: "Die Credits jedes Tarifs ansehen", href: "/pricing" },
       faqTitle: "Fragen zu Backlinks",
       faq: [
         {

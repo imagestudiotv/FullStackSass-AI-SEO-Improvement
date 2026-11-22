@@ -17,11 +17,11 @@ const readyRows = () =>
   }));
 
 describe("the plan catalog", () => {
-  it("is the client's line-up (design of 2026-11-04)", () => {
-    expect(TIERS.map((t) => [t.name, t.monthlyCents, t.articleLimit, t.socialPostLimit])).toEqual([
-      ["Launch", 9900, 30, 60],
-      ["Grow", 14900, 60, 90],
-      ["Scale", 34900, 100, 240],
+  it("is the client's line-up (design of 2026-11-04, allowances of 2026-11-21)", () => {
+    expect(TIERS.map((t) => [t.name, t.monthlyCents, t.articleLimit, t.socialPostLimit, t.keywordLimit])).toEqual([
+      ["Launch", 9900, 30, 60, 300],
+      ["Grow", 14900, 30, 90, 300],
+      ["Scale", 34900, 60, 180, 1200],
     ]);
   });
 
@@ -72,14 +72,19 @@ describe("Grow + Visibility (client, 2026-11-11)", () => {
     expect(isDirectPurchaseTier("grow")).toBe(false);
   });
 
-  it("has the Grow plan's allowances", () => {
-    for (const key of ["articleLimit", "socialPostLimit", "keywordLimit", "siteLimit", "monthlyCredits"] as const) {
+  it("has the Grow plan's articles, sites and credits, and more social posts and search terms (client, 2026-11-21)", () => {
+    for (const key of ["articleLimit", "siteLimit", "monthlyCredits"] as const) {
       expect(bundle[0][key]).toBe(grow[key]);
     }
+    expect(bundle[0]).toMatchObject({ articleLimit: 30, socialPostLimit: 120, keywordLimit: 400 });
+    expect(bundle[0].socialPostLimit).toBeGreaterThan(grow.socialPostLimit);
+    expect(bundle[0].keywordLimit).toBeGreaterThan(grow.keywordLimit);
+    // Credits cover its social posts at 1 credit a post, as for the tiers.
+    expect(bundle[0].monthlyCredits).toBeGreaterThanOrEqual(bundle[0].socialPostLimit);
   });
 
-  it("states the page's search terms: Launch 300, Grow 500, Scale 1,500", () => {
-    expect(TIERS.map((tier) => tier.keywordLimit)).toEqual([300, 500, 1500]);
+  it("states the page's search terms: Launch 300, Grow 300, Scale 1,200", () => {
+    expect(TIERS.map((tier) => tier.keywordLimit)).toEqual([300, 300, 1200]);
   });
 
   it("goes through sign-up straight to its own plan step", () => {
@@ -125,8 +130,8 @@ describe("the plan surfaces", () => {
   });
 
   it("states the plan's own articles and social posts", () => {
-    const features = planFeatures({ ...picker, tier: "grow", articleLimit: 60, socialPostLimit: 90 });
-    expect(features).toContain("60 branded articles a month - 2 a day");
+    const features = planFeatures({ ...picker, tier: "grow", articleLimit: 30, socialPostLimit: 90 });
+    expect(features).toContain("30 branded articles a month - one a day");
     // A cover image is added only when image generation is available, so none is promised.
     expect(features.join(" ")).not.toMatch(/image/i);
     expect(features).toContain("90 social posts a month");

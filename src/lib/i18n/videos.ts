@@ -1,4 +1,5 @@
 import type { Locale } from "@/lib/i18n/config";
+import { VIDEO_FLOW_COPY, type FlowCopy } from "@/lib/i18n/videos-flow";
 
 /**
  * The Videos page's words (lib/video; client, 2026-10-29). Five languages,
@@ -196,6 +197,8 @@ export type VideosCopy = {
   };
   /** The viral social content additions (2026-11-12). */
   viral: ViralCopy;
+  /** The review flow and publishing window (2026-11-21; lib/i18n/videos-flow.ts). */
+  flow: FlowCopy;
 };
 
 /**
@@ -287,6 +290,70 @@ export type ViralCopy = {
     rewrite: string;
     rewriteHelp: string;
     rewritten: string;
+  };
+  /** The simplified video editor (client, 2026-11-21): preview left, Script / Style / Video on the right. */
+  editor: {
+    heading: string;
+    intro: string;
+    close: string;
+    tabs: { script: string; style: string; video: string };
+    preview: string;
+    /** The chips under the preview that show one text in it. */
+    showPart: string;
+    /** point: "Point {index}" */
+    parts: { hook: string; point: string; proof: string; cta: string };
+    /** "Slide {index} of {total}" */
+    slideOf: string;
+    previousSlide: string;
+    nextSlide: string;
+    videoTitle: string;
+    titlePrivate: string;
+    onScreen: string;
+    onScreenHint: string;
+    hookOff: string;
+    ctaOff: string;
+    ctaReplaced: string;
+    /** "{max}" points at most. */
+    tooManyPoints: string;
+    /** "Remove point {index}" */
+    removePoint: string;
+    voiceoverScript: string;
+    optional: string;
+    voiceoverHint: string;
+    voiceoverSilent: string;
+    /** "Point {index}: the voice adds" */
+    pointAdds: string;
+    socialCaption: string;
+    captionHint: string;
+    profileCallout: string;
+    more: string;
+    moreHint: string;
+    rewrite: string;
+    look: string;
+    lookHint: string;
+    textStyle: string;
+    textStyleTemplate: string;
+    textStyleCaptions: string;
+    textStyleFixed: string;
+    templateAlways: string;
+    videoFormat: string;
+    /** "{ratio} · {name}" */
+    formatOption: string;
+    voiceover: string;
+    voiceLocked: { text_music: string; voiceover: string };
+    captionsOnVideo: string;
+    captionsHint: string;
+    musicMoods: string;
+    musicTracks: string;
+    picturesHint: string;
+    videoCallout: string;
+    readOnly: { title: string; body: string };
+    problems: { title: string; hook: string; point: string; caption: string };
+    unsaved: string;
+    keepEditing: string;
+    discard: string;
+    reset: string;
+    saveApprove: string;
   };
   /** Platform checks; {platform} and {length} are filled in. */
   compat: { title: string; no_story: string; too_long: string; no_carousel: string; other: string; too_short: string; x_not_configured: string };
@@ -577,6 +644,62 @@ const viralEn: ViralCopy = {
     rewriteHelp: "Rewriting is free: RepGet writes the script again with your choices.",
     rewritten: "Rewritten. The new script is in the idea.",
   },
+  editor: {
+    heading: "Edit your video",
+    intro: "Change what this video says and how it looks. Saving is free; only creating uses credits.",
+    close: "Close",
+    tabs: { script: "Script", style: "Style", video: "Video" },
+    preview: "Video preview",
+    showPart: "Show in the preview",
+    parts: { hook: "Hook", point: "Point {index}", proof: "Proof", cta: "End" },
+    slideOf: "Slide {index} of {total}",
+    previousSlide: "Previous slide",
+    nextSlide: "Next slide",
+    videoTitle: "Video title",
+    titlePrivate: "Only you see this",
+    onScreen: "Text on screen",
+    onScreenHint: "Click a text to see it in the preview.",
+    hookOff: "Not shown: the hook is switched off under Style.",
+    ctaOff: "Not shown: the call to action is switched off under Style.",
+    ctaReplaced: "The video ends on your call to action from Style.",
+    tooManyPoints: "This look shows up to {max} points; the last ones are left out.",
+    removePoint: "Remove point {index}",
+    voiceoverScript: "Voiceover script",
+    optional: "Optional",
+    voiceoverHint: "The voice reads the texts on screen and adds these lines. They also show as the smaller line under each point.",
+    voiceoverSilent: "This video has no voiceover: these lines show as the smaller line under each point.",
+    pointAdds: "Point {index}: the voice adds",
+    socialCaption: "Social media caption",
+    captionHint: "Posted with the video. It is not shown in the video.",
+    profileCallout: "RepGet uses your business profile for audience, brand voice and tone. You do not need to repeat them here.",
+    more: "More options",
+    moreHint: "Only for this video. Your business profile stays as it is.",
+    rewrite: "Rewrite with AI",
+    look: "Video look",
+    lookHint: "How the video is produced.",
+    textStyle: "Text style",
+    textStyleTemplate: "The template sets the look of every text.",
+    textStyleCaptions: "How the captions look on the video.",
+    textStyleFixed: "This look sets its own text style.",
+    templateAlways: "The animated templates always open on the hook and end on the closing line.",
+    videoFormat: "Video format",
+    formatOption: "{ratio} · {name}",
+    voiceover: "Voiceover",
+    voiceLocked: { text_music: "This look and format have no voiceover.", voiceover: "This look always has a voiceover." },
+    captionsOnVideo: "Captions on video",
+    captionsHint: "Words appear as they are spoken or read.",
+    musicMoods: "Mood",
+    musicTracks: "From the library",
+    picturesHint: "Used in the scenes. Adding or removing a picture is saved straight away.",
+    videoCallout: "Your usual audience, tone and look come from your business profile. Here you change only this video.",
+    readOnly: { title: "This video can no longer be edited", body: "It is being made or already made. Only new ideas and videos that failed can be changed." },
+    problems: { title: "Add a video title.", hook: "Add the hook.", point: "Every point needs a text on screen.", caption: "Add the social media caption." },
+    unsaved: "Discard your changes?",
+    keepEditing: "Keep editing",
+    discard: "Discard changes",
+    reset: "Undo changes",
+    saveApprove: "Save & approve",
+  },
   compat: {
     title: "Check before publishing",
     no_story: "{platform} takes no Stories from RepGet, so this Story is not sent there.",
@@ -721,7 +844,7 @@ const viralEn: ViralCopy = {
       platformsBody: "New platforms such as LinkedIn and X are never added for you.",
       modes: {
         manual: { title: "Review before publishing", body: "Ready videos wait for you to press Publish." },
-        draft: { title: "Save as draft", body: "Made videos stay in Your videos as drafts. Nothing is posted until you publish." },
+        draft: { title: "Save as draft", body: "Made videos stay in Saved Videos. Nothing is posted until you publish." },
         auto: { title: "Auto-publish approved ideas", body: "Each video you make is published at the best available time." },
       },
       autoNote: "Automatic posting never creates or charges for videos by itself. It only publishes the videos you make, at most 3 a day.",
@@ -903,6 +1026,70 @@ const viralEs: ViralCopy = {
     rewriteHelp: "Reescribir es gratis: RepGet vuelve a escribir el guion con sus elecciones.",
     rewritten: "Reescrito. El nuevo guion está en la idea.",
   },
+  editor: {
+    heading: "Editar su vídeo",
+    intro: "Cambie lo que dice este vídeo y cómo se ve. Guardar es gratis; solo crearlo usa créditos.",
+    close: "Cerrar",
+    tabs: { script: "Guion", style: "Estilo", video: "Vídeo" },
+    preview: "Vista previa del vídeo",
+    showPart: "Mostrar en la vista previa",
+    parts: { hook: "Gancho", point: "Punto {index}", proof: "Prueba", cta: "Final" },
+    slideOf: "Diapositiva {index} de {total}",
+    previousSlide: "Diapositiva anterior",
+    nextSlide: "Diapositiva siguiente",
+    videoTitle: "Título del vídeo",
+    titlePrivate: "Solo lo ve usted",
+    onScreen: "Texto en pantalla",
+    onScreenHint: "Haga clic en un texto para verlo en la vista previa.",
+    hookOff: "No se muestra: el gancho está desactivado en Estilo.",
+    ctaOff: "No se muestra: la llamada a la acción está desactivada en Estilo.",
+    ctaReplaced: "El vídeo termina con su llamada a la acción de Estilo.",
+    tooManyPoints: "Este estilo muestra hasta {max} puntos; los últimos se omiten.",
+    removePoint: "Quitar el punto {index}",
+    voiceoverScript: "Guion de la voz en off",
+    optional: "Opcional",
+    voiceoverHint: "La voz lee los textos en pantalla y añade estas frases. También aparecen como la línea pequeña bajo cada punto.",
+    voiceoverSilent: "Este vídeo no tiene voz en off: estas frases aparecen como la línea pequeña bajo cada punto.",
+    pointAdds: "Punto {index}: la voz añade",
+    socialCaption: "Texto para redes sociales",
+    captionHint: "Se publica con el vídeo. No aparece en el vídeo.",
+    profileCallout: "RepGet usa su perfil de empresa para el público, la voz de marca y el tono. No hace falta repetirlos aquí.",
+    more: "Más opciones",
+    moreHint: "Solo para este vídeo. Su perfil de empresa no cambia.",
+    rewrite: "Reescribir con IA",
+    look: "Estilo del vídeo",
+    lookHint: "Cómo se produce el vídeo.",
+    textStyle: "Estilo del texto",
+    textStyleTemplate: "La plantilla define el aspecto de todos los textos.",
+    textStyleCaptions: "Cómo se ven los subtítulos en el vídeo.",
+    textStyleFixed: "Este estilo define su propio estilo de texto.",
+    templateAlways: "Las plantillas animadas siempre empiezan con el gancho y terminan con la frase final.",
+    videoFormat: "Formato del vídeo",
+    formatOption: "{ratio} · {name}",
+    voiceover: "Voz en off",
+    voiceLocked: { text_music: "Este estilo y formato no tienen voz en off.", voiceover: "Este estilo siempre lleva voz en off." },
+    captionsOnVideo: "Subtítulos en el vídeo",
+    captionsHint: "Las palabras aparecen a medida que se dicen o se leen.",
+    musicMoods: "Ambiente",
+    musicTracks: "De la biblioteca",
+    picturesHint: "Se usan en las escenas. Añadir o quitar una imagen se guarda al momento.",
+    videoCallout: "Su público, tono y estilo habituales vienen de su perfil de empresa. Aquí solo cambia este vídeo.",
+    readOnly: {
+      title: "Este vídeo ya no se puede editar",
+      body: "Se está creando o ya está creado. Solo se pueden cambiar las ideas nuevas y los vídeos que fallaron.",
+    },
+    problems: {
+      title: "Añada un título al vídeo.",
+      hook: "Añada el gancho.",
+      point: "Cada punto necesita un texto en pantalla.",
+      caption: "Añada el texto para redes sociales.",
+    },
+    unsaved: "¿Descartar sus cambios?",
+    keepEditing: "Seguir editando",
+    discard: "Descartar cambios",
+    reset: "Deshacer cambios",
+    saveApprove: "Guardar y aprobar",
+  },
   compat: {
     title: "Revise antes de publicar",
     no_story: "{platform} no acepta Historias de RepGet, así que esta Historia no se envía allí.",
@@ -1047,7 +1234,7 @@ const viralEs: ViralCopy = {
       platformsBody: "Las plataformas nuevas, como LinkedIn y X, nunca se añaden por usted.",
       modes: {
         manual: { title: "Revisar antes de publicar", body: "Los vídeos listos esperan a que pulse Publicar." },
-        draft: { title: "Guardar como borrador", body: "Los vídeos creados quedan en Sus vídeos como borradores. No se publica nada hasta que usted lo haga." },
+        draft: { title: "Guardar como borrador", body: "Los vídeos creados quedan en Vídeos guardados. No se publica nada hasta que usted lo haga." },
         auto: { title: "Publicar automáticamente las ideas aprobadas", body: "Cada vídeo que crea se publica en el mejor momento disponible." },
       },
       autoNote: "La publicación automática nunca crea vídeos ni cobra por sí sola. Solo publica los vídeos que usted crea, como máximo 3 al día.",
@@ -1229,6 +1416,70 @@ const viralFr: ViralCopy = {
     rewriteHelp: "La réécriture est gratuite : RepGet rédige à nouveau le script avec vos choix.",
     rewritten: "Réécrit. Le nouveau script est dans l’idée.",
   },
+  editor: {
+    heading: "Modifier votre vidéo",
+    intro: "Modifiez ce que dit cette vidéo et son apparence. L’enregistrement est gratuit ; seule la création utilise des crédits.",
+    close: "Fermer",
+    tabs: { script: "Script", style: "Style", video: "Vidéo" },
+    preview: "Aperçu de la vidéo",
+    showPart: "Afficher dans l’aperçu",
+    parts: { hook: "Accroche", point: "Point {index}", proof: "Preuve", cta: "Fin" },
+    slideOf: "Diapositive {index} sur {total}",
+    previousSlide: "Diapositive précédente",
+    nextSlide: "Diapositive suivante",
+    videoTitle: "Titre de la vidéo",
+    titlePrivate: "Vous seul le voyez",
+    onScreen: "Texte à l’écran",
+    onScreenHint: "Cliquez sur un texte pour le voir dans l’aperçu.",
+    hookOff: "Non affiché : l’accroche est désactivée dans Style.",
+    ctaOff: "Non affiché : l’appel à l’action est désactivé dans Style.",
+    ctaReplaced: "La vidéo se termine sur votre appel à l’action de Style.",
+    tooManyPoints: "Ce style affiche jusqu’à {max} points ; les derniers sont laissés de côté.",
+    removePoint: "Retirer le point {index}",
+    voiceoverScript: "Script de la voix off",
+    optional: "Facultatif",
+    voiceoverHint: "La voix lit les textes à l’écran et ajoute ces phrases. Elles s’affichent aussi en petite ligne sous chaque point.",
+    voiceoverSilent: "Cette vidéo n’a pas de voix off : ces phrases s’affichent en petite ligne sous chaque point.",
+    pointAdds: "Point {index} : la voix ajoute",
+    socialCaption: "Légende pour les réseaux sociaux",
+    captionHint: "Publiée avec la vidéo. Elle n’apparaît pas dans la vidéo.",
+    profileCallout: "RepGet utilise votre profil d’entreprise pour le public, la voix de marque et le ton. Inutile de les répéter ici.",
+    more: "Plus d’options",
+    moreHint: "Pour cette vidéo uniquement. Votre profil d’entreprise ne change pas.",
+    rewrite: "Réécrire avec l’IA",
+    look: "Style de la vidéo",
+    lookHint: "La façon dont la vidéo est produite.",
+    textStyle: "Style du texte",
+    textStyleTemplate: "Le modèle définit l’apparence de tous les textes.",
+    textStyleCaptions: "L’apparence des sous-titres dans la vidéo.",
+    textStyleFixed: "Ce style définit son propre style de texte.",
+    templateAlways: "Les modèles animés commencent toujours par l’accroche et finissent par la phrase de fin.",
+    videoFormat: "Format de la vidéo",
+    formatOption: "{ratio} · {name}",
+    voiceover: "Voix off",
+    voiceLocked: { text_music: "Ce style et ce format n’ont pas de voix off.", voiceover: "Ce style a toujours une voix off." },
+    captionsOnVideo: "Sous-titres dans la vidéo",
+    captionsHint: "Les mots apparaissent au fil de la voix ou de la lecture.",
+    musicMoods: "Ambiance",
+    musicTracks: "De la bibliothèque",
+    picturesHint: "Utilisées dans les scènes. L’ajout ou le retrait d’une image est enregistré aussitôt.",
+    videoCallout: "Votre public, votre ton et votre style habituels viennent de votre profil d’entreprise. Ici, vous ne changez que cette vidéo.",
+    readOnly: {
+      title: "Cette vidéo ne peut plus être modifiée",
+      body: "Elle est en cours de création ou déjà créée. Seules les nouvelles idées et les vidéos en échec peuvent être modifiées.",
+    },
+    problems: {
+      title: "Ajoutez un titre à la vidéo.",
+      hook: "Ajoutez l’accroche.",
+      point: "Chaque point doit avoir un texte à l’écran.",
+      caption: "Ajoutez la légende pour les réseaux sociaux.",
+    },
+    unsaved: "Abandonner vos modifications ?",
+    keepEditing: "Continuer à modifier",
+    discard: "Abandonner les modifications",
+    reset: "Annuler les modifications",
+    saveApprove: "Enregistrer et approuver",
+  },
   compat: {
     title: "À vérifier avant de publier",
     no_story: "{platform} n’accepte pas de Stories de RepGet : cette Story n’y est donc pas envoyée.",
@@ -1373,7 +1624,7 @@ const viralFr: ViralCopy = {
       platformsBody: "Les nouvelles plateformes comme LinkedIn et X ne sont jamais ajoutées à votre place.",
       modes: {
         manual: { title: "Relire avant de publier", body: "Les vidéos prêtes attendent que vous cliquiez sur Publier." },
-        draft: { title: "Enregistrer comme brouillon", body: "Les vidéos créées restent dans Vos vidéos comme brouillons. Rien n’est publié tant que vous ne le faites pas." },
+        draft: { title: "Enregistrer comme brouillon", body: "Les vidéos créées restent dans Vidéos enregistrées. Rien n’est publié tant que vous ne le faites pas." },
         auto: { title: "Publier automatiquement les idées approuvées", body: "Chaque vidéo que vous créez est publiée au meilleur moment disponible." },
       },
       autoNote: "La publication automatique ne crée ni ne facture jamais de vidéos d’elle-même. Elle publie seulement les vidéos que vous créez, 3 par jour au maximum.",
@@ -1555,6 +1806,70 @@ const viralIt: ViralCopy = {
     rewriteHelp: "Riscrivere è gratis: RepGet scrive di nuovo il testo con le sue scelte.",
     rewritten: "Riscritto. Il nuovo testo è nell’idea.",
   },
+  editor: {
+    heading: "Modifichi il suo video",
+    intro: "Cambi ciò che dice questo video e il suo aspetto. Salvare è gratuito; solo la creazione usa crediti.",
+    close: "Chiudi",
+    tabs: { script: "Testo", style: "Stile", video: "Video" },
+    preview: "Anteprima del video",
+    showPart: "Mostra nell’anteprima",
+    parts: { hook: "Gancio", point: "Punto {index}", proof: "Prova", cta: "Fine" },
+    slideOf: "Slide {index} di {total}",
+    previousSlide: "Slide precedente",
+    nextSlide: "Slide successiva",
+    videoTitle: "Titolo del video",
+    titlePrivate: "Lo vede solo lei",
+    onScreen: "Testo sullo schermo",
+    onScreenHint: "Clicchi su un testo per vederlo nell’anteprima.",
+    hookOff: "Non mostrato: il gancio è disattivato in Stile.",
+    ctaOff: "Non mostrato: l’invito all’azione è disattivato in Stile.",
+    ctaReplaced: "Il video finisce con il suo invito all’azione di Stile.",
+    tooManyPoints: "Questo stile mostra fino a {max} punti; gli ultimi vengono esclusi.",
+    removePoint: "Rimuovi il punto {index}",
+    voiceoverScript: "Testo della voce fuori campo",
+    optional: "Facoltativo",
+    voiceoverHint: "La voce legge i testi sullo schermo e aggiunge queste frasi. Compaiono anche come riga piccola sotto ogni punto.",
+    voiceoverSilent: "Questo video non ha voce fuori campo: queste frasi compaiono come riga piccola sotto ogni punto.",
+    pointAdds: "Punto {index}: la voce aggiunge",
+    socialCaption: "Testo per i social",
+    captionHint: "Pubblicato con il video. Non compare nel video.",
+    profileCallout: "RepGet usa il suo profilo aziendale per pubblico, voce del marchio e tono. Non serve ripeterli qui.",
+    more: "Altre opzioni",
+    moreHint: "Solo per questo video. Il suo profilo aziendale resta com’è.",
+    rewrite: "Riscrivi con l’IA",
+    look: "Stile del video",
+    lookHint: "Come viene prodotto il video.",
+    textStyle: "Stile del testo",
+    textStyleTemplate: "Il modello stabilisce l’aspetto di tutti i testi.",
+    textStyleCaptions: "L’aspetto dei sottotitoli nel video.",
+    textStyleFixed: "Questo stile ha un suo stile di testo.",
+    templateAlways: "I modelli animati iniziano sempre con il gancio e finiscono con la frase di chiusura.",
+    videoFormat: "Formato del video",
+    formatOption: "{ratio} · {name}",
+    voiceover: "Voce fuori campo",
+    voiceLocked: { text_music: "Questo stile e formato non hanno voce fuori campo.", voiceover: "Questo stile ha sempre la voce fuori campo." },
+    captionsOnVideo: "Sottotitoli nel video",
+    captionsHint: "Le parole compaiono mentre vengono dette o lette.",
+    musicMoods: "Atmosfera",
+    musicTracks: "Dalla libreria",
+    picturesHint: "Usate nelle scene. Aggiungere o togliere un’immagine viene salvato subito.",
+    videoCallout: "Il pubblico, il tono e lo stile abituali vengono dal suo profilo aziendale. Qui cambia solo questo video.",
+    readOnly: {
+      title: "Questo video non si può più modificare",
+      body: "È in creazione o già creato. Si possono cambiare solo le idee nuove e i video non riusciti.",
+    },
+    problems: {
+      title: "Aggiunga un titolo al video.",
+      hook: "Aggiunga il gancio.",
+      point: "Ogni punto ha bisogno di un testo sullo schermo.",
+      caption: "Aggiunga il testo per i social.",
+    },
+    unsaved: "Scartare le modifiche?",
+    keepEditing: "Continua a modificare",
+    discard: "Scarta le modifiche",
+    reset: "Annulla le modifiche",
+    saveApprove: "Salva e approva",
+  },
   compat: {
     title: "Da controllare prima di pubblicare",
     no_story: "{platform} non accetta Storie da RepGet, quindi questa Storia non viene inviata lì.",
@@ -1699,7 +2014,7 @@ const viralIt: ViralCopy = {
       platformsBody: "Le nuove piattaforme come LinkedIn e X non vengono mai aggiunte al posto suo.",
       modes: {
         manual: { title: "Controlla prima di pubblicare", body: "I video pronti aspettano che prema Pubblica." },
-        draft: { title: "Salva come bozza", body: "I video creati restano in I suoi video come bozze. Nulla viene pubblicato finché non lo fa lei." },
+        draft: { title: "Salva come bozza", body: "I video creati restano in Video salvati. Nulla viene pubblicato finché non lo fa lei." },
         auto: { title: "Pubblica automaticamente le idee approvate", body: "Ogni video che crea viene pubblicato nel miglior momento disponibile." },
       },
       autoNote: "La pubblicazione automatica non crea né addebita mai video da sola. Pubblica solo i video che crea lei, al massimo 3 al giorno.",
@@ -1881,6 +2196,70 @@ const viralDe: ViralCopy = {
     rewriteHelp: "Neu schreiben ist kostenlos: RepGet schreibt das Skript mit Ihren Vorgaben neu.",
     rewritten: "Neu geschrieben. Das neue Skript steht in der Idee.",
   },
+  editor: {
+    heading: "Ihr Video bearbeiten",
+    intro: "Ändern Sie, was dieses Video sagt und wie es aussieht. Speichern ist kostenlos; nur das Erstellen verbraucht Credits.",
+    close: "Schließen",
+    tabs: { script: "Skript", style: "Stil", video: "Video" },
+    preview: "Videovorschau",
+    showPart: "In der Vorschau zeigen",
+    parts: { hook: "Hook", point: "Punkt {index}", proof: "Beleg", cta: "Schluss" },
+    slideOf: "Folie {index} von {total}",
+    previousSlide: "Vorherige Folie",
+    nextSlide: "Nächste Folie",
+    videoTitle: "Videotitel",
+    titlePrivate: "Nur für Sie sichtbar",
+    onScreen: "Text im Bild",
+    onScreenHint: "Klicken Sie auf einen Text, um ihn in der Vorschau zu sehen.",
+    hookOff: "Nicht gezeigt: Der Hook ist unter Stil ausgeschaltet.",
+    ctaOff: "Nicht gezeigt: Der Call-to-Action ist unter Stil ausgeschaltet.",
+    ctaReplaced: "Das Video endet mit Ihrem Call-to-Action aus Stil.",
+    tooManyPoints: "Dieser Look zeigt bis zu {max} Punkte; die letzten werden weggelassen.",
+    removePoint: "Punkt {index} entfernen",
+    voiceoverScript: "Sprechertext",
+    optional: "Optional",
+    voiceoverHint: "Die Stimme liest die Texte im Bild und ergänzt diese Sätze. Sie erscheinen auch als kleinere Zeile unter jedem Punkt.",
+    voiceoverSilent: "Dieses Video hat keine Sprecherstimme: Diese Sätze erscheinen als kleinere Zeile unter jedem Punkt.",
+    pointAdds: "Punkt {index}: Die Stimme ergänzt",
+    socialCaption: "Text für Social Media",
+    captionHint: "Wird mit dem Video gepostet. Er erscheint nicht im Video.",
+    profileCallout: "RepGet nutzt Ihr Unternehmensprofil für Zielgruppe, Markenstimme und Ton. Sie müssen sie hier nicht wiederholen.",
+    more: "Weitere Optionen",
+    moreHint: "Nur für dieses Video. Ihr Unternehmensprofil bleibt, wie es ist.",
+    rewrite: "Mit KI neu schreiben",
+    look: "Video-Look",
+    lookHint: "Wie das Video produziert wird.",
+    textStyle: "Textstil",
+    textStyleTemplate: "Die Vorlage bestimmt das Aussehen aller Texte.",
+    textStyleCaptions: "Wie die Untertitel im Video aussehen.",
+    textStyleFixed: "Dieser Look hat seinen eigenen Textstil.",
+    templateAlways: "Die animierten Vorlagen beginnen immer mit dem Hook und enden mit dem Schlusssatz.",
+    videoFormat: "Videoformat",
+    formatOption: "{ratio} · {name}",
+    voiceover: "Sprecherstimme",
+    voiceLocked: { text_music: "Dieser Look und dieses Format haben keine Sprecherstimme.", voiceover: "Dieser Look hat immer eine Sprecherstimme." },
+    captionsOnVideo: "Untertitel im Video",
+    captionsHint: "Die Wörter erscheinen, während sie gesprochen oder gelesen werden.",
+    musicMoods: "Stimmung",
+    musicTracks: "Aus der Bibliothek",
+    picturesHint: "Werden in den Szenen verwendet. Hinzufügen oder Entfernen eines Bildes wird sofort gespeichert.",
+    videoCallout: "Ihre übliche Zielgruppe, Ihr Ton und Ihr Look kommen aus Ihrem Unternehmensprofil. Hier ändern Sie nur dieses Video.",
+    readOnly: {
+      title: "Dieses Video kann nicht mehr bearbeitet werden",
+      body: "Es wird gerade erstellt oder ist fertig. Nur neue Ideen und fehlgeschlagene Videos lassen sich ändern.",
+    },
+    problems: {
+      title: "Geben Sie einen Videotitel ein.",
+      hook: "Geben Sie den Hook ein.",
+      point: "Jeder Punkt braucht einen Text im Bild.",
+      caption: "Geben Sie den Text für Social Media ein.",
+    },
+    unsaved: "Ihre Änderungen verwerfen?",
+    keepEditing: "Weiter bearbeiten",
+    discard: "Änderungen verwerfen",
+    reset: "Änderungen zurücknehmen",
+    saveApprove: "Speichern & freigeben",
+  },
   compat: {
     title: "Vor dem Veröffentlichen prüfen",
     no_story: "{platform} nimmt keine Storys von RepGet an, daher wird diese Story nicht dorthin gesendet.",
@@ -2025,7 +2404,7 @@ const viralDe: ViralCopy = {
       platformsBody: "Neue Plattformen wie LinkedIn und X werden nie ohne Ihre Wahl hinzugefügt.",
       modes: {
         manual: { title: "Vor dem Veröffentlichen prüfen", body: "Fertige Videos warten, bis Sie auf Veröffentlichen tippen." },
-        draft: { title: "Als Entwurf speichern", body: "Erstellte Videos bleiben als Entwürfe unter Ihre Videos. Nichts wird gepostet, bis Sie veröffentlichen." },
+        draft: { title: "Als Entwurf speichern", body: "Erstellte Videos bleiben unter Gespeicherte Videos. Nichts wird gepostet, bis Sie veröffentlichen." },
         auto: { title: "Freigegebene Ideen automatisch veröffentlichen", body: "Jedes Video, das Sie erstellen, wird zur besten freien Zeit veröffentlicht." },
       },
       autoNote: "Automatisches Posten erstellt oder berechnet nie selbst Videos. Es veröffentlicht nur die Videos, die Sie erstellen, höchstens 3 am Tag.",
@@ -2093,8 +2472,8 @@ const viralDe: ViralCopy = {
 
 const en: VideosCopy = {
   title: "Social Content",
-  intro: "Short animated videos and photo carousels made from your website, with an AI voice, captions and music. Swipe through today's ideas: the ones you keep are made and published for you.",
-  tabs: { ideas: "Today's ideas", videos: "Your videos", posted: "Posted", settings: "Settings" },
+  intro: "Short animated videos and photo carousels made from your website, with an AI voice, captions and music. Every day brings 20 new ideas: skip, edit or approve each one, then publish the video yourself or automatically, or save it for later.",
+  tabs: { ideas: "Today's ideas", videos: "Saved Videos", posted: "Posted", settings: "Settings" },
   today: "{approved} of {goal} made today",
   dayComplete: "Today is complete",
   dayCompleteBody: "You have made today's {goal} videos. You can make more from the ideas left; each one uses a credit.",
@@ -2121,7 +2500,7 @@ const en: VideosCopy = {
   undone: "Taken back: it will not be made, and the credit is returned.",
   edit: "Edit",
   approve: "Create · {price}",
-  approved: "Being made. You will find it under Your videos.",
+  approved: "Being made. You will find it under Saved Videos.",
   swipeHint: "Swipe right (on a phone) or press → to make it, left or ← to skip. Made one by mistake? Press Undo within 10 seconds.",
   previewNote: "Preview without the voice. The finished video has the AI voice, captions and music.",
   slide: "Slide {index}",
@@ -2259,7 +2638,7 @@ const en: VideosCopy = {
     seconds: "{seconds} s",
     slides: "{count} slides",
   },
-  postedEmpty: { ideas: "Discover ideas", videos: "View your videos" },
+  postedEmpty: { ideas: "Discover ideas", videos: "View Saved Videos" },
   cards: {
     style: "Video and carousel style",
     styleBody: "How your content looks and sounds.",
@@ -2292,12 +2671,13 @@ const en: VideosCopy = {
     generic: "Something went wrong. Please try again.",
   },
   viral: viralEn,
+  flow: VIDEO_FLOW_COPY.en,
 };
 
 const es: VideosCopy = {
   title: "Contenido social",
-  intro: "Vídeos animados cortos y carruseles de fotos creados a partir de su sitio web, con voz de IA, subtítulos y música. Deslice las ideas de hoy: las que conserve se crean y se publican por usted.",
-  tabs: { ideas: "Ideas de hoy", videos: "Sus vídeos", posted: "Publicados", settings: "Ajustes" },
+  intro: "Vídeos animados cortos y carruseles de fotos creados a partir de su sitio web, con voz de IA, subtítulos y música. Cada día llegan 20 ideas nuevas: omita, edite o apruebe cada una y publique el vídeo usted mismo o automáticamente, o guárdelo para más tarde.",
+  tabs: { ideas: "Ideas de hoy", videos: "Vídeos guardados", posted: "Publicados", settings: "Ajustes" },
   today: "{approved} de {goal} creados hoy",
   dayComplete: "El día de hoy está completo",
   dayCompleteBody: "Ya ha creado los {goal} vídeos de hoy. Puede crear más con las ideas restantes; cada uno usa un crédito.",
@@ -2324,7 +2704,7 @@ const es: VideosCopy = {
   undone: "Deshecho: no se creará y se le devuelve el crédito.",
   edit: "Editar",
   approve: "Crear · {price}",
-  approved: "Se está creando. Lo encontrará en Sus vídeos.",
+  approved: "Se está creando. Lo encontrará en Vídeos guardados.",
   swipeHint: "Deslice a la derecha (en el móvil) o pulse → para crearlo, a la izquierda o ← para omitirlo. ¿Lo creó por error? Pulse Deshacer en 10 segundos.",
   previewNote: "Vista previa sin la voz. El vídeo final tiene la voz de IA, subtítulos y música.",
   slide: "Diapositiva {index}",
@@ -2462,7 +2842,7 @@ const es: VideosCopy = {
     seconds: "{seconds} s",
     slides: "{count} diapositivas",
   },
-  postedEmpty: { ideas: "Descubrir ideas", videos: "Ver sus vídeos" },
+  postedEmpty: { ideas: "Descubrir ideas", videos: "Ver Vídeos guardados" },
   cards: {
     style: "Estilo de vídeos y carruseles",
     styleBody: "Cómo se ve y cómo suena su contenido.",
@@ -2495,12 +2875,13 @@ const es: VideosCopy = {
     generic: "Algo salió mal. Inténtelo de nuevo.",
   },
   viral: viralEs,
+  flow: VIDEO_FLOW_COPY.es,
 };
 
 const fr: VideosCopy = {
   title: "Contenu social",
-  intro: "De courtes vidéos animées et des carrousels de photos créés à partir de votre site, avec une voix IA, des sous-titres et de la musique. Faites défiler les idées du jour : celles que vous gardez sont créées et publiées pour vous.",
-  tabs: { ideas: "Idées du jour", videos: "Vos vidéos", posted: "Publiées", settings: "Paramètres" },
+  intro: "De courtes vidéos animées et des carrousels de photos créés à partir de votre site, avec une voix IA, des sous-titres et de la musique. Chaque jour, 20 nouvelles idées : ignorez, modifiez ou approuvez chacune, puis publiez la vidéo vous-même ou automatiquement, ou gardez-la pour plus tard.",
+  tabs: { ideas: "Idées du jour", videos: "Vidéos enregistrées", posted: "Publiées", settings: "Paramètres" },
   today: "{approved} sur {goal} créées aujourd’hui",
   dayComplete: "La journée est terminée",
   dayCompleteBody: "Vous avez créé les {goal} vidéos du jour. Vous pouvez en créer d’autres avec les idées restantes ; chacune utilise un crédit.",
@@ -2527,7 +2908,7 @@ const fr: VideosCopy = {
   undone: "Annulé : elle ne sera pas créée et le crédit vous est rendu.",
   edit: "Modifier",
   approve: "Créer · {price}",
-  approved: "En cours de création. Vous la trouverez dans Vos vidéos.",
+  approved: "En cours de création. Vous la trouverez dans Vidéos enregistrées.",
   swipeHint: "Balayez vers la droite (sur mobile) ou appuyez sur → pour la créer, vers la gauche ou ← pour l’ignorer. Créée par erreur ? Appuyez sur Annuler dans les 10 secondes.",
   previewNote: "Aperçu sans la voix. La vidéo finale comporte la voix IA, les sous-titres et la musique.",
   slide: "Diapositive {index}",
@@ -2665,7 +3046,7 @@ const fr: VideosCopy = {
     seconds: "{seconds} s",
     slides: "{count} diapositives",
   },
-  postedEmpty: { ideas: "Découvrir des idées", videos: "Voir vos vidéos" },
+  postedEmpty: { ideas: "Découvrir des idées", videos: "Voir Vidéos enregistrées" },
   cards: {
     style: "Style des vidéos et carrousels",
     styleBody: "L’apparence et le son de votre contenu.",
@@ -2698,12 +3079,13 @@ const fr: VideosCopy = {
     generic: "Une erreur s’est produite. Veuillez réessayer.",
   },
   viral: viralFr,
+  flow: VIDEO_FLOW_COPY.fr,
 };
 
 const it: VideosCopy = {
   title: "Contenuti social",
-  intro: "Brevi video animati e caroselli di foto creati dal suo sito, con voce IA, sottotitoli e musica. Scorra le idee di oggi: quelle che tiene vengono create e pubblicate per lei.",
-  tabs: { ideas: "Idee di oggi", videos: "I suoi video", posted: "Pubblicati", settings: "Impostazioni" },
+  intro: "Brevi video animati e caroselli di foto creati dal suo sito, con voce IA, sottotitoli e musica. Ogni giorno arrivano 20 nuove idee: salti, modifichi o approvi ciascuna, poi pubblichi il video da sé o automaticamente, oppure lo salvi per dopo.",
+  tabs: { ideas: "Idee di oggi", videos: "Video salvati", posted: "Pubblicati", settings: "Impostazioni" },
   today: "{approved} di {goal} creati oggi",
   dayComplete: "La giornata è completa",
   dayCompleteBody: "Ha creato i {goal} video di oggi. Può crearne altri con le idee rimaste; ognuno usa un credito.",
@@ -2730,7 +3112,7 @@ const it: VideosCopy = {
   undone: "Annullato: non verrà creato e il credito le viene restituito.",
   edit: "Modifica",
   approve: "Crea · {price}",
-  approved: "In creazione. Lo troverà in I suoi video.",
+  approved: "In creazione. Lo troverà in Video salvati.",
   swipeHint: "Scorra a destra (sul telefono) o prema → per crearlo, a sinistra o ← per saltarlo. Creato per errore? Prema Annulla entro 10 secondi.",
   previewNote: "Anteprima senza voce. Il video finito ha la voce IA, i sottotitoli e la musica.",
   slide: "Slide {index}",
@@ -2868,7 +3250,7 @@ const it: VideosCopy = {
     seconds: "{seconds} s",
     slides: "{count} slide",
   },
-  postedEmpty: { ideas: "Scopra le idee", videos: "Veda i suoi video" },
+  postedEmpty: { ideas: "Scopra le idee", videos: "Veda Video salvati" },
   cards: {
     style: "Stile di video e caroselli",
     styleBody: "Come appaiono e come suonano i suoi contenuti.",
@@ -2901,12 +3283,13 @@ const it: VideosCopy = {
     generic: "Qualcosa è andato storto. Riprovi.",
   },
   viral: viralIt,
+  flow: VIDEO_FLOW_COPY.it,
 };
 
 const de: VideosCopy = {
   title: "Social Content",
-  intro: "Kurze animierte Videos und Foto-Karussells aus Ihrer Website, mit KI-Stimme, Untertiteln und Musik. Wischen Sie durch die Ideen von heute: Die, die Sie behalten, werden für Sie erstellt und veröffentlicht.",
-  tabs: { ideas: "Ideen von heute", videos: "Ihre Videos", posted: "Gepostet", settings: "Einstellungen" },
+  intro: "Kurze animierte Videos und Foto-Karussells aus Ihrer Website, mit KI-Stimme, Untertiteln und Musik. Jeden Tag kommen 20 neue Ideen: Überspringen, bearbeiten oder freigeben Sie jede, und veröffentlichen Sie das Video selbst oder automatisch, oder speichern Sie es für später.",
+  tabs: { ideas: "Ideen von heute", videos: "Gespeicherte Videos", posted: "Gepostet", settings: "Einstellungen" },
   today: "{approved} von {goal} heute erstellt",
   dayComplete: "Für heute erledigt",
   dayCompleteBody: "Sie haben die {goal} Videos von heute erstellt. Mit den übrigen Ideen können Sie weitere erstellen; jedes kostet einen Credit.",
@@ -2933,7 +3316,7 @@ const de: VideosCopy = {
   undone: "Zurückgenommen: Es wird nicht erstellt, und der Credit ist zurück.",
   edit: "Bearbeiten",
   approve: "Erstellen · {price}",
-  approved: "Wird erstellt. Sie finden es unter Ihre Videos.",
+  approved: "Wird erstellt. Sie finden es unter Gespeicherte Videos.",
   swipeHint: "Nach rechts wischen (am Handy) oder → drücken zum Erstellen, nach links oder ← zum Überspringen. Versehentlich erstellt? Innerhalb von 10 Sekunden auf Rückgängig tippen.",
   previewNote: "Vorschau ohne Stimme. Das fertige Video hat KI-Stimme, Untertitel und Musik.",
   slide: "Folie {index}",
@@ -3071,7 +3454,7 @@ const de: VideosCopy = {
     seconds: "{seconds} s",
     slides: "{count} Folien",
   },
-  postedEmpty: { ideas: "Ideen entdecken", videos: "Ihre Videos ansehen" },
+  postedEmpty: { ideas: "Ideen entdecken", videos: "Gespeicherte Videos ansehen" },
   cards: {
     style: "Stil von Videos und Karussells",
     styleBody: "Wie Ihre Inhalte aussehen und klingen.",
@@ -3104,6 +3487,7 @@ const de: VideosCopy = {
     generic: "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
   },
   viral: viralDe,
+  flow: VIDEO_FLOW_COPY.de,
 };
 
 /** One full translation per locale; keep the five objects in step when a key changes. */

@@ -6,6 +6,7 @@ import { cleanWebsite } from "@/app/(marketing)/_home/start-field";
 import { getSession } from "@/lib/auth-guard";
 import { listPlans } from "@/lib/billing";
 import { hasUnfinishedPayPalApproval, isTrialEligible, planScreenOffer } from "@/lib/billing/checkouts";
+import { growthPlanDashboardPath } from "@/lib/billing/return-to";
 import { pendingConversions } from "@/lib/conversions/conversions";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/auth-tables";
@@ -51,7 +52,12 @@ type Account = {
   emailVerified: boolean;
   /** The website already has a plan (paid, Free, or an agency workspace): nothing to buy, setup goes on at `next`. */
   hasPlan: boolean;
-  /** Where setup continues once the plan is in place, as after the plan step: Connect Google, for this website. */
+  /**
+   * Where the visitor goes once the plan is in place: the dashboard for this
+   * website (Daniel, 2026-11-21: "once payment is made they are redirect to the
+   * dashboard and not on the other steps"). The onboarding steps after the plan
+   * are on the Tasks page instead.
+   */
   next: string;
   /** The conversions this browser should report now (the sign-up), as the onboarding layout reports them. */
   conversions: BrowserConversion[];
@@ -116,7 +122,7 @@ export async function prepareGrowthPlanBilling(rawDomain: string, rawTier: strin
     email: session.user.email,
     emailVerified: person?.emailVerified === true,
     hasPlan: state.hasPlan,
-    next: `/onboarding/google?site=${encodeURIComponent(websiteId)}`,
+    next: growthPlanDashboardPath(websiteId),
     conversions,
   };
   if (free) return { ok: true, kind: "free", ...account };

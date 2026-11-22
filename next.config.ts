@@ -6,6 +6,7 @@ import { isPreviewDeployment, PREVIEW_ROBOTS_HEADER } from "./src/lib/deployment
 import { adsenseConfig } from "./src/lib/ads/adsense-config";
 import { cspIntegrations, cspMode, securityHeaders } from "./src/lib/security-headers";
 import { partnerLinkRedirects } from "./src/lib/partners/presentation/link-redirect";
+import { movedPageRedirects } from "./src/lib/seo/moved-pages";
 import { legacyHostRedirects } from "./src/lib/site-url";
 
 /*
@@ -109,8 +110,10 @@ const nextConfig: NextConfig = {
    * its reasons live beside the address in src/lib/site-url.ts.
    */
   async redirects() {
+    // Removed pages, for good, to the page that replaced them: src/lib/seo/moved-pages.ts. Before the
+    // partner rule, so /publishers?ref=<name> first moves to /partners and the click is counted there.
     // Partner links (?ref=<name> on any public page): src/lib/partners/presentation/link-redirect.ts.
-    return [...legacyHostRedirects(), ...partnerLinkRedirects()];
+    return [...legacyHostRedirects(), ...movedPageRedirects(), ...partnerLinkRedirects()];
   },
 
   /**

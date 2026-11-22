@@ -84,8 +84,6 @@ export type Messages = {
     /** /backlinks and /rank-on-chatgpt: English pages, linked from every language. */
     backlinks: string;
     rankOnChatgpt: string;
-    backlinkExchange: string;
-    publishers: string;
     /** The cash Affiliate Program (/partners); the credit referral (/affiliate) is not in the footer. */
     partners: string;
     /** /discover, the customer directory (client, 2026-11-12: "insert this page also on footer"). */
@@ -433,23 +431,6 @@ export type Messages = {
     ctaPrimary: string;
     ctaSecondary: string;
   };
-  /** Publishers: hosting an article to earn link credits. */
-  publishers: {
-    metaTitle: string;
-    metaDescription: string;
-    title: string;
-    intro: string;
-    creditsTitle: string;
-    creditsBody: string;
-    steps: { title: string; body: string }[];
-    controlTitle: string;
-    rules: { title: string; body: string }[];
-    suitsTitle: string;
-    suitsBody: string;
-    joinNote: string;
-    ctaPrimary: string;
-    ctaSecondary: string;
-  };
   /** Affiliate: referring another business for link credits. */
   affiliate: {
     metaTitle: string;
@@ -461,27 +442,6 @@ export type Messages = {
     terms: string[];
     ctaPrimary: string;
     ctaNote: string;
-  };
-  /** The backlink exchange, explained to a prospect. */
-  backlinkExchange: {
-    metaTitle: string;
-    metaDescription: string;
-    title: string;
-    intro: string;
-    steps: { title: string; body: string }[];
-    rulesTitle: string;
-    rules: { title: string; body: string }[];
-    /**
-     * Said plainly rather than buried. Anyone who has been sold link building
-     * before has been sold a private blog network, and the honest difference
-     * is worth more than a claim we cannot back.
-     */
-    notTitle: string;
-    notBody: string;
-    ctaTitle: string;
-    ctaBody: string;
-    ctaPrimary: string;
-    ctaSecondary: string;
   };
   faq: {
     metaTitle: string;
@@ -3020,12 +2980,14 @@ export type Messages = {
         audit_rerun: string;
         social_post: string;
         video_post: string;
+        video_ideas: string;
         chat_message: string;
       };
       actionHelp: {
         audit_rerun: string;
         social_post: string;
         video_post: string;
+        video_ideas: string;
         chat_message: string;
       };
       /** Services bought with credits (addons.credit_price); {price} in servicePriceFrom. */
@@ -3437,8 +3399,6 @@ const en: Messages = {
     feedback: "Send feedback",
     backlinks: "Backlinks",
     rankOnChatgpt: "Rank on ChatGPT",
-    backlinkExchange: "Backlink exchange",
-    publishers: "Monetize your blog",
     partners: "Affiliate Program",
     discover: "Customer directory",
     privacy: "Privacy",
@@ -3825,57 +3785,6 @@ const en: Messages = {
     ctaPrimary: "Check my website",
     ctaSecondary: "See pricing",
   },
-  publishers: {
-    metaTitle: "Monetize your blog",
-    metaDescription:
-      "Host one article a month for a related business and earn credits you can spend on backlinks to your own site.",
-    title: "Monetize your blog",
-    intro:
-      "Host one article a month for a business in a related field, and earn credits you can spend on links back to your own site.",
-    creditsTitle: "Credits, not cash",
-    creditsBody:
-      "You are paid in credits rather than money. Each hosted article earns credits, and credits buy you links from other businesses' sites. If you want cash for guest posts, this is not that - and there are marketplaces that do it.",
-    steps: [
-      {
-        title: "Tell us what your site is about",
-        body: "Your topic, language and country. We only match you with businesses in a related field.",
-      },
-      {
-        title: "Set how many articles a month",
-        body: "Up to twenty, and most publishers start at three. You can pause or leave at any time.",
-      },
-      {
-        title: "We write the article",
-        body: "A real article on a topic your readers care about, written for your site, with one natural link in it.",
-      },
-      {
-        title: "You earn credits",
-        body: "Credits for every article hosted, spendable on links back to your own site from other businesses' sites.",
-      },
-    ],
-    controlTitle: "What you control",
-    rules: [
-      {
-        title: "Related topics only",
-        body: "You will never be asked to host something unrelated to your site. If we cannot establish that two sites are topically related, we do not make the match.",
-      },
-      {
-        title: "You set the limit",
-        body: "Between one and twenty articles a month, changed whenever you like. Set it to zero and you stop receiving requests.",
-      },
-      {
-        title: "You keep editorial control",
-        body: "Articles arrive as drafts on your site. Publish, edit or reject them - nothing goes live without you.",
-      },
-    ],
-    suitsTitle: "Who this suits",
-    suitsBody:
-      "A small business with a blog that already publishes occasionally, and wants links to its own pages without paying for them. If your site has no readers, hosting articles will not change that - the links you earn are worth what your site is worth.",
-    joinNote:
-      "Joining is part of every plan. Turn it on from your website settings.",
-    ctaPrimary: "Get Started",
-    ctaSecondary: "How the exchange works",
-  },
   affiliate: {
     metaTitle: "Refer a business",
     metaDescription:
@@ -3907,50 +3816,6 @@ const en: Messages = {
     ctaPrimary: "Get Started",
     ctaNote:
       "Your referral link is in Settings as soon as you have an account.",
-  },
-  backlinkExchange: {
-    metaTitle: "How the backlink exchange works",
-    metaDescription:
-      "Earn links to your website by publishing one article for another business. Relevant matches only, verified daily, credits back when a removal is confirmed.",
-    title: "How the backlink exchange works",
-    intro:
-      "Links are earned by giving them. You host one article for a business in a related field, and spend what you earn on links back to your own site.",
-    steps: [
-      {
-        title: "You host an article",
-        body: "We write an article for another business in a related field and publish it on your site. It is a real article on a topic your readers care about, not a page of links.",
-      },
-      {
-        title: "You earn credits",
-        body: "Each hosted article earns credits. Your plan also includes credits every month, so you can start before you have hosted anything.",
-      },
-      {
-        title: "You spend them on links",
-        body: "Credits buy links to your site, written naturally into articles on other websites in a related field.",
-      },
-    ],
-    rulesTitle: "The rules that make it worth having",
-    rules: [
-      {
-        title: "Related topics only",
-        body: "A dentist is never matched with a crypto blog. If we cannot establish that two sites are topically related, we do not make the match - an irrelevant link is worth nothing and can do harm.",
-      },
-      {
-        title: "Checked every day",
-        body: "We re-check every link daily. Links do not silently disappear without you finding out.",
-      },
-      {
-        title: "Credits refunded if a link goes",
-        body: "If a link is removed, tell us: once we confirm it is gone, you get the credits back and it disappears from your dashboard. A site that is only offline for a while, for maintenance say, keeps its links.",
-      },
-    ],
-    notTitle: "What this is not",
-    notBody:
-      "This is not a private blog network. Every link sits inside a real article on a real business's website, published because that business wanted an article.",
-    ctaTitle: "Every plan includes credits",
-    ctaBody: "You can request your first links before hosting anything.",
-    ctaPrimary: "Get Started",
-    ctaSecondary: "Host articles instead",
   },
   faq: {
     metaTitle: "FAQ",
@@ -6313,12 +6178,14 @@ const en: Messages = {
         audit_rerun: "Running the website check again",
         social_post: "A social media post or reply",
         video_post: "A video or carousel",
+        video_ideas: "New video ideas (10)",
         chat_message: "A Growth Copilot message",
       },
       actionHelp: {
         audit_rerun: "The first check of each website is free.",
         social_post: "Each reply you post with one click, and each of your own posts RepGet publishes.",
-        video_post: "Each video or photo carousel RepGet makes for you (the ideas are free).",
+        video_post: "Each video or photo carousel RepGet makes for you (the 20 daily ideas are free).",
+        video_ideas: "Each extra batch of 10 video ideas from New ideas. Your 20 daily ideas stay free.",
         chat_message: "Each message after the 5 free messages of the day.",
       },
       serviceHelp: "Bought on Billing and delivered by our team.",
@@ -6704,8 +6571,6 @@ const es: Messages = {
     feedback: "Enviar comentarios",
     backlinks: "Backlinks",
     rankOnChatgpt: "Aparecer en ChatGPT",
-    backlinkExchange: "Intercambio de enlaces",
-    publishers: "Rentabilice su blog",
     partners: "Programa de afiliados",
     discover: "Directorio de clientes",
     privacy: "Privacidad",
@@ -7107,57 +6972,6 @@ const es: Messages = {
     ctaPrimary: "Analizar mi web",
     ctaSecondary: "Ver precios",
   },
-  publishers: {
-    metaTitle: "Rentabilice su blog",
-    metaDescription:
-      "Publique un artículo al mes para un negocio afín y gane créditos que podrá gastar en enlaces hacia su propia web.",
-    title: "Rentabilice su blog",
-    intro:
-      "Aloje un artículo al mes de un negocio de un sector relacionado y gane créditos para conseguir enlaces hacia su propia web.",
-    creditsTitle: "Créditos, no dinero",
-    creditsBody:
-      "El pago es en créditos, no en dinero. Cada artículo alojado le da créditos, y los créditos le consiguen enlaces desde las webs de otros negocios. Si busca cobrar por artículos patrocinados, esto no es eso, y existen mercados que sí lo hacen.",
-    steps: [
-      {
-        title: "Díganos de qué trata su web",
-        body: "Su tema, idioma y país. Solo le emparejamos con negocios de un sector relacionado.",
-      },
-      {
-        title: "Elija cuántos artículos al mes",
-        body: "Hasta veinte, aunque la mayoría empieza con tres. Puede pausar o salir cuando quiera.",
-      },
-      {
-        title: "Escribimos el artículo",
-        body: "Un artículo real sobre un tema que interesa a sus lectores, escrito para su web, con un enlace natural dentro.",
-      },
-      {
-        title: "Usted gana créditos",
-        body: "Créditos por cada artículo alojado, que puede gastar en enlaces hacia su web desde las de otros negocios.",
-      },
-    ],
-    controlTitle: "Lo que usted controla",
-    rules: [
-      {
-        title: "Solo temas relacionados",
-        body: "Nunca le pediremos alojar algo ajeno a su web. Si no podemos verificar que dos webs están relacionadas temáticamente, no hacemos el emparejamiento.",
-      },
-      {
-        title: "Usted pone el límite",
-        body: "Entre uno y veinte artículos al mes, modificable cuando quiera. Si lo pone a cero, dejará de recibir solicitudes.",
-      },
-      {
-        title: "Usted mantiene el control editorial",
-        body: "Los artículos llegan como borradores a su web. Publique, edite o rechace: nada se publica sin usted.",
-      },
-    ],
-    suitsTitle: "Para quién es esto",
-    suitsBody:
-      "Para un pequeño negocio con un blog que ya publica de vez en cuando y quiere enlaces a sus páginas sin pagarlos. Si su web no tiene lectores, alojar artículos no lo cambiará: los enlaces que gane valen lo que valga su web.",
-    joinNote:
-      "Participar está incluido en todos los planes. Actívelo desde los ajustes de su web.",
-    ctaPrimary: "Empezar",
-    ctaSecondary: "Cómo funciona el intercambio",
-  },
   affiliate: {
     metaTitle: "Recomiende un negocio",
     metaDescription:
@@ -7189,50 +7003,6 @@ const es: Messages = {
     ctaPrimary: "Empezar",
     ctaNote:
       "Su enlace de recomendación está en Ajustes en cuanto tenga cuenta.",
-  },
-  backlinkExchange: {
-    metaTitle: "Cómo funciona el intercambio de enlaces",
-    metaDescription:
-      "Consiga enlaces a su web publicando un artículo para otro negocio. Solo negocios afines, enlaces verificados a diario y crédito devuelto si se retira uno.",
-    title: "Cómo funciona el intercambio de enlaces",
-    intro:
-      "Los enlaces se ganan dándolos. Usted aloja un artículo de un negocio de un sector relacionado y gasta lo que gana en enlaces hacia su propia web.",
-    steps: [
-      {
-        title: "Usted aloja un artículo",
-        body: "Escribimos un artículo para otro negocio de un sector relacionado y lo publicamos en su web. Es un artículo real sobre un tema que interesa a sus lectores, no una página de enlaces.",
-      },
-      {
-        title: "Usted gana créditos",
-        body: "Cada artículo alojado le da créditos. Su plan también incluye créditos cada mes, así que puede empezar antes de haber alojado nada.",
-      },
-      {
-        title: "Los gasta en enlaces",
-        body: "Los créditos compran enlaces hacia su web, escritos con naturalidad dentro de artículos en webs de otros negocios relacionados.",
-      },
-    ],
-    rulesTitle: "Las reglas que hacen que valga la pena",
-    rules: [
-      {
-        title: "Solo temas relacionados",
-        body: "Un dentista nunca se empareja con un blog de criptomonedas. Si no podemos verificar que dos webs están relacionadas temáticamente, no hacemos el emparejamiento: un enlace irrelevante no vale nada y puede hacer daño.",
-      },
-      {
-        title: "Comprobados a diario",
-        body: "Revisamos cada enlace todos los días. Los enlaces no desaparecen en silencio sin que usted se entere.",
-      },
-      {
-        title: "Créditos devueltos si un enlace cae",
-        body: "Si se elimina un enlace, avísenos: cuando confirmemos que ha desaparecido, recupera los créditos y desaparece de su panel. Una web que solo está sin conexión un tiempo, por mantenimiento por ejemplo, conserva sus enlaces.",
-      },
-    ],
-    notTitle: "Lo que esto no es",
-    notBody:
-      "Esto no es una red privada de blogs. Cada enlace está dentro de un artículo real en la web de un negocio real, publicado porque ese negocio quería un artículo.",
-    ctaTitle: "Todos los planes incluyen créditos",
-    ctaBody: "Puede pedir sus primeros enlaces antes de alojar nada.",
-    ctaPrimary: "Empezar",
-    ctaSecondary: "Prefiero alojar artículos",
   },
   faq: {
     metaTitle: "Preguntas frecuentes",
@@ -9597,12 +9367,14 @@ const es: Messages = {
         audit_rerun: "Volver a revisar el sitio web",
         social_post: "Una publicación o respuesta en redes sociales",
         video_post: "Un vídeo o carrusel",
+        video_ideas: "Nuevas ideas de vídeo (10)",
         chat_message: "Un mensaje a Growth Copilot",
       },
       actionHelp: {
         audit_rerun: "La primera revisión de cada sitio web es gratuita.",
         social_post: "Cada respuesta que publica con un clic, y cada publicación propia que RepGet publica.",
-        video_post: "Cada vídeo o carrusel de fotos que RepGet crea para usted (las ideas son gratis).",
+        video_post: "Cada vídeo o carrusel de fotos que RepGet crea para usted (las 20 ideas diarias son gratis).",
+        video_ideas: "Cada lote extra de 10 ideas de vídeo desde Nuevas ideas. Sus 20 ideas diarias siguen siendo gratis.",
         chat_message: "Cada mensaje después de los 5 mensajes gratis del día.",
       },
       serviceHelp: "Se compra en Facturación y lo realiza nuestro equipo.",
@@ -9989,8 +9761,6 @@ const fr: Messages = {
     feedback: "Donner votre avis",
     backlinks: "Backlinks",
     rankOnChatgpt: "Apparaître dans ChatGPT",
-    backlinkExchange: "Échange de liens",
-    publishers: "Monétisez votre blog",
     partners: "Programme d’affiliation",
     discover: "Annuaire des clients",
     privacy: "Confidentialité",
@@ -10391,57 +10161,6 @@ const fr: Messages = {
     ctaPrimary: "Analyser mon site",
     ctaSecondary: "Voir les tarifs",
   },
-  publishers: {
-    metaTitle: "Rentabilisez votre blog",
-    metaDescription:
-      "Hébergez un article par mois pour une entreprise d'un secteur proche et gagnez des crédits à dépenser en liens vers votre propre site.",
-    title: "Rentabilisez votre blog",
-    intro:
-      "Hébergez un article par mois pour une entreprise d'un secteur proche et gagnez des crédits à dépenser en liens vers votre propre site.",
-    creditsTitle: "Des crédits, pas de l'argent",
-    creditsBody:
-      "Vous êtes rémunéré en crédits, pas en argent. Chaque article hébergé vous rapporte des crédits, et les crédits vous obtiennent des liens depuis les sites d'autres entreprises. Si vous cherchez à être payé pour des articles invités, ce n'est pas cela - et il existe des places de marché pour ça.",
-    steps: [
-      {
-        title: "Dites-nous de quoi parle votre site",
-        body: "Votre sujet, votre langue et votre pays. Nous ne vous associons qu'à des entreprises d'un secteur proche.",
-      },
-      {
-        title: "Choisissez combien d'articles par mois",
-        body: "Jusqu'à vingt, la plupart commencent à trois. Vous pouvez suspendre ou partir quand vous voulez.",
-      },
-      {
-        title: "Nous rédigeons l'article",
-        body: "Un vrai article sur un sujet qui intéresse vos lecteurs, écrit pour votre site, avec un lien naturel dedans.",
-      },
-      {
-        title: "Vous gagnez des crédits",
-        body: "Des crédits pour chaque article hébergé, à dépenser en liens vers votre site depuis ceux d'autres entreprises.",
-      },
-    ],
-    controlTitle: "Ce que vous contrôlez",
-    rules: [
-      {
-        title: "Uniquement des sujets proches",
-        body: "On ne vous demandera jamais d'héberger un contenu sans rapport avec votre site. Si nous ne pouvons pas établir que deux sites sont liés thématiquement, nous ne faisons pas l'association.",
-      },
-      {
-        title: "Vous fixez la limite",
-        body: "Entre un et vingt articles par mois, modifiable quand vous le souhaitez. À zéro, vous ne recevez plus de demandes.",
-      },
-      {
-        title: "Vous gardez le contrôle éditorial",
-        body: "Les articles arrivent en brouillon sur votre site. Publiez, modifiez ou refusez : rien ne paraît sans vous.",
-      },
-    ],
-    suitsTitle: "À qui cela convient",
-    suitsBody:
-      "À une petite entreprise dont le blog publie déjà de temps en temps et qui veut des liens vers ses pages sans les payer. Si votre site n'a pas de lecteurs, héberger des articles n'y changera rien : les liens que vous gagnez valent ce que vaut votre site.",
-    joinNote:
-      "L'adhésion est incluse dans tous les forfaits. Activez-la dans les paramètres de votre site.",
-    ctaPrimary: "Commencer",
-    ctaSecondary: "Comment fonctionne l'échange",
-  },
   affiliate: {
     metaTitle: "Parrainer une entreprise",
     metaDescription:
@@ -10473,51 +10192,6 @@ const fr: Messages = {
     ctaPrimary: "Commencer",
     ctaNote:
       "Votre lien de parrainage est dans les Paramètres dès que vous avez un compte.",
-  },
-  backlinkExchange: {
-    metaTitle: "Comment fonctionne l'échange de liens",
-    metaDescription:
-      "Gagnez des liens en publiant un article pour une autre entreprise. Partenaires pertinents, liens vérifiés chaque jour, crédit rendu si un lien disparaît.",
-    title: "Comment fonctionne l'échange de liens",
-    intro:
-      "Les liens se gagnent en en donnant. Vous hébergez un article pour une entreprise d'un secteur proche, et vous dépensez ce que vous gagnez en liens vers votre propre site.",
-    steps: [
-      {
-        title: "Vous hébergez un article",
-        body: "Nous rédigeons un article pour une autre entreprise d'un secteur proche et le publions sur votre site. C'est un vrai article sur un sujet qui intéresse vos lecteurs, pas une page de liens.",
-      },
-      {
-        title: "Vous gagnez des crédits",
-        body: "Chaque article hébergé rapporte des crédits. Votre forfait inclut aussi des crédits chaque mois, vous pouvez donc commencer avant d'avoir hébergé quoi que ce soit.",
-      },
-      {
-        title: "Vous les dépensez en liens",
-        body: "Les crédits achètent des liens vers votre site, intégrés naturellement dans des articles sur les sites d'autres entreprises d'un secteur proche.",
-      },
-    ],
-    rulesTitle: "Les règles qui en font quelque chose d'utile",
-    rules: [
-      {
-        title: "Uniquement des sujets proches",
-        body: "Un dentiste n'est jamais associé à un blog crypto. Si nous ne pouvons pas établir que deux sites sont liés thématiquement, nous ne faisons pas l'association : un lien hors sujet ne vaut rien et peut nuire.",
-      },
-      {
-        title: "Vérifiés chaque jour",
-        body: "Nous revérifions chaque lien quotidiennement. Les liens ne disparaissent pas en silence sans que vous le sachiez.",
-      },
-      {
-        title: "Crédits remboursés si un lien tombe",
-        body: "Si un lien est retiré, prévenez-nous : une fois sa disparition confirmée, les crédits vous sont rendus et le lien disparaît de votre tableau de bord. Un site simplement hors ligne un moment, pour maintenance par exemple, garde ses liens.",
-      },
-    ],
-    notTitle: "Ce que ce n'est pas",
-    notBody:
-      "Ce n'est pas un réseau de blogs privés. Chaque lien se trouve dans un vrai article sur le site d'une vraie entreprise, publié parce que cette entreprise voulait un article.",
-    ctaTitle: "Tous les forfaits incluent des crédits",
-    ctaBody:
-      "Vous pouvez demander vos premiers liens avant d'avoir hébergé quoi que ce soit.",
-    ctaPrimary: "Commencer",
-    ctaSecondary: "Plutôt héberger des articles",
   },
   faq: {
     metaTitle: "FAQ",
@@ -12882,12 +12556,14 @@ const fr: Messages = {
         audit_rerun: "Relancer l'analyse du site",
         social_post: "Une publication ou réponse sur les réseaux sociaux",
         video_post: "Une vidéo ou un carrousel",
+        video_ideas: "Nouvelles idées de vidéos (10)",
         chat_message: "Un message à Growth Copilot",
       },
       actionHelp: {
         audit_rerun: "La première analyse de chaque site est gratuite.",
         social_post: "Chaque réponse publiée en un clic, et chaque publication que RepGet publie pour vous.",
-        video_post: "Chaque vidéo ou carrousel de photos que RepGet crée pour vous (les idées sont gratuites).",
+        video_post: "Chaque vidéo ou carrousel de photos que RepGet crée pour vous (les 20 idées du jour sont gratuites).",
+        video_ideas: "Chaque lot supplémentaire de 10 idées de vidéos via Nouvelles idées. Vos 20 idées du jour restent gratuites.",
         chat_message: "Chaque message après les 5 messages gratuits du jour.",
       },
       serviceHelp: "S’achète dans Facturation et est réalisé par notre équipe.",
@@ -13274,8 +12950,6 @@ const it: Messages = {
     feedback: "Invia un feedback",
     backlinks: "Backlink",
     rankOnChatgpt: "Comparire su ChatGPT",
-    backlinkExchange: "Scambio di link",
-    publishers: "Monetizzi il suo blog",
     partners: "Programma di affiliazione",
     discover: "Directory dei clienti",
     privacy: "Privacy",
@@ -13677,57 +13351,6 @@ const it: Messages = {
     ctaPrimary: "Controlla il mio sito",
     ctaSecondary: "Vedi i prezzi",
   },
-  publishers: {
-    metaTitle: "Monetizzi il suo blog",
-    metaDescription:
-      "Ospiti un articolo al mese per un'azienda di un settore affine e guadagni crediti da spendere in link verso il suo sito.",
-    title: "Monetizzi il suo blog",
-    intro:
-      "Ospiti un articolo al mese per un'azienda di un settore affine e guadagni crediti da spendere in link verso il suo sito.",
-    creditsTitle: "Crediti, non denaro",
-    creditsBody:
-      "Il compenso è in crediti, non in denaro. Ogni articolo ospitato le fa guadagnare crediti, e i crediti le procurano link dai siti di altre aziende. Se cerca un pagamento in denaro per articoli ospiti, questo non lo è: esistono marketplace che lo fanno.",
-    steps: [
-      {
-        title: "Ci dica di cosa parla il suo sito",
-        body: "Argomento, lingua e paese. La abbiniamo solo ad aziende di un settore affine.",
-      },
-      {
-        title: "Scelga quanti articoli al mese",
-        body: "Fino a venti, ma la maggior parte inizia con tre. Può sospendere o uscire quando vuole.",
-      },
-      {
-        title: "Scriviamo noi l'articolo",
-        body: "Un articolo vero su un tema che interessa ai suoi lettori, scritto per il suo sito, con un link naturale all'interno.",
-      },
-      {
-        title: "Lei guadagna crediti",
-        body: "Crediti per ogni articolo ospitato, spendibili in link verso il suo sito da quelli di altre aziende.",
-      },
-    ],
-    controlTitle: "Cosa controlla lei",
-    rules: [
-      {
-        title: "Solo argomenti affini",
-        body: "Non le chiederemo mai di ospitare qualcosa estraneo al suo sito. Se non possiamo stabilire che due siti sono collegati per argomento, non facciamo l'abbinamento.",
-      },
-      {
-        title: "Il limite lo decide lei",
-        body: "Da uno a venti articoli al mese, modificabile quando vuole. Impostandolo a zero non riceve più richieste.",
-      },
-      {
-        title: "Il controllo editoriale resta suo",
-        body: "Gli articoli arrivano come bozze sul suo sito. Pubblichi, modifichi o rifiuti: nulla va online senza di lei.",
-      },
-    ],
-    suitsTitle: "A chi è utile",
-    suitsBody:
-      "A una piccola azienda con un blog che già pubblica ogni tanto e vuole link alle proprie pagine senza pagarli. Se il suo sito non ha lettori, ospitare articoli non lo cambierà: i link che guadagna valgono quanto vale il suo sito.",
-    joinNote:
-      "L'adesione è inclusa in ogni piano. La attivi dalle impostazioni del sito.",
-    ctaPrimary: "Inizia",
-    ctaSecondary: "Come funziona lo scambio",
-  },
   affiliate: {
     metaTitle: "Segnali un'azienda",
     metaDescription:
@@ -13759,50 +13382,6 @@ const it: Messages = {
     ctaPrimary: "Inizia",
     ctaNote:
       "Il suo link di segnalazione è nelle Impostazioni appena ha un account.",
-  },
-  backlinkExchange: {
-    metaTitle: "Come funziona lo scambio di link",
-    metaDescription:
-      "Guadagni link verso il suo sito pubblicando un articolo per un'altra azienda: abbinamenti pertinenti, verifiche quotidiane, crediti resi se un link sparisce.",
-    title: "Come funziona lo scambio di link",
-    intro:
-      "I link si guadagnano dandoli. Lei ospita un articolo per un'azienda di un settore affine e spende ciò che guadagna in link verso il suo sito.",
-    steps: [
-      {
-        title: "Lei ospita un articolo",
-        body: "Scriviamo un articolo per un'altra azienda di un settore affine e lo pubblichiamo sul suo sito. È un articolo vero su un tema che interessa ai suoi lettori, non una pagina di link.",
-      },
-      {
-        title: "Lei guadagna crediti",
-        body: "Ogni articolo ospitato fa guadagnare crediti. Il suo piano include anche crediti ogni mese, quindi può iniziare prima di aver ospitato qualcosa.",
-      },
-      {
-        title: "Li spende in link",
-        body: "I crediti comprano link verso il suo sito, inseriti con naturalezza in articoli sui siti di altre aziende affini.",
-      },
-    ],
-    rulesTitle: "Le regole che lo rendono utile",
-    rules: [
-      {
-        title: "Solo argomenti affini",
-        body: "Un dentista non viene mai abbinato a un blog di criptovalute. Se non possiamo stabilire che due siti sono collegati per argomento, non facciamo l'abbinamento: un link fuori tema non vale nulla e può fare danni.",
-      },
-      {
-        title: "Controllati ogni giorno",
-        body: "Ricontrolliamo ogni link quotidianamente. I link non spariscono in silenzio senza che lei lo sappia.",
-      },
-      {
-        title: "Crediti rimborsati se un link cade",
-        body: "Se un link viene rimosso, ce lo segnali: una volta confermato che è sparito, i crediti le tornano e il link sparisce dalla dashboard. Un sito offline solo per un po', per manutenzione ad esempio, mantiene i suoi link.",
-      },
-    ],
-    notTitle: "Cosa non è",
-    notBody:
-      "Non è una rete privata di blog. Ogni link si trova dentro un articolo vero sul sito di un'azienda vera, pubblicato perché quell'azienda voleva un articolo.",
-    ctaTitle: "Ogni piano include crediti",
-    ctaBody: "Può richiedere i primi link prima di aver ospitato qualcosa.",
-    ctaPrimary: "Inizia",
-    ctaSecondary: "Preferisco ospitare articoli",
   },
   faq: {
     metaTitle: "Domande frequenti",
@@ -16166,12 +15745,14 @@ const it: Messages = {
         audit_rerun: "Ripetere il controllo del sito",
         social_post: "Un post o una risposta sui social",
         video_post: "Un video o un carosello",
+        video_ideas: "Nuove idee video (10)",
         chat_message: "Un messaggio a Growth Copilot",
       },
       actionHelp: {
         audit_rerun: "Il primo controllo di ogni sito è gratuito.",
         social_post: "Ogni risposta pubblicata con un clic, e ogni suo post che RepGet pubblica.",
-        video_post: "Ogni video o carosello di foto che RepGet crea per lei (le idee sono gratuite).",
+        video_post: "Ogni video o carosello di foto che RepGet crea per lei (le 20 idee giornaliere sono gratuite).",
+        video_ideas: "Ogni gruppo extra di 10 idee video da Nuove idee. Le sue 20 idee giornaliere restano gratuite.",
         chat_message: "Ogni messaggio dopo i 5 messaggi gratuiti del giorno.",
       },
       serviceHelp: "Si acquista in Fatturazione e lo realizza il nostro team.",
@@ -16559,8 +16140,6 @@ const de: Messages = {
     feedback: "Feedback senden",
     backlinks: "Backlinks",
     rankOnChatgpt: "In ChatGPT erscheinen",
-    backlinkExchange: "Linktausch",
-    publishers: "Monetarisieren Sie Ihren Blog",
     partners: "Affiliate-Programm",
     discover: "Kundenverzeichnis",
     privacy: "Datenschutz",
@@ -16957,57 +16536,6 @@ const de: Messages = {
     ctaPrimary: "Website prüfen",
     ctaSecondary: "Preise ansehen",
   },
-  publishers: {
-    metaTitle: "Monetarisieren Sie Ihren Blog",
-    metaDescription:
-      "Veröffentlichen Sie einen Artikel pro Monat für ein Unternehmen einer verwandten Branche und verdienen Sie Guthaben für Backlinks auf Ihre Website.",
-    title: "Monetarisieren Sie Ihren Blog",
-    intro:
-      "Veröffentlichen Sie einen Artikel pro Monat für ein Unternehmen aus einer verwandten Branche und verdienen Sie Guthaben für Links auf Ihre eigene Website.",
-    creditsTitle: "Guthaben, kein Geld",
-    creditsBody:
-      "Sie werden in Guthaben vergütet, nicht in Geld. Jeder veröffentlichte Artikel bringt Ihnen Guthaben, und mit Guthaben erhalten Sie Links von den Websites anderer Unternehmen. Wenn Sie Geld für Gastbeiträge suchen, ist das hier nicht das Richtige - dafür gibt es Marktplätze.",
-    steps: [
-      {
-        title: "Sagen Sie uns, worum es auf Ihrer Website geht",
-        body: "Thema, Sprache und Land. Wir bringen Sie nur mit Unternehmen aus einer verwandten Branche zusammen.",
-      },
-      {
-        title: "Legen Sie fest, wie viele Artikel pro Monat",
-        body: "Bis zu zwanzig, die meisten starten mit drei. Sie können jederzeit pausieren oder aufhören.",
-      },
-      {
-        title: "Wir schreiben den Artikel",
-        body: "Ein echter Artikel zu einem Thema, das Ihre Leser interessiert, für Ihre Website geschrieben, mit einem natürlichen Link darin.",
-      },
-      {
-        title: "Sie verdienen Guthaben",
-        body: "Guthaben für jeden veröffentlichten Artikel, einsetzbar für Links auf Ihre Website von den Websites anderer Unternehmen.",
-      },
-    ],
-    controlTitle: "Was Sie bestimmen",
-    rules: [
-      {
-        title: "Nur verwandte Themen",
-        body: "Sie werden nie gebeten, etwas zu veröffentlichen, das nichts mit Ihrer Website zu tun hat. Wenn wir nicht feststellen können, dass zwei Websites thematisch verwandt sind, stellen wir die Verbindung nicht her.",
-      },
-      {
-        title: "Sie setzen das Limit",
-        body: "Zwischen einem und zwanzig Artikeln pro Monat, jederzeit änderbar. Auf null gesetzt, erhalten Sie keine Anfragen mehr.",
-      },
-      {
-        title: "Die redaktionelle Kontrolle bleibt bei Ihnen",
-        body: "Artikel kommen als Entwürfe auf Ihre Website. Veröffentlichen, bearbeiten oder ablehnen - ohne Sie geht nichts online.",
-      },
-    ],
-    suitsTitle: "Für wen das passt",
-    suitsBody:
-      "Für ein kleines Unternehmen mit einem Blog, der ohnehin gelegentlich veröffentlicht und Links auf die eigenen Seiten möchte, ohne dafür zu zahlen. Hat Ihre Website keine Leser, ändert das Veröffentlichen daran nichts: Die Links, die Sie verdienen, sind so viel wert wie Ihre Website.",
-    joinNote:
-      "Die Teilnahme ist in jedem Tarif enthalten. Aktivieren Sie sie in den Einstellungen Ihrer Website.",
-    ctaPrimary: "Loslegen",
-    ctaSecondary: "So funktioniert der Austausch",
-  },
   affiliate: {
     metaTitle: "Ein Unternehmen empfehlen",
     metaDescription:
@@ -17039,51 +16567,6 @@ const de: Messages = {
     ctaPrimary: "Loslegen",
     ctaNote:
       "Ihr Empfehlungslink steht in den Einstellungen, sobald Sie ein Konto haben.",
-  },
-  backlinkExchange: {
-    metaTitle: "So funktioniert der Backlink-Austausch",
-    metaDescription:
-      "Verdienen Sie Links auf Ihre Website mit einem Artikel für ein anderes Unternehmen. Nur passende Partner, Links täglich geprüft, Guthaben bei Verlust zurück.",
-    title: "So funktioniert der Backlink-Austausch",
-    intro:
-      "Links verdient man, indem man welche gibt. Sie veröffentlichen einen Artikel für ein Unternehmen aus einer verwandten Branche und setzen das Verdiente für Links auf Ihre eigene Website ein.",
-    steps: [
-      {
-        title: "Sie veröffentlichen einen Artikel",
-        body: "Wir schreiben einen Artikel für ein anderes Unternehmen aus einer verwandten Branche und veröffentlichen ihn auf Ihrer Website. Ein echter Artikel zu einem Thema, das Ihre Leser interessiert - keine Linkliste.",
-      },
-      {
-        title: "Sie verdienen Guthaben",
-        body: "Jeder veröffentlichte Artikel bringt Guthaben. Ihr Tarif enthält zusätzlich monatliches Guthaben, Sie können also starten, bevor Sie etwas veröffentlicht haben.",
-      },
-      {
-        title: "Sie setzen es für Links ein",
-        body: "Mit Guthaben kaufen Sie Links auf Ihre Website, natürlich eingebunden in Artikel auf Websites anderer Unternehmen aus einer verwandten Branche.",
-      },
-    ],
-    rulesTitle: "Die Regeln, die es wertvoll machen",
-    rules: [
-      {
-        title: "Nur verwandte Themen",
-        body: "Ein Zahnarzt wird nie einem Krypto-Blog zugeordnet. Wenn wir nicht feststellen können, dass zwei Websites thematisch verwandt sind, stellen wir die Verbindung nicht her: Ein themenfremder Link ist nichts wert und kann schaden.",
-      },
-      {
-        title: "Täglich geprüft",
-        body: "Wir prüfen jeden Link täglich erneut. Links verschwinden nicht stillschweigend, ohne dass Sie es erfahren.",
-      },
-      {
-        title: "Guthaben zurück, wenn ein Link fällt",
-        body: "Wird ein Link entfernt, sagen Sie uns Bescheid: Sobald bestätigt ist, dass er weg ist, erhalten Sie das Guthaben zurück und der Link verschwindet aus Ihrem Dashboard. Eine Website, die nur kurz offline ist, etwa wegen Wartung, behält ihre Links.",
-      },
-    ],
-    notTitle: "Was das nicht ist",
-    notBody:
-      "Das ist kein privates Blog-Netzwerk. Jeder Link steht in einem echten Artikel auf der Website eines echten Unternehmens, veröffentlicht, weil dieses Unternehmen einen Artikel wollte.",
-    ctaTitle: "Jeder Tarif enthält Guthaben",
-    ctaBody:
-      "Sie können Ihre ersten Links anfordern, bevor Sie etwas veröffentlicht haben.",
-    ctaPrimary: "Loslegen",
-    ctaSecondary: "Lieber Artikel veröffentlichen",
   },
   faq: {
     metaTitle: "Häufige Fragen",
@@ -19447,12 +18930,14 @@ const de: Messages = {
         audit_rerun: "Die Website-Prüfung erneut ausführen",
         social_post: "Ein Social-Media-Beitrag oder eine Antwort",
         video_post: "Ein Video oder Karussell",
+        video_ideas: "Neue Videoideen (10)",
         chat_message: "Eine Nachricht an Growth Copilot",
       },
       actionHelp: {
         audit_rerun: "Die erste Prüfung jeder Website ist kostenlos.",
         social_post: "Jede Antwort, die Sie mit einem Klick posten, und jeder eigene Beitrag, den RepGet veröffentlicht.",
-        video_post: "Jedes Video oder Fotokarussell, das RepGet für Sie erstellt (die Ideen sind kostenlos).",
+        video_post: "Jedes Video oder Fotokarussell, das RepGet für Sie erstellt (die 20 täglichen Ideen sind kostenlos).",
+        video_ideas: "Jedes zusätzliche Paket mit 10 Videoideen über Neue Ideen. Ihre 20 täglichen Ideen bleiben kostenlos.",
         chat_message: "Jede Nachricht nach den 5 kostenlosen Nachrichten des Tages.",
       },
       serviceHelp: "Unter Abrechnung gekauft und von unserem Team umgesetzt.",

@@ -49,6 +49,7 @@ import { reviewBlocksAutoPublish } from "@/lib/video/review";
 import { previewClips } from "@/lib/video/preview-media";
 import { videoProfile } from "@/lib/video/strategy/profile";
 
+import { POSTED_STATUSES, SAVED_STATUSES } from "./logic";
 import { VideosPanel, type IdeaView, type VideoAccountView } from "./videos-panel";
 
 export const dynamic = "force-dynamic";
@@ -65,8 +66,9 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const REFRESH_SECONDS = 10;
 
 /**
- * Videos (client, 2026-10-29; docs/videos.md): today's ideas to swipe, the
- * videos made from them, what was posted, and the settings, under a strip of
+ * Videos (client, 2026-10-29; docs/videos.md): today's ideas, one at a time,
+ * the saved videos made from them (not published yet), what is scheduled or
+ * posted, and the settings, under a strip of
  * three numbers (ideas ready, made today, credits available). Only reads - and
  * asks for today's ideas when the website has none yet, so the first visit
  * is not an empty page.
@@ -87,24 +89,31 @@ export default async function WebsiteVideosPage({ params, searchParams }: PagePr
       .from(videoIdeas)
       .where(and(eq(videoIdeas.websiteId, site.id), eq(videoIdeas.day, today), eq(videoIdeas.status, "new")))
       .orderBy(videoIdeas.createdAt),
+    // Saved Videos (client, 2026-11-21): approved, not scheduled or published yet.
     db
       .select()
       .from(videoIdeas)
       .where(
         and(
           eq(videoIdeas.websiteId, site.id),
-          inArray(videoIdeas.status, ["approved", "making", "ready", "draft", "scheduled", "posting", "failed"]),
+          inArray(videoIdeas.status, [...SAVED_STATUSES]),
           gte(videoIdeas.updatedAt, new Date(now.getTime() - 30 * DAY_MS)),
         ),
       )
       .orderBy(desc(videoIdeas.approvedAt))
       .limit(40),
+    // Posted: what is scheduled or on its way (any age), then what is out, newest first.
     db
       .select()
       .from(videoIdeas)
-      .where(and(eq(videoIdeas.websiteId, site.id), eq(videoIdeas.status, "posted")))
-      .orderBy(desc(videoIdeas.postedAt))
-      .limit(30),
+      .where(
+        and(
+          eq(videoIdeas.websiteId, site.id),
+          inArray(videoIdeas.status, [...POSTED_STATUSES]),
+        ),
+      )
+      .orderBy(sql`case when ${videoIdeas.status} = 'posted' then 1 else 0 end`, desc(sql`coalesce(${videoIdeas.postedAt}, ${videoIdeas.scheduledFor}, ${videoIdeas.updatedAt})`))
+      .limit(40),
     db
       .select({ n: sql<number>`count(*)::int` })
       .from(videoIdeas)
@@ -229,6 +238,7 @@ export default async function WebsiteVideosPage({ params, searchParams }: PagePr
     }));
 
   const price = credits.prices.video_post;
+  const ideasPrice = credits.prices.video_ideas;
   const tab = typeof query.tab === "string" && ["ideas", "videos", "posted", "settings"].includes(query.tab) ? query.tab : "ideas";
   const notice = typeof query.social === "string" ? query.social : null;
   const noticePlatform = typeof query.platform === "string" ? query.platform : null;
@@ -264,6 +274,8 @@ export default async function WebsiteVideosPage({ params, searchParams }: PagePr
         tooSoon: Boolean(allowance.nextAllowedAt && allowance.nextAllowedAt.getTime() > now.getTime()),
       }}
       priceLabel={price > 0 ? plural(t.app.credits.creditsCount, price) : t.app.social.free}
+      ideasPrice={ideasPrice}
+      ideasPriceLabel={ideasPrice > 0 ? plural(t.app.credits.creditsCount, ideasPrice) : t.app.social.free}
       credits={wallet ? { available: wallet.available, label: plural(t.app.credits.creditsCount, wallet.available) } : null}
       settings={settings}
       profile={profileForm}

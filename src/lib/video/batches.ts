@@ -2,6 +2,7 @@ import "server-only";
 
 import { and, eq, gt, gte, inArray, isNull, lt, or, sql } from "drizzle-orm";
 
+import { refundSpend, spendCredits } from "@/lib/credits/spend";
 import { db } from "@/lib/db";
 import { usageEvents, videoIdeaBatches, videoIdeas } from "@/lib/db/schema";
 import type { Executor } from "@/lib/db/types";
@@ -9,7 +10,7 @@ import type { Executor } from "@/lib/db/types";
 import { DAILY_BATCH_SIZE, EXTRA_BATCH_SIZE, EXTRA_BATCHES_PER_DAY, type BatchKind, type ExtraBatchKind } from "./formats";
 
 /**
- * The free idea allowance (client, 2026-11-12: "20 fresh ideas daily ...
+ * The idea allowance (client, 2026-11-12: "20 fresh ideas daily ...
  * Each click on New ideas generates 10 additional ideas. Allow three
  * additional batches per day for free. Limit repeated requests to prevent
  * abuse."). The same allowance holds for the page's buttons, the AI chat,
@@ -34,6 +35,14 @@ import { DAILY_BATCH_SIZE, EXTRA_BATCH_SIZE, EXTRA_BATCHES_PER_DAY, type BatchKi
  *    "busy"; extra requests are at least EXTRA_REQUEST_GAP_MS apart;
  *  - the daily batch is never an extra one, and extra ideas never count
  *    towards (or fill) the day's twenty.
+ *
+ * Paid extra batches (client, 2026-11-21: "generating new ideas costs
+ * credits"): the twenty daily ideas stay free; each extra batch costs the
+ * "video_ideas" price (Admin -> Credits, 1 credit until set), charged in the
+ * same transaction that reserves its slot - short of credits, nothing is
+ * reserved. A batch that ends failed without one idea gives it back
+ * (refundEmptyBatch): its slot may then be asked for once more, charged
+ * again under its own key.
  */
 
 /** The least time between two extra requests of a website. */
@@ -61,9 +70,9 @@ async function lockWebsite(tx: Executor, websiteId: string) {
   await tx.execute(sql`select pg_advisory_xact_lock(hashtext('video_idea_batches'), hashtext(${websiteId}))`);
 }
 
-/** Marks the website's batches that stalled as failed (no job ran, or it died mid-way). */
+/** Marks the website's batches that stalled as failed (no job ran, or it died mid-way), and refunds the empty ones. */
 async function expireStale(tx: Executor, websiteId: string, now: Date) {
-  await tx
+  const expired = await tx
     .update(videoIdeaBatches)
     .set({ status: "failed", error: "stalled", finishedAt: now, updatedAt: now })
     .where(
@@ -72,7 +81,41 @@ async function expireStale(tx: Executor, websiteId: string, now: Date) {
         inArray(videoIdeaBatches.status, ACTIVE),
         lt(videoIdeaBatches.updatedAt, new Date(now.getTime() - STALE_BATCH_MS)),
       ),
-    );
+    )
+    .returning({ id: videoIdeaBatches.id, slot: videoIdeaBatches.slot, created: videoIdeaBatches.created });
+  for (const row of expired) if (row.slot > 0 && row.created === 0) await refundIdeas(row.id, tx, now);
+}
+
+/**
+ * The credit spend of one request of an extra batch: its first request, and
+ * the one re-request a batch that failed empty may have ("again").
+ */
+export const ideasSpendKey = (batchId: string, again: boolean) => `video-ideas:${batchId}:${again ? "again" : "first"}`;
+
+/** Gives back both possible charges of a batch (refundSpend does nothing for a key never charged or already refunded). */
+async function refundIdeas(batchId: string, executor: Executor | undefined, now: Date) {
+  for (const again of [false, true]) await refundSpend(ideasSpendKey(batchId, again), executor, now);
+}
+
+/**
+ * Refunds an extra batch that ended failed without writing an idea. Safe to
+ * call for any batch and any number of times: a daily batch, a batch that
+ * wrote ideas or one still on its way is left alone, and a refund is once.
+ */
+export async function refundEmptyBatch(batchId: string, now: Date = new Date()): Promise<void> {
+  const [row] = await db.select().from(videoIdeaBatches).where(eq(videoIdeaBatches.id, batchId));
+  if (!row || row.slot === 0 || row.status !== "failed" || row.created > 0) return;
+  await refundIdeas(row.id, undefined, now);
+}
+
+/** Thrown inside the reservation's transaction, so a slot is never kept without its payment. */
+class ShortOfCredits extends Error {
+  constructor(
+    readonly price: number,
+    readonly available: number,
+  ) {
+    super("not_enough_credits");
+  }
 }
 
 export type Allowance = {
@@ -116,21 +159,37 @@ export async function ideaAllowance(websiteId: string, now: Date = new Date(), e
   };
 }
 
-export type ReserveError = "extra_used_up" | "busy" | "too_soon";
-export type ReserveResult = { ok: true; batch: BatchRow; reused: boolean } | { ok: false; error: ReserveError; nextAllowedAt?: Date };
+export type ReserveError = "extra_used_up" | "busy" | "too_soon" | "not_enough_credits";
+export type ReserveResult =
+  | { ok: true; batch: BatchRow; reused: boolean }
+  | { ok: false; error: ReserveError; nextAllowedAt?: Date; price?: number; available?: number };
+type ReserveOptions = { requestKey?: string | null; requestedBy?: string | null; via?: RequestVia; payer?: string | null };
 
 /**
  * Reserves one of the day's extra batches for `kind`, or says why not. The
- * same request key returns the batch it reserved before, whatever its state.
+ * same request key returns the batch it reserved before, whatever its state
+ * (and is not charged again). With `payer` (the paying workspace: the
+ * website owner's), the batch is charged its "video_ideas" price in the same
+ * transaction: short of credits, nothing is reserved ("not_enough_credits",
+ * with the price and what is available).
  */
-export async function reserveExtraBatch(
-  websiteId: string,
-  kind: ExtraBatchKind,
-  options: { requestKey?: string | null; requestedBy?: string | null; via?: RequestVia } = {},
-  now: Date = new Date(),
-): Promise<ReserveResult> {
+export async function reserveExtraBatch(websiteId: string, kind: ExtraBatchKind, options: ReserveOptions = {}, now: Date = new Date()): Promise<ReserveResult> {
+  try {
+    return await reserve(websiteId, kind, options, now);
+  } catch (error) {
+    if (error instanceof ShortOfCredits) return { ok: false, error: "not_enough_credits", price: error.price, available: error.available };
+    throw error;
+  }
+}
+
+async function reserve(websiteId: string, kind: ExtraBatchKind, options: ReserveOptions, now: Date): Promise<ReserveResult> {
   const day = utcDay(now);
   const requestKey = options.requestKey?.trim().slice(0, 120) || null;
+  const pay = async (tx: Executor, batch: BatchRow, again: boolean) => {
+    if (!options.payer) return;
+    const spent = await spendCredits(tx, { organizationId: options.payer, action: "video_ideas", key: ideasSpendKey(batch.id, again), websiteId }, now);
+    if (!spent.ok) throw new ShortOfCredits(spent.price, spent.available);
+  };
   return db.transaction(async (tx) => {
     await lockWebsite(tx, websiteId);
     if (requestKey) {
@@ -159,6 +218,7 @@ export async function reserveExtraBatch(
         .set({ ...common, size: EXTRA_BATCH_SIZE, finishedAt: null, attempts: sql`greatest(${videoIdeaBatches.attempts}, ${ATTEMPTS_PER_REQUEST})` })
         .where(and(eq(videoIdeaBatches.id, retry.id), eq(videoIdeaBatches.status, "failed")))
         .returning();
+      await pay(tx, batch, true);
       return { ok: true as const, batch, reused: false };
     }
 
@@ -172,6 +232,7 @@ export async function reserveExtraBatch(
       .returning();
     // The unique (website, day, slot) is the backstop: under the lock this never happens.
     if (!batch) return { ok: false as const, error: "busy" as const };
+    await pay(tx, batch, false);
     return { ok: true as const, batch, reused: false };
   });
 }
@@ -221,6 +282,7 @@ export async function claimBatch(batchId: string, now: Date = new Date(), option
       .update(videoIdeaBatches)
       .set({ status: "failed", error: "attempts used", finishedAt: now, updatedAt: now })
       .where(and(eq(videoIdeaBatches.id, batchId), inArray(videoIdeaBatches.status, ACTIVE)));
+    await refundEmptyBatch(batchId, now);
   }
   return claimed ?? null;
 }
@@ -238,6 +300,7 @@ export async function releaseBatch(batchId: string, error: string, final: boolea
     .update(videoIdeaBatches)
     .set({ status, error: error.slice(0, 300), updatedAt: now, ...(status === "reserved" ? {} : { finishedAt: now }) })
     .where(and(eq(videoIdeaBatches.id, batchId), eq(videoIdeaBatches.status, "writing")));
+  if (status === "failed") await refundEmptyBatch(batchId, now);
 }
 
 /** The batches of a day that are waiting for their job (the page re-queues one whose event was lost). */

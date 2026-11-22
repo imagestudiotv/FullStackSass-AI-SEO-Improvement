@@ -126,11 +126,9 @@ export const TRANSLATED_PATHS: ReadonlySet<string> = new Set([
   "/success-stories/image-studio",
   // The customer directory (client, 2026-11-11 round 2); its profiles, /discover/<slug>, are database pages (lib/discover/paths.ts).
   "/discover",
-  "/publishers",
   "/affiliate",
   // The cash partner program (lib/partners/presentation/copy.ts).
   "/partners",
-  "/backlink-exchange",
   "/blog",
   // lib/blog/shared.ts TEAM_AUTHOR_PATH (client, 2026-10-15: the author page in every language).
   "/blog/author/repget-team",

@@ -6,6 +6,7 @@ import { heldFromCustomerSql } from "@/lib/articles/review";
 import { db } from "@/lib/db";
 import { articles, socialAccounts, socialSuggestions, videoIdeas, websites } from "@/lib/db/schema";
 import { getLaunchState, type LaunchStepId } from "@/lib/onboarding/launch";
+import type { WizardStepId } from "@/lib/onboarding/wizard";
 import { socialAccess } from "@/lib/social/accounts";
 import { VIDEO_PLATFORMS } from "@/lib/video/formats";
 import { xVideoConfig } from "@/lib/video/x-spend";
@@ -67,6 +68,28 @@ export type Tasks = {
   done: number;
   total: number;
 };
+
+/**
+ * The onboarding wizard's steps after the plan (lib/onboarding/wizard.ts),
+ * and the set-up task that does the same job.
+ *
+ * Someone who pays (or starts Free) in the growth plan goes straight to the
+ * dashboard and never sees those steps (Daniel, 2026-11-21: "not on the other
+ * steps reinsert website, connect google, mentions and other options we have.
+ * All those can be added on the dashboard we have tasks page"). Each one is
+ * therefore a row here, derived from the same state:
+ *  - google: Analytics and Search Console, one Google connection;
+ *  - visibility (the AI "mentions": whether assistants name the business):
+ *    the questions behind AI tracking;
+ *  - content: the research that builds the content plan.
+ * The website step is done by the growth plan itself (it adds the website),
+ * and the business profile it used to ask for is the "profile" row.
+ */
+export const ONBOARDING_STEP_TASKS = {
+  google: "search-console",
+  visibility: "prompts",
+  content: "articles",
+} as const satisfies Partial<Record<WizardStepId, SetupTask["id"]>>;
 
 /** A day's suggestions stay on the Opportunities page for a week, as the chat reads them. */
 const SOCIAL_WINDOW_MS = 7 * 86_400_000;
