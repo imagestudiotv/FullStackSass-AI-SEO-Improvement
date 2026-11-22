@@ -43,7 +43,7 @@ export default async function AdminCreditsPage() {
               {settings.updatedBy ? ` by ${settings.updatedBy}` : ""}
             </span>
           ) : (
-            <span>Nothing set yet: every action is free and there are no daily credits.</span>
+            <span>Nothing set yet: every action is free except a batch of new video ideas (1 credit), and there are no daily credits.</span>
           )
         }
       />

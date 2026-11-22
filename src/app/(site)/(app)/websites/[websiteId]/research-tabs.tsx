@@ -124,7 +124,7 @@ export function ResearchTabs({
   /*
     The Opportunities table, a page at a time.
 
-    It rendered every keyword at once - up to 300 on Grow and 1,500 on Scale -
+    It rendered every keyword at once - up to 300 on Grow and 1,200 on Scale -
     as one list the customer could only scroll. Paged in the browser: every
     keyword is already here, so a page is a slice, and adding or removing one
     works exactly as before. The search narrows the list first, by keyword or

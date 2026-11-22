@@ -25,6 +25,14 @@
  * otherwise. The pricing page of 2026-11-11 did: search terms are Launch 300,
  * Grow 500, Scale 1,500, so Grow's keyword limit is 500 (a limit raised, not a
  * price: db:seed updates the rows subscribers hold, to their benefit).
+ *
+ * The client's change of 2026-11-21 lowers allowances, not prices: Grow 30
+ * articles and 300 search terms, Scale 60 articles, 180 social posts and 1,200
+ * search terms, Grow + Visibility 30 articles, 120 social posts and 400 search
+ * terms. Made in place in version 2 - the prices and their Stripe and PayPal
+ * ids do not change - so the rows subscribers hold change too, which the
+ * policy above avoids: review-reports/2026-11-21/ticket/plan-limits-production.md
+ * explains it, and scripts/ops/plan-limits-2026-11-21.mjs is the production step.
  */
 export const CATALOG_VERSION = 2;
 
@@ -43,14 +51,15 @@ export const ANNUAL_MONTHS = 10;
  */
 export const TIERS = [
   { tier: "launch", name: "Launch", monthlyCents: 9900, articleLimit: 30, socialPostLimit: 60, keywordLimit: 300, siteLimit: 3, monthlyCredits: 250, sortOrder: 0 },
-  { tier: "grow", name: "Grow", monthlyCents: 14900, articleLimit: 60, socialPostLimit: 90, keywordLimit: 500, siteLimit: 3, monthlyCredits: 250, sortOrder: 1 },
-  { tier: "scale", name: "Scale", monthlyCents: 34900, articleLimit: 100, socialPostLimit: 240, keywordLimit: 1500, siteLimit: 10, monthlyCredits: 700, sortOrder: 2 },
+  { tier: "grow", name: "Grow", monthlyCents: 14900, articleLimit: 30, socialPostLimit: 90, keywordLimit: 300, siteLimit: 3, monthlyCredits: 250, sortOrder: 1 },
+  { tier: "scale", name: "Scale", monthlyCents: 34900, articleLimit: 60, socialPostLimit: 180, keywordLimit: 1200, siteLimit: 10, monthlyCredits: 700, sortOrder: 2 },
 ];
 
 /**
  * Plans bought outright, monthly only, beside the tiers (client, 2026-11-11).
  *
- * Grow + Visibility: the Grow plan's allowances, plus visibility perks the
+ * Grow + Visibility: the Grow plan's articles, sites and credits, with more
+ * social posts and search terms (client, 2026-11-21), plus visibility perks the
  * team delivers by hand (a blog feature, social channels, an email
  * spotlight), EUR 99 a month with no free trial, no free articles and no
  * launch-price coupon - at Stripe its own REPGET coupon instead
@@ -60,7 +69,7 @@ export const TIERS = [
  * see who bought it: its name is the plan name in admin.
  */
 export const BUNDLES = [
-  { tier: "grow_visibility", name: "Grow + Visibility", monthlyCents: 9900, articleLimit: 60, socialPostLimit: 90, keywordLimit: 500, siteLimit: 3, monthlyCredits: 250, sortOrder: 10 },
+  { tier: "grow_visibility", name: "Grow + Visibility", monthlyCents: 9900, articleLimit: 30, socialPostLimit: 120, keywordLimit: 400, siteLimit: 3, monthlyCredits: 250, sortOrder: 10 },
 ];
 
 /** Every row of this version: a monthly and an annual one per tier, and a monthly one per bundle. */

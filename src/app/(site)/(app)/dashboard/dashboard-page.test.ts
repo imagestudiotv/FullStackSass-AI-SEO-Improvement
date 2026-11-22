@@ -97,11 +97,20 @@ vi.mock("@/components/dashboard/pending-invitations", () => ({
 vi.mock("@/components/dashboard/remember-website", () => ({
   RememberWebsite: () => null,
 }));
+/** Client components with server actions behind them: only whether they are drawn, and with what, matters here. */
+vi.mock("@/app/(site)/(onboarding)/onboarding/plan/checkout-pending", () => ({
+  CheckoutPending: () => null,
+}));
+vi.mock("@/components/paypal-return", () => ({
+  PayPalReturn: () => null,
+}));
 
 import Link from "next/link";
 
 import DashboardPage from "@/app/(site)/(app)/dashboard/page";
+import { CheckoutPending } from "@/app/(site)/(onboarding)/onboarding/plan/checkout-pending";
 import { RememberWebsite } from "@/components/dashboard/remember-website";
+import { PayPalReturn } from "@/components/paypal-return";
 import { Badge } from "@/components/ui/badge";
 import { getDashboardOverview } from "@/lib/dashboard/overview";
 import {
@@ -226,10 +235,10 @@ function signIn(userId: string, orgId: string) {
   };
 }
 
-async function renderPage(site?: string) {
+async function renderPage(site?: string, extra: Record<string, string> = {}) {
   return DashboardPage({
     params: Promise.resolve({}),
-    searchParams: Promise.resolve(site ? { site } : {}),
+    searchParams: Promise.resolve({ ...(site ? { site } : {}), ...extra }),
   } as unknown as Parameters<typeof DashboardPage>[0]);
 }
 
@@ -374,5 +383,63 @@ describe("dashboard page - a dual-role user", () => {
       showCredits: false,
     });
     expect(findAll(tree, RememberWebsite)).toEqual([{ websiteId: sharedA }]);
+  });
+});
+
+describe("dashboard page - back from paying in the growth plan", () => {
+  const NEW_ORG = "org_new";
+  const NEW_USER = "user_new";
+  let newSite: string;
+
+  beforeEach(async () => {
+    const now = new Date();
+    await test.db.insert(organization).values({ id: NEW_ORG, name: NEW_ORG, slug: NEW_ORG, createdAt: now });
+    await test.db.insert(user).values({ id: NEW_USER, name: NEW_USER, email: `${NEW_USER}@example.com`, emailVerified: true, createdAt: now, updatedAt: now });
+    await test.db.insert(member).values({ id: "m_new", organizationId: NEW_ORG, userId: NEW_USER, role: "owner", createdAt: now });
+    newSite = await addSite(NEW_ORG, "new.example", day(6));
+    signIn(NEW_USER, NEW_ORG);
+  });
+
+  it("waits for the webhook on the dashboard instead of sending a payer to the plan screen", async () => {
+    const tree = await renderPage(newSite, { checkout: "success" });
+    expect(findAll(tree, CheckoutPending).map((props) => props.websiteId)).toEqual([newSite]);
+    expect(findAll(tree, PayPalReturn)).toHaveLength(0);
+    expect(getDashboardOverview).not.toHaveBeenCalled();
+  });
+
+  it("settles a PayPal return while it waits", async () => {
+    const tree = await renderPage(newSite, { paypal: "success" });
+    expect(findAll(tree, PayPalReturn)).toEqual([expect.objectContaining({ outcome: "success", websiteId: newSite })]);
+    expect(findAll(tree, CheckoutPending)).toHaveLength(1);
+  });
+
+  it("keeps the paywall for anything but a successful return", async () => {
+    await expect(renderPage(newSite)).rejects.toThrow(`redirect:/onboarding/plan?site=${newSite}`);
+    await expect(renderPage(newSite, { checkout: "cancelled" })).rejects.toThrow(/redirect:\/onboarding\/plan/);
+    // Another workspace's website is never waited on.
+    signIn(OWNER_USER, OWNER_ORG);
+    const tree = await renderPage(newSite, { checkout: "success" });
+    expect(findAll(tree, CheckoutPending)).toHaveLength(0);
+  });
+
+  it("once the plan is in, opens the dashboard on the new website with the way to Tasks", async () => {
+    await subscribe(NEW_ORG, newSite);
+    const tree = await renderPage(newSite, { checkout: "success" });
+    expect(findAll(tree, CheckoutPending)).toHaveLength(0);
+    expect(overviewInput()?.websiteId).toBe(newSite);
+    expect(findAll(tree, Link).map((link) => link.href)).toContain(`/tasks?site=${newSite}`);
+  });
+
+  it("brings the shell to the new website even from another site of the owner's own", async () => {
+    const older = await addSite(NEW_ORG, "older.example", day(1));
+    await subscribe(NEW_ORG, older);
+    await subscribe(NEW_ORG, newSite);
+    state.siteCookie = older;
+    const tree = await renderPage(newSite, { welcome: "1" });
+    expect(findAll(tree, RememberWebsite).map((props) => props.websiteId)).toEqual([newSite]);
+    expect(findAll(tree, Link).map((link) => link.href)).toContain(`/tasks?site=${newSite}`);
+    // Without the growth plan's return, an owner's own selection is left alone, as before.
+    vi.clearAllMocks();
+    expect(findAll(await renderPage(newSite), RememberWebsite)).toHaveLength(0);
   });
 });

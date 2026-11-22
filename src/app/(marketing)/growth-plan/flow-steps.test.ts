@@ -6,10 +6,13 @@ import {
   DWELL_MS,
   flowReturnPath,
   flowSteps,
+  compactLogStep,
   initialStep,
   nextStep,
   previousStep,
   readPeriod,
+  scrollsToStage,
+  showsLog,
   startLinks,
   stepViews,
   type Holds,
@@ -24,7 +27,7 @@ import {
  * busy with it, never under reduced motion.
  */
 
-const free: Holds = { reducedMotion: false, hovering: false, focused: false, hidden: false, paused: false };
+const free: Holds = { reducedMotion: false, focused: false, hidden: false, paused: false };
 
 const progress = (over: Partial<Omit<Progress, "ready">> & { ready?: Partial<Progress["ready"]> } = {}): Progress => ({
   working: null,
@@ -111,8 +114,12 @@ describe("countdownRuns", () => {
     expect(countdownRuns(visitor, 0, all, free)).toBe(true);
   });
 
-  it.each(["reducedMotion", "hovering", "focused", "hidden", "paused"] as const)("stands still while %s", (hold) => {
+  it.each(["reducedMotion", "focused", "hidden", "paused"] as const)("stands still while %s", (hold) => {
     expect(countdownRuns(visitor, 0, all, { ...free, [hold]: true })).toBe(false);
+  });
+
+  it("has no hold for reading the page: a scroll, a wheel, a touch or the pointer never stop or restart it (2026-11-21)", () => {
+    expect(Object.keys(free).sort()).toEqual(["focused", "hidden", "paused", "reducedMotion"]);
   });
 
   it("does not run where nothing would follow", () => {
@@ -166,5 +173,32 @@ describe("startLinks (the old way, kept as the fallback)", () => {
     const links = startLinks("/es/sign-up", "/es/onboarding/website", "https://acme.com/shop", "grow");
     expect(links.googleNext).toBe(`/es/onboarding/website?domain=${encodeURIComponent("https://acme.com/shop")}&plan=grow`);
     expect(links.signUp).toBe(`/es/sign-up?next=${encodeURIComponent(links.googleNext)}`);
+  });
+});
+
+describe("scrollsToStage", () => {
+  it("brings the card back into view only for a step the visitor opened, never on auto-continue", () => {
+    expect(scrollsToStage("visitor", -120)).toBe(true);
+    expect(scrollsToStage("visitor", 40)).toBe(false);
+    expect(scrollsToStage("auto", -120)).toBe(false);
+    expect(scrollsToStage("auto", 40)).toBe(false);
+  });
+});
+
+describe("the work log under its step", () => {
+  it("shows a read step's lines while it is on screen or being worked on, never under the visitor's own steps", () => {
+    expect(showsLog("business", "business", "pages")).toBe(true);
+    expect(showsLog("pages", "business", "pages")).toBe(true);
+    expect(showsLog("plan", "business", "pages")).toBe(false);
+    expect(showsLog("business", "choose", null)).toBe(false);
+    expect(showsLog("choose", "choose", null)).toBe(false);
+  });
+
+  it("on a phone: the lines of the step on screen, else of the one being worked on, else none", () => {
+    const written = new Set(["business", "pages"] as const);
+    expect(compactLogStep("business", "pages", written)).toBe("business");
+    expect(compactLogStep("plan", "pages", written)).toBe("pages");
+    expect(compactLogStep("choose", null, written)).toBeNull();
+    expect(compactLogStep("plan", "plan", written)).toBeNull();
   });
 });

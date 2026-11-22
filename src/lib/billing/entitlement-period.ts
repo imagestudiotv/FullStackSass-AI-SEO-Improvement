@@ -278,7 +278,7 @@ const ALLOWANCE_MONTH_DAYS = 30;
 
 /**
  * A monthly allowance pro-rated to the free trial: ceil(monthly x TRIAL_DAYS
- * / 30), at least 1 - Grow's 60 articles a month are 6 in a 3-day trial, so
+ * / 30), at least 1 - Scale's 60 articles a month are 6 in a 3-day trial, so
  * the trial runs at the plan's daily pace and cannot use a whole month. An
  * allowance that is not a positive count (0, or UNLIMITED = -1) is left as it
  * is.

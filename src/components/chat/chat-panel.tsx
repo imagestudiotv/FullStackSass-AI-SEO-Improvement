@@ -33,7 +33,7 @@ import { cn } from "@/lib/utils";
 
 import { ChatMarkdown } from "./chat-markdown";
 
-type Prices = { chat_message: number; audit_rerun: number; video_post: number };
+type Prices = { chat_message: number; audit_rerun: number; video_post: number; video_ideas: number };
 
 type Props = {
   websiteId: string;
@@ -300,7 +300,9 @@ function actionPrice(action: ChatActionView, prices: Prices, priceOf: (credits: 
   const price = ACTION_PRICE[action.kind];
   if (price === "free") return t.priceFree;
   if (price === "article") return t.priceArticle;
-  return priceOf(price.credits === "audit_rerun" ? prices.audit_rerun : price.credits === "video_post" ? prices.video_post : 0);
+  // Today's twenty ideas are free; only an extra batch costs (its card's details start with its kind).
+  if (action.kind === "new_video_ideas" && action.details.startsWith("daily")) return t.priceFree;
+  return priceOf(prices[price.credits as keyof Prices] ?? 0);
 }
 
 function ActionCard({

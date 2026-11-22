@@ -16,8 +16,6 @@ export const PUBLIC_PAGES: { path: string; priority: number }[] = [
   { path: "/blog/author/repget-team", priority: 0.5 },
   { path: "/blog", priority: 0.8 },
   { path: "/docs/integrations", priority: 0.7 },
-  { path: "/backlink-exchange", priority: 0.7 },
-  { path: "/publishers", priority: 0.7 },
   { path: "/backlinks", priority: 0.7 },
   { path: "/rank-on-chatgpt", priority: 0.7 },
   { path: "/website-creation", priority: 0.7 },

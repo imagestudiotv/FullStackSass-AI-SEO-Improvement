@@ -251,8 +251,8 @@ describe("homepage sections", () => {
     // Free replaced Launch on sale (2026-11-19): its card, from FREE_PLAN; Launch's is gone even though its rows are active.
     expect(card(html, freePlanDisplay(locale).name)).toMatch(/Free .*€ 0 .* 4 .* 8 /);
     expect(html).not.toContain(esc(packages.launch.label));
-    expect(card(html, packages.grow.label)).toMatch(/Grow .*€ 149 .* 60 .* 90 /);
-    expect(card(html, packages.scale.label)).toMatch(/Scale .*€ 349 .* 100 .* 240 /);
+    expect(card(html, packages.grow.label)).toMatch(/Grow .*€ 149 .* 30 .* 90 /);
+    expect(card(html, packages.scale.label)).toMatch(/Scale .*€ 349 .* 60 .* 180 /);
   });
 
   it("shows what the plans table charges, not a figure of its own", () => {

@@ -27,7 +27,9 @@ import { websiteStep } from "@/app/(marketing)/_home/start-field";
  *    Never onto a step that is merely queued behind other work (it would sit
  *    on "waiting"), never out of a step that needs the visitor (the plan
  *    choice, the account, billing), so nothing that needs input is ever
- *    skipped, and never backwards.
+ *    skipped, and never backwards. Reading the page (a scroll, a wheel, a
+ *    touch, the pointer) never holds it or starts it again (Holds), and it
+ *    never scrolls the page (scrollsToStage).
  */
 
 export const READ_STEPS = ["business", "pages", "plan"] as const;
@@ -122,12 +124,20 @@ export function autoAdvanceTarget(steps: readonly StepId[], viewing: number, pro
   return viewing + 1;
 }
 
-/** Why the countdown may stand still: each one stops it on its own. */
+/**
+ * Why the countdown may stand still: each one stops it on its own.
+ *
+ * READING THE PAGE NEVER STOPS OR RESTARTS IT (Daniel, 2026-11-21: "If I
+ * scroll it's reloading the step. We want one continue autofiling and
+ * writing without stopping when scroll"). A scroll, a wheel, a touch or the
+ * pointer over the card used to hold the bar or start it again from empty;
+ * now none of them is a hold, and nothing but a change of step starts a new
+ * bar. Pause is the way to stop it (WCAG 2.2.1), and the keyboard in the
+ * card, a hidden tab and reduced motion still hold it.
+ */
 export type Holds = {
   /** prefers-reduced-motion: no moving bar and no timed change (the visitor uses Continue). */
   reducedMotion: boolean;
-  /** The pointer is over the step's card. */
-  hovering: boolean;
   /** The keyboard is in the step's card. */
   focused: boolean;
   /** The tab is hidden. */
@@ -139,7 +149,41 @@ export type Holds = {
 /** Whether the bar fills and the step continues when it is full. */
 export function countdownRuns(steps: readonly StepId[], viewing: number, progress: Progress, holds: Holds): boolean {
   if (autoAdvanceTarget(steps, viewing, progress) === null) return false;
-  return !holds.reducedMotion && !holds.hovering && !holds.focused && !holds.hidden && !holds.paused;
+  return !holds.reducedMotion && !holds.focused && !holds.hidden && !holds.paused;
+}
+
+/** What changed the step: the visitor (a step in the list, Continue, Back...) or the countdown. */
+export type StepChange = "visitor" | "auto";
+
+/**
+ * Whether a change of step brings the card's top back into view. Only one the
+ * visitor asked for, and only when the card's top is above the screen (a
+ * phone, read from further down). The countdown never moves the page: it
+ * used to pull a reader who had scrolled down back up to the card.
+ */
+export function scrollsToStage(change: StepChange, stageTop: number): boolean {
+  return change === "visitor" && stageTop < 0;
+}
+
+/**
+ * The work log, per step (Daniel, 2026-11-21: "I like to see coding writing
+ * on each step on left", as explee.com writes it under the step it is on).
+ * Each line belongs to the read step it was written for, and the step list
+ * shows a step's lines under it while it is the step on screen or the one
+ * RepGet is working on. A step that is neither shows its one-line summary.
+ */
+export function showsLog(id: StepId, viewingId: StepId | undefined, working: ReadStepId | null): boolean {
+  return isReadStep(id) && (id === viewingId || id === working);
+}
+
+/**
+ * On a phone the step list is a row of segments with no room under each, so
+ * one step's lines sit under the row: the step on screen when it has written
+ * any, else the one RepGet is working on, else none.
+ */
+export function compactLogStep(viewingId: StepId | undefined, working: ReadStepId | null, written: ReadonlySet<ReadStepId>): ReadStepId | null {
+  if (viewingId && isReadStep(viewingId) && written.has(viewingId)) return viewingId;
+  return working && written.has(working) ? working : null;
 }
 
 /** The step the Continue button opens, or null on the last one. */

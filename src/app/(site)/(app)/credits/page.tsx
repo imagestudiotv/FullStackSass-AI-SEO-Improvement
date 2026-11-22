@@ -6,6 +6,7 @@ import {
   Coins,
   Gift,
   HeartPulse,
+  Lightbulb,
   Link2,
   type LucideIcon,
   Plus,
@@ -73,6 +74,7 @@ const ACTION_ICONS: Record<CreditAction, LucideIcon> = {
   audit_rerun: HeartPulse,
   social_post: Share2,
   video_post: Clapperboard,
+  video_ideas: Lightbulb,
   chat_message: Sparkles,
 };
 

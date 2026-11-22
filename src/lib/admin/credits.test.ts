@@ -49,6 +49,8 @@ describe("credit settings", () => {
     const result = await saveCreditSettings({ dailyFree: 3, prices: { audit_rerun: 5 } });
     expect(result).toMatchObject({ ok: true, data: { dailyFree: 3, prices: { audit_rerun: 5 }, updatedBy: "ops@repget.test" } });
     expect(await readCreditSettings()).toMatchObject({ dailyFree: 3, prices: { audit_rerun: 5 } });
+    // New video ideas cost 1 credit a batch until a price is saved (client, 2026-11-21); the save keeps that 1.
+    expect((await readCreditSettings()).prices).toMatchObject({ video_post: 0, video_ideas: 1 });
 
     const [entry] = await test.db.select().from(adminAuditLog);
     expect(entry).toMatchObject({
@@ -130,6 +132,7 @@ describe("credit settings", () => {
       { action: "audit_rerun", spends: 0, credits: 0 },
       { action: "social_post", spends: 0, credits: 0 },
       { action: "video_post", spends: 0, credits: 0 },
+      { action: "video_ideas", spends: 0, credits: 0 },
       { action: "chat_message", spends: 0, credits: 0 },
       { action: "addon:usa_local_citations", spends: 0, credits: 0 },
       { action: "addon:audit_fix", spends: 0, credits: 0 },

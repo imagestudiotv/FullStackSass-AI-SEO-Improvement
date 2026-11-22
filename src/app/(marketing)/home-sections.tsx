@@ -1066,7 +1066,7 @@ export function BacklinkNetwork({ t, href }: SectionProps) {
             ))}
           </ul>
           <Button variant="outline" asChild className="mt-7">
-            <Link href={href("/backlink-exchange")}>
+            <Link href={href("/backlinks")}>
               {t.networkHowLink}
               <ArrowRight className="size-4" />
             </Link>

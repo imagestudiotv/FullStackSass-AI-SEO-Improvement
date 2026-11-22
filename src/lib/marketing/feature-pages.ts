@@ -221,7 +221,7 @@ export const BACKLINKS_PAGE: FeaturePage = {
       { label: "How you pay", cells: ["Per link, or with your time", "A monthly fee", "Credits included in your plan"] },
     ],
   },
-  related: { label: "How credits work for links", href: "/backlink-exchange" },
+  related: { label: "See the credits in each plan", href: "/pricing" },
   faqTitle: "Questions about backlinks",
   faq: [
     {

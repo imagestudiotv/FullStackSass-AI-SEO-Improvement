@@ -196,7 +196,7 @@ describe("REPGET, applied automatically (2026-11-11)", () => {
 });
 
 describe("a direct purchase on the plan step (Grow + Visibility)", () => {
-  const BUNDLE = { ...GROW, id: "plan_bundle", tier: "grow_visibility", name: "Grow + Visibility", priceCents: 9900, articleLimit: 60 };
+  const BUNDLE = { ...GROW, id: "plan_bundle", tier: "grow_visibility", name: "Grow + Visibility", priceCents: 9900, articleLimit: 30, keywordLimit: 400 };
   const direct = (props: Partial<ComponentProps<typeof PlanStep>> = {}) =>
     render({ monthlyPlans: [BUNDLE], paypalPlanIds: [BUNDLE.id], paypalTrialPlanIds: [], directPurchase: DIRECT_PURCHASE.en, offerCopy: OFFER_CODE.en, ...props });
 

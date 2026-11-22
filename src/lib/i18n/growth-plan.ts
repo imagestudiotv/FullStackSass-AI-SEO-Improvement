@@ -28,8 +28,7 @@ export type GrowthPlanCopy = {
   phases: { business: string; pages: string; plan: string; choose: string; account: string; billing: string };
   /** Accessible name of the step list. */
   phasesLabel: string;
-  /** The working log beside the steps. */
-  logTitle: string;
+  /** The work log: the screen reader's name for it (the lines are drawn under their steps). */
   logLabel: string;
   log: {
     open: string;
@@ -99,7 +98,7 @@ export type GrowthPlanCopy = {
     resume: string;
     /** Beside the filling bar. */
     auto: string;
-    /** While the visitor's pointer or keyboard is in the card. */
+    /** While it stands still: Pause pressed, the keyboard in the card, or the tab hidden. */
     held: string;
     working: string;
     /** Continue's words on the plan step, which leads to the plans. */
@@ -163,8 +162,6 @@ export type GrowthPlanCopy = {
     /** A read step whose answer waits for earlier work: what RepGet does next. {pages}, {domain}. */
     queuedPages: string;
     queuedPlan: string;
-    /** Above the newest lines of the work log, inside a step still loading. */
-    liveTitle: string;
     /** The step list's line for the account step, before and after: {email}. */
     accountTodo: string;
     accountDone: string;
@@ -272,7 +269,6 @@ const en: GrowthPlanCopy = {
     billing: "Billing",
   },
   phasesLabel: "Progress",
-  logTitle: "RepGet at work",
   logLabel: "What RepGet is doing",
   log: {
     open: "Opening {domain}",
@@ -339,7 +335,7 @@ const en: GrowthPlanCopy = {
     pause: "Pause",
     resume: "Resume",
     auto: "Continues by itself in a few seconds",
-    held: "Paused while you read",
+    held: "Paused",
     working: "Working on it…",
     toBilling: "Choose your plan",
     announce: "Step {index} of {total}: {label}",
@@ -381,7 +377,6 @@ const en: GrowthPlanCopy = {
   flow: {
     queuedPages: "Next, RepGet checks up to {pages} pages of {domain}: titles, descriptions, headings, links and AI crawler access. It starts as soon as your business is read.",
     queuedPlan: "Next, RepGet turns what it found into a plan for your site. It starts as soon as your pages are checked.",
-    liveTitle: "RepGet right now",
     accountTodo: "Email or Google",
     accountDone: "Signed in as {email}",
     checkoutLocked: "After your account",
@@ -409,8 +404,8 @@ const en: GrowthPlanCopy = {
     failed: "Billing could not be prepared: {message}",
     retry: "Try again",
     fallback: "Continue on the usual setup pages",
-    hasPlan: "{host} already has a plan. Setup carries on from here.",
-    hasPlanContinue: "Continue setup",
+    hasPlan: "{host} already has a plan. Your dashboard is ready.",
+    hasPlanContinue: "Go to your dashboard",
     changePlan: "Change plan",
     billedMonthly: "Billed monthly",
     billedYearly: "Billed yearly",
@@ -462,7 +457,6 @@ const es: GrowthPlanCopy = {
     billing: "Facturación",
   },
   phasesLabel: "Progreso",
-  logTitle: "RepGet trabajando",
   logLabel: "Lo que está haciendo RepGet",
   log: {
     open: "Abriendo {domain}",
@@ -529,7 +523,7 @@ const es: GrowthPlanCopy = {
     pause: "Pausar",
     resume: "Reanudar",
     auto: "Continúa solo en unos segundos",
-    held: "En pausa mientras lee",
+    held: "En pausa",
     working: "Trabajando…",
     toBilling: "Elegir su plan",
     announce: "Paso {index} de {total}: {label}",
@@ -571,7 +565,6 @@ const es: GrowthPlanCopy = {
   flow: {
     queuedPages: "Después, RepGet revisa hasta {pages} páginas de {domain}: títulos, descripciones, encabezados, enlaces y acceso de los rastreadores de IA. Empieza en cuanto termine de leer su negocio.",
     queuedPlan: "Después, RepGet convierte lo encontrado en un plan para su sitio. Empieza en cuanto se revisen sus páginas.",
-    liveTitle: "RepGet ahora mismo",
     accountTodo: "Email o Google",
     accountDone: "Sesión iniciada como {email}",
     checkoutLocked: "Después de su cuenta",
@@ -599,8 +592,8 @@ const es: GrowthPlanCopy = {
     failed: "No se pudo preparar la facturación: {message}",
     retry: "Intentar de nuevo",
     fallback: "Continuar en las páginas de configuración habituales",
-    hasPlan: "{host} ya tiene un plan. La configuración continúa desde aquí.",
-    hasPlanContinue: "Continuar la configuración",
+    hasPlan: "{host} ya tiene un plan. Su panel está listo.",
+    hasPlanContinue: "Ir a su panel",
     changePlan: "Cambiar de plan",
     billedMonthly: "Facturación mensual",
     billedYearly: "Facturación anual",
@@ -652,7 +645,6 @@ const fr: GrowthPlanCopy = {
     billing: "Facturation",
   },
   phasesLabel: "Progression",
-  logTitle: "RepGet au travail",
   logLabel: "Ce que fait RepGet",
   log: {
     open: "Ouverture de {domain}",
@@ -719,7 +711,7 @@ const fr: GrowthPlanCopy = {
     pause: "Pause",
     resume: "Reprendre",
     auto: "Continue tout seul dans quelques secondes",
-    held: "En pause pendant votre lecture",
+    held: "En pause",
     working: "En cours…",
     toBilling: "Choisir votre offre",
     announce: "Étape {index} sur {total} : {label}",
@@ -761,7 +753,6 @@ const fr: GrowthPlanCopy = {
   flow: {
     queuedPages: "Ensuite, RepGet vérifie jusqu’à {pages} pages de {domain} : titres, descriptions, intertitres, liens et accès des robots d’IA. Cela commence dès que votre activité est lue.",
     queuedPlan: "Ensuite, RepGet transforme ce qu’il a trouvé en plan pour votre site. Cela commence dès que vos pages sont vérifiées.",
-    liveTitle: "RepGet en ce moment",
     accountTodo: "E-mail ou Google",
     accountDone: "Connecté en tant que {email}",
     checkoutLocked: "Après votre compte",
@@ -789,8 +780,8 @@ const fr: GrowthPlanCopy = {
     failed: "La facturation n’a pas pu être préparée : {message}",
     retry: "Réessayer",
     fallback: "Continuer sur les pages de configuration habituelles",
-    hasPlan: "{host} a déjà une offre. La configuration continue à partir d’ici.",
-    hasPlanContinue: "Continuer la configuration",
+    hasPlan: "{host} a déjà une offre. Votre tableau de bord est prêt.",
+    hasPlanContinue: "Aller au tableau de bord",
     changePlan: "Changer d’offre",
     billedMonthly: "Facturé chaque mois",
     billedYearly: "Facturé chaque année",
@@ -842,7 +833,6 @@ const it: GrowthPlanCopy = {
     billing: "Fatturazione",
   },
   phasesLabel: "Avanzamento",
-  logTitle: "RepGet al lavoro",
   logLabel: "Cosa sta facendo RepGet",
   log: {
     open: "Apertura di {domain}",
@@ -909,7 +899,7 @@ const it: GrowthPlanCopy = {
     pause: "Pausa",
     resume: "Riprendi",
     auto: "Prosegue da solo tra qualche secondo",
-    held: "In pausa mentre leggi",
+    held: "In pausa",
     working: "Al lavoro…",
     toBilling: "Scegli il tuo piano",
     announce: "Passo {index} di {total}: {label}",
@@ -951,7 +941,6 @@ const it: GrowthPlanCopy = {
   flow: {
     queuedPages: "Poi RepGet controlla fino a {pages} pagine di {domain}: titoli, descrizioni, intestazioni, link e accesso dei crawler AI. Inizia appena ha letto la tua attività.",
     queuedPlan: "Poi RepGet trasforma ciò che ha trovato in un piano per il tuo sito. Inizia appena le tue pagine sono controllate.",
-    liveTitle: "RepGet in questo momento",
     accountTodo: "Email o Google",
     accountDone: "Accesso come {email}",
     checkoutLocked: "Dopo il tuo account",
@@ -979,8 +968,8 @@ const it: GrowthPlanCopy = {
     failed: "Non è stato possibile preparare la fatturazione: {message}",
     retry: "Riprova",
     fallback: "Continua dalle solite pagine di configurazione",
-    hasPlan: "{host} ha già un piano. La configurazione continua da qui.",
-    hasPlanContinue: "Continua la configurazione",
+    hasPlan: "{host} ha già un piano. La tua dashboard è pronta.",
+    hasPlanContinue: "Vai alla dashboard",
     changePlan: "Cambia piano",
     billedMonthly: "Fatturato ogni mese",
     billedYearly: "Fatturato ogni anno",
@@ -1032,7 +1021,6 @@ const de: GrowthPlanCopy = {
     billing: "Abrechnung",
   },
   phasesLabel: "Fortschritt",
-  logTitle: "RepGet bei der Arbeit",
   logLabel: "Was RepGet gerade tut",
   log: {
     open: "{domain} wird geöffnet",
@@ -1099,7 +1087,7 @@ const de: GrowthPlanCopy = {
     pause: "Pause",
     resume: "Fortsetzen",
     auto: "Geht in wenigen Sekunden von selbst weiter",
-    held: "Pausiert, während Sie lesen",
+    held: "Pausiert",
     working: "In Arbeit…",
     toBilling: "Plan wählen",
     announce: "Schritt {index} von {total}: {label}",
@@ -1141,7 +1129,6 @@ const de: GrowthPlanCopy = {
   flow: {
     queuedPages: "Danach prüft RepGet bis zu {pages} Seiten von {domain}: Titel, Beschreibungen, Überschriften, Links und den Zugang für KI-Crawler. Das beginnt, sobald Ihr Unternehmen gelesen ist.",
     queuedPlan: "Danach macht RepGet aus den Ergebnissen einen Plan für Ihre Website. Das beginnt, sobald Ihre Seiten geprüft sind.",
-    liveTitle: "RepGet gerade jetzt",
     accountTodo: "E-Mail oder Google",
     accountDone: "Angemeldet als {email}",
     checkoutLocked: "Nach Ihrem Konto",
@@ -1169,8 +1156,8 @@ const de: GrowthPlanCopy = {
     failed: "Die Abrechnung konnte nicht vorbereitet werden: {message}",
     retry: "Erneut versuchen",
     fallback: "Auf den gewohnten Einrichtungsseiten fortfahren",
-    hasPlan: "{host} hat bereits einen Plan. Die Einrichtung geht hier weiter.",
-    hasPlanContinue: "Einrichtung fortsetzen",
+    hasPlan: "{host} hat bereits einen Plan. Ihr Dashboard ist bereit.",
+    hasPlanContinue: "Zum Dashboard",
     changePlan: "Plan ändern",
     billedMonthly: "Monatliche Abrechnung",
     billedYearly: "Jährliche Abrechnung",

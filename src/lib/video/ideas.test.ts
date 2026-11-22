@@ -1,7 +1,9 @@
 import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { brandVoice, videoIdeaBatches, videoIdeas, videoSettings, websites } from "@/lib/db/schema";
+import { recordCredit } from "@/lib/backlinks/credits";
+import { walletOf } from "@/lib/credits/spend";
+import { brandVoice, creditSettings, videoIdeaBatches, videoIdeas, videoSettings, websites } from "@/lib/db/schema";
 import { createTestDb, type TestDb } from "@/test/db";
 import { seedWebsite } from "@/test/fixtures";
 
@@ -187,8 +189,11 @@ describe("the day's ideas", () => {
 });
 
 describe("extra ideas", () => {
-  it("are three free batches of ten a day, each written once, never counted in the day's twenty", async () => {
-    const { websiteId } = await site();
+  it("are three batches of ten a day at the new-ideas price, each written and paid once, never counted in the day's twenty", async () => {
+    const { websiteId, orgId } = await site();
+    // No admin price saved: a batch costs 1 credit (PRICE_DEFAULTS, client 2026-11-21).
+    await test.db.delete(creditSettings);
+    await recordCredit(orgId, { type: "adjustment", amount: 3, note: "test" });
     await suggestVideoIdeas(websiteId, NOW, { write: writer() });
     expect(await requestVideoIdeas(websiteId)).toEqual({ ok: false, error: "day_full" });
 
@@ -198,6 +203,8 @@ describe("extra ideas", () => {
     expect(queue.queueJob).toHaveBeenCalledWith({ id: `video-ideas-batch:${batchId}:0`, name: "video/ideas.requested", data: { websiteId, batchId } });
     // The same click again: the same batch.
     expect(await requestVideoIdeas(websiteId, "viral", "click-1")).toMatchObject({ ok: true, data: { batchId, reused: true } });
+    // The daily twenty were free; the click was charged once, not twice.
+    expect((await walletOf(test.db, orgId)).available).toBe(2);
     // Another click while it is being written.
     expect(await requestVideoIdeas(websiteId, "mixed", "click-2")).toMatchObject({ ok: false, error: "busy" });
 
@@ -222,6 +229,7 @@ describe("extra ideas", () => {
     vi.setSystemTime(new Date(NOW.getTime() + 5 * 60_000));
     expect(await requestVideoIdeas(websiteId, "viral")).toEqual({ ok: false, error: "extra_used_up" });
     expect(await ideasOf(websiteId)).toHaveLength(50);
+    expect((await walletOf(test.db, orgId)).available).toBe(0);
   });
 
   it("are not for a viewer", async () => {

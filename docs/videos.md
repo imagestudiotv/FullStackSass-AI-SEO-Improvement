@@ -11,6 +11,19 @@ Client decisions of 2026-10-29. Every day each website gets **20 video ideas** t
 | Publishing | Manual (Publish now / at the best time / at a chosen time) or automatic (Settings → Publish automatically: the next of 12:00, 18:00, 20:00 local). One bundle.social post per video, each platform in its own format. | `lib/video/publish.ts`, job `publish-video` |
 | Results | Views, likes, comments, shares read daily from bundle.social; an email when a video passes 1,000 views. Files deleted 7 days after posting. | `lib/video/followup.ts`, job `video-followup-daily` |
 
+## Review flow (client, 2026-11-21)
+
+Daniel's ticket of 21 Nov (mockups `repget-social-content-with-video-editor.html`, `repget-social-publishing-orange-download.html`): fewer steps, and useful without connected accounts.
+
+- **Today's ideas**: one idea at a time - a big preview, ‹ › and ← → to browse (keys never make or skip), "Idea x of N", a content-type filter (All, Viral, Educational, Authority, Promotional). Three actions: Skip (a toast with Undo, `restoreVideoIdea`), Edit (the editor), Approve. The idea's details fold out below. Swipes and Focus mode are gone.
+- **Approve** = `approveVideoIdea` (1 `video_post` credit, the 15 s undo wait) and the **publishing window** opens at once (`publish-popup.tsx`): "Making your video…" until it is ready (the page looks again every 10 s), then the video and Download.
+  - *Manual publish*: no account needed. A tab per platform (all 7; a carousel only Instagram, TikTok, Facebook) with its own editable title (YouTube, Pinterest: the idea's title) and text (fitted to the platform; X without links in 280), Copy, Open <platform> (its official page) and **Mark as posted** (`markVideoPosted`, `publish-actions.ts`). Edits are kept in the browser per video.
+  - A mark is a destination `{ status: "posted", manual: true }` in `video_ideas.destinations` (no migration): the video goes to Posted, automatic publishing never sends it there again, and no numbers are read for it. "Not posted yet" takes the customer's own mark back (never RepGet's post); the last one taken back returns the video to Saved Videos.
+  - *Auto publish*: the connected accounts, then Publish now / at the best time / at a chosen time (`publishVideoIdea`). Only once the video is made (no per-video "publish when ready"); without accounts, a link to Settings -> Publishing.
+  - *Save for later*, or closing the window any way: the video waits in Saved Videos.
+- **Saved Videos** (was Your videos): approved, making, ready and failed videos. **Posted**: scheduled (with Unschedule), publishing and posted; Publish there reopens the window for the other platforms.
+- **New ideas cost credits**: each extra batch costs the `video_ideas` price (Admin -> Credits, **1 credit until a price is saved**, `PRICE_DEFAULTS`). It is charged in the transaction that reserves the slot (`reserveExtraBatch` with `payer`): short of credits, nothing is reserved (`not_enough_credits`, with Buy / Earn credits links). A batch that ends failed without an idea is refunded (`refundEmptyBatch`: the job's failure, the last attempt, a stalled batch); its one re-request is charged again under its own key. The daily twenty stay free. The AI chat's `new_video_ideas` goes through the same action and shows the price.
+
 ## Formats
 
 - Reel: 1080×1920, 30 fps, H.264 + AAC, 25–45 s (never over 60 s, inside every platform's short-video limit).
@@ -63,7 +76,7 @@ Daniel chose genuinely different productions ("Option B"), not catchier scripts 
 
 ### Ideas
 - **Categories**: Viral, Educational, Authority, Promotional. The viral share is `video_settings.viral_mix` (0–100 in steps of 10, default 40). The rest is split by goal (`NON_VIRAL_SPLIT`: Balanced 50/30/20, Grow reach 60/30/10, Generate leads 30/30/40), rounded by largest remainder so totals are exact, and interleaved (`strategy/allocation.ts`).
-- **Free allowance** (`lib/video/batches.ts`, table `video_idea_batches`): 20 daily ideas (slot 0, the 06:00 UTC job or the first visit), plus 3 extra batches of 10 a UTC day from the New ideas menu: New daily ideas (mixed), Generate viral ideas, Ideas from your website (verified services and pages). That is at most 50 a day.
+- **Allowance** (`lib/video/batches.ts`, table `video_idea_batches`): 20 free daily ideas (slot 0, the 06:00 UTC job or the first visit), plus 3 extra batches of 10 a UTC day from the New ideas menu (paid since 2026-11-21, see below): New daily ideas (mixed), Generate viral ideas, Ideas from your website (verified services and pages). That is at most 50 a day.
   - A slot is reserved by a unique (website, day, slot) insert in a short transaction; no lock is held during the AI call. A request key makes retries idempotent.
   - Requests are refused while a batch is being written ("busy"), and must be 20 s apart. A batch that failed with 0 ideas may be asked for once more, in the same slot.
   - Skips never give a slot back. The same rules apply to buttons, the AI chat and jobs.

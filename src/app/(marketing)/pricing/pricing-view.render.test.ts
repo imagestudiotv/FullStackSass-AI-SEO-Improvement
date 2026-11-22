@@ -106,9 +106,9 @@ describe("the pricing page", () => {
     expect(html.match(/40% off regular price · billed monthly/g)).toHaveLength(2);
     expect(html.match(/>40% OFF</g)).toHaveLength(2);
     // The plan rows' allowances, not the design's numbers written in.
-    expect(html).toContain("<strong>500 search terms</strong> researched");
-    expect(html).toContain("<strong>240 social posts</strong> across platforms");
-    expect(html).toContain(">1,500<");
+    expect(html).toContain("<strong>300 search terms</strong> researched");
+    expect(html).toContain("<strong>180 social posts</strong> across platforms");
+    expect(html).toContain(">1,200<");
   });
 
   it("links each plan through sign-up to its plan step, exactly as the design does, and the rest to the site's pages", () => {
@@ -130,6 +130,13 @@ describe("the pricing page", () => {
     expect(html).toContain("€99 billed at checkout, then monthly. The 3-day free trial does not apply to this offer.");
     expect(html).toContain("Your first €99 payment is collected at checkout");
     expect(html).toContain("26 answers to explore");
+    // Its own allowances, from its row (client, 2026-11-21): 30 articles, one a day; 120 social posts; 400 search terms.
+    const stats = [...html.matchAll(/growth-stat[^"]*"><strong>([^<]+)<\/strong><span>([^<]+)<small>([^<]+)<\/small>/g)].map((m) => [m[1], m[2].trim(), m[3]]);
+    expect(stats).toEqual([
+      ["30", "branded articles / mo", "1 a day"],
+      ["120", "social posts / mo", "For your channels"],
+      ["400", "search terms", "Researched &amp; clustered"],
+    ]);
     // Not one of the standard cards (Grow and Scale; Free says "See full comparison").
     expect(html.match(/Explore full feature comparison/g)).toHaveLength(2);
     expect(html).not.toContain("<h2>Grow + Visibility</h2>");

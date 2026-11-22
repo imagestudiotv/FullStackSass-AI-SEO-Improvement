@@ -90,7 +90,7 @@ const en: FaqCopy = {
         {
           question: "How do my monthly social posts work?",
           answer:
-            "Free offers 8 social posts a month, Grow 90 and Scale 240. Each post uses 1 credit from your plan's monthly credits, which cover these amounts and can also be spent on other tools. Exact channel rules and usage are displayed during setup.",
+            "Free offers 8 social posts a month, Grow 90 and Scale 180. Each post uses 1 credit from your plan's monthly credits, which cover these amounts and can also be spent on other tools. Exact channel rules and usage are displayed during setup.",
         },
         {
           question: "What does Growth AI Chat Copilot do?",
@@ -183,7 +183,7 @@ const es: FaqCopy = {
         {
           question: "¿Cómo funcionan mis publicaciones mensuales en redes?",
           answer:
-            "Free ofrece 8 publicaciones en redes al mes, Grow 90 y Scale 240. Cada publicación usa 1 crédito de los créditos mensuales de su plan, que cubren estas cantidades y también pueden usarse en otras herramientas. Las reglas exactas de cada canal y el uso se muestran durante la configuración.",
+            "Free ofrece 8 publicaciones en redes al mes, Grow 90 y Scale 180. Cada publicación usa 1 crédito de los créditos mensuales de su plan, que cubren estas cantidades y también pueden usarse en otras herramientas. Las reglas exactas de cada canal y el uso se muestran durante la configuración.",
         },
         {
           question: "¿Qué hace Growth AI Chat Copilot?",
@@ -276,7 +276,7 @@ const fr: FaqCopy = {
         {
           question: "Comment fonctionnent mes publications sociales mensuelles ?",
           answer:
-            "Free propose 8 publications sociales par mois, Grow 90 et Scale 240. Chaque publication utilise 1 crédit sur les crédits mensuels de votre offre, qui couvrent ces quantités et peuvent aussi servir pour d’autres outils. Les règles précises de chaque canal et votre utilisation s’affichent lors de la configuration.",
+            "Free propose 8 publications sociales par mois, Grow 90 et Scale 180. Chaque publication utilise 1 crédit sur les crédits mensuels de votre offre, qui couvrent ces quantités et peuvent aussi servir pour d’autres outils. Les règles précises de chaque canal et votre utilisation s’affichent lors de la configuration.",
         },
         {
           question: "Que fait Growth AI Chat Copilot ?",
@@ -369,7 +369,7 @@ const it: FaqCopy = {
         {
           question: "Come funzionano i miei post social mensili?",
           answer:
-            "Free offre 8 post social al mese, Grow 90 e Scale 240. Ogni post utilizza 1 credito dei crediti mensili del Suo piano, che coprono queste quantità e possono essere usati anche per altri strumenti. Le regole esatte dei canali e l’utilizzo vengono mostrati durante la configurazione.",
+            "Free offre 8 post social al mese, Grow 90 e Scale 180. Ogni post utilizza 1 credito dei crediti mensili del Suo piano, che coprono queste quantità e possono essere usati anche per altri strumenti. Le regole esatte dei canali e l’utilizzo vengono mostrati durante la configurazione.",
         },
         {
           question: "Cosa fa Growth AI Chat Copilot?",
@@ -462,7 +462,7 @@ const de: FaqCopy = {
         {
           question: "Wie funktionieren meine monatlichen Social-Posts?",
           answer:
-            "Free bietet 8 Social-Posts pro Monat, Grow 90 und Scale 240. Jeder Post verbraucht 1 Credit aus den monatlichen Credits Ihres Pakets, die diese Mengen abdecken und auch für andere Tools genutzt werden können. Die genauen Kanalregeln und Ihre Nutzung werden bei der Einrichtung angezeigt.",
+            "Free bietet 8 Social-Posts pro Monat, Grow 90 und Scale 180. Jeder Post verbraucht 1 Credit aus den monatlichen Credits Ihres Pakets, die diese Mengen abdecken und auch für andere Tools genutzt werden können. Die genauen Kanalregeln und Ihre Nutzung werden bei der Einrichtung angezeigt.",
         },
         {
           question: "Was macht der Growth AI Chat Copilot?",

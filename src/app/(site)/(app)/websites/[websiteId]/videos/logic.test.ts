@@ -4,7 +4,13 @@ import { DEFAULT_SETTINGS, validateVideoSettings, type VideoSettings } from "@/l
 
 import {
   browse,
+  browseKey,
   categoryCounts,
+  manualPlatforms,
+  PLATFORM_POST_URLS,
+  platformText,
+  postedOn,
+  stripLinks,
   isPageUndo,
   profileChanges,
   settingsChanges,
@@ -49,6 +55,63 @@ describe("idea filters", () => {
     expect(browse(0, -1, 3)).toBe(2);
     expect(browse(2, 1, 3)).toBe(0);
     expect(browse(0, 1, 0)).toBe(0);
+  });
+});
+
+describe("the deck's arrow keys", () => {
+  const key = (change: Partial<UndoKeyEvent> = {}): UndoKeyEvent => ({
+    key: "ArrowRight",
+    ctrlKey: false,
+    metaKey: false,
+    altKey: false,
+    shiftKey: false,
+    repeat: false,
+    defaultPrevented: false,
+    target: { closest: () => null },
+    ...change,
+  });
+
+  it("browse with ← and →, and never make or skip anything", () => {
+    expect(browseKey(key(), false)).toBe(1);
+    expect(browseKey(key({ key: "ArrowLeft" }), false)).toBe(-1);
+    expect(browseKey(key({ key: "Enter" }), false)).toBeNull();
+  });
+
+  it("leave fields, buttons, modifiers, held keys and open dialogs alone", () => {
+    const inside = { closest: (query: string) => (query.includes("textarea") ? {} : null) };
+    expect(browseKey(key({ target: inside }), false)).toBeNull();
+    expect(browseKey(key({ shiftKey: true }), false)).toBeNull();
+    expect(browseKey(key({ repeat: true }), false)).toBeNull();
+    expect(browseKey(key(), true)).toBeNull();
+  });
+});
+
+describe("the publishing window", () => {
+  const idea = {
+    title: "Three product photo mistakes that cost you sales - and the simple fixes every small shop can make this week, today",
+    caption: `${"Light sells. ".repeat(30)}Read more https://imagestudio.example/blog/light #photo #light`,
+  };
+
+  it("offers every platform by hand, a carousel only where carousels go", () => {
+    expect(manualPlatforms("reel")).toEqual(["instagram", "tiktok", "youtube", "facebook", "pinterest", "linkedin", "x"]);
+    expect(manualPlatforms("carousel")).toEqual(["instagram", "tiktok", "facebook"]);
+    for (const url of Object.values(PLATFORM_POST_URLS)) expect(url).toMatch(/^https:\/\//);
+  });
+
+  it("gives each platform its own text: a title where it has one, X in 280 characters without links", () => {
+    const youtube = platformText(idea, "youtube");
+    expect(youtube.title).toBe(idea.title.slice(0, 100));
+    expect(platformText(idea, "instagram")).toEqual({ title: null, caption: idea.caption });
+    const x = platformText(idea, "x");
+    expect(x.title).toBeNull();
+    expect([...x.caption].length).toBeLessThanOrEqual(280);
+    expect(x.caption).not.toContain("https://");
+    expect(stripLinks("See https://a.example/x now")).toBe("See now");
+  });
+
+  it("counts the platforms a video is on", () => {
+    const state = (status: "posted" | "failed") => ({ status, bundlePostId: null, url: null, error: null, attempts: 0 });
+    expect(postedOn({ tiktok: state("posted"), x: state("failed") }, manualPlatforms("reel"))).toEqual(["tiktok"]);
   });
 });
 
