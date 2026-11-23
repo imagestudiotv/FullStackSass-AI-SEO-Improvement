@@ -34,3 +34,24 @@ export function LookText({ look, text, width, maxLines = 3, align = "center", sc
   }
   return <div style={{ width, textAlign: align, ...font, color: "#ffffff", textShadow: outlineShadow(spec.stroke), ...TEXT_SAFE, ...style }}>{shown}</div>;
 }
+
+/** The look's "Aa" for the editor's tiles, in its own face and paint. */
+export function LookSample({ look }: { look: CaptionLook }) {
+  const spec = LOOK_SPECS[look];
+  const box = spec.paint === "box";
+  return (
+    <span
+      style={{
+        fontFamily: FAMILIES[spec.face],
+        fontWeight: spec.weight,
+        fontSize: look === "native" ? 16 : 20,
+        lineHeight: 1,
+        color: box ? "#111114" : "#ffffff",
+        textTransform: spec.upper ? "uppercase" : undefined,
+        ...(box ? { background: "#ffffff", borderRadius: 4, padding: "3px 7px" } : {}),
+      }}
+    >
+      Aa
+    </span>
+  );
+}

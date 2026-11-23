@@ -39,6 +39,15 @@ export const LOOK_SPECS: Record<CaptionLook, LookSpec> = {
   marker: { face: "marker", weight: 400, max: 64, min: 42, charEm: 0.62, lineHeight: 1.15, letterSpacing: "0em", upper: false, paint: "outline", stroke: 2 },
 };
 
+export function isCaptionLook(value: unknown): value is CaptionLook {
+  return typeof value === "string" && (CAPTION_LOOKS as readonly string[]).includes(value);
+}
+
+/** The look the customer chose (ProductionChoices.captionLook), else the one picked for the video. */
+export function chosenLook(choice: unknown, picked: CaptionLook): CaptionLook {
+  return isCaptionLook(choice) ? choice : picked;
+}
+
 /** A small, stable string hash (FNV-1a). */
 export function lookHash(text: string): number {
   let h = 0x811c9dc5;

@@ -49,6 +49,7 @@ import { videoPublishingStatus } from "@/lib/video/publish-actions";
 import { reviewBlocksAutoPublish } from "@/lib/video/review";
 import { previewClips } from "@/lib/video/preview-media";
 import { videoProfile } from "@/lib/video/strategy/profile";
+import { isCaptionLook } from "@/remotion/caption-looks";
 
 import { POSTED_STATUSES, SAVED_STATUSES } from "./logic";
 import { VideosPanel, type IdeaView, type VideoAccountView } from "./videos-panel";
@@ -327,5 +328,6 @@ function productionOf(
     showHook: typeof saved.showHook === "boolean" ? saved.showHook : true,
     includeCta: typeof saved.includeCta === "boolean" ? saved.includeCta : true,
     ctaText: typeof saved.ctaText === "string" && saved.ctaText.trim() ? saved.ctaText : null,
+    ...(isCaptionLook(saved.captionLook) ? { captionLook: saved.captionLook } : {}),
   };
 }

@@ -35,11 +35,14 @@ import {
 } from "@/lib/video/formats";
 import type { VideoSettings } from "@/lib/video/settings";
 import type { ProductionReelProps } from "@/remotion/props";
+import { CAPTION_LOOKS, isCaptionLook } from "@/remotion/caption-looks";
+import { LookSample } from "@/remotion/components/LookText";
 import { Reel } from "@/remotion/Reel";
 import { carouselSlideCount, Slide } from "@/remotion/Slide";
 
 import {
   audioLock,
+  captionLookApplies,
   canEditIdea,
   captionsApply,
   ctaSwitchApplies,
@@ -370,6 +373,8 @@ export function EditDialog(props: {
                 </TabsContent>
 
                 <TabsContent value="style" className="space-y-5 p-4">
+                  {/* A POV clip video has one look: its clip. */}
+                  {form.pov ? null : (
                   <Field label={c.look} hint={c.lookHint}>
                     <NativeLikeSelect className={selectClass} value={form.direction} onChange={(event) => update({ direction: event.target.value as CreativeDirection })}>
                       {CREATIVE_DIRECTIONS.map((value) => (
@@ -379,7 +384,21 @@ export function EditDialog(props: {
                       ))}
                     </NativeLikeSelect>
                   </Field>
+                  )}
 
+                  {captionLookApplies(form) ? (
+                    <fieldset className="min-w-0 space-y-2">
+                      <legend className="text-sm font-semibold">{c.clipText}</legend>
+                      <p className="text-xs text-muted-foreground">{c.clipTextHint}</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {([null, ...CAPTION_LOOKS] as const).map((look) => (
+                          <StyleTile key={look ?? "auto"} value={look ?? "auto"} kind="look" label={c.looks[look ?? "auto"]} pressed={(form.production.captionLook ?? null) === look} onPress={() => choose("captionLook", look)} />
+                        ))}
+                      </div>
+                    </fieldset>
+                  ) : null}
+
+                  {form.pov ? null : (
                   <fieldset className="min-w-0 space-y-2">
                     <legend className="text-sm font-semibold">{c.textStyle}</legend>
                     {styles.kind === "fixed" ? (
@@ -403,6 +422,7 @@ export function EditDialog(props: {
                       </>
                     )}
                   </fieldset>
+                  )}
 
                   <div className="space-y-3 border-t pt-4">
                     {hookSwitchApplies(form) ? (
@@ -427,7 +447,8 @@ export function EditDialog(props: {
                   <fieldset className="min-w-0 space-y-2">
                     <legend className="text-sm font-semibold">{c.videoFormat}</legend>
                     <div className="grid grid-cols-3 gap-2">
-                      {VIDEO_FORMATS.map((value) => (
+                      {/* A POV clip video is never a carousel (cleanEdit). */}
+                      {VIDEO_FORMATS.filter((value) => !form.pov || value !== "carousel").map((value) => (
                         <button
                           key={value}
                           type="button"
@@ -444,6 +465,9 @@ export function EditDialog(props: {
 
                   {video ? (
                     <div className="grid gap-3 sm:grid-cols-2">
+                      {/* A POV clip video lasts as long as its clip and has no voice. */}
+                      {form.pov ? null : (
+                      <>
                       <Field label={e.duration}>
                         <NativeLikeSelect className={selectClass} value={form.production.duration} onChange={(event) => choose("duration", event.target.value as ProductionChoices["duration"])}>
                           {DURATION_RANGES.map((value) => (
@@ -463,7 +487,9 @@ export function EditDialog(props: {
                           ))}
                         </NativeLikeSelect>
                       </Field>
-                      {narrated ? (
+                      </>
+                      )}
+                      {narrated && !form.pov ? (
                         <Field label={e.narration}>
                           <NativeLikeSelect className={selectClass} value={form.production.narration} onChange={(event) => choose("narration", event.target.value as ProductionChoices["narration"])}>
                             {NARRATION_STYLES.map((value) => (
@@ -766,7 +792,7 @@ function SwitchRow({ label, hint, checked, onChange }: { label: string; hint?: s
 }
 
 /** A text style as a small sample of how it reads on the video. */
-function StyleTile({ value, kind, label, help, pressed, onPress }: { value: string; kind: "template" | "captions"; label: string; help?: string; pressed: boolean; onPress: () => void }) {
+function StyleTile({ value, kind, label, help, pressed, onPress }: { value: string; kind: "template" | "captions" | "look"; label: string; help?: string; pressed: boolean; onPress: () => void }) {
   const sample: Record<string, ReactNode> = {
     "template:bold": <span className="text-lg leading-none font-black text-white uppercase">Aa</span>,
     "template:numbers": <span className="text-lg leading-none font-black text-amber-300 tabular-nums">42%</span>,
@@ -774,6 +800,7 @@ function StyleTile({ value, kind, label, help, pressed, onPress }: { value: stri
     "captions:bold": <span className="rounded bg-white px-1.5 py-0.5 text-sm leading-none font-extrabold text-neutral-900">Aa</span>,
     "captions:editorial": <span className="text-sm leading-none font-semibold text-white">Aa bb</span>,
     "captions:minimal": <span className="text-[10px] leading-none font-medium text-white/85 lowercase">aa bb</span>,
+    "look:auto": <Wand2 className="size-4 text-white" />,
   };
   return (
     <button
@@ -784,7 +811,7 @@ function StyleTile({ value, kind, label, help, pressed, onPress }: { value: stri
       className="flex flex-col overflow-hidden rounded-xl border bg-background text-left text-xs font-medium transition hover:border-foreground/30 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none aria-pressed:border-primary aria-pressed:ring-2 aria-pressed:ring-primary/30"
     >
       <span aria-hidden="true" className="flex h-12 items-center justify-center bg-gradient-to-br from-neutral-800 to-neutral-950">
-        {sample[`${kind}:${value}`]}
+        {kind === "look" && isCaptionLook(value) ? <LookSample look={value} /> : sample[`${kind}:${value}`]}
       </span>
       <span className="px-2 py-1.5 leading-tight">{label}</span>
     </button>

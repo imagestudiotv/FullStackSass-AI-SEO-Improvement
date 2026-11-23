@@ -9,6 +9,7 @@ import {
   type ResolvedAudio,
   type VideoFormat,
 } from "../formats";
+import { isCaptionLook } from "../../../remotion/caption-looks";
 import { durationFor } from "./allocation";
 
 /**
@@ -49,6 +50,7 @@ export function productionOf(
     showHook: typeof stored.showHook === "boolean" ? stored.showHook : defaults.showHook,
     includeCta: typeof stored.includeCta === "boolean" ? stored.includeCta : defaults.includeCta,
     ctaText: typeof stored.ctaText === "string" ? stored.ctaText : stored.ctaText === null ? null : defaults.includeCta ? defaults.defaultCta : null,
+    ...(isCaptionLook(stored.captionLook) ? { captionLook: stored.captionLook } : {}),
   };
 }
 
@@ -79,6 +81,12 @@ export function mergeProduction(current: ProductionChoices, edit: Partial<Record
     if (edit[key] === undefined) continue;
     if (typeof edit[key] !== "boolean") return null;
     next[key] = edit[key] as boolean;
+  }
+  if (edit.captionLook !== undefined) {
+    // null: back to the look picked for the video.
+    if (edit.captionLook === null) delete next.captionLook;
+    else if (!isCaptionLook(edit.captionLook)) return null;
+    else next.captionLook = edit.captionLook;
   }
   if (edit.ctaText !== undefined) {
     if (edit.ctaText === null) next.ctaText = null;

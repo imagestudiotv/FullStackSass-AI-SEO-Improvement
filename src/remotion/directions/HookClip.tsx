@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 import { AbsoluteFill, Freeze, OffthreadVideo, Sequence, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
 
 import type { HookType } from "../../lib/video/formats";
-import { hookCaptionLook } from "../caption-looks";
+import { chosenLook, hookCaptionLook } from "../caption-looks";
 import { LookText } from "../components/LookText";
 import { FONT } from "../fonts";
 import { hookTiming, type HookSegment, type ProductionPart } from "../production";
@@ -124,7 +124,7 @@ function FullScreen(props: DirectionProps & ClipProps & { text: string; chip: st
   const enter = interpolate(frame, [2, 10], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   const width = safe.right - safe.left;
   // The video's caption look (client, 2026-11-23), the same for the opening and the payoff.
-  const look = hookCaptionLook(props.plan?.hookClip?.pick?.id, props.script.hook);
+  const look = chosenLook(props.production?.captionLook, hookCaptionLook(props.plan?.hookClip?.pick?.id, props.script.hook));
   const blink = chip ? 0.75 + 0.25 * Math.sin((frame / fps) * Math.PI * 2.4) : 1;
   return (
     <AbsoluteFill style={{ background: "#000", zIndex: 30 }}>

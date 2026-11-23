@@ -7,6 +7,7 @@ import { reelTiming } from "@/remotion/timing";
 
 import {
   audioLock,
+  captionLookApplies,
   canEditIdea,
   captionsApply,
   ctaSwitchApplies,
@@ -202,9 +203,9 @@ describe("the simple controls and the fields they stand for", () => {
   });
 
   it("offers the hook, CTA and captions switches only where the renderer reads them", () => {
-    expect(hookSwitchApplies({ direction: "animated", format: "reel" })).toBe(false);
-    expect(hookSwitchApplies({ direction: "meme", format: "reel" })).toBe(true);
-    expect(hookSwitchApplies({ direction: "meme", format: "carousel" })).toBe(false);
+    expect(hookSwitchApplies({ direction: "animated", format: "reel", pov: false })).toBe(false);
+    expect(hookSwitchApplies({ direction: "meme", format: "reel", pov: false })).toBe(true);
+    expect(hookSwitchApplies({ direction: "meme", format: "carousel", pov: false })).toBe(false);
     expect(ctaSwitchApplies({ direction: "animated", clipOnly: false })).toBe(false);
     expect(ctaSwitchApplies({ direction: "footage", clipOnly: false })).toBe(true);
     expect(captionsApply({ direction: "animated", format: "reel" })).toBe(true);
@@ -297,5 +298,23 @@ describe("the editor preview's music", () => {
     expect(previewMusic("idea-1", base, initial, withMusicChoice(initial, "track:cat-walk"))?.url).toBe("/video-music/mixkit-cat-walk.mp3");
     expect(previewMusic("idea-1", base, initial, withMusicChoice(initial, "mood:none"))).toBeNull();
     expect(previewMusic("idea-1", base, initial, withMusicChoice(initial, "mood:cinematic"))?.url).toContain("/video-music/");
+  });
+});
+
+describe("the text look on a Viral clip", () => {
+  it("can be chosen on a POV or hook clip video only, is previewed and saved; Auto clears it", () => {
+    const pov = formFromIdea({ ...idea({ direction: "meme" }), props: { script: SCRIPT, plan: { ...PLAN, direction: "meme", povClip: { id: "pov", mirror: false, zoom: 1, hue: 0 } } } }, "coral");
+    const hook = formFromIdea({ ...idea({ direction: "footage" }), props: { script: SCRIPT, plan: { ...PLAN, hookClip: { type: "danger" } } } }, "coral");
+    expect(captionLookApplies(pov)).toBe(true);
+    expect(hookSwitchApplies(pov)).toBe(false);
+    expect(captionLookApplies(hook)).toBe(true);
+    expect(captionLookApplies({ ...hook, format: "carousel" })).toBe(false);
+    expect(captionLookApplies({ ...hook, direction: "animated" })).toBe(false);
+    expect(captionLookApplies(formFromIdea(idea({ direction: "footage" }), "coral"))).toBe(false);
+    expect(editFromForm(pov).production?.captionLook).toBeNull();
+    const chosen = { ...pov, production: { ...pov.production, captionLook: "marker" as const } };
+    expect(editFromForm(chosen).production?.captionLook).toBe("marker");
+    expect(previewProps({ ...BASE, plan: PLAN }, chosen, []).production?.captionLook).toBe("marker");
+    expect(isDirty(pov, chosen)).toBe(true);
   });
 });

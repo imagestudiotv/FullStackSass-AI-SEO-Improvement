@@ -1,7 +1,7 @@
 import { useState, type CSSProperties } from "react";
 import { AbsoluteFill, Freeze, OffthreadVideo, Sequence, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
 
-import { povCaptionLook } from "../caption-looks";
+import { chosenLook, povCaptionLook } from "../caption-looks";
 import { LookText } from "../components/LookText";
 import { partEnd } from "../production";
 import type { SceneMedia } from "../props";
@@ -69,10 +69,10 @@ function ClipFill({ clip, lookStyle, startFrom, pal, concept, plan }: DirectionP
 }
 
 /** The POV line in the clip's calm top fifth, inside the safe area, at most three lines, in the video's caption look, popping in over 6 frames. */
-function PovLine({ text, safe, plan }: DirectionProps & { text: string }) {
+function PovLine({ text, safe, plan, production }: DirectionProps & { text: string }) {
   const frame = useCurrentFrame();
   const enter = interpolate(frame, [0, 6], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const look = plan?.povClip ? povCaptionLook(plan.povClip) : "native";
+  const look = chosenLook(production?.captionLook, plan?.povClip ? povCaptionLook(plan.povClip) : "native");
   return (
     <LookText
       look={look}

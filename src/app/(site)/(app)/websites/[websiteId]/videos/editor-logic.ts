@@ -173,9 +173,14 @@ export function withTextStyle(form: EditorForm, value: string): EditorForm {
   return { ...form, production: { ...form.production, captionStyle: value as ProductionChoices["captionStyle"] } };
 }
 
-/** Whether the "Show hook" switch changes the video: productions only, and never a carousel (its cover is the hook). */
-export function hookSwitchApplies(form: Pick<EditorForm, "direction" | "format">): boolean {
-  return form.direction !== "animated" && form.format !== "carousel";
+/** Whether the text look on the clip can be chosen: a POV clip video, or one opening on a hook clip (client, 2026-11-24). */
+export function captionLookApplies(form: Pick<EditorForm, "direction" | "format" | "pov" | "clipOnly">): boolean {
+  return form.pov || (form.clipOnly && form.direction !== "animated" && form.format !== "carousel");
+}
+
+/** Whether the "Show hook" switch changes the video: productions only, never a carousel (its cover is the hook) or a POV clip video (its hook is the video). */
+export function hookSwitchApplies(form: Pick<EditorForm, "direction" | "format" | "pov">): boolean {
+  return form.direction !== "animated" && form.format !== "carousel" && !form.pov;
 }
 
 /** Whether the call-to-action switch and text change the video: productions only, not a Viral video ending on its clip. */
@@ -218,7 +223,7 @@ export function editFromForm(form: EditorForm): IdeaEdit {
     format: form.format,
     category: form.category,
     direction: form.direction,
-    production: { ...form.production, audio, ctaText: form.production.ctaText?.trim() ? form.production.ctaText.trim() : null },
+    production: { ...form.production, audio, ctaText: form.production.ctaText?.trim() ? form.production.ctaText.trim() : null, captionLook: form.production.captionLook ?? null },
     overrides,
     // The older columns follow the new choices, so an older server reads them the same way.
     voice: narrated ? form.voice : null,

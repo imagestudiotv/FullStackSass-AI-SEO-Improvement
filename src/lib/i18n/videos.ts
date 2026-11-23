@@ -337,6 +337,10 @@ export type ViralCopy = {
     textStyleTemplate: string;
     textStyleCaptions: string;
     textStyleFixed: string;
+    /** The text looks on a Viral clip (src/remotion/caption-looks.ts; client, 2026-11-24). */
+    clipText: string;
+    clipTextHint: string;
+    looks: Record<"auto" | "native" | "bold" | "box" | "typewriter" | "meme" | "marker", string>;
     templateAlways: string;
     /** A Viral video ending on its clip (formats.ts endsOnClip; client, 2026-11-23). */
     clipEnds: string;
@@ -686,6 +690,9 @@ const viralEn: ViralCopy = {
     textStyleTemplate: "The template sets the look of every text.",
     textStyleCaptions: "How the captions look on the video.",
     textStyleFixed: "This look sets its own text style.",
+    clipText: "Text on the clip",
+    clipTextHint: "The font of the words on the clip. Auto picks one for this video.",
+    looks: { auto: "Auto", native: "Classic", bold: "Big bold", box: "White label", typewriter: "Typewriter", meme: "Meme", marker: "Handwritten" },
     templateAlways: "The animated templates always open on the hook and end on the closing line.",
     clipEnds: "Viral clip videos end on the clip, with no closing line. Want your web address in it? Write it in the hook.",
     videoFormat: "Video format",
@@ -1070,6 +1077,9 @@ const viralEs: ViralCopy = {
     textStyleTemplate: "La plantilla define el aspecto de todos los textos.",
     textStyleCaptions: "Cómo se ven los subtítulos en el vídeo.",
     textStyleFixed: "Este estilo define su propio estilo de texto.",
+    clipText: "Texto sobre el clip",
+    clipTextHint: "La fuente de las palabras sobre el clip. Automático elige una para este vídeo.",
+    looks: { auto: "Automático", native: "Clásico", bold: "Negrita grande", box: "Etiqueta blanca", typewriter: "Máquina de escribir", meme: "Meme", marker: "Manuscrito" },
     templateAlways: "Las plantillas animadas siempre empiezan con el gancho y terminan con la frase final.",
     clipEnds: "Los vídeos virales con clip terminan en el clip, sin frase final. ¿Quieres tu dirección web? Escríbela en el gancho.",
     videoFormat: "Formato del vídeo",
@@ -1462,6 +1472,9 @@ const viralFr: ViralCopy = {
     textStyleTemplate: "Le modèle définit l’apparence de tous les textes.",
     textStyleCaptions: "L’apparence des sous-titres dans la vidéo.",
     textStyleFixed: "Ce style définit son propre style de texte.",
+    clipText: "Texte sur le clip",
+    clipTextHint: "La police des mots sur le clip. Automatique en choisit une pour cette vidéo.",
+    looks: { auto: "Automatique", native: "Classique", bold: "Gras", box: "Étiquette blanche", typewriter: "Machine à écrire", meme: "Mème", marker: "Manuscrit" },
     templateAlways: "Les modèles animés commencent toujours par l’accroche et finissent par la phrase de fin.",
     clipEnds: "Les vidéos virales à clip se terminent sur le clip, sans phrase de fin. Vous voulez votre adresse web ? Écrivez-la dans l’accroche.",
     videoFormat: "Format de la vidéo",
@@ -1854,6 +1867,9 @@ const viralIt: ViralCopy = {
     textStyleTemplate: "Il modello stabilisce l’aspetto di tutti i testi.",
     textStyleCaptions: "L’aspetto dei sottotitoli nel video.",
     textStyleFixed: "Questo stile ha un suo stile di testo.",
+    clipText: "Testo sul clip",
+    clipTextHint: "Il carattere delle parole sul clip. Automatico ne sceglie uno per questo video.",
+    looks: { auto: "Automatico", native: "Classico", bold: "Grassetto", box: "Etichetta bianca", typewriter: "Macchina da scrivere", meme: "Meme", marker: "A mano" },
     templateAlways: "I modelli animati iniziano sempre con il gancio e finiscono con la frase di chiusura.",
     clipEnds: "I video virali con clip finiscono sul clip, senza frase di chiusura. Vuoi il tuo indirizzo web? Scrivilo nel gancio.",
     videoFormat: "Formato del video",
@@ -2246,6 +2262,9 @@ const viralDe: ViralCopy = {
     textStyleTemplate: "Die Vorlage bestimmt das Aussehen aller Texte.",
     textStyleCaptions: "Wie die Untertitel im Video aussehen.",
     textStyleFixed: "Dieser Look hat seinen eigenen Textstil.",
+    clipText: "Text auf dem Clip",
+    clipTextHint: "Die Schrift der Wörter auf dem Clip. Automatisch wählt eine für dieses Video.",
+    looks: { auto: "Automatisch", native: "Klassisch", bold: "Groß und fett", box: "Weißes Etikett", typewriter: "Schreibmaschine", meme: "Meme", marker: "Handschrift" },
     templateAlways: "Die animierten Vorlagen beginnen immer mit dem Hook und enden mit dem Schlusssatz.",
     clipEnds: "Virale Clip-Videos enden mit dem Clip, ohne Schlusssatz. Ihre Webadresse soll rein? Schreiben Sie sie in den Hook.",
     videoFormat: "Videoformat",
