@@ -263,7 +263,7 @@ export function IdeasDeck(props: {
         ? v.formats.story
         : t.reel;
   // The animated templates are what the preview really plays; the new directions are made from footage, voice and music later.
-  const previewNote = current.direction === "animated" ? t.previewNote : v.previewConcept;
+  const previewNote = current.direction === "animated" ? t.previewNote : current.props.music && current.format !== "carousel" ? v.previewMusic : v.previewConcept;
   const arrow =
     "absolute top-[45%] z-10 flex size-9 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm transition hover:bg-primary/10 hover:text-primary focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none disabled:opacity-40 sm:size-11";
 

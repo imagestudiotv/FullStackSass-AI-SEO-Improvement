@@ -29,9 +29,11 @@ export function ReelPreview({ props, autoPlay = true, className }: { props: Reel
       compositionHeight={REEL.height}
       fps={REEL.fps}
       autoPlay={autoPlay}
-      // A preview has no sound yet. Muted, the player keeps its own time instead of the browser's audio
+      // An idea's preview starts without sound, its music too (a tap on the speaker plays it). Muted, the player keeps its own time instead of the browser's audio
       // clock, which stays suspended until the visitor clicks something - and the preview would not move.
-      initiallyMuted={!props.voiceUrl && !props.music}
+      initiallyMuted={!props.voiceUrl}
+      // Unmuting resets the shared audio tags of the player, and the music would stay silent: each sound has its own tag.
+      numberOfSharedAudioTags={0}
       loop
       controls
       clickToPlay

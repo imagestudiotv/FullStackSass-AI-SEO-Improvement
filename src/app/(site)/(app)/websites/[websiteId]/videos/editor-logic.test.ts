@@ -19,6 +19,7 @@ import {
   musicChoice,
   partFrame,
   partSlide,
+  previewMusic,
   previewProps,
   textStyles,
   visibleParts,
@@ -284,5 +285,17 @@ describe("the editor for a Viral clip video", () => {
     const form = formFromIdea(idea({ direction: "footage" }), "coral");
     expect(form).toMatchObject({ pov: false, clipOnly: false });
     expect(ctaSwitchApplies(form)).toBe(true);
+  });
+});
+
+describe("the editor preview's music", () => {
+  const base = { ...BASE, plan: PLAN, music: { url: "/video-music/own.mp3", volume: 0.45 } };
+  const initial = formFromIdea(idea({ direction: "footage" }), "coral");
+
+  it("is the idea's own until it is changed, then the choice: another track, or none", () => {
+    expect(previewMusic("idea-1", base, initial, initial)).toBe(base.music);
+    expect(previewMusic("idea-1", base, initial, withMusicChoice(initial, "track:cat-walk"))?.url).toBe("/video-music/mixkit-cat-walk.mp3");
+    expect(previewMusic("idea-1", base, initial, withMusicChoice(initial, "mood:none"))).toBeNull();
+    expect(previewMusic("idea-1", base, initial, withMusicChoice(initial, "mood:cinematic"))?.url).toContain("/video-music/");
   });
 });

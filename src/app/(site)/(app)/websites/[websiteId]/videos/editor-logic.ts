@@ -38,6 +38,7 @@ import {
   type VideoScript,
   type VideoStyle,
 } from "@/lib/video/formats";
+import { ideaTrack, MUSIC_VOLUME, musicUrl } from "@/lib/video/music";
 import { maxPointsFor } from "@/lib/video/strategy/duration";
 import { partEnd, productionOf, productionParts, productionTimeline } from "@/remotion/production";
 import { isProduction, type ProductionReelProps } from "@/remotion/props";
@@ -244,8 +245,28 @@ export function editorProblems(form: EditorForm): EditorProblem[] {
 }
 
 /**
+ * The music the editor's preview plays: the idea's own while nothing about it
+ * changed, else the track the video would be made with if saved like this
+ * (music.ts ideaTrack) - so another track, another mood or "No music" is heard.
+ */
+export function previewMusic(ideaId: string, base: ProductionReelProps, initial: EditorForm, form: EditorForm): ProductionReelProps["music"] {
+  if (musicChoice(form) === musicChoice(initial) && form.direction === initial.direction) return base.music;
+  const track = ideaTrack({
+    id: ideaId,
+    style: form.style,
+    musicTrack: form.production.music === "none" ? "none" : form.music,
+    direction: form.direction,
+    hasProduction: true,
+    music: form.production.music,
+    planMood: base.plan?.musicMood ?? null,
+    websiteMusic: true,
+  });
+  return track ? { url: musicUrl(track, ""), volume: MUSIC_VOLUME.alone } : null;
+}
+
+/**
  * The preview's props: the idea's own, with the form's words and choices.
- * Always silent - the voice is spoken again after an edit, and the editor's
+ * Never with a voice - the voice is spoken again after an edit, and the editor's
  * preview has none - so the scenes follow reading-speed timing.
  */
 export function previewProps(base: ProductionReelProps, form: EditorForm, media: ProductionReelProps["media"]): ProductionReelProps {

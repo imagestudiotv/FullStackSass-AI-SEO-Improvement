@@ -55,6 +55,7 @@ import {
   musicChoice,
   partFrame,
   partSlide,
+  previewMusic,
   previewProps,
   textStyles,
   textStyleValue,
@@ -118,7 +119,10 @@ export function EditDialog(props: {
   const dirty = editable && isDirty(initial, form);
   const edit = editFromForm(form);
   const problems = editable ? editorProblems(form) : [];
-  const preview = useMemo(() => previewProps(idea.props as ProductionReelProps, form, media), [idea.props, form, media]);
+  const preview = useMemo(() => {
+    const base = idea.props as ProductionReelProps;
+    return { ...previewProps(base, form, media), music: previewMusic(idea.id, base, initial, form) };
+  }, [idea.id, idea.props, initial, form, media]);
   const video = form.format !== "carousel";
   const audio = effectiveAudio(form);
   const narrated = video && audio === "voiceover";
@@ -187,7 +191,7 @@ export function EditDialog(props: {
         <div className="min-h-0 flex-1 overflow-y-auto md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] md:overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(0,30rem)]">
           <section aria-label={c.preview} className="flex flex-col items-center gap-3 bg-muted/40 px-4 py-4 md:justify-center md:overflow-y-auto">
             <EditorPreview props={preview} part={selected} onPart={setSelected} t={t} />
-            <p className="max-w-sm text-center text-xs text-muted-foreground">{form.direction === "animated" ? t.previewNote : v.previewConcept}</p>
+            <p className="max-w-sm text-center text-xs text-muted-foreground">{form.direction === "animated" ? t.previewNote : (preview.music && video ? v.previewMusic : v.previewConcept)}</p>
           </section>
 
           <div className="min-w-0 border-t md:overflow-y-auto md:border-t-0 md:border-l">
@@ -664,6 +668,8 @@ function EditorPreview({ props, part, onPart, t }: { props: ProductionReelProps;
             fps={REEL.fps}
             initialFrame={frame}
             initiallyMuted
+            // Unmuting resets the shared audio tags of the player, and the music would stay silent: each sound has its own tag.
+            numberOfSharedAudioTags={0}
             loop
             controls
             clickToPlay
