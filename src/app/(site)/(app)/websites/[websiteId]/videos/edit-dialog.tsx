@@ -55,6 +55,7 @@ import {
   musicChoice,
   partFrame,
   partSlide,
+  previewMusic,
   previewProps,
   textStyles,
   textStyleValue,
@@ -118,7 +119,10 @@ export function EditDialog(props: {
   const dirty = editable && isDirty(initial, form);
   const edit = editFromForm(form);
   const problems = editable ? editorProblems(form) : [];
-  const preview = useMemo(() => previewProps(idea.props as ProductionReelProps, form, media), [idea.props, form, media]);
+  const preview = useMemo(() => {
+    const base = idea.props as ProductionReelProps;
+    return { ...previewProps(base, form, media), music: previewMusic(idea.id, base, initial, form) };
+  }, [idea.id, idea.props, initial, form, media]);
   const video = form.format !== "carousel";
   const audio = effectiveAudio(form);
   const narrated = video && audio === "voiceover";
@@ -187,7 +191,7 @@ export function EditDialog(props: {
         <div className="min-h-0 flex-1 overflow-y-auto md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] md:overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(0,30rem)]">
           <section aria-label={c.preview} className="flex flex-col items-center gap-3 bg-muted/40 px-4 py-4 md:justify-center md:overflow-y-auto">
             <EditorPreview props={preview} part={selected} onPart={setSelected} t={t} />
-            <p className="max-w-sm text-center text-xs text-muted-foreground">{form.direction === "animated" ? t.previewNote : v.previewConcept}</p>
+            <p className="max-w-sm text-center text-xs text-muted-foreground">{form.direction === "animated" ? t.previewNote : (preview.music && video ? v.previewMusic : v.previewConcept)}</p>
           </section>
 
           <div className="min-w-0 border-t md:overflow-y-auto md:border-t-0 md:border-l">
@@ -219,70 +223,81 @@ export function EditDialog(props: {
                     </div>
                     <TextRow selected={selected === 0} note={hookSwitchApplies(form) && !form.production.showHook ? c.hookOff : null}>
                       <Field label={t.hook}>
-                        <Input value={form.script.hook} maxLength={80} aria-invalid={problems.includes("hook") || undefined} {...onScreen(0)} onChange={(event) => setScript({ hook: event.target.value })} />
+                        <Input value={form.script.hook} maxLength={form.pov ? 90 /* strategy/pov.ts POV_LINE_MAX */ : 80} aria-invalid={problems.includes("hook") || undefined} {...onScreen(0)} onChange={(event) => setScript({ hook: event.target.value })} />
                       </Field>
                     </TextRow>
-                    {form.script.points.map((point, index) => (
-                      <TextRow key={index} selected={selected === index + 1} muted={index >= max}>
-                        <div className="flex items-end gap-2">
-                          <div className="min-w-0 flex-1">
-                            <Field label={format(t.point, { index: String(index + 1) })}>
-                              <Input
-                                value={point.title}
-                                maxLength={48}
-                                aria-invalid={(index < max && problems.includes("point") && !point.title.trim()) || undefined}
-                                {...onScreen(index + 1)}
-                                onChange={(event) => setPoint(index, { title: event.target.value })}
-                              />
-                            </Field>
-                          </div>
-                          {n > MIN_POINTS ? (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              aria-label={format(c.removePoint, { index: String(index + 1) })}
-                              onClick={() => {
-                                setScript({ points: form.script.points.filter((_, at) => at !== index) });
-                                setSelected(0);
-                              }}
-                            >
-                              <X aria-hidden="true" />
-                            </Button>
-                          ) : null}
-                        </div>
-                        {figuresApply(form) ? <FigureFields point={point} onChange={(change) => setPoint(index, change)} onFocus={() => setSelected(index + 1)} t={t} /> : null}
-                      </TextRow>
-                    ))}
-                    {n > max ? <p className="text-xs text-muted-foreground">{format(c.tooManyPoints, { max: String(max) })}</p> : null}
-                    {n < max ? (
-                      <Button variant="outline" size="sm" onClick={() => setScript({ points: [...form.script.points, { title: "", detail: "", stat: null }] })}>
-                        <Plus aria-hidden="true" />
-                        {t.addPoint}
-                      </Button>
+                    {/* A POV clip video is its one line (client, 2026-11-21). */}
+                    {!form.pov ? (
+                      <>
+                        {form.script.points.map((point, index) => (
+                          <TextRow key={index} selected={selected === index + 1} muted={index >= max}>
+                            <div className="flex items-end gap-2">
+                              <div className="min-w-0 flex-1">
+                                <Field label={format(t.point, { index: String(index + 1) })}>
+                                  <Input
+                                    value={point.title}
+                                    maxLength={48}
+                                    aria-invalid={(index < max && problems.includes("point") && !point.title.trim()) || undefined}
+                                    {...onScreen(index + 1)}
+                                    onChange={(event) => setPoint(index, { title: event.target.value })}
+                                  />
+                                </Field>
+                              </div>
+                              {n > MIN_POINTS ? (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  aria-label={format(c.removePoint, { index: String(index + 1) })}
+                                  onClick={() => {
+                                    setScript({ points: form.script.points.filter((_, at) => at !== index) });
+                                    setSelected(0);
+                                  }}
+                                >
+                                  <X aria-hidden="true" />
+                                </Button>
+                              ) : null}
+                            </div>
+                            {figuresApply(form) ? <FigureFields point={point} onChange={(change) => setPoint(index, change)} onFocus={() => setSelected(index + 1)} t={t} /> : null}
+                          </TextRow>
+                        ))}
+                        {n > max ? <p className="text-xs text-muted-foreground">{format(c.tooManyPoints, { max: String(max) })}</p> : null}
+                        {n < max ? (
+                          <Button variant="outline" size="sm" onClick={() => setScript({ points: [...form.script.points, { title: "", detail: "", stat: null }] })}>
+                            <Plus aria-hidden="true" />
+                            {t.addPoint}
+                          </Button>
+                        ) : null}
+                        <TextRow selected={selected === n + 1}>
+                          <Field label={t.proof}>
+                            <Input value={form.script.proof} maxLength={160} {...onScreen(n + 1)} onChange={(event) => setScript({ proof: event.target.value })} />
+                          </Field>
+                        </TextRow>
+                      </>
                     ) : null}
-                    <TextRow selected={selected === n + 1}>
-                      <Field label={t.proof}>
-                        <Input value={form.script.proof} maxLength={160} {...onScreen(n + 1)} onChange={(event) => setScript({ proof: event.target.value })} />
-                      </Field>
-                    </TextRow>
-                    <TextRow
-                      selected={selected === n + 2}
-                      note={ctaSwitchApplies(form) ? (!form.production.includeCta ? c.ctaOff : form.production.ctaText?.trim() ? c.ctaReplaced : null) : null}
-                    >
-                      <Field label={t.cta}>
-                        <Input value={form.script.cta} maxLength={80} {...onScreen(n + 2)} onChange={(event) => setScript({ cta: event.target.value })} />
-                      </Field>
-                    </TextRow>
+                    {!form.clipOnly ? (
+                      <>
+                        <TextRow
+                          selected={selected === n + 2}
+                          note={ctaSwitchApplies(form) ? (!form.production.includeCta ? c.ctaOff : form.production.ctaText?.trim() ? c.ctaReplaced : null) : null}
+                        >
+                          <Field label={t.cta}>
+                            <Input value={form.script.cta} maxLength={80} {...onScreen(n + 2)} onChange={(event) => setScript({ cta: event.target.value })} />
+                          </Field>
+                        </TextRow>
+                      </>
+                    ) : null}
                   </section>
 
-                  <Accordion title={c.voiceoverScript} badge={c.optional}>
-                    <p className="text-xs text-muted-foreground">{narrated ? c.voiceoverHint : c.voiceoverSilent}</p>
-                    {form.script.points.slice(0, max).map((point, index) => (
-                      <Field key={index} label={format(c.pointAdds, { index: String(index + 1) })}>
-                        <Textarea rows={2} maxLength={180} value={point.detail} onFocus={() => setSelected(index + 1)} onChange={(event) => setPoint(index, { detail: event.target.value })} />
-                      </Field>
-                    ))}
-                  </Accordion>
+                  {!form.pov ? (
+                    <Accordion title={c.voiceoverScript} badge={c.optional}>
+                      <p className="text-xs text-muted-foreground">{narrated ? c.voiceoverHint : c.voiceoverSilent}</p>
+                      {form.script.points.slice(0, max).map((point, index) => (
+                        <Field key={index} label={format(c.pointAdds, { index: String(index + 1) })}>
+                          <Textarea rows={2} maxLength={180} value={point.detail} onFocus={() => setSelected(index + 1)} onChange={(event) => setPoint(index, { detail: event.target.value })} />
+                        </Field>
+                      ))}
+                    </Accordion>
+                  ) : null}
 
                   <Accordion title={c.socialCaption} open={problems.includes("caption")}>
                     <Field label={t.caption} hint={c.captionHint}>
@@ -403,7 +418,7 @@ export function EditDialog(props: {
                         ) : null}
                       </>
                     ) : (
-                      <p className="text-xs text-muted-foreground">{c.templateAlways}</p>
+                      <p className="text-xs text-muted-foreground">{form.clipOnly ? c.clipEnds : c.templateAlways}</p>
                     )}
                   </div>
                 </TabsContent>
@@ -653,6 +668,8 @@ function EditorPreview({ props, part, onPart, t }: { props: ProductionReelProps;
             fps={REEL.fps}
             initialFrame={frame}
             initiallyMuted
+            // Unmuting resets the shared audio tags of the player, and the music would stay silent: each sound has its own tag.
+            numberOfSharedAudioTags={0}
             loop
             controls
             clickToPlay

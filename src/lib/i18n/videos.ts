@@ -262,6 +262,8 @@ export type ViralCopy = {
     checked: string;
   };
   previewConcept: string;
+  /** An idea's preview that has music (client, 2026-11-23). */
+  previewMusic: string;
   noCta: string;
   edit: {
     description: string;
@@ -336,6 +338,8 @@ export type ViralCopy = {
     textStyleCaptions: string;
     textStyleFixed: string;
     templateAlways: string;
+    /** A Viral video ending on its clip (formats.ts endsOnClip; client, 2026-11-23). */
+    clipEnds: string;
     videoFormat: string;
     /** "{ratio} · {name}" */
     formatOption: string;
@@ -615,6 +619,7 @@ const viralEn: ViralCopy = {
     checked: "Checked by you",
   },
   previewConcept: "Concept preview, muted. Footage, voice and music are chosen when the video is made.",
+  previewMusic: "Preview, sound off: tap the speaker to hear its music. Anything still missing, such as the voice, is added when the video is made.",
   noCta: "No call to action",
   edit: {
     description: "Change the idea before it is made. Saving is free; only creating uses credits.",
@@ -682,6 +687,7 @@ const viralEn: ViralCopy = {
     textStyleCaptions: "How the captions look on the video.",
     textStyleFixed: "This look sets its own text style.",
     templateAlways: "The animated templates always open on the hook and end on the closing line.",
+    clipEnds: "Viral clip videos end on the clip, with no closing line. Want your web address in it? Write it in the hook.",
     videoFormat: "Video format",
     formatOption: "{ratio} · {name}",
     voiceover: "Voiceover",
@@ -997,6 +1003,7 @@ const viralEs: ViralCopy = {
     checked: "Comprobado por usted",
   },
   previewConcept: "Vista previa del concepto, sin sonido. Las imágenes, la voz y la música se eligen al crear el vídeo.",
+  previewMusic: "Vista previa sin sonido: toca el altavoz para oír su música. Lo que aún falta, como la voz, se añade al crear el vídeo.",
   noCta: "Sin llamada a la acción",
   edit: {
     description: "Cambie la idea antes de crearla. Guardar es gratis; solo crear usa créditos.",
@@ -1064,6 +1071,7 @@ const viralEs: ViralCopy = {
     textStyleCaptions: "Cómo se ven los subtítulos en el vídeo.",
     textStyleFixed: "Este estilo define su propio estilo de texto.",
     templateAlways: "Las plantillas animadas siempre empiezan con el gancho y terminan con la frase final.",
+    clipEnds: "Los vídeos virales con clip terminan en el clip, sin frase final. ¿Quieres tu dirección web? Escríbela en el gancho.",
     videoFormat: "Formato del vídeo",
     formatOption: "{ratio} · {name}",
     voiceover: "Voz en off",
@@ -1387,6 +1395,7 @@ const viralFr: ViralCopy = {
     checked: "Vérifié par vous",
   },
   previewConcept: "Aperçu du concept, sans son. Les images, la voix et la musique sont choisies lors de la création de la vidéo.",
+  previewMusic: "Aperçu, son coupé : touchez le haut-parleur pour entendre sa musique. Ce qui manque encore, comme la voix, est ajouté lors de la création de la vidéo.",
   noCta: "Pas d’appel à l’action",
   edit: {
     description: "Modifiez l’idée avant sa création. Enregistrer est gratuit ; seule la création utilise des crédits.",
@@ -1454,6 +1463,7 @@ const viralFr: ViralCopy = {
     textStyleCaptions: "L’apparence des sous-titres dans la vidéo.",
     textStyleFixed: "Ce style définit son propre style de texte.",
     templateAlways: "Les modèles animés commencent toujours par l’accroche et finissent par la phrase de fin.",
+    clipEnds: "Les vidéos virales à clip se terminent sur le clip, sans phrase de fin. Vous voulez votre adresse web ? Écrivez-la dans l’accroche.",
     videoFormat: "Format de la vidéo",
     formatOption: "{ratio} · {name}",
     voiceover: "Voix off",
@@ -1777,6 +1787,7 @@ const viralIt: ViralCopy = {
     checked: "Controllato da lei",
   },
   previewConcept: "Anteprima del concept, senza audio. Riprese, voce e musica vengono scelte quando il video viene creato.",
+  previewMusic: "Anteprima senza audio: tocca l’altoparlante per sentire la musica. Ciò che ancora manca, come la voce, viene aggiunto quando il video viene creato.",
   noCta: "Nessun invito all’azione",
   edit: {
     description: "Modifichi l’idea prima della creazione. Salvare è gratis; solo creare usa crediti.",
@@ -1844,6 +1855,7 @@ const viralIt: ViralCopy = {
     textStyleCaptions: "L’aspetto dei sottotitoli nel video.",
     textStyleFixed: "Questo stile ha un suo stile di testo.",
     templateAlways: "I modelli animati iniziano sempre con il gancio e finiscono con la frase di chiusura.",
+    clipEnds: "I video virali con clip finiscono sul clip, senza frase di chiusura. Vuoi il tuo indirizzo web? Scrivilo nel gancio.",
     videoFormat: "Formato del video",
     formatOption: "{ratio} · {name}",
     voiceover: "Voce fuori campo",
@@ -2167,6 +2179,7 @@ const viralDe: ViralCopy = {
     checked: "Von Ihnen geprüft",
   },
   previewConcept: "Konzeptvorschau, ohne Ton. Aufnahmen, Stimme und Musik werden beim Erstellen des Videos gewählt.",
+  previewMusic: "Vorschau, Ton aus: Tippen Sie auf den Lautsprecher, um die Musik zu hören. Was noch fehlt, etwa die Stimme, kommt beim Erstellen des Videos dazu.",
   noCta: "Kein Handlungsaufruf",
   edit: {
     description: "Ändern Sie die Idee, bevor sie erstellt wird. Speichern ist kostenlos; nur das Erstellen kostet Credits.",
@@ -2234,6 +2247,7 @@ const viralDe: ViralCopy = {
     textStyleCaptions: "Wie die Untertitel im Video aussehen.",
     textStyleFixed: "Dieser Look hat seinen eigenen Textstil.",
     templateAlways: "Die animierten Vorlagen beginnen immer mit dem Hook und enden mit dem Schlusssatz.",
+    clipEnds: "Virale Clip-Videos enden mit dem Clip, ohne Schlusssatz. Ihre Webadresse soll rein? Schreiben Sie sie in den Hook.",
     videoFormat: "Videoformat",
     formatOption: "{ratio} · {name}",
     voiceover: "Sprecherstimme",

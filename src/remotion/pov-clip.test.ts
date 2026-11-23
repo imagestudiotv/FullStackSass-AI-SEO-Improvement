@@ -1,13 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import { silentTiming, type ProductionChoices, type ReelProps, type ShotPlan, type VideoScript } from "../lib/video/formats";
-import { POV_CLIP_MS, POV_CTA_MS, productionParts, productionTimeline } from "./production";
+import { POV_CLIP_MS, productionParts, productionTimeline } from "./production";
 import type { ProductionReelProps, SceneMedia } from "./props";
 
 /**
  * POV clip videos (client, 2026-11-21): the AI clip full screen for its
- * whole length with the POV line on top, then the CTA card when included;
- * silent, no word captions. Every other production keeps its timing.
+ * whole length with the POV line on top and nothing after it (client,
+ * 2026-11-23: no closing line); silent, no word captions. Every other
+ * production keeps its timing.
  */
 
 const SCRIPT: VideoScript = {
@@ -55,11 +56,11 @@ function props(overrides: Partial<ProductionReelProps> = {}, choices: Partial<Pr
 }
 
 describe("a POV clip video's parts", () => {
-  it("is the POV line, then the CTA - no points or proof", () => {
+  it("is the POV line alone - no points, proof or closing line, even with the CTA on", () => {
     const parts = productionParts(SCRIPT, CHOICES, plan(POV));
-    expect(parts.map((p) => p.role)).toEqual(["hook", "cta"]);
+    expect(parts.map((p) => p.role)).toEqual(["hook"]);
     expect(parts[0]).toMatchObject({ part: 0, title: SCRIPT.hook, spoken: SCRIPT.hook, detail: null });
-    expect(parts[1]).toMatchObject({ part: 4, title: SCRIPT.cta, spoken: SCRIPT.cta });
+    expect(productionParts(SCRIPT, { ...CHOICES, ctaText: " Order at the bakery " }, plan(POV)).map((p) => p.role)).toEqual(["hook"]);
   });
 
   it("always shows the POV line, even with the hook switched off", () => {
@@ -67,43 +68,43 @@ describe("a POV clip video's parts", () => {
     expect(parts[0].role).toBe("hook");
   });
 
-  it("leaves the CTA out when it is off, and uses the custom CTA text", () => {
-    expect(productionParts(SCRIPT, { ...CHOICES, includeCta: false }, plan(POV)).map((p) => p.role)).toEqual(["hook"]);
-    expect(productionParts(SCRIPT, { ...CHOICES, ctaText: " Order at the bakery " }, plan(POV))[1].title).toBe("Order at the bakery");
+  it("a video opening on a visual hook clip ends on the clip too, with its points and proof", () => {
+    const hooked: ShotPlan = { ...plan(undefined), hookClip: { type: "danger", pick: null } };
+    expect(productionParts(SCRIPT, CHOICES, hooked).map((p) => p.role)).toEqual(["hook", "point", "point", "proof"]);
+    // Other productions keep the closing line, with the custom text.
+    expect(productionParts(SCRIPT, { ...CHOICES, ctaText: " Order at the bakery " }, plan(undefined)).at(-1)).toMatchObject({ role: "cta", title: "Order at the bakery" });
   });
 });
 
 describe("a POV clip video's timeline", () => {
-  it("plays the clip's length, then the CTA card, at 30 fps", () => {
+  it("plays the clip's length and ends with it, at 30 fps", () => {
     const timeline = productionTimeline(props(), 30);
-    expect(timeline.starts).toEqual([0, 300]);
-    expect(timeline.durationInFrames).toBe(300 + (POV_CTA_MS / 1000) * 30);
+    expect(timeline.starts).toEqual([0]);
+    expect(timeline.durationInFrames).toBe(300);
     expect(timeline).toMatchObject({ fits: true, voiced: false, words: [] });
   });
 
   it("takes the clip's own length from sceneMedia", () => {
-    expect(productionTimeline(props({ sceneMedia: [clip(8_000)] }), 30).starts).toEqual([0, 240]);
+    expect(productionTimeline(props({ sceneMedia: [clip(8_000)] }), 30).durationInFrames).toBe(240);
   });
 
   it("falls back to 10 s without the clip or its length", () => {
     for (const sceneMedia of [undefined, null, [], [null], [clip(null)], [clip(0)]]) {
-      expect(productionTimeline(props({ sceneMedia }), 30).starts, JSON.stringify(sceneMedia)).toEqual([0, (POV_CLIP_MS / 1000) * 30]);
+      expect(productionTimeline(props({ sceneMedia }), 30).durationInFrames, JSON.stringify(sceneMedia)).toBe((POV_CLIP_MS / 1000) * 30);
     }
   });
 
   it("never plays more than 15 s of clip", () => {
-    expect(productionTimeline(props({ sceneMedia: [clip(40_000)] }), 30).starts).toEqual([0, 450]);
+    expect(productionTimeline(props({ sceneMedia: [clip(40_000)] }), 30).durationInFrames).toBe(450);
   });
 
-  it("ends with the clip when the CTA is off", () => {
-    const timeline = productionTimeline(props({}, { includeCta: false }), 30);
-    expect(timeline.starts).toEqual([0]);
-    expect(timeline.durationInFrames).toBe(300);
+  it("is the same with the CTA switched off", () => {
+    expect(productionTimeline(props({}, { includeCta: false }), 30)).toEqual(productionTimeline(props(), 30));
   });
 
   it("stays silent and captionless even with a voice in the props", () => {
     const timeline = productionTimeline(props({ voiceUrl: "https://example.test/voice.mp3", voiceMs: 9000, sceneStartsMs: [0, 9000], words: [{ text: "POV", startMs: 0, endMs: 300 }] }), 30);
-    expect(timeline).toMatchObject({ voiced: false, words: [], starts: [0, 300] });
+    expect(timeline).toMatchObject({ voiced: false, words: [], starts: [0], durationInFrames: 300 });
   });
 });
 

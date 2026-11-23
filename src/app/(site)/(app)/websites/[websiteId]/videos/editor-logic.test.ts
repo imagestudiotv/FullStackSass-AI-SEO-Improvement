@@ -19,6 +19,7 @@ import {
   musicChoice,
   partFrame,
   partSlide,
+  previewMusic,
   previewProps,
   textStyles,
   visibleParts,
@@ -204,8 +205,8 @@ describe("the simple controls and the fields they stand for", () => {
     expect(hookSwitchApplies({ direction: "animated", format: "reel" })).toBe(false);
     expect(hookSwitchApplies({ direction: "meme", format: "reel" })).toBe(true);
     expect(hookSwitchApplies({ direction: "meme", format: "carousel" })).toBe(false);
-    expect(ctaSwitchApplies({ direction: "animated" })).toBe(false);
-    expect(ctaSwitchApplies({ direction: "footage" })).toBe(true);
+    expect(ctaSwitchApplies({ direction: "animated", clipOnly: false })).toBe(false);
+    expect(ctaSwitchApplies({ direction: "footage", clipOnly: false })).toBe(true);
     expect(captionsApply({ direction: "animated", format: "reel" })).toBe(true);
     expect(captionsApply({ direction: "animated", format: "carousel" })).toBe(false);
     expect(captionsApply({ direction: "footage", format: "reel" })).toBe(false);
@@ -263,5 +264,38 @@ describe("the live preview", () => {
     const props = previewProps(BASE, form, []);
     expect(visibleParts(props)).toEqual([0, 1, 2, 3, 4, 5]);
     expect(partSlide(props, 4)).toBe(4);
+  });
+});
+
+/** Viral clip videos in the editor (client, 2026-11-21 and 2026-11-23). */
+describe("the editor for a Viral clip video", () => {
+  it("knows a POV clip video (its one line is the hook) and hides the closing line", () => {
+    const form = formFromIdea({ ...idea({ direction: "meme" }), props: { script: SCRIPT, plan: { ...PLAN, direction: "meme", povClip: { id: "pov", mirror: false, zoom: 1, hue: 0 } } } }, "coral");
+    expect(form).toMatchObject({ pov: true, clipOnly: true });
+    expect(ctaSwitchApplies(form)).toBe(false);
+  });
+
+  it("hides the closing line of a video opening on a hook clip, but keeps its points", () => {
+    const form = formFromIdea({ ...idea({ direction: "footage" }), props: { script: SCRIPT, plan: { ...PLAN, hookClip: { type: "danger" } } } }, "coral");
+    expect(form).toMatchObject({ pov: false, clipOnly: true });
+    expect(ctaSwitchApplies(form)).toBe(false);
+  });
+
+  it("keeps the closing line for every other production", () => {
+    const form = formFromIdea(idea({ direction: "footage" }), "coral");
+    expect(form).toMatchObject({ pov: false, clipOnly: false });
+    expect(ctaSwitchApplies(form)).toBe(true);
+  });
+});
+
+describe("the editor preview's music", () => {
+  const base = { ...BASE, plan: PLAN, music: { url: "/video-music/own.mp3", volume: 0.45 } };
+  const initial = formFromIdea(idea({ direction: "footage" }), "coral");
+
+  it("is the idea's own until it is changed, then the choice: another track, or none", () => {
+    expect(previewMusic("idea-1", base, initial, initial)).toBe(base.music);
+    expect(previewMusic("idea-1", base, initial, withMusicChoice(initial, "track:cat-walk"))?.url).toBe("/video-music/mixkit-cat-walk.mp3");
+    expect(previewMusic("idea-1", base, initial, withMusicChoice(initial, "mood:none"))).toBeNull();
+    expect(previewMusic("idea-1", base, initial, withMusicChoice(initial, "mood:cinematic"))?.url).toContain("/video-music/");
   });
 });

@@ -1,37 +1,21 @@
 import { useState, type CSSProperties } from "react";
 import { AbsoluteFill, Freeze, OffthreadVideo, Sequence, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
 
-import { LogoTile, TEXT_SAFE } from "../components/ui";
-import { FONT } from "../fonts";
+import { povCaptionLook } from "../caption-looks";
+import { LookText } from "../components/LookText";
 import { partEnd } from "../production";
 import type { SceneMedia } from "../props";
-import { CtaScene } from "../scenes/Cta";
-import { fitFontSize } from "../text";
-import { alpha } from "../theme";
 import { ConceptFrame, type DirectionProps } from "./common";
 
 /**
  * A POV clip video (client, 2026-11-21; ShotPlan.povClip): one of RepGet's AI
- * POV clips full screen for its whole length, the customer's POV line on
- * top as Instagram meme reels write it - white, bold, centred, plain text
- * (no white bar: that is the Meme direction) - and the brand small at the
- * bottom; then the closing card over the clip's last frame. Each video's
- * copy of a clip is mirrored, zoomed and hue-turned by its plan ("to not be
- * 100 same videos identic online"). Timing: production.ts povTimeline.
+ * POV clips full screen for its whole length with the customer's POV line on
+ * top in the video's caption look (caption-looks.ts) - and nothing else: no
+ * brand mark, no closing card, no web address (client, 2026-11-23: "we want
+ * to keep only the viral video with text on it"). Each video's copy of a
+ * clip is mirrored, zoomed and hue-turned by its plan ("to not be 100 same
+ * videos identic online"). Timing: production.ts povTimeline.
  */
-
-/** A dark outline and glow, so white words read on any clip. */
-const OUTLINE = [
-  "-2px -2px 0 #000",
-  "2px -2px 0 #000",
-  "-2px 2px 0 #000",
-  "2px 2px 0 #000",
-  "0 -2px 0 #000",
-  "0 2px 0 #000",
-  "-2px 0 0 #000",
-  "2px 0 0 #000",
-  "0 4px 18px rgba(0,0,0,0.55)",
-].join(", ");
 
 export function PovClipProduction(props: DirectionProps) {
   const { timeline, plan } = props;
@@ -48,7 +32,6 @@ export function PovClipProduction(props: DirectionProps) {
     transform: `scaleX(${look?.mirror ? -1 : 1}) scale(${look?.zoom ?? 1})`,
     filter: look?.hue ? `hue-rotate(${look.hue}deg)` : undefined,
   };
-  const cta = timeline.parts.findIndex((part) => part.role === "cta");
   return (
     <>
       {hook ? (
@@ -58,18 +41,6 @@ export function PovClipProduction(props: DirectionProps) {
               <ClipFill {...props} clip={clip} lookStyle={lookStyle} startFrom={0} />
             </Freeze>
             <PovLine {...props} text={hook.title} />
-            <BrandMark {...props} />
-          </AbsoluteFill>
-        </Sequence>
-      ) : null}
-      {cta > 0 ? (
-        <Sequence from={timeline.starts[cta]} durationInFrames={Math.max(1, partEnd(timeline, cta) - timeline.starts[cta])} layout="none">
-          <AbsoluteFill>
-            <Freeze frame={0}>
-              <ClipFill {...props} clip={clip} lookStyle={lookStyle} startFrom={lastFrame} />
-            </Freeze>
-            <CtaShade />
-            <CtaScene brand={props.brand} cta={timeline.parts[cta].title} pal={props.pal} />
           </AbsoluteFill>
         </Sequence>
       ) : null}
@@ -97,58 +68,17 @@ function ClipFill({ clip, lookStyle, startFrom, pal, concept, plan }: DirectionP
   );
 }
 
-/** The POV line in the clip's calm top fifth, inside the safe area, at most three lines, popping in over 6 frames. */
-function PovLine({ text, safe }: DirectionProps & { text: string }) {
+/** The POV line in the clip's calm top fifth, inside the safe area, at most three lines, in the video's caption look, popping in over 6 frames. */
+function PovLine({ text, safe, plan }: DirectionProps & { text: string }) {
   const frame = useCurrentFrame();
-  const width = safe.right - safe.left;
-  const size = fitFontSize(text, width, 3, 68, 44, 0.56);
   const enter = interpolate(frame, [0, 6], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const look = plan?.povClip ? povCaptionLook(plan.povClip) : "native";
   return (
-    <div
-      style={{
-        position: "absolute",
-        left: safe.left,
-        width,
-        top: safe.top + 20,
-        textAlign: "center",
-        fontFamily: FONT,
-        fontSize: size,
-        fontWeight: 800,
-        lineHeight: 1.16,
-        letterSpacing: "-0.01em",
-        color: "#ffffff",
-        textShadow: OUTLINE,
-        opacity: enter,
-        transform: `scale(${0.9 + 0.1 * enter})`,
-        transformOrigin: "50% 0%",
-        ...TEXT_SAFE,
-      }}
-    >
-      {text}
-    </div>
+    <LookText
+      look={look}
+      text={text}
+      width={safe.right - safe.left}
+      style={{ position: "absolute", left: safe.left, top: safe.top + 20, opacity: enter, transform: `scale(${0.9 + 0.1 * enter})`, transformOrigin: "50% 0%" }}
+    />
   );
-}
-
-/** Who made the video, small and subtle at the bottom of the safe area: the logo when there is one, else a brand-colour dot. */
-function BrandMark({ brand, pal, safe }: DirectionProps) {
-  const frame = useCurrentFrame();
-  const enter = interpolate(frame, [8, 20], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  return (
-    <div style={{ position: "absolute", left: safe.left, top: safe.bottom - 66, display: "flex", alignItems: "center", gap: 12, opacity: enter * 0.85, fontFamily: FONT }}>
-      {brand.logoUrl ? (
-        <LogoTile brand={brand} size={46} pal={pal} />
-      ) : (
-        <span style={{ width: 14, height: 14, borderRadius: 7, background: pal.accent, boxShadow: `0 0 14px ${alpha(pal.accent, 0.7)}` }} />
-      )}
-      <span style={{ fontSize: 28, fontWeight: 800, color: "#fff", textShadow: "0 2px 10px rgba(0,0,0,0.7)", maxWidth: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-        {brand.name}
-      </span>
-    </div>
-  );
-}
-
-/** The closing card's dark wash over the clip's last frame, as the Meme direction closes. */
-function CtaShade() {
-  const frame = useCurrentFrame();
-  return <AbsoluteFill style={{ background: "rgba(5,5,8,0.78)", opacity: interpolate(frame, [0, 6], [0.4, 1], { extrapolateRight: "clamp" }) }} />;
 }

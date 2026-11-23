@@ -147,73 +147,11 @@ export function AccentBar({ color, progress, width = 84, style }: { color: strin
   return <div style={{ width: width * progress, height: 10, borderRadius: 5, background: color, ...style }} />;
 }
 
-/** A thin-line globe for the domain pill. */
-export function GlobeIcon({ size, color }: { size: number; color: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}>
-      <circle cx="12" cy="12" r="9.5" />
-      <path d="M2.5 12h19M12 2.5c2.6 2.7 3.9 5.9 3.9 9.5s-1.3 6.8-3.9 9.5c-2.6-2.7-3.9-5.9-3.9-9.5s1.3-6.8 3.9-9.5z" />
-    </svg>
-  );
-}
-
 export function ArrowIcon({ size, color }: { size: number; color: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
       <path d="M5 12h14M13 6l6 6-6 6" />
     </svg>
-  );
-}
-
-/** The domain without the scheme or a trailing slash. */
-export function cleanDomain(domain: string): string {
-  return domain.replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/$/, "");
-}
-
-/** The domain in a brand-colour pill; `typed` 0 -> 1 types it out. */
-export function DomainPill({ domain, pal, typed = 1, fontSize = 42, cursor = false }: { domain: string; pal: Palette; typed?: number; fontSize?: number; cursor?: boolean }) {
-  const text = cleanDomain(domain);
-  const shown = text.slice(0, Math.round(text.length * typed));
-  const size = Math.min(fontSize, Math.round(1500 / Math.max(10, text.length)));
-  return (
-    <div
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: size * 0.45,
-        padding: `${size * 0.5}px ${size * 0.55}px ${size * 0.5}px ${size * 0.75}px`,
-        borderRadius: 999,
-        background: `linear-gradient(135deg, ${mix(pal.primary, "#ffffff", 0.08)} 0%, ${mix(pal.primary, "#000000", 0.12)} 100%)`,
-        color: pal.onPrimary,
-        boxShadow: `0 18px 44px ${alpha(pal.primary, 0.42)}, inset 0 1px 0 rgba(255,255,255,0.25)`,
-        fontSize: size,
-        fontWeight: 800,
-        letterSpacing: "-0.01em",
-        whiteSpace: "nowrap",
-      }}
-    >
-      <GlobeIcon size={size * 1.05} color={pal.onPrimary} />
-      <span style={{ position: "relative" }}>
-        <span style={{ visibility: "hidden" }}>{text}</span>
-        <span style={{ position: "absolute", left: 0, top: 0 }}>
-          {shown}
-          {cursor ? <span style={{ display: "inline-block", width: size * 0.09, height: size * 1.05, marginLeft: 3, verticalAlign: "-0.15em", background: pal.onPrimary }} /> : null}
-        </span>
-      </span>
-      <span
-        style={{
-          width: size * 1.45,
-          height: size * 1.45,
-          borderRadius: "50%",
-          background: alpha(pal.onPrimary, 0.16),
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <ArrowIcon size={size * 0.85} color={pal.onPrimary} />
-      </span>
-    </div>
   );
 }
 

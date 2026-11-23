@@ -37,7 +37,8 @@ import {
   type VideoStyle,
 } from "@/lib/video/formats";
 import { totalViews } from "@/lib/video/followup";
-import { MUSIC_TRACKS } from "@/lib/video/music";
+import { productionChoicesOf } from "@/lib/video/cost";
+import { MUSIC_TRACKS, MUSIC_VOLUME, ideaTrack, musicUrl } from "@/lib/video/music";
 import { brandLook, readVideoSettings, videoAccess, type VideoSettings } from "@/lib/video/settings";
 import type { ProductionReelProps } from "@/remotion/props";
 
@@ -168,6 +169,19 @@ export default async function WebsiteVideosPage({ params, searchParams }: PagePr
     const script = row.script as VideoScript;
     const timing = row.timing as { words: ReelProps["words"]; sceneStartsMs: number[] } | null;
     const voiced = Boolean(row.voiceUrl && timing);
+    const plan = row.plan as ShotPlan | null;
+    // The music it is (or will be) made with, so the preview is heard as the video will be (client, 2026-11-23).
+    const direction = plan && Array.isArray(plan.scenes) && isCreativeDirection(row.direction) ? row.direction : "animated";
+    const track = ideaTrack({
+      id: row.id,
+      style: row.style,
+      musicTrack: row.musicTrack,
+      direction,
+      hasProduction: Boolean(row.production),
+      music: productionChoicesOf(row).music,
+      planMood: plan?.musicMood ?? null,
+      websiteMusic: settings.music,
+    });
     const props: ProductionReelProps = {
       style: row.style as VideoStyle,
       brand,
@@ -176,11 +190,11 @@ export default async function WebsiteVideosPage({ params, searchParams }: PagePr
       words: voiced ? timing!.words : [],
       sceneStartsMs: voiced ? timing!.sceneStartsMs : silentTiming(script).sceneStartsMs,
       voiceMs: voiced ? Math.min(row.durationMs ?? 0, MAX_REEL_SECONDS * 1000) : 0,
-      music: null,
+      music: track ? { url: musicUrl(track, ""), volume: voiced ? MUSIC_VOLUME.underVoice : MUSIC_VOLUME.alone } : null,
       media: (row.media as MediaItem[]) ?? [],
       captions: row.captions,
       // The idea's own production (direction, shots, audio, captions), so the preview shows what will be made;
-      // before it is made, footage, voice and music are not chosen yet: the templates say it is a concept.
+      // before it is made, footage and voice are not chosen yet: the templates say it is a concept.
       direction: isCreativeDirection(row.direction) ? row.direction : "animated",
       plan: (row.plan as ShotPlan | null) ?? null,
       production: (row.production as ProductionChoices | null) ?? null,
