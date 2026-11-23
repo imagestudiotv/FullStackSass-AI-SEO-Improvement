@@ -1,7 +1,7 @@
 import { AbsoluteFill } from "remotion";
 
 import type { ProductionReelProps } from "../props";
-import { DomainPill, LogoTile, cleanDomain } from "../components/ui";
+import { LogoTile } from "../components/ui";
 import { BrandShapes } from "../components/Media";
 import { FONT } from "../fonts";
 import { productionOf, productionParts, type ProductionPart } from "../production";
@@ -62,7 +62,7 @@ function SlideHeader({ brand, pal, index, total, dark }: ProductionSlideProps & 
     <div style={{ position: "absolute", left: 64, right: 64, bottom: 48, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
         <LogoTile brand={brand} size={52} pal={pal} />
-        <span style={{ fontSize: 28, fontWeight: 800, color: ink, textShadow: dark ? "0 2px 10px rgba(0,0,0,0.6)" : undefined }}>{cleanDomain(brand.domain)}</span>
+        <span style={{ fontSize: 28, fontWeight: 800, color: ink, textShadow: dark ? "0 2px 10px rgba(0,0,0,0.6)" : undefined }}>{brand.name}</span>
       </div>
       <span style={{ padding: "8px 20px", borderRadius: 999, background: dark ? "rgba(0,0,0,0.5)" : "#111114", color: "#fff", fontSize: 26, fontWeight: 800 }}>
         {index + 1}/{total}
@@ -145,9 +145,6 @@ function CtaSlide({ part, pal, brand }: ProductionSlideProps & { part: Productio
       <LogoTile brand={brand} size={170} pal={pal} />
       <div style={{ marginTop: 30, fontSize: 46, fontWeight: 800 }}>{brand.name}</div>
       <div style={{ marginTop: 34, fontSize: fitFontSize(part.title, 920, 4, 96, 54), fontWeight: 900, lineHeight: 1.05, letterSpacing: "-0.035em" }}>{part.title}</div>
-      <div style={{ marginTop: 50 }}>
-        <DomainPill domain={brand.domain} pal={pal} />
-      </div>
     </AbsoluteFill>
   );
 }

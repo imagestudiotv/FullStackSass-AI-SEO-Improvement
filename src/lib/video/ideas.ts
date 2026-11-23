@@ -452,6 +452,7 @@ function composeRows(composed: Composed[], context: RowContext): (typeof videoId
     const audio: ResolvedAudio = povClip
       ? "text_music"
       : resolveAudio(direction, slot.format, material.audioMode, written.audio === "text_music" || written.audio === "voiceover" ? written.audio : null);
+    const closesOnClip = Boolean(povClip || hook);
     const production: ProductionChoices = {
       audio,
       narration: settings.narration,
@@ -459,8 +460,9 @@ function composeRows(composed: Composed[], context: RowContext): (typeof videoId
       music: settings.musicDirection,
       duration: durationFor(slot.format, settings.duration),
       showHook: settings.showHook,
-      includeCta: settings.includeCta,
-      ctaText: settings.includeCta ? settings.defaultCta : null,
+      // A Viral video ending on its clip has no closing line (formats.ts endsOnClip; client, 2026-11-23).
+      includeCta: settings.includeCta && !closesOnClip,
+      ctaText: settings.includeCta && !closesOnClip ? settings.defaultCta : null,
     };
     // A POV clip video's one scene is its clip, with the POV line on top.
     const shows = povClip ? context.povLibrary.find((clip) => clip.id === povClip)?.shows ?? item.title : null;

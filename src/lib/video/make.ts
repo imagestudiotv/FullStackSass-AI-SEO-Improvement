@@ -62,7 +62,7 @@ import {
   type VideoStyle,
   type Voice,
 } from "./formats";
-import { MUSIC_VOLUME, musicTrack, musicUrl, pickProductionTrack, pickTrack } from "./music";
+import { MUSIC_VOLUME, ideaTrack, musicTrack, musicUrl } from "./music";
 import { remuxNoMusic, renderReelLocally, renderSlides, type CoverRequest } from "./render";
 import { autoPublishTime, releaseScheduleSlot } from "./schedule";
 import { readVideoSettings, websiteBrand } from "./settings";
@@ -558,14 +558,19 @@ export async function prepareVoice(id: string): Promise<VideoIdea> {
 export async function chooseMusic(idea: VideoIdea): Promise<VideoIdea> {
   if (idea.musicTrack !== null) return idea;
   const direction = directionOf(idea);
-  let trackId: string | null;
-  if (direction === "animated" && !idea.production) {
-    const settings = await readVideoSettings(idea.websiteId);
-    trackId = settings.music ? (pickTrack(idea.id, idea.style)?.id ?? null) : null;
-  } else {
-    const plan = idea.plan as ShotPlan | null;
-    trackId = pickProductionTrack(idea.id, direction, choicesOf(idea).music, plan?.musicMood ?? null)?.id ?? null;
-  }
+  // The same pick as the idea's preview (music.ts ideaTrack).
+  const legacy = direction === "animated" && !idea.production;
+  const trackId =
+    ideaTrack({
+      id: idea.id,
+      style: idea.style,
+      musicTrack: null,
+      direction,
+      hasProduction: Boolean(idea.production),
+      music: choicesOf(idea).music,
+      planMood: (idea.plan as ShotPlan | null)?.musicMood ?? null,
+      websiteMusic: legacy ? (await readVideoSettings(idea.websiteId)).music : true,
+    })?.id ?? null;
   const [row] = await db
     .update(videoIdeas)
     .set({ musicTrack: trackId ?? "none", updatedAt: new Date() })

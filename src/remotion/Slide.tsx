@@ -5,7 +5,7 @@ import { slideCount, type ReelProps, type VideoPoint } from "../lib/video/format
 import { BrandShapes, KenBurns, MediaShade } from "./components/Media";
 import { PopWords } from "./components/PopWords";
 import { Ring } from "./components/Ring";
-import { AccentBar, ArrowIcon, CheckIcon, DomainPill, LogoTile, QuoteIcon, TEXT_SAFE, cleanDomain } from "./components/ui";
+import { AccentBar, ArrowIcon, CheckIcon, LogoTile, QuoteIcon, TEXT_SAFE } from "./components/ui";
 import { ProductionSlide, productionSlideParts } from "./directions/Slides";
 import { FONT } from "./fonts";
 import { isProduction, type ProductionReelProps } from "./props";
@@ -69,7 +69,7 @@ function AnimatedSlide(props: SlideProps) {
       {body}
       <div style={{ position: "absolute", left: PADDING, bottom: 64, display: "flex", alignItems: "center", gap: 12, fontSize: 28, fontWeight: 700, color: pal.ink, opacity: 0.85 }}>
         <span style={{ width: 12, height: 12, borderRadius: 6, background: pal.highlight }} />
-        {cleanDomain(props.brand.domain)}
+        {props.brand.name}
       </div>
       {index === 0 ? <SwipeHint pal={pal} /> : null}
     </AbsoluteFill>
@@ -318,9 +318,6 @@ function CtaSlide({ brand, script, pal }: SlideProps & { pal: Palette }) {
             <span style={{ color: pal.highlight }}>{second}</span>
           </>
         ) : null}
-      </div>
-      <div style={{ marginTop: 56 }}>
-        <DomainPill domain={brand.domain} pal={pal} />
       </div>
     </Centre>
   );

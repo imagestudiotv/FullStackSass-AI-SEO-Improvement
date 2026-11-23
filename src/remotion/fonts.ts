@@ -27,11 +27,33 @@ export const fontUrl = (weight: string, subset: "latin" | "latin-ext" = "latin")
  */
 const LATIN_EXT_RANGE = "U+0100-02AF, U+0304, U+0308, U+0329, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF";
 
+/**
+ * The caption looks' own faces (caption-looks.ts; client, 2026-11-23: "Also is
+ * missing the changing of the font text character etc as reference"), from
+ * @fontsource 5 like Inter: Anton (OFL), Courier Prime (OFL), Permanent
+ * Marker (Apache 2.0, Latin only: other letters come from Inter). Licences
+ * in public/video-fonts.
+ */
+export const ANTON = "RepGet Anton";
+export const COURIER = "RepGet Courier Prime";
+export const MARKER = "RepGet Marker";
+const EXTRA_FACES: { family: string; file: string; weight: string; ext?: string }[] = [
+  { family: ANTON, file: "anton-latin-400-normal.woff2", weight: "400", ext: "anton-latin-ext-400-normal.woff2" },
+  { family: COURIER, file: "courier-prime-latin-700-normal.woff2", weight: "700", ext: "courier-prime-latin-ext-700-normal.woff2" },
+  { family: MARKER, file: "permanent-marker-latin-400-normal.woff2", weight: "400" },
+];
+
+async function addFace(family: string, file: string, weight: string, unicodeRange?: string): Promise<void> {
+  const face = new FontFace(family, `url(${staticFile(`video-fonts/${file}`)}) format("woff2")`, { weight, style: "normal", ...(unicodeRange ? { unicodeRange } : {}) });
+  document.fonts.add(await face.load());
+}
+
 function load(): void {
   if (typeof document === "undefined" || typeof FontFace === "undefined") return;
-  const handle = delayRender("Loading the Inter font", { timeoutInMilliseconds: 60_000 });
-  Promise.all(
-    WEIGHTS.flatMap((weight) => [
+  const handle = delayRender("Loading the fonts", { timeoutInMilliseconds: 60_000 });
+  Promise.all([
+    ...EXTRA_FACES.flatMap((face) => [addFace(face.family, face.file, face.weight), ...(face.ext ? [addFace(face.family, face.ext, face.weight, LATIN_EXT_RANGE)] : [])].map((p) => p.catch((error) => console.warn(`[remotion] ${face.family} did not load; using Inter`, error)))),
+    ...WEIGHTS.flatMap((weight) => [
       (async () => {
         const face = new FontFace(FAMILY, `url(${fontUrl(weight)}) format("woff2")`, { weight, style: "normal" });
         document.fonts.add(await face.load());
@@ -41,7 +63,7 @@ function load(): void {
         document.fonts.add(await face.load());
       })(),
     ]),
-  )
+  ])
     .catch((error) => console.warn("[remotion] Inter did not load; using the fallback font", error))
     .finally(() => continueRender(handle));
 }

@@ -22,6 +22,7 @@
 import type { IdeaEdit } from "@/lib/video/actions";
 import {
   CAPTION_STYLES,
+  endsOnClip,
   isVideoFormat,
   REEL,
   silentTiming,
@@ -32,6 +33,7 @@ import {
   type MusicDirection,
   type ProductionChoices,
   type ResolvedAudio,
+  type ShotPlan,
   type VideoFormat,
   type VideoScript,
   type VideoStyle,
@@ -61,7 +63,7 @@ export type EditorIdea = {
   direction: CreativeDirection;
   production: ProductionChoices;
   overrides: IdeaOverrides;
-  props: { script: VideoScript };
+  props: { script: VideoScript; plan?: ShotPlan | null };
 };
 
 export type EditorForm = {
@@ -81,6 +83,10 @@ export type EditorForm = {
   music: string | null;
   captions: boolean;
   overrides: IdeaOverrides;
+  /** A POV clip video: its one line is the hook; no points, proof or closing line (client, 2026-11-21). */
+  pov: boolean;
+  /** A Viral video ending on its clip: no closing line (formats.ts endsOnClip; client, 2026-11-23). */
+  clipOnly: boolean;
 };
 
 export function formFromIdea(idea: EditorIdea, defaultVoice: string): EditorForm {
@@ -98,6 +104,8 @@ export function formFromIdea(idea: EditorIdea, defaultVoice: string): EditorForm
     music: idea.musicTrack === "none" ? null : idea.musicTrack,
     captions: idea.captions,
     overrides: idea.overrides,
+    pov: Boolean(idea.props.plan?.povClip),
+    clipOnly: endsOnClip(idea.props.plan),
   };
 }
 
@@ -169,9 +177,9 @@ export function hookSwitchApplies(form: Pick<EditorForm, "direction" | "format">
   return form.direction !== "animated" && form.format !== "carousel";
 }
 
-/** Whether the call-to-action switch and text change the video: productions only. */
-export function ctaSwitchApplies(form: Pick<EditorForm, "direction">): boolean {
-  return form.direction !== "animated";
+/** Whether the call-to-action switch and text change the video: productions only, not a Viral video ending on its clip. */
+export function ctaSwitchApplies(form: Pick<EditorForm, "direction" | "clipOnly">): boolean {
+  return form.direction !== "animated" && !form.clipOnly;
 }
 
 /** Whether "Captions on video" changes the video: the animated reels and Stories (Reel.tsx reads props.captions there only). */

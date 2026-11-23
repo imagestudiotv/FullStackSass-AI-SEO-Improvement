@@ -483,6 +483,17 @@ export type ShotPlan = {
   recipe: string;
 };
 
+/**
+ * Whether a video ends on its clip, with no closing card: a Viral video - a
+ * POV clip video or one opening on a visual hook clip (client, 2026-11-23:
+ * "maybe we need to delete also the Closing line part completely, we want to
+ * keep only the viral video with text on it"). Its CTA is never shown,
+ * whatever includeCta says; a web address goes in the hook.
+ */
+export function endsOnClip(plan: Pick<ShotPlan, "povClip" | "hookClip"> | null | undefined): boolean {
+  return Boolean(plan?.povClip || plan?.hookClip);
+}
+
 /** A real asset used in a video, with where it came from and its licence (kept for the record). */
 export type ResolvedAsset = {
   sceneIndex: number;

@@ -117,3 +117,25 @@ export function pickProductionTrack(seed: string, direction: CreativeDirection, 
   const tracks = pool.length > 0 ? pool : MUSIC_TRACKS;
   return tracks[hashOf(seed) % tracks.length];
 }
+
+/**
+ * The track an idea is made with: the one the customer chose, none, or -
+ * still open - the one it will get, the same every time (make.ts chooseMusic
+ * stores it on Create). So the idea's preview plays the very track the video
+ * gets (client, 2026-11-23: the preview had no music). An animated video
+ * saved before productions follows the website's music switch.
+ */
+export function ideaTrack(idea: {
+  id: string;
+  style: string;
+  musicTrack: string | null;
+  direction: CreativeDirection;
+  hasProduction: boolean;
+  music: MusicDirection;
+  planMood: string | null | undefined;
+  websiteMusic: boolean;
+}): MusicTrack | null {
+  if (idea.musicTrack !== null) return musicTrack(idea.musicTrack);
+  if (idea.direction === "animated" && !idea.hasProduction) return idea.websiteMusic ? pickTrack(idea.id, idea.style) : null;
+  return pickProductionTrack(idea.id, idea.direction, idea.music, idea.planMood);
+}

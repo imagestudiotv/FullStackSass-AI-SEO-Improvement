@@ -1,5 +1,6 @@
 import {
   DURATION_SECONDS,
+  endsOnClip,
   MAX_REEL_SECONDS,
   REEL,
   spokenParts,
@@ -72,17 +73,17 @@ export function wordCount(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
 
-/** A POV clip video (client, 2026-11-21): the clip's length when unknown, the longest clip played, and the closing card. */
+/** A POV clip video (client, 2026-11-21): the clip's length when unknown, and the longest clip played. */
 export const POV_CLIP_MS = 10_000;
 const POV_MAX_CLIP_MS = 15_000;
-export const POV_CTA_MS = 2_000;
 
 /**
  * The parts a production shows, in order: the hook only when showHook (else
  * the video opens straight on the first point), the CTA only when includeCta
- * (with ctaText when set). A POV clip video (plan.povClip, client,
- * 2026-11-21) is its POV line - always shown, it is the video - then the CTA
- * when included; no points or proof.
+ * (with ctaText when set). A Viral video ending on its clip (formats.ts
+ * endsOnClip: a POV clip video or a visual hook clip; client, 2026-11-23)
+ * never has the CTA. A POV clip video (plan.povClip, client, 2026-11-21) is
+ * its POV line alone - always shown, it is the video; no points or proof.
  */
 export function productionParts(script: VideoScript, production: ProductionChoices, plan: ShotPlan | null | undefined): ProductionPart[] {
   const spoken = spokenParts(script);
@@ -91,13 +92,13 @@ export function productionParts(script: VideoScript, production: ProductionChoic
   const parts: ProductionPart[] = [];
   if (plan?.povClip) {
     parts.push({ part: 0, role: "hook", spoken: script.hook, title: script.hook, detail: null, scene: plan.scenes?.[0] ?? null });
-    if (production.includeCta) parts.push({ part: n + 2, role: "cta", spoken: cta, title: cta, detail: null, scene: plan.scenes?.[n + 2] ?? null });
     return parts;
   }
+  const closes = production.includeCta && !endsOnClip(plan);
   spoken.forEach((text, part) => {
     const role: SceneRole = part === 0 ? "hook" : part <= n ? "point" : part === n + 1 ? "proof" : "cta";
     if (role === "hook" && !production.showHook) return;
-    if (role === "cta" && !production.includeCta) return;
+    if (role === "cta" && !closes) return;
     const scene = plan?.scenes?.[part] ?? null;
     if (role === "hook") parts.push({ part, role, spoken: text, title: script.hook, detail: null, scene });
     else if (role === "point") {
@@ -242,16 +243,14 @@ export function productionTimeline(props: ProductionReelProps, fps: number = REE
 /**
  * A POV clip video's timeline (client, 2026-11-21): silent, the POV line for
  * the clip's whole length (sceneMedia[0], else POV_CLIP_MS; at most 15 s),
- * then the closing card for POV_CTA_MS when shown. The component draws the
- * line itself, so there are no word captions.
+ * and nothing after it. The component draws the line itself, so there are no
+ * word captions.
  */
 function povTimeline(props: ProductionReelProps, parts: ProductionPart[], fps: number): ProductionTimeline {
   const clipMs = props.sceneMedia?.[0]?.durationMs;
   const hookMs = Math.min(POV_MAX_CLIP_MS, typeof clipMs === "number" && clipMs > 0 ? clipMs : POV_CLIP_MS);
   const hookFrames = Math.max(1, Math.round((hookMs / 1000) * fps));
-  const ctaFrames = parts.length > 1 ? Math.round((POV_CTA_MS / 1000) * fps) : 0;
-  const starts = parts.map((_, i) => (i === 0 ? 0 : hookFrames));
-  return { parts, starts, durationInFrames: hookFrames + ctaFrames, fits: true, voiced: false, words: [] };
+  return { parts, starts: parts.map(() => 0), durationInFrames: hookFrames, fits: true, voiced: false, words: [] };
 }
 
 /** The frame part `index` ends at. */

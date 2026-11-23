@@ -2,10 +2,11 @@ import type { CSSProperties } from "react";
 import { AbsoluteFill, Freeze, OffthreadVideo, Sequence, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
 
 import type { HookType } from "../../lib/video/formats";
+import { hookCaptionLook } from "../caption-looks";
+import { LookText } from "../components/LookText";
 import { FONT } from "../fonts";
 import { hookTiming, type HookSegment, type ProductionPart } from "../production";
 import type { SceneMedia } from "../props";
-import { fitFontSize } from "../text";
 import { ConceptFrame, FilmTexture, LegibilityShade, type DirectionProps } from "./common";
 
 /**
@@ -122,7 +123,8 @@ function FullScreen(props: DirectionProps & ClipProps & { text: string; chip: st
   const flash = payoff ? interpolate(frame, [0, 6], [0.7, 0], { extrapolateRight: "clamp" }) : 0;
   const enter = interpolate(frame, [2, 10], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   const width = safe.right - safe.left;
-  const size = fitFontSize(text, width - 40, 3, 92, 56, 0.56);
+  // The video's caption look (client, 2026-11-23), the same for the opening and the payoff.
+  const look = hookCaptionLook(props.plan?.hookClip?.pick?.id, props.script.hook);
   const blink = chip ? 0.75 + 0.25 * Math.sin((frame / fps) * Math.PI * 2.4) : 1;
   return (
     <AbsoluteFill style={{ background: "#000", zIndex: 30 }}>
@@ -151,7 +153,7 @@ function FullScreen(props: DirectionProps & ClipProps & { text: string; chip: st
             {chip}
           </div>
         ) : null}
-        <div style={{ fontFamily: FONT, fontSize: size, fontWeight: 900, lineHeight: 1.08, letterSpacing: "-0.02em", color: "#fff", textShadow: "0 4px 24px rgba(0,0,0,0.65)" }}>{text}</div>
+        <LookText look={look} text={text} width={width - 40} align="left" scale={1.2} />
       </div>
       {note ? (
         <div style={{ position: "absolute", left: safe.left, top: safe.bottom - 60, fontFamily: FONT, fontSize: 26, fontWeight: 600, color: "rgba(255,255,255,0.8)", textShadow: "0 2px 10px rgba(0,0,0,0.7)" }}>

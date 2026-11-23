@@ -11,7 +11,7 @@ import { PovClipProduction } from "./directions/PovClip";
 import { StorytellingProduction } from "./directions/Storytelling";
 import { TextMusicProduction } from "./directions/TextMusic";
 import { VoiceoverProduction } from "./directions/Voiceover";
-import { Background, LogoTile, PAD, cleanDomain } from "./components/ui";
+import { Background, LogoTile, PAD } from "./components/ui";
 import { FONT } from "./fonts";
 import { BoldChecklist, BoldHook, BoldProof } from "./scenes/Bold";
 import { CtaScene } from "./scenes/Cta";
@@ -128,7 +128,7 @@ function BoldReel({ brand, script, timing, pal }: StyleProps) {
       <Part timing={timing} index={n + 2}>
         {() => <CtaScene brand={brand} cta={script.cta} pal={pal} />}
       </Part>
-      <Footer domain={brand.domain} timing={timing} pal={pal} />
+      <Footer name={brand.name} timing={timing} pal={pal} />
     </>
   );
 }
@@ -219,8 +219,8 @@ function usePart(timing: ReelTiming): { index: number; progress: number } {
   return { index, progress: interpolate(frame, [start, end], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) };
 }
 
-/** The reference reel's footer: the site on the left, "02 / 06" on the right. */
-function Footer({ domain, timing, pal }: { domain: string; timing: ReelTiming; pal: Palette }) {
+/** The reference reel's footer: the brand's name on the left (no web address, client 2026-11-23), "02 / 06" on the right. */
+function Footer({ name, timing, pal }: { name: string; timing: ReelTiming; pal: Palette }) {
   const frame = useCurrentFrame();
   const { index } = usePart(timing);
   const enter = interpolate(frame, [4, 18], [0, 1], { extrapolateRight: "clamp" });
@@ -243,7 +243,7 @@ function Footer({ domain, timing, pal }: { domain: string; timing: ReelTiming; p
     >
       <span style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <span style={{ width: 12, height: 12, borderRadius: 6, background: pal.highlight }} />
-        {cleanDomain(domain)}
+        {name}
       </span>
       <span style={{ color: pal.inkSoft, fontVariantNumeric: "tabular-nums" }}>
         {pad(index + 1)} / {pad(timing.starts.length)}

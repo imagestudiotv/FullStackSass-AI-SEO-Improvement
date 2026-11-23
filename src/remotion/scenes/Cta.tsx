@@ -1,14 +1,16 @@
-import { AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
+import { AbsoluteFill, spring, useCurrentFrame, useVideoConfig } from "remotion";
 
 import type { BrandLook } from "../../lib/video/formats";
-import { DomainPill, LogoTile, POP, TEXT_SAFE, cleanDomain, useSpring } from "../components/ui";
+import { LogoTile, POP, TEXT_SAFE, useSpring } from "../components/ui";
 import { breakFits, fitFontSize, splitHeadline, splitWords } from "../text";
 import { alpha, type Palette } from "../theme";
 
 /**
  * The closing card, the same in every style (only the palette changes): the
- * logo with pulsing rings, the brand's name, the call to action and the
- * domain typed into a brand-colour pill.
+ * logo with pulsing rings, the brand's name and the call to action. No web
+ * address (client, 2026-11-23: "We need to delete links from videos,
+ * Instagram particularly don't like them"); a customer who wants one writes
+ * it in the hook.
  */
 export function CtaScene({ brand, cta, pal }: { brand: BrandLook; cta: string; pal: Palette }) {
   const frame = useCurrentFrame();
@@ -20,12 +22,6 @@ export function CtaScene({ brand, cta, pal }: { brand: BrandLook; cta: string; p
   const secondWords = splitWords(second);
   const size = fitFontSize(cta, 920, 4, 104, 54);
   const stagger = Math.min(3, 24 / Math.max(1, firstWords.length + secondWords.length));
-  const pillDelay = 16 + Math.round((firstWords.length + secondWords.length) * stagger);
-  const pill = useSpring(pillDelay);
-  const typeFrames = Math.max(10, cleanDomain(brand.domain).length * 1.1);
-  const typed = interpolate(frame, [pillDelay + 6, pillDelay + 6 + typeFrames], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const settled = frame > pillDelay + 6 + typeFrames;
-  const pulse = settled ? 1 + 0.03 * Math.max(0, Math.sin((frame - pillDelay - typeFrames) / 4.5)) : 1;
   const bob = Math.sin(frame / 16) * 8;
 
   const word = (text: string, i: number, color: string) => {
@@ -88,9 +84,6 @@ export function CtaScene({ brand, cta, pal }: { brand: BrandLook; cta: string; p
         {firstWords.map((w, i) => word(w, i, pal.ink))}
         {secondWords.length ? breakFits(first, second, size, 920) ? <br /> : " " : null}
         {secondWords.map((w, i) => word(w, firstWords.length + i, pal.highlight))}
-      </div>
-      <div style={{ marginTop: 64, opacity: pill, transform: `translateY(${(1 - pill) * 40}px) scale(${(0.8 + 0.2 * pill) * pulse})` }}>
-        <DomainPill domain={brand.domain} pal={pal} typed={typed} cursor={!settled || Math.floor(frame / 15) % 2 === 0} />
       </div>
     </AbsoluteFill>
   );
