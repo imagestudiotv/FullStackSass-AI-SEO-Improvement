@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, gte, inArray } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, or } from "drizzle-orm";
 
 import { getPerformance } from "@/lib/analytics/actions";
 import { listArticles } from "@/lib/articles/actions";
@@ -17,6 +17,8 @@ import { socialSuggestions, videoIdeas } from "@/lib/db/schema";
 import { getGeoOverview } from "@/lib/geo/actions";
 import { listCalendar } from "@/lib/keywords/actions";
 import { ideaAllowance } from "@/lib/video/batches";
+import { customerStatus } from "@/lib/video/customer-view";
+import { savedVideosWhere, todaysIdeasWhere } from "@/lib/video/lists";
 import { DAILY_BATCH_SIZE, EXTRA_BATCH_SIZE, MAX_IDEAS_PER_DAY } from "@/lib/video/formats";
 
 import type { ChatPage } from "./config";
@@ -228,18 +230,22 @@ export const READ_TOOLS: ReadTool[] = [
     input_schema: noInput,
     page: "videos",
     run: async (ctx) => {
-      const today = new Date().toISOString().slice(0, 10);
       const since = new Date(Date.now() - 30 * 86_400_000);
       const [ideas, made, allowance] = await Promise.all([
         db
           .select()
           .from(videoIdeas)
-          .where(and(eq(videoIdeas.websiteId, ctx.websiteId), eq(videoIdeas.day, today), inArray(videoIdeas.status, ["new", "failed"])))
+          .where(todaysIdeasWhere(ctx.websiteId))
           .limit(MAX_IDEAS_PER_DAY),
         db
           .select()
           .from(videoIdeas)
-          .where(and(eq(videoIdeas.websiteId, ctx.websiteId), inArray(videoIdeas.status, ["approved", "making", "ready", "scheduled", "posting", "posted"]), gte(videoIdeas.updatedAt, since)))
+          .where(
+            or(
+              savedVideosWhere(ctx.websiteId),
+              and(eq(videoIdeas.websiteId, ctx.websiteId), inArray(videoIdeas.status, ["scheduled", "posting", "posted"]), gte(videoIdeas.updatedAt, since)),
+            ),
+          )
           .orderBy(desc(videoIdeas.updatedAt))
           .limit(15),
         ideaAllowance(ctx.websiteId),
@@ -252,7 +258,8 @@ export const READ_TOOLS: ReadTool[] = [
           style: idea.style,
           category: idea.category,
           direction: idea.direction,
-          status: idea.status,
+          // As the customer sees it: a failed make or publish is not mentioned (lib/video/customer-view.ts).
+          status: customerStatus(idea),
           review: idea.reviewStatus === "none" ? undefined : { status: idea.reviewStatus, reasons: idea.reviewReasons },
         })),
         // Free: the day's ideas and extra batches; only making a video costs credits.
@@ -263,7 +270,7 @@ export const READ_TOOLS: ReadTool[] = [
           extraBatchSize: EXTRA_BATCH_SIZE,
           busy: allowance.busy || undefined,
         },
-        videos: made.map((idea) => ({ title: short(idea.title, 100), format: idea.format, status: idea.status, posted: day(idea.postedAt), stats: idea.stats ?? undefined })),
+        videos: made.map((idea) => ({ title: short(idea.title, 100), format: idea.format, status: customerStatus(idea), posted: day(idea.postedAt), stats: idea.stats ?? undefined })),
       };
     },
   },
