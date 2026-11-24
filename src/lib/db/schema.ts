@@ -4425,6 +4425,99 @@ export const emailPreferences = pgTable("email_preferences", {
 });
 
 /* ------------------------------------------------------------------------- */
+/* Email broadcasts (ticket 2026-11-24, migration 0097)                       */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * One email an administrator writes once and sends to many registered users
+ * (Admin -> Email broadcasts; lib/broadcasts). The content is frozen from the
+ * moment it starts: nothing edits a row that is not a draft or scheduled.
+ *
+ * status: draft -> scheduled -> sending -> sent, or cancelled from scheduled
+ * or sending. Counts are read from its recipients, never stored.
+ */
+export const emailBroadcasts = pgTable(
+  "email_broadcasts",
+  {
+    id: pk(),
+    /** BROADCAST_AUDIENCES (lib/broadcasts/shared.ts): all | free | paid | inactive. */
+    audience: text("audience").default("all").notNull(),
+    subject: text("subject").notNull(),
+    /** The grey line after the subject in an inbox list. */
+    previewText: text("preview_text").default("").notNull(),
+    /** Sanitised HTML: paragraphs, bold, italic, lists and links only (lib/broadcasts/content.ts). */
+    bodyHtml: text("body_html").default("").notNull(),
+    /** Pictures under the message, in order: our own stored addresses only. */
+    images: jsonb("images").$type<{ url: string; alt: string }[]>().default([]).notNull(),
+    ctaLabel: text("cta_label"),
+    /** https only. */
+    ctaUrl: text("cta_url"),
+    status: text("status").default("draft").notNull(),
+    /** Optimistic locking: bumped by every save, so two administrators cannot overwrite each other. */
+    revision: integer("revision").default(0).notNull(),
+    scheduledFor: timestamp("scheduled_for"),
+    startedAt: timestamp("started_at"),
+    finishedAt: timestamp("finished_at"),
+    /** How many people it was addressed to when it started; those who opt out meanwhile are skipped. */
+    recipientCount: integer("recipient_count"),
+    /** Administrators' emails, as admin_audit_log records actors. */
+    createdBy: text("created_by").notNull(),
+    updatedBy: text("updated_by"),
+    /** Who pressed Send, or scheduled it. */
+    sentBy: text("sent_by"),
+    cancelledBy: text("cancelled_by"),
+    cancelledAt: timestamp("cancelled_at"),
+    ...timestamps,
+  },
+  (table) => [
+    index("email_broadcasts_status_idx").on(table.status, table.scheduledFor),
+    index("email_broadcasts_created_idx").on(table.createdAt),
+    check("email_broadcasts_status_check", sql`${table.status} in ('draft', 'scheduled', 'sending', 'sent', 'cancelled')`),
+    check("email_broadcasts_audience_check", sql`${table.audience} in ('all', 'free', 'paid', 'inactive')`),
+    check("email_broadcasts_scheduled_check", sql`${table.status} <> 'scheduled' or ${table.scheduledFor} is not null`),
+  ],
+);
+
+/**
+ * One person a broadcast is addressed to, written when it starts. The unique
+ * pair is what makes a second email to the same person impossible: the row is
+ * claimed (queued -> sending) before the send, and its id is Resend's
+ * idempotency key. Deleting the account deletes the row.
+ *
+ * status: queued -> sending -> sent | failed | skipped (reason says why).
+ */
+export const emailBroadcastRecipients = pgTable(
+  "email_broadcast_recipients",
+  {
+    id: pk(),
+    broadcastId: uuid("broadcast_id")
+      .notNull()
+      .references(() => emailBroadcasts.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    /** The address it went to; null until it is sent. */
+    email: text("email"),
+    status: text("status").default("queued").notNull(),
+    reason: text("reason"),
+    attempts: integer("attempts").default(0).notNull(),
+    /** After a failed attempt: not before this. */
+    nextAttemptAt: timestamp("next_attempt_at"),
+    claimedAt: timestamp("claimed_at"),
+    sentAt: timestamp("sent_at"),
+    /** Resend's message id, for looking a delivery up in its dashboard. */
+    providerMessageId: text("provider_message_id"),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("email_broadcast_recipients_once_uidx").on(table.broadcastId, table.userId),
+    index("email_broadcast_recipients_queue_idx").on(table.broadcastId, table.status, table.nextAttemptAt),
+    index("email_broadcast_recipients_user_idx").on(table.userId),
+    check("email_broadcast_recipients_status_check", sql`${table.status} in ('queued', 'sending', 'sent', 'failed', 'skipped')`),
+  ],
+);
+
+/* ------------------------------------------------------------------------- */
 /* Rewarded ads on Earn Credits (ticket 2026-11-13, area "ads")              */
 /* ------------------------------------------------------------------------- */
 

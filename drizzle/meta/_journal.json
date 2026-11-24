@@ -680,6 +680,13 @@
       "when": 1795117104631,
       "tag": "0096_nov19_free_stories_support",
       "breakpoints": true
+    },
+    {
+      "idx": 97,
+      "version": "7",
+      "when": 1795495823991,
+      "tag": "0097_nov24_email_broadcasts",
+      "breakpoints": true
     }
   ]
 }
