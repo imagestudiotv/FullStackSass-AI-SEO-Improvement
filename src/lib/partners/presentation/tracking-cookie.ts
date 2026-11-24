@@ -43,13 +43,23 @@ export function partnerCookieOptions(expiresAt: Date, now: Date) {
 /**
  * Where /go/<code> may send a visitor: a path on this site from an
  * allowlist of public pages, in any language (/es/pricing), never anywhere
- * else. Anything else lands on the home page of that language.
+ * else. Anything else lands on the home page of that language - so a new
+ * public page belongs in this list (link-redirect.test.ts compares it with
+ * app/(marketing)): without it a partner's link to that page still counts,
+ * but the visitor is sent to the home page instead of what they clicked.
  */
 const LANDING_PATHS = [
   "/",
   "/pricing",
   "/features",
   "/partners",
+  "/affiliate",
+  "/growth-plan",
+  "/discover",
+  "/social-publishing",
+  "/privacy",
+  "/terms",
+  "/refunds",
   "/blog",
   "/tools",
   "/audit",
@@ -91,8 +101,9 @@ const EMAIL_SHAPE = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
 /**
  * What the page itself would have read, had ?ref= not sent the visitor through
  * /go/<code>: sign-up's destination and pre-filled address (app/(site)/(auth)/sign-up/
- * page.tsx), the website the free audit is asked to check (audit-page.tsx), and
- * the project type and address the website creation page reads, in any language
+ * page.tsx), the website the free audit and the free tools are asked to check,
+ * the website, plan and step of the growth plan's address (growth-plan-page.tsx:
+ * the reload and "back" links of someone in the middle of it), and the project type and address the website creation page reads, in any language
  * (website-start.tsx). Only for those pages, so an address never reaches any
  * other page's URL.
  *
@@ -114,7 +125,13 @@ export function landingParams(landing: string, query: URLSearchParams): [string,
     carried.push(["next", next && safeNext(next) === next ? next : null]);
     carried.push(["email", email && EMAIL_SHAPE.test(email) ? email : null]);
   }
-  if (rest === "/audit") carried.push(["domain", value("domain")]);
+  if (rest === "/audit" || rest === "/growth-plan" || rest.startsWith("/tools/")) carried.push(["domain", value("domain")]);
+  if (rest === "/growth-plan") {
+    for (const key of ["plan", "period", "step"]) {
+      const word = value(key);
+      carried.push([key, word && /^[a-z0-9-]{1,30}$/i.test(word) ? word : null]);
+    }
+  }
   if (rest === "/website-creation") {
     const type = value("type");
     const email = value("email");
