@@ -1,13 +1,14 @@
 "use server";
 
-import { and, asc, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, ne, sql, type SQL } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { requireAdmin } from "@/lib/admin/guard";
+import { approvedCurrentSql, approvedWaitingSql, waitingForReviewSql } from "@/lib/admin/review-queue-sql";
 import { linksTo, siteScope, type LinkVerdict } from "@/lib/articles/link-guard";
 import { verifyUrl } from "@/lib/articles/link-verify";
 import { notifyReady, releaseAfterApproval, type ReleaseOutcome } from "@/lib/articles/release";
-import { reviewHash, reviewHashSql, twoStepOffSql } from "@/lib/articles/review";
+import { reviewHash, reviewHashSql } from "@/lib/articles/review";
 import {
   approveArticle,
   creditsFor,
@@ -163,10 +164,23 @@ async function connectionOf(websiteIds: string[]): Promise<Map<string, "cms" | "
   return out;
 }
 
-/** The review queue: participating websites, articles awaiting review, and credits per workspace. */
-export async function getReviewQueue(): Promise<{
+/** Waiting articles on one page of the queue. */
+const QUEUE_PAGE_SIZE = 100;
+/** Approved articles listed; the count is always the true one. */
+const APPROVED_LIMIT = 200;
+
+/**
+ * The review queue: participating websites, articles awaiting review, and
+ * credits per workspace. `articles` is one page of what waits (of one website
+ * when asked) and what is approved and on its way; the totals are the real
+ * ones, whatever is listed. It used to load 200 articles of both kinds and
+ * call it "199+", with no way to reach the rest (ticket 2026-11-24).
+ */
+export async function getReviewQueue(options: { page?: number; websiteId?: string } = {}): Promise<{
   sites: QueueSite[];
   articles: QueueArticle[];
+  pending: { total: number; matching: number; changed: number; page: number; pageSize: number; websites: { websiteId: string; domain: string; count: number }[] };
+  approved: { total: number; limit: number };
   credits: OrgCredits[];
   limits: { maxPerArticle: number; defaultCredits: number; minCredits: number; maxCredits: number };
 }> {
@@ -193,57 +207,65 @@ export async function getReviewQueue(): Promise<{
         where other.website_id = ${articles.websiteId} and other.id <> ${articles.id}
           and (other.published_url is not null or other.status = 'published' or other.review_status = 'approved')
       )`;
-  const articleRows = await db
+  const columns = {
+    id: articles.id,
+    title: articles.title,
+    websiteId: articles.websiteId,
+    domain: websites.domain,
+    organizationName: organization.name,
+    language: websites.language,
+    plannedFor: calendarItems.scheduledFor,
+    reviewStatus: articles.reviewStatus,
+    // Compared in the database: the list needs no article's text.
+    approvedCurrent: approvedCurrentSql,
+    // The same statuses the per-article maximum counts (lib/backlinks/managed.ts).
+    placements: sql<number>`(
+      select count(*)::int from ${placements} p
+      where p.article_id = ${articles.id} and p.status in ('pending', 'drafted', 'published', 'live')
+    )`,
+    firstArticle: firstArticleSql,
+    researchHeld: sql<boolean>`${articles.researchReviewRequired} and ${articles.researchApprovedHash} is distinct from ${reviewHashSql}`,
+  };
+  const listed = (where: SQL | undefined) =>
+    db
+      .select(columns)
+      .from(articles)
+      .innerJoin(websites, eq(websites.id, articles.websiteId))
+      .innerJoin(organization, eq(organization.id, websites.organizationId))
+      .leftJoin(calendarItems, eq(calendarItems.id, articles.calendarItemId))
+      .where(where)
+      /*
+        First articles first, IN THE QUERY: they were sorted to the top only
+        after the limit, so with more than 200 articles waiting a new client's
+        first one (planned for today, behind older dates) could be cut off the
+        page altogether (ticket 2026-11-19, item 4).
+      */
+      .orderBy(desc(firstArticleSql), asc(calendarItems.scheduledFor), asc(articles.createdAt), asc(articles.id));
+
+  // What waits, per website: the filter, its total and the true count, in one read.
+  const waitingBySite = await db
     .select({
-      id: articles.id,
-      title: articles.title,
       websiteId: articles.websiteId,
       domain: websites.domain,
-      organizationName: organization.name,
-      language: websites.language,
-      plannedFor: calendarItems.scheduledFor,
-      reviewStatus: articles.reviewStatus,
-      reviewApprovedHash: articles.reviewApprovedHash,
-      slug: articles.slug,
-      metaDescription: articles.metaDescription,
-      bodyHtml: articles.bodyHtml,
-      imageUrl: articles.imageUrl,
-      imageAlt: articles.imageAlt,
-      // The same statuses the per-article maximum counts (lib/backlinks/managed.ts).
-      placements: sql<number>`(
-        select count(*)::int from ${placements} p
-        where p.article_id = ${articles.id} and p.status in ('pending', 'drafted', 'published', 'live')
-      )`,
-      firstArticle: firstArticleSql,
-      researchHeld: sql<boolean>`${articles.researchReviewRequired} and ${articles.researchApprovedHash} is distinct from ${reviewHashSql}`,
+      count: sql<number>`count(*)::int`,
+      changed: sql<number>`count(*) filter (where ${articles.reviewStatus} = 'approved')::int`,
     })
     .from(articles)
     .innerJoin(websites, eq(websites.id, articles.websiteId))
-    .innerJoin(organization, eq(organization.id, websites.organizationId))
-    .leftJoin(calendarItems, eq(calendarItems.id, articles.calendarItemId))
-    .where(
-      or(
-        and(
-          inArray(articles.reviewStatus, ["pending", "approved"]),
-          eq(articles.status, "draft"),
-          isNull(articles.publishedUrl),
-        ),
-        /*
-          Under the two-step flow a customer's change to a post already on
-          their site comes to the team too (afterCustomerEdit): it waits here
-          for its approval, or the customer's Update would wait for ever.
-        */
-        and(eq(articles.reviewStatus, "pending"), sql`not ${twoStepOffSql}`),
-      ),
-    )
-    /*
-      First articles first, IN THE QUERY: they were sorted to the top only
-      after the limit, so with more than 200 articles waiting a new client's
-      first one (planned for today, behind older dates) could be cut off the
-      page altogether (ticket 2026-11-19, item 4).
-    */
-    .orderBy(desc(firstArticleSql), asc(calendarItems.scheduledFor), asc(articles.createdAt))
-    .limit(200);
+    .where(waitingForReviewSql)
+    .groupBy(articles.websiteId, websites.domain)
+    .orderBy(asc(websites.domain));
+  const [approvedCount] = await db.select({ n: sql<number>`count(*)::int` }).from(articles).where(approvedWaitingSql);
+  const sum = (rows: { count: number }[]) => rows.reduce((all, row) => all + Number(row.count), 0);
+  // A website with nothing waiting is an empty list, never everybody's.
+  const onlySite = options.websiteId && /^[0-9a-f-]{36}$/i.test(options.websiteId) ? options.websiteId : undefined;
+  const matching = onlySite ? sum(waitingBySite.filter((row) => row.websiteId === onlySite)) : sum(waitingBySite);
+  const page = Math.min(Math.max(1, Math.trunc(options.page ?? 1) || 1), Math.max(1, Math.ceil(matching / QUEUE_PAGE_SIZE)));
+  const pendingRows = await listed(and(waitingForReviewSql, onlySite ? eq(articles.websiteId, onlySite) : undefined))
+    .limit(QUEUE_PAGE_SIZE)
+    .offset((page - 1) * QUEUE_PAGE_SIZE);
+  const approvedRows = await listed(approvedWaitingSql).limit(APPROVED_LIMIT);
+  const articleRows = [...pendingRows, ...approvedRows];
 
   const ids = [...new Set([...siteRows.map((s) => s.websiteId), ...articleRows.map((a) => a.websiteId)])];
   const connection = await connectionOf(ids);
@@ -287,13 +309,22 @@ export async function getReviewQueue(): Promise<{
         language: row.language,
         plannedFor: row.plannedFor,
         reviewStatus: row.reviewStatus ?? "pending",
-        approvedCurrent: row.reviewStatus === "approved" && row.reviewApprovedHash === reviewHash(row),
+        approvedCurrent: Boolean(row.approvedCurrent),
         placements: row.placements,
         connected: connection.get(row.websiteId) ?? "none",
         firstArticle: Boolean(row.firstArticle) && row.reviewStatus !== "approved",
         researchHeld: Boolean(row.researchHeld),
       }))
       .sort((a, b) => Number(b.firstArticle) - Number(a.firstArticle)),
+    pending: {
+      total: sum(waitingBySite),
+      matching,
+      changed: waitingBySite.reduce((all, row) => all + Number(row.changed), 0),
+      page,
+      pageSize: QUEUE_PAGE_SIZE,
+      websites: waitingBySite.map((row) => ({ websiteId: row.websiteId, domain: row.domain, count: Number(row.count) })),
+    },
+    approved: { total: Number(approvedCount?.n ?? 0), limit: APPROVED_LIMIT },
     credits,
     limits: {
       maxPerArticle: MAX_PER_ARTICLE,

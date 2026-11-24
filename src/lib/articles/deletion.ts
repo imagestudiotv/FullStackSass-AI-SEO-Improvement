@@ -3,7 +3,16 @@ import { and, asc, eq, inArray, or } from "drizzle-orm";
 import { GIVEN_UP_WITH_HOST, withdrawPlacement } from "@/lib/backlinks/placements";
 import { db } from "@/lib/db";
 import { articles, placements } from "@/lib/db/schema";
+import type { Transaction } from "@/lib/db/types";
 import { lockForEdit } from "@/lib/publishing/dispatch";
+
+/** A caller's own rule refused the deletion (hooks.guard): nothing changed. */
+export class ArticleDeletionRefused extends Error {
+  constructor(reason: string) {
+    super(reason);
+    this.name = "ArticleDeletionRefused";
+  }
+}
 
 /**
  * Deleting an article, and what the backlinks it carries held.
@@ -54,6 +63,15 @@ export async function deleteArticleAndSettleLinks(
   websiteId: string,
   articleId: string,
   now: Date = new Date(),
+  /**
+   * For a deletion with rules and a record of its own (lib/admin/review-drafts.ts).
+   * `guard` runs under the locks and returns why not; `beforeDelete` after the
+   * links are settled, in the same transaction. Throwing undoes everything.
+   */
+  hooks: {
+    guard?: (tx: Transaction) => Promise<string | null>;
+    beforeDelete?: (tx: Transaction, effects: { released: number }) => Promise<void>;
+  } = {},
 ): Promise<{ deleted: boolean; released: number }> {
   return db.transaction(async (tx) => {
     const [own] = await tx
@@ -83,6 +101,9 @@ export async function deleteArticleAndSettleLinks(
       .orderBy(asc(articles.id));
     for (const translation of translations) await lockForEdit(tx, translation.id, now);
 
+    const refused = await hooks.guard?.(tx);
+    if (refused) throw new ArticleDeletionRefused(refused);
+
     const carried = await tx
       .select({ id: placements.id, requestId: placements.requestId })
       .from(placements)
@@ -94,6 +115,7 @@ export async function deleteArticleAndSettleLinks(
       if (await withdrawPlacement(tx, placement, GIVEN_UP_WITH_HOST, now)) released++;
     }
 
+    await hooks.beforeDelete?.(tx, { released });
     const deleted = await tx
       .delete(articles)
       .where(and(eq(articles.id, articleId), eq(articles.websiteId, websiteId)))

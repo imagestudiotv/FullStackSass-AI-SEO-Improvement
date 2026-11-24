@@ -24,6 +24,9 @@ export const metadata = {
   robots: { index: false, follow: true },
 };
 
+/** Changes each time the layout is rendered again (an action, a refresh), so the sidebar's counts are read again too. */
+const renderStamp = () => Date.now();
+
 export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
   let admin;
   try {
@@ -48,7 +51,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
   const collapsed = (await cookies()).get(SIDEBAR_COOKIE)?.value === "collapsed";
 
   return (
-    <AdminShell identity={{ name, email: admin.email }} initialCollapsed={collapsed}>
+    <AdminShell identity={{ name, email: admin.email }} initialCollapsed={collapsed} renderedAt={renderStamp()}>
       {children}
     </AdminShell>
   );

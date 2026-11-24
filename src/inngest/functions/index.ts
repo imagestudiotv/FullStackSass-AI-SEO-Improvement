@@ -24,6 +24,7 @@ import { partnerPayoutsMonthly, partnerPayoutsSweep, partnerSettlementExecute } 
 import { partnerReconciliation } from "./partner-reconciliation";
 import { billingMaintenance, deliverOutbox, paidAcquisitionMaintenance } from "./maintenance";
 import { publishArticleJob } from "./publish-article";
+import { emailBroadcastsDue, sendEmailBroadcast } from "./email-broadcasts";
 import { firstContentPlan } from "./first-content-plan";
 import { firstVisibilityQuestions } from "./first-visibility-questions";
 import { renewalReplan } from "./renewal-replan";
@@ -87,4 +88,7 @@ export const functions = [
   lifecycleWeeklySummary,
   lifecycleWeeklySummaryOne,
   lifecycleWinback,
+  // Email broadcasts (Admin -> Email broadcasts): nothing is sent until an administrator sends or schedules one.
+  sendEmailBroadcast,
+  emailBroadcastsDue,
 ];

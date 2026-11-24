@@ -1,8 +1,9 @@
 "use server";
 
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, ne } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
+import { DROPPED_TOPIC_STATUS } from "@/lib/admin/draft-deletion-rules.mjs";
 import { db } from "@/lib/db";
 import { calendarItems, clusters, keywords } from "@/lib/db/schema";
 import { requireWebsite } from "@/lib/tenant";
@@ -100,7 +101,8 @@ export async function listCalendar(websiteId: string): Promise<CalendarRow[]> {
           eq(keywords.term, calendarItems.targetKeyword),
         ),
       )
-      .where(eq(calendarItems.websiteId, site.id))
+      // Not a topic whose draft the team deleted on purpose: it is never written again (lib/admin/review-drafts.ts).
+      .where(and(eq(calendarItems.websiteId, site.id), ne(calendarItems.status, DROPPED_TOPIC_STATUS)))
       .orderBy(asc(calendarItems.scheduledFor))
   );
 }

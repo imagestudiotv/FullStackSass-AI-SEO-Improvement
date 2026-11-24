@@ -1,12 +1,13 @@
 import "server-only";
 
-import { and, count, desc, eq, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, isNotNull, lte, or, sql } from "drizzle-orm";
 
 import { requireAdmin } from "@/lib/admin/guard";
+import { waitingForReviewSql } from "@/lib/admin/review-queue-sql";
 import { sinceFrom } from "@/lib/admin/shared";
 import { missingPlacements } from "@/lib/backlinks/placements";
 import { db } from "@/lib/db";
-import { adminAuditLog, articles, feedback, payments, publicationDispatches, subscriptions, websites } from "@/lib/db/schema";
+import { adminAuditLog, articles, feedback, payments, publicationDispatches, socialAccounts, subscriptions, websites } from "@/lib/db/schema";
 import { readControls, type ControlState } from "@/lib/publishing/controls";
 import { IN_FLIGHT_TIMEOUT_MS, UNACKNOWLEDGED } from "@/lib/publishing/dispatch";
 
@@ -51,6 +52,8 @@ export type Attention = {
   failedWebsites: number | null;
   /** Feedback nobody has looked at yet (status new; lib/feedback). */
   newFeedback: number | null;
+  /** Social accounts whose automatic posting the provider paused (customers are not shown it). */
+  pausedSocial: number | null;
   /** The publication freeze and managed review switches. */
   controls: ControlState[] | null;
 };
@@ -60,14 +63,14 @@ export async function getAttention(): Promise<Attention> {
   const staleBefore = new Date(Date.now() - IN_FLIGHT_TIMEOUT_MS);
   const one = async (query: Promise<{ n: number }[]>) => Number((await query)[0]?.n ?? 0);
 
-  const [awaitingReview, failedArticles, unresolvedDeliveries, missingLinks, failedPayments, pastDue, failedWebsites, controls, newFeedback] =
+  const [awaitingReview, failedArticles, unresolvedDeliveries, missingLinks, failedPayments, pastDue, failedWebsites, controls, newFeedback, pausedSocial] =
     await Promise.all([
       settle(() =>
         one(
           db
             .select({ n: count() })
             .from(articles)
-            .where(and(eq(articles.reviewStatus, "pending"), eq(articles.status, "draft"), isNull(articles.publishedUrl))),
+            .where(waitingForReviewSql),
         ),
       ),
       settle(() => one(db.select({ n: count() }).from(articles).where(eq(articles.status, "failed")))),
@@ -105,9 +108,10 @@ export async function getAttention(): Promise<Attention> {
       settle(() => one(db.select({ n: count() }).from(websites).where(eq(websites.status, "failed")))),
       settle(() => readControls()),
       settle(() => one(db.select({ n: count() }).from(feedback).where(eq(feedback.status, "new")))),
+      settle(() => one(db.select({ n: count() }).from(socialAccounts).where(isNotNull(socialAccounts.pausedAt)))),
     ]);
 
-  return { awaitingReview, failedArticles, unresolvedDeliveries, missingLinks, failedPayments, pastDue, failedWebsites, controls, newFeedback };
+  return { awaitingReview, failedArticles, unresolvedDeliveries, missingLinks, failedPayments, pastDue, failedWebsites, controls, newFeedback, pausedSocial };
 }
 
 /** The Payments page date filter value the "Failed payments" attention item counts and links to. */
