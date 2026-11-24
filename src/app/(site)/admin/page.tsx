@@ -11,6 +11,7 @@ import {
   PauseCircle,
   SearchX,
   Send,
+  Share2,
   ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
@@ -85,6 +86,7 @@ export default async function AdminOverviewPage({ searchParams }: PageProps<"/ad
     { label: "Failed payments", count: attention.failedPayments, href: `/admin/payments?status=failed&paid=${FAILED_PAYMENTS_RANGE}`, icon: CreditCard, tone: "danger", detail: "Charges that failed in the last 30 days" },
     { label: "Past-due subscriptions", count: attention.pastDue, href: "/admin/organizations?status=past_due", icon: CreditCard, tone: "warning", detail: "Payment overdue" },
     { label: "Websites with failed analysis", count: attention.failedWebsites, href: "/admin/websites?status=failed", icon: Globe, tone: "warning", detail: "Site analysis did not finish" },
+    { label: "Social accounts paused", count: attention.pausedSocial, href: "/admin/social-posting", icon: Share2, tone: "warning", detail: "Automatic posting stopped by the provider; customers are not shown it" },
     { label: "New feedback", count: attention.newFeedback, href: "/admin/feedback", icon: MessageSquare, tone: "warning", detail: "Ideas and problems from customers and visitors, not read yet" },
     { label: "Articles held for Google indexing", count: indexing ? indexing.heldForBalance : null, href: "/admin#indexing", icon: SearchX, tone: "warning", detail: "The SpeedyIndex balance is empty - top it up and they go out" },
   ];

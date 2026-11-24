@@ -9,10 +9,12 @@ import { BrandMark } from "@/components/brand-logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
+import { badgeNumber, type AdminBadges } from "@/lib/admin/badges-shared";
 import { cn } from "@/lib/utils";
 
 import { CommandPalette } from "./command-palette";
 import { ADMIN_NAV, activeNavItem, adminCrumbs, SIDEBAR_COOKIE } from "./nav";
+import { useAdminBadges } from "./use-admin-badges";
 import { useReturnFocus } from "./use-return-focus";
 
 /**
@@ -30,10 +32,13 @@ export type AdminIdentity = { name: string | null; email: string };
 export function AdminShell({
   identity,
   initialCollapsed,
+  renderedAt = 0,
   children,
 }: {
   identity: AdminIdentity;
   initialCollapsed: boolean;
+  /** When the server rendered the layout; a new value means something changed (use-admin-badges.ts). */
+  renderedAt?: number;
   children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -41,6 +46,8 @@ export function AdminShell({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const drawerFocus = useReturnFocus();
+  const badges = useAdminBadges(pathname, renderedAt);
+  const waiting = Object.values(badges).reduce((sum, badge) => sum + badge.waiting, 0);
 
   // The drawer closes once a link in it has been followed.
   const [drawerPath, setDrawerPath] = useState(pathname);
@@ -89,7 +96,7 @@ export function AdminShell({
         )}
       >
         <SidebarBrand collapsed={collapsed} />
-        <SidebarNav pathname={pathname} collapsed={collapsed} />
+        <SidebarNav pathname={pathname} collapsed={collapsed} badges={badges} />
         <div className="mt-auto border-t border-admin-sidebar-border p-2">
           <button
             type="button"
@@ -121,7 +128,7 @@ export function AdminShell({
           <SheetTitle className="sr-only">Admin navigation</SheetTitle>
           <SheetDescription className="sr-only">Go to another admin page.</SheetDescription>
           <SidebarBrand collapsed={false} />
-          <SidebarNav pathname={pathname} collapsed={false} />
+          <SidebarNav pathname={pathname} collapsed={false} badges={badges} />
           <div className="mt-auto border-t border-admin-sidebar-border p-3">
             <Identity identity={identity} tone="sidebar" />
           </div>
@@ -134,12 +141,13 @@ export function AdminShell({
             type="button"
             variant="ghost"
             size="icon"
-            className="lg:hidden"
+            className="relative lg:hidden"
             onClick={() => setDrawerOpen(true)}
-            aria-label="Open navigation"
+            aria-label={waiting > 0 ? `Open navigation, ${waiting} waiting` : "Open navigation"}
             aria-expanded={drawerOpen}
           >
             <Menu className="size-5" aria-hidden="true" />
+            {waiting > 0 ? <BadgeDot className="top-1.5 right-1.5" /> : null}
           </Button>
 
           <nav aria-label="Breadcrumb" className="min-w-0 flex-1">
@@ -240,7 +248,12 @@ function SidebarBrand({ collapsed }: { collapsed: boolean }) {
   );
 }
 
-function SidebarNav({ pathname, collapsed }: { pathname: string; collapsed: boolean }) {
+/** For where a number does not fit: the collapsed sidebar, the phone's menu button. */
+function BadgeDot({ className }: { className?: string }) {
+  return <span data-slot="admin-badge-dot" className={cn("absolute size-2 rounded-full bg-primary ring-2 ring-background", className)} aria-hidden="true" />;
+}
+
+function SidebarNav({ pathname, collapsed, badges }: { pathname: string; collapsed: boolean; badges: AdminBadges }) {
   const active = activeNavItem(pathname);
   return (
     <nav aria-label="Admin sections" className="flex-1 overflow-y-auto px-2 py-3">
@@ -258,13 +271,14 @@ function SidebarNav({ pathname, collapsed }: { pathname: string; collapsed: bool
               const isActive = active?.href === item.href;
               // The section is "current" on its own page; on a detail page under it, it is the parent.
               const exact = pathname === item.href;
+              const badge = badges[item.href];
               return (
                 <li key={item.href}>
                   <Link
                     href={item.href}
                     aria-current={isActive ? (exact ? "page" : "location") : undefined}
-                    aria-label={collapsed ? item.label : undefined}
-                    title={collapsed ? item.label : undefined}
+                    aria-label={badge ? `${item.label}, ${badge.text}` : collapsed ? item.label : undefined}
+                    title={badge ? `${collapsed ? `${item.label}: ` : ""}${badge.detail}` : collapsed ? item.label : undefined}
                     className={cn(
                       "group relative flex h-9 items-center gap-3 rounded-md px-3 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary/60",
                       collapsed && "justify-center px-0",
@@ -284,6 +298,22 @@ function SidebarNav({ pathname, collapsed }: { pathname: string; collapsed: bool
                       aria-hidden="true"
                     />
                     {collapsed ? null : <span className="truncate">{item.label}</span>}
+                    {/* The link's own name says it in words; the pill is for the eye. */}
+                    {!badge ? null : collapsed ? (
+                      <BadgeDot className="top-1.5 right-3.5 ring-admin-sidebar" />
+                    ) : (
+                      <span
+                        data-slot="admin-badge"
+                        aria-hidden="true"
+                        className={cn(
+                          "ml-auto shrink-0 rounded-full px-1.5 py-0.5 text-[11px] leading-none font-semibold tabular-nums",
+                          // Waiting is filled; only-new is an outline.
+                          badge.waiting > 0 ? "bg-primary text-primary-foreground" : "border border-admin-sidebar-muted/60 text-admin-sidebar-foreground",
+                        )}
+                      >
+                        {badgeNumber(badge.count)}
+                      </span>
+                    )}
                   </Link>
                 </li>
               );

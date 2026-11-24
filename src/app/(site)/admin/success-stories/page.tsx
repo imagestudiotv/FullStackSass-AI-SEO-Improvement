@@ -2,6 +2,7 @@ import { Award, ExternalLink, Pin, Plus } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+import { countStoryClaims } from "@/lib/admin/story-claims";
 import { listSuccessStoriesAdmin } from "@/lib/admin/success-stories";
 import { businessInitial } from "@/lib/blog/business";
 import { successStoryPath } from "@/lib/success-stories/fields";
@@ -21,7 +22,7 @@ export const metadata = { title: "Success stories" };
  * (client, 2026-11-19: "always first stable fixed").
  */
 export default async function AdminSuccessStoriesPage() {
-  const stories = await listSuccessStoriesAdmin();
+  const [stories, sent] = await Promise.all([listSuccessStoriesAdmin(), countStoryClaims().catch(() => 0)]);
   const published = stories.filter((story) => story.published).length;
 
   return (
@@ -47,6 +48,16 @@ export default async function AdminSuccessStoriesPage() {
           </div>
         }
       />
+
+      {sent > 0 ? (
+        <p className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
+          {sent === 1 ? "1 customer story is" : `${sent} customer stories are`} waiting in{" "}
+          <Link href="/admin/earn-credits" className="rounded-sm font-medium underline underline-offset-4 outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            Earn Credits
+          </Link>
+          . Approve it there first, then publish it here.
+        </p>
+      ) : null}
 
       <ol className="space-y-3">
         <li className="flex min-w-0 flex-col gap-4 rounded-xl border border-dashed bg-muted/40 p-4 sm:flex-row sm:items-center">
