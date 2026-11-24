@@ -21,8 +21,16 @@ Daniel's ticket of 21 Nov (mockups `repget-social-content-with-video-editor.html
   - A mark is a destination `{ status: "posted", manual: true }` in `video_ideas.destinations` (no migration): the video goes to Posted, automatic publishing never sends it there again, and no numbers are read for it. "Not posted yet" takes the customer's own mark back (never RepGet's post); the last one taken back returns the video to Saved Videos.
   - *Auto publish*: the connected accounts, then Publish now / at the best time / at a chosen time (`publishVideoIdea`). Only once the video is made (no per-video "publish when ready"); without accounts, a link to Settings -> Publishing.
   - *Save for later*, or closing the window any way: the video waits in Saved Videos.
-- **Saved Videos** (was Your videos): approved, making, ready and failed videos. **Posted**: scheduled (with Unschedule), publishing and posted; Publish there reopens the window for the other platforms.
+- **Saved Videos** (was Your videos): approved, making and ready videos (a failed publish is ready). **Posted**: scheduled (with Unschedule), publishing and posted; Publish there reopens the window for the other platforms.
 - **New ideas cost credits**: each extra batch costs the `video_ideas` price (Admin -> Credits, **1 credit until a price is saved**, `PRICE_DEFAULTS`). It is charged in the transaction that reserves the slot (`reserveExtraBatch` with `payer`): short of credits, nothing is reserved (`not_enough_credits`, with Buy / Earn credits links). A batch that ends failed without an idea is refunded (`refundEmptyBatch`: the job's failure, the last attempt, a stalled batch); its one re-request is charged again under its own key. The daily twenty stay free. The AI chat's `new_video_ideas` goes through the same action and shows the price.
+
+## Tidy-up (client, 2026-11-24)
+
+- **Delete** (`lib/video/delete.ts`, action `deleteVideoIdeas`, one or several): the row stays as status `deleted`, so the day's twenty, the extra batches and the platform's posts of the day keep counting it, and no list, job, email or number shows it.
+  - approved (not started): credit returned. Making: the job stops at its next step, no refund. Ready/draft/failed: gone. Scheduled: off the schedule. Posting: refused while its job is on it (2 h). Posted: removed from RepGet only.
+  - Files: the idea's own folder and uploads used only by it; the library, the logo, shared stock and AI clips and anything another idea uses stay. What storage refuses is removed by the daily job.
+- **Failures are the team's** (`lib/video/customer-view.ts`, `lists.ts`): the row keeps status `failed`, its `error` and each destination's error (Admin -> Social posting). The customer sees a failed make back in Today's ideas (a day; credit returned once) and a failed publish as Ready to publish; only destinations that posted, are posting or are scheduled are shown. A render that breaks is made once more within the budget, without a second AI call.
+- **Publishing window**: Download, Copy, Open and Mark as posted are at its foot, always in view. YouTube has a Tags field (`youtube-tags.ts`, kept in `overrides.youtubeTags`, 500 characters as YouTube counts them). bundle.social's YouTube data has no tags field, so they are for manual publishing.
 
 ## Formats
 
