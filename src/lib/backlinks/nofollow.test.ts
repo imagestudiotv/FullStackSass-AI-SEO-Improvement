@@ -5,6 +5,7 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import { articles, backlinkRequests, networkSites, notifications, placements, websites } from "@/lib/db/schema";
 import { organization } from "@/lib/db/auth-tables";
+import { connectWebsite } from "@/test/fixtures";
 import { createTestDb, type TestDb } from "@/test/db";
 
 /**
@@ -85,6 +86,7 @@ async function org(name: string) {
 async function site(orgId: string, domain: string) {
   const [row] = await test.db.insert(websites).values({ organizationId: orgId, url: `https://${domain}`, domain, status: "ready" }).returning();
   await test.db.insert(networkSites).values({ websiteId: row.id, acceptingLinks: true, monthlyCap: 10 });
+  await connectWebsite(test.db, row.id);
   return row;
 }
 

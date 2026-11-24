@@ -12,6 +12,7 @@ import { articles, backlinkRequests, backlinkTargets, domainMetrics, networkSite
 import { AUTHORITY_METRIC } from "@/lib/authority/metric";
 import { effectiveMinSourceRank, minRankCapFor } from "@/lib/backlinks/authority-cap";
 import { isDataForSeoConfigured } from "@/lib/providers/dataforseo";
+import { isWebsiteConnected } from "@/lib/publishing/website-connection";
 import { requireWebsite } from "@/lib/tenant";
 import type { ActionResult } from "@/lib/websites/actions";
 import { checkTargetUrl } from "@/lib/websites/ownership";
@@ -34,6 +35,12 @@ export type TargetPriority = (typeof PRIORITIES)[number];
 export type NetworkTarget = { id: string; url: string; note: string | null; priority: string; position: number };
 
 export type PartnerNetwork = {
+  /**
+   * The website is connected to RepGet (lib/publishing/website-connection.ts).
+   * Until it is, it is not in the network whatever is stored, and every
+   * setting below waits (Daniel, 2026-11-24).
+   */
+  connected: boolean;
   participating: boolean;
   monthlyCap: number;
   targets: NetworkTarget[];
@@ -88,8 +95,10 @@ export async function getPartnerNetwork(websiteId: string): Promise<PartnerNetwo
       ),
     );
   const maxMinSourceRank = await minRankCapFor(site.id);
+  const connected = await isWebsiteConnected(site.id);
   return {
-    participating: Boolean(row?.acceptingLinks),
+    connected,
+    participating: connected && Boolean(row?.acceptingLinks),
     monthlyCap: row?.monthlyCap ?? DEFAULT_MONTHLY_CAP,
     targets,
     inReview: review?.n ?? 0,
@@ -120,6 +129,13 @@ async function authorityAvailability(): Promise<PartnerNetwork["authority"]> {
   return (denied?.n ?? 0) > 0 ? "no_access" : "available";
 }
 
+/** Said by every action below while the website is not connected; the page offers none of them. */
+const NOT_CONNECTED = "Connect your website first, in Integrations. Then you can join the Partner Network.";
+
+async function notConnected(websiteId: string): Promise<{ ok: false; error: string } | null> {
+  return (await isWebsiteConnected(websiteId)) ? null : { ok: false, error: NOT_CONNECTED };
+}
+
 /**
  * The minimum DataForSEO Rank (0-100, whole numbers) this website accepts
  * for sites linking to it; null clears it. Only when the metric is available.
@@ -130,6 +146,8 @@ export async function setMinSourceRank(
 ): Promise<ActionResult<{ minSourceRank: number | null }>> {
   const guard = await requireEditor(websiteId);
   if (!guard.ok) return { ok: false, error: guard.error };
+  const waiting = await notConnected(guard.context.site.id);
+  if (waiting) return waiting;
   if (value !== null && (!Number.isInteger(value) || value < 0 || value > AUTHORITY_METRIC.scaleMax)) {
     return { ok: false, error: `Choose a whole number from 0 to ${AUTHORITY_METRIC.scaleMax}` };
   }
@@ -151,7 +169,8 @@ export async function setMinSourceRank(
 }
 
 /**
- * Turns participation on or off.
+ * Turns participation on or off. ON needs a connected website; OFF never
+ * does, so nobody is kept in the network by a lost connection.
  *
  * OFF stops new placements - the RepGet team can no longer place links in
  * this website's articles or to its pages - and releases its articles that
@@ -171,6 +190,10 @@ export async function setParticipation(
   const guard = await requireEditor(websiteId);
   if (!guard.ok) return { ok: false, error: guard.error };
   const { site } = guard.context;
+  if (enabled) {
+    const waiting = await notConnected(site.id);
+    if (waiting) return waiting;
+  }
 
   const result = await db.transaction(async (tx) => {
     await tx
@@ -230,6 +253,8 @@ export async function addTarget(
   const guard = await requireEditor(websiteId);
   if (!guard.ok) return { ok: false, error: guard.error };
   const { site } = guard.context;
+  const waiting = await notConnected(site.id);
+  if (waiting) return waiting;
 
   const typed = input.url.trim();
   const checked = checkTargetUrl(/^https?:\/\//i.test(typed) ? typed : `https://${typed}`, site.domain);
@@ -278,6 +303,8 @@ export async function removeTarget(websiteId: string, targetId: string): Promise
   const guard = await requireEditor(websiteId);
   if (!guard.ok) return { ok: false, error: guard.error };
   const { site } = guard.context;
+  const waiting = await notConnected(site.id);
+  if (waiting) return waiting;
   const removed = await db
     .delete(backlinkTargets)
     .where(and(eq(backlinkTargets.id, targetId), eq(backlinkTargets.websiteId, site.id)))
@@ -291,6 +318,8 @@ export async function setTargetPriority(websiteId: string, targetId: string, pri
   const guard = await requireEditor(websiteId);
   if (!guard.ok) return { ok: false, error: guard.error };
   const { site } = guard.context;
+  const waiting = await notConnected(site.id);
+  if (waiting) return waiting;
   if (!PRIORITIES.includes(priority as TargetPriority)) return { ok: false, error: "Unknown priority" };
   const updated = await db
     .update(backlinkTargets)
@@ -307,6 +336,8 @@ export async function moveTarget(websiteId: string, targetId: string, direction:
   const guard = await requireEditor(websiteId);
   if (!guard.ok) return { ok: false, error: guard.error };
   const { site } = guard.context;
+  const waiting = await notConnected(site.id);
+  if (waiting) return waiting;
   return db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`targets:${site.id}`}))`);
     const rows = await tx

@@ -26,6 +26,7 @@ import {
   websites,
 } from "@/lib/db/schema";
 import { applyMigration, createTestDb, type TestDb } from "@/test/db";
+import { connectWebsite } from "@/test/fixtures";
 import { NEW_SITE_DEFAULTS } from "@/lib/websites/new-site-defaults";
 
 /**
@@ -143,7 +144,7 @@ async function workspace(name = "ws") {
 async function site(
   orgId: string,
   domain: string,
-  options: { industry?: string | null; language?: string | null; accepting?: boolean; cap?: number; cms?: boolean } = {},
+  options: { industry?: string | null; language?: string | null; accepting?: boolean; cap?: number; cms?: boolean; connected?: boolean } = {},
 ) {
   const [row] = await test.db
     .insert(websites)
@@ -160,6 +161,8 @@ async function site(
     .returning({ id: websites.id });
   await test.db.insert(networkSites).values({ websiteId: row.id, acceptingLinks: options.accepting ?? true, monthlyCap: options.cap ?? 3 });
   if (options.cms) await test.db.insert(integrations).values({ websiteId: row.id, kind: "wordpress", status: "connected" });
+  // In the network only once connected: through the CMS, else the plugin.
+  else if (options.connected !== false) await connectWebsite(test.db, row.id);
   return row.id;
 }
 
@@ -739,6 +742,36 @@ describe("the customer's Partner Network preferences", () => {
     ]);
     // Preferences never reserve or spend anything.
     expect(await test.db.select().from(backlinkRequests).where(eq(backlinkRequests.websiteId, siteId))).toHaveLength(0);
+  });
+
+  it("a website that is not connected is not in the network: shown off, every change refused, no link placed in it or to it", async () => {
+    const owner = await workspace("own");
+    const siteId = await site(owner.orgId, `nc-${randomUUID().slice(0, 6)}.test`, { connected: false });
+    asMember(owner.userId, owner.orgId);
+    // Every new website's row says accepting; it counts once the website is connected.
+    expect(await getPartnerNetwork(siteId)).toMatchObject({ connected: false, participating: false });
+    const refused = { ok: false, error: expect.stringMatching(/Connect your website first/) };
+    expect(await setParticipation(siteId, true)).toMatchObject(refused);
+    expect(await addTarget(siteId, { url: "https://x.test/" })).toMatchObject(refused);
+    expect(await setTargetPriority(siteId, randomUUID(), "high")).toMatchObject(refused);
+    expect(await moveTarget(siteId, randomUUID(), "up")).toMatchObject(refused);
+    // Leaving is always possible.
+    expect(await setParticipation(siteId, false)).toMatchObject({ ok: true });
+    await test.db.update(networkSites).set({ acceptingLinks: true }).where(eq(networkSites.websiteId, siteId));
+
+    const s = await scene();
+    const own = await article(siteId);
+    asAdmin();
+    const place = (articleId: string, expectedVersion: number, beneficiaryWebsiteId: string, domain: string) =>
+      placeLink({ articleId, expectedVersion, beneficiaryWebsiteId, targetUrl: `https://${domain}/x/`, anchor: "wedding videography", credits: 10, reason: "" });
+    const notConnected = { ok: false, error: expect.stringMatching(/not connected to RepGet yet/) };
+    expect(await place(own.id, own.reviewVersion, s.beneficiary, await domainOf(s.beneficiary))).toMatchObject(notConnected);
+    expect(await place(s.post.id, (await row(s.post.id)).reviewVersion, siteId, await domainOf(siteId))).toMatchObject(notConnected);
+
+    // Connected, the stored choice counts at once.
+    await connectWebsite(test.db, siteId);
+    asMember(owner.userId, owner.orgId);
+    expect(await getPartnerNetwork(siteId)).toMatchObject({ connected: true, participating: true });
   });
 
   it("a viewer can read but not change anything", async () => {

@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
+import { connectWebsite } from "@/test/fixtures";
 import { createPostgresTestDb, testPostgresUrl } from "@/test/postgres";
 
 /**
@@ -72,6 +73,7 @@ describe.skipIf(!available)("managed network locks on real Postgres", () => {
       { websiteId: host.id, acceptingLinks: true, monthlyCap: 10 },
       { websiteId: ben.id, acceptingLinks: true, monthlyCap: 10 },
     ]);
+    for (const id of [host.id, ben.id]) await connectWebsite(d, id);
     await d.insert(creditLedger).values({ organizationId: benOrg, type: "purchase", amount: credits });
     const post = async () =>
       (await d.insert(articles).values({ websiteId: host.id, title: "T", status: "draft", reviewStatus: "pending", bodyHtml: "<p>wedding videography matters</p>" }).returning())[0];
