@@ -42,7 +42,7 @@ export function useSocialAction(t: T, priceLabel: string) {
     if (!result) return void toast.error(t.errors.generic);
     toast.error(
       errorText(t, result, priceLabel),
-      result.error === "not_enough_credits" ? { action: { label: t.buyCredits, onClick: () => router.push("/credits") } } : undefined,
+      result.error === "not_enough_credits" ? { action: { label: t.buyCredits, onClick: () => router.push("/credits/buy") } } : undefined,
     );
   }
 

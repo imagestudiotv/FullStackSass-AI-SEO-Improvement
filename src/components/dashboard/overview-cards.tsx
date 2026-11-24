@@ -55,7 +55,7 @@ export function AuthorityCard({ overview, t, locale }: { overview: DashboardOver
               OWN workspace with credits this site can never use.
             */}
             {overview.ownerView ? (
-              <Link href="/billing#addons" className="rounded-full border px-2.5 py-0.5 text-xs font-medium text-violet-700 hover:bg-violet-50 dark:text-violet-300 dark:hover:bg-violet-950/40">
+              <Link href="/credits/buy" className="rounded-full border px-2.5 py-0.5 text-xs font-medium text-violet-700 hover:bg-violet-50 dark:text-violet-300 dark:hover:bg-violet-950/40">
                 {t.getCredits}
               </Link>
             ) : null}

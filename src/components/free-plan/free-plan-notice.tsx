@@ -46,7 +46,7 @@ export function FreePlanNotice({
       </div>
       <div className="flex shrink-0 items-center gap-3">
         {credits ? (
-          <UpgradeLink href="/credits" source={`${source}:credits`} className="text-sm font-medium text-foreground underline underline-offset-2">
+          <UpgradeLink href="/credits/buy" source={`${source}:credits`} className="text-sm font-medium text-foreground underline underline-offset-2">
             {t.buyCredits}
           </UpgradeLink>
         ) : null}

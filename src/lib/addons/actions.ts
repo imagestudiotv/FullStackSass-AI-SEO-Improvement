@@ -6,6 +6,7 @@ import { asc, desc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { emailServiceOrdered } from "@/lib/addons/notify";
+import { BUY_CREDITS_PATH } from "@/lib/credits/buy-credits";
 import { chargeCredits } from "@/lib/credits/spend";
 import { db } from "@/lib/db";
 import { addonPurchases, addons } from "@/lib/db/schema";
@@ -146,8 +147,8 @@ export async function buyAddon(addonId: string): Promise<CheckoutResult> {
       mode: "payment",
       customer: customerId,
       line_items: [{ price: addon.stripePriceId, quantity: 1 }],
-      success_url: `${base}/billing?addon=success`,
-      cancel_url: `${base}/billing?addon=cancelled`,
+      success_url: `${base}${BUY_CREDITS_PATH}?addon=success`,
+      cancel_url: `${base}${BUY_CREDITS_PATH}?addon=cancelled`,
       /**
        * A promotion code box here too, as on the subscription checkout.
        *
@@ -298,6 +299,7 @@ export async function buyAddonWithCredits(addonId: string): Promise<CreditPurcha
 
   revalidatePath("/billing");
   revalidatePath("/credits");
+  revalidatePath(BUY_CREDITS_PATH);
   // The sidebar shows the balance on every page.
   revalidatePath("/", "layout");
   return { ok: true, credits: price };

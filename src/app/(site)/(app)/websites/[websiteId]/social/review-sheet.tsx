@@ -163,7 +163,7 @@ function Review({
             action={
               suggestion.error === "not_enough_credits" ? (
                 <Button asChild size="sm" variant="outline">
-                  <Link href="/credits">{t.buyCredits}</Link>
+                  <Link href="/credits/buy">{t.buyCredits}</Link>
                 </Button>
               ) : null
             }

@@ -17,10 +17,10 @@ import { format } from "@/lib/i18n/format";
 import { creditsIn, type QuoteCreditsCopy } from "@/lib/i18n/quote-credits";
 import { WEBSITE_PROJECTS_PATH } from "@/lib/website-projects/shared";
 
-import { formatMoney } from "./billing-view";
+import { formatMoney } from "../../billing/billing-view";
 
 /**
- * Credits for a quote, at the top of Billing when "Buy credits" on a quote
+ * Credits for a quote, at the top of the credit packs' page when "Buy credits" on a quote
  * brought the customer here (lib/credits/quote-topup.ts). Everything on it -
  * the quote's price, the balance, the shortfall and its price - was worked out
  * on the server; the buttons send back only which quote and what was shown,

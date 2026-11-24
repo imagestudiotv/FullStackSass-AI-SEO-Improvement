@@ -30,7 +30,7 @@ export type { IdeaView, VideoAccountView } from "./shared";
 
 /** The New ideas menu's three batches (client's mockup), ten ideas each at the "video_ideas" price. */
 const BATCHES: ExtraBatchKind[] = ["mixed", "viral", "website"];
-const BUY_HREF = "/billing#addons";
+const BUY_HREF = "/credits/buy";
 const EARN_HREF = "/earn-credits";
 
 /**

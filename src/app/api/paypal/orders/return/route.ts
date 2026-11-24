@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { topUpOfPayPalOrder } from "@/lib/addons/fulfil";
 import { blogPath } from "@/lib/blog/locale";
+import { BUY_CREDITS_PATH } from "@/lib/credits/buy-credits";
 import { quoteCancelPath, quoteReturnPath } from "@/lib/credits/quote-topup-shared";
 import { sponsorshipThanksPath } from "@/lib/blog/sponsorship";
 import { db } from "@/lib/db";
@@ -19,7 +20,7 @@ import { settlePayPalOrder } from "@/lib/paypal/order-fulfilment";
  * captured here - the buyer is waiting - and granted only once PayPal
  * reports the capture completed. The token PayPal appends is never read.
  * The webhook and the maintenance sweep do the same for a buyer who never
- * comes back. Then the buyer goes on to Billing or the placement's thanks page.
+ * comes back. Then the buyer goes on to Buy credits or the placement's thanks page.
  */
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -87,7 +88,7 @@ export async function GET(request: NextRequest) {
     /*
       Credits bought for a quote (lib/credits/quote-topup.ts): paid, or still
       clearing, back to the quote, whose page says which; not paid, back to
-      the same offer on Billing.
+      the same offer.
     */
     const topUp = row.organizationId ? await topUpOfPayPalOrder(row.referenceId, row.organizationId) : null;
     if (topUp?.websiteProjectId) {
@@ -97,7 +98,7 @@ export async function GET(request: NextRequest) {
       return to(quoteReturnPath(topUp.websiteProjectId, topUp.topupId));
     }
     const addon = state === "completed" ? "success" : state === "voided" ? "cancelled" : state === "failed" ? "failed" : "pending";
-    return to(`/billing?addon=${addon}&via=paypal`);
+    return to(`${BUY_CREDITS_PATH}?addon=${addon}&via=paypal`);
   }
 
   // A "Get Featured" placement: the thanks page (in the article's language) reports it; a cancelled one goes back to the article.

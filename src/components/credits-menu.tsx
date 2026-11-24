@@ -66,7 +66,7 @@ export function CreditsMenu({
         <p className="text-xs text-muted-foreground">{t.creditsNeverExpire}</p>
         <div className="flex gap-2">
           <Button asChild size="sm" className="flex-1">
-            <Link href="/billing#addons" onClick={() => setOpen(false)}>
+            <Link href="/credits/buy" onClick={() => setOpen(false)}>
               <Plus aria-hidden="true" />
               {t.buyCredits}
             </Link>

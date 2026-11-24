@@ -239,7 +239,7 @@ export default async function BacklinksOverviewPage({
               ) : null}
               <div className="my-4 border-t" />
               <Button asChild className="w-full sm:w-auto">
-                <Link href="/billing#addons">{r.buyCredits}</Link>
+                <Link href="/credits/buy">{r.buyCredits}</Link>
               </Button>
               <p className="mt-3 text-xs text-muted-foreground">{r.creditsHowItWorks}</p>
               <p className="mt-2 text-xs text-muted-foreground">{r.creditsScopeNote}</p>

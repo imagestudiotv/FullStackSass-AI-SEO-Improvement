@@ -21,6 +21,7 @@ import { requireSession } from "@/lib/auth-guard";
 import { pendingConversions } from "@/lib/conversions/conversions";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { db } from "@/lib/db";
+import { BUY_CREDITS_PATH } from "@/lib/credits/buy-credits";
 import { addons, notifications, organization } from "@/lib/db/schema";
 import { ConversionEvents } from "@/components/conversion-events";
 import { ReferralClaim } from "@/components/referral-claim";
@@ -246,7 +247,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
    */
   const creditPack = addonRows.find((row) => row.kind === "credits");
   const sidebarAddons = [
-    ...(creditPack ? [{ id: creditPack.id, name: t.app.nav.creditPacks }] : []),
+    ...(creditPack ? [{ id: creditPack.id, name: t.app.nav.creditPacks, href: BUY_CREDITS_PATH }] : []),
     ...addonRows
       .filter((row) => row.kind !== "credits")
       .map((row) => {

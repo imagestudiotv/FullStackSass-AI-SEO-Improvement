@@ -28,6 +28,7 @@ import { Notice } from "@/components/workspace/notice";
 import { requireSession } from "@/lib/auth-guard";
 import { MAX_PLACEMENT_CREDITS, MIN_PLACEMENT_CREDITS } from "@/lib/backlinks/managed";
 import { creditAddons } from "@/lib/credits/addons";
+import { BUY_CREDITS_PATH } from "@/lib/credits/buy-credits";
 import {
   CREDIT_KINDS,
   creditHistory,
@@ -60,8 +61,8 @@ export async function generateMetadata(): Promise<Metadata> {
 // The balance moves with every spend, purchase and verified link.
 export const dynamic = "force-dynamic";
 
-/** Where Buy credits goes, here as in the sidebar's credits menu: the credit packs on Billing. */
-const BUY_HREF = "/billing#addons";
+/** Where Buy credits goes, here as everywhere: the credit packs page. */
+const BUY_HREF = BUY_CREDITS_PATH;
 
 /**
  * The actions shown before "See all" (client design, 2026-11-02), the ones

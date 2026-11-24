@@ -419,7 +419,7 @@ function PayQuote({
           {awaitingCredits ? null : (
             <Button asChild>
               {/* To Billing, which offers exactly what is missing for THIS quote, at the server's price. */}
-              <Link href={revision ? quoteTopUpHref(project.id, revision) : "/billing#addons"}>{copy.buyToPay}</Link>
+              <Link href={revision ? quoteTopUpHref(project.id, revision) : "/credits/buy"}>{copy.buyToPay}</Link>
             </Button>
           )}
         </div>

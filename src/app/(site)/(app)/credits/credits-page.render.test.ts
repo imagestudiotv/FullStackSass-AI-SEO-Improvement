@@ -113,7 +113,7 @@ describe("the Credits page", () => {
 
   it("buys credits where the sidebar does, and links to Earn Credits", async () => {
     const html = await render();
-    expect(html).toContain('href="/billing#addons"');
+    expect(html).toContain('href="/credits/buy"');
     expect(html).toContain('href="/earn-credits"');
     expect(html).toContain(en.sourceTopUp);
     expect(html).toContain(en.sourceExplore);

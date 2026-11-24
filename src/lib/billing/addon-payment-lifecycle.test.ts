@@ -169,7 +169,7 @@ describe("a delayed payment", () => {
     await processStripeEvent(event("checkout.session.async_payment_failed", s, "unpaid"));
     await expectNothingGranted(s);
     expect(notifyMock).toHaveBeenCalledTimes(1);
-    expect(notifyMock.mock.calls[0][0]).toMatchObject({ type: "addon.payment_failed", organizationId: s.organizationId, href: "/billing" });
+    expect(notifyMock.mock.calls[0][0]).toMatchObject({ type: "addon.payment_failed", organizationId: s.organizationId, href: "/credits/buy" });
     expect(notifyMock.mock.calls[0][0].body).toContain("No credits were added");
     // A replay of the completion after the failure changes nothing.
     await processStripeEvent(event("checkout.session.completed", s, "unpaid"));

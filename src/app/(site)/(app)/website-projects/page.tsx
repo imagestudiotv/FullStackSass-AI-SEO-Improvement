@@ -84,7 +84,7 @@ export default async function WebsiteProjectsPage({ searchParams }: PageProps<"/
             {wallet.reserved > 0 ? (
               <p className="text-xs text-muted-foreground">{format(copy.walletReserved, { count: formatNumber(wallet.reserved, locale) })}</p>
             ) : null}
-            <Link href="/billing#addons" className="mt-1 inline-block text-xs font-medium text-primary underline underline-offset-2">
+            <Link href="/credits/buy" className="mt-1 inline-block text-xs font-medium text-primary underline underline-offset-2">
               {copy.buyCredits}
             </Link>
           </div>

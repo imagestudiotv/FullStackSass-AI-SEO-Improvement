@@ -159,7 +159,7 @@ export function SidebarNav({
   /**
    * The website index ("" segment) and /dashboard match exactly; every other
    * route also matches its own children, so an article page keeps Planned
-   * Articles lit. usePathname() never carries a hash, so "/billing#addons"
+   * Articles lit. usePathname() never carries a hash, so "/credits/buy#services"
    * is compared on its path alone.
    */
   function isActive(item: NavLink): boolean {
@@ -270,13 +270,13 @@ export function SidebarNav({
                 {entry.children === "addons"
                   ? (children as SidebarAddon[]).map((addon) => (
                       /*
-                        An add-on links to the panel on Billing, where it is
+                        An add-on links to the Buy credits page, where it is
                         bought, unless it has a screen of its own (website
                         projects).
                       */
                       <Link
                         key={addon.id}
-                        href={addon.href ?? "/billing#addons"}
+                        href={addon.href ?? "/credits/buy#services"}
                         onClick={onNavigate}
                         className="flex items-start gap-3 rounded-md py-1.5 pr-3 pl-9 text-sm text-muted-foreground transition-colors hover:bg-accent/60 hover:text-accent-foreground"
                       >

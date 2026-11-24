@@ -233,8 +233,8 @@ describe("starting the payment", () => {
     expect(orders[0]).toMatchObject({ referenceId: row.id, amountCents: 49000, currency: "eur", organizationId: s.organizationId });
   });
 
-  it("links Billing from the quote with its id and revision", () => {
-    expect(quoteTopUpHref("p1", "123")).toBe("/billing?project=p1&revision=123#quote-credits");
+  it("links the credit packs page from the quote with its id and revision", () => {
+    expect(quoteTopUpHref("p1", "123")).toBe("/credits/buy?project=p1&revision=123#quote-credits");
   });
 });
 
