@@ -50,12 +50,14 @@ export type WebsiteCreationCopy = {
     realLabel: string;
     conceptLabel: string;
     openImageStudio: string;
+    openDumitru: string;
     visit: string;
+    visitDumitru: string;
     similar: string;
     honesty: string;
     imageStudio: { sub: string; body: string };
     aurenia: { sub: string; body: string; alt: string };
-    forme: { sub: string; body: string; alt: string };
+    dumitru: { sub: string; body: string };
   };
   process: { kicker: string; title: string; titleEm: string; body: string; steps: { index: string; title: string; body: string }[] };
   credits: {
@@ -130,17 +132,19 @@ export const WEBSITE_CREATION_COPY: Record<Locale, WebsiteCreationCopy> = {
       kicker: "MADE FOR YOUR BUSINESS",
       title: "A website that looks like",
       titleEm: "you.",
-      body: "Real creative direction for businesses that need to look established. Explore a live brand website, then two very different custom design directions.",
+      body: "Real creative direction for businesses that need to look established. Explore two live websites and a very different custom design direction.",
       liveChip: "LIVE WEBSITE",
       realLabel: "Real website",
       conceptLabel: "Design concept",
       openImageStudio: "Open Image Studio's real website",
+      openDumitru: "Open Dumitru Culiuc's real website",
       visit: "Visit imagestudio.com",
+      visitDumitru: "Visit dumitruculiuc.com",
       similar: "Start a similar project",
-      honesty: "Image Studio is a real website. Aurenia Residences and Forme Objects are original design concepts illustrating possible directions, not claims of delivered client projects.",
+      honesty: "Image Studio and Dumitru Culiuc are real websites. Aurenia Residences is an original design concept illustrating a possible direction, not a claim of a delivered client project.",
       imageStudio: { sub: "01 / FILM & PHOTOGRAPHY", body: "A distinctive editorial presence for film production, photography and visual storytelling." },
       aurenia: { sub: "02 / HOSPITALITY", body: "Image-led storytelling, a distinctive sense of place and a clear booking journey.", alt: "Original luxury hospitality website design concept" },
-      forme: { sub: "03 / ONLINE COMMERCE", body: "A polished shopping experience with strong product storytelling and effortless navigation.", alt: "Original premium ecommerce website design concept" },
+      dumitru: { sub: "03 / PERSONAL BRAND", body: "A founder's own website: his story, his projects and his blog, in three languages." },
     },
     process: {
       kicker: "SIMPLE FROM DAY ONE",
@@ -265,17 +269,19 @@ export const WEBSITE_CREATION_COPY: Record<Locale, WebsiteCreationCopy> = {
       kicker: "HECHO PARA SU NEGOCIO",
       title: "Un sitio web que se parece a",
       titleEm: "usted.",
-      body: "Dirección creativa real para negocios que necesitan transmitir solidez. Explore un sitio de marca en vivo y dos direcciones de diseño a medida muy diferentes.",
+      body: "Dirección creativa real para negocios que necesitan transmitir solidez. Explore dos sitios en vivo y una dirección de diseño a medida muy diferente.",
       liveChip: "SITIO EN VIVO",
       realLabel: "Sitio real",
       conceptLabel: "Concepto de diseño",
       openImageStudio: "Abrir el sitio web real de Image Studio",
+      openDumitru: "Abrir el sitio web real de Dumitru Culiuc",
       visit: "Visitar imagestudio.com",
+      visitDumitru: "Visitar dumitruculiuc.com",
       similar: "Iniciar un proyecto similar",
-      honesty: "Image Studio es un sitio web real. Aurenia Residences y Forme Objects son conceptos de diseño originales que ilustran posibles direcciones, no proyectos entregados a clientes.",
+      honesty: "Image Studio y Dumitru Culiuc son sitios web reales. Aurenia Residences es un concepto de diseño original que ilustra una posible dirección, no un proyecto entregado a un cliente.",
       imageStudio: { sub: "01 / CINE Y FOTOGRAFÍA", body: "Una presencia editorial distintiva para producción de cine, fotografía y narración visual." },
       aurenia: { sub: "02 / HOSTELERÍA", body: "Narración basada en imágenes, un sentido propio del lugar y un recorrido de reserva claro.", alt: "Concepto original de sitio web para hostelería de lujo" },
-      forme: { sub: "03 / COMERCIO ONLINE", body: "Una experiencia de compra cuidada, con una historia de producto sólida y una navegación sencilla.", alt: "Concepto original de sitio web para comercio electrónico premium" },
+      dumitru: { sub: "03 / MARCA PERSONAL", body: "El sitio propio de un fundador: su historia, sus proyectos y su blog, en tres idiomas." },
     },
     process: {
       kicker: "SENCILLO DESDE EL PRIMER DÍA",
@@ -400,17 +406,19 @@ export const WEBSITE_CREATION_COPY: Record<Locale, WebsiteCreationCopy> = {
       kicker: "CONÇU POUR VOTRE ACTIVITÉ",
       title: "Un site qui vous",
       titleEm: "ressemble.",
-      body: "Une vraie direction créative pour les entreprises qui doivent inspirer confiance. Découvrez un site de marque en ligne, puis deux directions de design sur mesure très différentes.",
+      body: "Une vraie direction créative pour les entreprises qui doivent inspirer confiance. Découvrez deux sites en ligne, puis une direction de design sur mesure très différente.",
       liveChip: "SITE EN LIGNE",
       realLabel: "Site réel",
       conceptLabel: "Concept de design",
       openImageStudio: "Ouvrir le vrai site d'Image Studio",
+      openDumitru: "Ouvrir le vrai site de Dumitru Culiuc",
       visit: "Visiter imagestudio.com",
+      visitDumitru: "Visiter dumitruculiuc.com",
       similar: "Démarrer un projet similaire",
-      honesty: "Image Studio est un vrai site. Aurenia Residences et Forme Objects sont des concepts de design originaux illustrant des directions possibles, et non des projets livrés à des clients.",
+      honesty: "Image Studio et Dumitru Culiuc sont de vrais sites. Aurenia Residences est un concept de design original illustrant une direction possible, et non un projet livré à un client.",
       imageStudio: { sub: "01 / FILM ET PHOTOGRAPHIE", body: "Une présence éditoriale singulière pour la production de films, la photographie et le récit visuel." },
       aurenia: { sub: "02 / HÔTELLERIE", body: "Un récit porté par l'image, une vraie identité de lieu et un parcours de réservation clair.", alt: "Concept original de site web pour l'hôtellerie de luxe" },
-      forme: { sub: "03 / COMMERCE EN LIGNE", body: "Une expérience d'achat soignée, un récit produit fort et une navigation sans effort.", alt: "Concept original de site de commerce en ligne haut de gamme" },
+      dumitru: { sub: "03 / MARQUE PERSONNELLE", body: "Le site d'un fondateur : son histoire, ses projets et son blog, en trois langues." },
     },
     process: {
       kicker: "SIMPLE DÈS LE PREMIER JOUR",
@@ -535,17 +543,19 @@ export const WEBSITE_CREATION_COPY: Record<Locale, WebsiteCreationCopy> = {
       kicker: "FATTO PER LA SUA ATTIVITÀ",
       title: "Un sito che le",
       titleEm: "somiglia.",
-      body: "Vera direzione creativa per le attività che devono trasmettere solidità. Esplori un sito di marca online e due direzioni di design su misura molto diverse.",
+      body: "Vera direzione creativa per le attività che devono trasmettere solidità. Esplori due siti online e una direzione di design su misura molto diversa.",
       liveChip: "SITO ONLINE",
       realLabel: "Sito reale",
       conceptLabel: "Concept di design",
       openImageStudio: "Apri il vero sito di Image Studio",
+      openDumitru: "Apri il vero sito di Dumitru Culiuc",
       visit: "Visita imagestudio.com",
+      visitDumitru: "Visita dumitruculiuc.com",
       similar: "Avvia un progetto simile",
-      honesty: "Image Studio è un sito reale. Aurenia Residences e Forme Objects sono concept di design originali che illustrano possibili direzioni, non progetti consegnati a clienti.",
+      honesty: "Image Studio e Dumitru Culiuc sono siti reali. Aurenia Residences è un concept di design originale che illustra una possibile direzione, non un progetto consegnato a un cliente.",
       imageStudio: { sub: "01 / FILM E FOTOGRAFIA", body: "Una presenza editoriale distintiva per produzione video, fotografia e racconto visivo." },
       aurenia: { sub: "02 / OSPITALITÀ", body: "Racconto per immagini, un forte senso del luogo e un percorso di prenotazione chiaro.", alt: "Concept originale di sito web per l'ospitalità di lusso" },
-      forme: { sub: "03 / COMMERCIO ONLINE", body: "Un'esperienza d'acquisto curata, con un forte racconto del prodotto e una navigazione semplice.", alt: "Concept originale di sito e-commerce premium" },
+      dumitru: { sub: "03 / PERSONAL BRAND", body: "Il sito di un fondatore: la sua storia, i suoi progetti e il suo blog, in tre lingue." },
     },
     process: {
       kicker: "SEMPLICE DAL PRIMO GIORNO",
@@ -670,17 +680,19 @@ export const WEBSITE_CREATION_COPY: Record<Locale, WebsiteCreationCopy> = {
       kicker: "FÜR IHR UNTERNEHMEN GEMACHT",
       title: "Eine Website, die zu Ihnen",
       titleEm: "passt.",
-      body: "Echte kreative Leitung für Unternehmen, die etabliert wirken müssen. Entdecken Sie eine echte Marken-Website und zwei sehr unterschiedliche individuelle Designrichtungen.",
+      body: "Echte kreative Leitung für Unternehmen, die etabliert wirken müssen. Entdecken Sie zwei echte Websites und eine ganz andere individuelle Designrichtung.",
       liveChip: "LIVE-WEBSITE",
       realLabel: "Echte Website",
       conceptLabel: "Designkonzept",
       openImageStudio: "Die echte Website von Image Studio öffnen",
+      openDumitru: "Die echte Website von Dumitru Culiuc öffnen",
       visit: "imagestudio.com besuchen",
+      visitDumitru: "dumitruculiuc.com besuchen",
       similar: "Ähnliches Projekt starten",
-      honesty: "Image Studio ist eine echte Website. Aurenia Residences und Forme Objects sind eigene Designkonzepte, die mögliche Richtungen zeigen, und keine für Kunden umgesetzten Projekte.",
+      honesty: "Image Studio und Dumitru Culiuc sind echte Websites. Aurenia Residences ist ein eigenes Designkonzept, das eine mögliche Richtung zeigt, und kein für einen Kunden umgesetztes Projekt.",
       imageStudio: { sub: "01 / FILM UND FOTOGRAFIE", body: "Ein unverwechselbarer redaktioneller Auftritt für Filmproduktion, Fotografie und visuelles Erzählen." },
       aurenia: { sub: "02 / HOTELLERIE", body: "Bildstarkes Erzählen, ein eigenes Gefühl für den Ort und ein klarer Buchungsweg.", alt: "Eigenes Website-Designkonzept für Luxushotellerie" },
-      forme: { sub: "03 / ONLINEHANDEL", body: "Ein gepflegtes Einkaufserlebnis mit starker Produktgeschichte und müheloser Navigation.", alt: "Eigenes Designkonzept für einen Premium-Onlineshop" },
+      dumitru: { sub: "03 / PERSÖNLICHE MARKE", body: "Die eigene Website eines Gründers: seine Geschichte, seine Projekte und sein Blog, in drei Sprachen." },
     },
     process: {
       kicker: "EINFACH VOM ERSTEN TAG AN",

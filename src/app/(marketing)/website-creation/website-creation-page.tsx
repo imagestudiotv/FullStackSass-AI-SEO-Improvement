@@ -8,11 +8,11 @@ import { OneOpen } from "../_home/sections/faq-one-open";
 import { ClosingStart, HeroStart, ProjectChoice, RegisterLink, StartSimilar } from "./website-start";
 import styles from "./website-creation.module.css";
 
-/** Pictures from the design, extracted and compressed: three small files, not 300 kB of inline base64. */
+/** Two pictures from the design, extracted and compressed, and a screenshot of a live website's home page (2026-11-24). */
 const IMAGES = {
   imageStudio: "/images/website-creation/image-studio.webp",
   aurenia: "/images/website-creation/aurenia-residences.webp",
-  forme: "/images/website-creation/forme-objects.webp",
+  dumitru: "/images/website-creation/dumitru-culiuc.webp",
 };
 
 const STEP_MARKS = ["✉", "✎", "◈", "↗"];
@@ -27,7 +27,7 @@ function CaseBrowserTop({ domain, live }: { domain: string; live?: boolean }) {
         <i />
         <i />
       </div>
-      {/* The concepts' domains are part of the picture: plain text, with no arrow suggesting a link. */}
+      {/* A concept's domain is part of the picture: plain text, with no arrow suggesting a link. */}
       <span>{domain}</span>
       {live ? (
         <span className={styles.caseBrowserOpen} aria-hidden="true">
@@ -199,22 +199,24 @@ export function WebsiteCreationContent({ locale = DEFAULT_LOCALE }: { locale?: L
 
               <article className={styles.case}>
                 <div className={styles.caseBrowser}>
-                  <CaseBrowserTop domain="atelier-forme.com" />
-                  <div className={styles.casePage}>
-                    <Image src={IMAGES.forme} alt={t.work.forme.alt} fill sizes={CARD_SIZES} loading="lazy" className={styles.caseImagePhoto} />
-                    <span className={styles.conceptChip}>{t.work.conceptLabel}</span>
-                  </div>
+                  <CaseBrowserTop domain="dumitruculiuc.com" live />
+                  <a aria-label={t.work.openDumitru} className={styles.casePage} href="https://dumitruculiuc.com/" rel="noopener noreferrer" target="_blank">
+                    <Image src={IMAGES.dumitru} alt="" fill sizes={CARD_SIZES} loading="lazy" className={styles.caseImagePhoto} />
+                    <span className={styles.caseLiveChip}>{t.work.liveChip}</span>
+                  </a>
                 </div>
                 <div className={styles.caseMeta}>
                   <div className={styles.caseSubrow}>
-                    <span>{t.work.forme.sub}</span>
-                    <span>{t.work.conceptLabel}</span>
+                    <span>{t.work.dumitru.sub}</span>
+                    <span className={styles.caseLiveLabel}>
+                      <i aria-hidden="true" /> {t.work.realLabel}
+                    </span>
                   </div>
-                  <h3>Forme Objects</h3>
-                  <p>{t.work.forme.body}</p>
-                  <StartSimilar className={styles.caseLink}>
-                    {t.work.similar} <span aria-hidden="true">↗</span>
-                  </StartSimilar>
+                  <h3>Dumitru Culiuc</h3>
+                  <p>{t.work.dumitru.body}</p>
+                  <a href="https://dumitruculiuc.com/" rel="noopener noreferrer" target="_blank">
+                    {t.work.visitDumitru} <span aria-hidden="true">↗</span>
+                  </a>
                 </div>
               </article>
             </div>

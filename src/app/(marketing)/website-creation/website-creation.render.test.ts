@@ -36,17 +36,20 @@ describe.each(LOCALES)("/website-creation in %s", (locale) => {
     expect(html.match(/<details/g)).toHaveLength(t.faq.items.length);
   });
 
-  it("identifies Image Studio as real and links it; the concepts stay concepts with no link", () => {
+  it("identifies the two real websites and links them; the concept stays a concept with no link", () => {
     expect(html).toContain('href="https://imagestudio.com/"');
     expect(html).toContain("Image Studio");
-    expect(html.split(t.work.conceptLabel).length - 1).toBeGreaterThanOrEqual(4);
+    expect(html).toContain('href="https://dumitruculiuc.com/"');
+    expect(html).toContain("dumitru-culiuc.webp");
+    expect(html.split(`>${t.work.liveChip}<`).length - 1).toBe(2);
+    expect(html.split(`</i> ${t.work.realLabel}<`).length - 1).toBe(2);
+    expect(html.split(t.work.conceptLabel).length - 1).toBe(2);
     expect(html).toContain("aurenia-residences.com");
-    expect(html).toContain("atelier-forme.com");
     // An <a>: React also writes a preload <link> for the mock <img>, which is no link to anywhere.
     expect(html).not.toMatch(/<a [^>]*href="[^"]*aurenia/);
-    expect(html).not.toMatch(/<a [^>]*href="[^"]*(atelier-forme|forme-objects)/);
-    expect(t.work.honesty).toContain("Aurenia Residences");
-    expect(t.work.honesty).toContain("Forme Objects");
+    // The third example was a concept until 2026-11-24.
+    expect(html).not.toMatch(/forme-objects|atelier-forme|Forme Objects/i);
+    for (const name of ["Image Studio", "Dumitru Culiuc", "Aurenia Residences"]) expect(t.work.honesty).toContain(name);
   });
 
   it("offers no price, deadline, second currency or named staff", () => {
