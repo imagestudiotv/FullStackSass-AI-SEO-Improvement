@@ -23,6 +23,12 @@
  * price object. Always follow with `npm run stripe:setup`, which creates the
  * new prices and rewrites those ids.
  *
+ * THE 50-CREDIT TOP-UP (client's design, 2026-11-24) is a line under the packs,
+ * shown only once it has a Stripe price, and never the rate partners are paid
+ * at (src/lib/credits/pack-rate.ts). Its slug is src/lib/credits/buy-credits.ts
+ * TOP_UP_PACK_SLUG; a test keeps them equal. To add it to a database without
+ * touching the other rows: `npm run db:seed-addons -- --only credits_topup_50`.
+ *
  * stripePriceId stays null until that setup runs. Checkout refuses an add-on
  * without one, so a half-configured add-on cannot take money.
  */
@@ -66,6 +72,15 @@ const ADDONS = [
     kind: "credits",
     sortOrder: 3,
   },
+  {
+    slug: "credits_topup_50",
+    name: "50 credits",
+    description: "Fifty credits. A small top-up.",
+    priceCents: 4900,
+    creditsGranted: 50,
+    kind: "credits",
+    sortOrder: 4,
+  },
   /**
    * A service we deliver by hand. creditsGranted is 0 and kind is "service",
    * so the webhook records the payment and grants nothing — a manual service
@@ -107,7 +122,16 @@ const ADDONS = [
   },
 ];
 
-for (const addon of ADDONS) {
+/** `--only <slug>`: that add-on alone. Anything else in the table is left as it is. */
+const at = process.argv.indexOf("--only");
+const only = at === -1 ? null : process.argv[at + 1];
+const chosen = only === null ? ADDONS : ADDONS.filter((addon) => addon.slug === only);
+if (chosen.length === 0) {
+  console.error(`No add-on "${only ?? ""}" here. One of: ${ADDONS.map((addon) => addon.slug).join(", ")}`);
+  process.exit(1);
+}
+
+for (const addon of chosen) {
   await sql`
     insert into addons
       (slug, name, description, price_cents, currency, credits_granted,
