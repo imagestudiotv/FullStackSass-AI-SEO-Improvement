@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/table";
 import { listWebsites, type AdminWebsite } from "@/lib/admin/actions";
 import { DATE_RANGES, pageFrom } from "@/lib/admin/shared";
+import { firstArticleStatus } from "@/lib/articles/first-article-status";
 import { listDailyLimits } from "@/lib/publishing/daily-cap";
 
 import { ExpandableText } from "../_ui/expandable-text";
@@ -46,6 +47,9 @@ export const metadata = { title: "Websites" };
 
 const BASE = "/admin/websites";
 
+/** How long a website without an article says why under its name. */
+const NO_ARTICLE_DAYS = 30;
+
 /**
  * The values websites.status actually takes, in operator words. The filter
  * and the badge use the same label, so "Status: Failed" lists rows that say
@@ -80,6 +84,17 @@ function oncePerWebsite(rows: AdminWebsite[]): AdminWebsite[] {
   return [...byId.values()];
 }
 
+/**
+ * Why a recent website has no article yet (lib/articles/first-article-status.ts),
+ * so nobody has to guess. A reason that cannot be read is left out.
+ */
+async function noArticleReasons(rows: AdminWebsite[]): Promise<Map<string, string>> {
+  const recent = Date.now() - NO_ARTICLE_DAYS * 24 * 60 * 60 * 1000;
+  const waiting = rows.filter((row) => row.articleCount === 0 && row.createdAt.getTime() >= recent);
+  const reasons = await Promise.all(waiting.map((row) => firstArticleStatus(row.id).catch(() => null)));
+  return new Map(waiting.flatMap((row, i) => (reasons[i] ? [[row.id, reasons[i].message] as const] : [])));
+}
+
 export default async function AdminWebsitesPage({
   searchParams,
 }: PageProps<"/admin/websites">) {
@@ -99,6 +114,7 @@ export default async function AdminWebsitesPage({
   // Articles per day (lib/publishing/daily-cap.ts): every limit in force, shown above the table and in each row's menu.
   const limits = await listDailyLimits();
   const perDayOf = new Map(limits.map((limit) => [limit.websiteId, limit.perDay]));
+  const whyOf = await noArticleReasons(rows);
 
   const listParams = {
     q: search || undefined,
@@ -229,6 +245,7 @@ export default async function AdminWebsitesPage({
                           {row.organizationName ? (
                             <p className="[overflow-wrap:anywhere] text-xs text-muted-foreground md:hidden">{row.organizationName}</p>
                           ) : null}
+                          {whyOf.get(row.id) ? <p className="mt-0.5 whitespace-normal text-xs text-muted-foreground">No article yet: {whyOf.get(row.id)}</p> : null}
                           {row.sameDomainElsewhere > 0 ? (
                             /* One WordPress site can publish for only one of them; the link lists them all. */
                             <p className="mt-0.5 flex items-start gap-1 whitespace-normal text-xs text-warning">
