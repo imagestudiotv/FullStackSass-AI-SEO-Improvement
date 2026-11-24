@@ -15,10 +15,15 @@ export type DailyClaimCopy = {
   /** The launchers. */
   launchClaim: string;
   launchView: string;
-  /** The banner's button once the server has confirmed today's claim. */
-  claimedToday: string;
-  bannerTitle: string;
-  bannerBody: string;
+  /** The sidebar's row: before the claim, and after the server confirmed it. {count} is the real amount. */
+  bonusTitle: string;
+  bonusAvailable: string;
+  bonusClaim: string;
+  bonusClaimedTitle: string;
+  bonusTomorrow: string;
+  bonusClaimed: string;
+  /** After it on a trial's last day, when no next claim is coming. */
+  bonusLast: string;
 
   /** The modal before today's check-in, on a paid plan and on a trial. */
   title: string;
@@ -80,9 +85,13 @@ const en: DailyClaimCopy = {
 
   launchClaim: "Claim {credits}",
   launchView: "View daily rewards",
-  claimedToday: "Claimed today",
-  bannerTitle: "Show up daily. Grow for free.",
-  bannerBody: "Check in today and get {credits} to use in your workspace.",
+  bonusTitle: "Daily bonus",
+  bonusAvailable: "{count} free credit available|{count} free credits available",
+  bonusClaim: "Claim +{count}",
+  bonusClaimedTitle: "Daily bonus claimed",
+  bonusTomorrow: "Come back tomorrow",
+  bonusClaimed: "Claimed",
+  bonusLast: "Your trial credits are all collected",
 
   title: "Your daily check-in.",
   titleEm: "{credits} free, every day.",
@@ -138,9 +147,13 @@ const es: DailyClaimCopy = {
 
   launchClaim: "Reclamar {credits}",
   launchView: "Ver recompensas diarias",
-  claimedToday: "Recogido hoy",
-  bannerTitle: "Vuelva cada día. Crezca gratis.",
-  bannerBody: "Registre su visita de hoy y reciba {credits} para usar en su espacio de trabajo.",
+  bonusTitle: "Bono diario",
+  bonusAvailable: "{count} crédito gratis disponible|{count} créditos gratis disponibles",
+  bonusClaim: "Reclamar +{count}",
+  bonusClaimedTitle: "Bono diario recogido",
+  bonusTomorrow: "Vuelva mañana",
+  bonusClaimed: "Recogido",
+  bonusLast: "Ya recogió todos sus créditos de prueba",
 
   title: "Su visita diaria.",
   titleEm: "{credits} gratis, cada día.",
@@ -196,9 +209,13 @@ const fr: DailyClaimCopy = {
 
   launchClaim: "Récupérer {credits}",
   launchView: "Voir les récompenses",
-  claimedToday: "Récupéré aujourd’hui",
-  bannerTitle: "Revenez chaque jour. Progressez gratuitement.",
-  bannerBody: "Faites votre check-in aujourd’hui et recevez {credits} à utiliser dans votre espace de travail.",
+  bonusTitle: "Bonus du jour",
+  bonusAvailable: "{count} crédit offert disponible|{count} crédits offerts disponibles",
+  bonusClaim: "Obtenir +{count}",
+  bonusClaimedTitle: "Bonus du jour récupéré",
+  bonusTomorrow: "Revenez demain",
+  bonusClaimed: "Récupéré",
+  bonusLast: "Vous avez récupéré tous vos crédits d’essai",
 
   title: "Votre check-in quotidien.",
   titleEm: "{credits} offerts, chaque jour.",
@@ -254,9 +271,13 @@ const it: DailyClaimCopy = {
 
   launchClaim: "Richieda {credits}",
   launchView: "Vedi premi giornalieri",
-  claimedToday: "Ricevuto oggi",
-  bannerTitle: "Torni ogni giorno. Cresca gratis.",
-  bannerBody: "Faccia il check-in di oggi e riceva {credits} da usare nel Suo spazio di lavoro.",
+  bonusTitle: "Bonus del giorno",
+  bonusAvailable: "{count} credito gratis disponibile|{count} crediti gratis disponibili",
+  bonusClaim: "Ritiri +{count}",
+  bonusClaimedTitle: "Bonus del giorno ritirato",
+  bonusTomorrow: "Torni domani",
+  bonusClaimed: "Ritirato",
+  bonusLast: "Ha ritirato tutti i Suoi crediti di prova",
 
   title: "Il Suo check-in giornaliero.",
   titleEm: "{credits} gratis, ogni giorno.",
@@ -312,9 +333,13 @@ const de: DailyClaimCopy = {
 
   launchClaim: "{credits} abholen",
   launchView: "Tägliche Prämien ansehen",
-  claimedToday: "Heute abgeholt",
-  bannerTitle: "Täglich dabei. Kostenlos wachsen.",
-  bannerBody: "Checken Sie heute ein und erhalten Sie {credits} für Ihren Arbeitsbereich.",
+  bonusTitle: "Tagesbonus",
+  bonusAvailable: "{count} Gratis-Credit verfügbar|{count} Gratis-Credits verfügbar",
+  bonusClaim: "+{count} abholen",
+  bonusClaimedTitle: "Tagesbonus abgeholt",
+  bonusTomorrow: "Kommen Sie morgen wieder",
+  bonusClaimed: "Abgeholt",
+  bonusLast: "Alle Test-Credits sind abgeholt",
 
   title: "Ihr täglicher Check-in.",
   titleEm: "{credits} gratis, jeden Tag.",

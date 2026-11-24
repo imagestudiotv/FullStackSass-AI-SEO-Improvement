@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, ArrowUpRight, Check, Flame, Gift, Info } from "lucide-react";
+import { ArrowRight, Check, Flame, Gift, Info } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
@@ -33,7 +33,7 @@ import styles from "./daily-claim.module.css";
  * says why instead.
  */
 
-type Variant = "row" | "chip" | "button" | "banner";
+type Variant = "row" | "chip" | "button";
 
 /** The design's dark claim button, which follows the theme so it stays dark on light and light on dark. */
 const DESIGN_BUTTON = "bg-foreground text-background hover:bg-foreground/85";
@@ -130,7 +130,7 @@ export function DailyClaim({
 
   return (
     <Dialog open={open} onOpenChange={changeOpen}>
-      <Launcher status={status} variant={variant} copy={copy} locale={locale} amount={amount} creditWord={creditWord} className={className} />
+      <Launcher status={status} variant={variant} copy={copy} amount={amount} className={className} />
       <DialogContent
         ref={contentRef}
         closeLabel={copy.close}
@@ -240,17 +240,13 @@ function Launcher({
   status,
   variant,
   copy,
-  locale,
   amount,
-  creditWord,
   className,
 }: {
   status: DailyCredits;
   variant: Variant;
   copy: DailyClaimCopy;
-  locale: Locale;
   amount: string;
-  creditWord: (count: number) => string;
   className?: string;
 }) {
   const label = status.claimable ? format(copy.launchClaim, { credits: amount }) : copy.launchView;
@@ -272,81 +268,41 @@ function Launcher({
     );
   }
   if (variant === "row") {
+    /*
+      The sidebar's quiet row under Earn Credits (client design, 2026-11-24):
+      what today's claim is worth, and a small outlined button.
+
+      The same button in both states, so the focus can return to it when the
+      modal closes. Claimed, it is marked disabled and does nothing, rather
+      than natively disabled, which would throw the keyboard's place away.
+    */
     return (
-      <DialogTrigger asChild>
-        <button
-          type="button"
-          className={cn(
-            "flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm transition-colors",
-            status.claimable
-              ? "bg-primary font-semibold text-primary-foreground hover:bg-primary/90"
-              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-            className,
-          )}
-        >
-          {status.claimable ? <Gift className="size-4 shrink-0" aria-hidden="true" /> : <Check className="size-4 shrink-0" aria-hidden="true" />}
-          <span className="min-w-0">{label}</span>
-        </button>
-      </DialogTrigger>
-    );
-  }
-  if (variant === "banner") {
-    return (
-      <section
-        aria-label={copy.eyebrow}
-        className={cn(
-          "relative flex flex-col gap-4 overflow-hidden rounded-2xl border p-5 sm:flex-row sm:items-center sm:justify-between sm:p-7",
-          styles.banner,
-          className,
-        )}
-      >
-        <span className={styles.bannerRing} aria-hidden="true" />
-        <span className={cn(styles.bannerRing, styles.bannerRingInner)} aria-hidden="true" />
-        <div className="relative min-w-0">
-          <p className="flex items-center gap-2 text-xs font-bold tracking-[0.13em] text-primary uppercase">
-            <span className="size-1.5 rounded-full bg-primary" aria-hidden="true" />
-            {copy.eyebrow}
-          </p>
-          <h2 className="mt-2 text-xl font-bold tracking-tight">{copy.bannerTitle}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {status.claimable
-              ? format(copy.bannerBody, { credits: amount })
-              : status.nextAt
-                ? format(copy.doneSub, { when: dailyWhen(new Date(status.nextAt), locale) })
-                : status.paidPerDay > 0
-                  ? format(copy.trialLastSubPaid, { credits: creditWord(status.paidPerDay) })
-                  : copy.trialLastSub}
-          </p>
-        </div>
-        <div className="relative flex shrink-0 items-center gap-4">
-          {/* On its own element: .coin sets a display of its own, which would beat `hidden` on the same one. */}
-          <span className="hidden lg:block" aria-hidden="true">
-            <span className={cn(styles.coin, styles.bannerCoin)}>R</span>
+      <div className={cn("flex items-center gap-2 pt-2.5", className)}>
+        <span className="grid size-8 shrink-0 place-items-center rounded-[10px] bg-primary/10 text-primary" aria-hidden="true">
+          <Gift className="size-4" />
+        </span>
+        <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
+          <span className="block text-[13px] leading-tight font-bold">{status.claimable ? copy.bonusTitle : copy.bonusClaimedTitle}</span>
+          <span className="mt-0.5 block text-[11.5px] leading-tight text-muted-foreground">
+            {status.claimable ? plural(copy.bonusAvailable, status.perDay) : status.nextAt ? copy.bonusTomorrow : copy.bonusLast}
           </span>
-          {/*
-            The same button in both states, so the focus can return to it when the
-            modal closes. Claimed, it is marked disabled and does nothing, rather
-            than natively disabled, which would throw the keyboard's place away.
-          */}
-          <DialogTrigger asChild>
-            <Button
-              type="button"
-              size="lg"
-              variant={status.claimable ? "default" : "secondary"}
-              aria-disabled={status.claimable ? undefined : true}
-              onClick={status.claimable ? undefined : (event) => event.preventDefault()}
-              className={cn(
-                "max-sm:w-full",
-                status.claimable ? DESIGN_BUTTON : "cursor-default border-foreground/10 bg-background/70 text-muted-foreground hover:bg-background/70",
-              )}
-            >
-              {status.claimable ? null : <Check aria-hidden="true" />}
-              {status.claimable ? label : copy.claimedToday}
-              {status.claimable ? <ArrowUpRight aria-hidden="true" /> : null}
-            </Button>
-          </DialogTrigger>
-        </div>
-      </section>
+        </span>
+        <DialogTrigger asChild>
+          <button
+            type="button"
+            aria-disabled={status.claimable ? undefined : true}
+            onClick={status.claimable ? undefined : (event) => event.preventDefault()}
+            className={cn(
+              "min-h-8 shrink-0 rounded-lg border px-2 py-1.5 text-xs font-bold whitespace-nowrap transition-colors",
+              status.claimable
+                ? "border-primary/30 bg-primary/5 text-primary hover:bg-primary/15"
+                : "cursor-default border-border bg-muted text-muted-foreground",
+            )}
+          >
+            {status.claimable ? format(copy.bonusClaim, { count: status.perDay }) : copy.bonusClaimed}
+          </button>
+        </DialogTrigger>
+      </div>
     );
   }
   return (

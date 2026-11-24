@@ -1,4 +1,4 @@
-import { Coins, Gift } from "lucide-react";
+import { ArrowRight, Gift } from "lucide-react";
 import Link from "next/link";
 
 import { CreditsMenu } from "@/components/credits-menu";
@@ -6,14 +6,15 @@ import { DailyClaim } from "@/components/daily-claim";
 import { creditOverviewForRequest } from "@/lib/credits/overview-request";
 import type { Locale } from "@/lib/i18n/config";
 import { DAILY_CLAIM_COPY } from "@/lib/i18n/daily-claim";
-import { format, plural } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
 
 /**
- * The bottom of the sidebar (client design, 2026-11-02): "Earn Credits" (it
- * replaces "Referral program" and opens its own page, /earn-credits), the
- * daily check-in when there is one to do or to look back on, then the balance
- * and today's daily credits, to the Credits page.
+ * The bottom of the sidebar (client design, 2026-11-24): "Earn Credits" is the
+ * one solid orange button, and the daily check-in is the quiet row under it,
+ * when there is one to do or to look back on.
+ *
+ * The balance is not repeated here: it is in the pill beside the logo (and in
+ * the top bar on a phone), with today's daily credits in its menu.
  *
  * Server component: it reads the workspace's ledger, which does not belong
  * in a client bundle.
@@ -23,13 +24,12 @@ export async function SidebarUsage({
   showCredits = true,
   locale,
   t,
-  tc,
 }: {
   organizationId: string;
   /**
    * False while the selected website is one shared with this person, or when
    * they own nothing. `organizationId` is the reader's OWN workspace: beside a
-   * site someone else owns, its balance says they have credits to use where
+   * site someone else owns, a check-in says they have credits to use where
    * they have none (spending there is charged to the owner). Skipping it also
    * skips the monthly grant check, pointless on a render that shows nothing.
    */
@@ -37,36 +37,20 @@ export async function SidebarUsage({
   locale: Locale;
   /** Passed in: the language belongs to the person, not the workspace. */
   t: Messages["app"]["nav"];
-  /** The two credit phrases, from the Credits page's words. */
-  tc: Pick<Messages["app"]["credits"], "creditsCount" | "sidebarDaily">;
 }) {
   const credits = showCredits ? await creditOverviewForRequest(organizationId).catch(() => null) : null;
-  const creditLabel = credits ? plural(tc.creditsCount, credits.available) : null;
-  // Today's daily credits (lib/credits/daily.ts), once the customer has checked in.
-  const dailyToday = credits && credits.daily.today > 0 ? format(tc.sidebarDaily, { count: credits.daily.today }) : null;
 
   return (
-    <div className="space-y-1 border-t px-3 py-3">
+    <div className="border-t px-3 py-3">
       <Link
         href="/earn-credits"
-        className="flex items-center gap-3 rounded-md bg-primary/10 px-3 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary/15"
+        className="flex min-h-12 items-center gap-3 rounded-xl bg-primary px-3.5 font-bold tracking-tight text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
       >
-        <Gift className="size-4 shrink-0 text-primary" aria-hidden="true" />
-        {t.earnCredits}
+        <Gift className="size-5 shrink-0" aria-hidden="true" />
+        <span className="min-w-0 flex-1">{t.earnCredits}</span>
+        <ArrowRight className="size-4 shrink-0" aria-hidden="true" />
       </Link>
       {credits ? <DailyClaim status={credits.daily} copy={DAILY_CLAIM_COPY[locale]} locale={locale} variant="row" /> : null}
-      {creditLabel ? (
-        <Link
-          href="/credits"
-          title={dailyToday ? `${creditLabel} (${dailyToday})` : creditLabel}
-          className="flex items-center gap-2 rounded-md px-3 py-1 text-xs text-muted-foreground transition-colors hover:text-accent-foreground"
-        >
-          <Coins className="size-3.5 shrink-0" aria-hidden="true" />
-          {/* Never shortened: "47 cre…" hides the one word that says what the number is. */}
-          <span className="whitespace-nowrap">{creditLabel}</span>
-          {dailyToday ? <span className="ml-auto font-semibold whitespace-nowrap text-primary">{dailyToday}</span> : null}
-        </Link>
-      ) : null}
     </div>
   );
 }
