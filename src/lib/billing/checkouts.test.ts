@@ -34,6 +34,7 @@ const stripeMock = vi.hoisted(() => ({
   sessionsList: vi.fn(),
   subscriptionsRetrieve: vi.fn(),
   portalCreate: vi.fn(),
+  portalConfigs: vi.fn(),
   pricesRetrieve: vi.fn(),
 }));
 
@@ -75,7 +76,7 @@ vi.mock("@/lib/stripe/client", () => ({
     },
     subscriptions: { retrieve: stripeMock.subscriptionsRetrieve },
     prices: { retrieve: stripeMock.pricesRetrieve },
-    billingPortal: { sessions: { create: stripeMock.portalCreate } },
+    billingPortal: { sessions: { create: stripeMock.portalCreate }, configurations: { list: stripeMock.portalConfigs } },
   },
 }));
 vi.mock("@/lib/paypal/client", async (importOriginal) => ({
@@ -179,6 +180,10 @@ beforeEach(async () => {
   stripeMock.sessionsList.mockImplementation(() => sessionsFound([]));
   // The bundle's Stripe price: its struck-through list price (scripts/plan-catalog.mjs BUNDLE_STRIPE_COUPONS).
   stripeMock.pricesRetrieve.mockImplementation(async () => ({ unit_amount: 29900 }));
+  // The portal configuration a change onto the bundle runs in (scripts/stripe-setup.mjs).
+  stripeMock.portalConfigs.mockImplementation(async () => ({
+    data: [{ id: "bpc_default", is_default: true, metadata: {} }, { id: "bpc_bundle", metadata: { repget: "bundle_change" } }],
+  }));
 });
 
 /** What checkout.sessions.list iterates over. */
@@ -356,8 +361,8 @@ describe("the REPGET offer, applied automatically (2026-11-11)", () => {
 
   it("an open checkout made at the plan's old Stripe price is not reused: closed, and a new one at the new price", async () => {
     const site = await addSite();
-    const plan = await growPlan({ name: "Grow + Visibility", tier: "grow_visibility", priceCents: 9900, stripePriceId: "price_bundle_99" });
-    stripeMock.pricesRetrieve.mockResolvedValueOnce({ unit_amount: 9900 });
+    const plan = await growPlan({ name: "Grow + Visibility", tier: "grow_visibility", priceCents: 12900, stripePriceId: "price_bundle_99" });
+    stripeMock.pricesRetrieve.mockResolvedValueOnce({ unit_amount: 12900 });
     await createCheckoutSession(plan, site.id);
     expect(params().discounts).toBeUndefined();
     // stripe:setup gave the plan a new price (EUR 299, with its coupon).
@@ -371,7 +376,7 @@ describe("the REPGET offer, applied automatically (2026-11-11)", () => {
     expect(await createCheckoutSession(plan, site.id)).toEqual({ url: "https://checkout.stripe.test/cs_test_2" });
     expect(stripeMock.sessionsExpire).toHaveBeenCalledWith("cs_test_1");
     expect(params().line_items).toEqual([{ price: "price_bundle_299", quantity: 1 }]);
-    expect(params().discounts).toEqual([{ coupon: "REPGET_GV_M" }]);
+    expect(params().discounts).toEqual([{ coupon: "REPGET_GV129_M" }]);
   });
 
   it("a plan change of a paying website is not stopped by it", async () => {
@@ -389,14 +394,14 @@ describe("the REPGET offer, applied automatically (2026-11-11)", () => {
   */
   describe("Grow + Visibility, a direct purchase", () => {
     const bundle = (fields: Partial<typeof plans.$inferInsert> = {}) =>
-      growPlan({ name: "Grow + Visibility", tier: "grow_visibility", priceCents: 9900, stripePriceId: "price_bundle", ...fields });
+      growPlan({ name: "Grow + Visibility", tier: "grow_visibility", priceCents: 12900, stripePriceId: "price_bundle", ...fields });
 
     it("charges at checkout: no trial even for a new workspace, its own REPGET coupon (EUR 299 -> 99), no code box", async () => {
       const site = await addSite();
       await createCheckoutSession(await bundle(), site.id);
       expect(stripeMock.pricesRetrieve).toHaveBeenCalledWith("price_bundle");
       expect(params().subscription_data.trial_period_days).toBeUndefined();
-      expect(params().discounts).toEqual([{ coupon: "REPGET_GV_M" }]);
+      expect(params().discounts).toEqual([{ coupon: "REPGET_GV129_M" }]);
       expect(params().allow_promotion_codes).toBeUndefined();
       // Not the launch-price offer: nothing marks the subscription or the checkout as REPGET's.
       expect(params().subscription_data.metadata).not.toHaveProperty("repget_offer");
@@ -406,7 +411,7 @@ describe("the REPGET offer, applied automatically (2026-11-11)", () => {
     });
 
     it("still on the old EUR 99 Stripe price: no coupon (it would charge nothing), Stripe's code box", async () => {
-      stripeMock.pricesRetrieve.mockResolvedValueOnce({ unit_amount: 9900 });
+      stripeMock.pricesRetrieve.mockResolvedValueOnce({ unit_amount: 12900 });
       const site = await addSite();
       await createCheckoutSession(await bundle(), site.id);
       expect(params().discounts).toBeUndefined();
@@ -1099,6 +1104,34 @@ describe("duplicate checkouts and subscriptions", () => {
       });
     });
 
+    const bundle = () => test.db.insert(plans).values({ name: "Grow + Visibility", tier: "grow_visibility", interval: "month", currency: "eur", priceCents: 12900, stripePriceId: "price_bundle_up", articleLimit: 30, keywordLimit: 400, siteLimit: 1, monthlyCredits: 0, catalogVersion: 42 }).returning().then(([row]) => row.id);
+
+    it("onto Grow + Visibility: its own coupon, in its own portal configuration (Daniel, 2026-11-24)", async () => {
+      const site = await onGrow("active");
+      stripeMock.portalCreate.mockResolvedValueOnce({ url: "https://billing.stripe.test/confirm" });
+      expect(await createCheckoutSession(await bundle(), site.id)).toEqual({ url: "https://billing.stripe.test/confirm" });
+      const sent = stripeMock.portalCreate.mock.calls[0][0];
+      expect(sent.configuration).toBe("bpc_bundle");
+      expect(sent.flow_data.subscription_update_confirm).toMatchObject({
+        items: [{ id: "si_1", price: "price_bundle_up" }],
+        discounts: [{ coupon: "REPGET_GV129_M" }],
+      });
+      expect(stripeMock.sessionsCreate).not.toHaveBeenCalled();
+    });
+
+    it("onto Grow + Visibility during the free trial, or at a Stripe price no coupon was made for: nothing is changed", async () => {
+      const trial = await onGrow("trialing");
+      const id = await bundle();
+      expect(await createCheckoutSession(id, trial.id)).toEqual({ error: expect.stringContaining("free trial has ended") });
+      const log = vi.spyOn(console, "error").mockImplementation(() => {});
+      await test.db.delete(subscriptions);
+      const site = await onGrow("active");
+      stripeMock.pricesRetrieve.mockResolvedValueOnce({ unit_amount: 19900 });
+      expect(await createCheckoutSession(id, site.id)).toEqual({ error: expect.stringContaining("REPGET") });
+      expect(stripeMock.portalCreate).not.toHaveBeenCalled();
+      log.mockRestore();
+    });
+
     it("to a price the offer does not cover: refused before Stripe is asked to change anything", async () => {
       const site = await onGrow("active");
       const older = await test.db.insert(plans).values({ name: "Old Grow", tier: "grow", interval: "month", currency: "eur", priceCents: 9900, stripePriceId: "price_grow_old", articleLimit: 30, keywordLimit: 100, siteLimit: 1, monthlyCredits: 0, catalogVersion: 39 }).returning().then(([row]) => row.id);
@@ -1481,8 +1514,8 @@ describe("the win-back offer, applied automatically", () => {
 
   it("never on the Grow + Visibility bundle: only the bundle's own coupon", async () => {
     const site = await addSite();
-    await createCheckoutSession(await growPlan({ name: "Grow + Visibility", tier: "grow_visibility", priceCents: 9900, stripePriceId: "price_bundle_w" }), site.id);
-    expect(params().discounts).toEqual([{ coupon: "REPGET_GV_M" }]);
+    await createCheckoutSession(await growPlan({ name: "Grow + Visibility", tier: "grow_visibility", priceCents: 12900, stripePriceId: "price_bundle_w" }), site.id);
+    expect(params().discounts).toEqual([{ coupon: "REPGET_GV129_M" }]);
   });
 
   it("yearly too: the same coupon, 20% off the first year", async () => {

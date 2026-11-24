@@ -217,6 +217,9 @@ if (rows.length === 0) {
   Any other failure stops it too: an outage is not a reason to replace ids.
 */
 const storedState = new Map();
+/** What a PayPal plan charges in its regular cycle, in cents. */
+const regularPriceCents = (plan) =>
+  Math.round(Number(plan.billing_cycles?.find((cycle) => cycle.tenure_type === "REGULAR")?.pricing_scheme?.fixed_price?.value) * 100);
 const otherMode = [];
 /** Stored trial plans whose free days are not TRIAL_DAYS: the 30-day free-articles plans. */
 const oldTrials = [];
@@ -226,7 +229,13 @@ for (const plan of rows) {
     if (!storedId) continue;
     try {
       const existing = await api(`/v1/billing/plans/${storedId}`);
-      storedState.set(`${plan.id}:${kind.key}`, existing.status === "ACTIVE" ? "active" : "inactive");
+      /*
+        A bundle's price can change on its row (EUR 99 to 129, 2026-11-24). A
+        PayPal plan still at the old price is replaced, or PayPal would go on
+        charging it. Its subscribers stay on it: the id is kept in history.
+      */
+      const repriced = isBundleTier(plan.tier) && existing.status === "ACTIVE" && regularPriceCents(existing) !== plan.price_cents;
+      storedState.set(`${plan.id}:${kind.key}`, repriced ? "repriced" : existing.status === "ACTIVE" ? "active" : "inactive");
       if (kind.trial && freeTrialDays(existing) !== TRIAL_DAYS) {
         oldTrials.push(`${plan.name} (${kind.label}): ${storedId}, ${freeTrialDays(existing) ?? "?"} free days`);
       }
@@ -321,6 +330,8 @@ for (const plan of rows) {
     }
     if (stored === "missing") {
       console.log(`  stored ${kind.label} id not found in this mode - recreating (--switch-mode)`);
+    } else if (stored === "repriced") {
+      console.log(`  stored ${kind.label} has another price - recreating at ${(plan.price_cents / 100).toFixed(2)} ${plan.currency.toUpperCase()}`);
     } else if (stored === "inactive") {
       console.log(`  stored ${kind.label} is not active - recreating`);
     }

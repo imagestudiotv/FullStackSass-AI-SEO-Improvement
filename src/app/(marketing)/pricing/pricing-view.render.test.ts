@@ -86,8 +86,8 @@ describe("the price display", () => {
     });
   });
 
-  it("the bundle saves 67% against EUR 299", () => {
-    expect(bundleSavingPercent(9900, 29900)).toBe(67);
+  it("the bundle saves 57% against EUR 299", () => {
+    expect(bundleSavingPercent(12900, 29900)).toBe(57);
     expect(bundleSavingPercent(9900, 9900)).toBe(0);
   });
 });
@@ -124,11 +124,11 @@ describe("the pricing page", () => {
 
   it("the Grow + Visibility bundle: its price against EUR 299, a direct purchase straight to its own checkout", () => {
     const html = render();
-    expect(html).toContain("SAVE 67% ON THE FULL BUNDLE");
-    expect(html).toContain("<del>€299</del><strong>€99</strong>");
+    expect(html).toContain("SAVE 57% ON THE FULL BUNDLE");
+    expect(html).toContain("<del>€299</del><strong>€129</strong>");
     expect(html).toContain('href="/sign-up?next=%2Fonboarding%2Fwebsite%3Fplan%3Dgrow_visibility"');
-    expect(html).toContain("€99 billed at checkout, then monthly. The 3-day free trial does not apply to this offer.");
-    expect(html).toContain("Your first €99 payment is collected at checkout");
+    expect(html).toContain("€129 billed at checkout, then monthly. The 3-day free trial does not apply to this offer.");
+    expect(html).toContain("Your first €129 payment is collected at checkout");
     expect(html).toContain("26 answers to explore");
     // Its own allowances, from its row (client, 2026-11-21): 30 articles, one a day; 120 social posts; 400 search terms.
     const stats = [...html.matchAll(/growth-stat[^"]*"><strong>([^<]+)<\/strong><span>([^<]+)<small>([^<]+)<\/small>/g)].map((m) => [m[1], m[2].trim(), m[3]]);
@@ -144,7 +144,7 @@ describe("the pricing page", () => {
 
   it("leaves the bundle, and the questions about it, out while it is not on sale", () => {
     const html = render({ plans: WITHOUT_BUNDLE });
-    expect(html).not.toContain("SAVE 67%");
+    expect(html).not.toContain("ON THE FULL BUNDLE");
     expect(html).not.toContain("grow_visibility");
     expect(html).not.toContain("Grow + Visibility");
     expect(html).toContain("24 answers to explore");

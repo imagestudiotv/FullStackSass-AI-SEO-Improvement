@@ -152,7 +152,7 @@ for (const plan of plans) {
   The REPGET launch price's coupons (plan-catalog.mjs REPGET_STRIPE_COUPONS):
   one per tier and interval, a fixed amount off every payment (`forever`),
   limited to the tier's product - and the Grow + Visibility bundle's
-  (BUNDLE_STRIPE_COUPONS: EUR 200 off its EUR 299 list price, every payment).
+  (BUNDLE_STRIPE_COUPONS: EUR 170 off its EUR 299 list price, every payment).
   A missing one is created; an existing one is NEVER changed or recreated
   (Stripe coupons cannot be edited, and subscribers keep the one they have) -
   a mismatch is only reported, for the owner to look at. Only the name, the
@@ -391,6 +391,33 @@ if (addons.length > 0) {
   STRIPE_PORTAL_CONFIG_NO_PLAN_CHANGE; without it, those customers' portal
   opens on updating the card alone.
 */
+const copyOfPortal = ({ features, business_profile: profile }, name, subscriptionUpdate) => ({
+  metadata: { repget: name },
+  business_profile: {
+    ...(profile.headline ? { headline: profile.headline } : {}),
+    ...(profile.privacy_policy_url ? { privacy_policy_url: profile.privacy_policy_url } : {}),
+    ...(profile.terms_of_service_url ? { terms_of_service_url: profile.terms_of_service_url } : {}),
+  },
+  features: {
+    customer_update: features.customer_update.enabled
+      ? { enabled: true, allowed_updates: features.customer_update.allowed_updates }
+      : { enabled: false },
+    invoice_history: { enabled: features.invoice_history.enabled },
+    payment_method_update: { enabled: features.payment_method_update.enabled },
+    subscription_cancel: features.subscription_cancel.enabled
+      ? {
+          enabled: true,
+          mode: features.subscription_cancel.mode,
+          proration_behavior: features.subscription_cancel.proration_behavior,
+          cancellation_reason: features.subscription_cancel.cancellation_reason.enabled
+            ? { enabled: true, options: features.subscription_cancel.cancellation_reason.options }
+            : { enabled: false },
+        }
+      : { enabled: false },
+    subscription_update: subscriptionUpdate,
+  },
+});
+
 console.log("\nPortal without plan changes\n");
 const portalConfigs = await stripe.billingPortal.configurations.list({ limit: 100 });
 let noPlanChange = portalConfigs.data.find((config) => config.metadata?.repget === "no_plan_change" && config.active);
@@ -401,33 +428,7 @@ if (noPlanChange) {
   if (!base) {
     console.log("No default portal configuration in this mode: save the Customer portal settings in the Dashboard once, then re-run.");
   } else {
-    const { features, business_profile: profile } = base;
-    noPlanChange = await stripe.billingPortal.configurations.create({
-      metadata: { repget: "no_plan_change" },
-      business_profile: {
-        ...(profile.headline ? { headline: profile.headline } : {}),
-        ...(profile.privacy_policy_url ? { privacy_policy_url: profile.privacy_policy_url } : {}),
-        ...(profile.terms_of_service_url ? { terms_of_service_url: profile.terms_of_service_url } : {}),
-      },
-      features: {
-        customer_update: features.customer_update.enabled
-          ? { enabled: true, allowed_updates: features.customer_update.allowed_updates }
-          : { enabled: false },
-        invoice_history: { enabled: features.invoice_history.enabled },
-        payment_method_update: { enabled: features.payment_method_update.enabled },
-        subscription_cancel: features.subscription_cancel.enabled
-          ? {
-              enabled: true,
-              mode: features.subscription_cancel.mode,
-              proration_behavior: features.subscription_cancel.proration_behavior,
-              cancellation_reason: features.subscription_cancel.cancellation_reason.enabled
-                ? { enabled: true, options: features.subscription_cancel.cancellation_reason.options }
-                : { enabled: false },
-            }
-          : { enabled: false },
-        subscription_update: { enabled: false },
-      },
-    });
+    noPlanChange = await stripe.billingPortal.configurations.create(copyOfPortal(base, "no_plan_change", { enabled: false }));
     console.log(`created: ${noPlanChange.id} (a copy of ${base.id} with plan changes off)`);
   }
 }
@@ -437,6 +438,45 @@ if (noPlanChange) {
       ? "STRIPE_PORTAL_CONFIG_NO_PLAN_CHANGE already names it."
       : `Set STRIPE_PORTAL_CONFIG_NO_PLAN_CHANGE=${noPlanChange.id} in Vercel (Production).`,
   );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Portal for Grow + Visibility                                                */
+/* -------------------------------------------------------------------------- */
+
+/*
+  Moving a subscription onto the bundle (Billing's Change plan, src/lib/stripe/
+  actions.ts changeStripePlan) is confirmed in the portal, and Stripe confirms
+  only a price the portal's configuration lists. The bundle is priced at its
+  list price, so it must NOT be added to the default configuration, where the
+  portal would sell it without its coupon: this one is used for that change
+  alone. The difference is charged at once. Found by its metadata, so there is
+  nothing to set in Vercel; its price is corrected on a re-run.
+*/
+console.log("\nPortal for Grow + Visibility\n");
+for (const coupon of BUNDLE_STRIPE_COUPONS) {
+  const row = final.find((plan) => plan.tier === coupon.tier && plan.interval === coupon.interval);
+  const product = productByTier.get(coupon.tier);
+  const base = portalConfigs.data.find((config) => config.is_default);
+  if (!row?.stripe_price_id || !product || !base) {
+    console.log("No bundle price, product or default portal configuration yet - skipped. Re-run once they exist.");
+    continue;
+  }
+  const update = {
+    enabled: true,
+    default_allowed_updates: ["price"],
+    proration_behavior: "always_invoice",
+    products: [{ product: product.id, prices: [row.stripe_price_id] }],
+  };
+  const existing = portalConfigs.data.find((config) => config.metadata?.repget === "bundle_change" && config.active);
+  if (existing) {
+    // The list leaves products out, so it is set again: the same values change nothing.
+    await stripe.billingPortal.configurations.update(existing.id, { features: { subscription_update: update } });
+    console.log(`exists: ${existing.id}, with price ${row.stripe_price_id}`);
+  } else {
+    const created = await stripe.billingPortal.configurations.create(copyOfPortal(base, "bundle_change", update));
+    console.log(`created: ${created.id}, with price ${row.stripe_price_id}`);
+  }
 }
 
 await sql.end();

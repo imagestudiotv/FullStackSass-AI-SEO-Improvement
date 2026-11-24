@@ -7,7 +7,7 @@ import { requireSession } from "@/lib/auth-guard";
 import { checkoutProviderOps } from "@/lib/billing/checkout-providers";
 import { BUNDLE_COUPON, bundleCouponFor, OFFER_UNAVAILABLE, REPGET_CODE, type OfferPlan } from "@/lib/billing/repget-offer";
 import { WINBACK_UNAVAILABLE } from "@/lib/billing/winback-offer";
-import { alertStaffAboutOffer, isCouponRefusal, OFFER_KEY, offerForPlanChange } from "@/lib/billing/repget-subscription";
+import { alertStaffAboutOffer, bundleChangeRefusal, isCouponRefusal, OFFER_KEY, offerForPlanChange } from "@/lib/billing/repget-subscription";
 import {
   automaticOffer,
   beginCheckout,
@@ -150,7 +150,7 @@ export async function createCheckoutSession(
   /*
     The Grow + Visibility bundle's own REPGET coupon (client, 2026-11-12: "We
     need like auto apply coupon code"): its Stripe price is the struck-through
-    EUR 299 and the coupon brings every payment to EUR 99. The price is read
+    EUR 299 and the coupon brings every payment to EUR 129. The price is read
     from Stripe, so a price and a coupon that disagree never charge.
   */
   let bundleCoupon: string | null = null;
@@ -323,6 +323,20 @@ export async function createCheckoutSession(
 }
 
 /**
+ * The portal configuration a change onto the bundle runs in (scripts/
+ * stripe-setup.mjs "Portal for Grow + Visibility"), or undefined for the
+ * default one. Stripe only confirms a change to a price the configuration
+ * lists, and the bundle must not be in the default one: the portal would offer
+ * it there at its EUR 299 list price, without its coupon.
+ */
+async function bundleChangeConfiguration(priceId: string): Promise<string | undefined> {
+  const configs = await stripe.billingPortal.configurations.list({ active: true, limit: 100 });
+  const bundle = configs.data.find((config) => config.metadata?.repget === "bundle_change");
+  if (!bundle) console.error("[stripe] no portal configuration for the bundle - run stripe:setup", { priceId });
+  return bundle?.id;
+}
+
+/**
  * Changes the plan of a website's existing Stripe subscription, through the
  * Customer Portal's update-confirmation screen: Stripe shows the proration,
  * the customer confirms, and customer.subscription.updated records it. The
@@ -345,11 +359,15 @@ async function changeStripePlan(input: {
   let offerCoupon: string | undefined;
   try {
     const subscription = await stripe.subscriptions.retrieve(input.providerSubscriptionId);
+    const notNow = bundleChangeRefusal(subscription, input.plan);
+    if (notNow) return { error: notNow };
     const offer = offerForPlanChange(subscription, input.plan);
     if (offer.refuse) return { error: offer.refuse };
     offerCoupon = offer.coupon;
-    // Onto the Grow + Visibility bundle: its own coupon, as at checkout.
+    // Onto the Grow + Visibility bundle: its own coupon, as at checkout, also for a subscription on the launch price.
+    let configuration: string | undefined;
     if (!offerCoupon && isDirectPurchaseTier(input.plan.tier)) {
+      configuration = await bundleChangeConfiguration(input.priceId);
       const bundle = bundleCouponFor(input.plan, (await stripe.prices.retrieve(input.priceId)).unit_amount);
       if ("refuse" in bundle) return { error: OFFER_UNAVAILABLE };
       offerCoupon = bundle.coupon ?? undefined;
@@ -363,6 +381,7 @@ async function changeStripePlan(input: {
     const session = await stripe.billingPortal.sessions.create({
       customer: customerId,
       return_url: input.returnUrl,
+      ...(configuration ? { configuration } : {}),
       flow_data: {
         type: "subscription_update_confirm",
         subscription_update_confirm: {

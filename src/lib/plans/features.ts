@@ -113,7 +113,7 @@ export function signUpForPlan(tier: string): string {
  * The Grow + Visibility bundle (client, 2026-11-11, the pricing page's first
  * banner): the Grow plan's articles, with more social posts and search terms
  * (client, 2026-11-21), plus visibility perks the team delivers by hand (a
- * blog feature, social channels, an email spotlight), EUR 99 a month. A DIRECT PURCHASE: no free trial, no free articles, no REPGET - the
+ * blog feature, social channels, an email spotlight), EUR 129 a month. A DIRECT PURCHASE: no free trial, no free articles, no REPGET - the
  * first payment is taken at checkout (lib/billing/checkouts.ts beginCheckout).
  * Its row is scripts/plan-catalog.mjs BUNDLES.
  */

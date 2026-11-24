@@ -100,10 +100,10 @@ describe("the price on every plan screen is the price checkout charges", () => {
     }
   });
 
-  it("the bundle is EUR 99 against EUR 299 whether REPGET is on or not, and never takes the launch price", () => {
-    const bundle = { tier: "grow_visibility", interval: "month", currency: "eur", priceCents: 9900 };
-    expect(planDisplayPrice(bundle, true)).toEqual({ chargedCents: 9900, strikeCents: 29900, discount: "bundle" });
-    expect(planDisplayPrice(bundle, false)).toEqual({ chargedCents: 9900, strikeCents: 29900, discount: "bundle" });
+  it("the bundle is EUR 129 against EUR 299 whether REPGET is on or not, and never takes the launch price", () => {
+    const bundle = { tier: "grow_visibility", interval: "month", currency: "eur", priceCents: 12900 };
+    expect(planDisplayPrice(bundle, true)).toEqual({ chargedCents: 12900, strikeCents: 29900, discount: "bundle" });
+    expect(planDisplayPrice(bundle, false)).toEqual({ chargedCents: 12900, strikeCents: 29900, discount: "bundle" });
   });
 
   it("a price no coupon was made for is shown as it is, offer or not", () => {
@@ -141,7 +141,7 @@ describe("the plan cards' terms", () => {
   it("Grow + Visibility: a direct purchase, never a free trial", () => {
     const plan = asPlanRow(bundle, 0);
     const card = planCardsFor([plan], { offerOn: true, trialEligible: true, locale: "en", t })[plan.id];
-    expect(card.terms).toEqual(["€99 billed at checkout, then monthly. The 3-day free trial does not apply to this offer."]);
+    expect(card.terms).toEqual(["€129 billed at checkout, then monthly. The 3-day free trial does not apply to this offer."]);
     expect(card.directBadge).toBe("Direct purchase");
     expect(card.strike).toBe("€299");
     expect(card.paypalNote).toBeNull();

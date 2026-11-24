@@ -1,4 +1,4 @@
-import { BUNDLE_COUPON, repgetFirstPaymentCents, type OfferPlan } from "@/lib/billing/repget-offer";
+import { bundleCouponOf, repgetFirstPaymentCents, type OfferPlan } from "@/lib/billing/repget-offer";
 
 /**
  * The price a plan screen shows - /pricing, Billing's plan cards and the
@@ -11,10 +11,10 @@ import { BUNDLE_COUPON, repgetFirstPaymentCents, type OfferPlan } from "@/lib/bi
  *    price its coupon was made for: checkout then carries LP40_* on every
  *    payment (lib/billing/checkouts.ts automaticRepgetCoupon). Any other price
  *    shows no discount, because checkout gives none.
- *  - The Grow + Visibility bundle: EUR 99 a month, shown against its EUR 299
- *    list price, which its Stripe price is and its REPGET_GV_M coupon brings
- *    down to the EUR 99 charged (bundleCouponFor) - REPGET on or off. PayPal
- *    charges the same EUR 99 with no discount line.
+ *  - The Grow + Visibility bundle: EUR 129 a month, shown against its EUR 299
+ *    list price, which its Stripe price is and its REPGET_GV129_M coupon brings
+ *    down to the EUR 129 charged (bundleCouponFor) - REPGET on or off. PayPal
+ *    charges the same EUR 129 with no discount line.
  *  - Anything else: the plan's own price, nothing struck.
  *
  * The win-back offer is not here: it is one account's, for its first payment
@@ -32,10 +32,8 @@ export type PlanDisplayPrice = {
 };
 
 export function planDisplayPrice(plan: OfferPlan, offerOn: boolean): PlanDisplayPrice {
-  const bundlePrice = BUNDLE_COUPON.listCents - BUNDLE_COUPON.offCents;
-  if (plan.tier === BUNDLE_COUPON.tier && plan.interval === "month" && plan.currency === "eur" && plan.priceCents === bundlePrice) {
-    return { chargedCents: plan.priceCents, strikeCents: BUNDLE_COUPON.listCents, discount: "bundle" };
-  }
+  const bundle = bundleCouponOf(plan);
+  if (bundle) return { chargedCents: plan.priceCents, strikeCents: bundle.listCents, discount: "bundle" };
   const launch = offerOn ? repgetFirstPaymentCents(plan) : null;
   if (launch !== null) return { chargedCents: launch, strikeCents: plan.priceCents, discount: "repget" };
   return { chargedCents: plan.priceCents, strikeCents: null, discount: null };

@@ -66,7 +66,7 @@ describe("Grow + Visibility (client, 2026-11-11)", () => {
 
   it("is one monthly row at EUR 99, a direct purchase in the app too", () => {
     expect(bundle).toHaveLength(1);
-    expect(bundle[0]).toMatchObject({ name: "Grow + Visibility", interval: "month", priceCents: 9900 });
+    expect(bundle[0]).toMatchObject({ name: "Grow + Visibility", interval: "month", priceCents: 12900 });
     expect(isBundleTier(GROW_VISIBILITY_TIER)).toBe(true);
     expect(isDirectPurchaseTier(GROW_VISIBILITY_TIER)).toBe(true);
     expect(isDirectPurchaseTier("grow")).toBe(false);

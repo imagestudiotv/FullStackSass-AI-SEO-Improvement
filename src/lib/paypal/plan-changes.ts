@@ -7,6 +7,7 @@ import { syncPayPalSubscription } from "@/lib/billing/paypal-events";
 import { refundProviderOps } from "@/lib/billing/refund-providers";
 import { executeRefund, reserveRefund, type RefundProviderOps } from "@/lib/billing/refunds";
 import { REPGET_CODE, repgetFirstPaymentCents } from "@/lib/billing/repget-offer";
+import { isDirectPurchaseTier } from "@/lib/plans/features";
 import { db as appDb } from "@/lib/db";
 import { billingCheckouts, payments, paypalOrders, paypalPlanChanges, plans, subscriptions } from "@/lib/db/schema";
 import type { Database } from "@/lib/db/types";
@@ -180,7 +181,8 @@ export async function startPlanChange(
   // What each plan costs THIS subscriber: the launch prices, for a subscription on them.
   const launch = await onLaunchPrice(database, paypalSubscriptionId);
   const toLaunchCents = launch ? repgetFirstPaymentCents(to) : null;
-  if (launch && toLaunchCents === null) {
+  // The bundle has one price for everyone (repget-subscription.ts); moving back brings the launch price back.
+  if (launch && toLaunchCents === null && !isDirectPurchaseTier(to.tier)) {
     return { kind: "error", error: `Your ${REPGET_CODE} launch price does not cover ${to.name}, so this website stays on ${from.name}.` };
   }
   const fromCents = launch ? (repgetFirstPaymentCents(from) ?? from.priceCents) : from.priceCents;
@@ -356,8 +358,9 @@ export async function requestRevision(changeId: string, options: Options = {}): 
     await endUnrevised(database, ops, change, "the new plan has no PayPal plan any more", now);
     return { kind: "error", error: "This plan is no longer available through PayPal." };
   }
-  // The launch price on the new plan's regular cycle (its plan has that one cycle) for a subscription on it.
-  const launchCents = (await onLaunchPrice(database, change.paypalSubscriptionId)) ? repgetFirstPaymentCents(to) : undefined;
+  // The launch price on the new plan's regular cycle (its plan has that one cycle) for a subscription on it. The bundle's own price needs none.
+  const launch = (await onLaunchPrice(database, change.paypalSubscriptionId)) && !isDirectPurchaseTier(to.tier);
+  const launchCents = launch ? repgetFirstPaymentCents(to) : undefined;
   if (launchCents === null) {
     await endUnrevised(database, ops, change, `the ${REPGET_CODE} launch price does not cover the new plan`, now);
     return { kind: "error", error: `Your ${REPGET_CODE} launch price does not cover this plan.` };

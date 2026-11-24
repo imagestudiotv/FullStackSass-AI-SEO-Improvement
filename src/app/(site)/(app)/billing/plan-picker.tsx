@@ -279,9 +279,9 @@ export function PlanPicker({
               <CheckCircle2 aria-hidden="true" />
               {t.currentPlan}
             </Button>
-          ) : view?.launchNotCovered && methods.length > 0 ? (
+          ) : (view?.launchNotCovered || view?.bundleBlocked) && methods.length > 0 ? (
             <p className="text-xs leading-5 text-muted-foreground">
-              {copy.launchNotCovered}{" "}
+              {view.bundleBlocked === "trial" ? copy.bundleAfterTrial : view.bundleBlocked === "yearly" ? copy.bundleNotYearly : copy.launchNotCovered}{" "}
               <a
                 href={`mailto:${SUPPORT_EMAIL}`}
                 className="rounded-sm font-medium text-foreground underline underline-offset-4 outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
@@ -303,6 +303,9 @@ export function PlanPicker({
                 </>
               )}
             </Button>
+          ) : null}
+          {!isCurrent && view?.leavesLaunchPrice && !view.bundleBlocked && methods.length > 0 ? (
+            <p className="text-xs leading-5 text-muted-foreground">{copy.bundleLaunchNote}</p>
           ) : null}
           {!isCurrent && intervalBlocked && paypalIntervalNote ? (
             <p className="text-xs leading-5 text-muted-foreground">{paypalIntervalNote}</p>

@@ -123,7 +123,7 @@ describe("billing, on the free articles through PayPal", () => {
 });
 
 describe("the Grow + Visibility bundle in Billing", () => {
-  const BUNDLE = plan("plan_bundle", "Grow + Visibility", "grow_visibility", 9900, 10);
+  const BUNDLE = plan("plan_bundle", "Grow + Visibility", "grow_visibility", 12900, 10);
   const none = null as unknown as CurrentSubscription;
 
   it("is offered in the plan list with its own terms: a direct purchase, EUR 99 against EUR 299, no free trial (2026-11-13)", () => {
@@ -135,7 +135,7 @@ describe("the Grow + Visibility bundle in Billing", () => {
     expect(html).toContain("Direct purchase");
     expect(html).toContain("<del");
     expect(html).toContain("€299");
-    expect(html).toContain("€99 billed at checkout, then monthly. The 3-day free trial does not apply to this offer.");
+    expect(html).toContain("€129 billed at checkout, then monthly. The 3-day free trial does not apply to this offer.");
     // The free trial is said for the other plans only, with the trial's days (TRIAL_DAYS).
     const trialLine = renderToStaticMarkup(createElement("i", null, format(PLAN_CARDS_COPY.en.trial, { n: TRIAL_DAYS, days: TRIAL_DAYS }))).slice(3, -4);
     expect(html.split(trialLine).length - 1).toBe(2);
@@ -154,17 +154,39 @@ describe("the Grow + Visibility bundle in Billing", () => {
     expect(html).toContain("Get Grow + Visibility");
   });
 
-  it("is refused, with a way to ask, to a website on the launch price - as the server refuses it", () => {
+  it("can be moved to from the launch price, at its own price, and says the discount is left (Daniel, 2026-11-24)", () => {
     const plans = [{ ...GROW, priceCents: 14900 }, BUNDLE, { ...SCALE, priceCents: 34900 }];
-    const planCards = planCardsFor(plans, { offerOn: true, trialEligible: false, switching: true, launchPrice: true, locale: "en", t });
-    expect(planCards[BUNDLE.id].launchNotCovered).toBe(true);
-    expect(planCards[SCALE.id].launchNotCovered).toBe(false);
-    const html = render({ ...onPayPal("active"), provider: "stripe", hasCustomer: true }, { plans, planCards, launchPriceKept: true });
-    expect(html).toContain("Your launch price does not cover this plan");
+    const onCard = { ...onPayPal("active"), provider: "stripe" as const, hasCustomer: true };
+    const cards = (launchPrice: boolean, current = { interval: "month", status: "active" }) =>
+      planCardsFor(plans, { offerOn: true, trialEligible: false, switching: true, launchPrice, current, locale: "en", t });
+    const planCards = cards(true);
+    expect(planCards[BUNDLE.id]).toMatchObject({ launchNotCovered: false, bundleBlocked: null, leavesLaunchPrice: true, payment: "€129" });
+    expect(planCards[SCALE.id]).toMatchObject({ launchNotCovered: false, bundleBlocked: null, leavesLaunchPrice: false });
+    const html = render(onCard, { plans, planCards, launchPriceKept: true });
+    expect(html).not.toContain("Your launch price does not cover this plan");
+    expect(html).toContain("Your 40% launch discount does not apply to this plan");
     expect(html).toContain("Your launch price stays with you.");
-    expect(html.split(t.switchPlan).length - 1).toBe(1);
-    // Not on the launch price: it can be moved to.
-    expect(planCardsFor(plans, { offerOn: true, trialEligible: false, switching: true, launchPrice: false, locale: "en", t })[BUNDLE.id].launchNotCovered).toBe(false);
+    expect(html.split(t.switchPlan).length - 1).toBe(2);
+    // An older price on the same tier is still refused.
+    expect(planCardsFor([{ ...GROW, priceCents: 9900 }], { offerOn: true, trialEligible: false, switching: true, launchPrice: true, locale: "en", t })[GROW.id].launchNotCovered).toBe(true);
+    // Not on the launch price: nothing to leave.
+    expect(cards(false)[BUNDLE.id]).toMatchObject({ bundleBlocked: null, leavesLaunchPrice: false });
+  });
+
+  it("is not offered to a yearly plan or during a free trial, as the server refuses it", () => {
+    const plans = [{ ...GROW, priceCents: 14900 }, BUNDLE, { ...SCALE, priceCents: 34900 }];
+    const onCard = { ...onPayPal("active"), provider: "stripe" as const, hasCustomer: true };
+    for (const [current, blocked, words] of [
+      [{ interval: "year", status: "active" }, "yearly", "This plan is billed monthly only"],
+      [{ interval: "month", status: "trialing" }, "trial", "You can change to it once your free trial has ended."],
+    ] as const) {
+      const planCards = planCardsFor(plans, { offerOn: true, trialEligible: false, switching: true, launchPrice: true, current, locale: "en", t });
+      expect(planCards[BUNDLE.id].bundleBlocked).toBe(blocked);
+      expect(planCards[SCALE.id].bundleBlocked).toBeNull();
+      const html = render(onCard, { plans, planCards, launchPriceKept: true });
+      expect(html).toContain(words);
+      expect(html).not.toContain("Your 40% launch discount does not apply to this plan");
+    }
   });
 
   it("is not a rung of the upgrade ladder", () => {
@@ -182,7 +204,7 @@ describe("the comparison and the checkout dialog", () => {
   const CATALOG = [
     { ...GROW, priceCents: 14900, socialPostLimit: 90, keywordLimit: 300, monthlyCredits: 250, siteLimit: 3 },
     { ...SCALE, priceCents: 34900, articleLimit: 60, socialPostLimit: 180, keywordLimit: 1200, monthlyCredits: 700, siteLimit: 10 },
-    { ...plan("plan_bundle", "Grow + Visibility", "grow_visibility", 9900, 10), socialPostLimit: 120, keywordLimit: 400, monthlyCredits: 250, siteLimit: 3 },
+    { ...plan("plan_bundle", "Grow + Visibility", "grow_visibility", 12900, 10), socialPostLimit: 120, keywordLimit: 400, monthlyCredits: 250, siteLimit: 3 },
   ] as PlanRow[];
 
   it("compares the rows' own figures, with one website per subscription, and nothing the product does not claim", () => {

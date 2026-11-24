@@ -61,7 +61,7 @@ export const TIERS = [
  * Grow + Visibility: the Grow plan's articles, sites and credits, with more
  * social posts and search terms (client, 2026-11-21), plus visibility perks the
  * team delivers by hand (a blog feature, social channels, an email
- * spotlight), EUR 99 a month with no free trial, no free articles and no
+ * spotlight), EUR 129 a month with no free trial, no free articles and no
  * launch-price coupon - at Stripe its own REPGET coupon instead
  * (BUNDLE_STRIPE_COUPONS) - (src/lib/plans/features.ts DIRECT_PURCHASE_TIERS; the tier string is
  * kept equal to GROW_VISIBILITY_TIER by lib/plans/catalog.test.ts). Its own
@@ -69,7 +69,7 @@ export const TIERS = [
  * see who bought it: its name is the plan name in admin.
  */
 export const BUNDLES = [
-  { tier: "grow_visibility", name: "Grow + Visibility", monthlyCents: 9900, articleLimit: 30, socialPostLimit: 120, keywordLimit: 400, siteLimit: 3, monthlyCredits: 250, sortOrder: 10 },
+  { tier: "grow_visibility", name: "Grow + Visibility", monthlyCents: 12900, articleLimit: 30, socialPostLimit: 120, keywordLimit: 400, siteLimit: 3, monthlyCredits: 250, sortOrder: 10 },
 ];
 
 /** Every row of this version: a monthly and an annual one per tier, and a monthly one per bundle. */
@@ -137,14 +137,15 @@ export const REPGET_COUPON_NAME = "REPGET (40% off)";
  * The Grow + Visibility bundle at Stripe (client, 2026-11-12: "In this cases
  * 67% applied ... We need like auto apply coupon code"): priced at its
  * struck-through EUR 299 (src/lib/plans/features.ts
- * GROW_VISIBILITY_COMPARE_AT_CENTS) with a `forever` coupon of EUR 200, so
- * Checkout shows "REPGET (67% off)" and charges EUR 99 - the row's
- * price_cents - on every payment. Applied on every bundle checkout, whether
+ * GROW_VISIBILITY_COMPARE_AT_CENTS) with a `forever` coupon of EUR 170, so
+ * Checkout shows "REPGET (57% off)" and charges EUR 129 - the row's
+ * price_cents - on every payment (EUR 99 with REPGET_GV_M until 2026-11-24; a
+ * Stripe coupon cannot be edited, so the new price has a new one). Applied on every bundle checkout, whether
  * REPGET is on or not (src/lib/billing/repget-offer.ts bundleCouponFor).
- * PayPal has no discount line: its plan stays at EUR 99.
+ * PayPal has no discount line: its plan is EUR 129.
  */
 export const BUNDLE_STRIPE_COUPONS = [
-  { id: "REPGET_GV_M", tier: "grow_visibility", interval: "month", listCents: 29900, amountOffCents: 20000, name: "REPGET (67% off)" },
+  { id: "REPGET_GV129_M", tier: "grow_visibility", interval: "month", listCents: 29900, amountOffCents: 17000, name: "REPGET (57% off)" },
 ];
 
 /** The amount of a row's Stripe price: a bundle's list price, which its coupon brings down to price_cents. */
