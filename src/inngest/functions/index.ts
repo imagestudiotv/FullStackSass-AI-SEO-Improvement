@@ -19,7 +19,7 @@ import { generateArticle } from "./generate-article";
 import { importAnalytics, importAnalyticsDaily } from "./import-analytics";
 import { indexArticles } from "./index-articles";
 import { partnerCommissionsSweep, partnerProviderEvent, partnerTiersDaily } from "./partner-commissions";
-import { partnerWelcome } from "./partner-onboarding";
+import { partnerApplicationNotice, partnerWelcome } from "./partner-onboarding";
 import { partnerPayoutsMonthly, partnerPayoutsSweep, partnerSettlementExecute } from "./partner-payouts";
 import { partnerReconciliation } from "./partner-reconciliation";
 import { billingMaintenance, deliverOutbox, paidAcquisitionMaintenance } from "./maintenance";
@@ -61,6 +61,7 @@ export const functions = [
   refreshSiteInventories,
   translateLiveArticles,
   partnerWelcome,
+  partnerApplicationNotice,
   partnerProviderEvent,
   partnerCommissionsSweep,
   partnerTiersDaily,

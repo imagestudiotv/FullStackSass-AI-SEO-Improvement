@@ -1,4 +1,5 @@
 import { canReceiveAutomaticPayout } from "../../domain/entities/partner";
+import { isSupportedCurrency } from "../../domain/value-objects/currency";
 import { Money } from "../../domain/value-objects/money";
 import type { TransferEvidence } from "../ports/payout-gateway";
 import type { SettlementRecord, TransferAttemptRecord } from "../ports/repositories";
@@ -360,14 +361,19 @@ export async function raiseDiscrepancy(deps: PartnerDeps, settlement: Settlement
 }
 
 /** A short email to the partner. Best effort: it never affects the money. */
-export async function notify(deps: PartnerDeps, settlement: SettlementRecord, stage: "transfer" | "paid" | "failed") {
+export async function notify(deps: PartnerDeps, settlement: SettlementRecord, stage: "transfer" | "paid" | "failed", bank?: { currency: string; amount: bigint }) {
   try {
     const partner = await deps.uow.repositories.partners.findById(settlement.partnerId);
     if (!partner) return;
     const amount = `${Money.of(settlement.transferAmount, settlement.currency).toDecimalString()} ${settlement.currency.toUpperCase()}`;
+    // Converted by Stripe on arrival (execute-bank-payout.ts payoutMoney): say what actually reaches the bank.
+    const converted =
+      bank && bank.currency !== settlement.currency && isSupportedCurrency(bank.currency)
+        ? [`Stripe converted it to ${Money.of(bank.amount, bank.currency).toDecimalString()} ${bank.currency.toUpperCase()}, the currency of your account.`]
+        : [];
     const lines = {
       transfer: [`We sent ${amount} to your Stripe balance. Stripe will now pay it to your bank.`],
-      paid: [`Stripe paid ${amount} to your bank account.`],
+      paid: [`Stripe paid ${amount} to your bank account.`, ...converted],
       failed: [`Stripe could not pay ${amount} to your bank. The money is still in your Stripe balance; please check your bank details in Stripe. We will try again.`],
     }[stage];
     await deps.mailer.sendPartnerNotice({

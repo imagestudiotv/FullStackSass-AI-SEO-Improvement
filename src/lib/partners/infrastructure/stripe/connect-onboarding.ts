@@ -88,6 +88,27 @@ export function readinessFromAccount(account: Stripe.Account, environment: Envir
   };
 }
 
+function accountIsGone(error: unknown): boolean {
+  const e = (error ?? {}) as { statusCode?: number; code?: string };
+  return (e.statusCode === 403 && e.code === "account_invalid") || (e.statusCode === 404 && e.code === "resource_missing");
+}
+
+const GONE: Omit<AccountReadiness, "accountId" | "livemode"> = {
+  status: "deauthorized",
+  country: null,
+  defaultCurrency: null,
+  detailsSubmitted: false,
+  payoutsEnabled: false,
+  transfersCapability: null,
+  requirementsCurrentlyDue: [],
+  requirementsPastDue: [],
+  requirementsPendingVerification: [],
+  disabledReason: null,
+  currentDeadline: null,
+  payoutInterval: null,
+  metadataPartnerId: null,
+};
+
 export function connectAccountGateway(stripe: Stripe, environment: Environment): ConnectAccountGateway {
   // Idempotent by nature: setting "manual" again changes nothing.
   const setManualPayouts = async (accountId: string) => {
@@ -140,7 +161,13 @@ export function connectAccountGateway(stripe: Stripe, environment: Environment):
       return { url: link.url };
     },
     async retrieveAccount(accountId) {
-      return readinessFromAccount(await stripe.accounts.retrieve(accountId), environment);
+      try {
+        return readinessFromAccount(await stripe.accounts.retrieve(accountId), environment);
+      } catch (error) {
+        // Disconnected or closed at Stripe. Anything else (an outage, a rate limit) says nothing about the account.
+        if (!accountIsGone(error)) throw error;
+        return { ...GONE, accountId, livemode: environment === "live" };
+      }
     },
   };
 }

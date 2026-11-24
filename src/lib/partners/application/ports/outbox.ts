@@ -10,6 +10,7 @@ export type PartnerJob =
   | { name: "partners/welcome.send"; id: string; data: { partnerId: string } }
   | { name: "partners/provider-event.process"; id: string; data: { providerEventId: string } }
   | { name: "partners/settlement.execute"; id: string; data: { settlementId: string } }
+  | { name: "partners/application.notify"; id: string; data: { applicationId: string; stage: "submitted" | "rejected" } }
   | { name: "partners/notify"; id: string; data: { partnerId: string; kind: string; detail: Record<string, string> } };
 
 export interface Outbox {

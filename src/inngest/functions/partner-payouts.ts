@@ -10,7 +10,9 @@ import { partnerDeps } from "@/lib/partners/server";
  *    day of every month,
  *    prepares one settlement per partner and currency whose mature balance
  *    reaches the threshold (prepare-settlement.ts); anything below carries
- *    forward.
+ *    forward. Repeated on the 2nd and 3rd: one settlement per partner and
+ *    month whatever happens, so a run that was missed, or a partner whose
+ *    preparation failed or was released, does not wait a whole month.
  *  - partner-settlement-execute: one settlement's transfer and bank payout,
  *    queued through the outbox when the settlement is prepared.
  *  - partner-payouts-sweep (every ten minutes): retries due settlements,
@@ -24,7 +26,7 @@ import { partnerDeps } from "@/lib/partners/server";
  */
 
 export const partnerPayoutsMonthly = inngest.createFunction(
-  { id: "partner-payouts-monthly", retries: 1, concurrency: { limit: 1 }, triggers: [{ cron: "0 0 1 * *" }] },
+  { id: "partner-payouts-monthly", retries: 1, concurrency: { limit: 1 }, triggers: [{ cron: "0 0 1-3 * *" }] },
   async ({ step }) => {
     const run = await step.run("prepare", async () => {
       const result = await runMonthlySettlements(partnerDeps());

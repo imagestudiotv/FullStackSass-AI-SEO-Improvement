@@ -86,6 +86,16 @@ export function stripePayoutGateway(stripe: Stripe, environment: Environment): S
       return available(await stripe.balance.retrieve({}, { stripeAccount: accountId }), currency);
     },
 
+    async transferArrival(transferId, accountId) {
+      const transfer = await stripe.transfers.retrieve(transferId);
+      const payment = id(transfer.destination_payment as string | { id: string } | null);
+      if (!payment) return null;
+      // The transfer's payment lives on the connected account; its balance transaction is in the currency that arrived.
+      const arrived = await stripe.charges.retrieve(payment, { expand: ["balance_transaction"] }, { stripeAccount: accountId });
+      const entry = typeof arrived.balance_transaction === "object" ? arrived.balance_transaction : null;
+      return entry ? { currency: entry.currency, amount: big(entry.net) } : null;
+    },
+
     async createTransfer(input) {
       try {
         const transfer = await stripe.transfers.create(

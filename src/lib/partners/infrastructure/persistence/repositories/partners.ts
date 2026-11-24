@@ -65,6 +65,10 @@ const total = sql<number>`count(*)::int`;
 
 export function applicationRepository(db: Executor): ApplicationRepository {
   return {
+    async findById(id) {
+      const [row] = await db.select().from(partnerApplications).where(eq(partnerApplications.id, id)).limit(1);
+      return row ? toApplication(row) : null;
+    },
     async findOpenByUser(userId) {
       const [row] = await db
         .select()
@@ -390,7 +394,7 @@ export function tierRepository(db: Executor): TierRepository {
       /*
         Distinct ORGANIZATIONS (never users, seats, websites or invoices)
         whose attribution stands, that have a current PAID period - an
-        active Stripe subscription whose period has not ended (a cancellation
+        active subscription, by card or PayPal, whose period has not ended (a cancellation
         at period end keeps counting until then) - and at least one
         commissionable payment that was not fully refunded or charged back.
       */
@@ -404,7 +408,7 @@ export function tierRepository(db: Executor): TierRepository {
             sql`exists (
               select 1 from ${subscriptions} s
               where s.organization_id = ${partnerAttributions.organizationId}
-                and s.provider = 'stripe'
+                and s.provider in ('stripe', 'paypal')
                 and s.status = 'active'
                 and s.current_period_end > ${at.toISOString()}::timestamp
             )`,

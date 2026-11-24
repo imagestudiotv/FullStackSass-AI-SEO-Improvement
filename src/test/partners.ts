@@ -407,6 +407,10 @@ export function fakePayouts(environment: "test" | "live" = "test") {
   /** A lost answer: the transfer IS made, but the caller hears "unknown". */
   let loseNextTransferAnswer = false;
   const created = { transfers: 0, payouts: 0 };
+  /** Stripe converts every transfer into this currency on arrival (the account's own). */
+  let conversion: { currency: string; amount: (cents: bigint) => bigint } | null = null;
+  /** What arrived is not available yet (recipient accounts: up to a day later). */
+  let held = false;
   const key = (k: string) => k;
 
   const gateway: StripePayoutGateway = {
@@ -415,7 +419,11 @@ export function fakePayouts(environment: "test" | "live" = "test") {
       return platform.get(currency) ?? BigInt(0);
     },
     async connectedAvailableBalance(accountId, currency) {
-      return connected.get(`${accountId}:${currency}`) ?? BigInt(0);
+      return held ? BigInt(0) : (connected.get(`${accountId}:${currency}`) ?? BigInt(0));
+    },
+    async transferArrival(transferId) {
+      const transfer = transfers.get(transferId)!;
+      return conversion ? { currency: conversion.currency, amount: conversion.amount(transfer.amount) } : { currency: transfer.currency, amount: transfer.amount };
     },
     async createTransfer(input) {
       const existing = byKey.get(key(input.idempotencyKey));
@@ -441,8 +449,9 @@ export function fakePayouts(environment: "test" | "live" = "test") {
       byKey.set(key(input.idempotencyKey), id);
       created.transfers += 1;
       platform.set(input.currency, (platform.get(input.currency) ?? BigInt(0)) - input.amount);
-      const accountKey = `${input.destination}:${input.currency}`;
-      connected.set(accountKey, (connected.get(accountKey) ?? BigInt(0)) + input.amount);
+      const arrived = conversion ? { currency: conversion.currency, amount: conversion.amount(input.amount) } : input;
+      const accountKey = `${input.destination}:${arrived.currency}`;
+      connected.set(accountKey, (connected.get(accountKey) ?? BigInt(0)) + arrived.amount);
       if (loseNextTransferAnswer) {
         loseNextTransferAnswer = false;
         return { kind: "unknown", message: "ETIMEDOUT" };
@@ -526,6 +535,12 @@ export function fakePayouts(environment: "test" | "live" = "test") {
     /** The connected account's balance in a currency becomes 0 - e.g. Stripe converted the transfer into the account's own currency. */
     drainConnected(accountId: string, currency: string) {
       connected.set(`${accountId}:${currency}`, BigInt(0));
+    },
+    convertTransfersTo(currency: string, amount: (cents: bigint) => bigint) {
+      conversion = { currency, amount };
+    },
+    holdConnected(hold: boolean) {
+      held = hold;
     },
     loseNextReversalAnswer() {
       loseNextReversalAnswer = true;

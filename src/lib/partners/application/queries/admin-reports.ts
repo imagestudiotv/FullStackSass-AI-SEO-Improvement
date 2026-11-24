@@ -154,11 +154,13 @@ export async function adminSettlementDetail(deps: PartnerDeps, admin: AdminConte
     manualPending,
     /** Cancel is offered only before anything may have reached Stripe or PayPal. */
     cancellable:
-      (settlement.state === "reserved" || (settlement.state === "needs_review" && settlement.transferredAt === null)) &&
+      (settlement.state === "reserved" ||
+        (settlement.state === "needs_review" && (settlement.transferredAt === null || paypalAttempts.some((attempt) => attempt.status === "reversed")))) &&
       transfers.every((attempt) => attempt.status === "retryable_failure" || attempt.status === "failed") &&
-      paypalAttempts.every((attempt) => attempt.status === "failed"),
+      // "reversed": PayPal took the money back, so the partner can be paid by a later run.
+      paypalAttempts.every((attempt) => attempt.status === "failed" || attempt.status === "reversed"),
     /** A payout under review goes back to work only by a person's decision. */
-    resumable: settlement.state === "needs_review",
+    resumable: settlement.state === "needs_review" && !paypalAttempts.some((attempt) => attempt.status === "succeeded" || attempt.status === "reversed"),
     /** What a reversal could recover at most (the use case re-checks against the ledger). */
     reversible: confirmed ? confirmed.amount - confirmed.amountReversed : BigInt(0),
     retryable: !["paid", "canceled", "needs_review"].includes(settlement.state),
