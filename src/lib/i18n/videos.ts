@@ -337,6 +337,34 @@ export type ViralCopy = {
     textStyleTemplate: string;
     textStyleCaptions: string;
     textStyleFixed: string;
+    /** The text on a Viral clip (src/remotion/clip-text.ts; client, 2026-11-24). */
+    clip: {
+      title: string;
+      auto: string;
+      hint: string;
+      reset: string;
+      quick: string;
+      presets: Record<"clean" | "bold" | "outline" | "highlight" | "box" | "whitebox" | "orange" | "subtitle", string>;
+      font: string;
+      fonts: Record<"inter" | "arimo" | "gelasio" | "anton" | "fira" | "courier" | "marker", string>;
+      weight: string;
+      weights: Record<"400" | "500" | "700" | "800" | "900", string>;
+      size: string;
+      color: string;
+      align: string;
+      aligns: Record<"left" | "center" | "right", string>;
+      case: string;
+      cases: Record<"normal" | "upper" | "lower", string>;
+      more: string;
+      width: string;
+      stroke: string;
+      strokeColor: string;
+      background: string;
+      backgrounds: Record<"none" | "dark" | "light" | "orange" | "highlight", string>;
+      tip: string;
+      drag: string;
+      limited: string;
+    };
     templateAlways: string;
     /** A Viral video ending on its clip (formats.ts endsOnClip; client, 2026-11-23). */
     clipEnds: string;
@@ -686,6 +714,33 @@ const viralEn: ViralCopy = {
     textStyleTemplate: "The template sets the look of every text.",
     textStyleCaptions: "How the captions look on the video.",
     textStyleFixed: "This look sets its own text style.",
+    clip: {
+      title: "Text on the clip",
+      auto: "Picked for this video. Change anything to make it yours.",
+      hint: "Your own style for this video.",
+      reset: "Back to automatic",
+      quick: "Quick styles",
+      presets: { clean: "Clean", bold: "Bold", outline: "Outline", highlight: "Highlight", box: "Dark box", whitebox: "White box", orange: "Orange pop", subtitle: "Subtitle" },
+      font: "Font",
+      fonts: { inter: "Sans (Inter)", arimo: "Arial style", gelasio: "Georgia style", anton: "Impact style", fira: "Trebuchet style", courier: "Typewriter", marker: "Handwritten" },
+      weight: "Weight",
+      weights: { "400": "Regular", "500": "Medium", "700": "Bold", "800": "Extra bold", "900": "Heavy" },
+      size: "Size",
+      color: "Text color",
+      align: "Alignment",
+      aligns: { left: "Left", center: "Center", right: "Right" },
+      case: "Text case",
+      cases: { normal: "Default", upper: "UPPER", lower: "lower" },
+      more: "More text options",
+      width: "Text width",
+      stroke: "Outline",
+      strokeColor: "Outline color",
+      background: "Text background",
+      backgrounds: { none: "None", dark: "Dark", light: "Light", orange: "Orange", highlight: "Highlight" },
+      tip: "Drag the text on the preview to move it, or select it and use the arrow keys. The areas in red are covered by the apps' own buttons.",
+      drag: "Drag to move the text",
+      limited: "Shown a little smaller, so no word is cut. For larger text, make it wider or shorter.",
+    },
     templateAlways: "The animated templates always open on the hook and end on the closing line.",
     clipEnds: "Viral clip videos end on the clip, with no closing line. Want your web address in it? Write it in the hook.",
     videoFormat: "Video format",
@@ -1070,6 +1125,33 @@ const viralEs: ViralCopy = {
     textStyleTemplate: "La plantilla define el aspecto de todos los textos.",
     textStyleCaptions: "Cómo se ven los subtítulos en el vídeo.",
     textStyleFixed: "Este estilo define su propio estilo de texto.",
+    clip: {
+      title: "Texto sobre el clip",
+      auto: "Elegido para este vídeo. Cambia lo que quieras.",
+      hint: "Tu propio estilo para este vídeo.",
+      reset: "Volver a automático",
+      quick: "Estilos rápidos",
+      presets: { clean: "Limpio", bold: "Negrita", outline: "Contorno", highlight: "Resaltado", box: "Caja oscura", whitebox: "Caja blanca", orange: "Naranja", subtitle: "Subtítulo" },
+      font: "Fuente",
+      fonts: { inter: "Sans (Inter)", arimo: "Estilo Arial", gelasio: "Estilo Georgia", anton: "Estilo Impact", fira: "Estilo Trebuchet", courier: "Máquina de escribir", marker: "Manuscrita" },
+      weight: "Grosor",
+      weights: { "400": "Normal", "500": "Medio", "700": "Negrita", "800": "Extra negrita", "900": "Muy gruesa" },
+      size: "Tamaño",
+      color: "Color del texto",
+      align: "Alineación",
+      aligns: { left: "Izquierda", center: "Centro", right: "Derecha" },
+      case: "Mayúsculas",
+      cases: { normal: "Normal", upper: "MAYÚS.", lower: "minús." },
+      more: "Más opciones de texto",
+      width: "Ancho del texto",
+      stroke: "Contorno",
+      strokeColor: "Color del contorno",
+      background: "Fondo del texto",
+      backgrounds: { none: "Sin fondo", dark: "Oscuro", light: "Claro", orange: "Naranja", highlight: "Resaltado" },
+      tip: "Arrastra el texto en la vista previa para moverlo, o selecciónalo y usa las flechas. Las zonas en rojo quedan tapadas por los botones de las apps.",
+      drag: "Arrastra para mover el texto",
+      limited: "Se muestra algo más pequeño para no cortar palabras. Para un texto más grande, hazlo más ancho o más corto.",
+    },
     templateAlways: "Las plantillas animadas siempre empiezan con el gancho y terminan con la frase final.",
     clipEnds: "Los vídeos virales con clip terminan en el clip, sin frase final. ¿Quieres tu dirección web? Escríbela en el gancho.",
     videoFormat: "Formato del vídeo",
@@ -1462,6 +1544,33 @@ const viralFr: ViralCopy = {
     textStyleTemplate: "Le modèle définit l’apparence de tous les textes.",
     textStyleCaptions: "L’apparence des sous-titres dans la vidéo.",
     textStyleFixed: "Ce style définit son propre style de texte.",
+    clip: {
+      title: "Texte sur le clip",
+      auto: "Choisi pour cette vidéo. Modifiez ce que vous voulez.",
+      hint: "Votre propre style pour cette vidéo.",
+      reset: "Revenir à l’automatique",
+      quick: "Styles rapides",
+      presets: { clean: "Simple", bold: "Gras", outline: "Contour", highlight: "Surligné", box: "Cadre sombre", whitebox: "Cadre blanc", orange: "Orange", subtitle: "Sous-titre" },
+      font: "Police",
+      fonts: { inter: "Sans (Inter)", arimo: "Style Arial", gelasio: "Style Georgia", anton: "Style Impact", fira: "Style Trebuchet", courier: "Machine à écrire", marker: "Manuscrite" },
+      weight: "Graisse",
+      weights: { "400": "Normal", "500": "Moyen", "700": "Gras", "800": "Extra gras", "900": "Très gras" },
+      size: "Taille",
+      color: "Couleur du texte",
+      align: "Alignement",
+      aligns: { left: "Gauche", center: "Centre", right: "Droite" },
+      case: "Casse",
+      cases: { normal: "Normale", upper: "MAJ.", lower: "min." },
+      more: "Plus d’options de texte",
+      width: "Largeur du texte",
+      stroke: "Contour",
+      strokeColor: "Couleur du contour",
+      background: "Fond du texte",
+      backgrounds: { none: "Aucun", dark: "Sombre", light: "Clair", orange: "Orange", highlight: "Surligné" },
+      tip: "Faites glisser le texte sur l’aperçu pour le déplacer, ou sélectionnez-le et utilisez les flèches. Les zones en rouge sont couvertes par les boutons des applications.",
+      drag: "Faire glisser pour déplacer le texte",
+      limited: "Affiché un peu plus petit pour ne couper aucun mot. Pour un texte plus grand, élargissez-le ou raccourcissez-le.",
+    },
     templateAlways: "Les modèles animés commencent toujours par l’accroche et finissent par la phrase de fin.",
     clipEnds: "Les vidéos virales à clip se terminent sur le clip, sans phrase de fin. Vous voulez votre adresse web ? Écrivez-la dans l’accroche.",
     videoFormat: "Format de la vidéo",
@@ -1854,6 +1963,33 @@ const viralIt: ViralCopy = {
     textStyleTemplate: "Il modello stabilisce l’aspetto di tutti i testi.",
     textStyleCaptions: "L’aspetto dei sottotitoli nel video.",
     textStyleFixed: "Questo stile ha un suo stile di testo.",
+    clip: {
+      title: "Testo sul clip",
+      auto: "Scelto per questo video. Cambia quello che vuoi.",
+      hint: "Il tuo stile per questo video.",
+      reset: "Torna ad automatico",
+      quick: "Stili rapidi",
+      presets: { clean: "Pulito", bold: "Grassetto", outline: "Contorno", highlight: "Evidenziato", box: "Riquadro scuro", whitebox: "Riquadro bianco", orange: "Arancione", subtitle: "Sottotitolo" },
+      font: "Carattere",
+      fonts: { inter: "Sans (Inter)", arimo: "Stile Arial", gelasio: "Stile Georgia", anton: "Stile Impact", fira: "Stile Trebuchet", courier: "Macchina da scrivere", marker: "A mano" },
+      weight: "Spessore",
+      weights: { "400": "Normale", "500": "Medio", "700": "Grassetto", "800": "Extra grassetto", "900": "Molto spesso" },
+      size: "Dimensione",
+      color: "Colore del testo",
+      align: "Allineamento",
+      aligns: { left: "Sinistra", center: "Centro", right: "Destra" },
+      case: "Maiuscole",
+      cases: { normal: "Normale", upper: "MAIUSC.", lower: "minusc." },
+      more: "Altre opzioni di testo",
+      width: "Larghezza del testo",
+      stroke: "Contorno",
+      strokeColor: "Colore del contorno",
+      background: "Sfondo del testo",
+      backgrounds: { none: "Nessuno", dark: "Scuro", light: "Chiaro", orange: "Arancione", highlight: "Evidenziato" },
+      tip: "Trascina il testo sull’anteprima per spostarlo, oppure selezionalo e usa le frecce. Le zone in rosso sono coperte dai pulsanti delle app.",
+      drag: "Trascina per spostare il testo",
+      limited: "Mostrato un po’ più piccolo per non tagliare le parole. Per un testo più grande, allargalo o accorcialo.",
+    },
     templateAlways: "I modelli animati iniziano sempre con il gancio e finiscono con la frase di chiusura.",
     clipEnds: "I video virali con clip finiscono sul clip, senza frase di chiusura. Vuoi il tuo indirizzo web? Scrivilo nel gancio.",
     videoFormat: "Formato del video",
@@ -2246,6 +2382,33 @@ const viralDe: ViralCopy = {
     textStyleTemplate: "Die Vorlage bestimmt das Aussehen aller Texte.",
     textStyleCaptions: "Wie die Untertitel im Video aussehen.",
     textStyleFixed: "Dieser Look hat seinen eigenen Textstil.",
+    clip: {
+      title: "Text auf dem Clip",
+      auto: "Für dieses Video ausgewählt. Ändern Sie, was Sie möchten.",
+      hint: "Ihr eigener Stil für dieses Video.",
+      reset: "Zurück zu automatisch",
+      quick: "Schnellstile",
+      presets: { clean: "Schlicht", bold: "Fett", outline: "Kontur", highlight: "Markiert", box: "Dunkle Box", whitebox: "Weiße Box", orange: "Orange", subtitle: "Untertitel" },
+      font: "Schrift",
+      fonts: { inter: "Sans (Inter)", arimo: "Arial-Stil", gelasio: "Georgia-Stil", anton: "Impact-Stil", fira: "Trebuchet-Stil", courier: "Schreibmaschine", marker: "Handschrift" },
+      weight: "Schriftstärke",
+      weights: { "400": "Normal", "500": "Mittel", "700": "Fett", "800": "Extra fett", "900": "Sehr fett" },
+      size: "Größe",
+      color: "Textfarbe",
+      align: "Ausrichtung",
+      aligns: { left: "Links", center: "Mitte", right: "Rechts" },
+      case: "Schreibweise",
+      cases: { normal: "Standard", upper: "GROSS", lower: "klein" },
+      more: "Weitere Textoptionen",
+      width: "Textbreite",
+      stroke: "Kontur",
+      strokeColor: "Konturfarbe",
+      background: "Texthintergrund",
+      backgrounds: { none: "Ohne", dark: "Dunkel", light: "Hell", orange: "Orange", highlight: "Markiert" },
+      tip: "Ziehen Sie den Text in der Vorschau an seinen Platz, oder wählen Sie ihn aus und nutzen Sie die Pfeiltasten. Die roten Bereiche werden von den Schaltflächen der Apps verdeckt.",
+      drag: "Ziehen, um den Text zu verschieben",
+      limited: "Etwas kleiner gezeigt, damit kein Wort getrennt wird. Für größeren Text machen Sie ihn breiter oder kürzer.",
+    },
     templateAlways: "Die animierten Vorlagen beginnen immer mit dem Hook und enden mit dem Schlusssatz.",
     clipEnds: "Virale Clip-Videos enden mit dem Clip, ohne Schlusssatz. Ihre Webadresse soll rein? Schreiben Sie sie in den Hook.",
     videoFormat: "Videoformat",

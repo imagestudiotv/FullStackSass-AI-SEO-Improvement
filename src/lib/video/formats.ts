@@ -1,3 +1,5 @@
+import type { ClipTextStyle } from "../../remotion/clip-text";
+
 /**
  * Videos (client, 2026-10-29; docs/videos.md): short animated reels and photo
  * carousels made from the website's own content, in the style of the Ootto
@@ -523,6 +525,8 @@ export type ProductionChoices = {
   includeCta: boolean;
   /** The closing call to action; null = the idea's own. */
   ctaText: string | null;
+  /** The customer's own text style and place on a Viral clip (src/remotion/clip-text.ts; client, 2026-11-24); absent or null = the look picked for the video. */
+  textStyle?: ClipTextStyle | null;
 };
 
 /** Per-video overrides of the global profile/brand voice; they never change the global settings. */

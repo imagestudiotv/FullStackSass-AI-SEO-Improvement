@@ -43,6 +43,32 @@ const EXTRA_FACES: { family: string; file: string; weight: string; ext?: string 
   { family: MARKER, file: "permanent-marker-latin-400-normal.woff2", weight: "400" },
 ];
 
+/**
+ * The other faces a customer can choose for the text on a Viral clip
+ * (clip-text.ts; client, 2026-11-24), @fontsource 5, OFL: Arimo, Gelasio and
+ * Fira Sans. Loaded when a text uses one, not with every video.
+ */
+export const ARIMO = "RepGet Arimo";
+export const GELASIO = "RepGet Gelasio";
+export const FIRA = "RepGet Fira Sans";
+const CLIP_FACES: Record<string, { family: string; file: string; weights: string[] }> = {
+  arimo: { family: ARIMO, file: "arimo", weights: ["500", "700"] },
+  gelasio: { family: GELASIO, file: "gelasio", weights: ["500", "700"] },
+  fira: { family: FIRA, file: "fira-sans", weights: ["500", "700", "900"] },
+};
+const clipFontsAsked = new Set<string>();
+
+/** Loads a chosen face once; the render waits for it, and a face that fails falls back to Inter. */
+export function ensureClipFont(font: string): void {
+  const face = CLIP_FACES[font];
+  if (!face || clipFontsAsked.has(font) || typeof document === "undefined" || typeof FontFace === "undefined") return;
+  clipFontsAsked.add(font);
+  const handle = delayRender(`Loading ${face.family}`, { timeoutInMilliseconds: 60_000 });
+  Promise.all(face.weights.flatMap((weight) => [addFace(face.family, `${face.file}-latin-${weight}-normal.woff2`, weight), addFace(face.family, `${face.file}-latin-ext-${weight}-normal.woff2`, weight, LATIN_EXT_RANGE)]))
+    .catch((error) => console.warn(`[remotion] ${face.family} did not load; using Inter`, error))
+    .finally(() => continueRender(handle));
+}
+
 async function addFace(family: string, file: string, weight: string, unicodeRange?: string): Promise<void> {
   const face = new FontFace(family, `url(${staticFile(`video-fonts/${file}`)}) format("woff2")`, { weight, style: "normal", ...(unicodeRange ? { unicodeRange } : {}) });
   document.fonts.add(await face.load());
