@@ -15,6 +15,7 @@ import { isRelevantPair } from "@/lib/backlinks/matching";
 import { withdrawPlacement } from "@/lib/backlinks/placements";
 import { db } from "@/lib/db";
 import { isFreePlanWebsite } from "@/lib/plans/free-plan-server";
+import { websiteConnectedSql } from "@/lib/publishing/website-connection";
 import {
   articles,
   articleVersions,
@@ -259,6 +260,7 @@ export async function placeManagedLink(input: PlaceInput): Promise<{ placementId
         niche: networkSites.niche,
         networkLanguage: networkSites.language,
         accepting: networkSites.acceptingLinks,
+        connected: websiteConnectedSql(websites.id),
         minSourceRank: networkSites.minSourceRank,
       })
       .from(websites)
@@ -282,6 +284,14 @@ export async function placeManagedLink(input: PlaceInput): Promise<{ placementId
     }
     if (!host.accepting) throw new PlacementError("The host website is not taking part in the Partner Network");
     if (!beneficiary.accepting) throw new PlacementError("That website is not taking part in the Partner Network");
+    /*
+      Connected first (Daniel, 2026-11-24): until it is, its owner is told the
+      website is not in the network, and every new website's row says
+      accepting from the start.
+    */
+    for (const site of [host, beneficiary]) {
+      if (!site.connected) throw new PlacementError(`${site.domain} is not connected to RepGet yet, so it is not in the Partner Network`);
+    }
     /*
       The Free plan (lib/plans/free-plan.ts, 2026-11-19) HOSTS links - its
       articles may carry paying brands' mentions and links - but never

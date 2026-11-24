@@ -1,6 +1,7 @@
 import { CirclePause, ListChecks, Plus, Users } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
+import { HomeCopilot } from "@/components/dashboard/home-copilot";
 import { NextActions } from "@/components/dashboard/next-actions";
 import { CheckoutPending } from "@/app/(site)/(onboarding)/onboarding/plan/checkout-pending";
 import { PayPalReturn } from "@/components/paypal-return";
@@ -17,12 +18,11 @@ import { PendingInvitations } from "@/components/dashboard/pending-invitations";
 import { RememberWebsite } from "@/components/dashboard/remember-website";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DailyClaimBanner } from "@/components/dashboard/daily-claim-banner";
 import { PageHeader, PageShell } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/states";
 import { requireSession } from "@/lib/auth-guard";
 import { readCheckoutReturn } from "@/lib/billing/return-to";
-import { arrivedFromGrowthPlan, waitsForPayment } from "@/lib/dashboard/checkout-wait";
+import { justStarted, waitsForPayment } from "@/lib/dashboard/checkout-wait";
 import { resolveDashboard } from "@/lib/dashboard/gate";
 import { getDashboardOverview } from "@/lib/dashboard/overview";
 import { format } from "@/lib/i18n/format";
@@ -40,13 +40,14 @@ export const metadata = { title: "Dashboard" };
 export const dynamic = "force-dynamic";
 
 /**
- * The dashboard.
+ * Home: the dashboard.
  *
- * This listed website names and nothing else, which the client fairly called
- * confusing: the platform had been working for weeks and the first screen said
- * nothing about what it had done. It now answers, in order — what authority
- * the site has, what is being written now, what changed this week, what is
- * performing, and what all of it has been worth.
+ * Top to bottom, as Daniel ordered it (2026-11-24, "the homepage should be more
+ * simple at the start point ... all features are as now but just we change the
+ * position"): Growth Copilot, what authority the site has and what is being
+ * written now, what changed this week and what is performing, what needs
+ * attention, what all of it has been worth, then Google and AI search. The
+ * daily check-in is in the sidebar, on every page.
  *
  * One website at a time, chosen in the switcher. Showing every site at once
  * would mean five copies of six panels on a plan with five sites, and no
@@ -77,7 +78,7 @@ export default async function DashboardPage({
   const requested = typeof params.site === "string" ? params.site : null;
 
   /*
-    Back from paying in the growth plan (lib/billing/return-to.ts): the
+    Back from paying, in onboarding or the growth plan (lib/billing/return-to.ts): the
     webhook may not have landed yet, and the gate's paywall would send
     someone who has just paid to the plan screen. Until the website has its
     plan, the waiting screen - which refreshes until it does - instead. Read
@@ -220,11 +221,10 @@ export default async function DashboardPage({
     (site) => site.id === shellId && site.access !== "owner",
   );
   /*
-    Also when the owner has just started this website from the growth plan
-    (paid, or Free): the dashboard opens on it, so the shell follows, even
+    Also when the owner has just started this website's plan (paid, or Free): the dashboard opens on it, so the shell follows, even
     when it was on another site of their own.
   */
-  const welcome = ctx.access === "owner" && ctx.site.id === requested && arrivedFromGrowthPlan(back, params.welcome);
+  const welcome = ctx.access === "owner" && ctx.site.id === requested && justStarted(back, params.welcome);
   const remember =
     shellId !== ctx.site.id && (ctx.access !== "owner" || shellShared || welcome) ? (
       <RememberWebsite websiteId={ctx.site.id} />
@@ -343,30 +343,34 @@ export default async function DashboardPage({
         <PayPalReturn outcome={back.outcome} websiteId={ctx.site.id} />
       ) : null}
 
-      {/*
-        Just started from the growth plan: the onboarding steps it skips
-        (Connect Google, AI visibility, the content plan...) are on Tasks.
-      */}
-      {welcome ? growthPlanWelcome(ctx.site.id, overview.domain, locale) : null}
+      {/* Just started: connecting Google, the AI questions and the rest of the set-up are on Tasks. */}
+      {welcome ? startedWelcome(ctx.site.id, overview.domain, locale) : null}
 
-      {ctx.access === "owner" ? <DailyClaimBanner locale={locale} /> : null}
-
-      {/* The AI chat moved to its own page, Growth Copilot (client, 2026-11-02). */}
-      <Suspense fallback={<div className="h-28 animate-pulse rounded-xl border bg-card" aria-hidden="true" />}>
-        <NextActions websiteId={ctx.site.id} ownerOrgId={ctx.ownerOrgId} canManage={ctx.access === "owner"} locale={locale} />
+      <Suspense fallback={<div className="h-72 animate-pulse rounded-xl border bg-card" aria-hidden="true" />}>
+        {/* Keyed by the website: a conversation belongs to one, and must not follow the reader to another. */}
+        <HomeCopilot
+          key={ctx.site.id}
+          websiteId={ctx.site.id}
+          ownerOrgId={ctx.ownerOrgId}
+          userId={ctx.userId}
+          canUse={ctx.access !== "viewer"}
+          locale={locale}
+          creditsCount={t.app.credits.creditsCount}
+          unavailable={r.sectionUnavailable}
+        />
       </Suspense>
 
-      {/*
-        The reference layout: authority and today's article across the top,
-        the week's wins and best articles beneath, the achievements across
-        the full width, then Google and AI search.
-      */}
+      {/* Authority and today's article side by side, the week's wins and best articles beneath. */}
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <AuthorityCard overview={overview} t={r} locale={locale} />
         <TodaysArticleCard overview={overview} t={r} locale={locale} />
         <WinsCard overview={overview} t={r} locale={locale} />
         <BestArticlesCard overview={overview} t={r} locale={locale} />
       </div>
+
+      <Suspense fallback={<div className="h-28 animate-pulse rounded-xl border bg-card" aria-hidden="true" />}>
+        <NextActions websiteId={ctx.site.id} ownerOrgId={ctx.ownerOrgId} canManage={ctx.access === "owner"} locale={locale} />
+      </Suspense>
 
       {overview.achievements.ok ? (
         <AchievementsSection
@@ -387,17 +391,16 @@ export default async function DashboardPage({
 }
 
 /**
- * The note on a website just started from the growth plan (Daniel,
- * 2026-11-21): paying there lands here rather than in the onboarding steps
- * after the plan, and those steps wait on Tasks (lib/tasks/tasks.ts
+ * The note on a website whose plan has just started: paying, or starting Free,
+ * lands here, and the rest of the set-up waits on Tasks (lib/tasks/tasks.ts
  * ONBOARDING_STEP_TASKS). Shown while the address says so (?checkout=success,
- * ?paypal=success or ?welcome=1); the sidebar's Dashboard link drops it.
- * Drawn inline (not as a component) so the page's tree carries its link.
+ * ?paypal=success or ?welcome=1); the sidebar's Home link drops it. Drawn
+ * inline (not as a component) so the page's tree carries its link.
  */
-function growthPlanWelcome(websiteId: string, domain: string, locale: Locale) {
+function startedWelcome(websiteId: string, domain: string, locale: Locale) {
   const w = TASKS_COPY[locale].welcome;
   return (
-    <section className="flex flex-col gap-4 rounded-xl border border-primary/30 bg-primary/5 p-5 sm:flex-row sm:items-center sm:justify-between">
+    <section className="flex flex-col gap-3 rounded-xl border border-primary/30 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-start gap-3">
         <ListChecks className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
         <div>
@@ -405,7 +408,7 @@ function growthPlanWelcome(websiteId: string, domain: string, locale: Locale) {
           <p className="mt-1 text-sm text-muted-foreground">{w.body}</p>
         </div>
       </div>
-      <Button asChild className="shrink-0">
+      <Button asChild size="sm" className="shrink-0">
         <Link href={`/tasks?site=${encodeURIComponent(websiteId)}`}>{w.cta}</Link>
       </Button>
     </section>

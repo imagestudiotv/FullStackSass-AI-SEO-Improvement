@@ -32,8 +32,22 @@ import type { WebsiteContext } from "@/lib/tenant";
  * it twice; getOnboardingState is request-cached, so this is one query per
  * request no matter how many callers there are.
  */
-export async function requirePlan(orgId: string) {
+export async function requirePlan(
+  orgId: string,
+  /**
+   * The website being opened, when the page knows it. The state above is the
+   * OLDEST website's, and Free is per website: someone whose first website
+   * never got a plan, and who started Free on their second, was sent from the
+   * second's pages to the first's plan screen. A plan on the website opened
+   * is enough.
+   */
+  websiteId?: string,
+) {
   const onboarding = await getOnboardingState(orgId);
+  if (websiteId && !onboarding.hasPlan) {
+    const opened = await getOnboardingState(orgId, websiteId);
+    if (opened.hasPlan) return opened;
+  }
 
   /**
    * Only redirects when a website EXISTS but is unpaid.
@@ -87,7 +101,7 @@ export async function requireWebsitePlan(
 ): Promise<void> {
   if (ctx.access === "owner") {
     if (options.internalTesting && (await isInternalTestingWebsite(ctx.site.id))) return;
-    await requirePlan(ctx.ownerOrgId);
+    await requirePlan(ctx.ownerOrgId, ctx.site.id);
     return;
   }
 

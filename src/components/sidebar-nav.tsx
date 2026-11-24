@@ -9,6 +9,7 @@ import { navEntries, type NavEntry, type NavGroup, type NavLink } from "@/lib/na
 import type { Messages } from "@/lib/i18n/messages";
 import { selectWebsite } from "@/lib/websites/actions";
 import { cn } from "@/lib/utils";
+import { websiteSwitchDestination } from "@/lib/websites/switch-destination";
 import { sectionHref } from "@/lib/websites/sections";
 
 /**
@@ -18,8 +19,8 @@ import { sectionHref } from "@/lib/websites/sections";
  * from any page — including /dashboard and /settings, which do not name a
  * site in their own URL.
  *
- * Groups open and close from their heading and REMEMBER it (in this
- * browser), so someone who never uses Growth Audit can fold it away once. The
+ * Groups open and close from their heading (Home: from its chevron; its name
+ * opens the dashboard and the group) and REMEMBER it (in this browser), so someone who never uses Growth Audit can fold it away once. The
  * group holding the current page always opens, so the page you are on is
  * never hidden inside a closed group.
  */
@@ -83,6 +84,7 @@ export function SidebarNav({
   onNavigate,
   onboardingComplete = false,
   selectedWebsiteId = null,
+  defaultWebsiteId = null,
   addons = [],
   hideAddons = false,
   hideCredits = false,
@@ -122,6 +124,11 @@ export function SidebarNav({
    * the customer's first website.
    */
   selectedWebsiteId?: string | null;
+  /**
+   * The website a bare /dashboard opens (the first in the switcher's list), so
+   * Home names the selected one only when it is another.
+   */
+  defaultWebsiteId?: string | null;
   /** Hides "Set up" once every required launch step is done. */
   onboardingComplete?: boolean;
 }) {
@@ -171,6 +178,11 @@ export function SidebarNav({
     return exact ? pathname === path : pathname === path || pathname.startsWith(`${path}/`);
   }
 
+  /** A group heading's own page. The dashboard shows the selected website, like the switcher. */
+  function headingHref(href: string): string {
+    return href === "/dashboard" && websiteId && defaultWebsiteId ? websiteSwitchDestination("/dashboard", websiteId, defaultWebsiteId) : href;
+  }
+
   function visible(item: NavLink): boolean {
     /* "Set up" goes once every REQUIRED launch step is done. */
     if (item.href === "/setup" && onboardingComplete) return false;
@@ -203,6 +215,11 @@ export function SidebarNav({
     const next = { ...open, [id]: !isOpen };
     setChanged(next);
     writeStored(next);
+  }
+
+  /** Opens the group and remembers it, also when only the page being left was holding it open. */
+  function expand(id: NavGroup["id"]) {
+    if (open[id] !== true) toggle(id, false);
   }
 
   const linkClass = (active: boolean, child: boolean) =>
@@ -251,20 +268,54 @@ export function SidebarNav({
         const isOpen = entry.id === activeGroup || (open[entry.id] ?? entry.defaultOpen);
         const listId = `sidebar-group-${entry.id}`;
         const Icon = entry.icon;
+        const headingActive = entry.href !== undefined && pathname === entry.href;
 
         return (
           <div key={entry.id} className="mt-1 first:mt-0">
-            <button
-              type="button"
-              onClick={() => toggle(entry.id, isOpen)}
-              aria-expanded={isOpen}
-              aria-controls={listId}
-              className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm font-semibold text-foreground transition-colors hover:bg-accent/60"
-            >
-              <Icon className="size-4 shrink-0" aria-hidden="true" />
-              <span className="min-w-0 flex-1 truncate">{t[entry.title]}</span>
-              <ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition-transform", !isOpen && "-rotate-90")} aria-hidden="true" />
-            </button>
+            {entry.href ? (
+              <div
+                className={cn(
+                  "flex items-center rounded-md text-sm transition-colors",
+                  headingActive ? "bg-accent text-accent-foreground" : "text-foreground hover:bg-accent/60",
+                )}
+              >
+                <Link
+                  href={headingHref(entry.href)}
+                  onClick={() => {
+                    expand(entry.id);
+                    onNavigate?.();
+                  }}
+                  aria-current={headingActive ? "page" : undefined}
+                  className="flex min-w-0 flex-1 items-center gap-3 rounded-md px-3 py-2 font-semibold"
+                >
+                  <Icon className={cn("size-4 shrink-0", headingActive && "text-primary")} aria-hidden="true" />
+                  <span className="min-w-0 flex-1 truncate">{t[entry.title]}</span>
+                </Link>
+                {/* The same name as the link; a reader hears it as expanded or collapsed. */}
+                <button
+                  type="button"
+                  onClick={() => toggle(entry.id, isOpen)}
+                  aria-expanded={isOpen}
+                  aria-controls={listId}
+                  aria-label={t[entry.title]}
+                  className="grid size-9 shrink-0 place-items-center rounded-md hover:bg-accent"
+                >
+                  <ChevronDown className={cn("size-4 text-muted-foreground transition-transform", !isOpen && "-rotate-90")} aria-hidden="true" />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => toggle(entry.id, isOpen)}
+                aria-expanded={isOpen}
+                aria-controls={listId}
+                className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm font-semibold text-foreground transition-colors hover:bg-accent/60"
+              >
+                <Icon className="size-4 shrink-0" aria-hidden="true" />
+                <span className="min-w-0 flex-1 truncate">{t[entry.title]}</span>
+                <ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition-transform", !isOpen && "-rotate-90")} aria-hidden="true" />
+              </button>
+            )}
             {isOpen ? (
               <div id={listId} className="mt-0.5 mb-1 flex flex-col gap-0.5">
                 {entry.children === "addons"

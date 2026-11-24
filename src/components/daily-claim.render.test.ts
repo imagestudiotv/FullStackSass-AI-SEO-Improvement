@@ -7,8 +7,7 @@ import { DAILY_CLAIM_COPY, dailyWhen } from "@/lib/i18n/daily-claim";
 
 /**
  * The check-in's launchers, from the status the server gives them: the real
- * amount for the plan, and the banner's "Claimed today" only when the ledger
- * holds today's grant. The claim itself is tested on real Postgres
+ * amount for the plan, and "Claimed" only when the ledger holds today's grant. The claim itself is tested on real Postgres
  * (lib/credits/daily.concurrency.test.ts); the modal, which opens only in a
  * browser, is checked headless.
  */
@@ -24,48 +23,49 @@ import { DailyClaim } from "./daily-claim";
 const PAID = { plan: "paid", eligible: true, perDay: 3, paidPerDay: 3, today: 0, claimable: true, nextAt: null, streak: 0, progress: [], trialEndsAt: null } as const;
 const TRIAL = { ...PAID, plan: "trial", perDay: 15, trialEndsAt: new Date("2026-11-08T23:00:00Z") } as const;
 
-function render(status: object, locale: (typeof LOCALES)[number] = "en", variant: "banner" | "row" | "chip" | "button" = "banner") {
+function render(status: object, locale: (typeof LOCALES)[number] = "en", variant: "row" | "chip" | "button" = "row") {
   return renderToStaticMarkup(createElement(DailyClaim, { status: status as never, copy: DAILY_CLAIM_COPY[locale], locale, variant }));
 }
 
-describe("the dashboard banner", () => {
+describe("the sidebar's row", () => {
+  const claimed = { ...PAID, today: 3, claimable: false, nextAt: new Date("2026-11-06T00:00:00Z") };
+
   it("while open, offers the claim with the plan's real amount", () => {
     const html = render(PAID);
-    expect(html).toContain("Show up daily");
-    expect(html).toContain("Claim 3 credits");
-    expect(html).not.toContain("Claimed today");
+    expect(html).toContain("Daily bonus");
+    expect(html).toContain("3 free credits available");
+    expect(html).toContain("Claim +3");
     expect(html).not.toContain("aria-disabled");
   });
 
   it("on a trial, offers the trial's amount and never 3", () => {
     const html = render(TRIAL);
-    expect(html).toContain("Claim 15 credits");
-    expect(html).toContain("get 15 credits");
-    expect(html).not.toMatch(/\b3 credits/);
+    expect(html).toContain("15 free credits available");
+    expect(html).toContain("Claim +15");
+    expect(html).not.toContain("+3");
   });
 
-  it("stays once claimed: disabled, saying so, with the next opening", () => {
-    const html = render({ ...PAID, today: 3, claimable: false, nextAt: new Date("2026-11-06T00:00:00Z") });
-    expect(html).toContain("Show up daily");
-    expect(html).toContain("Claimed today");
+  it("stays once claimed: disabled, saying so", () => {
+    const html = render(claimed);
+    expect(html).toContain("Daily bonus claimed");
+    expect(html).toContain("Come back tomorrow");
     expect(html).toContain('aria-disabled="true"');
-    expect(html).toContain("Next check-in: 6 Nov, 00:00 UTC");
-    expect(html).not.toContain("Claim 3 credits");
+    expect(html).not.toContain("Claim +");
   });
 
-  it("says Claimed today in every language", () => {
+  it("says it in every language, with one amount and no leftover placeholder", () => {
     for (const locale of LOCALES) {
-      const word = DAILY_CLAIM_COPY[locale].claimedToday;
-      expect(word.length).toBeGreaterThan(0);
-      expect(render({ ...PAID, today: 3, claimable: false, nextAt: new Date("2026-11-06T00:00:00Z") }, locale)).toContain(word);
+      const copy = DAILY_CLAIM_COPY[locale];
+      expect(render(PAID, locale)).toContain(copy.bonusClaim.replace("{count}", "3"));
+      expect(render(PAID, locale)).not.toMatch(/[{}|]/);
+      expect(render(claimed, locale)).toContain(copy.bonusClaimed);
     }
   });
 
-  it("on a trial's last day, says what comes next, without a next check-in", () => {
+  it("on a trial's last day, promises no tomorrow", () => {
     const html = render({ ...TRIAL, today: 15, claimable: false, nextAt: null });
-    expect(html).toContain("Claimed today");
-    expect(html).toContain("With a paid plan you can collect 3 credits");
-    expect(html).not.toContain("Next check-in");
+    expect(html).toContain("Your trial credits are all collected");
+    expect(html).not.toContain("Come back tomorrow");
   });
 
   it("is not shown when there is nothing to claim", () => {
@@ -76,10 +76,10 @@ describe("the dashboard banner", () => {
 
 describe("the other launchers", () => {
   it("name the real amount, and the phone chip only appears while open", () => {
-    expect(render(TRIAL, "en", "row")).toContain("Claim 15 credits");
+    expect(render(TRIAL, "en", "button")).toContain("Claim 15 credits");
     expect(render(TRIAL, "en", "chip")).toContain("+15");
     expect(render({ ...PAID, today: 3, claimable: false }, "en", "chip")).toBe("");
-    expect(render({ ...PAID, today: 3, claimable: false }, "en", "row")).toContain("View daily rewards");
+    expect(render({ ...PAID, today: 3, claimable: false }, "en", "button")).toContain("View daily rewards");
   });
 });
 

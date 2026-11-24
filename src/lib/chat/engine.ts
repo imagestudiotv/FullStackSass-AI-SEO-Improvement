@@ -154,11 +154,11 @@ async function answerTool(ctx: ChatContext, call: Anthropic.ToolUseBlock, pages:
 
 /**
  * The answer with its links checked: a link stays only when it points to one
- * of this website's RepGet pages (or the workspace's Dashboard, Credits,
+ * of this website's RepGet pages (or the workspace's Dashboard, Tasks, Credits,
  * Billing). Any other - another site, a made-up address - becomes its text.
  */
 export function keepOwnLinks(text: string, websiteId: string): string {
-  const own = new Set(CHAT_PAGES.map((page) => chatPageHref(page, websiteId)));
+  const own = new Set(["/dashboard", ...CHAT_PAGES.map((page) => chatPageHref(page, websiteId).split("?")[0])]);
   const site = `/websites/${websiteId}`;
   return text.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (link, label: string, href: string) => {
     const path = href.split(/[?#]/)[0].replace(/\/+$/, "") || "/";

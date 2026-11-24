@@ -262,7 +262,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   /**
    * Credits are shown beside an owned site only - see SidebarUsage's
    * showCredits. The same answer decides the pill beside the logo, the phone
-   * header's pill and the line under "Earn Credits".
+   * header's pill and the check-in under "Earn Credits".
    */
   const showCredits = !selectedShared && !sharedWorkOnly;
   /*
@@ -325,14 +325,14 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         }
         footer={
           /*
-            "Earn Credits" and the balance, pinned under the menu. No credit
-            figure on a shared site or for someone who owns nothing: `orgId`
-            is this person's own workspace, so the number would be THEIR
-            balance beside credits they cannot spend there.
+            "Earn Credits" and the daily check-in, pinned under the menu. No
+            check-in on a shared site or for someone who owns nothing: `orgId`
+            is this person's own workspace, so it would offer THEM credits
+            they cannot spend there.
           */
           <>
             {freeIndicator}
-            <SidebarUsage organizationId={orgId} showCredits={showCredits} locale={locale} t={t.app.nav} tc={creditWords} />
+            <SidebarUsage organizationId={orgId} showCredits={showCredits} locale={locale} t={t.app.nav} />
           </>
         }
       >
@@ -341,6 +341,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           onboardingComplete={onboardingComplete}
           setupProgress={setupProgress}
           selectedWebsiteId={fallbackWebsiteId}
+          defaultWebsiteId={accessibleWebsites[0]?.id ?? null}
           addons={sidebarAddons}
           hideAddons={hideAddons}
           hideCredits={sharedWorkOnly}
@@ -358,13 +359,14 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             onboardingComplete={onboardingComplete}
             setupProgress={setupProgress}
             selectedWebsiteId={fallbackWebsiteId}
+            defaultWebsiteId={accessibleWebsites[0]?.id ?? null}
             addons={sidebarAddons}
             hideAddons={hideAddons}
             hideCredits={sharedWorkOnly}
             footer={
               <>
                 {freeIndicator}
-                <SidebarUsage organizationId={orgId} showCredits={showCredits} locale={locale} t={t.app.nav} tc={creditWords} />
+                <SidebarUsage organizationId={orgId} showCredits={showCredits} locale={locale} t={t.app.nav} />
               </>
             }
           />

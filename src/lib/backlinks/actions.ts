@@ -21,6 +21,7 @@ import {
 } from "@/lib/backlinks/credits";
 import { describeNetwork, findHost } from "@/lib/backlinks/matching";
 import { DEFAULT_MONTHLY_CAP } from "@/lib/backlinks/network-defaults";
+import { isWebsiteConnected } from "@/lib/publishing/website-connection";
 import { requireWebsite } from "@/lib/tenant";
 import { requireEditor } from "@/lib/websites/require-editor";
 import { isPublicWebsiteUrl } from "@/lib/websites/url";
@@ -146,6 +147,10 @@ export async function joinNetwork(
   const guard = await requireEditor(websiteId);
   if (!guard.ok) return { ok: false, error: guard.error };
   const { site } = guard.context;
+  // As setParticipation (network-settings.ts): joining needs a connected website.
+  if (input.acceptingLinks && !(await isWebsiteConnected(site.id))) {
+    return { ok: false, error: "Connect your website first, in Integrations. Then you can join the Partner Network." };
+  }
 
   const cap = Math.max(0, Math.min(input.monthlyCap ?? DEFAULT_MONTHLY_CAP, 20));
   const values = {

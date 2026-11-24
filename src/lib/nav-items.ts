@@ -30,8 +30,9 @@ import type { Messages } from "@/lib/i18n/messages";
  *   — Credits · Add-Ons · Settings — and Earn Credits at the bottom.
  *
  * A group's heading only opens and closes it; the pages are its children.
- * Design-system guidance agrees (a parent that is also a link makes the
- * chevron and the label do different things), and it is what his mockup does.
+ * Home is the exception (Daniel, 2026-11-24: "we make home button now
+ * clickable and expanded with growth and tasks"): its name opens the dashboard
+ * and its chevron alone opens and closes the group.
  * Every child has its own small icon, from his icon file.
  *
  * "Set up" stays above Home while the launch checklist is unfinished, and
@@ -60,6 +61,8 @@ export type NavGroup = {
   id: "home" | "social" | "audit" | "addons";
   title: NavKey;
   icon: LucideIcon;
+  /** The page the heading's name opens. Without one, the whole heading opens and closes the group. */
+  href?: string;
   /** Add-ons are rows in a table, so their children are passed in at render time. */
   children: NavLink[] | "addons";
   /** Open the first time someone sees the menu (Add-Ons start closed, as in the client's mockup). */
@@ -84,14 +87,15 @@ export const navEntries: NavEntry[] = [
     id: "home",
     title: "home",
     icon: House,
+    href: "/dashboard",
     defaultOpen: true,
     children: [
       /** The AI chat, on a page of its own (client: "I prefer an independent section for the chat"). */
       { title: "growthCopilot", segment: "copilot", icon: Sparkles },
       /**
        * The task list (/tasks). This pointed at /dashboard, the SEO overview, and the
-       * client asked for the tasks themselves (2026-11-03). The overview is linked
-       * from the Tasks page header.
+       * client asked for the tasks themselves (2026-11-03). The overview is Home
+       * itself.
        */
       { title: "tasks", href: "/tasks", icon: ListTodo },
     ],

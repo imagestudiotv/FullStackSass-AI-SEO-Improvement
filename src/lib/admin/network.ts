@@ -45,6 +45,7 @@ import {
   websites,
 } from "@/lib/db/schema";
 import { isPublishingConnection } from "@/lib/publishing/kinds";
+import { websiteConnectedSql } from "@/lib/publishing/website-connection";
 import { checkTargetUrl } from "@/lib/websites/ownership";
 import type { ActionResult } from "@/lib/websites/actions";
 
@@ -385,6 +386,8 @@ export async function getReviewArticle(articleId: string) {
     .where(
       and(
         eq(networkSites.acceptingLinks, true),
+        // Not in the network until it is connected (placeManagedLink refuses it too).
+        websiteConnectedSql(websites.id),
         ne(websites.id, article.websiteId),
         ne(websites.organizationId, article.organizationId),
         // The same site in another workspace is not a partner (see placeManagedLink).

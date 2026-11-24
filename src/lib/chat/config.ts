@@ -48,8 +48,9 @@ export function isChatPage(value: unknown): value is ChatPage {
 export function chatPageHref(page: ChatPage, websiteId: string): string {
   const site = `/websites/${websiteId}`;
   switch (page) {
+    // Its button says "Tasks"; the chat itself is on Home (/dashboard).
     case "dashboard":
-      return "/dashboard";
+      return `/tasks?site=${websiteId}`;
     case "planned_articles":
       return `${site}/content`;
     case "website_health":

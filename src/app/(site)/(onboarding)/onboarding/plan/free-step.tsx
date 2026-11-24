@@ -31,8 +31,8 @@ function bold(text: string): ReactNode {
 /**
  * The plan step for someone who pressed "Start Free" (Daniel, 2026-11-19:
  * "Start Free · No card required"): the Free card, and ONE button that starts
- * it - no card, no checkout, no billing step. Setup then carries on as after
- * a paid plan's checkout (Connect Google, AI visibility, the first article).
+ * it - no card, no checkout, no billing step - and opens the dashboard, as after
+ * a paid plan's checkout.
  *
  * The email is confirmed first, with a code, as the paid plans' free trial
  * asks: Free generation is only given to a proven address

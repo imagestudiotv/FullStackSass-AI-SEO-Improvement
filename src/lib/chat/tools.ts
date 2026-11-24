@@ -10,6 +10,7 @@ import { getNetworkStatus, listRequests } from "@/lib/backlinks/actions";
 import { creditOverview } from "@/lib/credits/overview";
 import { getDashboardOverview } from "@/lib/dashboard/overview";
 import { getNextActions } from "@/lib/dashboard/next-actions";
+import { getTasks } from "@/lib/tasks/tasks";
 import { articleTitleText } from "@/lib/i18n/article-delivery";
 import { DEFAULT_LOCALE, isLocale } from "@/lib/i18n/config";
 import { db } from "@/lib/db";
@@ -70,13 +71,15 @@ export const READ_TOOLS: ReadTool[] = [
   {
     name: "get_overview",
     description:
-      "The website at a glance: today's article, recent wins, best articles, Google and AI-visibility headline figures, backlinks, the workspace's credits, and the task list (Next actions, with each task's id). Start here for broad questions like 'how is my website doing' or 'what should I do first'.",
+      "The website at a glance: today's article, recent wins, best articles, Google and AI-visibility headline figures, backlinks, the workspace's credits, the task list (Next actions, with each task's id), and the set-up steps still to do (connect the website, Google, AI tracking...), each with the page where it is done. Start here for broad questions like 'how is my website doing', 'what should I do first' or 'what is left to set up'.",
     input_schema: noInput,
     page: "dashboard",
     run: async (ctx) => {
-      const [overview, tasks] = await Promise.all([
+      const [overview, tasks, setup] = await Promise.all([
         getDashboardOverview({ websiteId: ctx.websiteId, ownerOrgId: ctx.ownerOrgId, showCredits: ctx.access === "owner" }),
         getNextActions(ctx.websiteId, ctx.ownerOrgId, true),
+        // The owner's: connecting the website and the accounts is theirs to do (lib/tasks/tasks.ts).
+        getTasks(ctx.websiteId, ctx.ownerOrgId, ctx.access === "owner"),
       ]);
       return {
         website: { domain: ctx.domain, brand: ctx.brandName, plan: planWords(ctx.level) },
@@ -90,6 +93,7 @@ export const READ_TOOLS: ReadTool[] = [
         backlinks: overview?.backlinks,
         credits: overview?.credits ?? "only the workspace owner sees the credits",
         tasks: tasks.map((task) => ({ id: task.id, kind: task.kind, priority: task.priority, detail: short(task.detail && titleFor(ctx, task.detail)), page: task.href })),
+        setupToDo: (setup?.setup ?? []).filter((step) => !step.done).map((step) => ({ step: step.id, optional: step.optional, page: step.href })),
       };
     },
   },

@@ -6,7 +6,7 @@ import { cleanWebsite } from "@/app/(marketing)/_home/start-field";
 import { getSession } from "@/lib/auth-guard";
 import { listPlans } from "@/lib/billing";
 import { hasUnfinishedPayPalApproval, isTrialEligible, planScreenOffer } from "@/lib/billing/checkouts";
-import { growthPlanDashboardPath } from "@/lib/billing/return-to";
+import { startedDashboardPath } from "@/lib/billing/return-to";
 import { pendingConversions } from "@/lib/conversions/conversions";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/auth-tables";
@@ -122,7 +122,7 @@ export async function prepareGrowthPlanBilling(rawDomain: string, rawTier: strin
     email: session.user.email,
     emailVerified: person?.emailVerified === true,
     hasPlan: state.hasPlan,
-    next: growthPlanDashboardPath(websiteId),
+    next: startedDashboardPath(websiteId),
     conversions,
   };
   if (free) return { ok: true, kind: "free", ...account };

@@ -25,6 +25,7 @@ import { partnerReconciliation } from "./partner-reconciliation";
 import { billingMaintenance, deliverOutbox, paidAcquisitionMaintenance } from "./maintenance";
 import { publishArticleJob } from "./publish-article";
 import { firstContentPlan } from "./first-content-plan";
+import { firstVisibilityQuestions } from "./first-visibility-questions";
 import { renewalReplan } from "./renewal-replan";
 import { researchKeywords } from "./research-keywords";
 import { scheduledArticles } from "./scheduled-articles";
@@ -44,6 +45,7 @@ export const functions = [
   researchKeywords,
   renewalReplan,
   firstContentPlan,
+  firstVisibilityQuestions,
   generateArticle,
   verifyBacklinks,
   checkGeo,

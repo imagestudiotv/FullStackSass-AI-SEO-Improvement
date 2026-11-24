@@ -144,6 +144,23 @@ describe("SidebarNav", () => {
     expect(html).toContain(`href="/websites/${SITE}/videos"`);
   });
 
+  it("opens the dashboard from Home's name, with Growth Copilot and Tasks under it and a chevron of its own", () => {
+    const html = render();
+    expect(html).toMatch(/<a href="\/dashboard" aria-current="page"/);
+    expect(html).toMatch(/<button[^>]*aria-expanded="true"[^>]*aria-controls="sidebar-group-home"[^>]*aria-label="Home"/);
+    state.pathname = "/tasks";
+    expect(render()).toContain('<a href="/dashboard">');
+    // Only Home: the other groups' headings still just open and close.
+    expect(html.match(/aria-controls="sidebar-group-social"/g)).toHaveLength(1);
+  });
+
+  it("opens the dashboard of the selected website when a bare one would show another", () => {
+    const home = (selectedWebsiteId: string) =>
+      renderToStaticMarkup(createElement(SidebarNav, { t: en.app.nav, selectedWebsiteId, defaultWebsiteId: SITE, addons: [] }));
+    expect(home(SITE)).toContain('href="/dashboard"');
+    expect(home(OTHER)).toContain(`href="/dashboard?site=${OTHER}"`);
+  });
+
   it("lights the current page, and Settings for every settings tab", () => {
     state.pathname = `/websites/${SITE}/videos`;
     expect(render()).toMatch(new RegExp(`aria-current="page"[^>]*href="/websites/${SITE}/videos"|href="/websites/${SITE}/videos"[^>]*aria-current="page"`));
@@ -160,58 +177,58 @@ describe("SidebarUsage", () => {
         showCredits,
         locale: "en",
         t: en.app.nav,
-        tc: en.app.credits,
       }),
     );
 
-  it("shows the reader's credits beside their own site, linking to the Credits page", async () => {
+  it("makes Earn Credits the one orange button, and leaves the balance to the pill beside the logo", async () => {
     overview.daily = { ...overview.daily, perDay: 0, today: 0, claimable: false };
     const html = await render();
     expect(creditOverview).toHaveBeenCalledWith("org_own");
-    expect(html).toContain("7 credits");
-    expect(html).toContain('href="/credits"');
     expect(html).toContain("Earn Credits");
     expect(html).toContain('href="/earn-credits"');
-    expect(html).not.toContain("today");
+    expect(html).not.toContain("7 credits");
+    expect(html).not.toContain("Daily bonus");
   });
 
-  it("shows the daily credits given today", async () => {
-    overview.daily = { ...overview.daily, perDay: 3, today: 3, claimable: false };
-    expect(await render()).toContain("+3 today");
-  });
-
-  it("offers the check-in with the real amount while it is open, and adds no figure for today", async () => {
+  it("offers the daily bonus with the real amount while it is open", async () => {
     overview.daily = { ...overview.daily, perDay: 7, today: 0, claimable: true };
     const html = await render();
-    expect(html).toContain("Claim 7 credits");
-    expect(html).not.toContain("today");
+    expect(html).toContain("Daily bonus");
+    expect(html).toContain("7 free credits available");
+    expect(html).toContain("Claim +7");
+    expect(html).not.toContain("aria-disabled");
+  });
+
+  it("says the bonus was claimed, with a button that does nothing", async () => {
+    overview.daily = { ...overview.daily, perDay: 3, today: 3, claimable: false, nextAt: new Date("2026-11-25T00:00:00Z") };
+    const html = await render();
+    expect(html).toContain("Daily bonus claimed");
+    expect(html).toContain("Come back tomorrow");
+    expect(html).toMatch(/<button[^>]*aria-disabled="true"[^>]*>Claimed</);
   });
 
   it("offers no check-in on a plan without daily credits", async () => {
     overview.daily = { ...overview.daily, plan: "none", eligible: false, perDay: 3, today: 0, claimable: false };
     const html = await render();
     expect(html).not.toContain("Claim");
-    expect(html).not.toContain("daily rewards");
+    expect(html).not.toContain("Daily bonus");
   });
 
-  it("on a shared site: no credit figure and no grant, Earn Credits kept", async () => {
+  it("on a shared site: no check-in and no grant, Earn Credits kept", async () => {
     const html = await render(false);
     expect(creditOverview).not.toHaveBeenCalled();
-    // No balance line ("7 credits"); the Earn Credits link's own address says "credits".
-    expect(html).not.toContain("7 credits");
-    expect(html).not.toContain('href="/credits"');
+    expect(html).not.toContain("Daily bonus");
     expect(html).toContain("Earn Credits");
   });
 
   it("speaks the reader's language", async () => {
     const it_ = getMessages("it");
-    overview.daily = { ...overview.daily, perDay: 3, today: 3, claimable: false };
+    overview.daily = { ...overview.daily, plan: "paid", eligible: true, perDay: 3, today: 3, claimable: false };
     const html = renderToStaticMarkup(
-      await SidebarUsage({ organizationId: "org_own", locale: "it", t: it_.app.nav, tc: it_.app.credits }),
+      await SidebarUsage({ organizationId: "org_own", locale: "it", t: it_.app.nav }),
     );
-    expect(html).toContain("7 crediti");
     expect(html).toContain("Guadagni crediti");
-    expect(html).toContain("+3 oggi");
+    expect(html).toContain("Bonus del giorno ritirato");
   });
 });
 
