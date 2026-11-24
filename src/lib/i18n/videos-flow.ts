@@ -1,4 +1,5 @@
 import type { Locale } from "@/lib/i18n/config";
+import { VIDEO_LIBRARY_COPY, type LibraryCopy } from "@/lib/i18n/videos-library";
 
 /**
  * The Social Content review flow's words (client, 2026-11-21: Today's ideas
@@ -46,7 +47,6 @@ export type FlowCopy = {
     preview: string;
     making: string;
     makingBody: string;
-    failed: string;
     download: string;
     textsTitle: string;
     textsBody: string;
@@ -80,6 +80,8 @@ export type FlowCopy = {
   saved: { emptyTitle: string; emptyBody: string; ready: string };
   posted: { manual: string; publish: string };
   errors: { not_ready: string; extra_used_up: string };
+  /** Deleting videos, tags, the neutral words (2026-11-24; lib/i18n/videos-library.ts). */
+  library: LibraryCopy;
 };
 
 const en: FlowCopy = {
@@ -121,7 +123,6 @@ const en: FlowCopy = {
     preview: "Video preview",
     making: "Making your video…",
     makingBody: "This takes a few minutes. You can close this window: the video waits in Saved Videos.",
-    failed: "This video could not be made.",
     download: "Download video",
     textsTitle: "Platform-ready text",
     textsBody: "Each platform has its own text. Edit it, copy it, then post it there.",
@@ -158,6 +159,7 @@ const en: FlowCopy = {
     not_ready: "The video is still being made. Mark it as posted once it is ready.",
     extra_used_up: "You have used today's 3 extra batches of ideas. More arrive tomorrow morning.",
   },
+  library: VIDEO_LIBRARY_COPY.en,
 };
 
 const es: FlowCopy = {
@@ -199,7 +201,6 @@ const es: FlowCopy = {
     preview: "Vista previa del vídeo",
     making: "Creando su vídeo…",
     makingBody: "Tarda unos minutos. Puede cerrar esta ventana: el vídeo le espera en Vídeos guardados.",
-    failed: "No se pudo crear este vídeo.",
     download: "Descargar vídeo",
     textsTitle: "Texto listo para cada plataforma",
     textsBody: "Cada plataforma tiene su propio texto. Edítelo, cópielo y publíquelo allí.",
@@ -236,6 +237,7 @@ const es: FlowCopy = {
     not_ready: "El vídeo todavía se está creando. Márquelo como publicado cuando esté listo.",
     extra_used_up: "Ya ha usado los 3 lotes extra de ideas de hoy. Mañana por la mañana llegan más.",
   },
+  library: VIDEO_LIBRARY_COPY.es,
 };
 
 const fr: FlowCopy = {
@@ -277,7 +279,6 @@ const fr: FlowCopy = {
     preview: "Aperçu de la vidéo",
     making: "Création de votre vidéo…",
     makingBody: "Cela prend quelques minutes. Vous pouvez fermer cette fenêtre : la vidéo vous attend dans Vidéos enregistrées.",
-    failed: "Cette vidéo n’a pas pu être créée.",
     download: "Télécharger la vidéo",
     textsTitle: "Texte prêt pour chaque plateforme",
     textsBody: "Chaque plateforme a son propre texte. Modifiez-le, copiez-le, puis publiez-le.",
@@ -314,6 +315,7 @@ const fr: FlowCopy = {
     not_ready: "La vidéo est encore en cours de création. Marquez-la comme publiée une fois prête.",
     extra_used_up: "Vous avez utilisé les 3 lots d’idées supplémentaires du jour. D’autres arrivent demain matin.",
   },
+  library: VIDEO_LIBRARY_COPY.fr,
 };
 
 const it: FlowCopy = {
@@ -355,7 +357,6 @@ const it: FlowCopy = {
     preview: "Anteprima del video",
     making: "Creazione del video…",
     makingBody: "Ci vogliono alcuni minuti. Può chiudere questa finestra: il video la aspetta in Video salvati.",
-    failed: "Non è stato possibile creare questo video.",
     download: "Scarica il video",
     textsTitle: "Testo pronto per ogni piattaforma",
     textsBody: "Ogni piattaforma ha il proprio testo. Lo modifichi, lo copi e lo pubblichi lì.",
@@ -392,6 +393,7 @@ const it: FlowCopy = {
     not_ready: "Il video è ancora in creazione. Lo segni come pubblicato quando è pronto.",
     extra_used_up: "Ha già usato i 3 gruppi extra di idee di oggi. Altre arrivano domani mattina.",
   },
+  library: VIDEO_LIBRARY_COPY.it,
 };
 
 const de: FlowCopy = {
@@ -433,7 +435,6 @@ const de: FlowCopy = {
     preview: "Videovorschau",
     making: "Ihr Video wird erstellt…",
     makingBody: "Das dauert einige Minuten. Sie können dieses Fenster schließen: Das Video wartet unter Gespeicherte Videos.",
-    failed: "Dieses Video konnte nicht erstellt werden.",
     download: "Video herunterladen",
     textsTitle: "Text für jede Plattform",
     textsBody: "Jede Plattform hat ihren eigenen Text. Bearbeiten, kopieren und dort posten.",
@@ -470,6 +471,7 @@ const de: FlowCopy = {
     not_ready: "Das Video wird noch erstellt. Markieren Sie es als gepostet, sobald es fertig ist.",
     extra_used_up: "Sie haben die 3 zusätzlichen Ideenpakete von heute genutzt. Neue kommen morgen früh.",
   },
+  library: VIDEO_LIBRARY_COPY.de,
 };
 
 /** One full translation per locale; keep the five objects in step when a key changes. */
