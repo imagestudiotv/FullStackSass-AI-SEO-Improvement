@@ -2,6 +2,7 @@ import "server-only";
 
 import { and, asc, count, eq, gt, gte, inArray, isNotNull, isNull, lte, sql, type SQL } from "drizzle-orm";
 
+import { deletedArticleSql } from "@/lib/articles/pace";
 import { customerTitleSql, heldFromCustomer, twoStepArticles } from "@/lib/articles/review";
 
 import { WINBACK_BONUS_CREDITS, WINBACK_PERCENT_OFF, winbackOfferEnabled } from "@/lib/billing/winback-offer";
@@ -561,7 +562,7 @@ const FIRST_ARTICLE_NEWS_MS = 21 * DAY_MS;
  * called after it is written (generate-article.ts) and after the RepGet team
  * approves it (lib/articles/release.ts), whichever comes second.
  *
- * Not while it is held: under the two-step flow the customer reads none of it,
+ * Not after one that was deleted. Not while it is held: under the two-step flow the customer reads none of it,
  * and in managed review it may not be published yet. Not for a website that
  * has any other article with a text, so nothing is sent about an old one, nor
  * for one written before this existed and rewritten since (`written`).
@@ -592,6 +593,7 @@ async function firstArticleReady(input: { articleId: string; publishing?: boolea
           and k.revoked_at is null and k.last_used_at is not null))`,
       others: sql<number>`(select count(*)::int from articles o where o.website_id = ${articles.websiteId}
         and o.id <> ${articles.id} and o.translation_of is null and o.body_html is not null)`,
+      deleted: deletedArticleSql(articles.websiteId),
       versions: sql<number>`(select count(*)::int from ${articleVersions} v where v.article_id = ${articles.id})`,
     })
     .from(articles)
@@ -600,7 +602,7 @@ async function firstArticleReady(input: { articleId: string; publishing?: boolea
     .limit(1);
   if (!row || !row.article.bodyHtml) return { status: "skipped", reason: "no_article" };
   if (row.article.translationOf) return { status: "skipped", reason: "translation" };
-  if (Number(row.others) > 0 || (input.written && Number(row.versions) > 1)) return { status: "skipped", reason: "not_first" };
+  if (Number(row.others) > 0 || row.deleted || (input.written && Number(row.versions) > 1)) return { status: "skipped", reason: "not_first" };
   // Approved again long after it was written, or already on the website: not news.
   if (row.article.publishedUrl || Date.now() - row.article.createdAt.getTime() > FIRST_ARTICLE_NEWS_MS) return { status: "skipped", reason: "old" };
   if (row.article.reviewStatus === "pending" || (heldFromCustomer(row.article) && (await twoStepArticles(executor)))) {

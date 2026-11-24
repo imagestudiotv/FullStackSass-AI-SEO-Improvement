@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { member, organization, user } from "@/lib/db/auth-tables";
-import { articles, articleVersions, integrations, lifecycleEmails, platformControls, websites } from "@/lib/db/schema";
+import { articles, articleVersions, integrations, lifecycleEmails, platformControls, spendReservations, websites } from "@/lib/db/schema";
 import { createTestDb, type TestDb } from "@/test/db";
 
 /**
@@ -99,6 +99,11 @@ describe("the first article's email", () => {
     const translated = await account();
     const original = await article(translated.websiteId);
     expect(await emailFirstArticleReady({ articleId: await article(translated.websiteId, { translationOf: original }) })).toMatchObject({ status: "skipped", reason: "translation" });
+
+    // The earlier ones were deleted (an administrator's bulk delete): the ledger still knows them.
+    const emptied = await account();
+    await test.db.insert(spendReservations).values({ key: `articles:${emptied.websiteId}`, operation: "article.generate", websiteId: emptied.websiteId, state: "consumed", limitValue: 30, subjectId: randomUUID() });
+    expect(await emailFirstArticleReady({ articleId: await article(emptied.websiteId), written: true })).toEqual({ status: "skipped", reason: "not_first" });
 
     const old = await account();
     expect(await emailFirstArticleReady({ articleId: await article(old.websiteId, { createdAt: new Date(Date.now() - 60 * 86_400_000) }) })).toEqual({ status: "skipped", reason: "old" });

@@ -11,6 +11,7 @@ import { correctResearchDraft, needsEvidenceCorrection } from "@/lib/articles/ev
 import { articleSearch } from "@/lib/providers/dataforseo";
 import { researchMode, researchNeedsReview, type ResearchBrief } from "@/lib/articles/research-types";
 import { db } from "@/lib/db";
+import type { Executor } from "@/lib/db/types";
 import { utcDayStart } from "@/lib/keywords/cadence";
 import {
   articles,
@@ -1491,8 +1492,11 @@ export async function queueArticleForCalendarItem(
       cron, and the one a finished research wakes) cannot both take the day's
       article. A person's press is not refused, and it counts.
     */
-    if (options.automatic && (await startsLeft(websiteId, options.now, tx)).left === 0) {
-      return { ok: false as const, error: PACE_REACHED };
+    if (options.automatic) {
+      if ((await startsLeft(websiteId, options.now, tx)).left === 0) return { ok: false as const, error: PACE_REACHED };
+      // Only a topic still planned: never one dropped since ("skipped", lib/admin/draft-deletion-rules.mjs).
+      const [topic] = await tx.select({ status: calendarItems.status }).from(calendarItems).where(eq(calendarItems.id, calendarItemId)).limit(1);
+      if (topic?.status !== "planned") return { ok: false as const, error: "This topic is not planned any more" };
     }
 
     const allowance = await articleAllowanceRule(websiteId, tx);
@@ -1759,7 +1763,7 @@ export async function requeueArticle(input: {
  * failed today) takes no more of the day's pace.
  */
 async function automaticRetryRefused(
-  tx: Pick<typeof db, "select" | "execute">,
+  tx: Executor,
   websiteId: string,
   articleId: string,
   now: Date = new Date(),

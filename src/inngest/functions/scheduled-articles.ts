@@ -14,7 +14,7 @@ import {
   pendingFirstArticle,
   websitesAwaitingFirstArticle,
 } from "@/lib/publishing/policy";
-import { nextStartDay, startsLeft } from "@/lib/articles/pace";
+import { deletedArticleSql, nextStartDay, startsLeft } from "@/lib/articles/pace";
 import { lastDeliveryRefusedSql, releasableSql } from "@/lib/articles/review";
 import { onFreePlan } from "@/lib/plans/free-plan-server";
 import { isControlEnabled } from "@/lib/publishing/controls";
@@ -265,7 +265,8 @@ export const scheduledArticles = inngest.createFunction(
           publishingDays: websites.publishingDays,
           // The first article is written at once, whatever weekdays were chosen for the rest.
           // (Written out, not ${websites.id}: drizzle drops the table's name in a one-table select.)
-          hasArticle: raw<boolean>`exists (select 1 from articles wa where wa.website_id = websites.id and wa.body_html is not null)`,
+          // One written and deleted since is still its first: the ledger keeps it.
+          hasArticle: raw<boolean>`(exists (select 1 from articles wa where wa.website_id = websites.id and wa.body_html is not null) or ${deletedArticleSql(raw`websites.id`)})`,
           // A topic due now: a Free website is also looked at for its spacing alone.
           due: raw<boolean>`exists (
             select 1 from calendar_items di

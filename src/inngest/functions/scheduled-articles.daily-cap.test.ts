@@ -234,6 +234,70 @@ describe("Free: the first article at once, then one a week", () => {
   });
 });
 
+describe("deleting an article never reopens the pace", () => {
+  it.each([
+    ["Free, the same week", () => free(), ["2026-11-21T14:00:00Z", "2026-11-22T06:00:00Z", "2026-11-25T14:00:00Z", "2026-11-27T22:00:00Z"], "2026-11-28T06:00:00Z"],
+    ["a paid website, the same UTC day", () => paid(30), ["2026-11-21T09:00:00Z", "2026-11-21T14:00:00Z", "2026-11-21T23:59:00Z"], "2026-11-22T06:00:00Z"],
+  ] as const)("%s", async (_name, make, sameWindow, next) => {
+    const { websiteId } = await make();
+    await plan(websiteId, "2026-11-21", 6);
+    await runAt("2026-11-21T06:00:00Z", websiteId);
+    await write(websiteId);
+    // Written and paid for, then deleted - by the customer, or by an administrator, who drops the topic too.
+    await test.client.query("update spend_reservations set state = 'consumed' where website_id = $1 and state = 'reserved'", [websiteId]);
+    const [deleted] = await rows(websiteId);
+    await test.client.query("delete from articles where id = $1", [deleted!.id]);
+    await test.client.query("update calendar_items set status = 'skipped', scheduled_for = null where id = $1", [deleted!.calendarItemId]);
+
+    for (const at of sameWindow) {
+      await runAt(at, websiteId);
+      expect(await written(websiteId), at).toBe(0);
+    }
+    await runAt(next, websiteId);
+    expect(await written(websiteId)).toBe(1);
+    // The dropped topic was neither picked nor dated again.
+    const [topic] = await test.db.select().from(calendarItems).where(eq(calendarItems.id, deleted!.calendarItemId!));
+    expect(topic).toMatchObject({ status: "skipped", scheduledFor: null });
+    expect((await rows(websiteId))[0]!.calendarItemId).not.toBe(topic!.id);
+  });
+
+  it("not even one that failed without costing anything: deleting it starts no other the same day", async () => {
+    const { websiteId } = await paid(30);
+    await plan(websiteId, "2026-11-21", 6);
+    await runAt("2026-11-21T06:00:00Z", websiteId);
+    await fail(websiteId, false);
+    await test.client.query("delete from articles where website_id = $1", [websiteId]);
+    await test.client.query("update calendar_items set status = 'skipped', scheduled_for = null where website_id = $1 and title = 'Topic 1'", [websiteId]);
+    for (const at of ["2026-11-21T09:00:00Z", "2026-11-21T14:00:00Z"]) await runAt(at, websiteId);
+    expect(await written(websiteId)).toBe(0);
+    await runAt("2026-11-22T06:00:00Z", websiteId);
+    expect(await written(websiteId)).toBe(1);
+  });
+
+  it("a failed article that cost nothing is tried again a bounded number of times", async () => {
+    const { websiteId } = await paid(30);
+    await plan(websiteId, "2026-11-21", 1);
+    let starts = 0;
+    for (const day of days("2026-11-21", 6)) {
+      for (const hour of ["06:00", "14:00", "20:00"]) {
+        starts += (await runAt(`${day}T${hour}:00Z`, websiteId)).queued;
+        await fail(websiteId, false);
+      }
+    }
+    expect(starts).toBe(1 + AUTO_RETRIES.total);
+  });
+
+  it("the topic of a skipped status is refused where the article is reserved too, and never moved", async () => {
+    const { websiteId } = await free();
+    const [item] = await test.db.insert(calendarItems).values({ websiteId, title: "Dropped", status: "skipped", scheduledFor: new Date("2026-11-01T09:00:00Z") }).returning();
+    expect((await queueArticleForCalendarItem(websiteId, item!.id, { automatic: true, now: new Date() })).ok).toBe(false);
+    await plan(websiteId, "2026-11-21", 2);
+    await runAt("2026-11-21T06:00:00Z", websiteId);
+    const [after] = await test.db.select().from(calendarItems).where(eq(calendarItems.id, item!.id));
+    expect(after).toMatchObject({ status: "skipped", scheduledFor: new Date("2026-11-01T09:00:00Z") });
+  });
+});
+
 describe("paid plans: one a day, or the plan's own share above 30 a month", () => {
   it("starts one a day on a 30 plan, with many runs a day and nothing written ahead", async () => {
     const { websiteId } = await paid(30);
