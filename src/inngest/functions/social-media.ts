@@ -1,15 +1,15 @@
-import { and, eq } from "drizzle-orm";
-
 import { inngest } from "@/inngest/client";
-import { db } from "@/lib/db";
-import { socialAccounts, websites } from "@/lib/db/schema";
+import { dailySuggestionWebsites } from "@/lib/social/daily";
 import { abandonPublishing, checkPublished, publishSuggestion } from "@/lib/social/publish";
+import { resumeQuotaPauses } from "@/lib/social/recover";
 import { suggestForWebsite } from "@/lib/social/suggest";
 
 /**
  * Social media (docs/social-media.md):
- *  - social-suggestions-daily: every morning, each website with a connected
- *    account gets its day's suggestions;
+ *  - social-suggestions-daily: every morning, accounts paused only by our
+ *    posting provider's limits are turned on again (recover.ts), then the
+ *    websites due their suggestions get them, with or without connected
+ *    accounts (daily.ts);
  *  - suggest-social: one website's suggestions (also queued when an account
  *    is connected, so the first ones arrive at once);
  *  - publish-social-post: one own post, published at its time and followed
@@ -19,20 +19,16 @@ import { suggestForWebsite } from "@/lib/social/suggest";
 export const socialSuggestionsDaily = inngest.createFunction(
   { id: "social-suggestions-daily", retries: 1, triggers: [{ cron: "0 7 * * *" }] },
   async ({ step, logger }) => {
-    const targets = await step.run("select-websites", async () =>
-      db
-        .selectDistinct({ websiteId: socialAccounts.websiteId })
-        .from(socialAccounts)
-        .innerJoin(websites, eq(socialAccounts.websiteId, websites.id))
-        .where(and(eq(websites.status, "ready"))),
-    );
+    const resumed = await step.run("resume-quota-pauses", () => resumeQuotaPauses());
+    if (resumed.length > 0) logger.info({ step: "resume-quota-pauses", resumed }, "Automatic posting resumed after a provider limit");
+    const targets = await step.run("select-websites", () => dailySuggestionWebsites());
     if (targets.length === 0) {
-      logger.info({ step: "select-websites", websiteCount: 0 }, "No websites with social accounts");
+      logger.info({ step: "select-websites", websiteCount: 0 }, "No websites due social suggestions");
       return { queued: 0 };
     }
     await step.sendEvent(
       "queue-suggestions",
-      targets.map((target) => ({ name: "social/suggest.requested", data: { websiteId: target.websiteId } })),
+      targets.map((websiteId) => ({ name: "social/suggest.requested", data: { websiteId, daily: true } })),
     );
     logger.info({ step: "queue-suggestions", websiteCount: targets.length }, "Social suggestions queued");
     return { queued: targets.length };
@@ -48,7 +44,7 @@ export const suggestSocial = inngest.createFunction(
   },
   async ({ event, step, logger }) => {
     const websiteId = String(event.data.websiteId);
-    const result = await step.run("suggest", () => suggestForWebsite(websiteId));
+    const result = await step.run("suggest", () => suggestForWebsite(websiteId, {}, { daily: event.data.daily === true }));
     if (result.scheduled.length > 0) {
       await step.sendEvent(
         "schedule-posts",
@@ -59,7 +55,7 @@ export const suggestSocial = inngest.createFunction(
       );
     }
     logger.info(
-      { step: "suggest", websiteId, created: result.created, scheduled: result.scheduled.length, reason: result.reason },
+      { step: "suggest", websiteId, created: result.created, scheduled: result.scheduled.length, reason: result.reason, discussions: result.discussions },
       "Social suggestions written",
     );
     return { created: result.created, scheduled: result.scheduled.length, reason: result.reason ?? null };

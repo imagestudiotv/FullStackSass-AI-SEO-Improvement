@@ -6,7 +6,8 @@ import { revalidatePath } from "next/cache";
 import { queueJob } from "@/inngest/send";
 import { spendCredits } from "@/lib/credits/spend";
 import { db } from "@/lib/db";
-import { socialAccounts, socialSuggestions, socialTeams, websites } from "@/lib/db/schema";
+import { creditSpends, socialAccounts, socialSuggestions, socialTeams, websites } from "@/lib/db/schema";
+import type { Executor } from "@/lib/db/types";
 import { isFreePlanWebsite, takeFreePlanPost } from "@/lib/plans/free-plan-server";
 import { siteUrl } from "@/lib/site-url";
 import { requireEditor } from "@/lib/websites/require-editor";
@@ -184,10 +185,28 @@ type Edit = { body: string; title?: string | null };
 /**
  * Waiting for the customer's one click: a new suggestion, one they edited and
  * saved as a draft (client's design, 2026-11-03: the Drafts stage), one
- * RepGet could not publish, and a posted one clicked again (a closed tab).
- * Never "scheduled": that one is RepGet's to publish.
+ * RepGet could not publish, a posted one clicked again (a closed tab), and
+ * an own post RepGet has scheduled: posting that one by hand takes it out of
+ * RepGet's hands under the row's lock (publish.ts finds it no longer
+ * scheduled), so it goes out once. Never "posting": RepGet has handed that
+ * one over, and posting it by hand would publish it twice.
  */
-const ONE_CLICK = ["new", "draft", "failed", "posted"];
+const ONE_CLICK = ["new", "draft", "failed", "posted", "scheduled"];
+
+/** What can be kept as a draft: waiting for the customer, or not published by RepGet. */
+const DRAFTABLE = ["new", "draft", "failed"];
+
+/**
+ * The spend a post by hand is charged under. Normally the suggestion's own
+ * (a second click finds it and costs nothing). After RepGet's own try was
+ * refused that spend was given back, and charging its key again would return
+ * the refunded spend and take nothing: the post by hand has its own key.
+ */
+async function handSpendKey(tx: Executor, id: string): Promise<string> {
+  const key = `social:${id}`;
+  const [spend] = await tx.select({ refundedAt: creditSpends.refundedAt }).from(creditSpends).where(eq(creditSpends.idempotencyKey, key));
+  return spend?.refundedAt ? `${key}:hand` : key;
+}
 
 async function suggestionFor(websiteId: string, id: string) {
   const [row] = await db
@@ -259,6 +278,8 @@ export async function postSocialSuggestion(
     const [locked] = await tx.select().from(socialSuggestions).where(eq(socialSuggestions.id, id)).for("update");
     if (!locked || !ONE_CLICK.includes(locked.status)) return fail("already_handled");
     const free = await isFreePlanWebsite(websiteId, tx);
+    // Already posted: the spend it was charged under, whichever that was.
+    const key = locked.status === "posted" && locked.creditSpendKey ? locked.creditSpendKey : await handSpendKey(tx, id);
     if (free) {
       // A second click on a post already counted takes nothing more, as it charges nothing more on a paid plan.
       if (locked.status !== "posted" && !(await takeFreePlanPost(tx, websiteId))) return fail("free_posts_used");
@@ -266,7 +287,7 @@ export async function postSocialSuggestion(
       const spent = await spendCredits(tx, {
         organizationId: checked.site.organizationId,
         action: "social_post",
-        key: `social:${id}`,
+        key,
         websiteId,
       });
       if (!spent.ok) return { ok: false as const, error: "not_enough_credits" as const, price: spent.price, available: spent.available };
@@ -279,7 +300,8 @@ export async function postSocialSuggestion(
         title,
         error: null,
         // Free charges nothing: a key left from an earlier, paid charge stays with it.
-        creditSpendKey: free ? locked.creditSpendKey : `social:${id}`,
+        creditSpendKey: free ? locked.creditSpendKey : key,
+        scheduledFor: null,
         postedAt: locked.postedAt ?? new Date(),
         updatedAt: new Date(),
       })
@@ -329,21 +351,23 @@ export async function skipSocialSuggestion(websiteId: string, id: string): Promi
  * Drafts (client's design, 2026-11-03: "Save draft"). Held to the same rules
  * as a post, so a draft can always be posted as saved. A draft stays
  * one-click: RepGet never publishes it, whatever the account's settings
- * (publish.ts takes "scheduled" only).
+ * (publish.ts takes "scheduled" only). One RepGet could not publish is a
+ * suggestion like any other to the customer, so it can be kept too; its error
+ * stays on the row for administrators.
  */
 export async function saveSocialDraft(websiteId: string, id: string, edit: Edit): Promise<SocialResult> {
   const row = await suggestionFor(websiteId, id);
   if (!row) return fail("not_found");
   const checked = await guard(websiteId, row.platform as SocialPlatform);
   if (!checked.ok) return fail(checked.error);
-  if (row.status !== "new" && row.status !== "draft") return fail("already_handled");
+  if (!DRAFTABLE.includes(row.status)) return fail("already_handled");
   const text = await checkEdit(websiteId, row, edit);
   if (!text.ok) return text;
   const saved = await db
     .update(socialSuggestions)
     .set({ status: "draft", body: text.data.body, title: text.data.title, updatedAt: new Date() })
     .where(
-      and(eq(socialSuggestions.id, id), eq(socialSuggestions.websiteId, websiteId), inArray(socialSuggestions.status, ["new", "draft"])),
+      and(eq(socialSuggestions.id, id), eq(socialSuggestions.websiteId, websiteId), inArray(socialSuggestions.status, DRAFTABLE)),
     )
     .returning({ id: socialSuggestions.id });
   // Posted or skipped in another tab in the meantime.

@@ -199,7 +199,7 @@ export const READ_TOOLS: ReadTool[] = [
   },
   {
     name: "get_social",
-    description: "Opportunities page (social media): the suggestions waiting (posts and replies, with platform) and what was posted recently with its address.",
+    description: "Opportunities page (social media): the suggestions waiting (posts and replies, with platform; ready_to_post ones are posted by hand: copy the text, open the platform) and what was posted recently with its address. Suggestions need no connected account.",
     input_schema: noInput,
     page: "social",
     run: async (ctx) => {
@@ -218,7 +218,7 @@ export const READ_TOOLS: ReadTool[] = [
           .orderBy(desc(socialSuggestions.postedAt))
           .limit(10),
       ]);
-      const row = (s: typeof socialSuggestions.$inferSelect) => ({ platform: s.platform, kind: s.kind, status: s.status, text: short(s.title ?? s.body, 140), thread: short(s.threadTitle, 100) || undefined });
+      const row = (s: typeof socialSuggestions.$inferSelect) => ({ platform: s.platform, kind: s.kind, status: s.status === "failed" ? "ready_to_post" : s.status, text: short(s.title ?? s.body, 140), thread: short(s.threadTitle, 100) || undefined });
       return { waiting: waiting.map(row), posted: posted.map((s) => ({ ...row(s), url: s.postedUrl, postedOn: day(s.postedAt) })) };
     },
   },

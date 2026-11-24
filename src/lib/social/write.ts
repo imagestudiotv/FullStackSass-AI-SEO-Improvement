@@ -68,6 +68,8 @@ export async function writeDrafts(
   profile: BusinessProfile,
   threads: ThreadInput[],
   slots: PostSlot[],
+  /** How many replies there is room for today. */
+  wantedReplies: number = threads.length,
 ): Promise<{ drafts: Drafts; usage: WriteUsage }> {
   if (threads.length === 0 && slots.length === 0) {
     return { drafts: { replies: [], posts: [] }, usage: { inputTokens: 0, outputTokens: 0, model: MODELS.GENERATION } };
@@ -82,7 +84,7 @@ export async function writeDrafts(
       system: `You write social media contributions for a business owner, in the first person, as a real person who knows the field - never as an advertiser.
 
 Two kinds of work:
-1. "replies": for each discussion in <social_thread> worth answering, a reply that genuinely helps the person who asked. Answer the actual question. Skip a discussion (leave it out) when you cannot help honestly, when it is not about the business's field, or when it is a complaint, news or politics.
+1. "replies": up to ${wantedReplies} replies to the discussions in <social_thread>, each one genuinely helping the people there. Answer the actual question; where the title is a story or a problem ("We launched and got zero traffic"), reply with the one piece of advice from the field that would help most. The excerpt is short: answer what the title and excerpt clearly say and do not guess the rest. Reply on every platform that has a suitable discussion, on Reddit first. Skip a discussion (leave it out) only when it is not about the business's field, when nothing honest and useful can be said, or when it attacks a named company or person, or is news or politics. Somebody frustrated with a problem in the field is exactly who to help.
 2. "posts": one own post for each slot given, for the account's own profile or board.
 
 Rules that apply to everything:
