@@ -43,7 +43,7 @@ describe.each(LOCALES)("/website-creation in %s", (locale) => {
     expect(html).toContain("dumitru-culiuc.webp");
     expect(html.split(`>${t.work.liveChip}<`).length - 1).toBe(2);
     expect(html.split(`</i> ${t.work.realLabel}<`).length - 1).toBe(2);
-    expect(html.split(t.work.conceptLabel).length - 1).toBe(2);
+    expect(html.split(`>${t.work.conceptLabel}<`).length - 1).toBe(2);
     expect(html).toContain("aurenia-residences.com");
     // An <a>: React also writes a preload <link> for the mock <img>, which is no link to anywhere.
     expect(html).not.toMatch(/<a [^>]*href="[^"]*aurenia/);
