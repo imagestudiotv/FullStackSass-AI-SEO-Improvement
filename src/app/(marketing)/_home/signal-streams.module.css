@@ -1,0 +1,62 @@
+/*
+ * The hero's signal streams (client, 2026-11-24): decoration behind the
+ * hero's words and field (.rgx-hero-content is above them). The colours are
+ * the homepage's own (home.module.css), so dark mode follows by itself.
+ */
+
+.streams {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+  opacity: 0;
+  transition: opacity 0.9s ease;
+}
+.streams[data-drawn] {
+  opacity: 1;
+}
+:global(.dark) .streams[data-drawn] {
+  opacity: 0.75;
+}
+.svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.rail {
+  fill: none;
+  stroke: var(--soft);
+  stroke-width: 1;
+  stroke-linecap: round;
+  opacity: 0.36;
+}
+.rail.warm {
+  stroke: var(--orange);
+  opacity: 0.34;
+}
+.mark {
+  fill: var(--soft);
+  opacity: 0.55;
+}
+.mark.warm {
+  fill: var(--orange);
+  opacity: 0.6;
+}
+.dot {
+  fill: var(--orange);
+}
+
+/* Nearly edge to edge, the field leaves the streams no room (MIN_STREAM_WIDTH). */
+@media (max-width: 959px) {
+  .streams {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .streams {
+    transition: none;
+  }
+}

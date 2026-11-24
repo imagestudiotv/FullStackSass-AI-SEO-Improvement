@@ -1,0 +1,97 @@
+/*
+ * "Meet RepGet." under the platform ribbon (client, 2026-11-24, the design's
+ * `rg-meet-peek`), with the mascots of the 2026-11-11 hero, standing still.
+ */
+
+.meet {
+  padding: 27px 18px 34px;
+  text-align: center;
+}
+.eyebrow {
+  margin: 0 0 5px;
+  color: #c2410c;
+  font-size: 10px;
+  font-weight: 830;
+  letter-spacing: 0.15em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+:global(.dark) .eyebrow {
+  color: #ff9f6b;
+}
+
+/*
+  One line. The design's size, made smaller where a language's words are
+  longer than "Meet" (--title-chars, set by meet.tsx): what is left of the
+  width once the mascots have theirs, over the letters.
+*/
+.title {
+  --mascot-width: clamp(54px, 6vw, 77px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin: 0;
+  color: var(--ink);
+  font-size: min(clamp(38px, 5vw, 64px), calc((100vw - 58px - var(--mascot-width)) / (var(--title-chars, 11) * 0.52)));
+  font-weight: 870;
+  line-height: 1.09;
+  letter-spacing: -0.08em;
+  white-space: nowrap;
+}
+.brand {
+  padding-right: 0.06em;
+  color: var(--orange);
+}
+
+.mascots {
+  position: relative;
+  flex: none;
+  display: block;
+  width: var(--mascot-width);
+  aspect-ratio: 138 / 95;
+  letter-spacing: 0;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+}
+.mascots img {
+  position: absolute;
+  aspect-ratio: 1 / 1;
+  height: auto;
+  border-radius: 50%;
+  box-shadow:
+    0 3px 9px rgba(55, 41, 30, 0.15),
+    0 0 0 1.5px #fff;
+}
+:global(.dark) .mascots img {
+  box-shadow:
+    0 3px 9px rgba(0, 0, 0, 0.3),
+    0 0 0 1.5px var(--bg);
+}
+.mascots .gecko {
+  top: 13%;
+  left: 0;
+  width: 60%;
+}
+.mascots .owl {
+  top: 0;
+  right: 0;
+  width: 66%;
+}
+.star,
+.starTwo {
+  position: absolute;
+  font-size: 11px;
+  font-weight: 400;
+}
+.star {
+  top: 2px;
+  left: 1px;
+  color: var(--orange);
+}
+.starTwo {
+  right: -3px;
+  bottom: 1px;
+  color: #8b66c0;
+}
