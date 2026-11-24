@@ -88,6 +88,7 @@ vi.mock("@/components/dashboard/overview-cards", () => ({
   BestArticlesCard: () => null,
   SearchPanels: () => null,
 }));
+vi.mock("@/components/dashboard/home-copilot", () => ({ HomeCopilot: () => null }));
 vi.mock("@/components/dashboard/achievements", () => ({
   AchievementsSection: () => null,
 }));
@@ -109,6 +110,9 @@ import Link from "next/link";
 
 import DashboardPage from "@/app/(site)/(app)/dashboard/page";
 import { CheckoutPending } from "@/app/(site)/(onboarding)/onboarding/plan/checkout-pending";
+import { HomeCopilot } from "@/components/dashboard/home-copilot";
+import { NextActions } from "@/components/dashboard/next-actions";
+import { AuthorityCard, BestArticlesCard, SearchPanels, TodaysArticleCard, WinsCard } from "@/components/dashboard/overview-cards";
 import { RememberWebsite } from "@/components/dashboard/remember-website";
 import { PayPalReturn } from "@/components/paypal-return";
 import { Badge } from "@/components/ui/badge";
@@ -356,6 +360,34 @@ describe("dashboard page - an owner", () => {
   });
 });
 
+describe("dashboard page - Growth Copilot and the order of the sections", () => {
+  /** The types drawn, in the order a reader meets them. */
+  function order(node: unknown, types: unknown[]): unknown[] {
+    if (Array.isArray(node)) return node.flatMap((child) => order(child, types));
+    if (!isValidElement(node)) return [];
+    return [...(types.includes(node.type) ? [node.type] : []), ...Object.values(node.props as Props).flatMap((value) => order(value, types))];
+  }
+
+  it("opens with the chat, then authority, today's article, wins, best articles, needs attention and search", async () => {
+    signIn(OWNER_USER, OWNER_ORG);
+    const wanted = [HomeCopilot, AuthorityCard, TodaysArticleCard, WinsCard, BestArticlesCard, NextActions, SearchPanels];
+    expect(order(await renderPage(), wanted)).toEqual(wanted);
+  });
+
+  it("gives the chat the website on screen, its paying workspace and the reader's access", async () => {
+    signIn(GUEST_USER, GUEST_ORG);
+    expect(findAll(await renderPage(sharedA), HomeCopilot)).toEqual([expect.objectContaining({ websiteId: sharedA, ownerOrgId: OWNER_ORG, userId: GUEST_USER, canUse: true })]);
+    // A viewer sees it, and cannot spend the owner's messages.
+    expect(findAll(await renderPage(sharedB), HomeCopilot)).toEqual([expect.objectContaining({ websiteId: sharedB, canUse: false })]);
+  });
+
+  it("offers no chat on a paused shared site", async () => {
+    await test.client.exec(`update subscriptions set status = 'canceled' where website_id = '${sharedA}'`);
+    signIn(GUEST_USER, GUEST_ORG);
+    expect(findAll(await renderPage(sharedA), HomeCopilot)).toHaveLength(0);
+  });
+});
+
 describe("dashboard page - a dual-role user", () => {
   it("brings a shell left on the SHARED site back to their own dashboard", async () => {
     /*
@@ -386,7 +418,7 @@ describe("dashboard page - a dual-role user", () => {
   });
 });
 
-describe("dashboard page - back from paying in the growth plan", () => {
+describe("dashboard page - back from paying in onboarding or the growth plan", () => {
   const NEW_ORG = "org_new";
   const NEW_USER = "user_new";
   let newSite: string;

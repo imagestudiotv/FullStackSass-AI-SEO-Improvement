@@ -7,7 +7,7 @@ import type { Locale } from "@/lib/i18n/config";
 import { ChatPanel } from "./chat-panel";
 
 /**
- * Growth Copilot, the AI chat, on its own page (client, 2026-11-02; it was on the Home page).
+ * Growth Copilot, the AI chat: at the top of Home (client, 2026-11-24) and on its own page (2026-11-02).
  * What the panel needs to start: today's free messages left in the paying
  * workspace, the prices its cards show, and this person's earlier chats.
  */
