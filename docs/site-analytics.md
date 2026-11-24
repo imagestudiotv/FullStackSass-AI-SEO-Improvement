@@ -16,7 +16,7 @@ This document is about the second one. It is not the customers' own Google conne
 | Where it counts | the banner component's lifetime | Leaving the public pages (into the signed-in app or admin) unmounts the banner and silences GA with Google's `ga-disable-<ID>` flag. Signed-in page titles name customers' articles, so they are never sent. |
 | Decline / withdraw | the banner and `lib/consent-withdrawal.ts` | Silences Google tags, deletes their cookies and posts a first-party withdrawal. Saved checkout identities and pending paid events for that browser are cleared. Offline requests retry while the page is open and on the next page/reconnect. An already in-flight Google request cannot be recalled. |
 | Admin page | `lib/admin/ga4.ts`, `lib/admin/site-traffic.ts`, `app/admin/analytics` | Reads the property through the GA4 Data API as a read-only service account. Nothing is stored in the database. |
-| CSP | `lib/security-headers.ts` | `*.googletagmanager.com` (script), plus `*.google-analytics.com` and `*.analytics.google.com` (connect). Google Ads' hosts only when `NEXT_PUBLIC_GTM_ID` is set. |
+| CSP | `lib/security-headers.ts` | `*.googletagmanager.com` (script), plus `*.google-analytics.com`, `*.analytics.google.com` and `analytics.google.com` (connect). Google Ads' hosts only when `NEXT_PUBLIC_GTM_ID` is set. |
 | Conversions | `lib/conversions/conversions.ts`, `components/conversion-events.tsx` | Sign-up, start of the free trial, first real payment. See "Google Ads" below. |
 
 Expect lower figures than Vercel's: only visitors who accept are counted, and only on public pages.

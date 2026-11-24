@@ -229,7 +229,8 @@ export function contentSecurityPolicy(integrations: CspIntegrations, nonce?: str
   const youtube = "https://www.youtube-nocookie.com";
   const tagHost = "https://www.googletagmanager.com";
   const gaScript = googleTag ? [tagHost] : [];
-  const gaConnect = googleTag ? ["https://*.google-analytics.com", "https://*.analytics.google.com", tagHost] : [];
+  // analytics.google.com by itself too: the wildcard covers only its subdomains, and GA4 sends hits to both.
+  const gaConnect = googleTag ? ["https://*.google-analytics.com", "https://*.analytics.google.com", "https://analytics.google.com", tagHost] : [];
   const assistant = "https://tagassistant.google.com";
   const adsScript = ads ? ["https://www.googleadservices.com", "https://googleads.g.doubleclick.net", "https://www.google.com", assistant] : [];
   const adsConnect = ads
@@ -272,6 +273,13 @@ export function contentSecurityPolicy(integrations: CspIntegrations, nonce?: str
     from the AdSense account, Google's consent message (Funding Choices).
     Google's own example policy also allows 'unsafe-eval'; that is NOT added -
     the CSP reports (Sentry) say whether any unit needs it.
+
+    FRAMES: a fixed list broke the ads (2026-11-24: frames from
+    pagead2.googlesyndication.com blocked, a grey box in the article). Google's
+    strict policy does not limit frame-src, so the blog's own documents (nonce)
+    take a frame from any HTTPS site; an ad frame is another origin, and
+    script-src stays strict. The cached pages, which only hand their policy on
+    to an article reached by client navigation, keep the list.
   */
   const adsense = integrations.adsense === true;
   const adsenseScript = adsense
@@ -281,7 +289,7 @@ export function contentSecurityPolicy(integrations: CspIntegrations, nonce?: str
     ? ["https://pagead2.googlesyndication.com", "https://*.googlesyndication.com", "https://*.g.doubleclick.net", "https://adservice.google.com", "https://*.adtrafficquality.google", "https://www.google.com", "https://fundingchoicesmessages.google.com", "https://csi.gstatic.com"]
     : [];
   const adsenseFrame = adsense
-    ? ["https://googleads.g.doubleclick.net", "https://tpc.googlesyndication.com", "https://*.safeframe.googlesyndication.com", "https://*.adtrafficquality.google", "https://www.google.com", "https://fundingchoicesmessages.google.com"]
+    ? [...(nonce ? ["https:"] : []), "https://googleads.g.doubleclick.net", "https://pagead2.googlesyndication.com", "https://tpc.googlesyndication.com", "https://*.safeframe.googlesyndication.com", "https://*.adtrafficquality.google", "https://www.google.com", "https://fundingchoicesmessages.google.com"]
     : [];
   /*
     The Meta Pixel (lib/meta-pixel.ts): fbevents.js and the pixel's

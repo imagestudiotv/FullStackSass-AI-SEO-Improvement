@@ -159,6 +159,7 @@ describe("contentSecurityPolicy", () => {
       "wss://client.relay.rescue.crisp.chat",
       "https://*.google-analytics.com",
       "https://*.analytics.google.com",
+      "https://analytics.google.com",
       "https://www.googletagmanager.com",
       "https://www.facebook.com",
       "https://connect.facebook.net",
@@ -184,7 +185,7 @@ describe("contentSecurityPolicy", () => {
     const ga = { ...ALL, ads: false };
     for (const policy of [directives(contentSecurityPolicy(ga)), directives(contentSecurityPolicy(ga, NONCE))]) {
       expect(policy["script-src"]).toContain("https://www.googletagmanager.com");
-      expect(policy["connect-src"]).toEqual(expect.arrayContaining(["https://*.google-analytics.com", "https://*.analytics.google.com"]));
+      expect(policy["connect-src"]).toEqual(expect.arrayContaining(["https://*.google-analytics.com", "https://*.analytics.google.com", "https://analytics.google.com"]));
     }
     expect(contentSecurityPolicy(ga)).not.toMatch(/doubleclick|googleadservices|googlesyndication|tagassistant/);
   });
@@ -359,10 +360,22 @@ describe("AdSense on blog articles (ticket 2026-11-19)", () => {
     expect(page["connect-src"]).toEqual(expect.arrayContaining(["https://pagead2.googlesyndication.com", "https://*.g.doubleclick.net", "https://adservice.google.com", "https://fundingchoicesmessages.google.com"]));
     expect(page["frame-src"]).toEqual(expect.arrayContaining(["https://googleads.g.doubleclick.net", "https://tpc.googlesyndication.com", "https://*.safeframe.googlesyndication.com"]));
     for (const [name, values] of Object.entries(page)) {
-      if (name !== "img-src") expect(values, name).not.toContain("https:");
+      if (name !== "img-src" && name !== "frame-src") expect(values, name).not.toContain("https:");
       expect(values, name).not.toContain("*");
     }
     expect(page["object-src"]).toEqual(["'none'"]);
+  });
+
+  it("takes ad frames from any HTTPS site on the blog's nonce pages, and from the list alone on the cached pages (2026-11-24)", () => {
+    const blog = directives(contentSecurityPolicy({ ...ALL, adsense: true }, NONCE));
+    expect(blog["frame-src"]).toContain("https:");
+    const cached = directives(contentSecurityPolicy({ ...ALL, adsense: true }));
+    expect(cached["frame-src"]).not.toContain("https:");
+    expect(cached["frame-src"]).toContain("https://pagead2.googlesyndication.com");
+    // Without AdSense, or for the rewarded ads, no page frames any site.
+    expect(directives(contentSecurityPolicy(ALL, NONCE))["frame-src"]).not.toContain("https:");
+    expect(directives(contentSecurityPolicy({ ...ALL, rewardedAds: true }, NONCE))["frame-src"]).not.toContain("https:");
+    for (const policy of [blog, cached]) expect(policy["frame-ancestors"]).toEqual(["'self'"]);
   });
 
   it("lists each source once where Google Ads, rewarded ads and AdSense share a host", () => {

@@ -22,6 +22,9 @@ import { onConsentChange, readConsent } from "@/lib/consent";
  * height, the AdSense way of keeping space for a responsive unit (its height
  * is never capped - Google asks for that).
  *
+ * NO AD, NO BOX. Google marks a unit it has no ad for with
+ * data-ad-status="unfilled"; the box and its label then go.
+ *
  * The script is added by this bundle, so on the article pages' nonce policy
  * 'strict-dynamic' lets it, and what it loads, run (src/proxy.ts adds the
  * hosts it talks to and frames).
@@ -121,7 +124,7 @@ export function AdsenseSlot({
 
   if (!granted) return null;
   return (
-    <aside aria-label={label} className="my-10">
+    <aside aria-label={label} className="my-10 has-[ins[data-ad-status=unfilled]]:hidden">
       <p className="mb-1 text-center text-[11px] tracking-wide text-muted-foreground uppercase">{label}</p>
       <div ref={box} className={format === "in-article" ? "min-h-[200px]" : "min-h-[280px]"}>
         {format === "in-article" ? (
