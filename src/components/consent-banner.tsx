@@ -67,7 +67,16 @@ const serverSnapshot = () => UNKNOWN;
  * pass every language and the address picks one; sign-in passes the one it
  * chose from the browser's languages, with `locale`.
  */
-export function ConsentBanner({ copy, locale }: { copy: Partial<Record<Locale, Copy>>; locale?: Locale }) {
+export function ConsentBanner({
+  copy,
+  locale,
+  clearOfForm = false,
+}: {
+  copy: Partial<Record<Locale, Copy>>;
+  locale?: Locale;
+  /** On sign-in and sign-up: at the right on wide screens, where the form is not (the form's column keeps room for it below). */
+  clearOfForm?: boolean;
+}) {
   const pathname = usePathname();
   const t = copy[locale ?? splitLocale(pathname).locale] ?? copy.en;
   const consent = useSyncExternalStore(onConsentChange, readConsent, serverSnapshot);
@@ -153,7 +162,10 @@ export function ConsentBanner({ copy, locale }: { copy: Partial<Record<Locale, C
     <section
       ref={panel}
       aria-label={t.label}
-      className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-50 rounded-xl border bg-background p-4 text-sm shadow-lg sm:inset-x-auto sm:bottom-4 sm:left-4 sm:w-[22rem]"
+      className={cn(
+        "fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-50 rounded-xl border bg-background p-4 text-sm shadow-lg sm:inset-x-auto sm:bottom-4 sm:left-4 sm:w-[22rem]",
+        clearOfForm && "lg:right-4 lg:left-auto",
+      )}
     >
       <p className="text-foreground">
         {ASKS ? (META_ID ? t.messageWithMeta : t.message) : t.nothingToChoose}
