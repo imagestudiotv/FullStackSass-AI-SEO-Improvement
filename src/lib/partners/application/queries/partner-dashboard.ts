@@ -8,6 +8,7 @@ import type { PartnerContext } from "../contracts/commands";
 import type { Environment } from "../ports/repositories";
 import type { PartnerDeps } from "../use-cases/deps";
 import { payoutSetupStatus } from "../use-cases/manage-payout-account";
+import { partnerPayoutStatus } from "./payout-status";
 import { computeBalances, type BalanceFigures } from "../use-cases/mature-commissions";
 
 /**
@@ -93,8 +94,9 @@ export async function partnerDashboard(deps: PartnerDeps, context: PartnerContex
   const version = await repos.programs.versionAt(now);
   const environment = deps.settings.environment();
   const since = new Date(now.getTime() - input.days * DAY);
-  const [setup, coupons, balances, metrics, referrals] = await Promise.all([
+  const [setup, payout, coupons, balances, metrics, referrals] = await Promise.all([
     payoutSetupStatus(deps, partner.id),
+    partnerPayoutStatus(deps, partner),
     environment ? repos.coupons.forPartner(partner.id, environment) : Promise.resolve([]),
     environment ? partnerBalances(deps, partner.id, environment, version.policy) : Promise.resolve([]),
     environment
@@ -112,6 +114,8 @@ export async function partnerDashboard(deps: PartnerDeps, context: PartnerContex
     /** The same link on another page, as the portal's example. */
     pricingExample: `${deps.settings.appUrl()}/pricing${referralLinkPath(partner.referralCode).slice(1)}`,
     setup,
+    /** What this partner needs to do to be paid, and when. */
+    payout,
     coupons: coupons.filter((coupon) => coupon.status === "active"),
     balances,
     metrics: { ...metrics, days: input.days, since, until: now },
@@ -178,11 +182,14 @@ export async function partnerPayoutHistory(deps: PartnerDeps, context: PartnerCo
       currency: row.currency,
       amount: row.transferAmount,
       offset: row.offsetAmount,
-      transfer: transferDisplayState(row.state, row.transferStatus),
+      // Money PayPal took back is not shown as sent, whatever state the review left it in.
+      transfer: row.payoutMethod === "paypal" && row.state === "needs_review" && row.transferredAt !== null ? "reversed" : transferDisplayState(row.state, row.transferStatus),
       transferredAt: row.transferredAt,
       bank: bankDisplayState(row.bankStatus),
       bankPaidAt: row.bankPaidAt,
       bankArrivalDate: row.bankArrivalDate,
+      method: row.payoutMethod,
+      paidAt: row.paidAt,
     })),
     total: result.total,
     page,

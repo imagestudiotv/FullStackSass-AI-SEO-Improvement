@@ -2,11 +2,13 @@ import type { Locale } from "@/lib/i18n/config";
 import { formatDate, intlTag } from "@/lib/i18n/format";
 
 import type { PlanSummary } from "../application/ports/directory";
+import type { PartnerPayoutStatus, PayoutStep } from "../application/queries/payout-status";
 import type { CouponRecord } from "../application/ports/repositories";
 import type { CommissionDisplayStatus } from "../domain/entities/commission";
 import type { BankDisplayState, TransferDisplayState } from "../domain/entities/settlement";
 import { fill, type PartnerCopy } from "./copy";
 import { rateLabel } from "./format";
+import type { PayoutStatusCopy } from "./payout-status-copy";
 import { moneyView } from "./serializers";
 
 /**
@@ -53,8 +55,17 @@ const ZERO = BigInt(0);
  * not yet sent (waiting the maturity days, approved for the next payout, or
  * being sent now); Paid is what was sent through Stripe, of which the part
  * already in the bank is shown too.
+ *
+ * `paid`: how partners are paid here now, when it is not only Stripe: the
+ * words for "Paid", and no bank line or minimum for credits, which have none.
  */
-export function balanceView(balance: DashboardFigures, copy: Portal, locale: Locale, maturityDays: number) {
+export function balanceView(
+  balance: DashboardFigures,
+  copy: Portal,
+  locale: Locale,
+  maturityDays: number,
+  paid?: { form: "credits" | "cash"; definition: string },
+) {
   const money = (amount: bigint) => moneyView(amount, balance.currency, locale).display;
   const o = copy.overview;
   const b = o.breakdown;
@@ -70,15 +81,62 @@ export function balanceView(balance: DashboardFigures, copy: Portal, locale: Loc
       key: "paid",
       label: o.cards.paid,
       value: money(balance.transferred),
-      definition: o.definitions.paid,
-      details: [fill(b.inBank, { amount: money(balance.bankPaid) })],
+      definition: paid?.definition ?? o.definitions.paid,
+      // Bank payouts only: credits and PayPal have no bank step.
+      details: paid && balance.bankPaid === ZERO ? [] : [fill(b.inBank, { amount: money(balance.bankPaid) })],
     },
   ];
   const notes: string[] = [];
   if (balance.offset > ZERO) notes.push(fill(o.offset, { amount: money(balance.offset) }));
+  if (paid?.form === "credits") return { currency: balance.currency.toUpperCase(), figures, notes };
   if (balance.threshold === null) notes.push(fill(o.noThreshold, { currency: balance.currency.toUpperCase() }));
   else if (balance.belowThreshold) notes.push(fill(o.threshold, { amount: money(balance.threshold) }));
   return { currency: balance.currency.toUpperCase(), figures, notes };
+}
+
+const STEP_TONE: Record<PayoutStep, "ready" | "todo" | "waiting" | "info"> = {
+  credits_ready: "ready",
+  credits_choose: "todo",
+  credits_no_workspace: "todo",
+  stripe_not_started: "todo",
+  stripe_setup_required: "todo",
+  stripe_verification_pending: "waiting",
+  stripe_restricted: "todo",
+  stripe_ready: "ready",
+  paypal_confirm: "todo",
+  paypal_ready: "ready",
+  paypal_off: "info",
+  country: "info",
+  unavailable: "info",
+};
+
+/** "How and when you are paid", in words (application/queries/payout-status.ts). */
+export function payoutStatusView(status: PartnerPayoutStatus, copy: PayoutStatusCopy, locale: Locale) {
+  const step = copy.steps[status.step];
+  const f = copy.facts;
+  const byPayPal = status.step.startsWith("paypal");
+  const facts =
+    status.form === "credits"
+      ? [fill(f.creditsWhen, { days: status.maturityDays }), f.other]
+      : [
+          fill(f.cashWhen, { days: status.maturityDays }),
+          ...(status.minimum ? [fill(f.minimum, { amount: moneyView(status.minimum.amount, status.minimum.currency, locale).display })] : []),
+          ...(status.nextRunAt && !status.paused ? [fill(f.nextRun, { date: day(status.nextRunAt, locale) })] : []),
+          ...(status.step.startsWith("stripe") ? [f.bankDelay] : byPayPal ? [f.payPalDelay] : []),
+          f.other,
+        ];
+  return {
+    step: status.step,
+    tone: STEP_TONE[status.step],
+    heading: copy.title,
+    title: step.title,
+    body: step.body,
+    paused: status.paused ? copy.paused : null,
+    factsTitle: copy.factsTitle,
+    facts,
+    action: step.action,
+    contact: status.step === "country" || status.step === "paypal_off" ? copy.contact : null,
+  };
 }
 
 /** The client's two counts beside the money: referrals (all time) and the paying customers that set the tier. */
@@ -195,14 +253,33 @@ export function payoutRowView(
     bank: BankDisplayState;
     bankPaidAt: Date | null;
     bankArrivalDate: Date | null;
+    /** Missing means Stripe: its two steps. PayPal and credits have one, and no bank. */
+    method?: "stripe" | "paypal" | "credits";
+    paidAt?: Date | null;
   },
   copy: Portal,
   locale: Locale,
+  payouts?: PayoutStatusCopy["payouts"],
 ) {
   const money = (amount: bigint) => moneyView(amount, row.currency, locale).display;
   let bankDetail: string | null = null;
   if (row.bank === "paid") bankDetail = day(row.bankPaidAt ?? row.bankArrivalDate, locale);
   else if ((row.bank === "pending" || row.bank === "in_transit") && row.bankArrivalDate) bankDetail = fill(copy.payouts.arrival, { date: day(row.bankArrivalDate, locale) });
+  const direct = payouts && (row.method === "paypal" || row.method === "credits");
+  if (direct) {
+    const arrived = row.transfer === "confirmed";
+    return {
+      id: row.id,
+      date: day(row.createdAt, locale),
+      amount: money(row.amount),
+      offset: row.offset > ZERO ? fill(copy.payouts.offset, { amount: money(row.offset) }) : null,
+      transfer: copy.payouts.transferStates[row.transfer],
+      transferTone: TRANSFER_TONE[row.transfer],
+      bank: row.method === "paypal" ? payouts.viaPayPal : payouts.viaCredits,
+      bankTone: arrived ? ("success" as Tone) : ("neutral" as Tone),
+      bankDetail: arrived && row.paidAt ? day(row.paidAt, locale) : null,
+    };
+  }
   return {
     id: row.id,
     date: day(row.createdAt, locale),

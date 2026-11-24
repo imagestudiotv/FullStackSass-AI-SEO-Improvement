@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { CommissionList, CouponsPanel, EarningsPanel, MetricsPanel } from "@/components/partners/dashboard-views";
+import { PayoutStatus } from "@/components/partners/payout-status";
 import { PortalSection } from "@/components/partners/portal-ui";
 import { ReferralLink } from "@/components/partners/referral-link";
 import { TierProgress } from "@/components/partners/tier-progress";
@@ -13,9 +14,11 @@ import {
   partnerDashboard,
   type MetricRange,
 } from "@/lib/partners/application/queries/partner-dashboard";
+import { isLocale, localePath } from "@/lib/i18n/config";
 import { fill } from "@/lib/partners/presentation/copy";
 import { rateLabel } from "@/lib/partners/presentation/format";
-import { balanceView, commissionRowView, couponView, formatPortalDate, metricsView, totalsView } from "@/lib/partners/presentation/views";
+import { PAYOUT_STATUS_COPY } from "@/lib/partners/presentation/payout-status-copy";
+import { balanceView, commissionRowView, couponView, formatPortalDate, metricsView, payoutStatusView, totalsView } from "@/lib/partners/presentation/views";
 import { partnerDeps } from "@/lib/partners/server";
 
 import { requirePartnerPage } from "./portal";
@@ -42,7 +45,9 @@ export default async function PartnerOverviewPage({ searchParams }: PageProps<"/
   ]);
   if (!overview) notFound();
   const t = copy.portal;
-  const { progress, partner, policy } = overview;
+  const { progress, partner, policy, payout } = overview;
+  const payoutCopy = PAYOUT_STATUS_COPY[locale];
+  const paid = { form: payout.form, definition: payoutCopy.paidDefinition[payout.form] };
   const remaining = progress.next ? fill(t.overview.remaining, { count: progress.remaining, tier: progress.next.name }) : t.overview.topTier;
   const ranges = METRIC_RANGES.map((range) => ({
     days: range,
@@ -64,9 +69,9 @@ export default async function PartnerOverviewPage({ searchParams }: PageProps<"/
       {/* In the order of the client's dashboard: the figures, the link, the latest commissions, then the level. */}
       <EarningsPanel
         copy={t}
-        balances={overview.balances.map((balance) => balanceView(balance, t, locale, policy.maturityDays))}
+        balances={overview.balances.map((balance) => balanceView(balance, t, locale, policy.maturityDays, paid))}
         totals={totalsView(overview.totals, t, locale)}
-        nextPayout={fill(t.overview.nextPayout, { date: formatPortalDate(overview.nextPayoutAt, locale) })}
+        nextPayout={payout.form === "credits" || payout.paused ? null : fill(t.overview.nextPayout, { date: formatPortalDate(overview.nextPayoutAt, locale) })}
       />
 
       <section className="rounded-xl border bg-card p-4 sm:p-6" aria-labelledby="link-title">
@@ -109,18 +114,7 @@ export default async function PartnerOverviewPage({ searchParams }: PageProps<"/
               : null
           }
         />
-        <section className="rounded-xl border bg-card p-6" aria-labelledby="setup-title">
-          <h2 id="setup-title" className="text-sm font-medium text-muted-foreground">{t.setup.title}</h2>
-          <p className="mt-1 font-semibold">
-            {overview.setup.configured ? t.setup.states[overview.setup.state].title : t.setup.states.unavailable.title}
-          </p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {overview.setup.configured ? t.setup.states[overview.setup.state].body : t.setup.states.unavailable.body}
-          </p>
-          <Link href="/partner/settings" className="mt-4 inline-block text-sm font-medium text-primary-strong underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ring">
-            {t.nav.settings}
-          </Link>
-        </section>
+        <PayoutStatus view={payoutStatusView(payout, payoutCopy, locale)} contactHref={localePath(isLocale(locale) ? locale : "en", "/contact")} />
       </div>
 
       <MetricsPanel copy={t} metrics={metricsView(overview.metrics, t, locale)} ranges={ranges} />
