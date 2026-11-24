@@ -1,4 +1,6 @@
+import { readdirSync } from "node:fs";
 import { createRequire } from "node:module";
+import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
@@ -115,6 +117,27 @@ describe("where /go/<name> lands", () => {
     ["/pricing?x=1#y", "/pricing"],
   ])("%s lands on %s", (raw, expected) => {
     expect(landingPath(raw)).toBe(expected);
+  });
+
+  it("lands on every public marketing page, in every language it exists in", () => {
+    const root = path.join(process.cwd(), "src/app");
+    const pages = (dir: string) =>
+      readdirSync(path.join(root, dir), { withFileTypes: true })
+        .filter((entry) => entry.isDirectory() && !/^[_[(]/.test(entry.name) && entry.name !== "preview")
+        .map((entry) => `/${entry.name}`);
+    const english = pages("(marketing)");
+    expect(english).toEqual(expect.arrayContaining(["/growth-plan", "/discover", "/partners"]));
+    for (const page of english) expect(landingPath(page), page).toBe(page);
+    for (const page of pages("(localized)/[locale]/(pages)")) expect(landingPath(`/es${page}`), page).toBe(`/es${page}`);
+  });
+
+  it("keeps the growth plan's website, plan and step, in any language, and a tool's website", () => {
+    const query = new URLSearchParams("domain=acme.com&plan=grow&period=year&step=billing&x=1&ref=dami");
+    const kept = { domain: "acme.com", plan: "grow", period: "year", step: "billing" };
+    expect(Object.fromEntries(landingParams("/growth-plan", query))).toEqual(kept);
+    expect(Object.fromEntries(landingParams("/de/growth-plan", query))).toEqual(kept);
+    expect(Object.fromEntries(landingParams("/tools/keyword-density", query))).toEqual({ domain: "acme.com" });
+    expect(landingParams("/growth-plan", new URLSearchParams("step=//evil.example"))).toEqual([]);
   });
 
   it("carries utm_ tags and nothing else", () => {

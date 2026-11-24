@@ -75,8 +75,12 @@ export async function resumeSettlement(deps: PartnerDeps, admin: AdminContext, s
     if (!settlement) return fail("not_found");
     if (settlement.state !== "needs_review") return fail("invalid", `state_${settlement.state}`);
     const transfers = await tx.settlements.transferAttempts(settlementId);
+    const paypal = settlement.payoutMethod === "paypal" ? await tx.paypalPayouts.attempts(settlementId) : [];
+    // Paid by PayPal, or taken back since: nothing left to send here. A taken-back one is cancelled, so a later run pays it.
+    if (paypal.some((a) => a.status === "reversed")) return fail("invalid", "paypal_taken_back");
+    if (paypal.some((a) => a.status === "succeeded")) return fail("invalid", "paypal_already_paid");
     const confirmed = transfers.some((a) => ["confirmed", "partially_reversed", "reversed"].includes(a.status));
-    const mayExist = transfers.some((a) => a.status === "processing" || a.status === "unknown");
+    const mayExist = transfers.some((a) => a.status === "processing" || a.status === "unknown") || paypal.some((a) => ["processing", "unknown", "pending"].includes(a.status));
     const target = confirmed ? "transferred" : mayExist ? "transfer_unknown" : "reserved";
     if (!(await tx.settlements.setState(settlementId, ["needs_review"], target, { lastError: null, resumedAt: deps.clock.now() }))) return fail("conflict");
     await tx.audit.record({

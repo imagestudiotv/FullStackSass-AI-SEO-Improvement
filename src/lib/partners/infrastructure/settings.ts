@@ -17,6 +17,7 @@ import type { ProgramSettings } from "../application/ports/settings";
  *                                  accounts (US, CA, UK, EEA, CH); narrow it
  *                                  to what the platform's Connect settings
  *                                  actually allow.
+ *   ADMIN_EMAILS                 - who is told about a new application.
  *   NEXT_PUBLIC_APP_URL          - where Stripe sends partners back after onboarding.
  */
 
@@ -38,6 +39,14 @@ export function settingsFromEnv(env: NodeJS.ProcessEnv = process.env): ProgramSe
     environment: () => environmentForKey(env.STRIPE_SECRET_KEY),
     moneyMovementAllowed: (environment) => environment === "test" || env.PARTNER_LIVE_PAYOUTS === "enabled",
     appUrl: () => (env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/+$/, ""),
+    adminEmails: () => [
+      ...new Set(
+        (env.ADMIN_EMAILS ?? "")
+          .split(",")
+          .map((email) => email.trim().toLowerCase())
+          .filter(Boolean),
+      ),
+    ],
     payoutCountries: () => {
       const configured = (env.PARTNER_PAYOUT_COUNTRIES ?? "")
         .split(",")

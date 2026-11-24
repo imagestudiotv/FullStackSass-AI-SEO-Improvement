@@ -49,6 +49,16 @@ function evidenceOf(batch: Batch, item: Item | undefined): PayPalPayoutEvidence 
   };
 }
 
+/**
+ * PayPal "rejects the request and returns an error message that indicates the
+ * duplicate sender_batch_id" when one was used in the last 30 days, and fails a
+ * second simultaneous request with the same PayPal-Request-Id (its Payouts
+ * docs). Either way the payout may exist: never "refused".
+ */
+function isDuplicate(error: PayPalError): boolean {
+  return error.status === 409 || /duplicate|sender_batch_id|already (?:been )?(?:used|exists|processed)/i.test(`${error.issue ?? ""} ${error.message}`);
+}
+
 export function payPalPayoutGateway(environment: Environment): PayPalPayoutGateway {
   return {
     environment: () => environment,
@@ -78,9 +88,9 @@ export function payPalPayoutGateway(environment: Environment): PayPalPayoutGatew
           }),
         });
       } catch (error) {
-        if (error instanceof PayPalError && error.kind !== "unknown") {
-          // Processed and refused (or never sent: credentials, mode): nothing was paid.
-          return { kind: "refused", code: error.issue ?? error.kind, message: error.message };
+        if (error instanceof PayPalError && error.kind !== "unknown" && !isDuplicate(error)) {
+          // Processed and refused (or never sent: credentials, mode): THIS request paid nothing.
+          return { kind: "refused", code: error.status === 429 ? "RATE_LIMIT_REACHED" : (error.issue ?? error.kind), message: error.message };
         }
         return { kind: "unknown", message: error instanceof Error ? error.message : "PayPal did not answer" };
       }

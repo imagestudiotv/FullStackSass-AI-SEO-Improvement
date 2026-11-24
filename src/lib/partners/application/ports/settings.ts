@@ -25,6 +25,8 @@ export interface ProgramSettings {
   /** The deployment allows real money to move in this environment. */
   moneyMovementAllowed(environment: Environment): boolean;
   appUrl(): string;
+  /** The administrators' addresses (ADMIN_EMAILS): who hears about a new application. */
+  adminEmails?(): string[];
   /** The countries the platform's Connect configuration supports for partner accounts. */
   payoutCountries(): string[];
   /**

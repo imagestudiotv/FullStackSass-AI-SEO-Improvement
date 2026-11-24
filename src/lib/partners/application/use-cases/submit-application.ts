@@ -1,6 +1,7 @@
 import { APPLICATION_LIMITS, type ApplicationAnswers } from "../../domain/entities/application";
 import type { ApplicantContext } from "../contracts/commands";
 import { fail, ok, type Result } from "../contracts/results";
+import { applicationNoticeId } from "./application-notices";
 import type { PartnerDeps } from "./deps";
 import { payableCountries } from "./paypal-payouts";
 
@@ -60,12 +61,19 @@ export async function submitApplication(
   );
   if (!admitted) return fail("rate_limited");
 
-  const created = await repos.applications.create({
-    userId: applicant.userId,
-    answers: answers.value,
-    applicantEmail: applicant.email,
-    applicantName: applicant.name,
-    submittedAt: deps.clock.now(),
+  const created = await deps.uow.transaction(async (tx) => {
+    const application = await tx.applications.create({
+      userId: applicant.userId,
+      answers: answers.value,
+      applicantEmail: applicant.email,
+      applicantName: applicant.name,
+      submittedAt: deps.clock.now(),
+    });
+    // The administrators hear about it (application-notices.ts): an applicant left waiting is a partner lost.
+    if (application) {
+      await tx.outbox.enqueue({ name: "partners/application.notify", id: applicationNoticeId(application.id, "submitted"), data: { applicationId: application.id, stage: "submitted" } });
+    }
+    return application;
   });
   // The unique index lost a race with another submission of the same user.
   if (!created) return fail("already_processed", "already_applied");

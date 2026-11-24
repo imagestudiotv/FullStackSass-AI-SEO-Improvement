@@ -1,6 +1,11 @@
 import { PayoutSetup, type SetupState } from "@/components/partners/payout-setup";
 import { CreditPayoutSetup } from "@/components/partners/credit-payout-setup";
+import { PayoutStatus } from "@/components/partners/payout-status";
 import { PayPalPayoutSetup } from "@/components/partners/paypal-payout-setup";
+import { localePath } from "@/lib/i18n/config";
+import { partnerPayoutStatus } from "@/lib/partners/application/queries/payout-status";
+import { PAYOUT_STATUS_COPY } from "@/lib/partners/presentation/payout-status-copy";
+import { payoutStatusView } from "@/lib/partners/presentation/views";
 import { PARTNER_CREDITS_COPY } from "@/lib/partners/presentation/credits-copy";
 import { payPalPayoutAvailability } from "@/lib/partners/application/use-cases/paypal-payouts";
 import { PARTNER_PAYPAL_COPY } from "@/lib/partners/presentation/paypal-copy";
@@ -74,11 +79,18 @@ export default async function PartnerSettingsPage({ searchParams }: PageProps<"/
       })()
     : null;
 
+  const payoutStatus = await partnerPayoutStatus(deps, access.partner);
+  const payoutCopy = PAYOUT_STATUS_COPY[locale];
+  // A country only PayPal covers: its setup is below, so Stripe's "not available in your country" would be a dead end.
+  const showStripe = supported || state !== "not_started" || !paypal.available;
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold tracking-tight">{t.settings.title}</h1>
+      <PayoutStatus view={payoutStatusView(payoutStatus, payoutCopy, locale)} contactHref={localePath(locale, "/contact")} settingsHref="#payout-setup" />
+      <div id="payout-setup" className="scroll-mt-4 space-y-6">
       {creditView ? <CreditPayoutSetup copy={PARTNER_CREDITS_COPY[locale]} {...creditView} /> : null}
-      {credits ? null : (
+      {credits || !showStripe ? null : (
         <>
           <div>
             <h2 className="text-lg font-semibold">{t.setup.title}</h2>
@@ -90,6 +102,7 @@ export default async function PartnerSettingsPage({ searchParams }: PageProps<"/
             canAct={access.partner.status === "active" && supported}
             countryLine={supported ? fill(t.setup.country, { country: countryName }) : fill(t.setup.countryUnsupported, { country: countryName })}
             requirements={requirements}
+            refusedMessage={payoutCopy.setupRefused}
           />
         </>
       )}
@@ -102,6 +115,7 @@ export default async function PartnerSettingsPage({ searchParams }: PageProps<"/
           canChooseStripe={state === "ready"}
         />
       ) : null}
+      </div>
       <section className="rounded-xl border bg-card p-6" aria-labelledby="profile-title">
         <h2 id="profile-title" className="font-semibold">{t.settings.profile}</h2>
         <dl className="mt-4 grid gap-4 text-sm sm:grid-cols-2">

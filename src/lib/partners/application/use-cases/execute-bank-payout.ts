@@ -1,5 +1,6 @@
 import { bankPayoutStatusFromStripe, type BankPayoutStatus } from "../../domain/entities/settlement";
-import type { PayoutEvidence } from "../ports/payout-gateway";
+import { payableInBank } from "../../domain/policies/maturity";
+import type { PayoutEvidence, StripePayoutGateway } from "../ports/payout-gateway";
 import type { BankPayoutAttemptRecord, SettlementRecord } from "../ports/repositories";
 import type { PartnerDeps } from "./deps";
 import { notify, raiseDiscrepancy } from "./execute-transfer";
@@ -32,6 +33,22 @@ export function payoutOperationId(settlementId: string, attempt: number): string
 }
 
 type Step = { next: Date; error?: string };
+
+/**
+ * What the bank payout pays: the settlement's amount, or - when Stripe
+ * converted the transfer on arrival because the partner's account does not
+ * hold its currency (a Romanian or American partner, paid in euros) - exactly
+ * what it arrived as. Never another balance the account happens to have.
+ */
+async function payoutMoney(deps: PartnerDeps, gateway: StripePayoutGateway, settlement: SettlementRecord) {
+  const own = { currency: settlement.currency, amount: settlement.transferAmount };
+  if ((await gateway.connectedAvailableBalance(settlement.stripeAccountId!, own.currency)) >= own.amount) return { money: own, covered: true, available: own.amount };
+  const transfer = (await deps.uow.repositories.settlements.transferAttempts(settlement.id)).find((a) => a.status === "confirmed" && a.stripeTransferId);
+  const arrived = transfer ? await gateway.transferArrival(transfer.stripeTransferId!, settlement.stripeAccountId!) : null;
+  const money = arrived && arrived.currency !== own.currency ? { currency: arrived.currency, amount: payableInBank(arrived.currency, arrived.amount) } : own;
+  const available = await gateway.connectedAvailableBalance(settlement.stripeAccountId!, money.currency);
+  return { money, covered: money.amount > BigInt(0) && available >= money.amount, available };
+}
 
 export async function payoutStage(deps: PartnerDeps, settlement: SettlementRecord): Promise<Step> {
   const gateway = deps.payouts;
@@ -82,17 +99,16 @@ export async function payoutStage(deps: PartnerDeps, settlement: SettlementRecor
     await raiseDiscrepancy(deps, settlement, "bank payout failed three times", { attempts: String(attempts.length) });
     return { next: new Date(now.getTime() + 24 * HOUR), error: "payout_failed_repeatedly" };
   }
-  const balance = await gateway.connectedAvailableBalance(settlement.stripeAccountId!, settlement.currency);
-  if (balance < settlement.transferAmount) {
+  const { money, covered, available } = await payoutMoney(deps, gateway, settlement);
+  if (!covered) {
     // Transfers to some accounts become available later (recipient accounts: +24h). Still short after
-    // three days: most likely Stripe converted the transfer into the account's own currency, or the
-    // partner moved the money - a person must look (the case is opened once).
+    // three days: most likely the partner moved the money - a person must look (the case is opened once).
     const since = new Date(Math.max((settlement.transferredAt ?? settlement.createdAt).getTime(), settlement.resumedAt?.getTime() ?? 0));
     if (now.getTime() - since.getTime() > BALANCE_WAIT_MS) {
       await raiseDiscrepancy(deps, settlement, "connected balance does not cover the bank payout", {
-        currency: settlement.currency,
-        available: balance.toString(),
-        needed: settlement.transferAmount.toString(),
+        currency: money.currency,
+        available: available.toString(),
+        needed: money.amount.toString(),
       });
     }
     return { next: new Date(now.getTime() + 6 * HOUR), error: "connected_balance_pending" };
@@ -107,8 +123,8 @@ export async function payoutStage(deps: PartnerDeps, settlement: SettlementRecor
       operationId,
       environment: settlement.environment,
       stripeAccountId: settlement.stripeAccountId!,
-      currency: settlement.currency,
-      amount: settlement.transferAmount,
+      currency: money.currency,
+      amount: money.amount,
       submittedAt: deps.clock.now(),
     });
     if (!created) return null;
@@ -118,8 +134,8 @@ export async function payoutStage(deps: PartnerDeps, settlement: SettlementRecor
   if (!attempt) return { next: new Date(now.getTime() + 5 * MINUTE), error: "payout_attempt_exists" };
   const outcome = await gateway.createBankPayout({
     accountId: settlement.stripeAccountId!,
-    amount: settlement.transferAmount,
-    currency: settlement.currency,
+    amount: money.amount,
+    currency: money.currency,
     idempotencyKey: operationId,
     metadata: { repget_settlement_id: settlement.id, repget_operation_id: operationId },
   });
@@ -191,7 +207,7 @@ export async function applyPayoutEvidence(
       next = new Date(now.getTime() + 24 * HOUR);
     }
   });
-  if (notice) await notify(deps, settlement, notice);
+  if (notice) await notify(deps, settlement, notice, { currency: payout.currency, amount: payout.amount });
   return { next };
 }
 

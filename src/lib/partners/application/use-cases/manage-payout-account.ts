@@ -30,7 +30,7 @@ import type { PartnerDeps } from "./deps";
  */
 export async function accountReadiness(connect: ConnectAccountGateway, accountId: string): Promise<AccountReadiness> {
   const readiness = await connect.retrieveAccount(accountId);
-  if (readiness.payoutInterval === "manual") return readiness;
+  if (readiness.payoutInterval === "manual" || readiness.status === "deauthorized") return readiness;
   try {
     await connect.ensureManualPayouts(accountId);
   } catch {

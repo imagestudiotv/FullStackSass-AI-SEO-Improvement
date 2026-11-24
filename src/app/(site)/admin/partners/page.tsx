@@ -158,8 +158,27 @@ export default async function AffiliateProgramPage() {
                 : "Not applicable in test mode"
             }
           />
+          <Fact
+            label="Partners are paid in"
+            value={readiness.payoutForm === "cash" ? "Cash (PARTNER_PAYOUT_FORM=cash)" : "RepGet credits. Cash starts with PARTNER_PAYOUT_FORM=cash"}
+          />
+          <Fact
+            label="PayPal payouts"
+            value={
+              readiness.payPal.mode === "off"
+                ? "Off (PARTNER_PAYPAL_PAYOUTS)"
+                : readiness.payPal.feeBearer !== "repget"
+                  ? "Blocked: PARTNER_PAYPAL_FEE_BEARER is not 'repget'"
+                  : readiness.payPal.mode === "automated" && readiness.payPal.environment !== readiness.environment
+                    ? "Blocked: PayPal is not configured for this environment"
+                    : `${readiness.payPal.mode === "manual" ? "Manual (two administrators)" : "Automated"}: ${readiness.payPal.countries.join(", ") || "no countries yet (PARTNER_PAYPAL_PAYOUT_COUNTRIES)"}`
+            }
+          />
           <Fact label="Payout countries" value={readiness.payoutCountries.join(", ")} />
-          <Fact label="Connect webhook" value="/api/stripe/connect-webhook (STRIPE_CONNECT_WEBHOOK_SECRET)" />
+          <Fact
+            label="Connect webhook"
+            value={`/api/stripe/connect-webhook: ${process.env.STRIPE_CONNECT_WEBHOOK_SECRET ? "secret set" : "STRIPE_CONNECT_WEBHOOK_SECRET is missing"}`}
+          />
           <Fact
             label="Supported payments"
             value="Subscriptions paid by card (Stripe) or with PayPal, where PayPal's mode matches this environment. PayPal customers are attributed by referral link only (no coupons)."

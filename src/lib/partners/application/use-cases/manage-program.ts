@@ -41,6 +41,14 @@ export async function programReadiness(deps: PartnerDeps) {
     connectConfigured: deps.connect !== null,
     moneyMovementAllowed: environment ? deps.settings.moneyMovementAllowed(environment) : false,
     payoutCountries: deps.settings.payoutCountries(),
+    /** What partners are paid in, and whether PayPal payouts can run (docs/partner-program.md). */
+    payoutForm: deps.settings.payoutForm?.() ?? ("cash" as const),
+    payPal: {
+      mode: deps.settings.paypalPayoutMode?.() ?? ("off" as const),
+      feeBearer: deps.settings.paypalFeeBearer?.() ?? null,
+      countries: deps.settings.paypalPayoutCountries?.() ?? [],
+      environment: deps.paypalPayouts?.environment() ?? null,
+    },
   };
 }
 

@@ -8,6 +8,7 @@ import { isLocale, localePath } from "@/lib/i18n/config";
 import { applicationStatus } from "@/lib/partners/application/use-cases/submit-application";
 import { APPLICATION_LIMITS } from "@/lib/partners/domain/entities/application";
 import { fill } from "@/lib/partners/presentation/copy";
+import { PAYOUT_STATUS_COPY } from "@/lib/partners/presentation/payout-status-copy";
 import { publicPayoutTerms } from "@/lib/partners/presentation/payout-terms";
 import { partnerDeps } from "@/lib/partners/server";
 
@@ -32,6 +33,8 @@ export default async function PartnerApplyPage() {
   if (viewer.state === "partner") redirect("/partner");
   if (viewer.state === "signed_out") redirect("/sign-in?next=/partner/apply");
   const program = localePath(isLocale(locale) ? locale : "en", "/partners");
+  // "Pays real money" is said only while it does.
+  const credits = (partnerDeps().settings.payoutForm?.() ?? "cash") === "credits";
 
   return (
     <div className="mx-auto max-w-[620px] pt-10 sm:pt-16">
@@ -43,7 +46,7 @@ export default async function PartnerApplyPage() {
         <p className="mx-auto max-w-[520px] text-[13.5px] leading-relaxed text-muted-foreground sm:text-[15px]">{t.apply.intro}</p>
       </section>
       {viewer.state === "unverified" ? (
-        <VerifyEmail email={viewer.email} copy={t.verify} />
+        <VerifyEmail email={viewer.email} copy={credits ? { ...t.verify, body: PAYOUT_STATUS_COPY[locale].creditsVerifyBody } : t.verify} />
       ) : (
         <ApplicationState applicant={viewer.applicant} locale={locale} program={program} copy={t} />
       )}
@@ -69,6 +72,9 @@ async function ApplicationState({
   copy: Awaited<ReturnType<typeof portalContext>>["copy"]["portal"];
 }) {
   const deps = partnerDeps();
+  const language = isLocale(locale) ? locale : "en";
+  const payoutCopy = PAYOUT_STATUS_COPY[language];
+  const contact = localePath(language, "/contact");
   const [status, payout] = await Promise.all([applicationStatus(deps, applicant), publicPayoutTerms(deps)]);
   if (status.latest?.status === "submitted") {
     return (
@@ -86,6 +92,13 @@ async function ApplicationState({
         termsHref={program}
         limits={APPLICATION_LIMITS}
       />
+      {/* A country we cannot pay yet is not a dead end: they can still tell us. */}
+      <p className="text-center text-xs leading-relaxed text-muted-foreground">
+        {payoutCopy.countryMissing}{" "}
+        <Link href={contact} className="font-bold hover:text-primary">
+          {payoutCopy.contact}
+        </Link>
+      </p>
     </div>
   );
 }

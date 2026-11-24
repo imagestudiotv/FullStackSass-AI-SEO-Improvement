@@ -156,7 +156,11 @@ export async function prepareSettlement(
   return outcome;
 }
 
-/** The monthly run (1st of the month, 00:00 UTC): every partner and currency with a balance. */
+/**
+ * The monthly run (1st of the month, 00:00 UTC): every partner and currency
+ * with a balance. Safe to repeat within the month - one settlement per run
+ * key - and the job does, on the two days after (inngest/functions/partner-payouts.ts).
+ */
 export async function runMonthlySettlements(deps: PartnerDeps, actor: SystemContext | AdminContext = { kind: "system", origin: "monthly-run" }) {
   const environment = deps.settings.environment();
   if (!environment) return { runKey: null, results: [] as { partnerId: string; currency: string; outcome: SettlementOutcome }[] };
@@ -164,7 +168,15 @@ export async function runMonthlySettlements(deps: PartnerDeps, actor: SystemCont
   const pairs = await deps.uow.repositories.commissions.balancesToConsider(environment);
   const results: { partnerId: string; currency: string; outcome: SettlementOutcome }[] = [];
   for (const pair of pairs) {
-    results.push({ ...pair, outcome: await prepareSettlement(deps, actor, { partnerId: pair.partnerId, currency: pair.currency, runKey }) });
+    // One partner's failure must not cost every partner after them their month: it is logged, and the run is repeated.
+    let outcome: SettlementOutcome;
+    try {
+      outcome = await prepareSettlement(deps, actor, { partnerId: pair.partnerId, currency: pair.currency, runKey });
+    } catch (error) {
+      console.error(`[partners] the monthly run could not prepare ${pair.partnerId}'s ${pair.currency} payout`, error);
+      outcome = { kind: "skipped", reason: "error" };
+    }
+    results.push({ ...pair, outcome });
   }
   return { runKey, results };
 }
@@ -174,7 +186,9 @@ export async function runMonthlySettlements(deps: PartnerDeps, actor: SystemCont
  * reservations - from "reserved", or from "needs_review" when no transfer was
  * confirmed and no attempt may have reached Stripe. A transfer that was sent,
  * or whose outcome is unknown, is never cancelled this way: money may have
- * moved. Locks the commissions first, then the settlement (the order the
+ * moved. A PayPal payout that paid and was then taken back by PayPal (the
+ * ledger already owes it again) may be released too, so a later run can pay
+ * the partner. Locks the commissions first, then the settlement (the order the
  * transfer submission uses).
  */
 export async function cancelSettlement(
@@ -191,19 +205,23 @@ export async function cancelSettlement(
     const settlement = await tx.settlements.lock(settlementId);
     if (!settlement) return fail("not_found");
     if (settlement.state === "canceled") return ok({ partnerId: settlement.partnerId, currency: settlement.currency });
-    const cancellable = settlement.state === "reserved" || (settlement.state === "needs_review" && settlement.transferredAt === null);
+    const paypal = await tx.paypalPayouts.attempts(settlementId);
+    const takenBack = settlement.payoutMethod === "paypal" && paypal.some((attempt) => attempt.status === "reversed");
+    const cancellable = settlement.state === "reserved" || (settlement.state === "needs_review" && (settlement.transferredAt === null || takenBack));
     if (!cancellable) return fail("invalid", `state_${settlement.state}`);
     const attempts = await tx.settlements.transferAttempts(settlementId);
     if (attempts.some((attempt) => !["retryable_failure", "failed"].includes(attempt.status))) return fail("invalid", "transfer_may_exist");
     // The same for a PayPal payout: one that may have moved money (or did) is never cancelled this way.
-    const paypal = await tx.paypalPayouts.attempts(settlementId);
-    if (paypal.some((attempt) => attempt.status !== "failed")) return fail("invalid", "paypal_payout_may_exist");
+    if (paypal.some((attempt) => attempt.status !== "failed" && attempt.status !== "reversed")) return fail("invalid", "paypal_payout_may_exist");
     await tx.settlements.setState(settlementId, ["reserved", "needs_review"], "canceled", { canceledReason: reason.slice(0, 300) });
     await tx.settlements.deactivateItems(settlementId);
     for (const commission of commissions) {
-      if (commission?.status === "reserved") {
+      if (commission?.status === "reserved" || (takenBack && commission?.status === "paid" && commission.paidSettlementId === settlementId)) {
         // Back to what it is now: available, pending, held - or reversed if a refund took all of it meanwhile.
-        await tx.commissions.updateCommission(commission.id, { status: projectedStatus({ ...snapshotOf(commission), status: "available" }, deps.clock.now()) });
+        await tx.commissions.updateCommission(commission.id, {
+          status: projectedStatus({ ...snapshotOf(commission), status: "available" }, deps.clock.now()),
+          ...(commission.status === "paid" ? { paidSettlementId: null } : {}),
+        });
       }
     }
     if (actor.kind === "admin") {

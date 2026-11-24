@@ -7,7 +7,7 @@ import { reconcileSettlements } from "./reconcile-settlement";
 /**
  * Daily billing reconciliation for the partner program.
  *
- *  - A Stripe payment of real money for an attributed customer with no
+ *  - A Stripe payment (or PayPal subscription sale) of real money for an attributed customer with no
  *    payment fact (a webhook missed or never processed): recorded again as
  *    affiliate work, which the worker processes like any event - missed
  *    events are RECOVERED, not just reported.
@@ -34,6 +34,11 @@ export async function reconcileCommissions(deps: PartnerDeps) {
   let recovered = 0;
   for (const payment of missed) {
     if (await recordRecoveredWork(deps, { kind: "invoice", objectId: payment.invoiceId, environment, reason: "reconcile.missed_payment" })) recovered += 1;
+  }
+  // PayPal's, where its mode is the program's environment (sandbox = test, live = live).
+  const missedSales = deps.paypalSales?.environment() === environment ? await repos.reconciliation.payPalSalesWithoutFacts(environment, 200) : [];
+  for (const sale of missedSales) {
+    if (await recordRecoveredWork(deps, { kind: "paypal_sale", objectId: sale.saleId, environment, reason: "reconcile.missed_payment" })) recovered += 1;
   }
 
   const findings: ReconciliationFinding[] = [
@@ -75,5 +80,5 @@ export async function reconcileCommissions(deps: PartnerDeps) {
   const purged = await repos.tracking.purgeClicks(
     new Date(now.getTime() - CLICK_GRACE_DAYS * 24 * 60 * 60 * 1000),
   );
-  return { missedPayments: missed.length, recovered, findings, purgedClicks: purged };
+  return { missedPayments: missed.length + missedSales.length, recovered, findings, purgedClicks: purged };
 }

@@ -63,8 +63,16 @@ export interface UserDirectory {
 export type PlanSummary = { name: string; interval: "month" | "year"; priceCents: number; currency: string };
 
 export interface Mailer {
-  sendPartnerWelcome(input: { to: string; name: string; referralUrl: string; portalUrl: string }): Promise<{ ok: boolean; error?: string }>;
-  sendPartnerNotice(input: { to: string; name: string; subject: string; lines: string[]; portalUrl: string }): Promise<{ ok: boolean; error?: string }>;
+  /** `payout`: how this partner is paid here, so the email asks for the setup they need and no other. */
+  sendPartnerWelcome(input: {
+    to: string;
+    name: string;
+    referralUrl: string;
+    portalUrl: string;
+    payout: "credits" | "stripe" | "paypal" | "stripe_or_paypal" | "unavailable";
+  }): Promise<{ ok: boolean; error?: string }>;
+  /** `button`: the link's label, "Open the partner portal" unless given. */
+  sendPartnerNotice(input: { to: string; name: string; subject: string; lines: string[]; portalUrl: string; button?: string }): Promise<{ ok: boolean; error?: string }>;
 }
 
 export interface RateLimiter {

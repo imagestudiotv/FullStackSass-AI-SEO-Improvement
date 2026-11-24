@@ -58,6 +58,7 @@ export type ApplicationRecord = {
 };
 
 export interface ApplicationRepository {
+  findById(id: string): Promise<ApplicationRecord | null>;
   findOpenByUser(userId: string): Promise<ApplicationRecord | null>;
   latestByUser(userId: string): Promise<ApplicationRecord | null>;
   /** Null when the user already has an open application (unique index). */
@@ -800,6 +801,8 @@ export type ReconciliationFinding = { kind: string; subject: string; detail: Rec
 export interface ReconciliationRepository {
   /** Stripe payments of real money for attributed customers with no payment fact: a missed or unprocessed event. */
   paymentsWithoutFacts(environment: Environment, limit: number): Promise<{ invoiceId: string; organizationId: string }[]>;
+  /** The same for PayPal: subscription sales of attributed customers with no payment fact. */
+  payPalSalesWithoutFacts(environment: Environment, limit: number): Promise<{ saleId: string; organizationId: string }[]>;
   /** Facts that say "commissioned" with no commission row. */
   factsWithoutCommission(environment: Environment, limit: number): Promise<ReconciliationFinding[]>;
   /** A commission whose earned entry is missing, duplicated or of another amount. */

@@ -2,11 +2,12 @@
 
 RepGet's native affiliate program: partners apply with their existing RepGet login, share a referral link or an assigned coupon, earn a recurring cash commission on the subscription revenue their referred customers actually pay, by card (Stripe) or with PayPal, and are paid through Stripe Connect.
 
-**PayPal subscription payments earn commission (review P7, branch `feature/payment-s1-p11`, not yet released).** The rules are the same as for card: cash collected, tax excluded, fees not subtracted, the 12-month window, the tier at the payment's own time, Net 30, and refunds and reversals reversed cumulatively.
+**PayPal subscription payments earn commission (review P7).** The rules are the same as for card: cash collected, tax excluded, fees not subtracted, the 12-month window, the tier at the payment's own time, Net 30, and refunds and reversals reversed cumulatively.
 - **Each completed PayPal sale is one payment fact.** `provider = 'paypal'`; `invoice_payment_id`, `invoice_id` and `charge_id` are all `paypal_sale:<sale id>`.
 - **It is processed by the same job** (`process-provider-events.ts`, kind `paypal_sale`) from PayPal's `PAYMENT.SALE.COMPLETED`, `.REFUNDED` and `.REVERSED`.
 - **It counts only where PayPal's mode is the program's environment** (sandbox = test, live = live).
 - **Differences from card:**
+  - While the REPGET launch price is on, Stripe Checkout carries its own coupon and shows no code box (`lib/stripe/actions.ts`), so a partner coupon cannot be entered for Launch, Grow or Scale. Links are unaffected. Do not hand out partner coupons while `REPGET_OFFER_ENABLED=1`.
   - A partner coupon cannot be used with PayPal (PayPal has no promotion codes), so only the referral link attributes a PayPal customer.
   - PayPal disputes are not read while open: a reversal counts as a lost dispute, and an open dispute does not hold the commission.
 - **Not covered by this:** one-off PayPal purchases (credit packs, "Get Featured") earn no commission, as one-off card purchases earn none either.
@@ -101,7 +102,7 @@ The rules are versioned in `partner_program_versions`. Version 1 is seeded by mi
 
 - **What counts.** Tiers count distinct referred customer **organizations**. Users, seats, websites, invoices and subscriptions are never counted. An organization qualifies while three things hold:
   - its attribution is `active` (not disqualified or under review);
-  - it has a Stripe subscription with status `active` whose current period has not ended (a cancellation at period end counts until then);
+  - it has a subscription, by card (Stripe) or PayPal, with status `active` whose current period has not ended (a cancellation at period end counts until then);
   - at least one of its commissionable payments has not been fully refunded or charged back.
 
   `trialing` and `past_due` periods are not paid periods and do not count.
@@ -224,7 +225,7 @@ The base is subscription revenue actually collected, excluding tax (`domain/poli
 
 - **Links.** A partner shares `repget.com/?ref=<name>`, for example `repget.com/?ref=dami`. `?ref=<name>` also works on any other public page (`repget.com/pricing?ref=dami`), in any language.
   - **How it works.** A redirect in `next.config.ts` (`presentation/link-redirect.ts`) sends such a request to `/go/<name>?to=<page>`. That route records the click, sets the cookie and redirects back to the page without `?ref=`, keeping `utm_` tags. It runs before any page or cache, so prerendered pages work too. `/go/<name>` itself still works, and older links keep working.
-  - **Landing pages** are an allowlist of public pages, with or without a language prefix (`tracking-cookie.ts`). Anything else lands on the home page of that language.
+  - **Landing pages** are an allowlist of public pages, with or without a language prefix (`tracking-cookie.ts`); `link-redirect.test.ts` compares it with `app/(marketing)`, so a new public page cannot be forgotten. Anything else lands on the home page of that language. What the page reads from its own address is kept: sign-up's destination, and the website (plan, step) of the audit, the tools, the growth plan and website creation.
   - **Link names** are 3-30 lower-case letters or digits, with single hyphens between them. Case is ignored in links.
     - At approval, the dialog is pre-filled from the applicant's name: the first name (`dami`), then the whole name (`dami-olu`), then numbered (`dami2`). The administrator can edit it or leave it empty for a random code.
     - Reserved: RepGet's own words, anything containing "repget", and sources other sites put in `?ref=` themselves (Product Hunt adds `?ref=producthunt`), so a partner is never credited with visits they did not send.
@@ -348,7 +349,7 @@ Restrictions Stripe enforces: products, expiry, currency, maximum redemptions, f
 
 The daily `partner-reconciliation` job (03:40 UTC, `use-cases/reconcile-commissions.ts`):
 
-- **Recovers missed payments.** A Stripe payment of real money for an attributed customer with no payment fact is recorded again as affiliate work.
+- **Recovers missed payments.** A Stripe payment of real money for an attributed customer with no payment fact is recorded again as affiliate work. So is a PayPal subscription sale.
 - **Reports discrepancies** as review cases: a fact without its commission, a missing or doubled earned entry, a reversal that differs from its ledger entries.
 - **Rebuilds AND reports** a drifted balance projection.
 - **Deletes** unattributed clicks 30 days after their window.
@@ -361,7 +362,7 @@ Three separate records, never merged: what RepGet owes (the ledger), the **trans
 
 ### The monthly run
 
-`partner-payouts-monthly` runs at 00:00 UTC on the 1st (`use-cases/prepare-settlement.ts`). For each partner and currency with a balance, in ONE short transaction:
+`partner-payouts-monthly` runs at 00:00 UTC on the 1st (`use-cases/prepare-settlement.ts`), and again on the 2nd and 3rd: one settlement per partner, currency and month whatever happens, so a missed run, or a partner whose preparation failed or was released, does not wait a month. One partner's failure never stops the others. For each partner and currency with a balance, in ONE short transaction:
 
 1. lock the partner row, then the partner/currency balance row (the serialisation point every settlement for that balance passes through);
 2. re-check the partner: active, no payout hold;
@@ -389,7 +390,8 @@ Before that transaction: the `partner_payouts` switch, the live-money key for li
 
 - Statuses come from Stripe only: Connect `payout.*` events and polling. `paid` only when Stripe says `paid`; `in_transit` and `pending` are shown as such.
 - A failed payout (`payout_failed`) leaves the money in the partner's Stripe balance and is retried with a new attempt; it never repeats the transfer. After 3 failures a `payout_discrepancy` review case is opened.
-- The connected balance in the settlement's currency must cover the payout. If it still does not 72 hours after the transfer (most likely Stripe converted the transfer into the account's own currency, or the partner moved the money), the settlement goes to review with a `payout_discrepancy` case instead of waiting silently. See the currency limitation in [partner-program-launch.md](partner-program-launch.md).
+- **Accounts not in euros.** Stripe converts a transfer on arrival into the account's default currency when the account does not hold the transfer's. The bank payout then pays exactly what the transfer arrived as (its destination payment's net, read from Stripe), in that currency; the ledger, the settlement and "already in your bank" stay in the settlement's currency. HUF, ISK and TWD pay out in whole units only.
+- The connected balance must cover the payout. If it still does not 72 hours after the transfer (most likely the partner moved the money), the settlement goes to review with a `payout_discrepancy` case instead of waiting silently.
 - A payout RepGet did not create (for example one the partner triggered) is never matched to a settlement: an `unexpected_payout` review case is opened.
 - The `partner_payouts` switch off stops NEW bank payouts. Payouts already created keep being tracked.
 
@@ -429,7 +431,7 @@ Owner's decisions, 2026-11-07: **"credits now, cash later"**. Partners' earnings
 
 ### Partners paid through PayPal
 
-Branch `feature/payment-s1-p11`, not released. Code: `use-cases/paypal-payouts.ts`, `infrastructure/paypal/payout-gateway.ts`.
+Code: `use-cases/paypal-payouts.ts`, `infrastructure/paypal/payout-gateway.ts`.
 
 **Off by default.** It runs only with all of these:
 - `PARTNER_PAYPAL_PAYOUTS`: `automated` or `manual`;
@@ -441,7 +443,7 @@ Branch `feature/payment-s1-p11`, not released. Code: `use-cases/paypal-payouts.t
 **The partner's side** (portal, Settings):
 - They give a PayPal email address. A 6-digit code is sent to it and must be entered within 30 minutes. Only the code's keyed hash is stored; 5 attempts are allowed.
 - Then they choose "Pay me with PayPal".
-- The method applies from the next run. A settlement records the account it pays, so a change of address never redirects money already reserved, and a settlement for a changed address is not sent.
+- The method applies from the next run. A settlement for an address that is being confirmed again is not sent until it is; the partner's own email is told when a payout address is confirmed.
 - Countries come from the server. Applications accept Stripe's countries plus PayPal's, while PayPal payouts can run (`payableCountries`).
 
 **The same as Stripe:**
@@ -457,9 +459,15 @@ Branch `feature/payment-s1-p11`, not released. Code: `use-cases/paypal-payouts.t
   - `PENDING`, `UNCLAIMED`, `ONHOLD` wait. `UNCLAIMED` means the address has no PayPal account yet; PayPal returns it after 30 days.
   - `FAILED`, `RETURNED`, `BLOCKED`, `DENIED`, `CANCELED` settle nothing and open review. Since nothing was paid, a person can cancel the settlement and release the commissions.
   - `REFUNDED` or `REVERSED` after `SUCCESS` takes the money back.
+- **Refusals.**
+  - Only the FIRST request's refusal proves nothing was made. One that passes by itself (credentials, rate limit, too little balance) is tried again as a new attempt, up to 8 times; any other goes to review and can be cancelled.
+  - A refused REPEAT of a request whose answer was lost proves nothing about the first: the attempt stays `unknown`, its commissions stay reserved, and it cannot be cancelled. PayPal's duplicate answers (`sender_batch_id` already used, request id already used) count as no answer.
+- **Released for the next run:** a payout whose commissions changed since it was prepared (at once), or that could not be sent for 7 days (address not confirmed, switch off, hold). Left `reserved`, it would block every later payout of that partner.
+- **Taken back:** once PayPal reports `REFUNDED` or `REVERSED`, an administrator can cancel the payout; its commissions become payable again.
 - The fee PayPal reports is shown on the payout. RepGet pays it; the partner receives the full amount.
 
 **Manual:**
+0. Sent as "goods and services", PayPal takes its fee from what the RECIPIENT gets: send enough for the partner to receive the full amount, as `PARTNER_PAYPAL_FEE_BEARER=repget` promises.
 1. An administrator sends the amount in PayPal to the partner's confirmed address.
 2. They record PayPal's 17-character transaction id ("Record manual PayPal payment").
 3. A DIFFERENT administrator checks it in PayPal's activity and confirms it by typing the id again. Only then is it settled.
@@ -473,6 +481,10 @@ Every step is in the audit log, labelled manual.
 - Recipients by PayPal account id ("Log in with PayPal") instead of a confirmed email.
 
 ## Dashboards and reports
+
+**"How and when you are paid"** (`application/queries/payout-status.ts`, shown on the overview, Payouts and Settings): the one thing this partner must do to be paid, by the method that is on for their country, with the waiting days, the minimum and the next run; or a plain status when nothing can pay them yet. Public and portal words promise cash, Stripe or a bank only while that is how partners are paid.
+
+**Applications by email.** Each address in `ADMIN_EMAILS` is told that an application is waiting, and an applicant is told when it was not approved (`use-cases/application-notices.ts`, job `partner-application-notice`).
 
 Dedicated read queries (`application/queries/partner-dashboard.ts`, `admin-reports.ts`, `infrastructure/persistence/repositories/reporting.ts`). Partner and admin pages read the same records with the same status mapping (`commissionDisplayStatus`, `transferDisplayState`, `bankDisplayState` in the domain). Nothing is recomputed in React.
 
@@ -508,7 +520,7 @@ Money is never counted twice: earned = pending + paid − corrections still to d
 **The public page** (`/partners` and its translations) follows the competitors' funnels:
 - the offer;
 - an earnings estimate (`components/partners/earnings-calculator.tsx`):
-  - a monthly plan from the plans table and a number of paying customers give the level, the commission per month and over the 12 months;
+  - a monthly plan at what a new customer pays today (the launch price while REPGET is on) and a number of paying customers give the level, the commission per month and over the 12 months;
   - it rounds exactly like the real calculation, and `earnings-calculator.test.ts` compares the two;
 - how it works, the levels, who the program is for, the rules;
 - the questions and answers, published as FAQPage structured data;
@@ -561,6 +573,9 @@ Names only; values belong in the host's environment settings (see [credentials.m
 | `STRIPE_CONNECT_WEBHOOK_SECRET` | Connect webhook (events on connected accounts), Part 2 |
 | `PARTNER_LIVE_PAYOUTS` | `enabled` allows live transfers and bank payouts; anything else keeps live money still |
 | `PARTNER_PAYOUT_COUNTRIES` | Optional comma-separated ISO countries partners may be paid in; defaults to US, CA, GB, CH and the EEA |
+| `PARTNER_PAYOUT_FORM` | `cash` pays partners in money; unset or `credits` pays RepGet credits |
+| `PARTNER_PAYPAL_PAYOUTS`, `PARTNER_PAYPAL_FEE_BEARER`, `PARTNER_PAYPAL_PAYOUT_COUNTRIES` | PayPal payouts; all unset = off |
+| `ADMIN_EMAILS` | Existing. Also told about new applications |
 | `PARTNER_TRACKING_SECRET` | Optional key for pseudonymous visitor hashes; falls back to `BETTER_AUTH_SECRET` |
 
 ## Launch and verification

@@ -53,7 +53,8 @@ Names only. Values belong in the host's settings, never in the repository ([cred
 - **Capabilities:** receiving transfers only (`stripe_balance.stripe_transfers`), no card payments.
 - **Payout schedule:** manual - RepGet creates each bank payout after its transfer is confirmed. It is set right after the account is created and again whenever an account is read.
 - **Countries.** Partners choose a payout country from `PARTNER_PAYOUT_COUNTRIES`. Stripe decides which countries a platform in RepGet's country can create accounts in and transfer to; confirm this in the Dashboard (Connect settings) and keep the variable to the countries Stripe accepts. A country Stripe refuses shows the partner an error when they start payout setup.
-- **Currencies - a launch limitation.** Commissions and payouts are in the currency the customer paid; only EUR has a payout threshold (EUR 25.00), so only EUR balances are paid automatically. A transfer in EUR to an account that settles in another currency (for example a US account in USD) is converted by Stripe on arrival, and the bank-payout step, which pays out in the settlement's currency, then cannot run. It waits and, after 72 hours, opens a `payout_discrepancy` case (the transfer itself is settled; the money is in the partner's Stripe balance). **Recommendation for launch:** limit `PARTNER_PAYOUT_COUNTRIES` to countries whose accounts hold EUR (the euro area), or verify the behaviour for each other country in test mode first.
+- **Currencies.** Commissions and payouts are in the currency the customer paid; only EUR has a payout threshold (EUR 25.00), so only EUR balances are paid automatically. A transfer in EUR to an account that does not hold euros is converted by Stripe on arrival, and the bank payout pays exactly what arrived, in that currency (partner-program.md, "Stage 3"; tested with fakes, not yet with Stripe).
+- **Regions - verify before opening.** Stripe allows transfers between the US, Canada, UK, EEA and Switzerland ([cross-border payouts](https://docs.stripe.com/connect/cross-border-payouts)), but NOT to accounts under the recipient service agreement, and Stripe chooses a v2 account's agreement itself ([service agreements](https://docs.stripe.com/connect/service-agreement-types)). Only an Italian account was tested. **Recommendation for launch:** `PARTNER_PAYOUT_COUNTRIES` = the euro area; open each other country after one sandbox onboarding, transfer and payout for it.
 - **Branding** of the hosted onboarding (name, icon, colour) in the Connect settings.
 
 ## 4. Webhook events to enable
@@ -122,14 +123,15 @@ Record the outcome in `partner-program-progress.md` (2026-10-20: all seven steps
 | `partner-commissions-sweep` | every 5 minutes | Retries due work, marks matured commissions (Net 30), activates coupons whose start has come |
 | `partner-tiers-daily` | 03:10 | Re-counts qualifying customers per partner; tier changes are effective-dated |
 | `partner-reconciliation` | 03:40 | Recovers missed payments, reports discrepancies as review cases, rebuilds and reports drifted projections, checks settlements against Stripe, deletes old unattributed clicks |
-| `partner-payouts-monthly` | 00:00 on the 1st | The monthly run: one settlement per partner and currency with enough mature earnings |
+| `partner-payouts-monthly` | 00:00 on the 1st, again on the 2nd and 3rd | The monthly run: one settlement per partner and currency with enough mature earnings |
 | `partner-settlement-execute` | on each prepared settlement | The transfer, then the bank payout |
 | `partner-payouts-sweep` | every 10 minutes | Executes due settlements: lost jobs, unknown transfers, bank payouts to create or poll |
 | `partner-welcome` | on approval | The welcome email, once |
+| `partner-application-notice` | on an application, and on a rejection | Tells the administrators; tells the applicant |
 
 ## 7. Money: funding, transfers and bank payouts
 
-- **Funding.** Transfers draw on the platform's **available** balance in the settlement currency. Before the 1st of each month it must cover the month's payouts (the admin payouts page previews the run). The platform's own automatic payouts sweep that balance to RepGet's bank; plan a reserve or the timing. Too little balance is retried (8 attempts), then a `payout_funding` case is opened and the settlement released for the next run - nothing is half-paid.
+- **Funding.** Transfers draw on the platform's **available** balance in the settlement currency. Before the 1st of each month it must cover the month's payouts (the admin payouts page previews the run). The platform's own automatic payouts sweep that balance to RepGet's bank; set a [minimum balance for automatic payouts](https://docs.stripe.com/payouts/minimum-balances-for-automatic-payouts) (adding funds from a bank is a private preview for EU platforms, [top-ups](https://docs.stripe.com/connect/top-ups)). Too little balance is retried (8 attempts), then a `payout_funding` case is opened and the settlement released for the next run - nothing is half-paid.
 - **Three records, never merged.**
   - The **ledger** says what RepGet owes. It changes when a commission is earned or adjusted, and when Stripe confirms a transfer or a reversal.
   - A **transfer** moves money from RepGet's Stripe balance to the partner's Stripe balance. Confirmed, it settles the liability (`transfer_confirmed`, keyed by the Stripe transfer id).
@@ -172,7 +174,7 @@ Record the outcome in `partner-program-progress.md` (2026-10-20: all seven steps
    - Done 2026-10-20 in live mode (sandbox first, as Stripe requires): marketplace model ("you collect payments and pay recipients"), identity verified, integration choices and responsibilities confirmed, onboarding branding with the RepGet name and icon.
    - Still open: setting `PARTNER_PAYOUT_COUNTRIES` (euro area recommended) in production.
 3. Stripe webhooks: the 18 platform events added to the existing endpoint; the Connect endpoint with its 12 events and `STRIPE_CONNECT_WEBHOOK_SECRET`, in test and in live mode.
-4. Inngest resync after the deploy, so the eight partner functions are registered.
+4. Inngest resync after the deploy, so the nine partner functions are registered.
 5. ~~A non-production environment with its own Stripe test keys and webhook delivery, and the test-mode verification in section 5 carried out and recorded.~~ Done 2026-10-20 (section 5).
 6. Platform balance funding in EUR before the first live run, and a decision on the platform's own payout timing.
 7. Owner review of the partner rules shown on `/partners` and in the portal, the privacy policy's cookie paragraph, and any tax reporting the partners' countries require (outside this implementation).

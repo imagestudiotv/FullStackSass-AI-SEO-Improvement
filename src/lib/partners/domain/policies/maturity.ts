@@ -24,6 +24,14 @@ export function monthlyRunKey(runAt: Date): string {
   return `${runAt.getUTCFullYear()}-${String(runAt.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
+/** Stripe pays these out in whole units only, though their amounts have two decimals. */
+const WHOLE_UNIT_PAYOUTS = new Set(["huf", "isk", "twd"]);
+
+/** The part of an arrived amount a bank payout may carry: all of it, except the fraction of a whole-unit currency. */
+export function payableInBank(currency: string, amount: bigint): bigint {
+  return WHOLE_UNIT_PAYOUTS.has(currency) ? amount - (amount % BigInt(100)) : amount;
+}
+
 /**
  * WHAT A SETTLEMENT PAYS.
  *
