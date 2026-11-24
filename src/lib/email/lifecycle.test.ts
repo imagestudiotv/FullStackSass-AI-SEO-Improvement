@@ -265,7 +265,7 @@ describe("the free period ending", () => {
     expect(sent.sendEmail.mock.calls[0][0].text).toContain(`/billing?site=${websiteId}`);
   });
 
-  it("names the blog post and the social mention only for a plan whose card lists them: Grow, not Launch (2026-11-18)", async () => {
+  it("names the blog post and the social mention only for a plan whose card lists them: Scale, not Launch or Grow (2026-11-24)", async () => {
     const ending = async (tier: string) => {
       sent.sendEmail.mockClear();
       const { orgId, websiteId } = await account({ website: true });
@@ -274,13 +274,16 @@ describe("the free period ending", () => {
       return sent.sendEmail.mock.calls[0][0].text;
     };
     const launch = await ending("launch");
-    expect(launch).not.toContain("blog post about your business");
-    expect(launch).not.toContain("social channels");
-    expect(launch).toContain("partner network");
     const grow = await ending("grow");
-    expect(grow).toContain("blog post about your business");
-    expect(grow).toContain("social channels");
-    for (const text of [launch, grow]) expect(text).not.toMatch(/DR ?60|dofollow/i);
+    for (const text of [launch, grow]) {
+      expect(text).not.toContain("blog post about your business");
+      expect(text).not.toContain("social channels");
+      expect(text).toContain("partner network");
+    }
+    const scale = await ending("scale");
+    expect(scale).toContain("blog post about your business");
+    expect(scale).toContain("social channels");
+    for (const text of [launch, grow, scale]) expect(text).not.toMatch(/DR ?60|dofollow/i);
   });
 
   it("is skipped once the plan is paid", async () => {

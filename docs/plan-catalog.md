@@ -55,9 +55,9 @@ The win-back offer (20% off the first payment, `WINBACK20`, docs/emails.md) appl
 
 ## Grow + Visibility (2026-11-11)
 
-A direct purchase: EUR 129 a month since 2026-11-24 (EUR 99 before; struck EUR 299 on the page), the Grow articles with more social posts and search terms (30 / 120 / 400 since 2026-11-21), no free trial, no free articles, no REPGET. The visibility perks (blog feature, social channels, email spotlight) are delivered by the team by hand: buyers show as "Grow + Visibility" in Admin -> Users / Organizations. Its row is `BUNDLES` in `scripts/plan-catalog.mjs`, monthly only, kept out of the standard plan grids and of Billing's plan list (except for the website on it).
+A direct purchase: EUR 129 a month since 2026-11-24 (EUR 99 before; struck EUR 299 on the page), the Grow articles with more social posts and search terms (30 / 120 / 400 since 2026-11-21), no free trial, no free articles, no REPGET. The visibility perks (blog feature, social channels, email spotlight) are sold only here and, as priority versions, with Scale (client, 2026-11-24); Grow customers from before that keep theirs. They are delivered by the team by hand: buyers show as "Grow + Visibility" in Admin -> Users / Organizations. Its row is `BUNDLES` in `scripts/plan-catalog.mjs`, monthly only, kept out of the standard plan grids and of Billing's plan list (except for the website on it).
 
-**At Stripe (2026-11-12, the client: "We need like auto apply coupon code"):** its price is the struck-through EUR 299, and every bundle checkout carries the `forever` coupon `REPGET_GV129_M` (EUR 170 off, named "REPGET (57% off)"; `REPGET_GV_M`, EUR 200 off, until 2026-11-24), so Checkout shows the discount line and charges EUR 129 on every payment, with no promotion-code box. The app reads the Stripe price first: on the old EUR 99 price it adds no coupon, and at any other amount it refuses the checkout and tells staff. PayPal has no discount line; its plan stays EUR 99. The launch-price coupons are named "REPGET (40% off)", which is what Checkout shows for Launch, Grow and Scale. `stripe:setup` makes the EUR 299 price (the EUR 99 one is deactivated), creates `REPGET_GV_M` and renames the existing coupons.
+**At Stripe (2026-11-12, the client: "We need like auto apply coupon code"):** its price is the struck-through EUR 299, and every bundle checkout carries the `forever` coupon `REPGET_GV129_M` (EUR 170 off, named "REPGET (57% off)"; `REPGET_GV_M`, EUR 200 off, until 2026-11-24), so Checkout shows the discount line and charges EUR 129 on every payment, with no promotion-code box. The app reads the Stripe price first: on a Stripe price that is the row's own it adds no coupon, and at any other amount it refuses the checkout and tells staff. PayPal has no discount line; its plan is EUR 129. The launch-price coupons are named "REPGET (40% off)", which is what Checkout shows for Launch, Grow and Scale. `stripe:setup` makes the EUR 299 price (the EUR 99 one is deactivated), creates `REPGET_GV_M` and renames the existing coupons.
 
 On a database already selling catalog 2, with the usual backup first:
 
@@ -65,6 +65,10 @@ On a database already selling catalog 2, with the usual backup first:
 2. `npm run stripe:setup -- --live`: creates the "Grow + Visibility" product and its EUR 99 monthly price, and the six REPGET launch-price coupons (`LP40_...`).
 3. `PAYPAL_ENV=live npm run paypal:setup -- --live`: its PayPal plan (only the plan itself; no free-articles or offer plans). Optional: without it the bundle is card only.
 4. `npm run plans:activate`, then `npm run plans:activate -- --apply`: puts the bundle on sale. Until then the pricing page leaves its card out.
+
+**The move to EUR 129 (2026-11-24)**, after the deploy and a backup: `npm run stripe:setup -- --live` (the new coupon and the portal configuration for a change onto the bundle; the EUR 299 price stays), then `npm run db:seed` (the row to EUR 129; until then the app sells it at EUR 99 with the earlier coupon), then at once `PAYPAL_ENV=live npm run paypal:setup -- --live` (a new PayPal plan; the EUR 99 one is kept in history). Never add the bundle to the default Customer portal configuration: the portal would sell it at EUR 299.
+
+A Grow subscription, on the launch price too, changes to it in Billing: the difference is charged at once, and a move back to Grow or Scale brings the launch price back. Not from a yearly plan, and not during a free trial.
 
 ## The allowances of 2026-11-21 (in place, catalog 2)
 

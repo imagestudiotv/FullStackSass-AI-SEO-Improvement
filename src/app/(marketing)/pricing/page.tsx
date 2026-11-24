@@ -8,7 +8,7 @@ import { PricingView } from "./pricing-view";
 
 export const metadata = {
   title: "Pricing",
-  description: "Simple monthly pricing. Every plan includes everything; plans differ in how much we write for you and how many backlinks you get. Cancel any time.",
+  description: "Simple monthly pricing. Plans differ in how much we write for you, how many backlinks you get and whether RepGet promotes you. Cancel any time.",
   ...publicPageMetadata("/pricing"),
 };
 

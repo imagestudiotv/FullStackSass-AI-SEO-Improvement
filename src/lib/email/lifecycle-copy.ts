@@ -1153,7 +1153,7 @@ function parts(email: LifecycleEmail, locale: Locale): Parts {
         preheader: format(c.preheader, values),
         // The billing facts first: it stays an essential email about money.
         paragraphs: [format(c.body, values), c.growth],
-        // The blog post and the social mention are perks of the plans whose card lists them (Grow, Scale), not Launch.
+        // The blog post and the social mention are perks of the plans whose card lists them (Scale, Grow + Visibility), not Launch or Grow.
         facts: email.visibilityPerks ? [c.blogPost, c.social, c.backlink] : [c.backlink],
         closing: [c.cancel],
         button: { label: c.button, path: billing(email.websiteId) },

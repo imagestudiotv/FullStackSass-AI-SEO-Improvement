@@ -127,9 +127,9 @@ export function PricingView({
     terms: number(plan.keywordLimit),
   });
 
-  // The questions about the bundle only while it is on sale.
+  // The questions about the bundle, and answers that name it, only while it is on sale.
   const groups = t.faq.groups
-    .map((group) => ({ ...group, items: group.items.filter((item) => bundle || !item.q.includes("Grow + Visibility")) }))
+    .map((group) => ({ ...group, items: group.items.filter((item) => bundle || !`${item.q} ${item.a}`.includes("Grow + Visibility")) }))
     .filter((group) => group.items.length > 0);
   const questions = groups.reduce((sum, group) => sum + group.items.length, 0);
 
@@ -555,13 +555,13 @@ export function PricingView({
 }
 
 type CompareCopy = ReturnType<typeof pricingPageCopy>["compare"];
-type CellValue = { kind: "count"; n: number } | { kind: "text"; text: string } | { kind: "yes" } | { kind: "no" } | { kind: "included" } | { kind: "priority" };
+type CellValue = { kind: "count"; n: number } | { kind: "text"; text: string } | { kind: "yes" } | { kind: "no" } | { kind: "priority" };
 
 const count = (n: number): CellValue => ({ kind: "count", n });
 const YES: CellValue = { kind: "yes" };
 const NO: CellValue = { kind: "no" };
-/** Included on Grow, Priority on Scale, none on Launch: the visibility perks. */
-const perk = (tier: PricingTierId): CellValue => (tier === "launch" ? NO : tier === "grow" ? { kind: "included" } : { kind: "priority" });
+/** The visibility perks: Priority on Scale, none on Launch or Grow (client, 2026-11-24: with Grow they are sold as Grow + Visibility). */
+const perk = (tier: PricingTierId): CellValue => (tier === "scale" ? { kind: "priority" } : NO);
 const scaleOnly = (tier: PricingTierId): CellValue => (tier === "scale" ? YES : NO);
 
 /**
@@ -604,8 +604,6 @@ function cell(value: CellValue, t: CompareCopy, number: (n: number) => string): 
       return <span className={styles.yes}>✓</span>;
     case "no":
       return <span className={styles.no}>—</span>;
-    case "included":
-      return <span className={styles["compare-status"]}>{t.statusIncluded}</span>;
     case "priority":
       return <span className={c("compare-status compare-status-priority")}>{t.statusPriority}</span>;
   }

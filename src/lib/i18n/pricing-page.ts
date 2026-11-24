@@ -25,6 +25,7 @@ export type PricingPlanWords = {
   cta: string;
   includedLabel: string;
   features: string[];
+  /** The visibility perks: only Scale's, since 2026-11-24 (with Grow they are sold as Grow + Visibility, `bundle.bonuses`). */
   perks?: PerkItem[];
 };
 
@@ -91,7 +92,6 @@ export type PricingPageCopy = {
     channels: PerkItem;
     email: PerkItem;
     custom: string;
-    statusIncluded: string;
     statusPriority: string;
     usageNote: string;
   };
@@ -228,11 +228,6 @@ const en: PricingPageCopy = {
         "**AI Growth Copilot** with insights from your website data",
         "**AI Social Opportunities** to discover conversations and draft replies",
       ],
-      perks: [
-        { strong: "RepGet blog feature", small: "Introduce your business to blog readers" },
-        { strong: "Featured on RepGet social channels", small: "Reach RepGet's established social audience" },
-        { strong: "Email spotlight", small: "Promotion to RepGet's subscriber audience" },
-      ],
     },
     scale: {
       tag: "Maximum momentum",
@@ -276,7 +271,6 @@ const en: PricingPageCopy = {
     channels: { strong: "RepGet social channel feature", small: "Promotion through RepGet social channels" },
     email: { strong: "Email spotlight", small: "Promotion to RepGet's subscribers" },
     custom: "Custom feature requests",
-    statusIncluded: "Included",
     statusPriority: "Priority",
     usageNote:
       "AI Growth Copilot includes five free messages per day in the current workspace, with additional messages billed in credits. Some social publishing and engagement actions also use credits. Connected channels and supported actions may vary.",
@@ -399,15 +393,15 @@ const en: PricingPageCopy = {
         items: [
           {
             q: "Do Grow and Scale include promotional features?",
-            a: "Yes. Grow includes a RepGet blog feature, social-channel exposure and an email spotlight. Scale includes priority versions of these benefits.",
+            a: "Scale does: it includes priority versions of a RepGet blog feature, social-channel exposure and an email spotlight. Grow does not include them. To have them with the Grow plan, choose Grow + Visibility.",
           },
           {
             q: "What does priority promotion mean in Scale?",
-            a: "Scale gives promotional placements priority over standard Grow placements, subject to availability. Priority is not a guarantee of search rankings, traffic or conversions.",
+            a: "Scale gives promotional placements priority over standard placements, subject to availability. Priority is not a guarantee of search rankings, traffic or conversions.",
           },
           {
             q: "What is included in Grow + Visibility?",
-            a: "Grow + Visibility combines the standard Grow subscription with the featured promotion benefits shown above: a RepGet blog feature, social channel promotion and an email spotlight. Grow and Scale also offer these promotional features, with priority placements on Scale.",
+            a: "Grow + Visibility combines the standard Grow subscription with the featured promotion benefits shown above: a RepGet blog feature, social channel promotion and an email spotlight. Grow on its own does not include these promotional features; Scale includes priority versions of them.",
           },
           {
             q: "Does Grow + Visibility include the 3-day free trial?",
@@ -419,7 +413,7 @@ const en: PricingPageCopy = {
           },
           {
             q: "Are the promotional bonuses unlimited every month?",
-            a: "No. The promotional features are extras on top of the monthly Grow platform subscription, not unlimited posts, emails or guaranteed ranking results.",
+            a: "No. The promotional features are extras on top of the monthly platform subscription, not unlimited posts, emails or guaranteed ranking results.",
           },
         ],
       },
@@ -549,11 +543,6 @@ const es: PricingPageCopy = {
         "**AI Growth Copilot** con información a partir de los datos de su sitio",
         "**AI Social Opportunities** para descubrir conversaciones y redactar respuestas",
       ],
-      perks: [
-        { strong: "Artículo en el blog de RepGet", small: "Presente su negocio a los lectores del blog" },
-        { strong: "Presencia en las redes sociales de RepGet", small: "Llegue a la audiencia social consolidada de RepGet" },
-        { strong: "Mención en nuestro correo", small: "Promoción ante los suscriptores de RepGet" },
-      ],
     },
     scale: {
       tag: "Máximo impulso",
@@ -597,7 +586,6 @@ const es: PricingPageCopy = {
     channels: { strong: "Presencia en las redes sociales de RepGet", small: "Promoción en los canales sociales de RepGet" },
     email: { strong: "Mención en nuestro correo", small: "Promoción ante los suscriptores de RepGet" },
     custom: "Solicitudes de funciones a medida",
-    statusIncluded: "Incluido",
     statusPriority: "Prioridad",
     usageNote:
       "AI Growth Copilot incluye cinco mensajes gratuitos al día en el espacio de trabajo actual; los mensajes adicionales se cobran en créditos. Algunas acciones de publicación e interacción en redes también usan créditos. Los canales conectados y las acciones disponibles pueden variar.",
@@ -720,15 +708,15 @@ const es: PricingPageCopy = {
         items: [
           {
             q: "¿Grow y Scale incluyen funciones promocionales?",
-            a: "Sí. Grow incluye un artículo en el blog de RepGet, presencia en las redes sociales y una mención en nuestro correo. Scale incluye versiones prioritarias de estas ventajas.",
+            a: "Scale sí: incluye versiones prioritarias de un artículo en el blog de RepGet, presencia en las redes sociales y una mención en nuestro correo. Grow no las incluye. Para tener estas ventajas con el plan Grow, elija Grow + Visibility.",
           },
           {
             q: "¿Qué significa la promoción prioritaria en Scale?",
-            a: "Scale da prioridad a sus colocaciones promocionales frente a las colocaciones estándar de Grow, según disponibilidad. La prioridad no garantiza posiciones en buscadores, tráfico ni conversiones.",
+            a: "Scale da prioridad a sus colocaciones promocionales frente a las colocaciones estándar, según disponibilidad. La prioridad no garantiza posiciones en buscadores, tráfico ni conversiones.",
           },
           {
             q: "¿Qué incluye Grow + Visibility?",
-            a: "Grow + Visibility combina la suscripción estándar a Grow con las ventajas de promoción destacada mostradas arriba: un artículo en el blog de RepGet, promoción en redes sociales y una mención en nuestro correo. Grow y Scale también ofrecen estas funciones promocionales, con colocaciones prioritarias en Scale.",
+            a: "Grow + Visibility combina la suscripción estándar a Grow con las ventajas de promoción destacada mostradas arriba: un artículo en el blog de RepGet, promoción en redes sociales y una mención en nuestro correo. Grow por sí solo no incluye estas funciones promocionales; Scale incluye versiones prioritarias de ellas.",
           },
           {
             q: "¿Grow + Visibility incluye la prueba gratuita de 3 días?",
@@ -740,7 +728,7 @@ const es: PricingPageCopy = {
           },
           {
             q: "¿Las ventajas promocionales son ilimitadas cada mes?",
-            a: "No. Las funciones promocionales son extras de la suscripción mensual a la plataforma Grow, no publicaciones ni correos ilimitados, ni resultados de posicionamiento garantizados.",
+            a: "No. Las funciones promocionales son extras de la suscripción mensual a la plataforma, no publicaciones ni correos ilimitados, ni resultados de posicionamiento garantizados.",
           },
         ],
       },
@@ -870,11 +858,6 @@ const fr: PricingPageCopy = {
         "**AI Growth Copilot** avec des analyses tirées des données de votre site",
         "**AI Social Opportunities** pour trouver des conversations et rédiger des réponses",
       ],
-      perks: [
-        { strong: "Article sur le blog RepGet", small: "Présentez votre entreprise aux lecteurs du blog" },
-        { strong: "Mise en avant sur les réseaux de RepGet", small: "Touchez l'audience sociale établie de RepGet" },
-        { strong: "Mise en avant par e-mail", small: "Promotion auprès des abonnés de RepGet" },
-      ],
     },
     scale: {
       tag: "Élan maximal",
@@ -918,7 +901,6 @@ const fr: PricingPageCopy = {
     channels: { strong: "Mise en avant sur les réseaux de RepGet", small: "Promotion via les réseaux sociaux de RepGet" },
     email: { strong: "Mise en avant par e-mail", small: "Promotion auprès des abonnés de RepGet" },
     custom: "Demandes de fonctionnalités sur mesure",
-    statusIncluded: "Inclus",
     statusPriority: "Prioritaire",
     usageNote:
       "AI Growth Copilot comprend cinq messages gratuits par jour dans l'espace de travail actuel ; les messages supplémentaires sont facturés en crédits. Certaines actions de publication et d'interaction sur les réseaux utilisent aussi des crédits. Les canaux connectés et les actions prises en charge peuvent varier.",
@@ -1041,15 +1023,15 @@ const fr: PricingPageCopy = {
         items: [
           {
             q: "Grow et Scale comprennent-elles des fonctions promotionnelles ?",
-            a: "Oui. Grow comprend un article sur le blog RepGet, une présence sur les réseaux sociaux et une mise en avant par e-mail. Scale comprend des versions prioritaires de ces avantages.",
+            a: "Scale, oui : cette formule comprend des versions prioritaires d'un article sur le blog RepGet, d'une présence sur les réseaux sociaux et d'une mise en avant par e-mail. Grow ne les comprend pas. Pour en bénéficier avec la formule Grow, choisissez Grow + Visibility.",
           },
           {
             q: "Que signifie la promotion prioritaire dans Scale ?",
-            a: "Scale donne à vos mises en avant la priorité sur celles de la formule Grow standard, selon les disponibilités. La priorité ne garantit ni positions dans les moteurs de recherche, ni trafic, ni conversions.",
+            a: "Scale donne à vos mises en avant la priorité sur les mises en avant standard, selon les disponibilités. La priorité ne garantit ni positions dans les moteurs de recherche, ni trafic, ni conversions.",
           },
           {
             q: "Que comprend Grow + Visibility ?",
-            a: "Grow + Visibility associe l'abonnement Grow standard aux avantages de promotion présentés ci-dessus : un article sur le blog RepGet, une promotion sur les réseaux sociaux et une mise en avant par e-mail. Grow et Scale proposent aussi ces fonctions promotionnelles, avec des mises en avant prioritaires pour Scale.",
+            a: "Grow + Visibility associe l'abonnement Grow standard aux avantages de promotion présentés ci-dessus : un article sur le blog RepGet, une promotion sur les réseaux sociaux et une mise en avant par e-mail. La formule Grow seule ne comprend pas ces fonctions promotionnelles ; Scale en comprend des versions prioritaires.",
           },
           {
             q: "Grow + Visibility comprend-elle l'essai gratuit de 3 jours ?",
@@ -1061,7 +1043,7 @@ const fr: PricingPageCopy = {
           },
           {
             q: "Les avantages promotionnels sont-ils illimités chaque mois ?",
-            a: "Non. Les fonctions promotionnelles sont des extras de l'abonnement mensuel à la plateforme Grow, et non des publications ou e-mails illimités ni des résultats de classement garantis.",
+            a: "Non. Les fonctions promotionnelles sont des extras de l'abonnement mensuel à la plateforme, et non des publications ou e-mails illimités ni des résultats de classement garantis.",
           },
         ],
       },
@@ -1191,11 +1173,6 @@ const it: PricingPageCopy = {
         "**AI Growth Copilot** con analisi basate sui dati del suo sito",
         "**AI Social Opportunities** per scoprire conversazioni e preparare risposte",
       ],
-      perks: [
-        { strong: "Articolo sul blog di RepGet", small: "Presenti la sua attività ai lettori del blog" },
-        { strong: "Presenza sui canali social di RepGet", small: "Raggiunga il pubblico social consolidato di RepGet" },
-        { strong: "Spazio nella nostra email", small: "Promozione presso gli iscritti di RepGet" },
-      ],
     },
     scale: {
       tag: "Massimo slancio",
@@ -1239,7 +1216,6 @@ const it: PricingPageCopy = {
     channels: { strong: "Presenza sui canali social di RepGet", small: "Promozione attraverso i canali social di RepGet" },
     email: { strong: "Spazio nella nostra email", small: "Promozione presso gli iscritti di RepGet" },
     custom: "Richieste di funzioni personalizzate",
-    statusIncluded: "Incluso",
     statusPriority: "Priorità",
     usageNote:
       "AI Growth Copilot include cinque messaggi gratuiti al giorno nello spazio di lavoro attuale; i messaggi aggiuntivi sono addebitati in crediti. Anche alcune azioni di pubblicazione e interazione sui social usano crediti. I canali collegati e le azioni disponibili possono variare.",
@@ -1362,15 +1338,15 @@ const it: PricingPageCopy = {
         items: [
           {
             q: "Grow e Scale includono funzioni promozionali?",
-            a: "Sì. Grow include un articolo sul blog di RepGet, visibilità sui canali social e uno spazio nella nostra email. Scale include versioni prioritarie di questi vantaggi.",
+            a: "Scale sì: include versioni prioritarie di un articolo sul blog di RepGet, della visibilità sui canali social e di uno spazio nella nostra email. Grow non include questi vantaggi. Per averli con il piano Grow, scelga Grow + Visibility.",
           },
           {
             q: "Che cosa significa promozione prioritaria in Scale?",
-            a: "Scale dà ai suoi collocamenti promozionali la priorità rispetto a quelli standard di Grow, secondo disponibilità. La priorità non garantisce posizioni nei risultati di ricerca, traffico o conversioni.",
+            a: "Scale dà ai suoi collocamenti promozionali la priorità rispetto a quelli standard, secondo disponibilità. La priorità non garantisce posizioni nei risultati di ricerca, traffico o conversioni.",
           },
           {
             q: "Che cosa include Grow + Visibility?",
-            a: "Grow + Visibility unisce l'abbonamento Grow standard ai vantaggi di promozione in evidenza illustrati sopra: un articolo sul blog di RepGet, promozione sui canali social e uno spazio nella nostra email. Anche Grow e Scale offrono queste funzioni promozionali, con collocamenti prioritari per Scale.",
+            a: "Grow + Visibility unisce l'abbonamento Grow standard ai vantaggi di promozione in evidenza illustrati sopra: un articolo sul blog di RepGet, promozione sui canali social e uno spazio nella nostra email. Grow da solo non include queste funzioni promozionali; Scale ne include versioni prioritarie.",
           },
           {
             q: "Grow + Visibility include la prova gratuita di 3 giorni?",
@@ -1382,7 +1358,7 @@ const it: PricingPageCopy = {
           },
           {
             q: "I vantaggi promozionali sono illimitati ogni mese?",
-            a: "No. Le funzioni promozionali sono extra in aggiunta all'abbonamento mensile alla piattaforma Grow, non post o email illimitati né risultati di posizionamento garantiti.",
+            a: "No. Le funzioni promozionali sono extra in aggiunta all'abbonamento mensile alla piattaforma, non post o email illimitati né risultati di posizionamento garantiti.",
           },
         ],
       },
@@ -1512,11 +1488,6 @@ const de: PricingPageCopy = {
         "**AI Growth Copilot** mit Erkenntnissen aus Ihren Website-Daten",
         "**AI Social Opportunities**, um Gespräche zu finden und Antworten zu entwerfen",
       ],
-      perks: [
-        { strong: "Beitrag im RepGet-Blog", small: "Stellen Sie Ihr Unternehmen den Blog-Lesern vor" },
-        { strong: "Präsentiert auf den Social-Media-Kanälen von RepGet", small: "Erreichen Sie die etablierte Social-Media-Zielgruppe von RepGet" },
-        { strong: "E-Mail-Spotlight", small: "Werbung bei den Abonnenten von RepGet" },
-      ],
     },
     scale: {
       tag: "Maximaler Schwung",
@@ -1560,7 +1531,6 @@ const de: PricingPageCopy = {
     channels: { strong: "Präsentation auf den RepGet-Kanälen", small: "Werbung über die Social-Media-Kanäle von RepGet" },
     email: { strong: "E-Mail-Spotlight", small: "Werbung bei den Abonnenten von RepGet" },
     custom: "Individuelle Funktionswünsche",
-    statusIncluded: "Enthalten",
     statusPriority: "Priorität",
     usageNote:
       "AI Growth Copilot enthält fünf kostenlose Nachrichten pro Tag im aktuellen Arbeitsbereich; weitere Nachrichten werden in Credits berechnet. Einige Veröffentlichungs- und Interaktionsaktionen in sozialen Netzwerken verbrauchen ebenfalls Credits. Verbundene Kanäle und unterstützte Aktionen können variieren.",
@@ -1683,15 +1653,15 @@ const de: PricingPageCopy = {
         items: [
           {
             q: "Enthalten Grow und Scale Werbefunktionen?",
-            a: "Ja. Grow umfasst einen Beitrag im RepGet-Blog, Präsenz auf den Social-Media-Kanälen und ein E-Mail-Spotlight. Scale umfasst bevorzugte Versionen dieser Vorteile.",
+            a: "Scale ja: Der Tarif umfasst bevorzugte Versionen eines Beitrags im RepGet-Blog, der Präsenz auf den Social-Media-Kanälen und eines E-Mail-Spotlights. Grow enthält diese Vorteile nicht. Wenn Sie sie zusammen mit dem Grow-Tarif möchten, wählen Sie Grow + Visibility.",
           },
           {
             q: "Was bedeutet bevorzugte Werbung bei Scale?",
-            a: "Scale gibt Ihren Werbeplatzierungen Vorrang vor den Standardplatzierungen von Grow, je nach Verfügbarkeit. Priorität ist keine Garantie für Suchplatzierungen, Traffic oder Conversions.",
+            a: "Scale gibt Ihren Werbeplatzierungen Vorrang vor Standardplatzierungen, je nach Verfügbarkeit. Priorität ist keine Garantie für Suchplatzierungen, Traffic oder Conversions.",
           },
           {
             q: "Was ist in Grow + Visibility enthalten?",
-            a: "Grow + Visibility verbindet das Standard-Abonnement Grow mit den oben gezeigten Werbevorteilen: einem Beitrag im RepGet-Blog, Werbung auf den Social-Media-Kanälen und einem E-Mail-Spotlight. Auch Grow und Scale bieten diese Werbefunktionen, bei Scale mit bevorzugten Platzierungen.",
+            a: "Grow + Visibility verbindet das Standard-Abonnement Grow mit den oben gezeigten Werbevorteilen: einem Beitrag im RepGet-Blog, Werbung auf den Social-Media-Kanälen und einem E-Mail-Spotlight. Grow allein enthält diese Werbefunktionen nicht; Scale enthält bevorzugte Versionen davon.",
           },
           {
             q: "Enthält Grow + Visibility die 3-tägige kostenlose Testphase?",
@@ -1703,7 +1673,7 @@ const de: PricingPageCopy = {
           },
           {
             q: "Sind die Werbevorteile jeden Monat unbegrenzt?",
-            a: "Nein. Die Werbefunktionen sind Extras zum monatlichen Abonnement der Grow-Plattform, keine unbegrenzten Beiträge oder E-Mails und keine garantierten Platzierungen.",
+            a: "Nein. Die Werbefunktionen sind Extras zum monatlichen Abonnement der Plattform, keine unbegrenzten Beiträge oder E-Mails und keine garantierten Platzierungen.",
           },
         ],
       },

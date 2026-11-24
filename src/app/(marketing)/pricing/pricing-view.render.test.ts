@@ -147,7 +147,8 @@ describe("the pricing page", () => {
     expect(html).not.toContain("ON THE FULL BUNDLE");
     expect(html).not.toContain("grow_visibility");
     expect(html).not.toContain("Grow + Visibility");
-    expect(html).toContain("24 answers to explore");
+    // The two bundle questions, and the answer that sends a Grow reader to it.
+    expect(html).toContain("23 answers to explore");
   });
 
   it("without the REPGET offer, no discount is claimed", () => {
@@ -225,10 +226,59 @@ describe("no unverified claims (2026-11-19)", () => {
       const html = render({ locale });
       expect(html, locale).not.toMatch(/40K|DR ?-?60|24\/7|24 ?h\/24|rund um die Uhr/);
       expect(html, locale).not.toMatch(/promotion terms|offer terms|campaign terms|condiciones de (promoción|la oferta|campaña)|conditions (de promotion|de l&#x27;offre|de campagne)|condizioni (di promozione|dell&#x27;offerta|di campagna)|Werbebedingungen|Angebotsbedingungen|Kampagnenbedingungen/);
-      // The perks stay listed: Grow, Scale and the bundle are sold with them.
-      expect(html, locale).toContain(esc(pricingPageCopy(locale).plans.grow.perks![0].strong));
+      // The perks stay listed: Scale and the bundle are sold with them.
       expect(html, locale).toContain(esc(pricingPageCopy(locale).plans.scale.perks![0].strong));
       expect(html, locale).toContain(esc(pricingPageCopy(locale).bundle.bonuses[0].strong));
+    }
+  });
+});
+
+describe("the visibility perks (client, 2026-11-24): Grow + Visibility and Scale only", () => {
+  it("are not on Grow's card, which has no empty block for them, and stay on Scale's", () => {
+    for (const locale of LOCALES) {
+      const t = pricingPageCopy(locale);
+      const html = render({ locale });
+      const card = (name: string) => html.slice(html.indexOf(`<h2>${name}</h2>`), html.indexOf("</article>", html.indexOf(`<h2>${name}</h2>`)));
+      expect(t.plans.grow.perks, locale).toBeUndefined();
+      expect(card("Grow"), locale).not.toContain("plan-visibility");
+      expect(card("Grow"), locale).not.toContain(esc(t.card.perksTitle));
+      // It ends with the link to the comparison, as every card does, and keeps the backlinks.
+      expect(card("Grow"), locale).toContain("plan-more");
+      expect(card("Grow"), locale).toMatch(/backlink/i);
+      for (const perk of t.plans.scale.perks!) expect(card("Scale"), locale).toContain(esc(perk.strong));
+      expect(card("Scale"), locale).toContain(t.card.priority);
+      expect(t.bundle.bonuses, locale).toHaveLength(3);
+    }
+  });
+
+  it("are a dash for Grow and Priority for Scale in the comparison, where Grow keeps the backlink network", () => {
+    for (const locale of LOCALES) {
+      const t = pricingPageCopy(locale);
+      const html = render({ locale });
+      const table = html.slice(html.indexOf('id="compare"'));
+      const cells = (label: string) => {
+        const at = table.indexOf(esc(label));
+        expect(at, `${locale} ${label}`).toBeGreaterThan(0);
+        const row = table.slice(at, table.indexOf("</tr>", at));
+        return [...row.matchAll(/<td[^>]*>(.*?)<\/td>/g)].map((m) => m[1].replace(/<[^>]+>/g, "")).slice(-3);
+      };
+      for (const label of [t.compare.blog.strong, t.compare.channels.strong, t.compare.email.strong]) {
+        expect(cells(label), `${locale} ${label}`).toEqual(["\u2014", "\u2014", esc(t.compare.statusPriority)]);
+      }
+      expect(cells(t.compare.backlinks), locale).toEqual(["\u2014", "✓", "✓"]);
+    }
+  });
+
+  it("the FAQ says so in every language: never that Grow has them, always where they are", () => {
+    for (const locale of LOCALES) {
+      const items = pricingPageCopy(locale).faq.groups.at(-1)!.items;
+      const [which, priority, bundle] = items;
+      expect(which.a, locale).toContain("Grow + Visibility");
+      expect(which.a, locale).toMatch(/Grow (does not include|no las incluye|ne les comprend pas|non include|enthält diese Vorteile nicht)/);
+      expect(priority.a, locale).not.toContain("Grow");
+      expect(bundle.q, locale).toContain("Grow + Visibility");
+      expect(bundle.a, locale).toMatch(/Grow (on its own does not|por sí solo no|seule ne|da solo non|allein enthält)/);
+      for (const item of items) expect(item.a, locale).not.toMatch(/[\u2013\u2014]/);
     }
   });
 });

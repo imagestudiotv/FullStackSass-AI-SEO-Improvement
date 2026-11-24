@@ -3690,7 +3690,7 @@ const en: Messages = {
   },
   pricing: {
     title: "Simple pricing",
-    metaDescription: "Simple monthly pricing. Every plan includes everything; plans differ in how much we write for you and how many backlinks you get. Cancel any time.",
+    metaDescription: "Simple monthly pricing. Plans differ in how much we write for you, how many backlinks you get and whether RepGet promotes you. Cancel any time.",
     subtitle:
       "Everything is included in every plan. The difference is how much we write for you each month - and how many backlinks you get from our partner network.",
     perMonth: " / month",
@@ -6875,7 +6875,7 @@ const es: Messages = {
   },
   pricing: {
     title: "Precios sencillos",
-    metaDescription: "Todo está incluido en cada plan. La diferencia es cuánto escribimos para usted cada mes y cuántos backlinks recibe de nuestra red de socios.",
+    metaDescription: "Los planes se diferencian en cuánto escribimos para usted cada mes, cuántos backlinks recibe y si RepGet promociona su negocio. Cancele cuando quiera.",
     subtitle:
       "Todo está incluido en cada plan. La diferencia es cuánto escribimos para usted cada mes y cuántos backlinks recibe de nuestra red de socios.",
     perMonth: " / mes",
@@ -10064,7 +10064,7 @@ const fr: Messages = {
   },
   pricing: {
     title: "Des tarifs simples",
-    metaDescription: "Tout est inclus dans chaque formule. Seuls changent le volume rédigé pour vous chaque mois et le nombre de backlinks reçus de notre réseau de partenaires.",
+    metaDescription: "Les formules diffèrent par le volume rédigé pour vous chaque mois, le nombre de backlinks reçus et la promotion de votre entreprise par RepGet.",
     subtitle:
       "Tout est inclus dans chaque formule. La différence tient à ce que nous rédigeons pour vous chaque mois, et au nombre de backlinks que vous recevez de notre réseau de partenaires.",
     perMonth: " / mois",
@@ -13253,7 +13253,7 @@ const it: Messages = {
   },
   pricing: {
     title: "Prezzi semplici",
-    metaDescription: "Ogni piano include tutto. La differenza è quanto scriviamo per lei ogni mese e quanti backlink riceve dalla nostra rete di partner.",
+    metaDescription: "I piani si distinguono per quanto scriviamo per lei ogni mese, quanti backlink riceve e se RepGet promuove la sua attività. Può disdire quando vuole.",
     subtitle:
       "Ogni piano include tutto. La differenza è quanto scriviamo per lei ogni mese e quanti backlink riceve dalla nostra rete di partner.",
     perMonth: " / mese",
@@ -16436,7 +16436,7 @@ const de: Messages = {
   },
   pricing: {
     title: "Einfache Preise",
-    metaDescription: "In jedem Tarif ist alles enthalten. Der Unterschied: wie viel wir monatlich für Sie schreiben und wie viele Backlinks Sie aus dem Partnernetzwerk erhalten.",
+    metaDescription: "Die Tarife unterscheiden sich darin, wie viel wir monatlich für Sie schreiben, wie viele Backlinks Sie erhalten und ob RepGet für Sie wirbt.",
     subtitle:
       "In jedem Tarif ist alles enthalten. Der Unterschied liegt darin, wie viel wir jeden Monat für Sie schreiben und wie viele Backlinks Sie aus unserem Partnernetzwerk erhalten.",
     perMonth: " / Monat",
