@@ -1,6 +1,19 @@
 import { describe, expect, it } from "vitest";
 
-import { matches, nextScheduled, stageOf, tabCounts, visibleRows, whereOf, type SuggestionView } from "./opportunities";
+import {
+  customerStatus,
+  discussionUrl,
+  groupRows,
+  matches,
+  nextScheduled,
+  openAction,
+  postedLink,
+  stageOf,
+  tabCounts,
+  visibleRows,
+  whereOf,
+  type SuggestionView,
+} from "./opportunities";
 
 /**
  * The Opportunities page's list (client's design, 2026-11-03): the stage of
@@ -61,16 +74,21 @@ describe("the list", () => {
     expect(visibleRows(all, { tab: "all", platform: "all", query: "", sort: "recommended" })).toEqual([failed, sooner, later, fresh, draft, posted]);
   });
 
-  it("sorts newest first and by platform", () => {
+  it("sorts newest first", () => {
     expect(visibleRows(all, { tab: "all", platform: "all", query: "", sort: "newest" })[0]).toBe(posted);
-    expect(visibleRows(all, { tab: "all", platform: "all", query: "", sort: "platform" }).map((r) => r.platform)).toEqual([
-      "reddit",
-      "reddit",
-      "reddit",
-      "quora",
-      "x",
-      "bluesky",
+  });
+
+  it("goes in one group per platform, in the platforms' order, an empty one only while nothing is filtered out", () => {
+    const rows = visibleRows(all, { tab: "all", platform: "all", query: "", sort: "recommended" });
+    expect(groupRows(rows, { keepEmpty: true }).map((group) => [group.platform, group.rows.length, group.fresh])).toEqual([
+      ["reddit", 3, 0],
+      ["quora", 1, 1],
+      ["x", 1, 0],
+      ["threads", 0, 0],
+      ["pinterest", 0, 0],
+      ["bluesky", 1, 0],
     ]);
+    expect(groupRows([fresh], { keepEmpty: false }).map((group) => group.platform)).toEqual(["quora"]);
   });
 
   it("filters by tab, platform and search", () => {
@@ -83,6 +101,46 @@ describe("the list", () => {
   it("puts the soonest scheduled post next", () => {
     expect(nextScheduled(all)).toBe(sooner);
     expect(nextScheduled([fresh, posted])).toBeNull();
+  });
+});
+
+describe("what a customer is told about a post that did not go out", () => {
+  it("is only what they can do something about: the provider's words stay on the server", () => {
+    for (const error of ["bundle.social POST /post/ failed (403): Monthly post limit reached. Limit for this month is 20 posts.", "Duplicate content", null]) {
+      expect(customerStatus({ status: "failed", error })).toEqual({ status: "new", error: null });
+    }
+    expect(customerStatus({ status: "failed", error: "not_enough_credits" })).toEqual({ status: "failed", error: "not_enough_credits" });
+    expect(customerStatus({ status: "failed", error: "free_posts_used" })).toEqual({ status: "failed", error: "free_posts_used" });
+    // Never as posted, and a draft kept from a refused post loses the provider's words too.
+    expect(customerStatus({ status: "draft", error: "Duplicate content" })).toEqual({ status: "draft", error: null });
+    expect(customerStatus({ status: "posted", error: null })).toEqual({ status: "posted", error: null });
+  });
+});
+
+describe("the button that opens the real place", () => {
+  it("is on everything the customer may post, whatever its stage", () => {
+    for (const status of ["new", "draft", "failed", "scheduled"]) {
+      expect(openAction(row({ status }), true)).toEqual({ kind: "post" });
+      expect(openAction(row({ status, kind: "post", threadUrl: null }), true)).toEqual({ kind: "post" });
+    }
+    // Posted, with no address from the platform: the discussion, or the own post again (free).
+    expect(openAction(row({ status: "posted" }), true)).toEqual({ kind: "link", href: "https://www.reddit.com/r/photography/comments/abc123/", published: false });
+    expect(openAction(row({ status: "posted", kind: "post", threadUrl: null }), true)).toEqual({ kind: "post" });
+    expect(openAction(row({ status: "posted", postedUrl: "https://www.reddit.com/user/me/comments/x/" }), true)).toMatchObject({ kind: "link", published: true });
+    // Being handed over right now: it would go out twice.
+    expect(openAction(row({ status: "posting", kind: "post", threadUrl: null }), true)).toBeNull();
+  });
+
+  it("only opens the discussion for a viewer", () => {
+    expect(openAction(row(), false)).toMatchObject({ kind: "link", published: false });
+    expect(openAction(row({ kind: "post", threadUrl: null }), false)).toBeNull();
+  });
+
+  it("never opens anything but the platform's own discussion or an https post", () => {
+    for (const threadUrl of ["javascript:alert(1)", "https://evil.example/r/a/comments/abc123/", "https://www.reddit.com/user/me/"]) {
+      expect(discussionUrl(row({ threadUrl }))).toBeNull();
+    }
+    for (const postedUrl of ["javascript:alert(1)", "http://x.com/a", "https://user:pass@x.com/a", "nonsense"]) expect(postedLink({ postedUrl })).toBeNull();
   });
 });
 

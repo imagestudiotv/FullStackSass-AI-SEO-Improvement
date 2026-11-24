@@ -4,7 +4,7 @@
  * Every checkout used to send them to /billing regardless of where they
  * started. For someone part-way through setup that is the wrong place twice
  * over: they are dropped into the dashboard's billing screen — the sidebar,
- * the whole app — when they were three steps into a guided flow that
+ * the whole app — when they were part-way through a guided flow that
  * deliberately hides all of it, and the flow itself just stops with no sign
  * of what to do next.
  *
@@ -20,11 +20,13 @@
 /**
  * Where the customer was when they started paying.
  *
- * "growth-plan" (Daniel, 2026-11-21): the public growth plan flow
- * (/growth-plan), which ends in its own billing step. Paying there goes
- * straight to the dashboard, not into the onboarding steps after the plan
- * (Connect Google, AI visibility, the content plan): those wait on the
- * Tasks page instead (lib/tasks/tasks.ts ONBOARDING_STEP_TASKS).
+ * "onboarding" (the plan step) and "growth-plan" (the public growth plan
+ * flow, which ends in its own billing step) both start a website's plan, and
+ * both go straight to the dashboard: onboarding ends at the plan (Daniel,
+ * 2026-11-21 for the growth plan, 2026-11-24 for everyone). What the steps
+ * after it used to ask for - Connect Google, AI visibility, the content plan -
+ * waits on the Tasks page (lib/tasks/tasks.ts ONBOARDING_STEP_TASKS).
+ * "billing" is an existing customer's Billing page.
  */
 export type CheckoutOrigin = "onboarding" | "billing" | "growth-plan";
 
@@ -33,12 +35,11 @@ export function isCheckoutOrigin(value: unknown): value is CheckoutOrigin {
 }
 
 /**
- * The dashboard for the website the growth plan set up, saying it was just
- * started (`welcome=1`: the dashboard's note pointing to Tasks). Where the
- * growth plan sends someone who started Free, or whose website already had a
- * plan: nothing to wait for.
+ * The dashboard for a website whose plan has just started, saying so
+ * (`welcome=1`: the dashboard's note pointing to Tasks). Where someone goes who
+ * started Free, or whose plan is already in place: nothing to wait for.
  */
-export function growthPlanDashboardPath(websiteId: string): string {
+export function startedDashboardPath(websiteId: string): string {
   return `/dashboard?site=${encodeURIComponent(websiteId)}&welcome=1`;
 }
 
@@ -57,15 +58,18 @@ export function readCheckoutReturn(params: Record<string, string | string[] | un
 /**
  * The path to come back to, by origin and outcome.
  *
- * Onboarding returns to /onboarding/plan rather than jumping ahead to the
- * next step. That page already forwards a paid customer onward, so the
- * forward happens in ONE place — and it is the place that reads real
- * subscription state rather than trusting a success redirect. Stripe's
- * success_url fires as soon as the browser is sent back; the subscription is
- * only real once the webhook has been processed, which may be a moment later.
- * Landing on a page that checks, rather than one that assumes, means a
- * customer who arrives early sees the plan step again for a second instead of
- * a broken screen further on.
+ * A plan that was paid for returns to the DASHBOARD for that website, which
+ * reads real subscription state rather than trusting a success redirect:
+ * Stripe's success_url fires as soon as the browser is sent back, while the
+ * subscription is only real once the webhook has been processed, a moment
+ * later. Until then the dashboard shows the waiting screen
+ * (lib/dashboard/checkout-wait.ts), so a customer who arrives early is never
+ * asked to pay again.
+ *
+ * A checkout walked away from returns to the plan step for that website,
+ * which releases an abandoned PayPal approval and offers the plans again (the
+ * growth plan's own page needs the address typed on the homepage, which this
+ * return does not carry).
  */
 export function checkoutReturnPath(
   origin: CheckoutOrigin,
@@ -84,19 +88,9 @@ export function checkoutReturnPath(
 ): string {
   const key = provider === "paypal" ? "paypal" : "checkout";
   const site = websiteId ? `&site=${websiteId}` : "";
-  /*
-    The growth plan. Paid: the dashboard for the website just paid for,
-    which waits there for the webhook (the dashboard page's checkout wait)
-    rather than trusting this redirect. Walked away: the onboarding plan
-    screen for that website, which releases an abandoned PayPal approval and
-    offers the plans again - the growth plan's own page needs the address
-    typed on the homepage, which this return does not carry.
-  */
-  if (origin === "growth-plan") {
-    return outcome === "success" ? `/dashboard?${key}=success${site}` : `/onboarding/plan?${key}=cancelled${site}`;
-  }
-  if (origin === "onboarding") {
-    return `/onboarding/plan?${key}=${outcome}${site}`;
+  if (origin === "growth-plan" || origin === "onboarding") {
+    // Without a website the dashboard has nothing to wait for: the plan step waits instead.
+    return outcome === "success" && websiteId ? `/dashboard?${key}=success${site}` : `/onboarding/plan?${key}=${outcome}${site}`;
   }
   /*
     PayPal's billing return names the website too: the page settles the

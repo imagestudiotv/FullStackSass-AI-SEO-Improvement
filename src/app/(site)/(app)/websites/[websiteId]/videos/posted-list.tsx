@@ -1,6 +1,6 @@
 "use client";
 
-import { Clapperboard, ExternalLink, Loader2, Send, Sparkles } from "lucide-react";
+import { Clapperboard, ExternalLink, Loader2, Send, Sparkles, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,14 +9,15 @@ import { format, formatDate, formatNumber } from "@/lib/i18n/format";
 import { isVideoPlatform } from "@/lib/video/formats";
 import { unscheduleVideoIdea } from "@/lib/video/publish-actions";
 
-import { DestinationChips, EmptyState, errorNote, platformName, type IdeaView, type OpenPublish, type Run, type T, type Tab } from "./shared";
+import { DeleteDialog, SelectBar, SelectBox, useDeletion } from "./delete-videos";
+import { EmptyState, platformName, type IdeaView, type OpenPublish, type Run, type T, type Tab } from "./shared";
 
 /**
  * Posted: what is scheduled (with Unschedule), on its way, or out - where
  * each video is and its numbers; LinkedIn and X like the others, posts the
- * customer made by hand (marked in the publishing window) said so, and any
- * destination that failed or was skipped. Publish opens the publishing
- * window again, for the platforms it is not on yet.
+ * customer made by hand (marked in the publishing window) said so. A platform
+ * it did not reach is simply not listed: Publish opens the publishing window
+ * again, for the ones it is not on yet. Delete takes it off RepGet only.
  */
 export function PostedList(props: {
   websiteId: string;
@@ -29,7 +30,9 @@ export function PostedList(props: {
   t: T;
   onTab: (tab: Tab) => void;
 }) {
-  const { posted, locale, t, onTab } = props;
+  const { locale, t, onTab } = props;
+  const deletion = useDeletion({ websiteId: props.websiteId, ideas: props.posted, t });
+  const posted = deletion.left;
   if (posted.length === 0) {
     return (
       <EmptyState icon={<Clapperboard className="size-6" aria-hidden="true" />} title={t.noPosted} body={t.noVideosBody}>
@@ -45,15 +48,20 @@ export function PostedList(props: {
   }
   return (
     <div className="space-y-3">
+      {props.canEdit ? (
+        <div className="flex justify-end">
+          <SelectBar deletion={deletion} shown={posted} t={t} />
+        </div>
+      ) : null}
       {posted.map((idea) => {
-        // The destinations that did not post (failed, skipped) are told apart from the posted ones below.
-        const notPosted = Object.fromEntries(Object.entries(idea.destinations).filter(([, state]) => state.status !== "posted" && state.status !== "scheduled"));
-        // Where it is: its platforms and any destination marked posted by hand.
-        const shown = [...new Set([...idea.platforms, ...Object.keys(idea.destinations).filter((platform) => idea.destinations[platform]?.status === "posted")])].filter(isVideoPlatform);
+        // Where it is or goes: its destinations (posted, on their way, scheduled) and links; its platforms where neither was kept yet.
+        const known = [...new Set([...Object.keys(idea.destinations), ...Object.keys(idea.postedUrls)])];
+        const shown = (known.length > 0 ? known : idea.platforms).filter(isVideoPlatform);
         const files = Boolean(idea.videoUrl || idea.slideUrls.length > 0);
         const scheduled = idea.status === "scheduled";
         return (
           <div key={idea.id} className="flex flex-col gap-3 rounded-2xl border bg-card p-4 sm:flex-row sm:items-center">
+            <SelectBox idea={idea} deletion={deletion} t={t} className="shrink-0" />
             <div className="min-w-0 flex-1 space-y-1">
               <div className="flex flex-wrap items-center gap-2">
                 <p className="font-medium">{idea.title}</p>
@@ -71,8 +79,6 @@ export function PostedList(props: {
                     ? `${formatDate(idea.postedAt, locale, { dateStyle: "medium", timeStyle: "short" })} · ${format(t.totalViews, { count: formatNumber(idea.views, locale) })}`
                     : ""}
               </p>
-              {idea.error ? <p className="text-xs text-destructive">{errorNote(t, idea.error)}</p> : null}
-              <DestinationChips destinations={notPosted} t={t} />
               {props.canEdit ? (
                 <div className="flex flex-wrap gap-2 pt-1">
                   {files && idea.status !== "posting" ? (
@@ -86,19 +92,29 @@ export function PostedList(props: {
                       {t.unschedule}
                     </Button>
                   ) : null}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    aria-label={format(t.flow.library.remove.buttonFor, { title: idea.title })}
+                    className="text-muted-foreground hover:text-destructive"
+                    onClick={() => deletion.ask([idea])}
+                  >
+                    <Trash2 aria-hidden="true" />
+                    {t.flow.library.remove.button}
+                  </Button>
                 </div>
               ) : null}
             </div>
             <div className="flex flex-wrap gap-2">
               {shown.map((platform) => {
                 const state = idea.destinations[platform];
-                if (state && state.status !== "posted" && state.status !== "scheduled") return null;
                 const stats = idea.stats[platform];
                 const url = idea.postedUrls[platform] || state?.url || null;
                 return (
                   <div key={platform} className="rounded-xl border px-3 py-2 text-xs">
                     <div className="flex items-center gap-1 font-medium">
                       {platformName(platform)}
+                      {state?.status === "posting" ? <Loader2 className="size-3 animate-spin text-muted-foreground" aria-label={t.status.posting} /> : null}
                       {state?.status === "scheduled" ? <span className="font-normal text-muted-foreground">· {t.viral.destinations.status.scheduled}</span> : null}
                       {state?.manual ? <span className="font-normal text-muted-foreground">· {t.flow.posted.manual}</span> : null}
                       {url ? (
@@ -127,6 +143,7 @@ export function PostedList(props: {
           </div>
         );
       })}
+      <DeleteDialog deletion={deletion} t={t} />
     </div>
   );
 }

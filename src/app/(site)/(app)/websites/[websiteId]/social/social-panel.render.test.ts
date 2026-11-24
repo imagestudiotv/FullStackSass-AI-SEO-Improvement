@@ -4,14 +4,16 @@ import { describe, expect, it, vi } from "vitest";
 
 import { LOCALES } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
+import { OPPORTUNITIES_COPY } from "@/lib/i18n/opportunities";
 import { SOCIAL_CONNECTIONS_COPY } from "@/lib/i18n/social-connections";
 
 /**
  * The Opportunities page's first render (client's design, 2026-11-03): the
  * "Social connections" panel (client's design, 2026-11-11), the tabs with
- * their counts, the next post RepGet publishes, a failed post with its
- * reason, and a trial's locked platforms - in every language, with no
- * placeholder left unfilled. What a click does is covered by the actions'
+ * their counts, the next post RepGet publishes, one row per platform with a
+ * button on each opportunity (Daniel, 2026-11-24), no provider error anywhere,
+ * and a trial's locked platforms - in every language, with no placeholder left
+ * unfilled. What a click does is covered by the actions'
  * tests (lib/social/social.test.ts).
  */
 
@@ -68,16 +70,17 @@ function render(over: Partial<Props> = {}, locale: (typeof LOCALES)[number] = "e
     platforms: ["reddit", "quora", "x", "threads", "pinterest", "bluesky"],
     bundle: true,
     accounts: [
-      { platform: "quora", username: "jane", connected: false, autoPost: false, warmupEndsAt: "2026-10-01T00:00:00Z", inWarmup: false, pausedReason: null, target: null },
-      { platform: "x", username: "jane_x", connected: true, autoPost: true, warmupEndsAt: "2026-10-01T00:00:00Z", inWarmup: false, pausedReason: "rate limited", target: null },
+      { platform: "quora", username: "jane", connected: false, autoPost: false, warmupEndsAt: "2026-10-01T00:00:00Z", inWarmup: false, paused: false, target: null },
+      { platform: "x", username: "jane_x", connected: true, autoPost: true, warmupEndsAt: "2026-10-01T00:00:00Z", inWarmup: false, paused: true, target: null },
     ],
     open: [
       row(),
       row({ status: "draft", body: "My own words." }),
       row({ platform: "x", kind: "post", status: "scheduled", threadUrl: null, threadTitle: null, body: "Shade beats golden hour.", scheduledFor: "2030-01-07T14:23:00Z" }),
-      row({ platform: "x", kind: "post", status: "failed", threadUrl: null, threadTitle: null, body: "Refused one.", error: "duplicate content" }),
+      row({ platform: "x", kind: "post", status: "failed", threadUrl: null, threadTitle: null, body: "Refused one.", error: "not_enough_credits" }),
     ],
     posted: [row({ status: "posted", postedAt: new Date().toISOString(), postedUrl: "https://www.quora.com/answer/1" })],
+    analysed: true,
     todayCount: 4,
     perDay: 10,
     priceLabel: "1 credit",
@@ -102,7 +105,7 @@ describe("the Social connections panel", () => {
   it("counts the connected accounts and shows the six platforms, connected or ready to connect", () => {
     const html = render();
     expect(html).toContain("Social connections");
-    expect(html).toContain("Connect your channels to discover opportunities and manage your activity.");
+    expect(html).toContain("Suggestions work without an account. Connect a channel and RepGet can publish your own posts there.");
     expect(html).toContain("2 of 6 connected");
     expect(html).toMatch(/width:33\.33\d*%/);
     expect(html).toContain('id="social-connections"');
@@ -121,7 +124,7 @@ describe("the Social connections panel", () => {
     expect(reddit).toMatch(/<button[^>]*>Connect<\/button>/);
     expect(reddit).not.toContain("disabled");
 
-    expect(html).toContain("Disconnecting stops future activity on that channel.");
+    expect(html).toContain("Disconnecting stops automatic publishing on that channel.");
     expect(html).toContain("Account settings</button>");
     expect(html).not.toContain("Demo:");
     expect(html).not.toContain("Manage");
@@ -182,11 +185,10 @@ describe("the Opportunities page", () => {
     expect(html).toContain("Publish now");
   });
 
-  it("shows a failed post's reason and a retry, and a paused account without opening the settings", () => {
+  it("says nothing about a pause or a provider's error, and what to do about credits", () => {
     const html = render();
-    expect(html).toContain("Not published: duplicate content");
-    expect(html).toContain(">Retry<");
-    expect(html).toContain("Automatic posting is paused: X refused a post (rate limited)");
+    expect(html).not.toMatch(/Automatic posting is paused|Resume|Not published:(?! not enough credits)|bundle\.social/);
+    expect(html).toContain("Not published: not enough credits.");
   });
 
   it("gives a viewer nothing to post, skip or find", () => {
@@ -194,18 +196,86 @@ describe("the Opportunities page", () => {
     expect(html).not.toContain("Find suggestions");
     expect(html).not.toContain("Publish now");
     expect(html).not.toContain("Resume");
+    expect(html).not.toContain("Create on");
+    // The discussion itself can be opened; nothing is copied, posted or charged.
+    expect(html).toMatch(/<a [^>]*href="https:\/\/www\.quora\.com\/How-do-I-choose-a-wedding-photographer"[^>]*>Open on Quora/);
   });
 
-  it("asks a new website to connect an account, at the panel", () => {
+  it("lists every platform in one row: its name, count, connection, new and total, closed at first", () => {
+    const html = render();
+    expect(html).toContain("Showing 5 of 5 opportunities across 6 platforms");
+    const groups = [...html.matchAll(/<li[^>]*data-platform="(\w+)"[\s\S]*?<h3><button[^>]*aria-expanded="(\w+)"[^>]*aria-controls="([^"]+)"[^>]*>([\s\S]*?)<\/button><\/h3>/g)];
+    expect(groups.map(([, platform]) => platform)).toEqual(["reddit", "quora", "x", "threads", "pinterest", "bluesky"]);
+    expect(groups.every(([, , expanded]) => expanded === "false")).toBe(true);
+    const text = (platform: string) => groups.find(([, name]) => name === platform)![4].replace(/<svg[\s\S]*?<\/svg>/g, "").replace(/<[^>]+>/g, "|").replace(/\|+/g, "|");
+    expect(text("quora")).toBe("|Quora|3 opportunities · Connected|1 new|3 total|");
+    expect(text("x")).toBe("|X (Twitter)|2 opportunities · Connected|2 total|");
+    expect(text("threads")).toBe("|Threads|0 opportunities · Not connected|0 total|");
+    // The Bluesky mark is drawn (it was broken in the client's screenshot).
+    expect(groups.find(([, name]) => name === "bluesky")![4]).toMatch(/<svg[\s\S]*<path/);
+    for (const [, , , id] of groups) expect(html).toContain(`<div id="${id}" hidden=""`);
+  });
+
+  it("puts a button that opens the real place on every opportunity, with its price", () => {
+    const html = render({
+      accounts: [],
+      open: [
+        row({ platform: "reddit", threadUrl: "https://www.reddit.com/r/SaaS/comments/abc123/zero/", threadTitle: "We launched and got zero traffic" }),
+        row({ platform: "reddit", kind: "post", threadUrl: null, threadTitle: null, threadSnippet: null, title: "What is one fix?", body: "Ask them." }),
+        row({ platform: "reddit", kind: "post", status: "draft", threadUrl: null, threadTitle: null, title: "Kept", body: "Kept." }),
+        row({ platform: "x", kind: "post", status: "scheduled", threadUrl: null, threadTitle: null, body: "Scheduled one.", scheduledFor: "2030-01-07T14:23:00Z" }),
+        row({ platform: "x", kind: "post", status: "failed", threadUrl: null, threadTitle: null, body: "No credits.", error: "not_enough_credits" }),
+        row({ platform: "x", kind: "post", status: "posting", threadUrl: null, threadTitle: null, body: "On its way." }),
+      ],
+      posted: [],
+    });
+    expect(html.match(/>Open on Reddit<span[^>]*>· 1 credit<\/span>/g)).toHaveLength(1);
+    expect(html.match(/>Create on Reddit<span[^>]*>· 1 credit<\/span>/g)).toHaveLength(2);
+    // Not the one RepGet is handing over right now: it would go out twice.
+    expect(html.match(/>Create on X<span/g)).toHaveLength(2);
+    expect(html).toContain("Copies the text, opens Reddit and counts as posted. Costs 1 credit.");
+    expect(html).toContain("RepGet will then not publish it.");
+    expect(html).toContain(">Conversation</span>");
+    expect(html).toContain(">Suggested post</span>");
+    // The discussion is also one free click away.
+    expect(html).toContain('href="https://www.reddit.com/r/SaaS/comments/abc123/"');
+    expect(html).toContain("r/SaaS");
+  });
+
+  it("shows no price on the buttons where posts are free", () => {
+    const html = render({ priceLabel: getMessages("en").app.social.free });
+    expect(html).toContain("Open on Quora<svg");
+    expect(html).not.toContain("· Free</span>");
+  });
+
+  it("needs no account: a new website is told so, with Find suggestions first and Connect as an option", () => {
     const html = render({ accounts: [], open: [], posted: [] });
-    expect(html).toContain("Connect an account and RepGet writes your first suggestions.");
+    expect(html).toContain("RepGet writes your first suggestions from your website&#x27;s information.");
+    expect(html).toContain("No account is needed");
     expect(html).toContain('href="#social-connections"');
-    expect(html).toContain("Connect accounts");
+    expect(html).toContain("Connect accounts (optional)");
+    expect(html.match(/Find suggestions/g)!.length).toBe(2);
+  });
+
+  it("waits for the website's analysis, plainly", () => {
+    const html = render({ accounts: [], open: [], posted: [], analysed: false });
+    expect(html).toContain("Suggestions start when your website&#x27;s analysis is finished.");
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>(?:(?!<\/button>).)*Find suggestions/);
+    expect(html).not.toContain("No account is needed");
+  });
+
+  it.each(LOCALES)("has the page's own words in %s", (locale) => {
+    const html = render({}, locale);
+    const copy = OPPORTUNITIES_COPY[locale];
+    for (const text of [copy.intro, copy.tagConversation, copy.tagPost, copy.openOn.replace("{platform}", "Quora"), copy.createOn.replace("{platform}", "X")]) {
+      expect(html).toContain(text.replace(/'/g, "&#x27;"));
+    }
+    for (const value of Object.values(copy)) expect(value).not.toMatch(/[\u2013\u2014]/);
   });
 
   it.each(LOCALES)("leaves no placeholder unfilled in %s", (locale) => {
     const html = render({}, locale);
-    expect(html).not.toMatch(/\{(count|total|platform|state|price|time|max|reason|name|date)\}/);
+    expect(html).not.toMatch(/\{(count|total|shown|platforms|platform|where|state|price|time|max|reason|name|date)\}/);
   });
 });
 

@@ -12,6 +12,7 @@ import { Features } from "./_home/sections/features";
 import { FinalCta } from "./_home/sections/final-cta";
 import { Founder } from "./_home/sections/founder";
 import { Hero } from "./_home/sections/hero";
+import { Meet } from "./_home/sections/meet";
 import { Pricing } from "./_home/sections/pricing";
 import { Reviews } from "./_home/sections/reviews";
 import { Ribbon } from "./_home/sections/ribbon";
@@ -27,8 +28,8 @@ import type { SectionProps } from "./_home/types";
  *
  * The order and the look are the client's approved design (2026-11-04,
  * RepGet_Full_Homepage_Back_To_Top.html): the promise and the free start, the
- * platforms with a real count of what RepGet has made, the top features, the
- * four growth engines, the walkthrough video, the three steps to start,
+ * platforms with a real count of what RepGet has made, "Meet RepGet."
+ * (2026-11-24), the top features, the four growth engines, the walkthrough video, the three steps to start,
  * the guest Growth Copilot (three free questions), the founder, what customers say (only when there are
  * published reviews), pricing, questions, and the closing call.
  *
@@ -69,6 +70,7 @@ export function HomePageSections({
       <RevealRoot />
       <Hero {...props} />
       <Ribbon {...props} contentCount={contentCount} />
+      <Meet {...props} />
       <Features {...props} />
       <Engines {...props} />
       <VideoSection {...props} />

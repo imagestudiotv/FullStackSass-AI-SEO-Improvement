@@ -1,28 +1,15 @@
 /**
- * The guided setup wizard.
+ * The guided setup: add the website, choose a plan, and into the dashboard.
  *
- * The brief describes a sequence of full pages — insert the website, review
- * what the audit found, choose AI visibility prompts, then content and
- * backlinks — with a progress bar across the top showing where you are.
- *
- * That is a different thing from the checklist on /onboarding, which links out
- * to where each job already happens. The checklist is right for someone coming
- * back to finish setup; the wizard is right for someone doing it the first
- * time, because it keeps them in one place and never shows them a screen they
- * are not ready for.
- *
- * Both read the same derived state, so they can never disagree about what is
- * done.
+ * It used to go on - Connect Google, AI visibility, the content plan, the
+ * setup checklist. Daniel, 2026-11-24: "delete all this steps and redirect
+ * straight to the dashboard ... all will be possible to set all steps adding
+ * connect on the tasks dashboard and chat we have". Their old addresses send
+ * people on (app/(onboarding)/onboarding/[step]), and each is a task
+ * (lib/tasks/tasks.ts ONBOARDING_STEP_TASKS).
  */
 
-export type WizardStepId =
-  | "website"
-  | "setup"
-  | "plan"
-  | "google"
-  | "visibility"
-  | "content"
-  | "done";
+export type WizardStepId = "website" | "plan";
 
 export type WizardStep = {
   id: WizardStepId;
@@ -32,43 +19,10 @@ export type WizardStep = {
   href: string;
 };
 
-/**
- * The steps, in order.
- *
- * The reference has seven, splitting market, description and competitors into
- * three. Ours are merged into one "About your business" screen at the client's
- * request — "having this 3 options all in one" — and the audit is merged into
- * the website step, because on our side it is the same crawl and a step that
- * completes without the customer doing anything is a dot that flickers past
- * rather than a stage they experience.
- *
- * The plan sits after the business questions, not before: someone is far more
- * willing to pay once they have seen us describe their own business.
- */
+/** The steps, in order. The plan step is where someone pays or starts Free. */
 export const WIZARD_STEPS: WizardStep[] = [
   { id: "website", label: "Website", href: "/onboarding/website" },
   { id: "plan", label: "Plan", href: "/onboarding/plan" },
-  /*
-    Connect Google, at the client's request: "This is on our onboarding step
-    3 - Connect Google."
-
-    Straight after paying, because Analytics and Search Console are what
-    make the later screens show real numbers rather than empty states - and
-    because the consent screen is a detour it is better to take once, early,
-    than to meet later while reading a report.
-
-    Skippable. OAuth with a third party can fail for reasons nothing here
-    controls, and a customer who has paid must never be stuck behind it.
-  */
-  { id: "google", label: "Connect Google", href: "/onboarding/google" },
-  { id: "visibility", label: "AI visibility", href: "/onboarding/visibility" },
-  { id: "content", label: "Content & backlinks", href: "/onboarding/content" },
-  /*
-    The final stop is the dashboard's own setup checklist, not a page inside
-    the wizard: signup ends at step five and the remaining work — connecting
-    the site, auditing it, switching on the exchange — happens in the product.
-  */
-  { id: "done", label: "Ready to grow", href: "/setup" },
 ];
 
 export function wizardStepIndex(id: WizardStepId): number {

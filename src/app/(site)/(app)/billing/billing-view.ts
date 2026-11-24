@@ -1,5 +1,6 @@
 import type { StatusTone } from "@/components/ui/status-badge";
 import { isEntitled, type CurrentSubscription, type PlanRow } from "@/lib/billing-shared";
+import { BUY_CREDITS_PATH } from "@/lib/credits/buy-credits";
 import type { Locale } from "@/lib/i18n/config";
 import { format, formatNumber, intlTag, plural } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
@@ -271,21 +272,49 @@ export function annualSaving(monthly: PlanRow | undefined, annual: PlanRow): num
   return Math.round(((full - annual.priceCents) / full) * 100);
 }
 
+/* ------------------------------------------------------------------------- */
+/* Addresses                                                                  */
+/* ------------------------------------------------------------------------- */
+
+type Params = Record<string, string | string[] | undefined>;
+
+const text = (value: string | string[] | undefined) => (typeof value === "string" && value ? value : null);
+
 /**
- * Grid columns for the plan cards, by how many there are.
- *
- * Two plans in a four-column row left half the row empty once Starter was
- * retired; the grid now follows the line-up.
- *
- * Columns start at lg, not md: from md the sidebar takes 15rem, and two
- * cards in what is left (about 26rem of section) are too narrow for the
- * longer button labels ("Zu diesem Tarif wechseln", "Mit PayPal bezahlen").
+ * Where a Billing address about credits goes on to: the credit packs' page,
+ * with the same outcome (?addon=, from a checkout opened before 2026-11-24)
+ * or quote (?project= and ?revision=). Null for an address about plans.
  */
-export function planGridClass(count: number): string {
-  if (count <= 1) return "grid gap-4 md:max-w-md";
-  if (count === 2) return "grid gap-4 lg:grid-cols-2";
-  if (count === 3) return "grid gap-4 lg:grid-cols-2 xl:grid-cols-3";
-  return "grid gap-4 lg:grid-cols-2 xl:grid-cols-4";
+export function packsReturnPath(params: Params): string | null {
+  const project = text(params.project);
+  const revision = text(params.revision);
+  const addon = text(params.addon);
+  if (!addon && !(project && revision)) return null;
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries({ addon, via: text(params.via), project, revision })) {
+    if (value) search.set(key, value);
+  }
+  return `${BUY_CREDITS_PATH}?${search}`;
+}
+
+/**
+ * The plan a link asks for - /billing?site=<id>&plan=grow_visibility, with
+ * &period=year for its yearly row - if it is on sale. Anything else selects
+ * nothing: the page is then the same as without it. It only marks a card;
+ * what is bought is what the customer presses, checked by checkout.
+ */
+export function selectedPlanOf(
+  params: Params,
+  plans: Pick<PlanRow, "tier" | "interval">[],
+): { tier: string; interval: "month" | "year" | null } | null {
+  const tier = text(params.plan);
+  const rows = plans.filter((plan) => plan.tier === tier);
+  if (!tier || rows.length === 0) return null;
+  const period = text(params.period);
+  return {
+    tier,
+    interval: (period === "year" || period === "month") && rows.some((plan) => plan.interval === period) ? period : null,
+  };
 }
 
 /* ------------------------------------------------------------------------- */

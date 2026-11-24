@@ -39,12 +39,20 @@ import type { VideoSettings } from "@/lib/video/settings";
 export type CategoryFilter = "all" | IdeaCategory;
 export type FormatFilter = "all" | VideoFormat;
 
-type Filterable = { id: string; category: string; format: string };
+/** `deckKey`: an idea brought back (its make failed) is a new card, not the one handled here (page.tsx); its id otherwise. */
+type Filterable = { id: string; deckKey?: string; category: string; format: string };
+
+/** What the deck remembers a handled idea by. */
+export const deckKey = (idea: { id: string; deckKey?: string }) => idea.deckKey ?? idea.id;
+/** An idea's keys taken out again (Undo): its first card's and any it came back as. */
+export function withoutIdea(gone: ReadonlySet<string>, id: string): Set<string> {
+  return new Set([...gone].filter((key) => key !== id && !key.startsWith(`${id}@`)));
+}
 
 /** The ideas the deck shows: not handled on this screen, in the chosen category and format. */
 export function visibleIdeas<I extends Filterable>(ideas: I[], gone: ReadonlySet<string>, category: CategoryFilter, format: FormatFilter): I[] {
   return ideas.filter(
-    (idea) => !gone.has(idea.id) && (category === "all" || idea.category === category) && (format === "all" || idea.format === format),
+    (idea) => !gone.has(deckKey(idea)) && (category === "all" || idea.category === category) && (format === "all" || idea.format === format),
   );
 }
 
@@ -55,7 +63,7 @@ export function visibleIdeas<I extends Filterable>(ideas: I[], gone: ReadonlySet
 export function categoryCounts(ideas: Filterable[], gone: ReadonlySet<string>, format: FormatFilter): Record<CategoryFilter, number> {
   const counts = { all: 0, viral: 0, educational: 0, authority: 0, promotional: 0 } satisfies Record<CategoryFilter, number>;
   for (const idea of ideas) {
-    if (gone.has(idea.id) || (format !== "all" && idea.format !== format)) continue;
+    if (gone.has(deckKey(idea)) || (format !== "all" && idea.format !== format)) continue;
     counts.all += 1;
     if ((IDEA_CATEGORIES as readonly string[]).includes(idea.category)) counts[idea.category as IdeaCategory] += 1;
   }
@@ -141,8 +149,6 @@ export function browseKey(event: Omit<UndoKeyEvent, "repeat"> & { repeat: boolea
 
 // ---------------------------------------------------------------- Saved Videos and Posted
 
-/** Saved Videos (client, 2026-11-21): approved videos not scheduled or published yet - being made, ready, or failed. */
-export const SAVED_STATUSES = ["approved", "making", "ready", "draft", "failed"] as const;
 /** Posted: what is scheduled, on its way, or out. */
 export const POSTED_STATUSES = ["scheduled", "posting", "posted"] as const;
 
@@ -158,6 +164,25 @@ export const PLATFORM_POST_URLS: Record<VideoPlatform, string> = {
   linkedin: "https://www.linkedin.com/feed/?shareActive=true",
   x: "https://x.com/compose/post",
 };
+
+/**
+ * The address that saves a file instead of playing it: our storage adds the
+ * download header when asked (a "download" attribute alone is ignored for
+ * another site's file). Any other address is left as it is.
+ */
+export function downloadUrl(url: string, title: string, index?: number): string {
+  if (!/\/storage\/v1\/object\/public\//.test(url)) return url;
+  const extension = /\.([a-z0-9]{2,4})(?:\?|$)/i.exec(url)?.[1] ?? "mp4";
+  const name =
+    title
+      .normalize("NFKD")
+      .replace(/[^\w\s-]/g, "")
+      .trim()
+      .replace(/\s+/g, "-")
+      .toLowerCase()
+      .slice(0, 60) || "video";
+  return `${url.split("?")[0]}?download=${name}${index === undefined ? "" : `-${index + 1}`}.${extension}`;
+}
 
 /** The platforms a video can be posted to by hand: all of them, a carousel only where carousels go. */
 export function manualPlatforms(format: string): VideoPlatform[] {

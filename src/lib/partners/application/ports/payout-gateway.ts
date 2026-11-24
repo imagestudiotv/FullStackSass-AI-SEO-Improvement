@@ -133,6 +133,13 @@ export interface StripePayoutGateway extends ConnectAccountGateway {
   platformAvailableBalance(currency: string): Promise<bigint>;
   connectedAvailableBalance(accountId: string, currency: string): Promise<bigint>;
 
+  /**
+   * What a transfer became in the connected account's balance: Stripe converts
+   * it on arrival when the account does not hold its currency (its default
+   * currency then). Null when Stripe does not say.
+   */
+  transferArrival(transferId: string, accountId: string): Promise<{ currency: string; amount: bigint } | null>;
+
   /* Transfers: platform -> connected balance */
   createTransfer(input: {
     destination: string;

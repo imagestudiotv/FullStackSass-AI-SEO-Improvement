@@ -19,7 +19,7 @@ import type { VideoPublishingStatus } from "@/lib/video/publish-actions";
 import type { VideoSettings } from "@/lib/video/settings";
 
 import { IdeasDeck } from "./ideas-deck";
-import type { CategoryFilter, ProfileForm } from "./logic";
+import { deckKey, type CategoryFilter, type ProfileForm } from "./logic";
 import { MadeList } from "./made-list";
 import { PostedList } from "./posted-list";
 import { PublishPopup, type CloseReason } from "./publish-popup";
@@ -30,7 +30,7 @@ export type { IdeaView, VideoAccountView } from "./shared";
 
 /** The New ideas menu's three batches (client's mockup), ten ideas each at the "video_ideas" price. */
 const BATCHES: ExtraBatchKind[] = ["mixed", "viral", "website"];
-const BUY_HREF = "/billing#addons";
+const BUY_HREF = "/credits/buy";
 const EARN_HREF = "/earn-credits";
 
 /**
@@ -131,13 +131,15 @@ export function VideosPanel(props: {
 
   const openPublish = useCallback((idea: IdeaView) => setPublishing(idea), []);
   const closePublishFor = useCallback((id: string) => setPublishing((open) => (open?.id === id ? null : open)), []);
+  // The window's video could not be made: its idea is back in the deck, as another card than the one approved here.
+  const returned = publishing ? props.ideas.find((idea) => idea.id === publishing.id && idea.returned && deckKey(idea) !== deckKey(publishing) && !gone.has(deckKey(idea))) : undefined;
   // The window's video as the page knows it now (made, posted), else as it was opened - an approved idea is being made.
   const live = publishing
     ? ([...props.made, ...props.posted].find((idea) => idea.id === publishing.id) ??
-      (publishing.status === "new" ? { ...publishing, status: "approved" } : publishing))
+      (returned ? { ...returned, status: "returned" } : publishing.status === "new" ? { ...publishing, status: "approved" } : publishing))
     : null;
   function closePublish(reason: CloseReason) {
-    const saved = reason === "saved" && live && !["scheduled", "posting", "posted"].includes(live.status);
+    const saved = reason === "saved" && live && !["scheduled", "posting", "posted", "returned"].includes(live.status);
     setPublishing(null);
     if (saved) toast.success(f.popup.saved);
   }
@@ -166,7 +168,7 @@ export function VideosPanel(props: {
 
   const complete = props.approvedToday >= props.goal;
   const noticePlatform = props.notice?.platform ? platformName(props.notice.platform) : "";
-  const ready = props.ideas.filter((idea) => !gone.has(idea.id)).length;
+  const ready = props.ideas.filter((idea) => !gone.has(deckKey(idea))).length;
   const counts: Record<Tab, number> = { ideas: ready, videos: props.made.length, posted: props.posted.length, settings: 0 };
   const editable = props.canEdit && props.level !== "none";
   const { allowance } = props;
@@ -314,6 +316,10 @@ export function VideosPanel(props: {
           locale={props.locale}
           t={t}
           onClose={closePublish}
+          onIdeas={() => {
+            setPublishing(null);
+            selectTab("ideas");
+          }}
           onConnect={() => {
             setPublishing(null);
             setPane("publishing");

@@ -1,10 +1,11 @@
 import "server-only";
 
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, ne, sql } from "drizzle-orm";
 
 import { addons } from "@/lib/db/schema";
 import type { Executor } from "@/lib/db/types";
 
+import { TOP_UP_PACK_SLUG } from "./buy-credits";
 import type { CreditRate } from "./quote-topup-shared";
 
 /**
@@ -18,13 +19,15 @@ import type { CreditRate } from "./quote-topup-shared";
  * Read from the add-ons table each time, so a pack's new price is the new
  * rate without a deploy. Active credit packs with a price and credits only;
  * the quote top-up's own add-on is inactive and grants 0, so it is never
- * taken for a pack. Null when no pack is on sale.
+ * taken for a pack. Nor is the 50-credit top-up (2026-11-24), dearer per credit:
+ * putting it on sale must not change what partners are paid. Null when no pack
+ * is on sale.
  */
 export async function smallestCreditPack(executor: Executor): Promise<CreditRate | null> {
   const [pack] = await executor
     .select({ priceCents: addons.priceCents, credits: addons.creditsGranted, currency: addons.currency })
     .from(addons)
-    .where(and(eq(addons.kind, "credits"), eq(addons.isActive, true), sql`${addons.creditsGranted} > 0 and ${addons.priceCents} > 0`))
+    .where(and(eq(addons.kind, "credits"), ne(addons.slug, TOP_UP_PACK_SLUG), eq(addons.isActive, true), sql`${addons.creditsGranted} > 0 and ${addons.priceCents} > 0`))
     .orderBy(asc(addons.creditsGranted), asc(addons.priceCents))
     .limit(1);
   return pack ? { priceCents: pack.priceCents, credits: pack.credits, currency: pack.currency.toLowerCase() } : null;

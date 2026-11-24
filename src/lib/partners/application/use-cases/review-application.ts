@@ -13,7 +13,9 @@ import { tierForCount } from "../../domain/policies/tiers";
 import { MIN_REASON_LENGTH, type AdminContext } from "../contracts/commands";
 import { fail, ok, type Result } from "../contracts/results";
 import type { PartnerRecord } from "../ports/repositories";
+import { applicationNoticeId } from "./application-notices";
 import type { PartnerDeps } from "./deps";
+import { payPalPayoutAvailability } from "./paypal-payouts";
 
 /**
  * Administrator review of applications, and the partner lifecycle.
@@ -166,6 +168,8 @@ export async function rejectApplication(
       reviewedByEmail: admin.email,
       reason: reason.trim(),
     });
+    // The form promised an answer by email (application-notices.ts); the reason stays internal.
+    await repos.outbox.enqueue({ name: "partners/application.notify", id: applicationNoticeId(application.id, "rejected"), data: { applicationId: application.id, stage: "rejected" } });
     await repos.audit.record({
       actorEmail: admin.email,
       action: "partner.application_rejected",
@@ -268,6 +272,14 @@ export async function setPayoutHold(
   });
 }
 
+/** How this partner is paid here, for the welcome email: only a method that is on and covers their country. */
+function welcomePayout(deps: PartnerDeps, partner: PartnerRecord): "credits" | "stripe" | "paypal" | "stripe_or_paypal" | "unavailable" {
+  if ((deps.settings.payoutForm?.() ?? "cash") === "credits") return "credits";
+  const stripe = deps.settings.payoutCountries().includes(partner.country?.toUpperCase() ?? "");
+  const paypal = payPalPayoutAvailability(deps, partner).available;
+  return stripe && paypal ? "stripe_or_paypal" : stripe ? "stripe" : paypal ? "paypal" : "unavailable";
+}
+
 /**
  * The one welcome email (run by the partners/welcome.send job). Claimed
  * before sending, so two runs cannot both send; released if the mailer
@@ -284,6 +296,7 @@ export async function sendWelcome(deps: PartnerDeps, partnerId: string): Promise
     name: partner.displayName,
     referralUrl: `${appUrl}${referralLinkPath(partner.referralCode)}`,
     portalUrl: `${appUrl}/partner`,
+    payout: welcomePayout(deps, partner),
   });
   if (!sent.ok) {
     await repos.partners.releaseWelcomeEmail(partnerId);

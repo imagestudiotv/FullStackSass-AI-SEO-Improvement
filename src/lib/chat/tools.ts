@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, gte, inArray } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, or } from "drizzle-orm";
 
 import { getPerformance } from "@/lib/analytics/actions";
 import { listArticles } from "@/lib/articles/actions";
@@ -10,6 +10,7 @@ import { getNetworkStatus, listRequests } from "@/lib/backlinks/actions";
 import { creditOverview } from "@/lib/credits/overview";
 import { getDashboardOverview } from "@/lib/dashboard/overview";
 import { getNextActions } from "@/lib/dashboard/next-actions";
+import { getTasks } from "@/lib/tasks/tasks";
 import { articleTitleText } from "@/lib/i18n/article-delivery";
 import { DEFAULT_LOCALE, isLocale } from "@/lib/i18n/config";
 import { db } from "@/lib/db";
@@ -17,6 +18,8 @@ import { socialSuggestions, videoIdeas } from "@/lib/db/schema";
 import { getGeoOverview } from "@/lib/geo/actions";
 import { listCalendar } from "@/lib/keywords/actions";
 import { ideaAllowance } from "@/lib/video/batches";
+import { customerStatus } from "@/lib/video/customer-view";
+import { savedVideosWhere, todaysIdeasWhere } from "@/lib/video/lists";
 import { DAILY_BATCH_SIZE, EXTRA_BATCH_SIZE, MAX_IDEAS_PER_DAY } from "@/lib/video/formats";
 
 import type { ChatPage } from "./config";
@@ -70,13 +73,15 @@ export const READ_TOOLS: ReadTool[] = [
   {
     name: "get_overview",
     description:
-      "The website at a glance: today's article, recent wins, best articles, Google and AI-visibility headline figures, backlinks, the workspace's credits, and the task list (Next actions, with each task's id). Start here for broad questions like 'how is my website doing' or 'what should I do first'.",
+      "The website at a glance: today's article, recent wins, best articles, Google and AI-visibility headline figures, backlinks, the workspace's credits, the task list (Next actions, with each task's id), and the set-up steps still to do (connect the website, Google, AI tracking...), each with the page where it is done. Start here for broad questions like 'how is my website doing', 'what should I do first' or 'what is left to set up'.",
     input_schema: noInput,
     page: "dashboard",
     run: async (ctx) => {
-      const [overview, tasks] = await Promise.all([
+      const [overview, tasks, setup] = await Promise.all([
         getDashboardOverview({ websiteId: ctx.websiteId, ownerOrgId: ctx.ownerOrgId, showCredits: ctx.access === "owner" }),
         getNextActions(ctx.websiteId, ctx.ownerOrgId, true),
+        // The owner's: connecting the website and the accounts is theirs to do (lib/tasks/tasks.ts).
+        getTasks(ctx.websiteId, ctx.ownerOrgId, ctx.access === "owner"),
       ]);
       return {
         website: { domain: ctx.domain, brand: ctx.brandName, plan: planWords(ctx.level) },
@@ -90,6 +95,7 @@ export const READ_TOOLS: ReadTool[] = [
         backlinks: overview?.backlinks,
         credits: overview?.credits ?? "only the workspace owner sees the credits",
         tasks: tasks.map((task) => ({ id: task.id, kind: task.kind, priority: task.priority, detail: short(task.detail && titleFor(ctx, task.detail)), page: task.href })),
+        setupToDo: (setup?.setup ?? []).filter((step) => !step.done).map((step) => ({ step: step.id, optional: step.optional, page: step.href })),
       };
     },
   },
@@ -199,7 +205,7 @@ export const READ_TOOLS: ReadTool[] = [
   },
   {
     name: "get_social",
-    description: "Opportunities page (social media): the suggestions waiting (posts and replies, with platform) and what was posted recently with its address.",
+    description: "Opportunities page (social media): the suggestions waiting (posts and replies, with platform; ready_to_post ones are posted by hand: copy the text, open the platform) and what was posted recently with its address. Suggestions need no connected account.",
     input_schema: noInput,
     page: "social",
     run: async (ctx) => {
@@ -218,7 +224,7 @@ export const READ_TOOLS: ReadTool[] = [
           .orderBy(desc(socialSuggestions.postedAt))
           .limit(10),
       ]);
-      const row = (s: typeof socialSuggestions.$inferSelect) => ({ platform: s.platform, kind: s.kind, status: s.status, text: short(s.title ?? s.body, 140), thread: short(s.threadTitle, 100) || undefined });
+      const row = (s: typeof socialSuggestions.$inferSelect) => ({ platform: s.platform, kind: s.kind, status: s.status === "failed" ? "ready_to_post" : s.status, text: short(s.title ?? s.body, 140), thread: short(s.threadTitle, 100) || undefined });
       return { waiting: waiting.map(row), posted: posted.map((s) => ({ ...row(s), url: s.postedUrl, postedOn: day(s.postedAt) })) };
     },
   },
@@ -228,18 +234,22 @@ export const READ_TOOLS: ReadTool[] = [
     input_schema: noInput,
     page: "videos",
     run: async (ctx) => {
-      const today = new Date().toISOString().slice(0, 10);
       const since = new Date(Date.now() - 30 * 86_400_000);
       const [ideas, made, allowance] = await Promise.all([
         db
           .select()
           .from(videoIdeas)
-          .where(and(eq(videoIdeas.websiteId, ctx.websiteId), eq(videoIdeas.day, today), inArray(videoIdeas.status, ["new", "failed"])))
+          .where(todaysIdeasWhere(ctx.websiteId))
           .limit(MAX_IDEAS_PER_DAY),
         db
           .select()
           .from(videoIdeas)
-          .where(and(eq(videoIdeas.websiteId, ctx.websiteId), inArray(videoIdeas.status, ["approved", "making", "ready", "scheduled", "posting", "posted"]), gte(videoIdeas.updatedAt, since)))
+          .where(
+            or(
+              savedVideosWhere(ctx.websiteId),
+              and(eq(videoIdeas.websiteId, ctx.websiteId), inArray(videoIdeas.status, ["scheduled", "posting", "posted"]), gte(videoIdeas.updatedAt, since)),
+            ),
+          )
           .orderBy(desc(videoIdeas.updatedAt))
           .limit(15),
         ideaAllowance(ctx.websiteId),
@@ -252,7 +262,8 @@ export const READ_TOOLS: ReadTool[] = [
           style: idea.style,
           category: idea.category,
           direction: idea.direction,
-          status: idea.status,
+          // As the customer sees it: a failed make or publish is not mentioned (lib/video/customer-view.ts).
+          status: customerStatus(idea),
           review: idea.reviewStatus === "none" ? undefined : { status: idea.reviewStatus, reasons: idea.reviewReasons },
         })),
         // Free: the day's ideas and extra batches; only making a video costs credits.
@@ -263,7 +274,7 @@ export const READ_TOOLS: ReadTool[] = [
           extraBatchSize: EXTRA_BATCH_SIZE,
           busy: allowance.busy || undefined,
         },
-        videos: made.map((idea) => ({ title: short(idea.title, 100), format: idea.format, status: idea.status, posted: day(idea.postedAt), stats: idea.stats ?? undefined })),
+        videos: made.map((idea) => ({ title: short(idea.title, 100), format: idea.format, status: customerStatus(idea), posted: day(idea.postedAt), stats: idea.stats ?? undefined })),
       };
     },
   },

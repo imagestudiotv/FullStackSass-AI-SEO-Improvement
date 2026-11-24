@@ -5,6 +5,7 @@ import { fail, ok, type Result } from "../contracts/results";
 import type { PayPalPayoutEvidence } from "../ports/payout-gateway";
 import type { Environment, PartnerRecord, PayPalPayoutRecord, SettlementRecord } from "../ports/repositories";
 import type { PartnerDeps } from "./deps";
+import { cancelSettlement } from "./prepare-settlement";
 
 /**
  * Partners paid through PayPal (Daniel's design; review "PAY").
@@ -50,6 +51,18 @@ const ITEM_SETTLED = new Set(["SUCCESS"]);
 const ITEM_WAITING = new Set(["PENDING", "UNCLAIMED", "ONHOLD", "PROCESSING", "NEW"]);
 const ITEM_NOT_PAID = new Set(["FAILED", "RETURNED", "BLOCKED", "DENIED", "CANCELED"]);
 const ITEM_TAKEN_BACK = new Set(["REFUNDED", "REVERSED"]);
+/** A batch PayPal refused as a whole: its item never paid, even when the answer names none. */
+const BATCH_NOT_PAID = new Set(["DENIED", "CANCELED"]);
+
+/**
+ * Refusals of a FIRST request that pass on their own: our credentials or the
+ * token endpoint, a rate limit, too little PayPal balance. Nothing was made,
+ * so the payout waits for a new attempt instead of a person.
+ */
+const RETRYABLE_REFUSALS = new Set(["auth", "config", "RATE_LIMIT_REACHED", "INSUFFICIENT_FUNDS"]);
+const MAX_REFUSED_ATTEMPTS = 8;
+/** How long a prepared payout may wait to be sent before its commissions are released for the next run. */
+const UNSENT_LIMIT_MS = 7 * 24 * HOUR;
 
 export function payPalSenderBatchId(settlementId: string, attempt: number): string {
   return `repget-partner-${settlementId}-${attempt}`;
@@ -157,7 +170,31 @@ export async function verifyPayPalRecipient(deps: PartnerDeps, input: { partnerI
     return fail("invalid", "code");
   }
   await repos.paypalPayouts.markVerified(account.id, now);
+  await notifyAddressChange(deps, input.partnerId, account.receiver);
   return ok({ receiver: account.receiver });
+}
+
+/**
+ * Tells the partner's own address that payouts now go somewhere else: someone
+ * using their session could have done it. Best effort; the change stands.
+ */
+async function notifyAddressChange(deps: PartnerDeps, partnerId: string, receiver: string) {
+  try {
+    const partner = await deps.uow.repositories.partners.findById(partnerId);
+    if (!partner) return;
+    await deps.mailer.sendPartnerNotice({
+      to: partner.contactEmail,
+      name: partner.displayName,
+      subject: "Your RepGet payout address was set",
+      lines: [
+        `${receiver} is now confirmed as your PayPal address for RepGet partner payouts.`,
+        "If you did not do this, change your RepGet password and contact RepGet support now, so your payouts can be held.",
+      ],
+      portalUrl: `${deps.settings.appUrl()}/partner/settings`,
+    });
+  } catch (error) {
+    console.error("[partners] payout address notice not sent", error);
+  }
 }
 
 /** The partner's choice between their Stripe bank payouts and PayPal. Future runs follow it; one already prepared does not change. */
@@ -203,18 +240,37 @@ export async function payPalStage(deps: PartnerDeps, settlement: SettlementRecor
   // ---- a new attempt: only from "reserved", only after the pre-flight passes ----
   const partner = await repos.partners.findById(settlement.partnerId);
   const preflight = await payPalPreflight(deps, settlement, partner);
-  if (preflight) return { next: new Date(now.getTime() + 6 * HOUR), error: preflight };
+  if (preflight) return waitOrRelease(deps, settlement, preflight);
   const availability = payPalPayoutAvailability(deps, partner!);
-  if (!availability.available) return { next: new Date(now.getTime() + 6 * HOUR), error: availability.reason };
+  if (!availability.available) return waitOrRelease(deps, settlement, availability.reason);
   // Manual: a person sends it and records it (recordManualPayPalPayout); nothing automatic.
   if (availability.mode === "manual") return { next: new Date(now.getTime() + 24 * HOUR), error: "manual_payout_to_send" };
 
   const account = (await repos.paypalPayouts.findAccountById(settlement.paypalAccountId!))!;
   const number = attempts.length + 1;
   const attempt = await recordAttempt(deps, settlement, { mode: "automated", number, receiver: account.receiver });
-  if (attempt === "changed") return { next: new Date(now.getTime() + 24 * HOUR), error: "allocations_changed" };
+  // A refund, dispute or hold since: what is left is prepared again by the next run, as for Stripe.
+  if (attempt === "changed") return release(deps, settlement, "allocations_changed");
   if (!attempt) return { next: new Date(now.getTime() + 5 * MINUTE), error: "attempt_exists" };
-  return submit(deps, settlement, attempt);
+  return submit(deps, settlement, attempt, { first: true });
+}
+
+/** Not sent, and nothing that could have been: the reserved commissions go back for the next run. */
+async function release(deps: PartnerDeps, settlement: SettlementRecord, reason: string): Promise<Step> {
+  await cancelSettlement(deps, { kind: "system", origin: "paypal-preflight" }, settlement.id, reason);
+  return { next: new Date(deps.clock.now().getTime() + 24 * HOUR), error: reason };
+}
+
+/**
+ * It cannot be sent right now (payouts switched off, an address being
+ * confirmed again, a hold). Retried for a week, then released: a payout left
+ * "reserved" would block every later payout of this partner.
+ */
+async function waitOrRelease(deps: PartnerDeps, settlement: SettlementRecord, reason: string): Promise<Step> {
+  const now = deps.clock.now().getTime();
+  const since = Math.max(settlement.createdAt.getTime(), settlement.resumedAt?.getTime() ?? 0);
+  if (now - since > UNSENT_LIMIT_MS) return release(deps, settlement, reason);
+  return { next: new Date(now + 6 * HOUR), error: reason };
 }
 
 /** Everything a new or repeated PayPal payout needs, re-checked each time. Null when it may go. */
@@ -278,8 +334,15 @@ async function recordAttempt(
   });
 }
 
-/** Sends (or re-sends, with the same ids) an automated attempt's request. */
-async function submit(deps: PartnerDeps, settlement: SettlementRecord, attempt: PayPalPayoutRecord): Promise<Step> {
+/**
+ * Sends (or re-sends, with the same ids) an automated attempt's request.
+ *
+ * Only the FIRST request's refusal proves that nothing was made. A refused
+ * REPEAT says nothing about the request before it, whose answer was lost and
+ * which may have paid: the attempt stays "unknown", so nothing can release or
+ * pay its commissions again, until PayPal's item says what happened.
+ */
+async function submit(deps: PartnerDeps, settlement: SettlementRecord, attempt: PayPalPayoutRecord, { first }: { first: boolean }): Promise<Step> {
   const gateway = deps.paypalPayouts!;
   const now = deps.clock.now();
   const outcome = await gateway.createPayout({
@@ -295,6 +358,24 @@ async function submit(deps: PartnerDeps, settlement: SettlementRecord, attempt: 
       await tx.settlements.setState(settlement.id, ["transfer_processing", "transfer_unknown"], "transfer_unknown", { lastError: "paypal_payout_unknown" });
     });
     return { next: new Date(now.getTime() + 10 * MINUTE), error: "paypal_payout_unknown" };
+  }
+  if (outcome.kind === "refused" && !first) {
+    const code = outcome.code ?? "refused";
+    await deps.uow.transaction(async (tx) => {
+      await tx.paypalPayouts.updateAttempt(attempt.id, ["processing", "unknown"], { status: "unknown", error: `${code}: ${outcome.message}`.slice(0, 300), now });
+      await tx.settlements.setState(settlement.id, ["transfer_processing", "transfer_unknown"], "transfer_unknown", { lastError: code });
+    });
+    if (RETRYABLE_REFUSALS.has(code)) return { next: new Date(now.getTime() + HOUR), error: code };
+    await review(deps, settlement, `PayPal refused to repeat a payout whose first answer was lost (${code}); look for it in PayPal before anything else`, { senderBatchId: attempt.senderBatchId, message: outcome.message });
+    return { next: new Date(now.getTime() + 24 * HOUR), error: code };
+  }
+  if (outcome.kind === "refused" && outcome.code !== null && RETRYABLE_REFUSALS.has(outcome.code) && attempt.attemptNumber < MAX_REFUSED_ATTEMPTS) {
+    const code = outcome.code;
+    await deps.uow.transaction(async (tx) => {
+      await tx.paypalPayouts.updateAttempt(attempt.id, ["processing"], { status: "failed", error: `${code}: ${outcome.message}`.slice(0, 300), completedAt: now, now });
+      await tx.settlements.setState(settlement.id, ["transfer_processing"], "reserved", { lastError: code });
+    });
+    return { next: new Date(now.getTime() + 6 * HOUR), error: code };
   }
   if (outcome.kind === "refused") {
     // PayPal processed the request and made nothing: released for a person (a wrong address, no Payouts access...).
@@ -334,7 +415,7 @@ async function syncAutomatedAttempt(deps: PartnerDeps, settlement: SettlementRec
       await review(deps, settlement, "a PayPal payout had no answer for its whole idempotency window", { senderBatchId: attempt.senderBatchId });
       return { next: new Date(now.getTime() + 24 * HOUR), error: "paypal_payout_unresolved" };
     }
-    return submit(deps, settlement, attempt);
+    return submit(deps, settlement, attempt, { first: false });
   }
   const evidence = attempt.payoutItemId ? await gateway.getItem(attempt.payoutItemId) : await gateway.getBatch(attempt.payoutBatchId);
   return applyItem(deps, settlement, attempt, evidence);
@@ -344,7 +425,7 @@ async function syncAutomatedAttempt(deps: PartnerDeps, settlement: SettlementRec
 async function applyItem(deps: PartnerDeps, settlement: SettlementRecord, attempt: PayPalPayoutRecord, evidence: PayPalPayoutEvidence): Promise<Step> {
   const now = deps.clock.now();
   const repos = deps.uow.repositories;
-  const status = (evidence.itemStatus ?? "").toUpperCase();
+  const status = (evidence.itemStatus ?? (BATCH_NOT_PAID.has(evidence.batchStatus.toUpperCase()) ? evidence.batchStatus : "")).toUpperCase();
   if (evidence.itemId && !attempt.payoutItemId) {
     await repos.paypalPayouts.updateAttempt(attempt.id, ["pending", "processing", "unknown"], { payoutItemId: evidence.itemId, now });
   }
@@ -383,7 +464,7 @@ async function confirmPayPal(
   input: { transactionId: string | null; fee: bigint | null; providerStatus: string; actor: string },
 ) {
   const now = deps.clock.now();
-  await deps.uow.transaction(async (tx) => {
+  const confirmed = await deps.uow.transaction(async (tx) => {
     // Lock order: commissions before the settlement, as everywhere else.
     const items = await tx.settlements.items(settlement.id, true);
     const locked = [];
@@ -397,7 +478,7 @@ async function confirmPayPal(
       error: null,
       now,
     });
-    if (!moved) return; // Confirmed already by a concurrent run.
+    if (!moved) return false; // Confirmed already by a concurrent run.
     await tx.commissions.appendLedger({
       environment: settlement.environment,
       partnerId: settlement.partnerId,
@@ -415,8 +496,10 @@ async function confirmPayPal(
     for (const commission of locked) {
       if (commission && commission.status === "reserved") await tx.commissions.updateCommission(commission.id, { status: "paid", paidSettlementId: settlement.id });
     }
+    return true;
   });
-  await notifyPartner(deps, settlement, "paid");
+  // One email for one payout: PayPal's webhook and the sweep can both bring the same answer.
+  if (confirmed) await notifyPartner(deps, settlement, "paid");
 }
 
 /** Paid, then taken back by PayPal (REFUNDED, REVERSED): the liability returns once, and a person looks at it. */

@@ -65,22 +65,40 @@ vi.mock("@/lib/addons/actions", () => ({
 /* The rendered pieces, as named stubs the tree search can recognise. */
 vi.mock("@/components/settings-nav", () => ({ SettingsNav: () => null }));
 vi.mock("@/app/(site)/(app)/billing/billing-client", () => ({ BillingClient: () => null }));
-vi.mock("@/app/(site)/(app)/billing/addons-panel", () => ({ AddonsPanel: () => null }));
+vi.mock("@/components/billing/purchases-panel", () => ({ PurchasesPanel: () => null }));
 vi.mock("@/app/(site)/(app)/billing/payments-panel", () => ({ PaymentsPanel: () => null }));
 
-import { AddonsPanel } from "@/app/(site)/(app)/billing/addons-panel";
 import { BillingClient } from "@/app/(site)/(app)/billing/billing-client";
 import BillingPage from "@/app/(site)/(app)/billing/page";
 import { PaymentsPanel } from "@/app/(site)/(app)/billing/payments-panel";
+import { PurchasesPanel } from "@/components/billing/purchases-panel";
 import { SettingsNav } from "@/components/settings-nav";
-import { listPurchases } from "@/lib/addons/actions";
+import { listAddons, listPurchases } from "@/lib/addons/actions";
 import { listPayments, listPlans, listWebsiteSubscriptions } from "@/lib/billing";
-import { billingCustomers, member, organization, user, websiteMembers, websites } from "@/lib/db/schema";
+import type { PlanRow } from "@/lib/billing-shared";
+import { billingCheckouts, billingCustomers, member, organization, subscriptions, user, websiteMembers, websites } from "@/lib/db/schema";
 
 let test: TestDb;
 
 const WEBSITE_PURCHASE = { id: "p1", slug: "website_new", name: "New website", kind: "quote", pricePaidCents: 0, currency: "eur", creditsPaid: 100, status: "paid", fulfilledAt: null, createdAt: new Date() };
 const OTHER_PURCHASE = { ...WEBSITE_PURCHASE, id: "p2", slug: "usa_local_citations", name: "Top 250 live USA Local Citations" };
+
+const SCALE_ROW = {
+  id: "plan_scale",
+  name: "Scale",
+  tier: "scale",
+  interval: "month",
+  priceCents: 34900,
+  currency: "eur",
+  articleLimit: 60,
+  socialPostLimit: 180,
+  keywordLimit: 1200,
+  siteLimit: 10,
+  monthlyCredits: 700,
+  sortOrder: 2,
+  paypalPlanId: "P-SCALE",
+  paypalTrialPlanId: null,
+} as unknown as PlanRow;
 
 const OWNER_ORG = "org_owner";
 const GUEST_ORG = "org_guest";
@@ -171,7 +189,7 @@ describe("billing page", () => {
     state.locale = "es";
     vi.mocked(listPurchases).mockResolvedValueOnce([WEBSITE_PURCHASE, OTHER_PURCHASE]);
     signIn("user_owner", OWNER_ORG);
-    const purchases = findOne(await render(), AddonsPanel).purchases as { slug: string; name: string }[];
+    const purchases = findOne(await render(), PurchasesPanel).purchases as { slug: string; name: string }[];
     expect(purchases.map((row) => row.name)).toEqual(["Sitio web nuevo", "Top 250 live USA Local Citations"]);
   });
 
@@ -179,11 +197,17 @@ describe("billing page", () => {
     state.locale = "de";
     vi.mocked(listPurchases).mockResolvedValueOnce([WEBSITE_PURCHASE]);
     signIn("user_guest", GUEST_ORG);
-    const purchases = findOne(await render(), AddonsPanel).purchases as { name: string }[];
+    const purchases = findOne(await render(), PurchasesPanel).purchases as { name: string }[];
     expect(purchases.map((row) => row.name)).toEqual(["Neue Website"]);
   });
 
-  it("owner: their selected site, the strip, and an add-on shop", async () => {
+  it("owner: their selected site, the strip, and links to the other add-ons", async () => {
+    const row = { description: null, priceCents: 100, currency: "eur", creditsGranted: 0, creditPrice: 1, purchasable: false };
+    vi.mocked(listAddons).mockResolvedValueOnce([
+      { ...row, id: "a1", slug: "credits_10", name: "100 credits", kind: "credits" },
+      { ...row, id: "a2", slug: "usa_local_citations", name: "Top 250 live USA Local Citations", kind: "service" },
+      { ...row, id: "a3", slug: "website_new", name: "New website", kind: "quote" },
+    ]);
     signIn("user_owner", OWNER_ORG);
     const tree = await render();
 
@@ -191,7 +215,11 @@ describe("billing page", () => {
     const client = findOne(tree, BillingClient);
     expect(client.websiteId).toBe(sharedSite);
     expect(client.viewingSharedDomain).toBeNull();
-    expect(findOne(tree, AddonsPanel).canBuy).toBe(true);
+    // The packs are one link of the strip's own; the rest by name, a website project on its own screen.
+    expect(client.addonLinks).toEqual([
+      { id: "a2", name: "Top 250 live USA Local Citations", href: "/credits/buy#services" },
+      { id: "a3", name: "New website", href: expect.stringMatching(/^\/website-projects/) },
+    ]);
     expect(findAll(tree, PaymentsPanel)).toHaveLength(1);
   });
 
@@ -201,7 +229,7 @@ describe("billing page", () => {
 
     expect(findAll(tree, BillingClient)).toHaveLength(0);
     expect(findAll(tree, SettingsNav)).toHaveLength(0);
-    expect(findOne(tree, AddonsPanel).canBuy).toBe(false);
+    expect(findAll(tree, PurchasesPanel)).toHaveLength(1);
     expect(findAll(tree, PaymentsPanel)).toHaveLength(1);
     // Nothing on sale is even loaded for them.
     expect(listPlans).not.toHaveBeenCalled();
@@ -216,7 +244,6 @@ describe("billing page", () => {
     expect(client.websiteId).toBe(dualSite);
     expect(client.viewingSharedDomain).toBe("shared.example");
     expect(findOne(tree, SettingsNav).websiteId).toBe(dualSite);
-    expect(findOne(tree, AddonsPanel).canBuy).toBe(true);
   });
 
   it("a ?site= that is not theirs selects nothing of anyone else's", async () => {
@@ -225,14 +252,13 @@ describe("billing page", () => {
     expect(findOne(tree, BillingClient).websiteId).toBe(dualSite);
   });
 
-  it("new customer with no website: plans with nothing selected, and the shop", async () => {
+  it("new customer with no website: plans with nothing selected", async () => {
     signIn("user_new", NEW_ORG);
     const tree = await render();
 
     const client = findOne(tree, BillingClient);
     expect(client.websiteId).toBeNull();
     expect(findAll(tree, SettingsNav)).toHaveLength(0);
-    expect(findOne(tree, AddonsPanel).canBuy).toBe(true);
   });
 
   describe("card invoices without a link point at a Manage billing that is on the page", () => {
@@ -288,10 +314,81 @@ describe("billing page", () => {
 
   it("reads the PayPal return parameter alongside the card and add-on ones", async () => {
     signIn("user_owner", OWNER_ORG);
-    const tree = await render({ paypal: "success", checkout: "cancelled", addon: "success" });
+    const tree = await render({ paypal: "success", checkout: "cancelled" });
     const client = findOne(tree, BillingClient);
     expect(client.paypalResult).toBe("success");
     expect(client.checkout).toBe("cancelled");
-    expect(client.addonResult).toBe("success");
+  });
+
+  it("sends a credit purchase's return, and a quote's credits, on to the packs' page", async () => {
+    signIn("user_owner", OWNER_ORG);
+    await expect(render({ addon: "success" })).rejects.toThrow("redirect:/credits/buy?addon=success");
+    await expect(render({ project: "p1", revision: "5" })).rejects.toThrow("redirect:/credits/buy?project=p1&revision=5");
+  });
+
+  it("marks the plan a link names, only when it is on sale", async () => {
+    signIn("user_owner", OWNER_ORG);
+    vi.mocked(listPlans).mockResolvedValue([SCALE_ROW]);
+    expect(findOne(await render({ plan: "scale" }), BillingClient).selectedPlan).toEqual({ tier: "scale", interval: null });
+    expect(findOne(await render({ plan: "agency" }), BillingClient).selectedPlan).toBeNull();
+    expect(findOne(await render(), BillingClient).selectedPlan).toBeNull();
+    vi.mocked(listPlans).mockResolvedValue([]);
+  });
+
+  describe("the prices of a plan change", () => {
+    const subscribed = (provider: "stripe" | "paypal", status = "active") => ({
+      websiteId: sharedSite,
+      domain: "shared.example",
+      status,
+      planId: "plan_grow",
+      planName: "Grow",
+      tier: "grow",
+      interval: "month",
+      currentPeriodEnd: null,
+      cancelAtPeriodEnd: false,
+      cancelAt: null,
+      hasCustomer: provider === "stripe",
+      provider,
+    });
+
+    async function card(provider: "stripe" | "paypal", offered: boolean) {
+      vi.stubEnv("REPGET_OFFER_ENABLED", "1");
+      signIn("user_owner", OWNER_ORG);
+      vi.mocked(listPlans).mockResolvedValueOnce([SCALE_ROW]);
+      vi.mocked(listWebsiteSubscriptions).mockResolvedValueOnce([subscribed(provider)]);
+      const id = provider === "stripe" ? { stripeSubscriptionId: "sub_1" } : { paypalSubscriptionId: "I-1" };
+      await test.db.insert(subscriptions).values({ organizationId: OWNER_ORG, websiteId: sharedSite, provider, status: "active", ...id });
+      await test.db.insert(billingCheckouts).values({
+        organizationId: OWNER_ORG,
+        websiteId: sharedSite,
+        provider,
+        status: "completed",
+        providerSubscriptionId: provider === "stripe" ? "sub_1" : "I-1",
+        requestParams: offered ? { offer: "REPGET" } : {},
+      });
+      try {
+        const client = findOne(await render(), BillingClient);
+        return { client, view: (client.planCards as Record<string, { price: string; strike: string | null; terms: string[] }>).plan_scale };
+      } finally {
+        vi.unstubAllEnvs();
+        await test.client.exec("delete from billing_checkouts; delete from subscriptions;");
+      }
+    }
+
+    it.each(["stripe", "paypal"] as const)("keeps the launch price a %s subscription has", async (provider) => {
+      const { client, view } = await card(provider, true);
+      expect(view.price).toBe("€209");
+      expect(view.strike).toBe("€349");
+      expect(client.launchPriceKept).toBe(true);
+    });
+
+    it.each(["stripe", "paypal"] as const)("is the regular price for a %s subscription without it, though the offer is on", async (provider) => {
+      const { client, view } = await card(provider, false);
+      expect(view.price).toBe("€349");
+      expect(view.strike).toBeNull();
+      expect(view.terms).toEqual([]);
+      expect(client.launchPriceKept).toBe(false);
+      expect(client.offerCopy).toBeNull();
+    });
   });
 });

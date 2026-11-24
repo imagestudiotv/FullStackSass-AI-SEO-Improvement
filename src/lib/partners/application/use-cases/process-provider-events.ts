@@ -132,7 +132,7 @@ async function dispatch(deps: PartnerDeps, event: ProviderEventRecord): Promise<
  */
 export async function recordRecoveredWork(
   deps: PartnerDeps,
-  input: { kind: "invoice" | "charge"; objectId: string; environment: "test" | "live"; reason: string },
+  input: { kind: "invoice" | "charge" | "paypal_sale"; objectId: string; environment: "test" | "live"; reason: string },
 ): Promise<boolean> {
   const repos = deps.uow.repositories;
   const { id, created } = await repos.providerEvents.record({

@@ -13,6 +13,7 @@ import { OFFER_CODE, WINBACK_OFFER_CODE } from "@/lib/i18n/offer-code";
 import { ARTICLE_DELIVERY } from "@/lib/i18n/article-delivery";
 import { PAYPAL_PENDING_COPY } from "@/lib/i18n/paypal-pending";
 import { listPlans } from "@/lib/billing";
+import { readCheckoutReturn, startedDashboardPath } from "@/lib/billing/return-to";
 import { hasUnfinishedPayPalApproval, isTrialEligible, planScreenOffer } from "@/lib/billing/checkouts";
 import { DIRECT_PURCHASE } from "@/lib/i18n/direct-purchase";
 import { pricingPageCopy, type PricingTierId } from "@/lib/i18n/pricing-page";
@@ -35,7 +36,7 @@ export const metadata = { title: "Choose your plan" };
 export const dynamic = "force-dynamic";
 
 /**
- * Step three: the plan, and then Stripe.
+ * The plan: the last step, then the dashboard (Stripe, PayPal, or Free at once).
  *
  * The client: "I think after these steps, the user should be redirected to
  * billing page" — agreed, and this is that page, inside the onboarding shell
@@ -57,6 +58,8 @@ export default async function OnboardingPlanPage({
 
   const params = await searchParams;
   const siteParam = typeof params.site === "string" ? params.site : undefined;
+  /** Back from a checkout (Stripe's ?checkout=, PayPal's ?paypal=). */
+  const back = readCheckoutReturn(params);
   const paypalResult = typeof params.paypal === "string" ? params.paypal : undefined;
   /** The plan whose button was pressed (lib/plans/features.ts signUpForPlan). Only a choice on screen: nothing is bought from the address. */
   const chosenTier = typeof params.plan === "string" ? params.plan : undefined;
@@ -87,15 +90,15 @@ export default async function OnboardingPlanPage({
       redirect(`/onboarding/website?next=1&plan=${encodeURIComponent(chosenTier!)}`);
     }
     /*
-      To Connect Google, the step that now follows billing — not straight to
-      AI visibility. Carrying ?site= matters here: this redirect fires the
-      moment a webhook lands, and dropping the parameter would send someone
-      adding their SECOND website into setup for their first.
+      Into the dashboard for THIS website: onboarding ends here. Carrying
+      ?site= matters: this redirect fires the moment a webhook lands, and
+      dropping it would open the dashboard of somebody's first website after
+      they paid for their second.
     */
     redirect(
-      siteParam
-        ? `/onboarding/google?site=${siteParam}`
-        : "/onboarding/google",
+      back?.outcome === "success"
+        ? startedDashboardPath(state.websiteId)
+        : `/dashboard?site=${encodeURIComponent(state.websiteId)}`,
     );
   }
 
@@ -111,13 +114,15 @@ export default async function OnboardingPlanPage({
    * "your payment did not work" at the worst possible moment: they have been
    * charged, and the screen is asking them to pay a second time.
    *
+   * Checkouts come back to the dashboard now, which waits the same way
+   * (lib/dashboard/checkout-wait.ts); this is for one opened before that, or a
+   * return that names no website.
+   *
    * The waiting screen polls and moves on by itself. Entitlement is NEVER
    * granted from this redirect — it only decides what to show while the
    * webhook, which is the sole source of truth, catches up.
    */
-  const returning =
-    params.checkout === "success" || params.paypal === "success";
-  if (returning) {
+  if (back?.outcome === "success") {
     return (
       <div>
         <WizardProgress current="plan" />

@@ -11,6 +11,7 @@ import { getPartnerNetwork } from "@/lib/backlinks/network-settings";
 import { requireWebsitePlan } from "@/lib/billing/require-plan";
 import { format, formatDate, plural } from "@/lib/i18n/format";
 import { getAppMessages } from "@/lib/i18n/app-locale";
+import { PARTNER_NETWORK_CONNECT } from "@/lib/i18n/partner-network-connect";
 import {
   backlinkIssues,
   backlinkMetrics,
@@ -239,7 +240,7 @@ export default async function BacklinksOverviewPage({
               ) : null}
               <div className="my-4 border-t" />
               <Button asChild className="w-full sm:w-auto">
-                <Link href="/billing#addons">{r.buyCredits}</Link>
+                <Link href="/credits/buy">{r.buyCredits}</Link>
               </Button>
               <p className="mt-3 text-xs text-muted-foreground">{r.creditsHowItWorks}</p>
               <p className="mt-2 text-xs text-muted-foreground">{r.creditsScopeNote}</p>
@@ -260,6 +261,7 @@ export default async function BacklinksOverviewPage({
         credits={credits ? { available: credits.available, reserved: credits.reserved } : null}
         canEdit={ctx.access !== "viewer"}
         t={t.app.partnerNetwork}
+        connectText={PARTNER_NETWORK_CONNECT[locale]}
       />
 
       <div className="grid gap-4 lg:grid-cols-2">

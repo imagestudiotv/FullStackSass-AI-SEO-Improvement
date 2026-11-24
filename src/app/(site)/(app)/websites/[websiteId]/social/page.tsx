@@ -16,7 +16,7 @@ import { isConnectNotice } from "@/lib/social/connect-return";
 import { isSocialPlatform, SUGGESTIONS_PER_DAY } from "@/lib/social/platforms";
 import { requireWebsitePage } from "@/lib/tenant";
 
-import type { AccountView, SuggestionView } from "./opportunities";
+import { customerStatus, type AccountView, type SuggestionView } from "./opportunities";
 import { SocialPanel } from "./social-panel";
 
 export const dynamic = "force-dynamic";
@@ -34,7 +34,9 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * Opportunities (client, 2026-10-27; redesigned from the client's design
  * 2026-11-03; docs/social-media.md): the website's accounts, the week's
  * suggestions and drafts, and what was posted. Only reads - the suggestions
- * are written by the daily job (lib/social/suggest.ts).
+ * are written by the daily job (lib/social/suggest.ts), with or without
+ * connected accounts. Why a post did not go out automatically never leaves
+ * the server (customerStatus): the browser gets no provider text at all.
  */
 export default async function WebsiteSocialPage({ params, searchParams }: PageProps<"/websites/[websiteId]/social">) {
   const { websiteId } = await params;
@@ -60,7 +62,8 @@ export default async function WebsiteSocialPage({ params, searchParams }: PagePr
         ),
       )
       .orderBy(desc(socialSuggestions.createdAt))
-      .limit(40),
+      // A week of them: cut short, a platform's group would look empty.
+      .limit(SUGGESTIONS_PER_DAY * 8),
     db
       .select()
       .from(socialSuggestions)
@@ -109,14 +112,15 @@ export default async function WebsiteSocialPage({ params, searchParams }: PagePr
     autoPost: account.autoPost,
     warmupEndsAt: account.warmupEndsAt.toISOString(),
     inWarmup: inWarmup(account, now),
-    pausedReason: account.pausedAt ? (account.pausedReason ?? "") : null,
+    paused: account.pausedAt !== null,
     target: account.target,
   }));
+  const pausedPlatforms = new Set(accounts.filter((account) => account.pausedAt).map((account) => account.platform));
   const view = (row: (typeof open)[number]): SuggestionView => ({
     id: row.id,
     platform: row.platform,
     kind: row.kind,
-    status: row.status,
+    ...customerStatus(row),
     threadUrl: row.threadUrl,
     threadTitle: row.threadTitle,
     threadSnippet: row.threadSnippet,
@@ -125,9 +129,10 @@ export default async function WebsiteSocialPage({ params, searchParams }: PagePr
     warmup: row.warmup,
     imageUrl: row.imageUrl,
     scheduledFor: row.scheduledFor?.toISOString() ?? null,
+    // Scheduled on an account paused since: RepGet will not publish it (publish.ts), so it is the customer's to post.
+    ...(row.status === "scheduled" && pausedPlatforms.has(row.platform) ? { status: "new", scheduledFor: null } : {}),
     postedAt: row.postedAt?.toISOString() ?? null,
     postedUrl: row.postedUrl,
-    error: row.error,
     createdAt: row.createdAt.toISOString(),
   });
 
@@ -149,6 +154,7 @@ export default async function WebsiteSocialPage({ params, searchParams }: PagePr
       open={open.map(view)}
       posted={posted.map(view)}
       todayCount={Number(todayCount[0]?.n ?? 0)}
+      analysed={site.status === "ready"}
       perDay={SUGGESTIONS_PER_DAY}
       freeMonth={freeMonth}
       priceLabel={price > 0 ? plural(t.app.credits.creditsCount, price) : t.app.social.free}

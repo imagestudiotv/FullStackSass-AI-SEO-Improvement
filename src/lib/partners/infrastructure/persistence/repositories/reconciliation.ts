@@ -39,6 +39,29 @@ export function reconciliationRepository(db: Executor): ReconciliationRepository
         limit ${limit}`);
       return rows<{ invoiceId: string; organizationId: string }>(result);
     },
+    async payPalSalesWithoutFacts(environment, limit) {
+      // Subscription sales only: a one-off purchase (a capture) earns no commission.
+      const result = await db.execute(sql`
+        select p.external_id as "saleId", p.organization_id as "organizationId"
+        from payments p
+        join partner_attributions a on a.organization_id = p.organization_id and a.status in ('active', 'review')
+        where p.provider = 'paypal'
+          and p.provider_object = 'paypal_sale'
+          and p.status = 'paid'
+          and p.amount_cents > 0
+          and p.paid_at >= a.locked_at - interval '1 day'
+          and not exists (
+            select 1 from partner_payment_facts f
+            where f.environment = ${environment} and f.invoice_id = 'paypal_sale:' || p.external_id
+          )
+          and not exists (
+            select 1 from partner_provider_events e
+            where e.object_id = p.external_id and e.status in ('pending', 'processing')
+          )
+        order by p.paid_at
+        limit ${limit}`);
+      return rows<{ saleId: string; organizationId: string }>(result);
+    },
     async factsWithoutCommission(environment, limit) {
       const result = await db.execute(sql`
         select f.id as "factId", f.invoice_id as "invoiceId", f.organization_id as "organizationId"

@@ -10,9 +10,10 @@
  * rule per element and breakpoint. The design's `body.dark` is the site's
  * `.dark` on <html>.
  *
- * 2026-11-11: above the field, the client's simpler hero replaced the
- * eyebrow, the rating pill, the old title and the six floating cards (see
- * "Above the field" below); the field and what follows are unchanged.
+ * 2026-11-11 and 2026-11-24: above the field, the client's simpler heroes
+ * replaced the eyebrow, the rating pill, the old title and the six floating
+ * cards (see "Above the field" below); the field and what follows are
+ * unchanged.
  */
 
 /* The design's page defaults (its <body>): 14px, normal line height. */
@@ -59,7 +60,7 @@
 .rgx-hero {
   /* The design pulls its <main> (`.rgx`) up under the floating header; the hero is its first child. */
   margin-top: -20px;
-  min-height: 658px;
+  min-height: 600px;
   padding: 96px 20px 32px;
   position: relative;
   isolation: isolate;
@@ -67,6 +68,13 @@
   display: flex;
   justify-content: center;
   background: radial-gradient(ellipse 58% 69% at 50% 39%, #fff 0%, #fffdfa 64%, transparent 100%);
+}
+/*
+  While the field is in use its suggestion list (.rgx-suggest) hangs below the
+  hero; the platform ribbon after it (z-index 4) would cover the lower rows.
+*/
+.rgx-hero:focus-within {
+  z-index: 5;
 }
 :global(.dark) .rgx-hero {
   color: #f3f0ea;
@@ -100,190 +108,103 @@
 }
 
 /*
-  Above the field (client, 2026-11-11, repget_homepage_animated_social_proof.html
-  `hero-pill`, `hero-title`, `hero-subtitle`, `hero-descr`): the pill, "Meet
-  [the mascots] RepGet.", the promise in two lines, and the description. The
-  name and the promise are one heading, so the page's title still says what
-  RepGet does. The mascots: _home/hero-mascot.module.css.
+  Above the field (client, 2026-11-24, repget_homepage_animated_signals.html
+  `rg-headline`, `rg-description`): a quiet opening line and the promise - one
+  heading - and the description in two lines. The design's sizes, made smaller
+  where a language's line is longer than the English one (--line-chars, set by
+  hero.tsx), so each line stays one line on a desktop. On a phone both wrap.
 */
-.rgx-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  max-width: 100%;
-  padding: 8px 14px 8px 9px;
-  border: 1px solid #eae5e3;
-  border-radius: 99px;
-  background: #fff;
-  box-shadow: 0 4px 20px rgba(55, 29, 33, 0.035);
-  color: #79737d;
-  font-size: 10.5px;
-  font-weight: 800;
-  letter-spacing: 0.065em;
-  line-height: 1.3;
-  text-transform: uppercase;
-}
-.rgx-pill-mark {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: #fff0e7;
-  color: #f67438;
-  font-size: 19px;
-  line-height: 1;
-}
-:global(.dark) .rgx-pill {
-  background: #252923;
-  border-color: #3a3e37;
-  color: #b1b1a8;
-}
-:global(.dark) .rgx-pill-mark {
-  background: #3b261e;
-  color: #ff8649;
-}
-
 .rgx-title {
-  margin: 14px 0 12px;
-  color: #222722;
-  font-weight: 790;
+  --line-room: min(100vw - 48px, 1050px);
+  margin: 0 auto;
+  color: #1e2420;
 }
 :global(.dark) .rgx-title {
-  color: #f1efe8;
+  color: #f6f4f1;
 }
-/*
-  "Meet [mascots] RepGet." on one line. The design's size, made smaller where a
-  language's words are longer than "Meet" (--title-chars, set by hero.tsx):
-  what is left of the width once the mascots have theirs, over the letters.
-*/
-.rgx-name {
-  --title-room: min(100vw - 48px, 1050px);
-  --mascot-room: clamp(124px, 11.6vw, 168px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: clamp(9px, 1vw, 15px);
-  font-size: min(clamp(65px, 9.2vw, 119px), calc((var(--title-room) - var(--mascot-room)) / (var(--title-chars, 11) * 0.52)));
-  line-height: 1.03;
-  letter-spacing: -0.092em;
-  white-space: nowrap;
-  margin-bottom: 4px;
-}
-.rgx-brand {
-  color: #eb6634;
-  padding-right: 0.06em;
-}
-.rgx-subtitle {
+.rgx-opening,
+.rgx-promise {
   display: block;
-  max-width: 760px;
-  margin: 0 auto;
-  font-size: clamp(27px, 3.25vw, 43px);
-  font-weight: 760;
-  line-height: 1.12;
-  letter-spacing: -0.06em;
 }
-.rgx-subtitle em {
-  font-style: normal;
-  background: linear-gradient(105deg, #8b66c0, #bc72ae);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+.rgx-opening > span {
+  display: inline-block;
 }
-:global(.dark) .rgx-subtitle em {
-  background-image: linear-gradient(105deg, #b59aea, #d39ad0);
+.rgx-opening {
+  color: #525a53;
+  font-size: min(clamp(29px, 3.45vw, 50px), calc(var(--line-room) / (var(--line-chars, 38) * 0.5)));
+  font-weight: 650;
+  letter-spacing: -0.05em;
+  line-height: 1.13;
+}
+:global(.dark) .rgx-opening {
+  color: #c8c6c1;
+}
+.rgx-promise {
+  margin-top: 7px;
+  text-wrap: balance;
+  font-size: min(clamp(52px, 6.35vw, 90px), calc(var(--line-room) / (var(--line-chars, 23) * 0.48)));
+  font-weight: 850;
+  letter-spacing: -0.071em;
+  line-height: 1.09;
 }
 
 .rgx-description {
   max-width: 850px;
-  margin: 2px auto 25px;
-  color: #3a343e;
-  font-size: 16px;
-  line-height: 1.55;
-  letter-spacing: -0.015em;
+  margin: 19px auto 23px;
+  color: #525a53;
+  font-size: clamp(15px, 1.36vw, 18px);
+  line-height: 1.5;
+  letter-spacing: -0.021em;
 }
 .rgx-description > span {
   display: block;
 }
 .rgx-description strong {
-  font-weight: 790;
-  color: #222722;
-}
-.rgx-description .rgx-description-support {
-  margin-top: 2px;
-  color: #79737d;
-  font-size: 14px;
-  font-weight: 480;
-  letter-spacing: 0;
+  font-weight: 800;
+  color: #202621;
 }
 :global(.dark) .rgx-description {
-  color: #ddd9d1;
+  color: #c8c6c1;
 }
 :global(.dark) .rgx-description strong {
-  color: #f1efe8;
-}
-:global(.dark) .rgx-description .rgx-description-support {
-  color: #b1b1a8;
+  color: #f6f4f1;
 }
 
-@media (max-width: 800px) {
+@media (max-width: 1250px) {
+  .rgx-promise {
+    font-size: min(clamp(52px, 6.6vw, 80px), calc(var(--line-room) / (var(--line-chars, 23) * 0.48)));
+  }
+}
+@media (max-width: 700px) {
+  .rgx-opening {
+    font-size: clamp(26px, 6.2vw, 38px);
+    letter-spacing: -0.055em;
+    line-height: 1.15;
+  }
+  .rgx-promise {
+    margin-top: 12px;
+    font-size: clamp(45px, 9vw, 64px);
+    letter-spacing: -0.07em;
+    line-height: 1.02;
+  }
   .rgx-description {
-    max-width: 620px;
-    font-size: 14px;
-    margin-bottom: 23px;
+    font-size: 15px;
+    line-height: 1.49;
+    margin: 19px auto 24px;
   }
-  .rgx-description .rgx-description-support {
-    font-size: 13px;
-  }
-}
-@media (max-width: 760px) {
-  .rgx-name {
-    --title-room: calc(100vw - 38px);
-    --mascot-room: clamp(77px, 15.8vw, 105px);
-    gap: 5px;
-    font-size: min(clamp(47px, 9.8vw, 76px), calc((var(--title-room) - var(--mascot-room)) / (var(--title-chars, 11) * 0.52)));
-    /* Room for the mascots' words under the line. */
-    margin: 18px 0 30px;
-  }
-  .rgx-title {
-    margin-top: 0;
-  }
-  .rgx-subtitle {
-    font-size: clamp(25px, 4.9vw, 34px);
+  .rgx-description > span {
+    display: inline;
   }
 }
-@media (max-width: 560px) {
-  .rgx-description {
-    max-width: 350px;
-    font-size: 13px;
-    margin: 0 auto 18px;
-  }
-  .rgx-description .rgx-description-support {
-    font-size: 12px;
-    margin-top: 5px;
-  }
-}
-@media (max-width: 510px) {
-  .rgx-pill {
-    font-size: 9px;
-  }
-  .rgx-name {
-    --title-room: calc(100vw - 34px);
-    --mascot-room: clamp(64px, 15.4vw, 72px);
-    gap: 6px;
-    font-size: min(clamp(40px, 9.8vw, 55px), calc((var(--title-room) - var(--mascot-room)) / (var(--title-chars, 11) * 0.52)));
-    letter-spacing: -0.084em;
-    margin: 19px 0 33px;
-  }
-  .rgx-subtitle {
-    font-size: 27px;
-    line-height: 1.2;
-  }
-}
-@media (max-width: 380px) {
-  .rgx-subtitle {
+@media (max-width: 410px) {
+  .rgx-opening {
     font-size: 25px;
+  }
+  .rgx-promise {
+    font-size: 44px;
+  }
+  .rgx-description {
+    font-size: 14px;
   }
 }
 
@@ -835,7 +756,7 @@
 @media (max-width: 1000px) {
   .rgx-hero {
     padding-top: 90px;
-    min-height: 630px;
+    min-height: 540px;
   }
   .rgx-hero-content {
     max-width: 820px;

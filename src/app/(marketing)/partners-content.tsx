@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 import { EarningsCalculator, type CalculatorPlan } from "@/components/partners/earnings-calculator";
 import styles from "@/components/partners/partners-page.module.css";
+import { repgetFirstPaymentCents, repgetOfferEnabled } from "@/lib/billing/repget-offer";
 import type { ProgramPolicy } from "@/lib/partners/domain/policies/program";
 import { fill, type PartnerCopy } from "@/lib/partners/presentation/copy";
 import { policyValues, rateLabel, sortedTiers } from "@/lib/partners/presentation/format";
@@ -382,9 +383,18 @@ const AUDIENCE_ICONS = [
   </svg>,
 ];
 
-/** The earnings estimate's choices: the active monthly plans that cost something. */
-export function calculatorPlans(plans: { id: string; name: string; interval: string; priceCents: number; currency: string }[]): CalculatorPlan[] {
+/**
+ * The earnings estimate's choices: the active monthly plans that cost
+ * something, at what a new customer pays today. While the launch price is on
+ * every payment is discounted (lib/billing/repget-offer.ts), and commission is
+ * earned on what is paid: an estimate at the regular price would promise a
+ * partner up to two thirds more than they can earn.
+ */
+export function calculatorPlans(
+  plans: { id: string; name: string; tier: string; interval: string; priceCents: number; currency: string }[],
+  offer = repgetOfferEnabled(),
+): CalculatorPlan[] {
   return plans
     .filter((plan) => plan.interval === "month" && plan.priceCents > 0)
-    .map((plan) => ({ id: plan.id, name: plan.name, priceCents: plan.priceCents, currency: plan.currency }));
+    .map((plan) => ({ id: plan.id, name: plan.name, priceCents: (offer ? repgetFirstPaymentCents(plan) : null) ?? plan.priceCents, currency: plan.currency }));
 }

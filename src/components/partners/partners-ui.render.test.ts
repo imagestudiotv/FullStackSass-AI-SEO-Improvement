@@ -16,7 +16,7 @@ vi.mock("@/lib/auth/confirm-email-actions", () => ({ confirmEmail: vi.fn() }));
 vi.mock("@/lib/auth-client", () => ({ authClient: { emailOtp: { sendVerificationOtp: vi.fn() } } }));
 
 import PartnerError from "@/app/(site)/(partner)/partner/error";
-import { PartnersContent } from "@/app/(marketing)/partners-content";
+import { calculatorPlans, PartnersContent } from "@/app/(marketing)/partners-content";
 import { LOCALES, localePath } from "@/lib/i18n/config";
 import { APPLICATION_LIMITS } from "@/lib/partners/domain/entities/application";
 import { DEFAULT_PROGRAM_POLICY } from "@/lib/partners/domain/policies/program";
@@ -97,6 +97,16 @@ describe("the public /partners page", () => {
     for (const entry of schema.mainEntity) expect(entry.acceptedAnswer.text).not.toMatch(/\{\w+\}/);
     // Nothing invented: no partner counts or testimonials.
     expect(words).not.toMatch(/\d+\+\s*(partners|affiliates)/i);
+  });
+
+  it("estimates on what a new customer pays: the launch price while it is on, the regular price otherwise", () => {
+    const plans = [
+      { id: "grow", name: "Grow", tier: "grow", interval: "month", priceCents: 14900, currency: "eur" },
+      { id: "bundle", name: "Bundle", tier: "grow_visibility", interval: "month", priceCents: 9900, currency: "eur" },
+      { id: "grow-year", name: "Grow", tier: "grow", interval: "year", priceCents: 149000, currency: "eur" },
+    ];
+    expect(calculatorPlans(plans, true).map((plan) => plan.priceCents)).toEqual([8900, 9900]);
+    expect(calculatorPlans(plans, false).map((plan) => plan.priceCents)).toEqual([14900, 9900]);
   });
 
   it("shows no estimate without a plan to estimate on", () => {

@@ -2,11 +2,13 @@ import { randomUUID } from "node:crypto";
 
 import {
   calendarItems,
+  integrationKeys,
   plans,
   subscriptions,
   websites,
 } from "@/lib/db/schema";
 import { organization } from "@/lib/db/auth-tables";
+import type { Database } from "@/lib/db/types";
 import type { TestDb } from "@/test/db";
 
 /**
@@ -61,6 +63,11 @@ export async function seedWebsite(
   }
 
   return { orgId, websiteId: site.id };
+}
+
+/** The RepGet plugin checking in with a live key: the website is connected (lib/publishing/website-connection.ts). */
+export async function connectWebsite(db: Pick<Database, "insert">, websiteId: string) {
+  await db.insert(integrationKeys).values({ websiteId, keyHash: randomUUID(), keyPrefix: "rg_test", lastUsedAt: new Date() });
 }
 
 export async function seedCalendarItem({ db }: TestDb, websiteId: string) {

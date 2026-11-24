@@ -24,6 +24,8 @@ import { ArticlePreparing } from "./article-preparing";
 import { ArticleIndexingStatus } from "@/components/articles/indexing-status";
 import { ResearchPanel } from "@/components/articles/research-panel";
 import { formatWhen, HISTORY_LIMIT, loadPublishing, partnerLinksInText, pickDestination } from "./article-data";
+import { ConnectPopup } from "./connect-popup";
+import { offersConnect } from "./connect-popup-state";
 import { generationFailureKind } from "./failure-copy";
 import { previewSiteOrigin } from "./site-origin";
 
@@ -158,8 +160,17 @@ export default async function ArticlePage({
     locale,
   });
 
+  // For automatic posting the website must be connected: offered as the article opens (client, 2026-11-24).
+  const offerConnect = offersConnect({
+    canEdit: gate.access !== "viewer",
+    destination,
+    status: article.status,
+    hasBody: Boolean(article.bodyHtml?.trim()),
+  });
+
   return (
     <>
+    {offerConnect ? <ConnectPopup websiteId={websiteId} domain={gate.site.domain} locale={locale} /> : null}
     <ResearchPanel websiteId={websiteId} articleId={articleId} locale={locale} />
     <ArticleIndexingStatus websiteId={gate.site.id} articleId={article.id} locale={locale} />
     <ArticleEditor

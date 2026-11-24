@@ -361,7 +361,8 @@ export const getLaunchState = cache(async function getLaunchState(
       title: "Activate the backlink exchange",
       description:
         "Host one article for a related business and earn a credit for a link back to you.",
-      done: network.length > 0,
+      // Connected too: until the website is, it is not in the network whatever its row says (lib/backlinks/network-settings.ts).
+      done: network.length > 0 && (cms.length > 0 || plugin.length > 0),
       optional: false,
       href: `${base}/backlinks`,
       icon: "link",

@@ -4,8 +4,8 @@
  * so it's already calculated how much should cost 1000 credits and purchase").
  *
  * A website project is quoted in credits (lib/website-projects). When the
- * workspace has fewer credits than the quote, "Buy credits" opens Billing with
- * the quote named, and Billing offers EXACTLY the shortfall - the quote's
+ * workspace has fewer credits than the quote, "Buy credits" opens the packs page with
+ * the quote named, and it offers EXACTLY the shortfall - the quote's
  * credits less what the workspace can spend - at the price the server works
  * out. Paying for them grants the credits only; the customer still accepts the
  * quote with "Pay in credits", and the quote's price never changes here.
@@ -13,6 +13,8 @@
  * Plain values and pure functions, so the server, the screens and the tests
  * share them (no database, no provider SDK).
  */
+
+import { BUY_CREDITS_PATH } from "./buy-credits";
 
 /** The inactive add-on every quote top-up is recorded under (addon_purchases.addon_id). */
 export const QUOTE_CREDITS_SLUG = "credits_custom";
@@ -70,9 +72,9 @@ export function quoteRevisionOf(quotedAt: Date | null): string | null {
   return quotedAt ? String(quotedAt.getTime()) : null;
 }
 
-/** Where "Buy credits" on a quote goes: Billing, with the quote and its revision named. */
+/** Where "Buy credits" on a quote goes: the credit packs page, with the quote and its revision named. */
 export function quoteTopUpHref(projectId: string, revision: string): string {
-  return `/billing?project=${encodeURIComponent(projectId)}&revision=${encodeURIComponent(revision)}#quote-credits`;
+  return `${BUY_CREDITS_PATH}?project=${encodeURIComponent(projectId)}&revision=${encodeURIComponent(revision)}#quote-credits`;
 }
 
 /** Back on the quote after paying: the website projects screen, scrolled to that project. */
@@ -80,7 +82,10 @@ export function quoteReturnPath(projectId: string, topUpId: string): string {
   return `/website-projects?topup=${encodeURIComponent(topUpId)}#project-${projectId}`;
 }
 
-/** Back on Billing after cancelling: the same offer is still there. */
+/**
+ * Back after cancelling: Billing sends it on to the credit packs page, where the same offer still is. The address
+ * stays the one open checkouts were made with.
+ */
 export function quoteCancelPath(projectId: string, revision: string, outcome: "cancelled" | "failed", via?: "paypal"): string {
   return `/billing?addon=${outcome}${via ? `&via=${via}` : ""}&project=${encodeURIComponent(projectId)}&revision=${encodeURIComponent(revision)}#quote-credits`;
 }
@@ -93,7 +98,7 @@ export const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0
 /** The status of a top-up: open until paid (credits granted) or failed (a delayed payment that did not clear). */
 export type TopUpStatus = "open" | "paid" | "failed";
 
-/** What Billing shows at the top for a quote, worked out on the server. */
+/** What the credit packs page shows at the top for a quote, worked out on the server. */
 export type QuoteTopUpOffer = {
   projectId: string;
   revision: string;

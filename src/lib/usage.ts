@@ -492,6 +492,8 @@ export async function articleAllowanceRule(
       trial: boolean;
       /** On the Free plan (lib/plans/free-plan.ts): rule.limit is FREE_PLAN's monthly articles. */
       free: boolean;
+      /** The plan's MONTHLY allowance, even in the free trial, where rule.limit is pro-rated to it: what the pace reads. */
+      perMonth: number;
     }
   | { ok: false; reason: "no_active_plan" | "subscription_inactive" }
 > {
@@ -503,6 +505,7 @@ export async function articleAllowanceRule(
     freeArticles: plan.freeArticles,
     trial: plan.trial,
     free: plan.free,
+    perMonth: plan.monthlyArticles,
     rule: {
       key: articleAllowanceKey(websiteId),
       limit: plan.planLimits.articles,

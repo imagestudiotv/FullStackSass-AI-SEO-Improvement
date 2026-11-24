@@ -21,7 +21,7 @@ import {
   type VideoPlatform,
 } from "@/lib/video/formats";
 import type { DestinationCode } from "@/lib/video/destinations";
-import { makeErrorCode, type MakeErrorCode } from "@/lib/video/make-errors";
+import type { MakeErrorCode } from "@/lib/video/make-errors";
 import type { PublishError, VideoPublishingStatus } from "@/lib/video/publish-actions";
 
 /** The Social Content page's shared pieces: the idea's view, the error words, the small parts every tab uses. */
@@ -31,6 +31,10 @@ export type Tab = "ideas" | "videos" | "posted" | "settings";
 
 export type IdeaView = {
   id: string;
+  /** What the deck remembers it by (logic.ts deckKey). */
+  deckKey: string;
+  /** Brought back to Today's ideas: it could not be made, and its credit was returned. */
+  returned: boolean;
   format: string;
   style: string;
   title: string;
@@ -51,7 +55,10 @@ export type IdeaView = {
   stats: Record<string, { views: number; likes: number; comments: number; shares: number }>;
   statsAt: string | null;
   views: number;
+  /** A note that asks the customer for something (review_required); never a failure (lib/video/customer-view.ts). */
   error: string | null;
+  /** A YouTube Short's saved tags; null when none were saved yet (lib/video/youtube-tags.ts). */
+  youtubeTags: string | null;
   /* Viral social content (2026-11-12). */
   category: IdeaCategory;
   direction: CreativeDirection;
@@ -74,7 +81,10 @@ export type VideoAccountView = {
   platform: string;
   username: string;
   connected: boolean;
-  pausedReason: string | null;
+  /** Automatic posting rests there for now. */
+  paused: boolean;
+  /** Paused after the platform refused a post: the customer may resume it. */
+  resumable: boolean;
   /** Pinterest's board (social_accounts.target, chosen on Opportunities); null for the others. */
   board: string | null;
 };
@@ -114,23 +124,10 @@ export function errorText(t: T, result: { ok: false; error: string; available?: 
   return errorWords(t)[result.error] ?? t.errors.generic;
 }
 
-/** A stored error part as a code: itself, or the code an older raw voice failure stands for (lib/video/make-errors.ts). */
-const codeOf = (part: string) => makeErrorCode(part) ?? part;
-
-/**
- * A video's stored error in the reader's language: the codes publishing
- * leaves (no_accounts, no_board, x_budget...: lib/video/publish.ts) and a
- * failed make leaves (voice_unavailable...) translated - the AI voice
- * provider's raw answer is never shown, older rows' included - and a
- * platform's own refusal as it came.
- */
-export function errorNote(t: T, error: string): string {
-  return error
-    .split(" · ")
-    .map((part) => errorWords(t)[codeOf(part)] ?? part)
-    .join(" · ");
+/** A video's note in the reader's language; null for anything that is not one of our own codes - a raw refusal is never shown. */
+export function noteText(t: T, code: string | null): string | null {
+  return code ? (errorWords(t)[code] ?? null) : null;
 }
-export const isCode = (t: T, error: string | null) => Boolean(error && error.split(" · ").some((part) => codeOf(part) in errorWords(t)));
 
 export function Field({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }) {
   return (
@@ -186,11 +183,9 @@ export function PlatformDots({ platforms }: { platforms: VideoPlatform[] }) {
 
 const DESTINATION_TONE: Record<string, string> = {
   posted: "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-100",
-  failed: "border-destructive/30 bg-destructive/5 text-destructive",
-  skipped: "border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100",
 };
 
-/** Where a video went, platform by platform: posted, failed or skipped, with the reason in words. */
+/** Where a video is, platform by platform: posted, or on its way (a refusal is never listed: lib/video/customer-view.ts). */
 export function DestinationChips({ destinations, postedUrls, t }: { destinations: Record<string, DestinationState>; postedUrls?: Record<string, string>; t: T }) {
   const entries = Object.entries(destinations).filter(([platform]) => isVideoPlatform(platform));
   if (entries.length === 0) return null;
@@ -207,7 +202,6 @@ export function DestinationChips({ destinations, postedUrls, t }: { destinations
             <BrandIcon name={platform as VideoPlatform} className="size-3 shrink-0" />
             <span className="font-medium">{platformName(platform)}</span>
             <span>· {words}</span>
-            {state.error && state.status !== "posted" ? <span className="min-w-0 break-words opacity-90">· {errorNote(t, state.error)}</span> : null}
             {url && state.status === "posted" ? (
               <a href={url} target="_blank" rel="noreferrer" className="underline underline-offset-2">
                 {t.open}
@@ -245,7 +239,7 @@ export function startWith<D>(run: Run, action: () => Promise<ActionResult<D>>, s
   );
 }
 
-/** Why X is closed: not set up for videos, or its spending limit reached for now. */
+/** Why X is closed: not set up for videos - or, for now, RepGet's own spending limit, which is not the customer's to read about. */
 export function xWords(t: T, publishing: VideoPublishingStatus): string {
-  return publishing.x.reason === "limit_reached" ? t.viral.x.budget : t.viral.x.needsSetup;
+  return publishing.x.reason === "limit_reached" ? t.flow.library.auto.unavailable : t.viral.x.needsSetup;
 }

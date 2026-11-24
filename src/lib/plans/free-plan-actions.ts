@@ -3,6 +3,7 @@
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
+import { startedDashboardPath } from "@/lib/billing/return-to";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/auth-tables";
 import { getAppMessages } from "@/lib/i18n/app-locale";
@@ -37,8 +38,8 @@ export type StartFreePlanActionResult =
  * so may the growth-plan flow's last step. Idempotent: pressing it twice, or
  * after Free started, answers ok again.
  *
- * `next` is where setup continues, as after a paid plan's checkout: Connect
- * Google (/onboarding/google), for this website.
+ * `next` is the dashboard for this website, as after a paid plan's checkout:
+ * onboarding ends at the plan (Daniel, 2026-11-24).
  */
 export async function startFreePlanAction(websiteId: string): Promise<StartFreePlanActionResult> {
   const { orgId, userId } = await requireOrg();
@@ -56,8 +57,7 @@ export async function startFreePlanAction(websiteId: string): Promise<StartFreeP
 
   if (result.ok) {
     /*
-      The first content plan starts now, so the first article does not wait
-      for the onboarding's last step (lib/keywords/first-plan.ts). Never
+      The first content plan starts now (lib/keywords/first-plan.ts). Never
       fails the start: the every-10-minutes sweep tries again.
     */
     await planFirstIfDue(websiteId).catch((error) => console.error("[free-plan] first content plan not started", error));
@@ -67,7 +67,7 @@ export async function startFreePlanAction(websiteId: string): Promise<StartFreeP
       revalidatePath(localePath(locale, "/"));
       revalidatePath(localePath(locale, "/pricing"));
     }
-    return { ok: true, next: `/onboarding/google?site=${encodeURIComponent(websiteId)}` };
+    return { ok: true, next: startedDashboardPath(websiteId) };
   }
 
   const t = freePlanCopy(locale);

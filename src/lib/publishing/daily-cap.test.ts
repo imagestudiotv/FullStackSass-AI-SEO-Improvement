@@ -10,7 +10,7 @@ vi.mock("@/lib/db", () => ({
   db: new Proxy({}, { get: (_t, p) => Reflect.get(state.db as object, p) }),
 }));
 
-import { dailyCapFor, dailyLimitKey, DEFAULT_DAILY_LIMITS, listDailyLimits, resolveDailyLimit, utcDayStart } from "./daily-cap";
+import { dailyCapFor, dailyLimitKey, DEFAULT_DAILY_LIMITS, listDailyLimits, resolveDailyLimit } from "./daily-cap";
 
 const IMAGESTUDIO = "4aec4382-f158-4deb-b7a3-b4968aac6b41";
 
@@ -81,12 +81,5 @@ describe("listDailyLimits", () => {
   it("skips the setting of a website that no longer exists", async () => {
     await save(randomUUID(), 4);
     expect((await listDailyLimits()).every((limit) => limit.domain)).toBe(true);
-  });
-});
-
-describe("utcDayStart", () => {
-  it("is midnight UTC of the same UTC day", () => {
-    expect(utcDayStart(new Date("2026-11-21T14:43:41Z")).toISOString()).toBe("2026-11-21T00:00:00.000Z");
-    expect(utcDayStart(new Date("2026-11-21T00:00:00Z")).toISOString()).toBe("2026-11-21T00:00:00.000Z");
   });
 });

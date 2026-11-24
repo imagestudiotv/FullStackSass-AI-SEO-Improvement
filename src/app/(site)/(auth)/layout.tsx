@@ -42,7 +42,7 @@ export default async function AuthLayout({ children }: LayoutProps<"/">) {
         The analytics cookie banner: sign-in and sign-up count as public pages
         (components/consent-banner.tsx). First, so it is read before the form.
       */}
-      <ConsentBanner copy={{ [locale]: t.consent }} locale={locale} />
+      <ConsentBanner copy={{ [locale]: t.consent }} locale={locale} clearOfForm />
       {/*
         Form side.
 
@@ -78,7 +78,8 @@ export default async function AuthLayout({ children }: LayoutProps<"/">) {
           design asks for on a page this short.
         */
         id="auth-form-column"
-        className="flex flex-col px-6 py-12 sm:px-12 lg:px-16"
+        // Below lg the cookie banner lies over the foot of this column: room to scroll "Create account" clear of it.
+        className="flex flex-col px-6 py-12 in-data-consent-open:max-lg:pb-64 sm:px-12 lg:px-16"
       >
         <div className="mx-auto my-auto w-full max-w-sm">
           {/*

@@ -34,9 +34,9 @@ export type TasksCopy = {
   steps: Record<SetupTask["id"], Row>;
   account: Record<"social" | "video", Row>;
   /**
-   * The dashboard's note for a website just started from the growth plan
-   * (2026-11-21): paying there skips the onboarding steps after the plan, which
-   * are the set-up rows here. {domain}.
+   * The dashboard's note for a website whose plan has just started: onboarding
+   * ends at the plan (2026-11-24), and the rest of the set-up is the rows here.
+   * The content plan and the AI questions start by themselves. {domain}.
    */
   welcome: { title: string; body: string; cta: string };
 };
@@ -78,7 +78,7 @@ export const TASKS_COPY: Record<Locale, TasksCopy> = {
       backlinks: { title: "Activate the backlink exchange", help: "Host articles for related businesses and earn links back to you." },
       prompts: { title: "Generate prompts & start AI tracking", help: "The questions customers ask AI assistants, and whether you are named in the answer." },
     },
-    welcome: { title: "{domain} is ready, and RepGet has started", body: "Connecting Google, your AI visibility questions, your content plan and the rest of the set-up are waiting in Tasks, whenever you have a minute.", cta: "Open Tasks" },
+    welcome: { title: "{domain} is ready, and RepGet has started", body: "Your content plan and AI visibility questions are being prepared. Connecting your website, Google and the rest of the set-up are in Tasks, whenever you have a minute.", cta: "Open Tasks" },
     account: {
       social: { title: "Connect your social media channels", help: "We suggest posts and replies for every channel you connect." },
       video: { title: "Connect your video channels", help: "Instagram, TikTok, YouTube, Facebook and Pinterest, so finished videos can be posted." },
@@ -120,7 +120,7 @@ export const TASKS_COPY: Record<Locale, TasksCopy> = {
       backlinks: { title: "Active el intercambio de backlinks", help: "Aloje artículos de negocios afines y consiga enlaces hacia su sitio." },
       prompts: { title: "Genere preguntas y active el seguimiento de IA", help: "Las preguntas que los clientes hacen a los asistentes de IA, y si usted aparece en la respuesta." },
     },
-    welcome: { title: "{domain} está listo y RepGet ya ha empezado", body: "Conectar Google, sus preguntas de visibilidad en IA, su plan de contenido y el resto de la configuración le esperan en Tareas, cuando tenga un minuto.", cta: "Abrir Tareas" },
+    welcome: { title: "{domain} está listo y RepGet ya ha empezado", body: "Estamos preparando su plan de contenido y sus preguntas de visibilidad en IA. Conectar su sitio web, Google y el resto de la configuración le esperan en Tareas, cuando tenga un minuto.", cta: "Abrir Tareas" },
     account: {
       social: { title: "Conecte sus redes sociales", help: "Le sugerimos publicaciones y respuestas para cada canal que conecte." },
       video: { title: "Conecte sus canales de vídeo", help: "Instagram, TikTok, YouTube, Facebook y Pinterest, para poder publicar los vídeos terminados." },
@@ -162,7 +162,7 @@ export const TASKS_COPY: Record<Locale, TasksCopy> = {
       backlinks: { title: "Activez l’échange de backlinks", help: "Hébergez des articles d’entreprises proches et obtenez des liens vers votre site." },
       prompts: { title: "Générez des questions et lancez le suivi IA", help: "Les questions que les clients posent aux assistants IA, et si vous êtes cité dans la réponse." },
     },
-    welcome: { title: "{domain} est prêt, et RepGet a commencé", body: "La connexion à Google, vos questions de visibilité IA, votre plan de contenu et le reste de la configuration vous attendent dans Tâches, quand vous aurez une minute.", cta: "Ouvrir les tâches" },
+    welcome: { title: "{domain} est prêt, et RepGet a commencé", body: "Votre plan de contenu et vos questions de visibilité IA sont en préparation. La connexion de votre site, de Google et le reste de la configuration vous attendent dans Tâches, quand vous aurez une minute.", cta: "Ouvrir les tâches" },
     account: {
       social: { title: "Connectez vos réseaux sociaux", help: "Nous suggérons des publications et des réponses pour chaque canal connecté." },
       video: { title: "Connectez vos canaux vidéo", help: "Instagram, TikTok, YouTube, Facebook et Pinterest, pour publier les vidéos terminées." },
@@ -204,7 +204,7 @@ export const TASKS_COPY: Record<Locale, TasksCopy> = {
       backlinks: { title: "Attivi lo scambio di backlink", help: "Ospiti articoli di attività affini e ottenga link verso il suo sito." },
       prompts: { title: "Generi domande e avvii il monitoraggio IA", help: "Le domande che i clienti fanno agli assistenti IA, e se lei viene citato nella risposta." },
     },
-    welcome: { title: "{domain} è pronto e RepGet ha iniziato", body: "Il collegamento a Google, le sue domande di visibilità IA, il piano dei contenuti e il resto della configurazione la aspettano in Attività, quando ha un minuto.", cta: "Apri Attività" },
+    welcome: { title: "{domain} è pronto e RepGet ha iniziato", body: "Stiamo preparando il Suo piano dei contenuti e le domande di visibilità IA. Il collegamento del sito web, di Google e il resto della configurazione La aspettano in Attività, quando ha un minuto.", cta: "Apri Attività" },
     account: {
       social: { title: "Colleghi i suoi social", help: "Suggeriamo post e risposte per ogni canale che collega." },
       video: { title: "Colleghi i suoi canali video", help: "Instagram, TikTok, YouTube, Facebook e Pinterest, per pubblicare i video finiti." },
@@ -246,7 +246,7 @@ export const TASKS_COPY: Record<Locale, TasksCopy> = {
       backlinks: { title: "Aktivieren Sie den Backlink-Austausch", help: "Veröffentlichen Sie Artikel verwandter Unternehmen und erhalten Sie Links zu Ihrer Website." },
       prompts: { title: "Erstellen Sie Fragen und starten Sie das KI-Tracking", help: "Die Fragen, die Kunden KI-Assistenten stellen, und ob Sie in der Antwort genannt werden." },
     },
-    welcome: { title: "{domain} ist bereit, und RepGet hat begonnen", body: "Die Verbindung mit Google, Ihre Fragen zur KI-Sichtbarkeit, Ihr Content-Plan und die übrige Einrichtung warten unter Aufgaben, sobald Sie eine Minute haben.", cta: "Aufgaben öffnen" },
+    welcome: { title: "{domain} ist bereit, und RepGet hat begonnen", body: "Ihr Content-Plan und Ihre Fragen zur KI-Sichtbarkeit werden vorbereitet. Die Verbindung Ihrer Website, Google und die übrige Einrichtung warten unter Aufgaben, sobald Sie eine Minute haben.", cta: "Aufgaben öffnen" },
     account: {
       social: { title: "Verbinden Sie Ihre sozialen Netzwerke", help: "Wir schlagen Beiträge und Antworten für jeden verbundenen Kanal vor." },
       video: { title: "Verbinden Sie Ihre Videokanäle", help: "Instagram, TikTok, YouTube, Facebook und Pinterest, damit fertige Videos veröffentlicht werden können." },

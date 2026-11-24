@@ -592,7 +592,8 @@ function PublishingPane(props: {
   const busy = !props.canEdit || props.pending;
   // X is set up when it takes videos now, or only its spending limit is used up for the moment.
   const xReady = props.publishing.x.available || props.publishing.x.reason === "limit_reached";
-  const xMessage = props.publishing.x.available ? null : xWords(t, props.publishing);
+  // The month's X budget is RepGet's own: not the customer's to read about, and it comes back by itself.
+  const xMessage = props.publishing.x.available || props.publishing.x.reason === "limit_reached" ? null : xWords(t, props.publishing);
   const linkedinNoTarget = props.publishing.linkedin.connected && !props.publishing.linkedin.target;
   // Frequency: a customer on automatic posting from before 2026-11-12 keeps "as videos are made" until they choose.
   const legacy = props.settings.frequency === null;
@@ -605,7 +606,6 @@ function PublishingPane(props: {
         <ul className="divide-y">
           {VIDEO_PLATFORMS.map((platform) => {
             const account = props.accounts.find((row) => row.platform === platform);
-            const paused = account?.pausedReason !== null && account?.pausedReason !== undefined;
             const board = VIDEO_PLATFORM_SPECS[platform].board;
             const x = platform === "x";
             return (
@@ -621,7 +621,6 @@ function PublishingPane(props: {
                         {t.connected} · {account.username}
                       </p>
                     ) : null}
-                    {paused ? <p className="text-xs text-amber-700 dark:text-amber-400">{format(t.paused, { reason: account?.pausedReason ?? "" })}</p> : null}
                     {x && xMessage ? <p className="text-xs text-amber-700 dark:text-amber-400">{xMessage}</p> : null}
                     {board && account?.connected ? (
                       account.board ? (
@@ -650,7 +649,8 @@ function PublishingPane(props: {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  {paused ? (
+                  {/* Resting after the platform refused a post: no reason, no warning - just the way back on. */}
+                  {account?.resumable ? (
                     <Button size="sm" variant="outline" disabled={busy} onClick={() => props.run(() => resumeVideoPlatform(websiteId, platform), t.saved)}>
                       {t.resume}
                     </Button>

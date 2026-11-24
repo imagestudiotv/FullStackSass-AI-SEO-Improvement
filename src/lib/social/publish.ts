@@ -27,7 +27,9 @@ import { PLATFORMS, type SocialPlatform } from "./platforms";
  * A REFUSAL PAUSES THE ACCOUNT'S AUTOMATIC POSTING (the anti-ban rule): a
  * platform that refused a post - spam filter, rate limit, suspended account -
  * would refuse the next one too, and every further try makes a ban more
- * likely. The customer sees why, and resumes it on the Social page.
+ * likely. The reason stays in social_accounts for administrators; the
+ * customer sees only that the post is ready to post by hand, as are the
+ * account's other waiting posts. What starts it again, and when: pause.ts.
  */
 
 export type PublishOutcome = "posting" | "posted" | "skipped" | "failed" | "no_credits" | "free_posts_used";
@@ -51,6 +53,11 @@ async function pause(websiteId: string, platform: string, reason: string, now: D
     .update(socialAccounts)
     .set({ pausedAt: now, pausedReason: shortReason(reason), updatedAt: now })
     .where(and(eq(socialAccounts.websiteId, websiteId), eq(socialAccounts.platform, platform)));
+  // Its other waiting posts are the customer's to post: the page must not promise a time RepGet will not keep.
+  await db
+    .update(socialSuggestions)
+    .set({ status: "new", scheduledFor: null, updatedAt: now })
+    .where(and(eq(socialSuggestions.websiteId, websiteId), eq(socialSuggestions.platform, platform), eq(socialSuggestions.status, "scheduled")));
 }
 
 async function fail(id: string, reason: string, now: Date) {

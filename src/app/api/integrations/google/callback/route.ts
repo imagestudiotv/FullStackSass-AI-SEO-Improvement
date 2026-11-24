@@ -4,10 +4,7 @@ import { getSession } from "@/lib/auth-guard";
 import { getConnectionMeta, saveTokens } from "@/lib/analytics/connection";
 import { propertyPermissions, type ConnectedBy } from "@/lib/analytics/property-access";
 import { exchangeCode, GoogleAuthError } from "@/lib/analytics/google-oauth";
-import {
-  consumeOAuthState,
-  type ConnectOrigin,
-} from "@/lib/analytics/oauth-state";
+import { consumeOAuthState } from "@/lib/analytics/oauth-state";
 import { requireEditor } from "@/lib/websites/require-editor";
 import { WebsiteNotFoundError } from "@/lib/tenant";
 
@@ -37,24 +34,19 @@ import { WebsiteNotFoundError } from "@/lib/tenant";
 export const dynamic = "force-dynamic";
 
 /**
- * Back to the screen Connect was pressed on.
- *
- * `origin` selects one of two fixed paths and is never a URL, so this cannot
- * become an open redirect however the callback is called. It is read from the
- * consumed state row rather than from the query string, so it cannot be
- * swapped on the way through Google either.
+ * Back to the website's Google page. Never a URL from the request, so this
+ * cannot become an open redirect however the callback is called; the website
+ * is read from the consumed state row. (The setup's Connect Google step is
+ * gone: a sign-in that started there comes back to the same page.)
  */
 function back(
-  target: { websiteId: string; origin: ConnectOrigin } | null,
+  target: { websiteId: string } | null,
   params: Record<string, string>,
 ) {
   const base = (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
   const query = new URLSearchParams(params);
   let path = "/websites";
-  if (target?.origin === "onboarding") {
-    path = "/onboarding/google";
-    query.set("site", target.websiteId);
-  } else if (target) {
+  if (target) {
     path = `/websites/${target.websiteId}/google`;
   }
   return NextResponse.redirect(`${base}${path}?${query.toString()}`);
@@ -119,8 +111,8 @@ export async function GET(request: Request) {
     return back(null, { google: "invalid_request" });
   }
 
-  const { websiteId, origin, codeVerifier } = consumed.state;
-  const target = { websiteId, origin };
+  const { websiteId, codeVerifier } = consumed.state;
+  const target = { websiteId };
 
   /**
    * CURRENT permission, not the permission held when Connect was pressed.

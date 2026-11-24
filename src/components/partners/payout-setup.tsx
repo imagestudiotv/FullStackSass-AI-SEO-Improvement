@@ -31,12 +31,15 @@ export function PayoutSetup({
   canAct,
   countryLine,
   requirements,
+  refusedMessage,
 }: {
   state: SetupState;
   copy: Copy;
   canAct: boolean;
   countryLine: string | null;
   requirements: string[];
+  /** Stripe refused the account itself: trying again would not help. */
+  refusedMessage?: string;
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +53,10 @@ export function PayoutSetup({
       const result = await action().catch(() => null);
       if (result?.ok) {
         window.location.assign(result.data.url);
+        return;
+      }
+      if (result && result.error === "invalid" && refusedMessage) {
+        setError(refusedMessage);
         return;
       }
       const key = (result && result.error in copy.errors ? result.error : "generic") as keyof Copy["errors"];

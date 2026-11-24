@@ -4,6 +4,7 @@ import { inngest } from "@/inngest/client";
 import { db } from "@/lib/db";
 import { networkSites, subscriptions, websites } from "@/lib/db/schema";
 import { onFreeArticles } from "@/lib/billing/free-articles";
+import { websiteConnectedSql } from "@/lib/publishing/website-connection";
 
 /**
  * Switches the backlink exchange on three days after a website subscribes.
@@ -64,6 +65,8 @@ export const activateExchange = inngest.createFunction(
             raw`${subscriptions.status} in ('active', 'trialing')`,
             // The Partner Network waits for the plan (lib/billing/free-articles.ts).
             raw`not ${onFreeArticles(websites.id)}`,
+            // Connecting the website comes before joining (Daniel, 2026-11-24); it joins on the first run after it does.
+            websiteConnectedSql(websites.id),
           ),
         )
         .limit(200);

@@ -34,6 +34,7 @@ export const LIFECYCLE_KINDS = [
   "plan_started",
   "payment_failed",
   "cancellation_confirmed",
+  "first_article_ready",
   "article_published",
   "article_failed",
   "video_views",
@@ -61,6 +62,7 @@ export const ESSENTIAL: Record<LifecycleKind, boolean> = {
   plan_started: true,
   payment_failed: true,
   cancellation_confirmed: true,
+  first_article_ready: false,
   article_published: false,
   article_failed: true,
   video_views: false,
@@ -107,6 +109,17 @@ export type LifecycleEmail =
       endsOn: Date | null;
       /** Cancelled during the free period: nothing was ever charged. */
       trial: boolean;
+    }
+  | {
+      kind: "first_article_ready";
+      websiteId: string;
+      articleId: string;
+      domain: string;
+      title: string;
+      /** Going out by itself now; otherwise it waits for the customer. */
+      publishing: boolean;
+      /** The website has somewhere to publish. */
+      connected: boolean;
     }
   | { kind: "article_published"; websiteId: string; articleId: string; domain: string; title: string; url: string }
   | { kind: "article_failed"; websiteId: string; articleId: string; domain: string; title: string; error: string | null }
@@ -196,6 +209,19 @@ type Copy = {
     ended: string;
     trial: string;
     comeBack: string;
+    button: string;
+  };
+  first_article_ready: {
+    subject: string;
+    /** When it is being published by itself right now. */
+    subjectPublishing: string;
+    heading: string;
+    preheader: string;
+    body: string;
+    /** What happens next: going out by itself, waiting for the customer's press, or for a connection. */
+    publishing: string;
+    review: string;
+    connect: string;
     button: string;
   };
   article_published: { subject: string; heading: string; preheader: string; body: string; live: string; button: string };
@@ -319,6 +345,17 @@ export const LIFECYCLE_COPY: Record<Locale, Copy> = {
       trial: "Your free trial for {domain} is cancelled: your plan will not start and nothing will be charged. You can keep using it until {date}.",
       comeBack: "If you change your mind, you can choose a plan again in Billing at any time.",
       button: "Open Billing",
+    },
+    first_article_ready: {
+      subject: "Your first article is ready to publish",
+      subjectPublishing: "Your first article is ready",
+      heading: "Your first article is ready",
+      preheader: "{title}, for {domain}.",
+      body: "\"{title}\", the first article for {domain}, is written and waiting for you in your dashboard.",
+      publishing: "It is being published on your website now. You can read it and change it in RepGet at any time.",
+      review: "Read it, change anything you like, and publish it when you are happy with it.",
+      connect: "Read it and change anything you like. To have RepGet post it, and the next ones, automatically, connect your website.",
+      button: "Read your article",
     },
     article_published: {
       subject: "Your article is live: {title}",
@@ -467,6 +504,17 @@ export const LIFECYCLE_COPY: Record<Locale, Copy> = {
       comeBack: "Si cambia de opinión, puede volver a elegir un plan en Facturación en cualquier momento.",
       button: "Abrir Facturación",
     },
+    first_article_ready: {
+      subject: "Su primer artículo está listo para publicar",
+      subjectPublishing: "Su primer artículo está listo",
+      heading: "Su primer artículo está listo",
+      preheader: "{title}, para {domain}.",
+      body: "«{title}», el primer artículo para {domain}, está escrito y le espera en su panel.",
+      publishing: "Se está publicando ahora en su sitio web. Puede leerlo y cambiarlo en RepGet cuando quiera.",
+      review: "Léalo, cambie lo que desee y publíquelo cuando esté conforme.",
+      connect: "Léalo y cambie lo que desee. Para que RepGet lo publique automáticamente, y también los siguientes, conecte su sitio web.",
+      button: "Leer su artículo",
+    },
     article_published: {
       subject: "Su artículo está publicado: {title}",
       heading: "Su artículo está publicado",
@@ -613,6 +661,17 @@ export const LIFECYCLE_COPY: Record<Locale, Copy> = {
       trial: "Votre essai gratuit pour {domain} est annulé : votre forfait ne démarrera pas et rien ne sera facturé. Vous pouvez continuer à l’utiliser jusqu’au {date}.",
       comeBack: "Si vous changez d’avis, vous pouvez à tout moment choisir à nouveau un forfait dans Facturation.",
       button: "Ouvrir Facturation",
+    },
+    first_article_ready: {
+      subject: "Votre premier article est prêt à être publié",
+      subjectPublishing: "Votre premier article est prêt",
+      heading: "Votre premier article est prêt",
+      preheader: "{title}, pour {domain}.",
+      body: "« {title} », le premier article pour {domain}, est rédigé et vous attend dans votre tableau de bord.",
+      publishing: "Il est en cours de publication sur votre site. Vous pouvez le lire et le modifier dans RepGet à tout moment.",
+      review: "Lisez-le, modifiez ce que vous souhaitez et publiez-le quand il vous convient.",
+      connect: "Lisez-le et modifiez ce que vous souhaitez. Pour que RepGet le publie automatiquement, ainsi que les suivants, connectez votre site.",
+      button: "Lire votre article",
     },
     article_published: {
       subject: "Votre article est en ligne : {title}",
@@ -761,6 +820,17 @@ export const LIFECYCLE_COPY: Record<Locale, Copy> = {
       comeBack: "Se cambia idea, può scegliere di nuovo un piano in Fatturazione in qualsiasi momento.",
       button: "Apri Fatturazione",
     },
+    first_article_ready: {
+      subject: "Il Suo primo articolo è pronto per la pubblicazione",
+      subjectPublishing: "Il Suo primo articolo è pronto",
+      heading: "Il Suo primo articolo è pronto",
+      preheader: "{title}, per {domain}.",
+      body: "«{title}», il primo articolo per {domain}, è scritto e La aspetta nella Sua dashboard.",
+      publishing: "È in corso di pubblicazione sul Suo sito. Può leggerlo e modificarlo in RepGet in qualsiasi momento.",
+      review: "Lo legga, modifichi ciò che desidera e lo pubblichi quando Le va bene.",
+      connect: "Lo legga e modifichi ciò che desidera. Perché RepGet lo pubblichi automaticamente, insieme ai prossimi, colleghi il Suo sito.",
+      button: "Leggi il Suo articolo",
+    },
     article_published: {
       subject: "Il Suo articolo è online: {title}",
       heading: "Il Suo articolo è online",
@@ -907,6 +977,17 @@ export const LIFECYCLE_COPY: Record<Locale, Copy> = {
       trial: "Ihre kostenlose Testphase für {domain} ist gekündigt: Ihr Tarif beginnt nicht und es wird nichts abgerechnet. Sie können sie bis zum {date} weiter nutzen.",
       comeBack: "Wenn Sie es sich anders überlegen, können Sie jederzeit unter Abrechnung wieder einen Tarif wählen.",
       button: "Abrechnung öffnen",
+    },
+    first_article_ready: {
+      subject: "Ihr erster Artikel ist bereit zur Veröffentlichung",
+      subjectPublishing: "Ihr erster Artikel ist fertig",
+      heading: "Ihr erster Artikel ist fertig",
+      preheader: "{title}, für {domain}.",
+      body: "„{title}“, der erste Artikel für {domain}, ist geschrieben und wartet in Ihrem Dashboard auf Sie.",
+      publishing: "Er wird gerade auf Ihrer Website veröffentlicht. Sie können ihn jederzeit in RepGet lesen und ändern.",
+      review: "Lesen Sie ihn, ändern Sie, was Sie möchten, und veröffentlichen Sie ihn, wenn er Ihnen gefällt.",
+      connect: "Lesen Sie ihn und ändern Sie, was Sie möchten. Damit RepGet ihn und die nächsten automatisch veröffentlicht, verbinden Sie Ihre Website.",
+      button: "Artikel lesen",
     },
     article_published: {
       subject: "Ihr Artikel ist online: {title}",
@@ -1121,6 +1202,18 @@ function parts(email: LifecycleEmail, locale: Locale): Parts {
         preheader: format(c.preheader, values),
         paragraphs: [format(sentence, values), c.comeBack],
         button: { label: c.button, path: billing(email.websiteId) },
+      };
+    }
+    case "first_article_ready": {
+      const c = copy.first_article_ready;
+      const values = { domain: email.domain, title: email.title };
+      return {
+        subject: email.publishing ? c.subjectPublishing : c.subject,
+        heading: c.heading,
+        preheader: format(c.preheader, values),
+        paragraphs: [format(c.body, values), email.publishing ? c.publishing : email.connected ? c.review : c.connect],
+        // Through sign-in, which comes back to the article: a signed-out reader would otherwise land on the dashboard.
+        button: { label: c.button, path: `/sign-in?next=${encodeURIComponent(`/websites/${email.websiteId}/articles/${email.articleId}`)}` },
       };
     }
     case "article_published": {

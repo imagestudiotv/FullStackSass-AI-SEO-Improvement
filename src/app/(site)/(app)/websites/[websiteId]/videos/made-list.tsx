@@ -1,6 +1,6 @@
 "use client";
 
-import { Clapperboard, Download, Eye, Loader2, Music2, RefreshCw, Search, Send } from "lucide-react";
+import { Clapperboard, Download, Eye, Loader2, Music2, Search, Send, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { NativeLikeSelect } from "@/components/ui/native-like-select";
@@ -12,15 +12,15 @@ import { Notice } from "@/components/workspace/notice";
 import type { Locale } from "@/lib/i18n/config";
 import { format, formatDate } from "@/lib/i18n/format";
 import type { InstagramAudio } from "@/lib/social/bundle";
-import { approveVideoIdea } from "@/lib/video/actions";
 import { REEL, slideCount } from "@/lib/video/formats";
 import { connectVideoPlatform, searchInstagramAudio, setNativeAudio, type VideoPublishingStatus } from "@/lib/video/publish-actions";
 import type { VideoSettings } from "@/lib/video/settings";
 import { COVER_FALLBACK_SECONDS, coverSeconds } from "@/remotion/cover";
 
-import type { FormatFilter } from "./logic";
+import { DeleteDialog, SelectBar, SelectBox, useDeletion, type Deletion } from "./delete-videos";
+import { downloadUrl, type FormatFilter } from "./logic";
 import { reelFrames } from "./preview";
-import { DestinationChips, EmptyState, errorNote, errorText, isCode, type IdeaView, type OpenPublish, selectClass, type Run, type T, type VideoAccountView } from "./shared";
+import { DestinationChips, EmptyState, errorText, type IdeaView, type OpenPublish, selectClass, type Run, type T, type VideoAccountView } from "./shared";
 
 /** A made video's length, as its render works it out (voice, scenes and closing card), in seconds. */
 const reelSeconds = (idea: IdeaView) => Math.round(reelFrames(idea.props) / REEL.fps);
@@ -58,19 +58,21 @@ type ListProps = {
 
 /**
  * Saved Videos (client, 2026-11-21; "Your videos" before): the approved
- * videos not scheduled or published yet - being made, ready, or failed.
- * Search and filter, then a card per video: Preview, Download, Publish (the
- * publishing window), Instagram audio, Try again. Scheduled and published
- * videos are on Posted.
+ * videos not scheduled or published yet - being made, or ready. Search,
+ * filter and select, then a card per video: Preview, Download, Publish (the
+ * publishing window), Delete - always in the same place, straight under the
+ * title and status (2026-11-24); what else there is to say comes after them.
+ * Scheduled and published videos are on Posted.
  */
 export function MadeList(props: ListProps) {
   const { t } = props;
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<FormatFilter>("all");
-  if (props.made.length === 0) return <EmptyState icon={<Clapperboard className="size-6" aria-hidden="true" />} title={t.flow.saved.emptyTitle} body={t.flow.saved.emptyBody} />;
-  const connected = props.accounts.filter((account) => account.connected && !account.pausedReason);
+  const deletion = useDeletion({ websiteId: props.websiteId, ideas: props.made, t });
+  if (deletion.left.length === 0) return <EmptyState icon={<Clapperboard className="size-6" aria-hidden="true" />} title={t.flow.saved.emptyTitle} body={t.flow.saved.emptyBody} />;
+  const connected = props.accounts.filter((account) => account.connected && !account.paused);
   const words = query.trim().toLocaleLowerCase(props.locale);
-  const shown = props.made.filter(
+  const shown = deletion.left.filter(
     (idea) => (kind === "all" || idea.format === kind) && (!words || `${idea.title} ${idea.caption}`.toLocaleLowerCase(props.locale).includes(words)),
   );
   return (
@@ -88,30 +90,32 @@ export function MadeList(props: ListProps) {
             <option value="carousel">{t.list.carousels}</option>
           </NativeLikeSelect>
           <span className="text-xs whitespace-nowrap text-muted-foreground tabular-nums" aria-live="polite">
-            {format(t.list.count, { shown: String(shown.length), total: String(props.made.length) })}
+            {format(t.list.count, { shown: String(shown.length), total: String(deletion.left.length) })}
           </span>
         </div>
+        {props.canEdit ? <SelectBar deletion={deletion} shown={shown} t={t} /> : null}
       </div>
       {shown.length === 0 ? (
         <EmptyState icon={<Search className="size-6" aria-hidden="true" />} title={t.list.empty} body={t.flow.saved.emptyBody} />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {shown.map((idea) => (
-            <MadeCard key={idea.id} {...props} idea={idea} connected={connected} />
+            <MadeCard key={idea.id} {...props} idea={idea} connected={connected} deletion={deletion} />
           ))}
         </div>
       )}
+      <DeleteDialog deletion={deletion} t={t} />
     </div>
   );
 }
 
-function MadeCard(props: ListProps & { idea: IdeaView; connected: VideoAccountView[] }) {
+function MadeCard(props: ListProps & { idea: IdeaView; connected: VideoAccountView[]; deletion: Deletion }) {
   const { idea, t, websiteId } = props;
   const v = t.viral;
   const [dialog, setDialog] = useState<"preview" | "audio" | null>(null);
   const carousel = idea.format === "carousel";
   const working = ["approved", "making", "posting"].includes(idea.status);
-  const tone = idea.status === "failed" ? "destructive" : idea.status === "ready" || idea.status === "draft" ? "default" : "secondary";
+  const tone = idea.status === "ready" || idea.status === "draft" ? "default" : "secondary";
   const files = Boolean(idea.videoUrl || idea.slideUrls.length > 0);
   // The window opens while it is being made too: it shows the making, then the video.
   const publishable = props.canEdit && (files || working);
@@ -147,41 +151,29 @@ function MadeCard(props: ListProps & { idea: IdeaView; connected: VideoAccountVi
         <span className="absolute top-2 left-2 rounded-md bg-background/90 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-foreground uppercase shadow-sm">
           {formatLabel(t, idea.format)}
         </span>
+        <SelectBox idea={idea} deletion={props.deletion} t={t} className="absolute top-2 right-2" />
       </div>
 
+      {/* The title keeps two lines and the status one, so the buttons are level on every card, whatever the text. */}
       <div className="flex flex-1 flex-col gap-3 p-3">
         <div className="space-y-1.5">
-          <h3 className="line-clamp-2 font-medium leading-snug">{idea.title}</h3>
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <Badge variant={tone as "default"}>{statusWords}</Badge>
+          <h3 className="line-clamp-2 min-h-[2.75em] leading-snug font-medium" title={idea.title}>
+            {idea.title}
+          </h3>
+          <div className="flex h-5 items-center gap-2 overflow-hidden text-xs whitespace-nowrap text-muted-foreground">
+            <Badge variant={tone}>{statusWords}</Badge>
             {files ? <span className="tabular-nums">{length}</span> : null}
           </div>
         </div>
 
-        {idea.status === "failed" ? (
-          <Notice tone="danger">
-            {idea.error ? `${errorNote(t, idea.error)} ` : ""}
-            {!files ? t.failedBody : ""}
-          </Notice>
-        ) : idea.error && isCode(t, idea.error) ? (
-          <Notice tone="warning">{errorNote(t, idea.error)}</Notice>
-        ) : null}
-        <DestinationChips destinations={idea.destinations} postedUrls={idea.postedUrls} t={t} />
-        {idea.nativeAudio ? (
-          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Music2 className="size-3.5 shrink-0" aria-hidden="true" />
-            {format(v.nativeAudio.chosen, { title: idea.nativeAudio.title, artist: idea.nativeAudio.artist ?? "" })}
-          </p>
-        ) : null}
-
-        <div className="mt-auto flex flex-wrap gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <Button variant="outline" size="sm" disabled={!files} onClick={() => setDialog("preview")}>
             <Eye aria-hidden="true" />
             {t.list.preview}
           </Button>
           {idea.videoUrl ? (
             <Button asChild variant="outline" size="sm">
-              <a href={idea.videoUrl} download target="_blank" rel="noreferrer">
+              <a href={downloadUrl(idea.videoUrl, idea.title)} download target="_blank" rel="noreferrer">
                 <Download aria-hidden="true" />
                 {t.download}
               </a>
@@ -197,19 +189,33 @@ function MadeCard(props: ListProps & { idea: IdeaView; connected: VideoAccountVi
             <Send aria-hidden="true" />
             {t.list.publish}
           </Button>
-          {audioChoice ? (
-            <Button variant="outline" size="sm" onClick={() => setDialog("audio")}>
-              <Music2 aria-hidden="true" />
-              {v.nativeAudio.button}
+          {props.canEdit ? (
+            <Button
+              variant="outline"
+              size="sm"
+              aria-label={format(t.flow.library.remove.buttonFor, { title: idea.title })}
+              className="text-muted-foreground hover:text-destructive"
+              onClick={() => props.deletion.ask([idea])}
+            >
+              <Trash2 aria-hidden="true" />
+              {t.flow.library.remove.button}
             </Button>
           ) : null}
         </div>
-        {props.canEdit && idea.status === "failed" && !files ? (
-          <Button size="sm" disabled={props.pending} onClick={() => props.run(() => approveVideoIdea(websiteId, idea.id, {}, "retry"), t.approved)}>
-            <RefreshCw aria-hidden="true" />
-            {t.retry} · {props.priceLabel}
+
+        {audioChoice ? (
+          <Button variant="ghost" size="sm" className="self-start" onClick={() => setDialog("audio")}>
+            <Music2 aria-hidden="true" />
+            {v.nativeAudio.button}
           </Button>
         ) : null}
+        {idea.nativeAudio ? (
+          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Music2 className="size-3.5 shrink-0" aria-hidden="true" />
+            {format(v.nativeAudio.chosen, { title: idea.nativeAudio.title, artist: idea.nativeAudio.artist ?? "" })}
+          </p>
+        ) : null}
+        <DestinationChips destinations={idea.destinations} postedUrls={idea.postedUrls} t={t} />
       </div>
 
       {dialog === "preview" ? <PreviewDialog idea={idea} length={length} locale={props.locale} t={t} onClose={() => setDialog(null)} /> : null}
@@ -254,7 +260,7 @@ function PreviewDialog({ idea, length, locale, t, onClose }: { idea: IdeaView; l
             <div className="flex flex-wrap gap-2">
               {idea.videoUrl ? (
                 <Button asChild variant="outline" size="sm">
-                  <a href={idea.videoUrl} download target="_blank" rel="noreferrer">
+                  <a href={downloadUrl(idea.videoUrl, idea.title)} download target="_blank" rel="noreferrer">
                     <Download aria-hidden="true" />
                     {t.download}
                   </a>
@@ -262,7 +268,7 @@ function PreviewDialog({ idea, length, locale, t, onClose }: { idea: IdeaView; l
               ) : null}
               {idea.slideUrls.map((url, index) => (
                 <Button key={url} asChild variant="outline" size="sm">
-                  <a href={url} download target="_blank" rel="noreferrer">
+                  <a href={downloadUrl(url, idea.title, index)} download target="_blank" rel="noreferrer">
                     <Download aria-hidden="true" />
                     {format(t.downloadSlide, { index: String(index + 1) })}
                   </a>

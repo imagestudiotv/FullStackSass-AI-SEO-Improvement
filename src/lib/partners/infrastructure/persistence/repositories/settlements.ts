@@ -144,7 +144,8 @@ export function settlementRepository(db: Executor): SettlementRepository {
     },
     async bankPaidTotal(partnerId, environment, currency) {
       const [row] = await db
-        .select({ total: sql<string>`coalesce(sum(${partnerBankPayoutAttempts.amount}), 0)::text` })
+        // The settlement's own amount: a bank payout may be in the currency Stripe converted the transfer to.
+        .select({ total: sql<string>`coalesce(sum(${partnerSettlements.transferAmount}), 0)::text` })
         .from(partnerBankPayoutAttempts)
         .innerJoin(partnerSettlements, eq(partnerSettlements.id, partnerBankPayoutAttempts.settlementId))
         .where(

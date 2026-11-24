@@ -1,6 +1,7 @@
 import { and, eq, isNull } from "drizzle-orm";
 
 import { recordCredit } from "@/lib/backlinks/credits";
+import { BUY_CREDITS_PATH } from "@/lib/credits/buy-credits";
 import { projectAnchor, QUOTE_CREDITS_SLUG, UUID_PATTERN } from "@/lib/credits/quote-topup-shared";
 import { db } from "@/lib/db";
 import { member, user } from "@/lib/db/auth-tables";
@@ -246,7 +247,7 @@ export async function fulfilAddonPurchase(
             type: "addon.purchased",
             title: `${addon.creditsGranted} credits added`,
             body: `Your purchase of ${addon.name} is ready to use.`,
-            href: "/billing",
+            href: BUY_CREDITS_PATH,
           }
         : {
             /**
@@ -316,6 +317,6 @@ export async function addonPaymentFailed(input: {
     type: "addon.payment_failed",
     title: format(copy.title, { name: addon.name }),
     body: copy.body,
-    href: "/billing",
+    href: BUY_CREDITS_PATH,
   });
 }

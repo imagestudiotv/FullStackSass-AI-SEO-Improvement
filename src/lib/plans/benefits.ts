@@ -26,7 +26,12 @@ import { IDEAS_PER_DAY } from "@/lib/video/formats";
  * Null for a tier the pricing page does not describe (an older plan); the
  * screen then keeps its own lines. `**words**` are bold.
  */
-export type PlanBenefits = { features: string[]; perks: PerkItem[] };
+export type PlanBenefits = {
+  features: string[];
+  /** The lines a short card shows first (Billing, 2026-11-24): the figures, then what makes the plan its own. All of them are in `features`. */
+  highlights: string[];
+  perks: PerkItem[];
+};
 
 export type BenefitPlan = {
   tier: string;
@@ -49,6 +54,8 @@ export function planBenefits(plan: BenefitPlan, locale: Locale, extra: { credits
     // The design's order: articles, posts, [videos], terms, website, [credits], then the platform.
     return {
       features: [...lines.slice(0, 2), videos, ...lines.slice(2, 4), ...credits, ...lines.slice(4)],
+      // Articles, posts, terms, [credits], [videos], AI Growth Copilot, then the line the tiers differ in (publishing, custom requests).
+      highlights: [...lines.slice(0, 3), ...credits, videos, lines[7], lines[6]].filter(Boolean),
       perks: words.perks ?? [],
     };
   }
@@ -58,6 +65,8 @@ export function planBenefits(plan: BenefitPlan, locale: Locale, extra: { credits
     const stats = page.bundle.stats.map((stat, index) => `**${formatNumber(figures[index], locale)} ${stat.strong}** · ${stat.small}`);
     return {
       features: [...stats.slice(0, 2), videos, ...stats.slice(2), ...credits, ...page.bundle.coreFeatures],
+      // The three figures, [credits], [videos], AI Growth Copilot, publishing and the partner network.
+      highlights: [...stats, ...credits, videos, ...[6, 1, 4].map((index) => page.bundle.coreFeatures[index])].filter(Boolean),
       perks: [...page.bundle.bonuses],
     };
   }

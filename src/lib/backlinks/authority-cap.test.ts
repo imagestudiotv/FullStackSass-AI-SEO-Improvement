@@ -3,7 +3,7 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import { agencyWorkspaces, networkSites, plans, subscriptions, websites } from "@/lib/db/schema";
 import { createTestDb, type TestDb } from "@/test/db";
-import { seedWebsite } from "@/test/fixtures";
+import { connectWebsite, seedWebsite } from "@/test/fixtures";
 
 /**
  * Minimum Domain Authority by plan (client, 2026-10-02): up to 60 on the
@@ -52,6 +52,7 @@ async function planFor(tier: string) {
 async function onTier(tier: string, status = "active") {
   const { orgId, websiteId } = await seedWebsite(test, { status });
   await moveTo(websiteId, tier);
+  await connectWebsite(test.db, websiteId);
   return { orgId, websiteId };
 }
 async function moveTo(websiteId: string, tier: string) {

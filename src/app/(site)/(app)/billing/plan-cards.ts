@@ -1,11 +1,12 @@
 import type { PlanRow } from "@/lib/billing-shared";
 import { perMonthOfYear, planDisplayPrice } from "@/lib/billing/display-prices";
+import { repgetFirstPaymentCents } from "@/lib/billing/repget-offer";
 import type { Locale } from "@/lib/i18n/config";
 import { DIRECT_PURCHASE } from "@/lib/i18n/direct-purchase";
 import { format, formatNumber, plural } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
 import { PLAN_CARDS_COPY } from "@/lib/i18n/plan-cards";
-import { pricingPageCopy, type PerkItem } from "@/lib/i18n/pricing-page";
+import { pricingPageCopy, type PerkItem, type PricingTierId } from "@/lib/i18n/pricing-page";
 import { planBenefits } from "@/lib/plans/benefits";
 import { isDirectPurchaseTier, TRIAL_DAYS } from "@/lib/plans/features";
 
@@ -30,6 +31,9 @@ import { formatMoney, planFeatures } from "./billing-view";
  * payment is, which with REPGET stays the launch price (a `forever` coupon).
  */
 export type PlanCardView = {
+  /** The pricing page's line over the name ("Reach more people") and under it; null for a tier it does not describe. */
+  tag: string | null;
+  description: string | null;
   /** The main figure: per month (a yearly plan's total divided by 12). */
   price: string;
   /** The regular figure on the same basis, struck through; null when nothing is taken off. */
@@ -40,13 +44,21 @@ export type PlanCardView = {
   per: string;
   /** /pricing's line under the price: how it is billed, and the regular total. */
   caption: string;
+  /** What one payment is, for the checkout dialog: the year's total for a yearly plan. */
+  payment: string;
   /** When money is taken and how it renews. */
   terms: string[];
+  /** The same for PayPal where it cannot give the free trial (paypalNote): charged at once. */
+  paypalTerms: string[];
   /** Under the PayPal button, when PayPal cannot give this plan's free trial. */
   paypalNote: string | null;
   /** Bought outright (Grow + Visibility): its badge. */
   directBadge: string | null;
   features: string[];
+  /** The lines the card shows; the rest is in the comparison. */
+  highlights: string[];
+  /** The server refuses this change: the website is on the launch price, which this plan does not have. */
+  launchNotCovered: boolean;
   perksTitle: string | null;
   perks: PerkItem[];
 };
@@ -63,6 +75,13 @@ export function planCardsFor(
      * (prorated by the provider), so no "charged today" or trial line is said.
      */
     switching?: boolean;
+    /**
+     * The website on screen is on the REPGET launch price (lib/billing/
+     * repget-subscription.ts). A plan change takes no new discount and keeps
+     * that one, so while switching it decides the prices - not whether the
+     * offer is on - and a plan it does not cover cannot be moved to.
+     */
+    launchPrice?: boolean;
     locale: Locale;
     t: Messages["app"]["billing"];
   },
@@ -74,7 +93,7 @@ export function planCardsFor(
 
   for (const plan of plans) {
     const money = (cents: number) => formatMoney(cents, plan.currency, locale);
-    const shown = planDisplayPrice(plan, context.offerOn);
+    const shown = planDisplayPrice(plan, context.switching ? Boolean(context.launchPrice) : context.offerOn);
     const yearly = plan.interval === "year";
     const direct = isDirectPurchaseTier(plan.tier);
     const charged = money(shown.chargedCents);
@@ -89,21 +108,29 @@ export function planCardsFor(
         : page.card.plainMonthlyCaption;
 
     const trial = context.trialEligible && !direct;
+    const chargedTerms = [format(yearly ? words.chargedYear : words.chargedMonth, { price: charged })];
     // The trial line: n and days are both TRIAL_DAYS, so it reads right in its old ({n}) and new ({days}) wording.
-    const terms = context.switching && !direct
+    const terms = context.switching
       ? []
       : direct
       ? [format(DIRECT_PURCHASE[locale].note, { price: charged })]
       : trial
         ? [format(words.trial, { n: TRIAL_DAYS, days: TRIAL_DAYS }), format(yearly ? words.renewYear : words.renewMonth, { price: charged })]
-        : [format(yearly ? words.chargedYear : words.chargedMonth, { price: charged })];
+        : chargedTerms;
 
     const creditsLine = plural(t.creditsEachMonth, plan.monthlyCredits, {
       n: plan.monthlyCredits < 0 ? t.unlimited : formatNumber(plan.monthlyCredits, locale),
     });
     const benefits = planBenefits(plan, locale, { creditsLine });
 
+    const features = benefits?.features ?? planFeatures(plan, t, locale);
+    const tier = plan.tier in page.plans ? page.plans[plan.tier as PricingTierId] : null;
+
     cards[plan.id] = {
+      tag: tier?.tag ?? null,
+      description: tier?.desc ?? (direct ? page.bundle.lede : null),
+      payment: charged,
+      paypalTerms: trial ? chargedTerms : terms,
       price: money(yearly ? perMonthOfYear(shown.chargedCents) : shown.chargedCents),
       strike: shown.strikeCents === null ? null : money(yearly ? perMonthOfYear(shown.strikeCents) : shown.strikeCents),
       badge:
@@ -118,7 +145,10 @@ export function planCardsFor(
       // PayPal gives the free trial only through the plan's trial PayPal plan (beginCheckout).
       paypalNote: trial && !plan.paypalTrialPlanId ? words.paypalNoTrial : null,
       directBadge: direct ? DIRECT_PURCHASE[locale].badge : null,
-      features: benefits?.features ?? planFeatures(plan, t, locale),
+      features,
+      highlights: benefits?.highlights ?? features,
+      // As the server decides it (offerForPlanChange): only a price its coupon was made for.
+      launchNotCovered: Boolean(context.switching && context.launchPrice) && repgetFirstPaymentCents(plan) === null,
       perksTitle: benefits && benefits.perks.length > 0 ? page.card.perksTitle : null,
       perks: benefits?.perks ?? [],
     };

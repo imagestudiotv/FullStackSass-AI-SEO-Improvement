@@ -1,8 +1,10 @@
 import { eq } from "drizzle-orm";
 import { Users } from "lucide-react";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { cache } from "react";
 
+import { PurchasesPanel } from "@/components/billing/purchases-panel";
 import { PayPalPendingNotice } from "@/components/paypal-pending-notice";
 import { PayPalPlanChangeNotice } from "@/components/paypal-plan-change-notice";
 import { SettingsNav } from "@/components/settings-nav";
@@ -19,8 +21,9 @@ import {
   type PaymentRow,
 } from "@/lib/billing";
 import { hasUnfinishedPayPalApproval, isTrialEligible, planScreenOffer } from "@/lib/billing/checkouts";
+import { onLaunchPrice } from "@/lib/billing/launch-price";
 import { repgetOfferEnabled } from "@/lib/billing/repget-offer";
-import { checkQuoteTopUp } from "@/lib/credits/quote-topup";
+import { ADDON_SERVICES_HREF } from "@/lib/credits/buy-credits";
 import { QUOTE_CREDITS_SLUG } from "@/lib/credits/quote-topup-shared";
 import { db } from "@/lib/db";
 import { billingCustomers, websites } from "@/lib/db/schema";
@@ -29,10 +32,9 @@ import { OFFER_CODE, WINBACK_OFFER_CODE } from "@/lib/i18n/offer-code";
 import { PAYPAL_PENDING_COPY } from "@/lib/i18n/paypal-pending";
 import { PAYPAL_PLAN_CHANGE_COPY } from "@/lib/i18n/paypal-plan-change";
 import { planChangeNoticeForWebsite } from "@/lib/paypal/plan-changes";
-import { PAYPAL_PURCHASE_COPY } from "@/lib/i18n/paypal-purchase";
 import { QUOTE_CREDITS_COPY } from "@/lib/i18n/quote-credits";
 import { localisedWebsiteProjectName, WEBSITE_PROJECT_COPY } from "@/lib/i18n/website-projects";
-import { websiteProjectKindOf } from "@/lib/website-projects/shared";
+import { websiteProjectKindOf, websiteProjectsHref } from "@/lib/website-projects/shared";
 import { isPayPalAvailable } from "@/lib/paypal/actions";
 import { requireOrg } from "@/lib/tenant";
 import { hasOnlySharedWork, listAccessibleWebsites } from "@/lib/websites/accessible";
@@ -42,12 +44,10 @@ import { freePlanCopy } from "@/lib/i18n/free-plan";
 import { freePlanValues } from "@/lib/plans/free-plan";
 import { isFreePlanWebsite } from "@/lib/plans/free-plan-server";
 
-import { AddonsPanel } from "./addons-panel";
 import { BillingClient } from "./billing-client";
-import { lacksCardInvoice, paymentOptions, type InvoicePortal } from "./billing-view";
+import { lacksCardInvoice, packsReturnPath, paymentOptions, selectedPlanOf, type InvoicePortal } from "./billing-view";
 import { PaymentsPanel } from "./payments-panel";
 import { planCardsFor } from "./plan-cards";
-import { QuoteCreditsCard } from "./quote-credits-card";
 
 /** One read of the reader's language per request, shared by the title and the page. */
 const messagesFor = cache((userId: string) => getAppMessages(userId));
@@ -86,6 +86,11 @@ export const dynamic = "force-dynamic";
 export default async function BillingPage({ searchParams }: PageProps<"/billing">) {
   const session = await requireSession();
   const { orgId } = await requireOrg();
+  const params = await searchParams;
+
+  // The credit packs, and a quote's credits, have their own page since 2026-11-24; an older address goes on to it.
+  const packs = packsReturnPath(params);
+  if (packs) redirect(packs);
 
   /**
    * The website a new plan would pay for: the one the switcher is on,
@@ -109,7 +114,6 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
    * checks it against what the workspace owns, so an id from elsewhere falls
    * through to the remembered choice rather than selecting anything.
    */
-  const params = await searchParams;
   const siteParam = typeof params.site === "string" ? params.site : null;
   const websiteId = resolveWebsiteId(
     siteParam,
@@ -139,7 +143,6 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
     headerSite && headerSite.access !== "owner" ? headerSite.domain : null;
 
   const checkout = typeof params.checkout === "string" ? params.checkout : undefined;
-  const addonResult = typeof params.addon === "string" ? params.addon : undefined;
   const paypalResult = typeof params.paypal === "string" ? params.paypal : undefined;
   const { locale, t } = await messagesFor(session.user.id);
 
@@ -156,14 +159,11 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
           description={t.app.billing.guestBody}
           className="bg-card"
         />
-        <AddonsPanel
-          addons={[]}
+        <PurchasesPanel
           purchases={purchases.map((purchase) => localisedWebsiteProjectName(purchase, locale))}
-          canBuy={false}
           locale={locale}
           t={t.app.addons}
           tCredits={t.app.credits}
-          tCommon={t.app.common}
         />
         <PaymentsPanel
           payments={paymentRows}
@@ -213,6 +213,16 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
   const freeWords = freePlanCopy(locale).app;
 
   /*
+    A plan change - rather than a new checkout - takes no new discount: it
+    keeps the launch price a subscription already has, or has none. So the
+    prices it would really be billed at are shown. (Choosing a plan during a
+    PayPal free trial is a new checkout: beginCheckout.)
+  */
+  const entitled = isEntitled(current?.status);
+  const switching = entitled && !(current?.provider === "paypal" && current.status === "trialing");
+  const launchPrice = switching && websiteId ? await onLaunchPrice(db, websiteId) : false;
+
+  /*
     The plan cards' prices, terms and benefits (plan-cards.ts): the price
     checkout charges, struck against the regular one only where checkout
     really discounts it, and the free articles only where checkout gives them.
@@ -220,37 +230,16 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
   const planCards = planCardsFor(plans, {
     offerOn: repgetOfferEnabled(),
     trialEligible: await isTrialEligible(db, orgId),
-    switching: isEntitled(current?.status),
+    switching,
+    launchPrice,
     locale,
     t: t.app.billing,
   });
 
-  /*
-    "Buy credits" on a quote (lib/credits/quote-topup.ts): the quote and its
-    revision in the address, checked here in this workspace and priced by the
-    server; the card at the top says what is missing and what it costs.
-  */
-  const quoteProject = typeof params.project === "string" ? params.project : null;
-  const quoteRevision = typeof params.revision === "string" ? params.revision : null;
-  const quoteCheck =
-    quoteProject && quoteRevision
-      ? await checkQuoteTopUp(db, { organizationId: orgId, projectId: quoteProject, revision: quoteRevision })
-      : null;
-  const quoteCopy = QUOTE_CREDITS_COPY[locale];
-  const quoteCard =
-    quoteProject && quoteCheck ? (
-      <QuoteCreditsCard
-        check={quoteCheck}
-        projectId={quoteProject}
-        kindLabel={quoteCheck.ok ? WEBSITE_PROJECT_COPY[locale].kind[quoteCheck.offer.kind] : null}
-        copy={quoteCopy}
-        locale={locale}
-        paypalAvailable={paypalAvailable}
-      />
-    ) : null;
+  const quoteTitle = QUOTE_CREDITS_COPY[locale].title;
   // A quote's credits are one purchase among the packs: named as such, in the reader's language.
   const purchaseRows = purchases.map((purchase) =>
-    purchase.slug === QUOTE_CREDITS_SLUG ? { ...purchase, name: quoteCopy.title } : localisedWebsiteProjectName(purchase, locale),
+    purchase.slug === QUOTE_CREDITS_SLUG ? { ...purchase, name: quoteTitle } : localisedWebsiteProjectName(purchase, locale),
   );
 
   return (
@@ -282,14 +271,13 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
       <BillingClient
         plans={plans}
         subscription={current}
-        entitled={isEntitled(current?.status)}
+        entitled={entitled}
         paypalAvailable={paypalAvailable}
-        offerCopy={screenOffer === "repget" ? OFFER_CODE[locale] : screenOffer === "winback" ? WINBACK_OFFER_CODE[locale] : null}
+        offerCopy={switching ? null : screenOffer === "repget" ? OFFER_CODE[locale] : screenOffer === "winback" ? WINBACK_OFFER_CODE[locale] : null}
+        launchPriceKept={launchPrice}
         paypalIntervalNote={PAYPAL_PLAN_CHANGE_COPY[locale].intervalSwitch}
         paypalPendingCopy={PAYPAL_PENDING_COPY[locale]}
         checkout={checkout}
-        addonResult={addonResult}
-        addonPayPalCopy={PAYPAL_PURCHASE_COPY[locale]}
         paypalResult={paypalResult}
         websiteId={websiteId}
         websiteSubscriptions={websiteSubscriptions}
@@ -298,28 +286,19 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
         locale={locale}
         tCommon={t.app.common}
         planCards={planCards}
-        top={quoteCard}
+        selectedPlan={selectedPlanOf(params, plans)}
+        addonLinks={addons
+          .filter((addon) => addon.kind !== "credits")
+          .map((addon) => {
+            // These two are named in the reader's language, and have their own screen.
+            const kind = websiteProjectKindOf(addon.slug);
+            return kind
+              ? { id: addon.id, name: WEBSITE_PROJECT_COPY[locale].addons[kind].name, href: websiteProjectsHref(kind) }
+              : { id: addon.id, name: addon.name, href: ADDON_SERVICES_HREF };
+          })}
       />
 
-      {/*
-        Below the plans: an add-on is bought in addition to a subscription, so
-        it should not compete with choosing one. The section carries
-        id="addons", the target of the sidebar's Add-ons links.
-      */}
-      <AddonsPanel
-        addons={addons.map((addon) => {
-          // These two are named in the reader's language.
-          const kind = websiteProjectKindOf(addon.slug);
-          return kind ? { ...addon, ...WEBSITE_PROJECT_COPY[locale].addons[kind] } : addon;
-        })}
-        purchases={purchaseRows}
-        canBuy
-        locale={locale}
-        t={t.app.addons}
-        tCredits={t.app.credits}
-        tCommon={t.app.common}
-        paypal={paypalAvailable ? PAYPAL_PURCHASE_COPY[locale] : null}
-      />
+      <PurchasesPanel purchases={purchaseRows} locale={locale} t={t.app.addons} tCredits={t.app.credits} />
 
       <PaymentsPanel
         payments={paymentRows}

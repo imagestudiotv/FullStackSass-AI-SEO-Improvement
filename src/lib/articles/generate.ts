@@ -2,6 +2,7 @@ import { anthropic, isAiConfigured } from "@/lib/ai/client";
 import { articleTask, measuredRequest, type MeasureAi } from "@/lib/ai/article-tasks";
 import type { ResearchBrief } from "./research-types";
 import { dataBlock, dataRule } from "@/lib/ai/untrusted";
+import { cleanDashes, cleanDashesHtml, NO_DASH_RULE } from "@/lib/articles/dashes";
 import { sanitizeHtml } from "@/lib/articles/sanitize";
 import { styleHint } from "@/lib/websites/article-options";
 import { isSupportedLanguage } from "@/lib/websites/languages";
@@ -374,6 +375,7 @@ Rules:
   supports that platform's workflow, not a universal rule. Narrow sections
   to the supported platform or method when the sources cannot answer generally.
 - The meta description must read as a sentence, not a list of keywords.
+- ${NO_DASH_RULE}
 - ${dataRule("business_profile")}
 - ${dataRule("website_page")}`;
 
@@ -431,6 +433,7 @@ Writing rules:
 - No filler openings ("In today's fast-paced world"), no restating the title,
   no concluding summary that repeats the article back.
 - Do not claim the business offers something not listed in its services.
+- ${NO_DASH_RULE}
 - ${dataRule("business_profile")}
 - ${dataRule("website_page")}`;
 
@@ -667,7 +670,8 @@ export async function generateBody(
       throw new Error("The researched article did not return a valid HTML response");
     }
   }
-  const bodyHtml = sanitizeHtml(body);
+  // Without dashes as punctuation, before anything reads, checks or hashes it (lib/articles/dashes.ts).
+  const bodyHtml = cleanDashesHtml(sanitizeHtml(body), { language: brief.language });
   if (!bodyHtml) {
     throw new Error("Generated article was empty");
   }
@@ -681,7 +685,7 @@ export async function generateBody(
 
   return {
     bodyHtml,
-    metaDescription: outline.metaDescription,
+    metaDescription: cleanDashes(outline.metaDescription, { language: brief.language }),
     slug: slugify(brief.title),
     wordCount: countWords(bodyHtml),
   };

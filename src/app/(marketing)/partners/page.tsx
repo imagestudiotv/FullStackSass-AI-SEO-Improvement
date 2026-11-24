@@ -3,6 +3,7 @@ import { localePath } from "@/lib/i18n/config";
 import { intlTag } from "@/lib/i18n/format";
 import { publicProgramSummary } from "@/lib/partners/application/use-cases/manage-program";
 import { partnerCopy } from "@/lib/partners/presentation/copy";
+import { PAYOUT_STATUS_COPY } from "@/lib/partners/presentation/payout-status-copy";
 import { publicPayoutTerms } from "@/lib/partners/presentation/payout-terms";
 import { partnerDeps } from "@/lib/partners/server";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
@@ -11,11 +12,15 @@ import { calculatorPlans, PartnersContent } from "../partners-content";
 
 const copy = partnerCopy("en");
 
-export const metadata = {
-  title: copy.page.metaTitle,
-  description: copy.page.metaDescription,
-  ...publicPageMetadata("/partners"),
-};
+/** The description promises cash only while partners are paid in cash. */
+export async function generateMetadata() {
+  const credits = (partnerDeps().settings.payoutForm?.() ?? "cash") === "credits";
+  return {
+    title: copy.page.metaTitle,
+    description: credits ? PAYOUT_STATUS_COPY.en.creditsMetaDescription : copy.page.metaDescription,
+    ...publicPageMetadata("/partners"),
+  };
+}
 
 /**
  * The partner program, in English. Dynamic, like /pricing: the rates and

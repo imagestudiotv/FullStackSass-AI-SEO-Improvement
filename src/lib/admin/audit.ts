@@ -98,6 +98,16 @@ export type AdminAction =
   | "website_project.quoted"
   | "website_project.declined"
   | "website_project.fulfilled"
+  /* Service orders delivered by hand (lib/admin/service-orders.ts). */
+  | "service_order.delivered"
+  /* Email broadcasts (lib/admin/broadcasts.ts, lib/broadcasts). */
+  | "broadcast.saved"
+  | "broadcast.deleted"
+  | "broadcast.test_sent"
+  | "broadcast.scheduled"
+  | "broadcast.sent"
+  | "broadcast.returned"
+  | "broadcast.cancelled"
   /* The cash partner program (lib/partners). */
   | PartnerAuditAction;
 

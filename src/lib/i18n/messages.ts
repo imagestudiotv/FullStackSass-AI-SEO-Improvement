@@ -2707,10 +2707,10 @@ export type Messages = {
       uploadLabel: string;
       aiAssistantsTracked: string;
       freshArticles: string;
-      toSetUp: string;
+      toGetStarted: string;
       trustedByBusinesses: string;
       weekly: string;
-      twoMinutes: string;
+      twoSteps: string;
       notAvailable: string;
       notAvailableHelp: string;
       backToDashboard: string;
@@ -2831,7 +2831,6 @@ export type Messages = {
       autoPost: string;
       autoPostHelp: string;
       oneClick: string;
-      paused: string;
       resume: string;
       boardLabel: string;
       boardSave: string;
@@ -5932,10 +5931,10 @@ const en: Messages = {
       uploadLabel: "Upload",
       aiAssistantsTracked: "AI assistants tracked",
       freshArticles: "Fresh articles",
-      toSetUp: "To set up",
+      toGetStarted: "To get started",
       trustedByBusinesses: "Trusted by businesses worldwide",
       weekly: "Weekly",
-      twoMinutes: "2 min",
+      twoSteps: "2 steps",
       notAvailable: "This page is not available",
       notAvailableHelp: "The page may have moved, or it belongs to a workspace you are not a member of.",
       backToDashboard: "Back to dashboard",
@@ -6044,7 +6043,6 @@ const en: Messages = {
       autoPost: "Publish my posts automatically",
       autoPostHelp: "One post a day, at a different time each day.",
       oneClick: "You post with one click.",
-      paused: "Automatic posting is paused: {platform} refused a post ({reason}). Check the account, then resume.",
       resume: "Resume",
       boardLabel: "Pinterest board",
       boardSave: "Use this board",
@@ -9121,10 +9119,10 @@ const es: Messages = {
       uploadLabel: "Subir",
       aiAssistantsTracked: "Asistentes de IA supervisados",
       freshArticles: "Artículos nuevos",
-      toSetUp: "Por configurar",
+      toGetStarted: "Para empezar",
       trustedByBusinesses: "La confianza de negocios de todo el mundo",
       weekly: "Cada semana",
-      twoMinutes: "2 min",
+      twoSteps: "2 pasos",
       notAvailable: "Esta página no está disponible",
       notAvailableHelp: "Puede que la página se haya movido o que pertenezca a un espacio de trabajo del que no forma parte.",
       backToDashboard: "Volver al panel",
@@ -9233,7 +9231,6 @@ const es: Messages = {
       autoPost: "Publicar mis publicaciones automáticamente",
       autoPostHelp: "Una publicación al día, a una hora distinta cada día.",
       oneClick: "Usted publica con un clic.",
-      paused: "La publicación automática está en pausa: {platform} rechazó una publicación ({reason}). Revise la cuenta y reanude.",
       resume: "Reanudar",
       boardLabel: "Tablero de Pinterest",
       boardSave: "Usar este tablero",
@@ -12310,10 +12307,10 @@ const fr: Messages = {
       uploadLabel: "Importer",
       aiAssistantsTracked: "Assistants IA suivis",
       freshArticles: "Nouveaux articles",
-      toSetUp: "À configurer",
+      toGetStarted: "Pour commencer",
       trustedByBusinesses: "La confiance d’entreprises du monde entier",
       weekly: "Chaque semaine",
-      twoMinutes: "2 min",
+      twoSteps: "2 étapes",
       notAvailable: "Cette page n\u2019est pas disponible",
       notAvailableHelp: "La page a peut-être été déplacée, ou elle appartient à un espace de travail dont vous n\u2019êtes pas membre.",
       backToDashboard: "Retour au tableau de bord",
@@ -12422,7 +12419,6 @@ const fr: Messages = {
       autoPost: "Publier mes publications automatiquement",
       autoPostHelp: "Une publication par jour, à une heure différente chaque jour.",
       oneClick: "Vous publiez en un clic.",
-      paused: "La publication automatique est en pause : {platform} a refusé une publication ({reason}). Vérifiez le compte, puis reprenez.",
       resume: "Reprendre",
       boardLabel: "Tableau Pinterest",
       boardSave: "Utiliser ce tableau",
@@ -15499,10 +15495,10 @@ const it: Messages = {
       uploadLabel: "Carica",
       aiAssistantsTracked: "Assistenti IA monitorati",
       freshArticles: "Articoli nuovi",
-      toSetUp: "Da configurare",
+      toGetStarted: "Per iniziare",
       trustedByBusinesses: "La fiducia di attività in tutto il mondo",
       weekly: "Ogni settimana",
-      twoMinutes: "2 min",
+      twoSteps: "2 passaggi",
       notAvailable: "Questa pagina non è disponibile",
       notAvailableHelp: "La pagina potrebbe essere stata spostata, oppure appartiene a uno spazio di lavoro di cui non fa parte.",
       backToDashboard: "Torna alla dashboard",
@@ -15611,7 +15607,6 @@ const it: Messages = {
       autoPost: "Pubblica i miei post automaticamente",
       autoPostHelp: "Un post al giorno, a un orario diverso ogni giorno.",
       oneClick: "Pubblica lei con un clic.",
-      paused: "La pubblicazione automatica è in pausa: {platform} ha rifiutato un post ({reason}). Controlli l’account, poi riprenda.",
       resume: "Riprendi",
       boardLabel: "Bacheca Pinterest",
       boardSave: "Usa questa bacheca",
@@ -18684,10 +18679,10 @@ const de: Messages = {
       uploadLabel: "Hochladen",
       aiAssistantsTracked: "Beobachtete KI-Assistenten",
       freshArticles: "Neue Artikel",
-      toSetUp: "Einzurichten",
+      toGetStarted: "Bis zum Start",
       trustedByBusinesses: "Unternehmen weltweit vertrauen darauf",
       weekly: "Wöchentlich",
-      twoMinutes: "2 Min.",
+      twoSteps: "2 Schritte",
       notAvailable: "Diese Seite ist nicht verfügbar",
       notAvailableHelp: "Die Seite wurde möglicherweise verschoben oder gehört zu einem Arbeitsbereich, in dem Sie kein Mitglied sind.",
       backToDashboard: "Zurück zum Dashboard",
@@ -18796,7 +18791,6 @@ const de: Messages = {
       autoPost: "Meine Beiträge automatisch veröffentlichen",
       autoPostHelp: "Ein Beitrag pro Tag, jeden Tag zu einer anderen Uhrzeit.",
       oneClick: "Sie posten mit einem Klick.",
-      paused: "Das automatische Veröffentlichen ist pausiert: {platform} hat einen Beitrag abgelehnt ({reason}). Prüfen Sie das Konto und setzen Sie dann fort.",
       resume: "Fortsetzen",
       boardLabel: "Pinterest-Pinnwand",
       boardSave: "Diese Pinnwand verwenden",

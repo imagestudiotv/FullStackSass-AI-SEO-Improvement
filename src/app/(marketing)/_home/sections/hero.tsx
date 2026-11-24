@@ -1,11 +1,11 @@
-import type { CSSProperties } from "react";
+import { Fragment, type CSSProperties } from "react";
 
 import { WEBSITE_CREATION_PATH } from "@/lib/config/site";
 import { finalCtaCopy } from "@/lib/i18n/home/final-cta";
 import { heroCopy } from "@/lib/i18n/home/hero";
 import { HeroForm } from "../hero-form";
-import { HeroMascot } from "../hero-mascot";
-import { rich } from "../text";
+import { SignalStreams } from "../signal-streams";
+import { plain, rich } from "../text";
 import type { SectionProps } from "../types";
 import styles from "./hero.module.css";
 
@@ -18,53 +18,49 @@ const c = (names: string) =>
 
 const TITLE_ID = "home-hero-title";
 
-/** The brand in the title, the same in every language. */
-const BRAND = "RepGet.";
-
 /**
- * The hero. Above the field, the client's simpler version (2026-11-11,
- * repget_homepage_animated_social_proof.html): a pill, "Meet [the gecko and
- * the owl] RepGet.", the promise and the description. The field and
- * everything after it are the 2026-11-03 design's (`rgx-hero`), unchanged.
+ * The hero. Above the field, the client's headline (2026-11-24,
+ * repget_homepage_animated_signals.html): a quiet opening line and the
+ * promise - ONE heading - and a description of two lines. From both sides,
+ * the signal streams run into the field (_home/signal-streams.tsx). The field
+ * and everything after it are the 2026-11-03 design's (`rgx-hero`), unchanged.
  *
- * "Meet RepGet." and the promise are ONE heading - the design makes the
- * promise an h2 under an h1 of only the name, which would leave the page's
- * main heading without what RepGet does. It looks the same either way.
+ * "Meet RepGet.", the title until then, is after the ribbon (meet.tsx).
+ *
+ * `data-stream-text` marks the lines of text the streams keep clear of.
  *
  * "Join with Google" starts Google's sign-in from here (_home/join-with-google.tsx).
  */
 export function Hero({ locale, href }: SectionProps) {
   const t = heroCopy(locale).hero;
   const { emptyWebsite, emptyEmail } = finalCtaCopy(locale).form;
-  // How long the title's line is, for its size (hero.module.css .rgx-name).
-  const titleChars = { "--title-chars": t.meet.length + BRAND.length } as CSSProperties;
+  // How long each of the title's lines is, for its size (hero.module.css).
+  const chars = (text: string) => ({ "--line-chars": plain(text).length }) as CSSProperties;
 
   return (
     <section className={c("rgx-hero")} aria-labelledby={TITLE_ID}>
       <div className={c("rgx-hero-grid")} aria-hidden="true" />
       <div className={c("rgx-hero-haze")} aria-hidden="true" />
+      <SignalStreams />
 
       <div className={c("rgx-hero-content")}>
-        <div className={c("rgx-pill")}>
-          <span className={c("rgx-pill-mark")} aria-hidden="true">
-            ✳
-          </span>
-          {t.pill}
-        </div>
-
         <h1 id={TITLE_ID} className={c("rgx-title")}>
-          {/* The spaces keep the heading's words apart for a screen reader; the line's layout ignores them. */}
-          <span className={c("rgx-name")} style={titleChars}>
-            <span>{t.meet}</span> <HeroMascot notes={t.mascotNotes} />{" "}
-            <span className={c("rgx-brand")}>{BRAND}</span>
+          {/* The space keeps the two lines apart for a screen reader. */}
+          <span className={c("rgx-opening")} style={chars(t.opening)} data-stream-text="">
+            {/* A phone breaks the line between sentences, not inside one. */}
+            {t.opening.split(/(?<=\.) /).map((sentence, index) => (
+              <Fragment key={sentence}>
+                {index > 0 ? " " : null}
+                <span>{sentence}</span>
+              </Fragment>
+            ))}
           </span>{" "}
-          <span className={c("rgx-subtitle")}>
-            {t.subtitleLine1} <br />
-            <em>{t.subtitleLine2}</em>
+          <span className={c("rgx-promise")} style={chars(t.promise)} data-stream-text="">
+            {rich(t.promise)}
           </span>
         </h1>
         <p className={c("rgx-description")}>
-          <span>{rich(t.descriptionLead)}</span> <span className={c("rgx-description-support")}>{t.descriptionRest}</span>
+          <span data-stream-text="">{rich(t.descriptionLead)}</span> <span data-stream-text="">{t.descriptionRest}</span>
         </p>
 
         <HeroForm

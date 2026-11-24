@@ -166,7 +166,7 @@ export async function resolveDashboard(
     }
 
     // Paywall. See lib/billing/require-plan.ts.
-    const onboarding = await requirePlan(orgId);
+    const onboarding = await requirePlan(orgId, target?.id);
     /**
      * A customer who has not finished setting up goes to the guided flow
      * rather than an empty dashboard. Redirected here rather than from

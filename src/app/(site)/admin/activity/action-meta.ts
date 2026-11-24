@@ -6,6 +6,7 @@ import {
   Gauge,
   Globe,
   Handshake,
+  Mail,
   Megaphone,
   MessageSquare,
   Network,
@@ -105,6 +106,16 @@ export const ACTION_META: Record<AdminAction, ActionMeta> = {
   "success_story.unpublished": { label: "Success story unpublished", icon: Award },
   "success_story.deleted": { label: "Success story deleted", icon: Trash2, removal: true },
 
+  "service_order.delivered": { label: "Service order delivered", icon: Coins },
+
+  "broadcast.saved": { label: "Email broadcast saved", icon: Mail },
+  "broadcast.deleted": { label: "Email broadcast draft deleted", icon: Trash2, removal: true },
+  "broadcast.test_sent": { label: "Email broadcast test sent", icon: Mail },
+  "broadcast.scheduled": { label: "Email broadcast scheduled", icon: Mail },
+  "broadcast.sent": { label: "Email broadcast started", icon: Mail },
+  "broadcast.returned": { label: "Scheduled email broadcast not sent", icon: Mail },
+  "broadcast.cancelled": { label: "Email broadcast cancelled", icon: Mail },
+
   "platform.control_changed": { label: "Platform control changed", icon: Gauge },
   "publication.dispatch_resolved": { label: "Delivery resolved", icon: Gauge },
   "authority.collection_requested": { label: "Domain Authority refresh requested", icon: Gauge },
@@ -171,6 +182,8 @@ const TARGET_LABELS: Record<string, string> = {
   publication_dispatch: "Delivery",
   authority: "Domain Authority",
   valuation_policy: "Valuation policy",
+  broadcast: "Email broadcast",
+  service_order: "Service order",
   partner: "Partner",
   partner_application: "Partner application",
   partner_attribution: "Partner referral",
@@ -215,6 +228,10 @@ export function targetLink(row: Pick<AuditRow, "action" | "targetType" | "target
       return { href: "/admin/network", destination: "the Partner Network" };
     case "earn_submission":
       return { href: "/admin/earn-credits", destination: "Earn Credits claims" };
+    case "broadcast":
+      return { href: "/admin/email-broadcasts", destination: "email broadcasts" };
+    case "service_order":
+      return { href: "/admin/service-orders", destination: "service orders" };
     case "platform_control":
     case "publication_dispatch":
     case "authority":

@@ -1,13 +1,11 @@
-import { and, asc, count, eq, sql } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { cache } from "react";
 
 import { isEntitled } from "@/lib/billing-shared";
-import { onFreeArticles } from "@/lib/billing/free-articles";
 import { db } from "@/lib/db";
-import { articles, geoPrompts, websites } from "@/lib/db/schema";
+import { websites } from "@/lib/db/schema";
 import { getSubscription } from "@/lib/billing";
 import { isAgencyWorkspace } from "@/lib/agency/core";
-import { TRIAL_DAYS } from "@/lib/plans/features";
 import { isFreePlanWebsite } from "@/lib/plans/free-plan-server";
 
 /**
@@ -19,29 +17,23 @@ import { isFreePlanWebsite } from "@/lib/plans/free-plan-server";
  * their only site — and then the product insists they are somewhere they are
  * not.
  *
- * THE ORDER: add the website, choose a plan, then the AI visibility questions
- * and the first article.
- *
- * THE BUSINESS PROFILE IS NO LONGER HERE. Market, language, description and
- * competitors used to be step two; at the client's request they moved out of
- * signup and onto the dashboard's launch checklist, where they can be reviewed
- * alongside everything else. Analysis still fills them in automatically, so a
- * new website is described without anyone typing — see lib/onboarding/launch.ts
- * for the row that asks them to check it.
+ * THE ORDER: add the website, choose a plan. That is all of it (Daniel,
+ * 2026-11-24: "delete all this steps and redirect straight to the dashboard").
+ * Connecting Google, the AI visibility questions, the content plan and the
+ * business profile are on the Tasks page and the launch checklist
+ * (lib/tasks/tasks.ts, lib/onboarding/launch.ts), and what those steps used to
+ * start - the first content plan, the first questions - starts by itself
+ * (lib/keywords/first-plan.ts, lib/geo/first-questions.ts).
  *
  * The `steps` array below is built in order and `currentId` is simply its
  * first unfinished entry, so the sequence is stated once here rather than
  * restated by each screen.
  */
 
-export type OnboardingStepId =
-  "plan" | "website" | "profile" | "visibility" | "content";
+export type OnboardingStepId = "website" | "plan";
 
 export type OnboardingStep = {
   id: OnboardingStepId;
-  title: string;
-  /** One line on what this step is for, in the customer's terms. */
-  description: string;
   done: boolean;
   /** Where the step is completed. Null when it is not reachable yet. */
   href: string | null;
@@ -54,30 +46,18 @@ export type OnboardingState = {
   complete: boolean;
   /** The website being set up, when one exists. */
   websiteId: string | null;
-  /** True while analysis is still running, so the UI can wait rather than push on. */
-  analysing: boolean;
   /**
    * Whether the workspace is paid for — a live subscription, or an agency
-   * workspace, which is ours and needs no plan.
-   *
-   * Exposed so the steps AFTER billing can refuse to run without one. It was
-   * computed here and used only to tick the checklist, which left the later
-   * screens reachable by typing their URL.
+   * workspace, which is ours and needs no plan. The paywall reads it
+   * (lib/billing/require-plan.ts).
    */
   hasPlan: boolean;
-  /**
-   * The website is on its LEGACY free articles (lib/billing/free-articles.ts):
-   * the AI visibility step waits for the plan, so it is not one of the steps.
-   * The free trial that replaced them (TRIAL_DAYS) has the plan's normal
-   * service, AI visibility included, so it keeps the step.
-   */
-  freeArticles: boolean;
 };
 
 /**
- * Deduplicated per request with React's cache: the sidebar reads this to decide
- * whether to show "Get started", and the dashboard reads it again to decide
- * whether to redirect. Without this the four queries below ran twice on every
+ * Deduplicated per request with React's cache: the dashboard's gate and its
+ * checkout wait both read it to decide
+ * whether to redirect. Without this the queries below ran twice on every
  * dashboard load.
  */
 export const getOnboardingState = cache(async function getOnboardingState(
@@ -86,8 +66,7 @@ export const getOnboardingState = cache(async function getOnboardingState(
    * Which website setup is about.
    *
    * Setup is per WEBSITE, not per account: a second site needs its own plan,
-   * its own profile check, its own visibility questions and its own first
-   * article, exactly as the first did. Without this the state always described
+   * exactly as the first did. Without this the state always described
    * whichever site the database happened to return first, so adding a second
    * one looked complete the moment it was created.
    *
@@ -106,8 +85,6 @@ export const getOnboardingState = cache(async function getOnboardingState(
     db
       .select({
         id: websites.id,
-        status: websites.status,
-        brandName: websites.brandName,
       })
       .from(websites)
       .where(
@@ -127,36 +104,11 @@ export const getOnboardingState = cache(async function getOnboardingState(
 
   const site = sites[0] ?? null;
 
-  const [promptCount, articleCount, trial, onFree] = site
-    ? await Promise.all([
-        db
-          .select({ n: count() })
-          .from(geoPrompts)
-          .where(eq(geoPrompts.websiteId, site.id)),
-        db
-          .select({ n: count() })
-          .from(articles)
-          .where(eq(articles.websiteId, site.id)),
-        db
-          .select({ on: sql<boolean>`${onFreeArticles(websites.id)}` })
-          .from(websites)
-          .where(eq(websites.id, site.id)),
-        // The Free plan (lib/plans/free-plan.ts): set up like a paid site, nothing to buy.
-        isFreePlanWebsite(site.id),
-      ])
-    : [[{ n: 0 }], [{ n: 0 }], [{ on: false }], false];
-  const freeArticles = Boolean(trial[0]?.on);
+  // The Free plan (lib/plans/free-plan.ts): set up like a paid site, nothing to buy.
+  const onFree = site ? await isFreePlanWebsite(site.id) : false;
 
   const hasPlan = agency || isEntitled(subscription?.status) || onFree;
   const hasWebsite = site !== null;
-  /**
-   * The profile step is done once analysis has finished, not once the customer
-   * has looked at it. Requiring them to click "yes this is right" would block
-   * anyone who is happy with what we extracted, which is most people.
-   */
-  const analysed = site?.status === "ready" || site?.status === "failed";
-  const hasPrompts = (promptCount[0]?.n ?? 0) > 0;
-  const hasArticles = (articleCount[0]?.n ?? 0) > 0;
 
   const steps: OnboardingStep[] = [
     /**
@@ -169,17 +121,11 @@ export const getOnboardingState = cache(async function getOnboardingState(
      */
     {
       id: "website",
-      title: "Add your website",
-      description: "We read it and work out what your business does.",
       done: hasWebsite,
       href: "/onboarding/website",
     },
     {
       id: "plan",
-      title: "Choose a plan",
-      description: agency
-        ? "This workspace is set up by us - no plan needed."
-        : `Each website has its own plan. New accounts get a ${TRIAL_DAYS}-day free trial.`,
       done: hasPlan,
       /*
         The onboarding plan screen, not /billing. /billing carries the
@@ -189,30 +135,7 @@ export const getOnboardingState = cache(async function getOnboardingState(
       */
       href: hasWebsite ? "/onboarding/plan" : null,
     },
-    {
-      id: "visibility",
-      title: "Add AI visibility questions",
-      description:
-        "The questions your customers would ask an assistant. We check whether you get named.",
-      done: hasPrompts,
-      href: hasWebsite && analysed && hasPlan ? "/onboarding/visibility" : null,
-    },
-    {
-      id: "content",
-      title: "Write your first article",
-      description:
-        "We research the terms worth going after and write the page that answers them.",
-      done: hasArticles,
-      href: hasWebsite && analysed && hasPlan ? "/onboarding/content" : null,
-    },
   ];
-
-  /*
-    Not a step at all during the free articles: AI visibility waits for the
-    plan (lib/billing/entitled.ts), and a step nobody can complete would
-    leave setup unfinished for a month. It comes back when the plan starts.
-  */
-  if (freeArticles) steps.splice(steps.findIndex((step) => step.id === "visibility"), 1);
 
   const current = steps.find((step) => !step.done) ?? null;
 
@@ -221,9 +144,6 @@ export const getOnboardingState = cache(async function getOnboardingState(
     currentId: current?.id ?? null,
     complete: current === null,
     websiteId: site?.id ?? null,
-    // "pending" and "crawling" both mean we are still working on it.
-    analysing: hasWebsite && !analysed,
     hasPlan,
-    freeArticles,
   };
 });

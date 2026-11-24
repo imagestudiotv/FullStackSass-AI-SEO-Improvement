@@ -4,16 +4,13 @@ import {
   Activity,
   Briefcase,
   Calendar,
-  Check,
-  CheckCircle2,
   ChevronRight,
   CreditCard,
   ExternalLink,
   Globe,
-  Layers,
   Loader2,
   Plus,
-  Sparkles,
+  Puzzle,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -24,11 +21,9 @@ import { PayPalMark } from "@/components/paypal-mark";
 import { PayPalPendingPrompt } from "@/components/paypal-pending-prompt";
 import type { PayPalPendingCopy } from "@/lib/i18n/paypal-pending";
 import { PayPalReturn } from "@/components/paypal-return";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Notice } from "@/components/workspace/notice";
 import { WorkspaceSection } from "@/components/workspace/section";
 import {
@@ -42,10 +37,12 @@ import type { Locale } from "@/lib/i18n/config";
 import { format, formatDate } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
 import { createPayPalCheckout } from "@/lib/paypal/actions";
-import { CONFIRM_EMAIL_FIRST, isDirectPurchaseTier, STARTER_TIER } from "@/lib/plans/features";
-import { OfferApplied } from "@/components/billing/offer-code-field";
+import { BUY_CREDITS_PATH } from "@/lib/credits/buy-credits";
+import { BILLING_PLANS_COPY } from "@/lib/i18n/billing-plans";
+import { PAYMENT_CHOICE_COPY } from "@/lib/i18n/buy-credits";
+import { pricingPageCopy } from "@/lib/i18n/pricing-page";
+import { CONFIRM_EMAIL_FIRST, isDirectPurchaseTier } from "@/lib/plans/features";
 import type { OfferCodeCopy } from "@/lib/i18n/offer-code";
-import type { PayPalPurchaseCopy } from "@/lib/i18n/paypal-purchase";
 import { createCheckoutSession } from "@/lib/stripe/actions";
 import { readConsent } from "@/lib/consent";
 import { trackMetaCheckout } from "@/lib/meta-pixel";
@@ -53,14 +50,9 @@ import { createPortalSession, type PortalFlow } from "@/lib/stripe/portal";
 import { cn } from "@/lib/utils";
 
 import type { PlanCardView } from "./plan-cards";
+import { PlanPicker, type PlanPayment } from "./plan-picker";
 import {
-  annualSaving,
-  formatMoney,
   paymentOptions,
-  payPalForPlan,
-  payPalIntervalBlocked,
-  planFeatures,
-  planGridClass,
   subscriptionStatus,
   upgradeSentence,
   withoutReturnParams,
@@ -78,10 +70,6 @@ type BillingClientProps = {
   paypalAvailable: boolean;
   /** "success" | "cancelled" after a card checkout. */
   checkout?: string;
-  /** "success" | "cancelled" after an add-on checkout; also "pending" | "failed" after a PayPal one. */
-  addonResult?: string;
-  /** What a PayPal credit-pack purchase still pending or not completed says (lib/i18n/paypal-purchase.ts). */
-  addonPayPalCopy?: Pick<PayPalPurchaseCopy, "pending" | "failed">;
   /** "success" | "cancelled" after a PayPal approval. */
   paypalResult?: string;
   /**
@@ -114,19 +102,18 @@ type BillingClientProps = {
    * (plan-cards.ts). A plan without one keeps the plain price and lines.
    */
   planCards?: Record<string, PlanCardView>;
-  /** Shown first under the title: the credits a quote needs (quote-credits-card.tsx). */
+  /** A plan change here keeps the REPGET launch price, and the offer is the one it already has. */
+  launchPriceKept?: boolean;
+  /** The plan a link names (?plan=, ?period=), checked by the page against what is on sale. */
+  selectedPlan?: { tier: string; interval: "month" | "year" | null } | null;
+  /** The add-ons on sale besides the credit packs, as links (the strip under the plans). */
+  addonLinks?: { id: string; name: string; href: string }[];
+  /** Shown first under the title. */
   top?: ReactNode;
 };
 
 /** Stored timestamps in one zone on server and browser, so the two renders agree. */
 const DATE: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" };
-
-/**
- * A full-width card button whose label may wrap: in a narrow column a long
- * translation ("Zu diesem Tarif wechseln") would otherwise run out of the
- * card. One line still renders at the standard h-8.
- */
-const CARD_BUTTON = "h-auto min-h-8 w-full py-1.5 text-center whitespace-normal";
 
 const PAYPAL_AUTOPAY = "https://www.paypal.com/myaccount/autopay/";
 
@@ -136,8 +123,6 @@ export function BillingClient({
   entitled,
   paypalAvailable,
   checkout,
-  addonResult,
-  addonPayPalCopy,
   paypalResult,
   websiteId,
   websiteSubscriptions,
@@ -149,6 +134,9 @@ export function BillingClient({
   paypalPendingCopy,
   tCommon,
   planCards = {},
+  launchPriceKept = false,
+  selectedPlan = null,
+  addonLinks = [],
   top = null,
 }: BillingClientProps) {
   /*
@@ -157,12 +145,9 @@ export function BillingClient({
     first payment at checkout (beginCheckout) - and its card says so.
   */
   const plans = allPlans;
-  const [interval, setBillingInterval] = useState<"month" | "year">(
-    subscription?.interval === "year" ? "year" : "month",
-  );
   const router = useRouter();
-  const [pending, setPending] = useState<{ planId: string; provider: "stripe" | "paypal" } | null>(null);
-  const [paypalBlock, setPayPalBlock] = useState<{ planId: string; provider: "stripe" | "paypal"; failed: boolean } | null>(null);
+  const [pending, setPending] = useState<PlanPayment | null>(null);
+  const [paypalBlock, setPayPalBlock] = useState<(PlanPayment & { failed: boolean }) | null>(null);
   /** Which portal button is mid-flight, so only that one shows a spinner. */
   const [portalPending, setPortalPending] = useState<PortalFlow | null>(null);
 
@@ -181,18 +166,6 @@ export function BillingClient({
     if (checkout === "success") toast.success(paymentReceived);
     else if (checkout === "cancelled") toast(checkoutCancelled);
   }, [checkout, paymentReceived, checkoutCancelled]);
-
-  const purchaseReceived = t.purchaseReceived;
-  const purchaseCancelled = t.purchaseCancelled;
-  const purchasePending = addonPayPalCopy?.pending;
-  const purchaseFailed = addonPayPalCopy?.failed;
-  useEffect(() => {
-    if (addonResult === "success") toast.success(purchaseReceived);
-    else if (addonResult === "cancelled") toast(purchaseCancelled);
-    // PayPal only: captured but still clearing, or not completed. Never "received" before it is.
-    else if (addonResult === "pending" && purchasePending) toast(purchasePending, { duration: 15_000 });
-    else if (addonResult === "failed" && purchaseFailed) toast.error(purchaseFailed, { duration: 15_000 });
-  }, [addonResult, purchaseReceived, purchaseCancelled, purchasePending, purchaseFailed]);
 
   /*
     PayPal returns with its own parameter. A PayPal subscription is APPROVED
@@ -215,6 +188,21 @@ export function BillingClient({
     if (clean) window.history.replaceState(null, "", clean);
   }, []);
 
+  /*
+    The credit packs were at /billing#addons until they got their own page;
+    old links, bookmarks and emails still carry that address. A hash never
+    reaches the server, so it is followed here.
+  */
+  useEffect(() => {
+    const follow = () => {
+      if (window.location.hash === "#addons") router.replace(BUY_CREDITS_PATH);
+    };
+    follow();
+    window.addEventListener("hashchange", follow);
+    return () => window.removeEventListener("hashchange", follow);
+  }, [router]);
+
+  const copy = BILLING_PLANS_COPY[locale];
   const options = paymentOptions(subscription, paypalAvailable);
   const selected = websiteSubscriptions.find((row) => row.websiteId === websiteId) ?? null;
   const domain = selected?.domain ?? null;
@@ -254,7 +242,14 @@ export function BillingClient({
           : null;
 
   // Card or PayPal (review P5); applied by the server by itself (lib/billing/repget-offer.ts), so only said here.
-  const offerField = offerCopy && (options.card || options.paypal) ? <OfferApplied copy={offerCopy} /> : null;
+  const payable = options.card || options.paypal;
+  const offer = !payable
+    ? null
+    : launchPriceKept
+      ? { title: copy.keptTitle, body: copy.keptBody }
+      : offerCopy
+        ? { title: offerCopy.label, body: offerCopy.help }
+        : null;
 
   /**
    * Paying was refused because a PayPal payment for this website was started
@@ -381,185 +376,26 @@ export function BillingClient({
       ? monthlyLadder[currentRung + 1]
       : null;
 
-  const monthlyByTier = new Map(monthlyLadder.map((plan) => [plan.tier, plan]));
-  const annualTiers = new Set(plans.filter((plan) => plan.interval === "year").map((plan) => plan.tier));
-  const hasAnnual = annualTiers.size > 0;
-  /*
-    Tiers sold only monthly (Starter) stay on the annual tab at their monthly
-    price, rather than vanishing the moment someone clicks "Annual".
-  */
-  const plansFor = (period: "month" | "year") =>
-    plans.filter((plan) =>
-      period === "year"
-        ? plan.interval === "year" || (plan.interval === "month" && !annualTiers.has(plan.tier))
-        : plan.interval === "month",
-    );
-
-  function planCard(plan: PlanRow) {
-    const isCurrent = subscription?.planId === plan.id && entitled;
-    // Monthly <-> yearly cannot be switched through PayPal: a note in place of the button.
-    const intervalBlocked = payPalIntervalBlocked(subscription, plan, options);
-    const paypal = payPalForPlan(plan, options) && !intervalBlocked;
-    const saving = plan.interval === "year" ? annualSaving(monthlyByTier.get(plan.tier), plan) : 0;
-    const busy = pending?.planId === plan.id;
-    const headingId = `plan-${plan.id}`;
-    const view = planCards[plan.id] ?? null;
-
-    return (
-      <article
-        key={plan.id}
-        aria-labelledby={headingId}
-        className={cn(
-          "flex min-w-0 flex-col rounded-lg border p-4",
-          isCurrent ? "border-primary/40 bg-primary/5" : "bg-card",
-        )}
-      >
-        <div className="flex flex-wrap items-center gap-2">
-          <h3 id={headingId} className="text-base font-semibold text-foreground">
-            {plan.name}
-          </h3>
-          {plan.tier === STARTER_TIER ? (
-            <Badge
-              variant="secondary"
-              className="border border-emerald-500/40 text-emerald-700 dark:text-emerald-400"
-            >
-              {t.tryItFirst}
-            </Badge>
-          ) : null}
-          {view?.directBadge ? (
-            <Badge variant="outline" className="border-primary/40 text-primary">
-              {view.directBadge}
-            </Badge>
-          ) : null}
-          {saving > 0 ? (
-            <Badge variant="secondary" className="ml-auto">
-              {format(t.saveBadge, { n: saving })}
-            </Badge>
-          ) : null}
-        </div>
-
-        {view ? (
-          <PlanPrice view={view} />
-        ) : (
-          <p className="mt-3 flex flex-wrap items-baseline gap-x-1.5">
-            <span className="text-3xl font-semibold tracking-tight tabular-nums text-foreground">
-              {formatMoney(plan.priceCents, plan.currency, locale)}
-            </span>
-            <span className="text-sm text-muted-foreground">
-              {plan.interval === "year" ? t.perYear : t.perMonth}
-            </span>
-          </p>
-        )}
-
-        <ul className="mt-4 flex-1 space-y-2 border-t pt-4 text-sm">
-          {(view?.features ?? planFeatures(plan, t, locale)).map((feature) => (
-            <li key={feature} className="flex items-start gap-2">
-              <Check className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-              <span className="min-w-0">{marks(feature)}</span>
-            </li>
-          ))}
-        </ul>
-
-        {view?.perksTitle && view.perks.length > 0 ? (
-          <div className="mt-4 rounded-md border border-primary/20 bg-primary/5 p-3">
-            <p className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-              <Sparkles className="size-3.5 shrink-0 text-primary" aria-hidden="true" />
-              {view.perksTitle}
-            </p>
-            <ul className="mt-2 space-y-1.5 text-xs">
-              {view.perks.map((perk) => (
-                <li key={perk.strong}>
-                  <span className="font-medium text-foreground">{perk.strong}</span>
-                  <span className="text-muted-foreground"> - {perk.small}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-
-        <div className="mt-4 space-y-2">
-          {isCurrent ? (
-            <Button className={CARD_BUTTON} variant="outline" disabled>
-              <CheckCircle2 className="size-4" aria-hidden="true" />
-              {t.currentPlan}
-            </Button>
-          ) : (
-            <>
-              {options.card ? (
-                <Button className={CARD_BUTTON} disabled={pending !== null} onClick={() => handleCard(plan.id)}>
-                  {busy && pending?.provider === "stripe" ? (
-                    <>
-                      <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
-                      {t.redirecting}
-                    </>
-                  ) : entitled ? (
-                    t.switchPlan
-                  ) : (
-                    t.payByCard
-                  )}
-                </Button>
-              ) : null}
-              {/*
-                Only where PayPal can complete: configured, the plan exists in
-                PayPal, and the website is not already paying by card
-                (beginCheckout refuses a second processor while one
-                subscription is live).
-              */}
-              {paypal ? (
-                <Button
-                  className={CARD_BUTTON}
-                  variant="outline"
-                  disabled={pending !== null}
-                  onClick={() => handlePayPal(plan.id)}
-                >
-                  {busy && pending?.provider === "paypal" ? (
-                    <>
-                      <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
-                      {t.redirecting}
-                    </>
-                  ) : (
-                    <>
-                      <PayPalMark className="size-6" />
-                      {tCommon.payWithPayPal}
-                    </>
-                  )}
-                </Button>
-              ) : null}
-              {paypal && view?.paypalNote ? <p className="text-xs leading-5 text-muted-foreground">{view.paypalNote}</p> : null}
-              {intervalBlocked && paypalIntervalNote ? (
-                <p className="text-xs leading-5 text-muted-foreground">{paypalIntervalNote}</p>
-              ) : !options.card && !paypal ? (
-                <p className="text-xs leading-5 text-muted-foreground">{t.noPlanChange}</p>
-              ) : null}
-            </>
-          )}
-        </div>
-      </article>
-    );
-  }
-
-  function planGrid(period: "month" | "year") {
-    const list = plansFor(period);
-    if (list.length === 0) {
-      return <p className="text-sm text-muted-foreground">{tCommon.noPlans}</p>;
-    }
-    const grid = <div className={planGridClass(list.length)}>{list.map(planCard)}</div>;
-    if (!paypalBlock || !websiteId || !paypalPendingCopy) return grid;
-    const block = paypalBlock;
-    return (
-      <div className="space-y-4">
-        <PayPalPendingPrompt
-          websiteId={websiteId}
-          copy={paypalPendingCopy}
-          failed={block.failed}
-          onContinue={() =>
-            block.provider === "stripe" ? handleCard(block.planId, true) : handlePayPal(block.planId, true)
-          }
-        />
-        {grid}
-      </div>
-    );
-  }
+  const block = paypalBlock;
+  const pendingPrompt =
+    block && websiteId && paypalPendingCopy ? (
+      <PayPalPendingPrompt
+        websiteId={websiteId}
+        copy={paypalPendingCopy}
+        failed={block.failed}
+        onContinue={() =>
+          block.provider === "stripe" ? handleCard(block.planId, true) : handlePayPal(block.planId, true)
+        }
+      />
+    ) : null;
+  const words = pricingPageCopy(locale);
+  // What paying yearly saves, as /pricing says it: with the launch price while the cards carry it.
+  const yearly = plans.find((plan) => plan.interval === "year");
+  const annualNote = yearly
+    ? planCards[yearly.id]?.strike
+      ? words.billing.saving
+      : words.billing.savingPlain
+    : null;
 
   const planFooter =
     options.manageInPayPal || options.manageInStripe || options.managedForYou ? (
@@ -624,7 +460,7 @@ export function BillingClient({
     <>
       {/*
         No description: the client cut the subtitle ("Each website has its own
-        plan…") because the rows below already show a plan per website.
+        plan…") because the list of websites already shows a plan per website.
       */}
       <PageHeader title={t.title} />
 
@@ -640,10 +476,226 @@ export function BillingClient({
         <Notice tone="info">{format(t.viewingSharedNote, { shared: viewingSharedDomain })}</Notice>
       ) : null}
 
+      {/* #plan: where "View plan" and the upgrade links land - the current plan if there is one, the plans otherwise. */}
+      <div id="plan" className="scroll-mt-20 space-y-8">
+        {/*
+          What this website has now, first: named, so it is never a guess which site
+          "Current plan" describes. The processor's own routes out (Stripe
+          portal, PayPal, support) sit in the footer - only the ones that can
+          work for THIS website's processor.
+        */}
+        {subscription || !websiteId ? (
+          <WorkspaceSection
+            id="current-plan"
+            icon={CreditCard}
+            title={domain ? format(t.planFor, { domain }) : t.currentPlan}
+            footer={planFooter}
+          >
+            <div className="space-y-4">
+              {!websiteId && !subscription ? (
+                <Notice
+                  tone="info"
+                  action={
+                    <Button size="sm" variant="outline" asChild>
+                      <Link href="/websites/new">
+                        <Plus className="size-4" aria-hidden="true" />
+                        {t.addWebsite}
+                      </Link>
+                    </Button>
+                  }
+                >
+                  {t.addWebsiteFirst}
+                </Notice>
+              ) : null}
+
+              {subscription ? (
+                <>
+                  <dl className="grid gap-4 sm:grid-cols-3">
+                    <div className="min-w-0 rounded-lg border bg-muted/20 p-4">
+                      <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Briefcase className="size-3.5 shrink-0" aria-hidden="true" />
+                        {t.currentPlan}
+                      </dt>
+                      <dd className="mt-2 text-xl font-semibold tracking-tight wrap-anywhere text-foreground">
+                        {subscription.planName ?? "—"}
+                      </dd>
+                    </div>
+                    <div className="min-w-0 rounded-lg border bg-muted/20 p-4">
+                      <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Calendar className="size-3.5 shrink-0" aria-hidden="true" />
+                        {subscription.cancelAtPeriodEnd ? t.accessEnds : t.nextInvoice}
+                      </dt>
+                      <dd className="mt-2 text-xl font-semibold tracking-tight tabular-nums wrap-anywhere text-foreground">
+                        {planDate(subscription) ? date(planDate(subscription)!) : "—"}
+                      </dd>
+                    </div>
+                    <div className="min-w-0 rounded-lg border bg-muted/20 p-4">
+                      <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        {/* A neutral mark: a tick beside "Payment overdue" would contradict the words. */}
+                        <Activity className="size-3.5 shrink-0" aria-hidden="true" />
+                        {t.status}
+                      </dt>
+                      {/*
+                        The words carry the status; the tint only repeats a
+                        warning or a failure for those who see it.
+                      */}
+                      <dd
+                        className={cn(
+                          "mt-2 text-xl font-semibold tracking-tight wrap-anywhere",
+                          status?.tone === "warning"
+                            ? "text-amber-700 dark:text-amber-400"
+                            : status?.tone === "critical"
+                              ? "text-red-700 dark:text-red-400"
+                              : "text-foreground",
+                        )}
+                      >
+                        {status?.label}
+                      </dd>
+                    </div>
+                  </dl>
+
+                  <p className="text-sm text-muted-foreground">
+                    {subscription.planName ? format(t.onPlan, { plan: subscription.planName }) : null}
+                    {planDate(subscription) ? (
+                      <>
+                        {subscription.planName ? " " : null}
+                        {format(subscription.cancelAtPeriodEnd ? t.accessEndsOn : t.renewsOn, {
+                          date: date(planDate(subscription)!),
+                        })}
+                      </>
+                    ) : null}
+                  </p>
+
+                  {subscription.status === "past_due" ? (
+                    <Notice tone="warning">{t.pastDueNotice}</Notice>
+                  ) : options.unsettled ? (
+                    <Notice tone="warning">{t.unsettledNotice}</Notice>
+                  ) : subscription.status === "canceled" || subscription.status === "incomplete_expired" ? (
+                    <Notice tone="info">{t.endedNotice}</Notice>
+                  ) : paypalFree && options.paypal && subscription.planId ? (
+                    <Notice
+                      tone="info"
+                      title={
+                        subscription.planName && subscription.currentPeriodEnd
+                          ? format(t.paypalFreeTitle, {
+                              plan: subscription.planName,
+                              date: date(subscription.currentPeriodEnd),
+                            })
+                          : undefined
+                      }
+                      action={
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={pending !== null}
+                          onClick={() => handlePayPal(subscription.planId!)}
+                        >
+                          {pending?.planId === subscription.planId && pending?.provider === "paypal" ? (
+                            <>
+                              <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                              {t.redirecting}
+                            </>
+                          ) : (
+                            <>
+                              <PayPalMark className="size-5" />
+                              {t.startPlanNow}
+                            </>
+                          )}
+                        </Button>
+                      }
+                    >
+                      {t.paypalFreeBody}
+                    </Notice>
+                  ) : null}
+
+                  {upgradeTarget ? (
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/20 px-4 py-3">
+                      <p className="min-w-0 text-sm text-muted-foreground">
+                        <span className="font-medium text-foreground">{t.upgradeLead}</span>{" "}
+                        {upgradeSentence(upgradeTarget, t, locale)}
+                      </p>
+                      <a
+                        href="#plans"
+                        className="inline-flex items-center gap-1 rounded-md text-sm font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+                      >
+                        {format(t.upgradeLink, { plan: upgradeTarget.name })}
+                        <ChevronRight className="size-4" aria-hidden="true" />
+                      </a>
+                    </div>
+                  ) : null}
+                </>
+              ) : null}
+            </div>
+          </WorkspaceSection>
+        ) : null}
+
+        {/* The plans, for the same website (#plans). */}
+        <PlanPicker
+          // Another website, or a link to another plan, starts the choice afresh.
+          key={[websiteId, selectedPlan?.tier, selectedPlan?.interval].join(":")}
+          plans={plans}
+          planCards={planCards}
+          subscription={subscription}
+          entitled={entitled}
+          options={options}
+          domain={domain}
+          websiteId={websiteId}
+          websiteSubscriptions={websiteSubscriptions}
+          processorNote={processorNote}
+          offer={offer}
+          annualNote={annualNote}
+          selectedTier={selectedPlan?.tier ?? null}
+          initialInterval={selectedPlan?.interval ?? (subscription?.interval === "year" ? "year" : "month")}
+          status={websiteId && !subscription ? t.noSubscription : null}
+          pending={pending}
+          onPay={(planId, provider) => (provider === "paypal" ? handlePayPal(planId) : handleCard(planId))}
+          paypalIntervalNote={paypalIntervalNote}
+          blockedPlanId={block?.planId ?? null}
+          pendingPrompt={pendingPrompt}
+          copy={copy}
+          choice={PAYMENT_CHOICE_COPY[locale]}
+          usageNote={words.compare.usageNote}
+          t={t}
+          tCommon={tCommon}
+          locale={locale}
+        />
+      </div>
+
+      {/* Everything else on sale, on its own page: one-off purchases must not compete with choosing a plan. */}
+      <section
+        id="addons"
+        aria-labelledby="addons-title"
+        className="flex scroll-mt-20 flex-col gap-4 rounded-xl border bg-card p-5 sm:flex-row sm:items-center sm:justify-between"
+      >
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary" aria-hidden="true">
+            <Puzzle className="size-4" />
+          </span>
+          <div className="min-w-0">
+            <h2 id="addons-title" className="text-base font-semibold tracking-tight text-foreground">
+              {copy.addonsTitle}
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">{copy.addonsBody}</p>
+          </div>
+        </div>
+        <ul className="flex flex-wrap gap-2 sm:justify-end">
+          {[{ id: "packs", name: copy.creditPacks, href: BUY_CREDITS_PATH }, ...addonLinks].map((link) => (
+            <li key={link.id}>
+              <Link
+                href={link.href}
+                className="inline-flex rounded-lg border bg-muted/40 px-3 py-2 text-xs font-semibold text-foreground/80 outline-none hover:bg-accent hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+              >
+                {link.name}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
+
       {/*
         One row per website: each is billed separately, so a customer may have
         several plans and one site not paid for at all - the row that matters
-        most. With more than one, each row opens that site's plan below.
+        most. With more than one, each row opens that site's plan above.
       */}
       {websiteSubscriptions.length > 0 ? (
         <WorkspaceSection id="websites" icon={Globe} title={t.yourWebsites}>
@@ -682,7 +734,7 @@ export function BillingClient({
                   {websiteSubscriptions.length > 1 ? (
                     isSelected ? (
                       <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                        {t.shownBelow}
+                        {copy.shownAbove}
                       </span>
                     ) : (
                       <Link
@@ -701,241 +753,7 @@ export function BillingClient({
           </ul>
         </WorkspaceSection>
       ) : null}
-
-      {/*
-        The selected website's plan, named, so it is never a guess which site
-        "Current plan" describes. The processor's own routes out (Stripe
-        portal, PayPal, support) sit in the footer - only the ones that can
-        work for THIS website's processor.
-      */}
-      <WorkspaceSection
-        id="plan"
-        icon={CreditCard}
-        title={domain ? format(t.planFor, { domain }) : t.currentPlan}
-        footer={planFooter}
-      >
-        <div className="space-y-4">
-          {!websiteId && !subscription ? (
-            <Notice
-              tone="info"
-              action={
-                <Button size="sm" variant="outline" asChild>
-                  <Link href="/websites/new">
-                    <Plus className="size-4" aria-hidden="true" />
-                    {t.addWebsite}
-                  </Link>
-                </Button>
-              }
-            >
-              {t.addWebsiteFirst}
-            </Notice>
-          ) : null}
-
-          {subscription ? (
-            <>
-              <dl className="grid gap-4 sm:grid-cols-3">
-                <div className="min-w-0 rounded-lg border bg-muted/20 p-4">
-                  <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Briefcase className="size-3.5 shrink-0" aria-hidden="true" />
-                    {t.currentPlan}
-                  </dt>
-                  <dd className="mt-2 text-xl font-semibold tracking-tight wrap-anywhere text-foreground">
-                    {subscription.planName ?? "—"}
-                  </dd>
-                </div>
-                <div className="min-w-0 rounded-lg border bg-muted/20 p-4">
-                  <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Calendar className="size-3.5 shrink-0" aria-hidden="true" />
-                    {subscription.cancelAtPeriodEnd ? t.accessEnds : t.nextInvoice}
-                  </dt>
-                  <dd className="mt-2 text-xl font-semibold tracking-tight tabular-nums wrap-anywhere text-foreground">
-                    {planDate(subscription) ? date(planDate(subscription)!) : "—"}
-                  </dd>
-                </div>
-                <div className="min-w-0 rounded-lg border bg-muted/20 p-4">
-                  <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    {/* A neutral mark: a tick beside "Payment overdue" would contradict the words. */}
-                    <Activity className="size-3.5 shrink-0" aria-hidden="true" />
-                    {t.status}
-                  </dt>
-                  {/*
-                    The words carry the status; the tint only repeats a
-                    warning or a failure for those who see it.
-                  */}
-                  <dd
-                    className={cn(
-                      "mt-2 text-xl font-semibold tracking-tight wrap-anywhere",
-                      status?.tone === "warning"
-                        ? "text-amber-700 dark:text-amber-400"
-                        : status?.tone === "critical"
-                          ? "text-red-700 dark:text-red-400"
-                          : "text-foreground",
-                    )}
-                  >
-                    {status?.label}
-                  </dd>
-                </div>
-              </dl>
-
-              <p className="text-sm text-muted-foreground">
-                {subscription.planName ? format(t.onPlan, { plan: subscription.planName }) : null}
-                {planDate(subscription) ? (
-                  <>
-                    {subscription.planName ? " " : null}
-                    {format(subscription.cancelAtPeriodEnd ? t.accessEndsOn : t.renewsOn, {
-                      date: date(planDate(subscription)!),
-                    })}
-                  </>
-                ) : null}
-              </p>
-
-              {subscription.status === "past_due" ? (
-                <Notice tone="warning">{t.pastDueNotice}</Notice>
-              ) : options.unsettled ? (
-                <Notice tone="warning">{t.unsettledNotice}</Notice>
-              ) : subscription.status === "canceled" || subscription.status === "incomplete_expired" ? (
-                <Notice tone="info">{t.endedNotice}</Notice>
-              ) : paypalFree && options.paypal && subscription.planId ? (
-                <Notice
-                  tone="info"
-                  title={
-                    subscription.planName && subscription.currentPeriodEnd
-                      ? format(t.paypalFreeTitle, {
-                          plan: subscription.planName,
-                          date: date(subscription.currentPeriodEnd),
-                        })
-                      : undefined
-                  }
-                  action={
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={pending !== null}
-                      onClick={() => handlePayPal(subscription.planId!)}
-                    >
-                      {pending?.planId === subscription.planId && pending?.provider === "paypal" ? (
-                        <>
-                          <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
-                          {t.redirecting}
-                        </>
-                      ) : (
-                        <>
-                          <PayPalMark className="size-5" />
-                          {t.startPlanNow}
-                        </>
-                      )}
-                    </Button>
-                  }
-                >
-                  {t.paypalFreeBody}
-                </Notice>
-              ) : null}
-
-              {upgradeTarget ? (
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/20 px-4 py-3">
-                  <p className="min-w-0 text-sm text-muted-foreground">
-                    <span className="font-medium text-foreground">{t.upgradeLead}</span>{" "}
-                    {upgradeSentence(upgradeTarget, t, locale)}
-                  </p>
-                  <a
-                    href="#plans"
-                    className="inline-flex items-center gap-1 rounded-md text-sm font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
-                  >
-                    {format(t.upgradeLink, { plan: upgradeTarget.name })}
-                    <ChevronRight className="size-4" aria-hidden="true" />
-                  </a>
-                </div>
-              ) : null}
-            </>
-          ) : websiteId ? (
-            <p className="text-sm text-muted-foreground">{t.noSubscription}</p>
-          ) : null}
-        </div>
-      </WorkspaceSection>
-
-      {/*
-        The plans, for the same website. #plans is the upgrade strip's target
-        (and scroll-mt keeps the heading clear of the sticky header).
-      */}
-      {hasAnnual ? (
-        <Tabs
-          value={interval}
-          onValueChange={(value) => setBillingInterval(value === "year" ? "year" : "month")}
-          className="block"
-        >
-          <PlansSection
-            domain={domain}
-            t={t}
-            tCommon={tCommon}
-            options={options}
-            processorNote={processorNote}
-            offerField={offerField}
-            actions={
-              <TabsList aria-label={t.billingPeriod}>
-                <TabsTrigger value="month">{t.monthly}</TabsTrigger>
-                <TabsTrigger value="year">{t.annual}</TabsTrigger>
-              </TabsList>
-            }
-          >
-            {(["month", "year"] as const).map((period) => (
-              <TabsContent
-                key={period}
-                value={period}
-                className="rounded-lg focus-visible:ring-3 focus-visible:ring-ring/50"
-              >
-                {planGrid(period)}
-              </TabsContent>
-            ))}
-          </PlansSection>
-        </Tabs>
-      ) : (
-        <PlansSection domain={domain} t={t} tCommon={tCommon} options={options} processorNote={processorNote} offerField={offerField}>
-          {planGrid("month")}
-        </PlansSection>
-      )}
     </>
-  );
-}
-
-/** The "Choose a plan" section frame, shared by the with- and without-annual layouts. */
-function PlansSection({
-  domain,
-  t,
-  tCommon,
-  options,
-  processorNote,
-  offerField,
-  actions,
-  children,
-}: {
-  domain: string | null;
-  t: Messages["app"]["billing"];
-  tCommon: Messages["app"]["common"];
-  options: ReturnType<typeof paymentOptions>;
-  /** Why one processor's buttons are missing, already worded; null when nothing is. */
-  processorNote: string | null;
-  /** The REPGET notice (applied automatically, on every payment), while the offer is on. */
-  offerField?: ReactNode;
-  actions?: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <WorkspaceSection
-      id="plans"
-      icon={Layers}
-      title={domain ? format(t.choosePlanFor, { domain }) : t.choosePlan}
-      description={t.choosePlanHelp}
-      actions={actions}
-    >
-      <div className="space-y-4">
-        {processorNote ? <Notice tone="info">{processorNote}</Notice> : null}
-        {offerField}
-        {children}
-        {options.card && options.paypal ? (
-          <p className="text-center text-xs text-muted-foreground">{tCommon.promoCodesHelp}</p>
-        ) : null}
-      </div>
-    </WorkspaceSection>
   );
 }
 
@@ -953,50 +771,5 @@ function ManagedForYou({ template }: { template: string }) {
       </a>
       {after}
     </p>
-  );
-}
-
-/**
- * The price as /pricing shows it (plan-cards.ts): the charged figure, the
- * regular one struck through beside it when checkout really takes something
- * off, how it is billed, and when money is taken.
- */
-function PlanPrice({ view }: { view: PlanCardView }) {
-  return (
-    <div className="mt-3 space-y-1">
-      {view.strike ? (
-        <p className="flex flex-wrap items-center gap-2 text-sm">
-          {view.badge ? (
-            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">{view.badge}</span>
-          ) : null}
-          <del className="text-muted-foreground tabular-nums">{view.strike}</del>
-        </p>
-      ) : null}
-      <p className="flex flex-wrap items-baseline gap-x-1.5">
-        <span className="text-3xl font-semibold tracking-tight tabular-nums text-foreground">{view.price}</span>
-        <span className="text-sm text-muted-foreground">{view.per}</span>
-      </p>
-      <p className="text-xs text-muted-foreground">{view.caption}</p>
-      {view.terms.map((line) => (
-        <p key={line} className="text-xs leading-5 text-muted-foreground">
-          {line}
-        </p>
-      ))}
-    </div>
-  );
-}
-
-/** The copy's one mark, `**words**` in bold (lib/i18n/pricing-page.ts). Never HTML. */
-function marks(text: string): ReactNode {
-  const parts = text.split(/\*\*([^*]+)\*\*/g);
-  if (parts.length === 1) return text;
-  return parts.map((part, index) =>
-    index % 2 === 1 ? (
-      <strong key={index} className="font-semibold text-foreground">
-        {part}
-      </strong>
-    ) : (
-      part
-    ),
   );
 }

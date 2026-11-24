@@ -318,7 +318,7 @@ const en: PartnerCopy = {
       footLink: "Understand how payouts work",
     },
     disclaimer:
-      "Illustrative earnings, not a guarantee. Assumes all referred customers pay the selected plan's list price each month for {months} months. Actual commissions apply to eligible payments received, after discounts and excluding taxes, refunds and other adjustments. Higher tier rates apply to payments made after the tier is reached.",
+      "Illustrative earnings, not a guarantee. Assumes all referred customers pay the price shown for the selected plan each month for {months} months. Actual commissions apply to eligible payments received, after discounts and excluding taxes, refunds and other adjustments. Higher tier rates apply to payments made after the tier is reached.",
     trust: {
       start: "Starting commission rate",
       top: "Highest available tier",
@@ -685,7 +685,7 @@ const es: PartnerCopy = {
       footLink: "Cómo funcionan los pagos",
     },
     disclaimer:
-      "Ganancias ilustrativas, no garantizadas. Supone que todos los clientes recomendados pagan el precio de lista del plan elegido cada mes durante {months} meses. Las comisiones reales se aplican a los pagos válidos recibidos, después de descuentos y sin impuestos, reembolsos ni otros ajustes. Las tasas de un nivel superior se aplican a los pagos realizados después de alcanzarlo.",
+      "Ganancias ilustrativas, no garantizadas. Supone que todos los clientes recomendados pagan cada mes el precio indicado para el plan elegido durante {months} meses. Las comisiones reales se aplican a los pagos válidos recibidos, después de descuentos y sin impuestos, reembolsos ni otros ajustes. Las tasas de un nivel superior se aplican a los pagos realizados después de alcanzarlo.",
     trust: {
       start: "Comisión inicial",
       top: "Nivel más alto disponible",
@@ -1052,7 +1052,7 @@ const fr: PartnerCopy = {
       footLink: "Comprendre les versements",
     },
     disclaimer:
-      "Gains indicatifs, non garantis. Suppose que tous les clients recommandés paient le prix catalogue du forfait choisi chaque mois pendant {months} mois. Les commissions réelles s'appliquent aux paiements éligibles reçus, après remises et hors taxes, remboursements et autres ajustements. Les taux d'un niveau supérieur s'appliquent aux paiements effectués après l'avoir atteint.",
+      "Gains indicatifs, non garantis. Suppose que tous les clients recommandés paient chaque mois le prix indiqué pour le forfait choisi pendant {months} mois. Les commissions réelles s'appliquent aux paiements éligibles reçus, après remises et hors taxes, remboursements et autres ajustements. Les taux d'un niveau supérieur s'appliquent aux paiements effectués après l'avoir atteint.",
     trust: {
       start: "Taux de commission de départ",
       top: "Niveau le plus élevé",
@@ -1419,7 +1419,7 @@ const it: PartnerCopy = {
       footLink: "Come funzionano i pagamenti",
     },
     disclaimer:
-      "Guadagni indicativi, non garantiti. Presuppone che tutti i clienti segnalati paghino il prezzo di listino del piano scelto ogni mese per {months} mesi. Le commissioni reali si applicano ai pagamenti idonei ricevuti, al netto di sconti ed esclusi tasse, rimborsi e altre rettifiche. Le percentuali di un livello superiore si applicano ai pagamenti effettuati dopo averlo raggiunto.",
+      "Guadagni indicativi, non garantiti. Presuppone che tutti i clienti segnalati paghino ogni mese il prezzo indicato per il piano scelto per {months} mesi. Le commissioni reali si applicano ai pagamenti idonei ricevuti, al netto di sconti ed esclusi tasse, rimborsi e altre rettifiche. Le percentuali di un livello superiore si applicano ai pagamenti effettuati dopo averlo raggiunto.",
     trust: {
       start: "Commissione iniziale",
       top: "Livello più alto disponibile",
@@ -1786,7 +1786,7 @@ const de: PartnerCopy = {
       footLink: "So funktionieren Auszahlungen",
     },
     disclaimer:
-      "Beispielhafte Einnahmen, keine Garantie. Angenommen wird, dass alle empfohlenen Kunden {months} Monate lang jeden Monat den Listenpreis des gewählten Tarifs zahlen. Tatsächliche Provisionen gelten für eingegangene berechtigte Zahlungen, nach Rabatten und ohne Steuern, Erstattungen und sonstige Korrekturen. Höhere Stufensätze gelten für Zahlungen, die nach Erreichen der Stufe eingehen.",
+      "Beispielhafte Einnahmen, keine Garantie. Angenommen wird, dass alle empfohlenen Kunden {months} Monate lang jeden Monat den angezeigten Preis des gewählten Tarifs zahlen. Tatsächliche Provisionen gelten für eingegangene berechtigte Zahlungen, nach Rabatten und ohne Steuern, Erstattungen und sonstige Korrekturen. Höhere Stufensätze gelten für Zahlungen, die nach Erreichen der Stufe eingehen.",
     trust: {
       start: "Provision zum Start",
       top: "Höchste verfügbare Stufe",

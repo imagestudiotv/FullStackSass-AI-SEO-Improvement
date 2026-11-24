@@ -21,6 +21,7 @@ import { requireSession } from "@/lib/auth-guard";
 import { pendingConversions } from "@/lib/conversions/conversions";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { db } from "@/lib/db";
+import { BUY_CREDITS_PATH } from "@/lib/credits/buy-credits";
 import { addons, notifications, organization } from "@/lib/db/schema";
 import { ConversionEvents } from "@/components/conversion-events";
 import { ReferralClaim } from "@/components/referral-claim";
@@ -246,7 +247,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
    */
   const creditPack = addonRows.find((row) => row.kind === "credits");
   const sidebarAddons = [
-    ...(creditPack ? [{ id: creditPack.id, name: t.app.nav.creditPacks }] : []),
+    ...(creditPack ? [{ id: creditPack.id, name: t.app.nav.creditPacks, href: BUY_CREDITS_PATH }] : []),
     ...addonRows
       .filter((row) => row.kind !== "credits")
       .map((row) => {
@@ -261,7 +262,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   /**
    * Credits are shown beside an owned site only - see SidebarUsage's
    * showCredits. The same answer decides the pill beside the logo, the phone
-   * header's pill and the line under "Earn Credits".
+   * header's pill and the check-in under "Earn Credits".
    */
   const showCredits = !selectedShared && !sharedWorkOnly;
   /*
@@ -324,14 +325,14 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         }
         footer={
           /*
-            "Earn Credits" and the balance, pinned under the menu. No credit
-            figure on a shared site or for someone who owns nothing: `orgId`
-            is this person's own workspace, so the number would be THEIR
-            balance beside credits they cannot spend there.
+            "Earn Credits" and the daily check-in, pinned under the menu. No
+            check-in on a shared site or for someone who owns nothing: `orgId`
+            is this person's own workspace, so it would offer THEM credits
+            they cannot spend there.
           */
           <>
             {freeIndicator}
-            <SidebarUsage organizationId={orgId} showCredits={showCredits} locale={locale} t={t.app.nav} tc={creditWords} />
+            <SidebarUsage organizationId={orgId} showCredits={showCredits} locale={locale} t={t.app.nav} />
           </>
         }
       >
@@ -340,6 +341,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           onboardingComplete={onboardingComplete}
           setupProgress={setupProgress}
           selectedWebsiteId={fallbackWebsiteId}
+          defaultWebsiteId={accessibleWebsites[0]?.id ?? null}
           addons={sidebarAddons}
           hideAddons={hideAddons}
           hideCredits={sharedWorkOnly}
@@ -357,13 +359,14 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             onboardingComplete={onboardingComplete}
             setupProgress={setupProgress}
             selectedWebsiteId={fallbackWebsiteId}
+            defaultWebsiteId={accessibleWebsites[0]?.id ?? null}
             addons={sidebarAddons}
             hideAddons={hideAddons}
             hideCredits={sharedWorkOnly}
             footer={
               <>
                 {freeIndicator}
-                <SidebarUsage organizationId={orgId} showCredits={showCredits} locale={locale} t={t.app.nav} tc={creditWords} />
+                <SidebarUsage organizationId={orgId} showCredits={showCredits} locale={locale} t={t.app.nav} />
               </>
             }
           />

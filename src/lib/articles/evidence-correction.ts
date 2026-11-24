@@ -2,6 +2,7 @@ import { load } from "cheerio";
 import { anthropic } from "@/lib/ai/client";
 import { articleTask, measuredRequest, type MeasureAi } from "@/lib/ai/article-tasks";
 import { dataBlock, dataRule } from "@/lib/ai/untrusted";
+import { cleanDashesHtml, NO_DASH_RULE } from "./dashes";
 import { countWords, sanitizeHtml, type ArticleBrief } from "./generate";
 import type { ResearchBrief } from "./research-types";
 import { writingEvidence } from "./writing-evidence";
@@ -36,6 +37,7 @@ The evidence cards are selected excerpts. Never replace an unsupported detail wi
 Keep company-wide figures company-wide. A business's style, tenure or differentiator is not proof of outcomes or of competitors' limitations. Omit unnecessary promotional claims.
 Keep citations next to supported statements with exact supplied URLs. A source discussing several apps and separately discussing a technique does not prove each app supports that technique. A video tutorial does not establish a required photo workflow.
 Paraphrase in original words; avoid long direct quotations. Retain only allowed article HTML (<h2>, <h3>, <p>, lists, emphasis, links and tables), no Markdown, scripts or wrapper.
+${NO_DASH_RULE}
 ${dataRule("business_profile")} ${dataRule("website_page")}`,
     messages: [{ role: "user", content:
       dataBlock("business_profile", JSON.stringify({
@@ -50,7 +52,7 @@ ${dataRule("business_profile")} ${dataRule("website_page")}`,
   if (response.stop_reason !== "end_turn") throw new Error("Evidence correction did not finish");
   const parsed = JSON.parse(response.content.find(block => block.type === "text")?.text ?? "") as { bodyHtml?: unknown };
   if (typeof parsed.bodyHtml !== "string") throw new Error("Evidence correction returned no HTML");
-  const bodyHtml = sanitizeHtml(parsed.bodyHtml);
+  const bodyHtml = cleanDashesHtml(sanitizeHtml(parsed.bodyHtml), { language: brief.language });
   const $ = load(bodyHtml, null, false);
   const looseText = $.root().contents().toArray().some(node => node.type === "text" && node.data.trim());
   const wordCount = countWords(bodyHtml);

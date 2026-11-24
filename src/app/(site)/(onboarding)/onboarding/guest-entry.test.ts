@@ -72,6 +72,7 @@ import {
 import { createInvitationToken } from "@/lib/websites/invitation-token";
 
 import OnboardingPage from "./page";
+import RetiredStepPage from "./[step]/page";
 import OnboardingWebsitePage from "./website/page";
 
 /**
@@ -230,6 +231,41 @@ const websiteStep = (search: Record<string, string> = {}) =>
 const setup = (search: Record<string, string> = {}) =>
   outcome(() => SetupPage({ searchParams: Promise.resolve(search) } as never));
 
+const retired = (step: string, search: Record<string, string> = {}) =>
+  outcome(() => RetiredStepPage({ params: Promise.resolve({ step }), searchParams: Promise.resolve(search) } as never));
+
+describe("the steps that are gone (bookmarks, old emails, a Google sign-in in flight)", () => {
+  it("lead a customer with a plan to where each job is done now", async () => {
+    signIn(OWNER_USER, OWNER_ORG);
+    expect(await retired("google")).toBe(`/websites/${sharedSite}/google`);
+    expect(await retired("google", { site: sharedSite, google: "cancelled" })).toBe(`/websites/${sharedSite}/google?google=cancelled`);
+    expect(await retired("visibility")).toBe(`/websites/${sharedSite}/ai-visibility`);
+    expect(await retired("content", { site: sharedSite })).toBe(`/websites/${sharedSite}/content`);
+    expect(await retired("profile")).toBe(`/websites/${sharedSite}/profile`);
+    expect(await retired("setup")).toBe(`/tasks?site=${sharedSite}`);
+    expect(await retired("done")).toBe(`/dashboard?site=${sharedSite}`);
+  });
+
+  it("send an unpaid customer to the plan and a new one to the website step, never round in a circle", async () => {
+    signIn(NEW_USER, NEW_ORG);
+    expect(await retired("google")).toBe("/onboarding/website");
+    const own = await addSite(NEW_ORG, "unpaid.example");
+    for (const step of ["google", "visibility", "content", "setup", "done", "profile"]) {
+      expect(await retired(step), step).toBe(`/onboarding/plan?site=${own}`);
+    }
+  });
+
+  it("send somebody who only works on a shared site to the dashboard", async () => {
+    signIn(GUEST_USER, GUEST_ORG);
+    expect(await retired("content", { site: sharedSite })).toBe("/dashboard");
+  });
+
+  it("are the only ones: anything else is not a page", async () => {
+    signIn(OWNER_USER, OWNER_ORG);
+    for (const step of ["anything", "constructor", "toString"]) await expect(retired(step)).rejects.toThrow("notFound");
+  });
+});
+
 describe("a guest-only user (a shared site, none of their own)", () => {
   beforeEach(() => signIn(GUEST_USER, GUEST_ORG));
 
@@ -326,9 +362,8 @@ describe("unchanged for everybody else", () => {
     await subscribe(DUAL_ORG, own);
     signIn(DUAL_USER, DUAL_ORG);
 
-    // Paid and analysed, no visibility questions yet: the next step of THEIR
-    // setup, not the dashboard.
-    expect(await onboarding()).toBe("/onboarding/visibility");
+    // Paid: setup is over, and the dashboard shows their own site.
+    expect(await onboarding()).toBe("/dashboard");
     expect(await websiteStep()).toBe("/onboarding/plan");
     expect(await websiteStep({ next: "1" })).toBe("rendered");
   });
@@ -336,7 +371,8 @@ describe("unchanged for everybody else", () => {
   it("the owner of the shared site is not affected by having shared it", async () => {
     signIn(OWNER_USER, OWNER_ORG);
 
-    expect(await onboarding()).toBe("/onboarding/visibility");
+    expect(await onboarding()).toBe("/dashboard");
+    expect(await onboarding({ site: sharedSite })).toBe(`/dashboard?site=${sharedSite}`);
     expect(await websiteStep()).toBe("/onboarding/plan");
   });
 });

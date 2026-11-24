@@ -20,6 +20,7 @@ export function MobileNav({
   onboardingComplete = false,
   setupProgress = null,
   selectedWebsiteId = null,
+  defaultWebsiteId = null,
   addons = [],
   hideAddons = false,
   hideCredits = false,
@@ -30,7 +31,7 @@ export function MobileNav({
   footer,
   t,
 }: {
-  /** "Earn Credits" and the balance, as at the bottom of the desktop sidebar. */
+  /** "Earn Credits" and the daily check-in, as at the bottom of the desktop sidebar. */
   footer?: ReactNode;
   onboardingComplete?: boolean;
   websites?: SwitcherWebsite[];
@@ -57,6 +58,8 @@ export function MobileNav({
    * two-item menu on the dashboard.
    */
   selectedWebsiteId?: string | null;
+  /** Forwarded to SidebarNav. */
+  defaultWebsiteId?: string | null;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -89,6 +92,7 @@ export function MobileNav({
           onboardingComplete={onboardingComplete}
           setupProgress={setupProgress}
           selectedWebsiteId={selectedWebsiteId}
+          defaultWebsiteId={defaultWebsiteId}
           addons={addons}
           hideAddons={hideAddons}
           hideCredits={hideCredits}

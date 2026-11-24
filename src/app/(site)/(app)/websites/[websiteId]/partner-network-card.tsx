@@ -1,7 +1,8 @@
 "use client";
 
 import { NativeLikeSelect } from "@/components/ui/native-like-select";
-import { ArrowDown, ArrowLeftRight, ArrowUp, HelpCircle, Info, Loader2, Lock, Plus, Users, X } from "lucide-react";
+import { ArrowDown, ArrowLeftRight, ArrowRight, ArrowUp, Globe, HelpCircle, Info, Loader2, Lock, Plus, Users, X } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -20,6 +21,7 @@ import {
   type PartnerNetwork,
 } from "@/lib/backlinks/network-settings";
 import { format } from "@/lib/i18n/format";
+import type { PartnerNetworkConnectCopy } from "@/lib/i18n/partner-network-connect";
 import type { Messages } from "@/lib/i18n/messages";
 import { cn } from "@/lib/utils";
 
@@ -34,6 +36,10 @@ const PRIORITY_STYLE: Record<string, string> = {
  * The Partner Network settings card (the client's screenshot): participation,
  * the authority preference, and the pages this website wants links to.
  *
+ * Until the website is connected (network.connected) it is not in the network:
+ * the card says how to join and every setting is off and disabled (Daniel,
+ * 2026-11-24). The actions refuse as well.
+ *
  * Every control persists through a server action scoped to this website
  * (lib/backlinks/network-settings.ts). Nothing here matches partners or
  * spends credits - the RepGet team places links, reading these preferences.
@@ -42,8 +48,9 @@ export function PartnerNetworkCard({
   websiteId,
   network,
   credits,
-  canEdit,
+  canEdit: mayEdit,
   t,
+  connectText,
 }: {
   websiteId: string;
   network: PartnerNetwork;
@@ -51,6 +58,8 @@ export function PartnerNetworkCard({
   credits: { available: number; reserved: number } | null;
   canEdit: boolean;
   t: Messages["app"]["partnerNetwork"];
+  /** Said while the website is not connected. */
+  connectText: PartnerNetworkConnectCopy;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -75,22 +84,43 @@ export function PartnerNetworkCard({
     });
   }
 
+  const connected = network.connected;
   const on = network.participating;
+  /** Off until the website is connected, whoever is asking. */
+  const canEdit = mayEdit && connected;
+  const integrations = `/websites/${websiteId}/integrations`;
 
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-start gap-3">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <ArrowLeftRight className="size-5" aria-hidden="true" />
-          </span>
-          <div>
-            <CardTitle className="text-lg">{t.title}</CardTitle>
-            <CardDescription>{t.subtitle}</CardDescription>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex min-w-0 items-start gap-3">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <ArrowLeftRight className="size-5" aria-hidden="true" />
+            </span>
+            <div className="min-w-0">
+              <CardTitle className="text-lg">{t.title}</CardTitle>
+              <CardDescription>{t.subtitle}</CardDescription>
+            </div>
           </div>
+          {connected ? null : (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground">
+                <span className="size-1.5 rounded-full bg-muted-foreground" aria-hidden="true" />
+                {connectText.notConnected}
+              </span>
+              <Button asChild variant="outline" size="sm">
+                <Link href={integrations}>
+                  <HelpCircle className="size-4" aria-hidden="true" />
+                  {connectText.howItWorks}
+                </Link>
+              </Button>
+            </div>
+          )}
         </div>
       </CardHeader>
       <CardContent>
+        {connected ? null : <ConnectFirst href={integrations} canConnect={mayEdit} t={connectText} />}
         <p className="sr-only" role="status" aria-live="polite">
           {status}
         </p>
@@ -106,7 +136,7 @@ export function PartnerNetworkCard({
             </div>
             <div className="flex items-center gap-3">
               <span className="text-sm font-medium" id="pn-toggle-label">
-                {on ? t.enabled : t.disabled}
+                {!connected ? connectText.notAvailable : on ? t.enabled : t.disabled}
               </span>
               <button
                 type="button"
@@ -136,7 +166,11 @@ export function PartnerNetworkCard({
                 <p className="mt-1 text-muted-foreground">{t.whatBody}</p>
               </div>
             </div>
-            {!on ? <p className="text-sm text-muted-foreground">{t.offNote}</p> : null}
+            {!connected ? (
+              <p className="text-sm text-muted-foreground">{connectText.unlockParticipation}</p>
+            ) : !on ? (
+              <p className="text-sm text-muted-foreground">{t.offNote}</p>
+            ) : null}
             {network.inReview > 0 ? <p className="text-sm">{format(t.inReview, { n: network.inReview })}</p> : null}
             {credits ? (
               <p className="text-sm font-medium tabular-nums">
@@ -150,14 +184,16 @@ export function PartnerNetworkCard({
             <div>
               <h3 id="pn-rating" className="flex items-center gap-1.5 font-semibold">
                 {t.ratingTitle}
-                {network.authority !== "available" ? <Lock className="size-4 text-muted-foreground" aria-hidden="true" /> : null}
+                {!connected || network.authority !== "available" ? <Lock className="size-4 text-muted-foreground" aria-hidden="true" /> : null}
               </h3>
               <p className="mt-1 text-sm text-muted-foreground">{t.ratingHelp}</p>
             </div>
+            {connected ? null : <p className="text-sm text-muted-foreground">{connectText.unlockMinimum}</p>}
             {network.authority === "available" ? (
               <MinimumAuthority
                 value={network.minSourceRank}
                 max={network.maxMinSourceRank}
+                locked={!connected}
                 canEdit={canEdit}
                 pending={pending}
                 t={t}
@@ -181,6 +217,7 @@ export function PartnerNetworkCard({
               <p className="mt-1 text-sm text-muted-foreground">{t.targetsHelp}</p>
             </div>
 
+            {connected ? null : <p className="text-sm text-muted-foreground">{connectText.unlockTargets}</p>}
             {network.targets.length === 0 ? (
               <p className="text-sm text-muted-foreground">{t.noTargets}</p>
             ) : (
@@ -248,7 +285,7 @@ export function PartnerNetworkCard({
               </ol>
             )}
 
-            {adding ? (
+            {adding && canEdit ? (
               <form
                 className="space-y-2 rounded-lg border p-3"
                 onSubmit={(event) => {
@@ -292,8 +329,8 @@ export function PartnerNetworkCard({
                   </Button>
                 </div>
               </form>
-            ) : canEdit ? (
-              <Button type="button" variant="secondary" className="w-full" onClick={() => setAdding(true)} disabled={pending}>
+            ) : mayEdit ? (
+              <Button type="button" variant="secondary" className="w-full" onClick={() => setAdding(true)} disabled={!canEdit || pending}>
                 <Plus className="size-4" />
                 {t.addTarget}
               </Button>
@@ -305,10 +342,54 @@ export function PartnerNetworkCard({
   );
 }
 
+/** Step 1 of joining, and the three steps; the connection itself is made on Integrations. */
+function ConnectFirst({ href, canConnect, t }: { href: string; canConnect: boolean; t: PartnerNetworkConnectCopy }) {
+  const steps = [{ label: t.stepConnect }, { label: t.stepVerify, note: t.stepVerifyNote }, { label: t.stepJoin }];
+  return (
+    <>
+      <div className="flex flex-col gap-4 rounded-xl border border-primary/30 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+        <div className="flex min-w-0 items-start gap-4">
+          <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary" aria-hidden="true">
+            <Globe className="size-5" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-xs font-bold tracking-wider text-primary uppercase">{t.stepLabel}</p>
+            <h3 className="mt-1 font-semibold">{t.title}</h3>
+            <p className="mt-1 max-w-xl text-sm text-muted-foreground">{canConnect ? t.body : t.askEditor}</p>
+          </div>
+        </div>
+        {canConnect ? (
+          <Button asChild size="lg" className="shrink-0">
+            <Link href={href}>
+              <Plus className="size-4" aria-hidden="true" />
+              {t.connect}
+              <ArrowRight className="size-4" aria-hidden="true" />
+            </Link>
+          </Button>
+        ) : null}
+      </div>
+      <ol aria-label={t.stepsLabel} className="my-4 flex flex-col gap-2 text-sm sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-6">
+        {steps.map((step, index) => (
+          <li key={step.label} aria-current={index === 0 ? "step" : undefined} className={cn("flex items-center gap-2", index === 0 ? "font-semibold text-primary" : "text-muted-foreground")}>
+            <span className={cn("grid size-6 shrink-0 place-items-center rounded-full text-xs font-bold", index === 0 ? "bg-primary/10" : "bg-muted")} aria-hidden="true">
+              {index + 1}
+            </span>
+            <span>
+              {step.label}
+              {step.note ? <span className="ml-1 text-xs">({step.note})</span> : null}
+            </span>
+          </li>
+        ))}
+      </ol>
+    </>
+  );
+}
+
 /** Minimum DataForSEO Rank: a slider (keyboard: arrows, Home/End) and Save. */
 function MinimumAuthority({
   value,
   max,
+  locked,
   canEdit,
   pending,
   t,
@@ -317,6 +398,8 @@ function MinimumAuthority({
   value: number | null;
   /** The plan's ceiling: 60, or 100 on Scale (lib/backlinks/authority-cap.ts). */
   max: number;
+  /** Not connected yet: shown as it would be, off. */
+  locked: boolean;
   canEdit: boolean;
   pending: boolean;
   t: Messages["app"]["partnerNetwork"];
@@ -326,7 +409,7 @@ function MinimumAuthority({
   const [none, setNone] = useState(value === null);
   const changed = none ? value !== null : draft !== value;
   return (
-    <div className="space-y-3 rounded-lg border p-3">
+    <div className={cn("space-y-3 rounded-lg border p-3", locked && "opacity-60")}>
       <p className="text-xs text-muted-foreground">{t.ratingMetric}</p>
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" checked={none} disabled={!canEdit || pending} onChange={(e) => setNone(e.target.checked)} className="size-4" />
@@ -355,8 +438,8 @@ function MinimumAuthority({
           {format(t.ratingScaleOnly, { cap: max })}
         </p>
       ) : null}
-      {canEdit ? (
-        <Button type="button" size="sm" variant="secondary" disabled={pending || !changed} onClick={() => onSave(none ? null : draft)}>
+      {canEdit || locked ? (
+        <Button type="button" size="sm" variant="secondary" disabled={locked || pending || !changed} onClick={() => onSave(none ? null : draft)}>
           {pending ? <Loader2 className="size-3.5 animate-spin" /> : null}
           {t.ratingSave}
         </Button>

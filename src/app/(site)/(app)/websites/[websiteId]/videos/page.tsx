@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, not, sql } from "drizzle-orm";
 import type { Metadata } from "next";
 
 import { queueJob } from "@/inngest/send";
@@ -13,6 +13,7 @@ import { getAppMessages } from "@/lib/i18n/app-locale";
 import { plural } from "@/lib/i18n/format";
 import { VIDEOS_COPY } from "@/lib/i18n/videos";
 import { isBundleConfigured } from "@/lib/social/bundle";
+import { pauseKind } from "@/lib/social/pause";
 import { requireWebsitePage } from "@/lib/tenant";
 import {
   CAPTION_STYLES,
@@ -36,22 +37,24 @@ import {
   type VideoScript,
   type VideoStyle,
 } from "@/lib/video/formats";
+import { customerDestinations, customerNote, customerStatus, isReturned } from "@/lib/video/customer-view";
 import { totalViews } from "@/lib/video/followup";
+import { returnedSql, savedVideosWhere, todaysIdeasWhere } from "@/lib/video/lists";
 import { productionChoicesOf } from "@/lib/video/cost";
 import { MUSIC_TRACKS, MUSIC_VOLUME, ideaTrack, musicUrl } from "@/lib/video/music";
 import { brandLook, readVideoSettings, videoAccess, type VideoSettings } from "@/lib/video/settings";
 import type { ProductionReelProps } from "@/remotion/props";
 
 import { DAILY_MAX_ATTEMPTS, ideaAllowance } from "@/lib/video/batches";
-import { readDestinations } from "@/lib/video/destinations";
 import { readNativeAudio } from "@/lib/video/native-audio";
 import { videoPublishingStatus } from "@/lib/video/publish-actions";
 import { reviewBlocksAutoPublish } from "@/lib/video/review";
 import { previewClips } from "@/lib/video/preview-media";
 import { videoProfile } from "@/lib/video/strategy/profile";
+import { readTags, YOUTUBE_TAGS_KEY } from "@/lib/video/youtube-tags";
 import { cleanClipText } from "@/remotion/clip-text";
 
-import { POSTED_STATUSES, SAVED_STATUSES } from "./logic";
+import { POSTED_STATUSES } from "./logic";
 import { VideosPanel, type IdeaView, type VideoAccountView } from "./videos-panel";
 
 export const dynamic = "force-dynamic";
@@ -63,7 +66,6 @@ export async function generateMetadata({ params }: PageProps<"/websites/[website
   return { title: VIDEOS_COPY[locale].title };
 }
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 /** How often the page looks again while a video is being made or published. */
 const REFRESH_SECONDS = 10;
 
@@ -89,19 +91,13 @@ export default async function WebsiteVideosPage({ params, searchParams }: PagePr
     db
       .select()
       .from(videoIdeas)
-      .where(and(eq(videoIdeas.websiteId, site.id), eq(videoIdeas.day, today), eq(videoIdeas.status, "new")))
+      .where(todaysIdeasWhere(site.id, now))
       .orderBy(videoIdeas.createdAt),
     // Saved Videos (client, 2026-11-21): approved, not scheduled or published yet.
     db
       .select()
       .from(videoIdeas)
-      .where(
-        and(
-          eq(videoIdeas.websiteId, site.id),
-          inArray(videoIdeas.status, [...SAVED_STATUSES]),
-          gte(videoIdeas.updatedAt, new Date(now.getTime() - 30 * DAY_MS)),
-        ),
-      )
+      .where(savedVideosWhere(site.id, now))
       .orderBy(desc(videoIdeas.approvedAt))
       .limit(40),
     // Posted: what is scheduled or on its way (any age), then what is out, newest first.
@@ -119,7 +115,8 @@ export default async function WebsiteVideosPage({ params, searchParams }: PagePr
     db
       .select({ n: sql<number>`count(*)::int` })
       .from(videoIdeas)
-      .where(and(eq(videoIdeas.websiteId, site.id), gte(videoIdeas.approvedAt, new Date(`${today}T00:00:00Z`)))),
+      // A make that failed made nothing (its idea is back in the deck).
+      .where(and(eq(videoIdeas.websiteId, site.id), gte(videoIdeas.approvedAt, new Date(`${today}T00:00:00Z`)), not(returnedSql))),
     db.select().from(videoMedia).where(eq(videoMedia.websiteId, site.id)).orderBy(desc(videoMedia.createdAt)),
     db.select().from(socialAccounts).where(eq(socialAccounts.websiteId, site.id)),
     readCreditSettings(),
@@ -206,11 +203,15 @@ export default async function WebsiteVideosPage({ params, searchParams }: PagePr
     };
     return {
       id: row.id,
+      // An idea a failed make brought back is another card of the deck: the one approved here stays handled.
+      deckKey: isReturned(row) ? `${row.id}@${row.updatedAt.getTime()}` : row.id,
+      returned: isReturned(row),
       format: row.format,
       style: row.style,
       title: row.title,
       caption: row.caption,
-      status: row.status,
+      // What failed is the team's to know: the customer sees the idea back, or the video ready (customer-view.ts).
+      status: customerStatus(row),
       voice: row.voice,
       musicTrack: row.musicTrack,
       captions: row.captions,
@@ -225,18 +226,19 @@ export default async function WebsiteVideosPage({ params, searchParams }: PagePr
       stats: row.stats ?? {},
       statsAt: row.statsAt?.toISOString() ?? null,
       views: totalViews(row.stats),
-      error: row.error,
+      error: customerNote(row.error),
       category: isIdeaCategory(row.category) ? row.category : "educational",
       direction: isCreativeDirection(row.direction) ? row.direction : "animated",
       why: row.why,
       techniques: row.techniques ?? [],
       production: productionOf(row, settings),
-      overrides: (row.overrides ?? {}) as IdeaOverrides,
+      overrides: Object.fromEntries(Object.entries(row.overrides ?? {}).filter(([key]) => key !== YOUTUBE_TAGS_KEY)) as IdeaOverrides,
+      youtubeTags: readTags(row.overrides),
       reviewStatus: row.reviewStatus,
       reviewReasons: row.reviewReasons ?? [],
       claims: (row.claims ?? []) as FactClaim[],
       reviewBlocks: reviewBlocksAutoPublish(row),
-      destinations: readDestinations(row.destinations) as Record<string, DestinationState>,
+      destinations: customerDestinations(row.destinations) as Record<string, DestinationState>,
       nativeAudio: readNativeAudio(row.nativeAudio),
     };
   };
@@ -247,7 +249,9 @@ export default async function WebsiteVideosPage({ params, searchParams }: PagePr
       platform: account.platform,
       username: account.username,
       connected: Boolean(account.bundleAccountId),
-      pausedReason: account.pausedAt ? (account.pausedReason ?? "") : null,
+      // Never the reason. Only a platform's refusal is the customer's to resume; RepGet's own provider limits end by themselves (lib/social/pause.ts).
+      paused: account.pausedAt !== null,
+      resumable: account.pausedAt !== null && pauseKind(account.pausedReason) === "platform",
       // Pinterest's board, shared with the social Pins (chosen on Opportunities).
       board: account.target?.trim() || null,
     }));

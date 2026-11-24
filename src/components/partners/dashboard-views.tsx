@@ -29,12 +29,13 @@ export function EarningsPanel({
   balances: ReturnType<typeof balanceView>[];
   totals?: FigureView[];
   copy: Portal;
-  nextPayout: string;
+  /** Null when no monthly run pays this partner (paid in credits). */
+  nextPayout: string | null;
 }) {
   const o = copy.overview;
   const counts = totals.map((figure) => <Figure key={figure.key} label={figure.label} value={figure.value} definition={figure.definition} />);
   return (
-    <PortalSection id="earnings-title" title={o.balancesTitle} description={`${o.currencyNote} ${nextPayout}`}>
+    <PortalSection id="earnings-title" title={o.balancesTitle} description={nextPayout ? `${o.currencyNote} ${nextPayout}` : o.currencyNote}>
       {balances.length === 0 ? (
         <div className="space-y-3">
           {counts.length > 0 ? <dl className="grid gap-3 sm:grid-cols-2">{counts}</dl> : null}
@@ -186,7 +187,8 @@ export function CommissionList({ rows, copy }: { rows: ReturnType<typeof commiss
   );
 }
 
-export function PayoutList({ rows, copy }: { rows: ReturnType<typeof payoutRowView>[]; copy: Portal }) {
+/** `columns`: headings for payouts that are not all made through Stripe. */
+export function PayoutList({ rows, copy, columns }: { rows: ReturnType<typeof payoutRowView>[]; copy: Portal; columns?: { sent: string; received: string } }) {
   const p = copy.payouts;
   if (rows.length === 0) return <PortalEmpty>{p.empty}</PortalEmpty>;
   return (
@@ -195,8 +197,8 @@ export function PayoutList({ rows, copy }: { rows: ReturnType<typeof payoutRowVi
       columns={[
         { key: "date", label: p.date },
         { key: "amount", label: p.amount, align: "end" },
-        { key: "transfer", label: p.transfer },
-        { key: "bank", label: p.bank },
+        { key: "transfer", label: columns?.sent ?? p.transfer },
+        { key: "bank", label: columns?.received ?? p.bank },
       ]}
       rows={rows.map((row) => ({
         id: row.id,

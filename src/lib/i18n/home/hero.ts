@@ -5,25 +5,20 @@ import type { Locale } from "@/lib/i18n/config";
  * 2026-11-03: `rgx-hero` and `rgx-channel-ribbon`), in every language.
  *
  * English is the design's own wording (the owner asked for the design's
- * texts on 2026-11-04); above the field it is the simpler hero of 2026-11-11
- * (repget_homepage_animated_social_proof.html). The ribbon's counter shows
- * the real number of things RepGet has made (lib/marketing/content-count.ts),
- * so only its caption is here.
+ * texts on 2026-11-04); above the field it is the headline of 2026-11-24
+ * (repget_homepage_animated_signals.html), with "Meet RepGet." now after the
+ * ribbon. The ribbon's counter shows the real number of things RepGet has
+ * made (lib/marketing/content-count.ts), so only its caption is here.
  *
- * Marks: `**words**` bold (see _home/text.tsx).
+ * Marks: `**words**` bold, `*words*` the accent colour (see _home/text.tsx).
  */
 export type HeroCopy = {
   hero: {
-    /** The pill above the title (client, 2026-11-11). */
-    pill: string;
-    /** The title's first word(s), before the mascots and "RepGet." - short: the title is one line on a phone. */
-    meet: string;
-    /** The promise under the name, in the same heading; the second line is the violet one. */
-    subtitleLine1: string;
-    subtitleLine2: string;
-    /** What the gecko says, once, in three steps: a bold line and a small one each. */
-    mascotNotes: [[string, string], [string, string], [string, string]];
-    /** The description's first line (`**bold**` allowed) and its second. */
+    /** The title's quiet first line (client, 2026-11-24). */
+    opening: string;
+    /** The title's promise, its last word in the accent colour (`*word*`) - short: one line on a desktop. */
+    promise: string;
+    /** The description's two lines (`**bold**` allowed). */
     descriptionLead: string;
     descriptionRest: string;
     websiteLabel: string;
@@ -44,6 +39,12 @@ export type HeroCopy = {
     joinGoogle: string;
     seeHow: string;
   };
+  /** After the ribbon: "Meet [the gecko and the owl] RepGet." (client, 2026-11-24). */
+  meet: {
+    eyebrow: string;
+    /** The title's first word(s), before the mascots and "RepGet." - short: the title is one line on a phone. */
+    meet: string;
+  };
   ribbon: {
     label: string;
     /** Under the real count, on one line. */
@@ -53,17 +54,10 @@ export type HeroCopy = {
 
 const en: HeroCopy = {
   hero: {
-    pill: "Meet your AI search and social growth team",
-    meet: "Meet",
-    subtitleLine1: "Get found on Google & AI.",
-    subtitleLine2: "Grow across social.",
-    mascotNotes: [
-      ["I improve your", "ChatGPT mentions."],
-      ["I help you show up", "in AI search."],
-      ["I strengthen your", "Google visibility."],
-    ],
-    descriptionLead: "Your AI growth team for **SEO, content, backlinks and social.**",
-    descriptionRest: "Create once, get discovered, and reach customers everywhere.",
+    opening: "They search. They scroll. They ask AI.",
+    promise: "Be the brand they *find.*",
+    descriptionLead: "Your **AI growth platform** for **SEO, content, backlinks and social.**",
+    descriptionRest: "One place to grow your visibility and reach more customers.",
     websiteLabel: "Your website address",
     emailLabel: "Your email address",
     websitePlaceholder: "yourwebsite.com",
@@ -80,6 +74,10 @@ const en: HeroCopy = {
     joinGoogle: "Join with Google",
     seeHow: "See how it works",
   },
+  meet: {
+    eyebrow: "Your AI growth team, in one place",
+    meet: "Meet",
+  },
   ribbon: {
     label: "Search, AI and social platforms",
     counterLabel: "Content created with RepGet",
@@ -88,17 +86,10 @@ const en: HeroCopy = {
 
 const es: HeroCopy = {
   hero: {
-    pill: "Su equipo IA para búsqueda y redes",
-    meet: "Conozca a",
-    subtitleLine1: "Aparezca en Google y la IA.",
-    subtitleLine2: "Crezca en las redes.",
-    mascotNotes: [
-      ["Mejoro sus", "menciones en ChatGPT."],
-      ["Le ayudo a aparecer", "en la búsqueda con IA."],
-      ["Refuerzo su", "visibilidad en Google."],
-    ],
-    descriptionLead: "Su equipo de crecimiento con IA para **SEO, contenido, backlinks y redes sociales.**",
-    descriptionRest: "Cree una vez, hágase visible y llegue a sus clientes en todas partes.",
+    opening: "Buscan. Navegan. Preguntan a la IA.",
+    promise: "Sea la marca que *encuentran.*",
+    descriptionLead: "Su **plataforma de crecimiento con IA** para **SEO, contenido, backlinks y redes sociales.**",
+    descriptionRest: "Un solo lugar para ganar visibilidad y llegar a más clientes.",
     websiteLabel: "La dirección de su sitio web",
     emailLabel: "Su correo electrónico",
     websitePlaceholder: "susitioweb.com",
@@ -115,6 +106,10 @@ const es: HeroCopy = {
     joinGoogle: "Entrar con Google",
     seeHow: "Vea cómo funciona",
   },
+  meet: {
+    eyebrow: "Su equipo de crecimiento con IA, en un solo lugar",
+    meet: "Conozca a",
+  },
   ribbon: {
     label: "Plataformas de búsqueda, IA y redes",
     counterLabel: "Contenido creado con RepGet",
@@ -123,17 +118,10 @@ const es: HeroCopy = {
 
 const fr: HeroCopy = {
   hero: {
-    pill: "Votre équipe IA : recherche et réseaux",
-    meet: "Découvrez",
-    subtitleLine1: "Visible sur Google et l’IA.",
-    subtitleLine2: "Grandissez sur les réseaux.",
-    mascotNotes: [
-      ["J’améliore vos", "mentions dans ChatGPT."],
-      ["Je vous aide à apparaître", "dans la recherche IA."],
-      ["Je renforce votre", "visibilité sur Google."],
-    ],
-    descriptionLead: "Votre équipe de croissance IA pour **le SEO, le contenu, les backlinks et les réseaux sociaux.**",
-    descriptionRest: "Créez une fois, gagnez en visibilité et touchez vos clients partout.",
+    opening: "Ils cherchent. Ils scrollent. Ils interrogent l’IA.",
+    promise: "Soyez la marque qu’ils *trouvent.*",
+    descriptionLead: "Votre **plateforme de croissance IA** pour **le SEO, le contenu, les backlinks et les réseaux sociaux.**",
+    descriptionRest: "Un seul endroit pour gagner en visibilité et toucher plus de clients.",
     websiteLabel: "L’adresse de votre site",
     emailLabel: "Votre adresse e-mail",
     websitePlaceholder: "votresite.com",
@@ -150,6 +138,10 @@ const fr: HeroCopy = {
     joinGoogle: "Continuer avec Google",
     seeHow: "Voir comment ça marche",
   },
+  meet: {
+    eyebrow: "Votre équipe de croissance IA, en un seul endroit",
+    meet: "Découvrez",
+  },
   ribbon: {
     label: "Plateformes de recherche, d’IA et de réseaux",
     counterLabel: "Contenus créés avec RepGet",
@@ -158,17 +150,10 @@ const fr: HeroCopy = {
 
 const it: HeroCopy = {
   hero: {
-    pill: "Il Suo team IA per ricerca e social",
-    meet: "Scopra",
-    subtitleLine1: "Visibile su Google e sull’IA.",
-    subtitleLine2: "Cresca sui social.",
-    mascotNotes: [
-      ["Miglioro le Sue", "menzioni su ChatGPT."],
-      ["La aiuto a comparire", "nella ricerca IA."],
-      ["Rafforzo la Sua", "visibilità su Google."],
-    ],
-    descriptionLead: "Il Suo team di crescita con IA per **SEO, contenuti, backlink e social.**",
-    descriptionRest: "Crei una volta, si faccia trovare e raggiunga i clienti ovunque.",
+    opening: "Cercano. Scorrono. Chiedono all’IA.",
+    promise: "Sia il brand che *trovano.*",
+    descriptionLead: "La Sua **piattaforma di crescita con IA** per **SEO, contenuti, backlink e social.**",
+    descriptionRest: "Un unico posto per aumentare la visibilità e raggiungere più clienti.",
     websiteLabel: "L’indirizzo del Suo sito",
     emailLabel: "Il Suo indirizzo email",
     websitePlaceholder: "ilsuosito.com",
@@ -185,6 +170,10 @@ const it: HeroCopy = {
     joinGoogle: "Entri con Google",
     seeHow: "Scopra come funziona",
   },
+  meet: {
+    eyebrow: "Il Suo team di crescita con IA, in un unico posto",
+    meet: "Scopra",
+  },
   ribbon: {
     label: "Piattaforme di ricerca, IA e social",
     counterLabel: "Contenuti creati con RepGet",
@@ -193,17 +182,10 @@ const it: HeroCopy = {
 
 const de: HeroCopy = {
   hero: {
-    pill: "Ihr KI-Team für Suche und Social Media",
-    meet: "Das ist",
-    subtitleLine1: "Bei Google & KI gefunden.",
-    subtitleLine2: "Auf Social Media wachsen.",
-    mascotNotes: [
-      ["Ich verbessere Ihre", "ChatGPT-Erwähnungen."],
-      ["Ich helfe Ihnen,", "in der KI-Suche aufzutauchen."],
-      ["Ich stärke Ihre", "Sichtbarkeit bei Google."],
-    ],
-    descriptionLead: "Ihr KI-Wachstumsteam für **SEO, Inhalte, Backlinks und Social Media.**",
-    descriptionRest: "Einmal erstellen, gefunden werden und Kunden überall erreichen.",
+    opening: "Kunden suchen. Scrollen. Fragen die KI.",
+    promise: "Und finden Ihre *Marke.*",
+    descriptionLead: "Ihre **KI-Wachstumsplattform** für **SEO, Inhalte, Backlinks und Social Media.**",
+    descriptionRest: "Ein Ort, um sichtbarer zu werden und mehr Kunden zu erreichen.",
     websiteLabel: "Ihre Website-Adresse",
     emailLabel: "Ihre E-Mail-Adresse",
     websitePlaceholder: "ihrewebsite.de",
@@ -219,6 +201,10 @@ const de: HeroCopy = {
     benefits: ["Privat und sicher", "Echter persönlicher Support", "Ergebnisse in Sekunden"],
     joinGoogle: "Mit Google anmelden",
     seeHow: "So funktioniert es",
+  },
+  meet: {
+    eyebrow: "Ihr KI-Wachstumsteam an einem Ort",
+    meet: "Das ist",
   },
   ribbon: {
     label: "Such-, KI- und Social-Media-Plattformen",

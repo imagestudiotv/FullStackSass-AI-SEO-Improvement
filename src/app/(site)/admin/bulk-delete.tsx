@@ -21,6 +21,7 @@ import {
   deleteManyUsers,
   deleteManyWebsites,
 } from "@/lib/admin/operations";
+import { deleteReviewDrafts } from "@/lib/admin/review-drafts";
 
 import { AdminSelectionBar } from "./_ui/table";
 import {
@@ -186,7 +187,7 @@ export function BulkDeleteBar({
   kind,
 }: {
   /** Which table this is, so the wording and the action match. */
-  kind: "organizations" | "users" | "websites";
+  kind: "organizations" | "users" | "websites" | "drafts";
 }) {
   const router = useRouter();
   const { items, selected, clear } = useSelection();
@@ -209,7 +210,9 @@ export function BulkDeleteBar({
       ? `workspace${value === 1 ? "" : "s"}`
       : kind === "websites"
         ? `website${value === 1 ? "" : "s"}`
-        : `account${value === 1 ? "" : "s"}`;
+        : kind === "drafts"
+          ? `draft${value === 1 ? "" : "s"}`
+          : `account${value === 1 ? "" : "s"}`;
 
   function start() {
     setBatch(items.filter((item) => selected.has(item.id)));
@@ -236,7 +239,9 @@ export function BulkDeleteBar({
           ? await deleteManyOrganizations(ids, reason, confirm)
           : kind === "websites"
             ? await deleteManyWebsites(ids, reason, confirm)
-            : await deleteManyUsers(ids, reason, confirm);
+            : kind === "drafts"
+              ? await deleteReviewDrafts(ids, reason, confirm)
+              : await deleteManyUsers(ids, reason, confirm);
 
       if (!result.ok) {
         // Nothing was deleted: the dialog stays open with what was typed.
@@ -282,7 +287,9 @@ export function BulkDeleteBar({
       ? "Each workspace is removed with everything in it - websites, articles, keywords, credits and payment history. This cannot be undone."
       : kind === "websites"
         ? "Each website is removed with its articles, keywords and connections. The workspace that owns it, its members and its payment history are kept. This cannot be undone."
-        : "Each account is removed with its sessions and sign-in methods. Their workspaces are not deleted. This cannot be undone.";
+        : kind === "drafts"
+          ? "Each draft is removed with its earlier versions, and its topic is taken off the calendar so it is not written again. The article allowance it used is not given back. This cannot be undone."
+          : "Each account is removed with its sessions and sign-in methods. Their workspaces are not deleted. This cannot be undone.";
 
   return (
     <>
@@ -347,7 +354,9 @@ export function BulkDeleteBar({
                       ? "Anything that cannot be deleted safely is skipped and reported - a workspace still being billed by Stripe or PayPal, or with a checkout still open."
                       : kind === "websites"
                         ? "Anything that cannot be deleted safely is skipped and reported - a website still being billed by Stripe or PayPal, or with a checkout still open."
-                        : "Anything that cannot be deleted safely is skipped and reported - your own account."}
+                        : kind === "drafts"
+                          ? "Anything that cannot be deleted safely is skipped and reported - a draft that was delivered or is being delivered, one that is live or approved, or one carrying a network link."
+                          : "Anything that cannot be deleted safely is skipped and reported - your own account."}
                   </li>
                   <li>Every deletion is recorded separately in the admin log.</li>
                 </DialogNotes>
@@ -356,7 +365,7 @@ export function BulkDeleteBar({
                   id="bulk-reason"
                   value={reason}
                   onChange={setReason}
-                  placeholder="Clearing test data from development"
+                  placeholder={kind === "drafts" ? "Old test drafts nobody will use" : "Clearing test data from development"}
                   disabled={pending}
                 />
                 <ConfirmField id="bulk-confirm" value={confirm} onChange={setConfirm} disabled={pending} />

@@ -296,10 +296,9 @@ export function PlanStep({
     setPending(provider);
 
     /*
-      "onboarding" so paying returns HERE rather than to the dashboard's
-      billing page. This page forwards a paid customer to the next step, so
-      the flow carries on where it left off instead of ending in a screen full
-      of the app chrome that setup deliberately hides.
+      "onboarding": paying goes to the dashboard for this website, and a
+      checkout walked away from comes back to this step
+      (lib/billing/return-to.ts).
     */
     const result =
       provider === "paypal"

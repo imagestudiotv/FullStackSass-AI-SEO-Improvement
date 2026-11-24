@@ -19,12 +19,14 @@ import { generateArticle } from "./generate-article";
 import { importAnalytics, importAnalyticsDaily } from "./import-analytics";
 import { indexArticles } from "./index-articles";
 import { partnerCommissionsSweep, partnerProviderEvent, partnerTiersDaily } from "./partner-commissions";
-import { partnerWelcome } from "./partner-onboarding";
+import { partnerApplicationNotice, partnerWelcome } from "./partner-onboarding";
 import { partnerPayoutsMonthly, partnerPayoutsSweep, partnerSettlementExecute } from "./partner-payouts";
 import { partnerReconciliation } from "./partner-reconciliation";
 import { billingMaintenance, deliverOutbox, paidAcquisitionMaintenance } from "./maintenance";
 import { publishArticleJob } from "./publish-article";
+import { emailBroadcastsDue, sendEmailBroadcast } from "./email-broadcasts";
 import { firstContentPlan } from "./first-content-plan";
+import { firstVisibilityQuestions } from "./first-visibility-questions";
 import { renewalReplan } from "./renewal-replan";
 import { researchKeywords } from "./research-keywords";
 import { scheduledArticles } from "./scheduled-articles";
@@ -44,6 +46,7 @@ export const functions = [
   researchKeywords,
   renewalReplan,
   firstContentPlan,
+  firstVisibilityQuestions,
   generateArticle,
   verifyBacklinks,
   checkGeo,
@@ -61,6 +64,7 @@ export const functions = [
   refreshSiteInventories,
   translateLiveArticles,
   partnerWelcome,
+  partnerApplicationNotice,
   partnerProviderEvent,
   partnerCommissionsSweep,
   partnerTiersDaily,
@@ -85,4 +89,7 @@ export const functions = [
   lifecycleWeeklySummary,
   lifecycleWeeklySummaryOne,
   lifecycleWinback,
+  // Email broadcasts (Admin -> Email broadcasts): nothing is sent until an administrator sends or schedules one.
+  sendEmailBroadcast,
+  emailBroadcastsDue,
 ];

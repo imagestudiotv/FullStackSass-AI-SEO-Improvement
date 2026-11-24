@@ -1,6 +1,6 @@
 "use client";
 
-import { Bookmark, Check, Copy, Download, ExternalLink, Loader2, RefreshCw, Rocket, Send, Sparkles } from "lucide-react";
+import { Bookmark, Check, ChevronDown, Copy, Download, ExternalLink, Lightbulb, Loader2, Rocket, Send, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useId, useState } from "react";
 import { toast } from "sonner";
@@ -9,21 +9,23 @@ import { BrandIcon } from "@/components/brand-icons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Notice } from "@/components/workspace/notice";
 import { copyTextNow } from "@/lib/copy-text";
 import type { Locale } from "@/lib/i18n/config";
 import { format, formatDate } from "@/lib/i18n/format";
-import { approveVideoIdea } from "@/lib/video/actions";
 import { compatibility } from "@/lib/video/destinations";
 import { isVideoFormat, isVideoPlatform, REEL, VIDEO_PLATFORM_SPECS, type VideoPlatform } from "@/lib/video/formats";
+import { saveYoutubeTags } from "@/lib/video/library-actions";
 import { markVideoPosted, publishVideoIdea, unscheduleVideoIdea, type VideoPublishingStatus } from "@/lib/video/publish-actions";
 import type { VideoSettings } from "@/lib/video/settings";
+import { cleanTags, parseTags, suggestedTags, tagsLength, YOUTUBE_TAGS_MAX } from "@/lib/video/youtube-tags";
 
-import { manualPlatforms, PLATFORM_POST_URLS, platformText, postedOn } from "./logic";
+import { downloadUrl, manualPlatforms, PLATFORM_POST_URLS, platformText, postedOn } from "./logic";
 import { reelFrames } from "./preview";
-import { errorNote, opportunitiesHref, platformName, startWith, type IdeaView, type Run, type T, type VideoAccountView, xWords } from "./shared";
+import { noteText, opportunitiesHref, platformName, startWith, type IdeaView, type Run, type T, type VideoAccountView, xWords } from "./shared";
 
 type Mode = "manual" | "auto" | "save";
 type Texts = Partial<Record<VideoPlatform, { title: string | null; caption: string }>>;
@@ -55,12 +57,15 @@ export type CloseReason = "saved" | "done";
  * Approve and from Saved Videos and Posted:
  *  - left: how to publish - Manual, Auto, or Save for later;
  *  - middle: the video - "Making your video…" until it is ready (the page
- *    looks again every few seconds), then the video and Download;
+ *    looks again every few seconds), then the video;
  *  - right: in Manual, a tab per platform with its own editable title and
- *    text, Copy, Open <platform> and Mark as posted (no account needed); in
- *    Auto, the connected accounts and Publish now / at the best time / at a
- *    chosen time, or a link to connect them; in Save for later, Save.
+ *    text, and a Short's tags; in Auto, the connected accounts and Publish
+ *    now / at the best time / at a chosen time, or a link to connect them;
+ *    in Save for later, Save;
+ *  - at the foot, always in view (Daniel, 2026-11-24): Download and, in
+ *    Manual, Copy, Open <platform> and Mark as posted (no account needed).
  * Closing it any way is "save for later": the video waits in Saved Videos.
+ * A video that could not be made says only that its idea is back.
  */
 export function PublishPopup(props: {
   idea: IdeaView;
@@ -78,9 +83,12 @@ export function PublishPopup(props: {
   onClose: (reason: CloseReason) => void;
   /** Settings -> Publishing, where the accounts are connected. */
   onConnect: () => void;
+  /** Today's ideas, where an idea that could not be made is again. */
+  onIdeas: () => void;
 }) {
-  const { idea, t } = props;
+  const { idea, t, websiteId, canEdit } = props;
   const p = t.flow.popup;
+  const back = t.flow.library.returned;
   const [mode, setMode] = useState<Mode>("manual");
   const platforms = manualPlatforms(idea.format);
   const [active, setActive] = useState<VideoPlatform>(platforms[0] ?? "instagram");
@@ -89,11 +97,50 @@ export function PublishPopup(props: {
   const making = idea.status === "approved" || idea.status === "making";
   const files = Boolean(idea.videoUrl || idea.slideUrls.length > 0);
   const posted = postedOn(idea.destinations, platforms);
+  // A Short's tags: the saved ones, else its hashtags to start from; saved on leaving the field and on closing.
+  const [tags, setTags] = useState(() => idea.youtubeTags ?? suggestedTags(idea.caption));
+  const [savedTags, setSavedTags] = useState(tags);
+  async function saveTags() {
+    const clean = cleanTags(tags);
+    setTags(clean);
+    if (!canEdit || clean === savedTags) return;
+    setSavedTags(clean);
+    const result = await saveYoutubeTags(websiteId, idea.id, clean).catch(() => null);
+    if (result?.ok) toast.success(t.flow.library.tags.saved);
+    else toast.error(t.errors.generic);
+  }
+  function close(reason: CloseReason) {
+    void saveTags();
+    props.onClose(reason);
+  }
+
+  if (idea.status === "returned") {
+    const tab = t.tabs.ideas;
+    return (
+      <Dialog open onOpenChange={(open) => !open && props.onClose("done")}>
+        <DialogContent closeLabel={p.close} className="sm:max-w-md">
+          <div className="flex items-start gap-3 pr-6" role="status">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <Lightbulb className="size-4" aria-hidden="true" />
+            </span>
+            <div className="min-w-0 space-y-1.5">
+              <DialogTitle className="leading-snug">{format(back.title, { tab })}</DialogTitle>
+              <DialogDescription>{back.body}</DialogDescription>
+              <p className="text-sm font-medium break-words">{idea.title}</p>
+            </div>
+          </div>
+          <Button className="justify-self-end" onClick={props.onIdeas}>
+            {format(back.open, { tab })}
+          </Button>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
-    <Dialog open onOpenChange={(open) => !open && props.onClose("saved")}>
-      <DialogContent closeLabel={p.close} className="gap-0 p-0 sm:max-w-6xl">
-        <header className="flex items-center gap-3 border-b px-4 py-3 pr-12 sm:px-5">
+    <Dialog open onOpenChange={(open) => !open && close("saved")}>
+      <DialogContent closeLabel={p.close} className="flex flex-col gap-0 overflow-hidden p-0 sm:max-w-6xl">
+        <header className="flex shrink-0 items-center gap-3 border-b px-4 py-3 pr-12 sm:px-5">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
             <Sparkles className="size-4" aria-hidden="true" />
           </span>
@@ -104,7 +151,7 @@ export function PublishPopup(props: {
           <DialogDescription className="sr-only">{idea.title}</DialogDescription>
         </header>
 
-        <div className="grid min-w-0 lg:grid-cols-[230px_minmax(0,290px)_minmax(0,1fr)]">
+        <div className="grid min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain lg:grid-cols-[230px_minmax(0,290px)_minmax(0,1fr)]">
           {/* How to publish */}
           <aside aria-label={p.question} className="flex flex-col gap-4 border-b p-4 sm:p-5 lg:border-r lg:border-b-0">
             <div>
@@ -170,6 +217,9 @@ export function PublishPopup(props: {
                   setTexts(next);
                   writeTexts(idea.id, next);
                 }}
+                tags={tags}
+                onTags={setTags}
+                onTagsDone={() => void saveTags()}
                 making={making}
                 files={files}
               />
@@ -178,7 +228,7 @@ export function PublishPopup(props: {
             ) : (
               <div className="space-y-4">
                 <Notice title={p.modes.save.title}>{p.saveBody}</Notice>
-                <Button onClick={() => props.onClose("saved")}>
+                <Button onClick={() => close("saved")}>
                   <Bookmark aria-hidden="true" />
                   {p.save}
                 </Button>
@@ -186,14 +236,98 @@ export function PublishPopup(props: {
             )}
           </section>
         </div>
+
+        <ActionBar {...props} mode={mode} active={active} text={texts[active] ?? platformText(idea, active)} making={making} files={files} />
       </DialogContent>
     </Dialog>
   );
 }
 
-type PaneProps = Parameters<typeof PublishPopup>[0] & { making: boolean; files: boolean };
+type PaneProps = Omit<Parameters<typeof PublishPopup>[0], "onIdeas"> & { making: boolean; files: boolean };
 
-/** The middle column: making, failed (Try again), or the video (or slides) with Download. */
+const copyWords = async (p: T["flow"]["popup"], value: string) => {
+  if (await copyTextNow(value)) toast.success(p.copied);
+  else toast.error(p.copyFailed);
+};
+
+/**
+ * The window's foot, outside what scrolls: Download, next to the active
+ * platform's Copy, Open and Mark as posted in Manual (Daniel, 2026-11-24: "I
+ * need to scroll for finding the download button"). Two by two on a phone.
+ */
+function ActionBar(props: PaneProps & { mode: Mode; active: VideoPlatform; text: { title: string | null; caption: string } }) {
+  const { idea, t, active, text, files } = props;
+  const p = t.flow.popup;
+  const state = idea.destinations[active];
+  const done = state?.status === "posted";
+  const manual = props.mode === "manual";
+  const wide = "h-auto min-h-9 min-w-0 px-2 py-1.5 leading-tight whitespace-normal sm:px-3";
+  return (
+    <div role="group" aria-label={t.flow.library.actions.label} className={`shrink-0 border-t bg-popover p-3 sm:flex sm:flex-wrap sm:justify-end sm:gap-2 sm:px-5 ${manual ? "grid grid-cols-2 gap-2" : "grid"}`}>
+      {idea.videoUrl ? (
+        <Button asChild className={wide}>
+          <a href={downloadUrl(idea.videoUrl, idea.title)} download target="_blank" rel="noreferrer">
+            <Download aria-hidden="true" />
+            {p.download}
+          </a>
+        </Button>
+      ) : idea.slideUrls.length > 0 ? (
+        // A carousel is several files: each slide from the menu (and under the slides).
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button className={wide}>
+              <Download aria-hidden="true" />
+              {t.flow.library.actions.slides}
+              <ChevronDown aria-hidden="true" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            {idea.slideUrls.map((url, index) => (
+              <DropdownMenuItem key={url} asChild>
+                <a href={downloadUrl(url, idea.title, index)} download target="_blank" rel="noreferrer">
+                  <Download aria-hidden="true" />
+                  {format(t.downloadSlide, { index: String(index + 1) })}
+                </a>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : (
+        <Button className={wide} disabled>
+          <Download aria-hidden="true" />
+          {p.download}
+        </Button>
+      )}
+      {manual ? (
+        <>
+          <Button variant="outline" className={wide} onClick={() => void copyWords(p, text.title ? `${text.title}\n\n${text.caption}` : text.caption)}>
+            <Copy aria-hidden="true" />
+            {p.copyText}
+          </Button>
+          <Button asChild variant="outline" className={wide}>
+            <a href={PLATFORM_POST_URLS[active]} target="_blank" rel="noopener noreferrer">
+              <ExternalLink aria-hidden="true" />
+              {format(p.open, { platform: platformName(active) })}
+            </a>
+          </Button>
+          {props.canEdit && (!done || state?.manual) ? (
+            <Button
+              variant="outline"
+              className={wide}
+              disabled={props.pending || props.making || !files}
+              onClick={() => props.run(() => markVideoPosted(props.websiteId, idea.id, active, !done), format(done ? p.unmarked : p.marked, { platform: platformName(active) }))}
+            >
+              <Check aria-hidden="true" />
+              {done ? p.unmarkPosted : p.markPosted}
+            </Button>
+          ) : null}
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+/** The middle column: being made, or the video (or slides). */
 function VideoPane(props: PaneProps) {
   const { idea, t } = props;
   const p = t.flow.popup;
@@ -210,14 +344,7 @@ function VideoPane(props: PaneProps) {
   if (!props.files) {
     return (
       <div className={frame}>
-        <p className="font-medium">{idea.status === "failed" ? p.failed : t.noVideos}</p>
-        {idea.error ? <p className="text-xs text-muted-foreground">{errorNote(t, idea.error)}</p> : null}
-        {props.canEdit && idea.status === "failed" ? (
-          <Button size="sm" disabled={props.pending} onClick={() => props.run(() => approveVideoIdea(props.websiteId, idea.id, {}, "retry"), t.approved)}>
-            <RefreshCw aria-hidden="true" />
-            {t.retry} · {props.priceLabel}
-          </Button>
-        ) : null}
+        <p className="font-medium">{t.noVideos}</p>
       </div>
     );
   }
@@ -225,7 +352,15 @@ function VideoPane(props: PaneProps) {
   return (
     <div className="space-y-3">
       {idea.videoUrl ? (
-        <video src={idea.videoUrl} poster={idea.coverUrl ?? undefined} controls playsInline preload="metadata" className="mx-auto aspect-[9/16] w-full max-w-[260px] rounded-2xl bg-black object-contain" />
+        // As tall as the window leaves room for, so a laptop screen shows it whole.
+        <video
+          src={idea.videoUrl}
+          poster={idea.coverUrl ?? undefined}
+          controls
+          playsInline
+          preload="metadata"
+          className="mx-auto aspect-[9/16] h-[min(462px,max(16rem,calc(100dvh-19rem)))] max-w-full rounded-2xl bg-black object-contain"
+        />
       ) : (
         <div className="flex snap-x snap-mandatory gap-2 overflow-x-auto pb-2">
           {idea.slideUrls.map((url, index) => (
@@ -235,18 +370,11 @@ function VideoPane(props: PaneProps) {
         </div>
       )}
       {seconds ? <p className="text-center text-xs text-muted-foreground tabular-nums">{format(t.list.seconds, { seconds: String(seconds) })}</p> : null}
-      {idea.videoUrl ? (
-        <Button asChild className="w-full">
-          <a href={idea.videoUrl} download target="_blank" rel="noreferrer">
-            <Download aria-hidden="true" />
-            {p.download}
-          </a>
-        </Button>
-      ) : (
+      {idea.videoUrl ? null : (
         <div className="flex flex-wrap gap-2">
           {idea.slideUrls.map((url, index) => (
             <Button key={url} asChild variant="outline" size="sm">
-              <a href={url} download target="_blank" rel="noreferrer">
+              <a href={downloadUrl(url, idea.title, index)} download target="_blank" rel="noreferrer">
                 <Download aria-hidden="true" />
                 {format(t.downloadSlide, { index: String(index + 1) })}
               </a>
@@ -258,7 +386,7 @@ function VideoPane(props: PaneProps) {
   );
 }
 
-/** Manual publishing: a tab per platform, its own title and text to edit and copy, the platform's page, and Mark as posted. */
+/** Manual publishing: a tab per platform, its own title and text (and a Short's tags) to edit and copy; its actions are in the window's foot. */
 function ManualPane(
   props: PaneProps & {
     platforms: VideoPlatform[];
@@ -266,6 +394,9 @@ function ManualPane(
     onActive: (platform: VideoPlatform) => void;
     texts: Texts;
     onText: (platform: VideoPlatform, value: { title: string | null; caption: string }) => void;
+    tags: string;
+    onTags: (value: string) => void;
+    onTagsDone: () => void;
   },
 ) {
   const { idea, t, active } = props;
@@ -277,16 +408,7 @@ function ManualPane(
   const done = state?.status === "posted";
   const length = [...text.caption].length;
 
-  const copy = async (value: string) => {
-    const ok = await copyTextNow(value);
-    if (ok) toast.success(p.copied);
-    else toast.error(p.copyFailed);
-  };
-  const mark = (on: boolean) =>
-    props.run(
-      () => markVideoPosted(props.websiteId, idea.id, active, on),
-      format(on ? p.marked : p.unmarked, { platform: platformName(active) }),
-    );
+  const copy = (value: string) => copyWords(p, value);
 
   return (
     <div className="space-y-4">
@@ -294,7 +416,7 @@ function ManualPane(
         <h3 className="text-sm font-semibold">{p.textsTitle}</h3>
         <p className="text-xs text-muted-foreground">{p.textsBody}</p>
       </div>
-      <div role="tablist" aria-label={p.textsTitle} className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
+      <div role="tablist" aria-label={p.textsTitle} className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 lg:flex-wrap lg:overflow-x-visible">
         {props.platforms.map((platform) => {
           const on = platform === active;
           const out = idea.destinations[platform]?.status === "posted";
@@ -356,7 +478,7 @@ function ManualPane(
           </div>
           <Textarea
             id={`${ids}-caption`}
-            rows={7}
+            rows={5}
             value={text.caption}
             aria-invalid={length > spec.captionMax || undefined}
             onChange={(event) => props.onText(active, { ...text, caption: event.target.value })}
@@ -365,25 +487,47 @@ function ManualPane(
             {format(p.chars, { count: String(length), max: String(spec.captionMax) })}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => void copy(text.title ? `${text.title}\n\n${text.caption}` : text.caption)}>
-            <Copy aria-hidden="true" />
-            {p.copyText}
-          </Button>
-          <Button asChild variant="outline">
-            <a href={PLATFORM_POST_URLS[active]} target="_blank" rel="noopener noreferrer">
-              <ExternalLink aria-hidden="true" />
-              {format(p.open, { platform: platformName(active) })}
-            </a>
-          </Button>
-          {props.canEdit && (!done || state?.manual) ? (
-            <Button variant={done ? "ghost" : "default"} disabled={props.pending || props.making || !props.files} onClick={() => mark(!done)}>
-              <Check aria-hidden="true" />
-              {done ? p.unmarkPosted : p.markPosted}
-            </Button>
-          ) : null}
-        </div>
+        {active === "youtube" ? <TagsField {...props} /> : null}
         {props.making ? <p className="text-xs text-muted-foreground">{p.waitVideo}</p> : null}
+      </div>
+    </div>
+  );
+}
+
+/** A YouTube Short's tags, comma separated, counted as YouTube counts them (lib/video/youtube-tags.ts). */
+function TagsField(props: { idea: IdeaView; canEdit: boolean; tags: string; onTags: (value: string) => void; onTagsDone: () => void; t: T }) {
+  const { t, tags } = props;
+  const p = t.flow.popup;
+  const g = t.flow.library.tags;
+  const id = useId();
+  const length = tagsLength(parseTags(tags));
+  const over = length > YOUTUBE_TAGS_MAX;
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between gap-2">
+        <label htmlFor={id} className="text-xs font-medium text-muted-foreground">
+          {g.label}
+        </label>
+        <Button variant="ghost" size="xs" disabled={!tags.trim()} onClick={() => void copyWords(p, cleanTags(tags))}>
+          <Copy aria-hidden="true" />
+          {g.copy}
+        </Button>
+      </div>
+      <Textarea
+        id={id}
+        rows={2}
+        value={tags}
+        readOnly={!props.canEdit}
+        placeholder={g.placeholder}
+        aria-describedby={`${id}-hint`}
+        aria-invalid={over || undefined}
+        className="min-h-14"
+        onChange={(event) => props.onTags(event.target.value)}
+        onBlur={props.onTagsDone}
+      />
+      <div id={`${id}-hint`} className="flex items-start justify-between gap-3 text-xs text-muted-foreground">
+        <p className={over ? "text-destructive" : undefined}>{over ? g.tooLong : `${props.idea.youtubeTags === null && tags ? `${g.suggested} ` : ""}${g.hint}`}</p>
+        <p className={`shrink-0 tabular-nums ${over ? "text-destructive" : ""}`}>{format(p.chars, { count: String(length), max: String(YOUTUBE_TAGS_MAX) })}</p>
       </div>
     </div>
   );
@@ -408,9 +552,10 @@ function AutoPane(props: PaneProps) {
   const p = t.flow.popup;
   const v = t.viral;
   const carousel = idea.format === "carousel";
-  const connected = props.accounts.filter(
-    (account) => account.connected && !account.pausedReason && isVideoPlatform(account.platform) && (!carousel || VIDEO_PLATFORM_SPECS[account.platform].carousel),
-  );
+  const takes = props.accounts.filter((account) => account.connected && isVideoPlatform(account.platform) && (!carousel || VIDEO_PLATFORM_SPECS[account.platform].carousel));
+  // An account resting, and X while RepGet's monthly budget for it is used up, are left out without a word: the video can be posted there by hand.
+  const connected = takes.filter((account) => !account.paused && !(account.platform === "x" && props.publishing.x.reason === "limit_reached"));
+  const note = noteText(t, idea.error);
   const platforms = connected.map((account) => account.platform).filter(isVideoPlatform);
   const length = carousel ? null : idea.videoUrl ? Math.round(reelFrames(idea.props) / REEL.fps) : idea.production.duration;
   const check = compatibility({ format: isVideoFormat(idea.format) ? idea.format : "reel", duration: length, platforms, xAvailable: props.publishing.x.available });
@@ -439,7 +584,7 @@ function AutoPane(props: PaneProps) {
   const done = () => props.onClose("done");
 
   if (props.making) return <Notice>{p.whenReady}</Notice>;
-  if (!props.files) return <Notice tone="warning">{p.failed}</Notice>;
+  if (!props.files) return <Notice>{t.flow.library.auto.unavailable}</Notice>;
   if (idea.status === "scheduled" && idea.scheduledFor) {
     return (
       <div className="space-y-3">
@@ -454,10 +599,11 @@ function AutoPane(props: PaneProps) {
       </div>
     );
   }
+  if (props.bundle && takes.length > 0 && connected.length === 0) return <Notice title={t.flow.library.auto.unavailable}>{p.manualStill}</Notice>;
   if (!props.bundle || connected.length === 0) {
     return (
       <div className="space-y-3">
-        <Notice tone="warning" title={p.noConnected}>
+        <Notice title={p.noConnected}>
           {p.manualStill}
         </Notice>
         {props.canEdit && props.bundle ? (
@@ -471,6 +617,7 @@ function AutoPane(props: PaneProps) {
   }
   return (
     <div className="space-y-4">
+      {note ? <Notice>{note}</Notice> : null}
       <fieldset className="space-y-2">
         <legend className="mb-2 text-xs font-medium text-muted-foreground">{t.publishTo}</legend>
         <div className="flex flex-wrap gap-2">

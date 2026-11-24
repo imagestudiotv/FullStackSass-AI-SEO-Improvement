@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { agencyWorkspaces, keywords, websites } from "@/lib/db/schema";
+import { agencyWorkspaces, articles, calendarItems, freePlanAccounts, keywords, spendReservations, websites } from "@/lib/db/schema";
 import { createTestDb, type TestDb } from "@/test/db";
 import { seedWebsite } from "@/test/fixtures";
 
@@ -162,5 +162,45 @@ describe("the hourly renewal job", () => {
     expect(await researchJobs(midMonth.websiteId)).toHaveLength(0);
     expect(result.queued).toBeGreaterThanOrEqual(1);
     expect(result.not_renewed).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("Free: a new plan when the last topic has been started (client, 2026-11-24: one article a week)", () => {
+  async function freeSite() {
+    const { orgId, websiteId } = await siteRenewed(DAY, { status: null });
+    await test.db.insert(freePlanAccounts).values({ organizationId: orgId, websiteId, domain: `${orgId}.example` });
+    return { orgId, websiteId };
+  }
+  const topic = async (websiteId: string, started: boolean) => {
+    const [item] = await test.db.insert(calendarItems).values({ websiteId, title: "Topic", status: started ? "generated" : "planned" }).returning({ id: calendarItems.id });
+    // Written in an earlier month, so it takes nothing of this one's allowance.
+    if (started) await test.db.insert(articles).values({ websiteId, calendarItemId: item.id, title: "Topic", status: "draft", bodyHtml: "<p>x</p>", createdAt: new Date("2026-01-05T09:00:00Z") });
+  };
+
+  it("waits while topics are planned, then plans once a month", async () => {
+    const { websiteId } = await freeSite();
+    await topic(websiteId, true);
+    await topic(websiteId, false);
+    expect(await renewalCandidates()).not.toContain(websiteId);
+    expect(await replanIfRenewed(websiteId)).toBe("not_needed");
+
+    await test.db.delete(calendarItems).where(eq(calendarItems.status, "planned"));
+    expect(await renewalCandidates()).toContain(websiteId);
+    // Long after the calendar month opened: Free's weeks do not follow it.
+    expect(await replanIfRenewed(websiteId)).toBe("queued");
+    await finish(websiteId);
+    expect(await replanIfRenewed(websiteId)).toBe("already_planned");
+  });
+
+  it("not when the month's articles are used, and not before its first plan", async () => {
+    const used = await freeSite();
+    await topic(used.websiteId, true);
+    await test.db.insert(spendReservations).values(
+      Array.from({ length: 4 }, () => ({ key: `articles:${used.websiteId}`, operation: "article.generate", websiteId: used.websiteId, state: "consumed", limitValue: 4 })),
+    );
+    expect(await replanIfRenewed(used.websiteId)).toBe("not_needed");
+
+    const unplanned = await freeSite();
+    expect(await renewalCandidates()).not.toContain(unplanned.websiteId);
   });
 });

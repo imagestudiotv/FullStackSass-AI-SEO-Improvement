@@ -11,11 +11,11 @@ import { copyTextNow } from "@/lib/copy-text";
 import type { Locale } from "@/lib/i18n/config";
 import { format, formatDate, intlTag } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
-import type { SocialError, SocialResult } from "@/lib/social/actions";
+import { postSocialSuggestion, type SocialError, type SocialResult } from "@/lib/social/actions";
 import { isSocialPlatform, type SocialPlatform } from "@/lib/social/platforms";
 import { cn } from "@/lib/utils";
 
-import type { Stage } from "./opportunities";
+import { platformName, type Stage, type SuggestionView } from "./opportunities";
 
 /** The Opportunities page's small shared pieces: tiles, chips, times, copy and the action runner. */
 
@@ -42,7 +42,7 @@ export function useSocialAction(t: T, priceLabel: string) {
     if (!result) return void toast.error(t.errors.generic);
     toast.error(
       errorText(t, result, priceLabel),
-      result.error === "not_enough_credits" ? { action: { label: t.buyCredits, onClick: () => router.push("/credits") } } : undefined,
+      result.error === "not_enough_credits" ? { action: { label: t.buyCredits, onClick: () => router.push("/credits/buy") } } : undefined,
     );
   }
 
@@ -59,6 +59,42 @@ export function useSocialAction(t: T, priceLabel: string) {
   return { pending, start, run, refuse, router };
 }
 
+/**
+ * The one-click post, from a row or from the review drawer: copies the text,
+ * opens the discussion or the platform's page for a new post, and records it
+ * (its credit is charged once, lib/social/actions.ts postSocialSuggestion).
+ */
+export function useOneClickPost(websiteId: string, t: T, priceLabel: string) {
+  const { pending, start, refuse, router } = useSocialAction(t, priceLabel);
+
+  function post(row: Pick<SuggestionView, "id" | "platform">, text: string, edit: { body: string; title?: string | null }, onDone?: () => void) {
+    const name = platformName(row.platform);
+    // Both in the click itself: browsers allow neither once the click has passed. The copy goes
+    // first, while this page still has the focus the new tab is about to take (lib/copy-text.ts).
+    const copying = copyTextNow(text);
+    const win = window.open("about:blank", "_blank");
+    if (win) win.opener = null;
+    start(async () => {
+      const copied = await copying;
+      const result = await postSocialSuggestion(websiteId, row.id, edit).catch(() => null);
+      if (!result?.ok) {
+        win?.close();
+        refuse(result && !result.ok ? result : null);
+        return;
+      }
+      if (win) win.location.href = result.data.url;
+      // Quora and replies on Reddit and Bluesky only have the clipboard: never say "copied" when it is not.
+      if (!copied && (!win || !result.data.filled)) toast.error(format(t.copyFailed, { platform: name }));
+      else if (!win) toast.message(format(t.popupBlocked, { platform: name }));
+      else if (copied) toast.success(format(t.copied, { platform: name }));
+      onDone?.();
+      router.refresh();
+    });
+  }
+
+  return { pending, post };
+}
+
 /* Brand tints for the platform marks, each with its night-mode pair. */
 const TILE: Record<SocialPlatform, string> = {
   reddit: "bg-orange-50 text-[#ff4500] dark:bg-orange-500/15 dark:text-orange-400",
@@ -68,8 +104,8 @@ const TILE: Record<SocialPlatform, string> = {
   pinterest: "bg-rose-50 text-[#e60023] dark:bg-rose-500/15 dark:text-rose-400",
   bluesky: "bg-sky-50 text-[#1185fe] dark:bg-sky-500/15 dark:text-sky-400",
 };
-const TILE_SIZE = { sm: "size-6 rounded-md", md: "size-8 rounded-lg", lg: "size-9 rounded-lg" } as const;
-const ICON_SIZE = { sm: "size-3.5", md: "size-4", lg: "size-[1.15rem]" } as const;
+const TILE_SIZE = { sm: "size-6 rounded-md", md: "size-8 rounded-lg", lg: "size-9 rounded-lg", xl: "size-10 rounded-xl sm:size-11" } as const;
+const ICON_SIZE = { sm: "size-3.5", md: "size-4", lg: "size-[1.15rem]", xl: "size-5 sm:size-6" } as const;
 
 /** A platform's mark on its tint. Decorative: the platform's name is always written beside it. */
 export function PlatformTile({
