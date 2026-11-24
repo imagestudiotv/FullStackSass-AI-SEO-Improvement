@@ -4,6 +4,7 @@ import { and, count, eq, gt, gte, inArray, isNotNull, isNull, lte, or } from "dr
 
 import { requireAdmin } from "@/lib/admin/guard";
 import { waitingForReviewSql } from "@/lib/admin/review-queue-sql";
+import { failedPostSql, failedVideoSql } from "@/lib/admin/social-posting";
 import { missingPlacements } from "@/lib/backlinks/placements";
 import { db } from "@/lib/db";
 import {
@@ -246,13 +247,13 @@ export const NEW_SOURCES: NewSource[] = [
     href: "/admin/social-posting",
     what: "new failed posts",
     seen: "/admin/social-posting",
-    count: (since) => one(db.select({ n: count() }).from(socialSuggestions).where(and(eq(socialSuggestions.status, "failed"), gt(socialSuggestions.updatedAt, since)))),
+    count: (since) => one(db.select({ n: count() }).from(socialSuggestions).where(and(failedPostSql, gt(socialSuggestions.updatedAt, since)))),
   },
   {
     href: "/admin/social-posting",
     what: "new failed videos",
     seen: "/admin/social-posting",
-    count: (since) => one(db.select({ n: count() }).from(videoIdeas).where(and(eq(videoIdeas.status, "failed"), gt(videoIdeas.updatedAt, since)))),
+    count: (since) => one(db.select({ n: count() }).from(videoIdeas).where(and(failedVideoSql, gt(videoIdeas.updatedAt, since)))),
   },
 ];
 

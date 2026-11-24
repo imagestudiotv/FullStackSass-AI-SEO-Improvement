@@ -22,6 +22,10 @@ describe("activeNavItem", () => {
     expect(label("/admin/payments")).toBe("Payments");
     expect(label("/admin/activity")).toBe("Activity");
     expect(label("/admin/onboarding-help")).toBe("Onboarding help");
+    expect(label("/admin/email-broadcasts")).toBe("Email broadcasts");
+    expect(label("/admin/emails")).toBe("Emails");
+    expect(label("/admin/service-orders")).toBe("Service orders");
+    expect(label("/admin/social-posting")).toBe("Social posting");
   });
 
   it("lights the affiliate program's sections, on their detail pages too", () => {
@@ -61,6 +65,9 @@ describe("activeNavItem", () => {
         "/admin/payments",
         "/admin/activity",
         "/admin/onboarding-help",
+        "/admin/email-broadcasts",
+        "/admin/service-orders",
+        "/admin/social-posting",
       ]),
     );
   });

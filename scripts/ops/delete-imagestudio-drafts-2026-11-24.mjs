@@ -112,6 +112,7 @@ try {
         },
       }),
     );
+    committed = true;
     console.log(`\nDeleted ${result.deleted} drafts; ${result.topics} calendar topics marked skipped.`);
     report(await surveyDrafts(queryOn(sql), scope), "After");
   }

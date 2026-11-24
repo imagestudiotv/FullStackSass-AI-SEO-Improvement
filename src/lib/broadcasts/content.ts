@@ -51,7 +51,7 @@ export function sanitizeBroadcastHtml(html: string): { html: string; droppedLink
     transformTags: {
       b: "strong",
       i: "em",
-      a: (tagName, attribs) => {
+      a: (tagName, attribs): sanitize.Tag => {
         const href = safeHref(attribs.href);
         if (!href) {
           droppedLinks++;

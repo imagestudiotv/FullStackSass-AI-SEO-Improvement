@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, gte, isNotNull } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull, like, or, type SQL } from "drizzle-orm";
 
 import { requireAdmin } from "@/lib/admin/guard";
 import { db } from "@/lib/db";
@@ -14,6 +14,18 @@ import { organization, socialAccounts, socialSuggestions, videoIdeas, websites }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 export const FAILED_POSTS_DAYS = 30;
+
+/**
+ * What could not go out automatically, whatever its customer is shown: a
+ * failed item, or one put back to be posted by hand that still carries the
+ * provider's error. A video names each refusal by platform ("TikTok: ...");
+ * its other errors are codes about its own settings, not failures.
+ */
+export const failedPostSql: SQL = or(
+  eq(socialSuggestions.status, "failed"),
+  and(inArray(socialSuggestions.status, ["new", "draft"]), isNotNull(socialSuggestions.error)),
+)!;
+export const failedVideoSql: SQL = or(eq(videoIdeas.status, "failed"), and(inArray(videoIdeas.status, ["new", "ready"]), like(videoIdeas.error, "%: %")))!;
 
 export type PausedAccount = {
   id: string;
@@ -70,14 +82,14 @@ export async function getSocialPosting(now: Date = new Date()): Promise<{ paused
       })
       .from(socialSuggestions)
       .innerJoin(websites, eq(websites.id, socialSuggestions.websiteId))
-      .where(and(eq(socialSuggestions.status, "failed"), gte(socialSuggestions.updatedAt, since)))
+      .where(and(failedPostSql, gte(socialSuggestions.updatedAt, since)))
       .orderBy(desc(socialSuggestions.updatedAt))
       .limit(100),
     db
       .select({ id: videoIdeas.id, domain: websites.domain, title: videoIdeas.title, error: videoIdeas.error, at: videoIdeas.updatedAt })
       .from(videoIdeas)
       .innerJoin(websites, eq(websites.id, videoIdeas.websiteId))
-      .where(and(eq(videoIdeas.status, "failed"), gte(videoIdeas.updatedAt, since)))
+      .where(and(failedVideoSql, gte(videoIdeas.updatedAt, since)))
       .orderBy(desc(videoIdeas.updatedAt))
       .limit(100),
   ]);

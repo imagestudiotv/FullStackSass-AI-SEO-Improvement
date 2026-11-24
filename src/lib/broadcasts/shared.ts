@@ -112,7 +112,7 @@ export const BROADCAST_TEMPLATES: {
   {
     key: "tips",
     label: "Growth tips",
-    path: "/dashboard",
+    path: "/tools/growth-copilot",
     content: {
       subject: "3 quick growth tips from RepGet",
       previewText: "Three practical ideas for this week.",

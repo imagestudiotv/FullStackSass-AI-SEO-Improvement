@@ -1,4 +1,4 @@
-import { createElement, type ReactNode } from "react";
+import { createElement, type ComponentProps, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
@@ -19,7 +19,7 @@ import { AdminShell } from "./shell";
 
 const shell = (collapsed: boolean) =>
   renderToStaticMarkup(
-    createElement(AdminShell, { identity: { name: "A", email: "a@b.example" }, initialCollapsed: collapsed, children: null }),
+    createElement(AdminShell, { identity: { name: "A", email: "a@b.example" }, initialCollapsed: collapsed } as ComponentProps<typeof AdminShell>, null),
   );
 const linkTo = (html: string, href: string) => new RegExp(`<a href="${href}"[^>]*>.*?</a>`).exec(html)![0];
 

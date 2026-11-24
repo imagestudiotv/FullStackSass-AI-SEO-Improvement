@@ -221,16 +221,21 @@ describe("what waits for somebody", () => {
         { websiteId, platform: "x", kind: "post", day: "2026-11-24", body: "b", status: "failed", error: "refused" },
         { websiteId, platform: "x", kind: "post", day: "2026-11-24", body: "c", status: "failed", updatedAt: ago(100) },
         { websiteId, platform: "x", kind: "post", day: "2026-11-24", body: "d", status: "new" },
+        // Put back to be posted by hand: its customer sees no failure, the team does.
+        { websiteId, platform: "x", kind: "post", day: "2026-11-24", body: "e", status: "new", error: "refused" },
       ]);
       await test.db.insert(schema.videoIdeas).values([
         { websiteId, day: "2026-11-24", style: "s", language: "en", title: "v", script: {}, caption: "c", status: "failed" },
         { websiteId, day: "2026-11-24", style: "s", language: "en", title: "w", script: {}, caption: "c", status: "ready" },
+        { websiteId, day: "2026-11-24", style: "s", language: "en", title: "y", script: {}, caption: "c", status: "ready", error: "TikTok: refused" },
+        { websiteId, day: "2026-11-24", style: "s", language: "en", title: "z", script: {}, caption: "c", status: "ready", error: "no_accounts" },
       ]);
     });
-    expect(result).toMatchObject({ waiting: 1, fresh: 2 });
+    expect(result).toMatchObject({ waiting: 1, fresh: 4 });
     const page = await getSocialPosting();
     expect(page.paused[0]).toMatchObject({ platform: "x", reason: "Plan limit reached" });
-    expect(page.failed.map((row) => row.title)).toEqual(expect.arrayContaining(["b", "v", "c"]));
+    expect(page.failed.map((row) => row.title)).toEqual(expect.arrayContaining(["b", "v", "c", "e", "y"]));
+    expect(page.failed.map((row) => row.title)).not.toContain("z");
   });
 
   it("the affiliate program: applications, review cases, commissions, payouts and failed events, in this environment only", async () => {
