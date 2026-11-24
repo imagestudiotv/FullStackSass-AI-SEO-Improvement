@@ -68,6 +68,13 @@
   justify-content: center;
   background: radial-gradient(ellipse 58% 69% at 50% 39%, #fff 0%, #fffdfa 64%, transparent 100%);
 }
+/*
+  While the field is in use its suggestion list (.rgx-suggest) hangs below the
+  hero; the platform ribbon after it (z-index 4) would cover the lower rows.
+*/
+.rgx-hero:focus-within {
+  z-index: 5;
+}
 :global(.dark) .rgx-hero {
   color: #f3f0ea;
   background: radial-gradient(ellipse 56% 64% at 50% 40%, #252923 0%, #1b201b 65%, transparent 100%);
