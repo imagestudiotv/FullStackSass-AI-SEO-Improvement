@@ -30,7 +30,7 @@ export function readSeen(value: string | undefined, userId: string): SeenTimes {
       const seconds = (t as Record<string, unknown>)[path];
       // Nothing is opened in the future: a wrong clock must not hide everything from then on.
       if (typeof seconds === "number" && Number.isFinite(seconds) && seconds > 0 && seconds * 1000 <= Date.now() + 60_000) {
-        times[path] = new Date(seconds * 1000);
+        times[path] = new Date(Math.round(seconds * 1000));
       }
     }
     return times;
@@ -43,7 +43,8 @@ export function writeSeen(times: SeenTimes, userId: string, opened: SeenPath, no
   const t: Record<string, number> = {};
   for (const path of SEEN_PATHS) {
     const at = path === opened ? now : times[path];
-    if (at) t[path] = Math.floor(at.getTime() / 1000);
+    // Milliseconds kept: cut to the second, what arrived earlier in that second would be new again.
+    if (at) t[path] = at.getTime() / 1000;
   }
   return JSON.stringify({ u: userId, t });
 }

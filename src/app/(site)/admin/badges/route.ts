@@ -35,7 +35,7 @@ async function answer(request: NextRequest, openedPath: string | null) {
   if (opened) seen[opened] = new Date();
   const badges = await getAdminBadges(seen, { fresh: request.nextUrl.searchParams.get("fresh") === "1" });
   const response = NextResponse.json(badges, { headers: HEADERS });
-  if (opened) response.cookies.set(SEEN_COOKIE, writeSeen(seen, admin.userId, opened), SEEN_COOKIE_OPTIONS);
+  if (opened) response.cookies.set(SEEN_COOKIE, writeSeen(seen, admin.userId, opened, seen[opened]), SEEN_COOKIE_OPTIONS);
   return response;
 }
 

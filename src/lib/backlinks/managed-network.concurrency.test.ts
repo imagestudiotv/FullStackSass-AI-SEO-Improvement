@@ -59,7 +59,7 @@ describe.skipIf(!available)("managed network locks on real Postgres", () => {
     await dispose?.();
   });
 
-  async function scene(credits: number) {
+  async function scene(credits: number, connected = true) {
     const d = dbs[0];
     const hostOrg = `org_h_${randomUUID().slice(0, 6)}`;
     const benOrg = `org_b_${randomUUID().slice(0, 6)}`;
@@ -73,7 +73,7 @@ describe.skipIf(!available)("managed network locks on real Postgres", () => {
       { websiteId: host.id, acceptingLinks: true, monthlyCap: 10 },
       { websiteId: ben.id, acceptingLinks: true, monthlyCap: 10 },
     ]);
-    for (const id of [host.id, ben.id]) await connectWebsite(d, id);
+    if (connected) for (const id of [host.id, ben.id]) await connectWebsite(d, id);
     await d.insert(creditLedger).values({ organizationId: benOrg, type: "purchase", amount: credits });
     const post = async () =>
       (await d.insert(articles).values({ websiteId: host.id, title: "T", status: "draft", reviewStatus: "pending", bodyHtml: "<p>wedding videography matters</p>" }).returning())[0];
@@ -93,7 +93,7 @@ describe.skipIf(!available)("managed network locks on real Postgres", () => {
   });
 
   it("first-time key provisioning from two connections creates exactly one key", async () => {
-    const s = await scene(0);
+    const s = await scene(0, false);
     const outcomes = await Promise.all([on(1, () => provisionFirstKey(s.host.id)), on(2, () => provisionFirstKey(s.host.id))]);
     expect(outcomes.map((o) => o.kind).sort()).toEqual(["created", "exists"]);
     expect(await dbs[0].select().from(integrationKeys).where(eq(integrationKeys.websiteId, s.host.id))).toHaveLength(1);

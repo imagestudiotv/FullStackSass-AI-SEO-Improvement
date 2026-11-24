@@ -363,7 +363,7 @@ describe("the address", () => {
 describe("the cookie", () => {
   it("belongs to one administrator, and anything malformed reads as never opened", () => {
     const value = writeSeen({}, "admin_user", "/admin/users", ago(2));
-    expect(readSeen(value, "admin_user")["/admin/users"]?.getTime()).toBe(Math.floor(ago(2).getTime() / 1000) * 1000);
+    expect(readSeen(value, "admin_user")["/admin/users"]?.getTime()).toBe(ago(2).getTime());
     expect(readSeen(value, "someone_else")).toEqual({});
     for (const bad of [undefined, "", "x", "null", "[]", '{"u":"admin_user"}', '{"u":"admin_user","t":{"/admin/users":"soon"}}', "x".repeat(5000)]) {
       expect(readSeen(bad, "admin_user")).toEqual({});
