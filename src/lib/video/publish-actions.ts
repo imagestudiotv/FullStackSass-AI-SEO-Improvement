@@ -339,7 +339,7 @@ export async function setNativeAudio(websiteId: string, ideaId: string, selectio
   const row = await ideaFor(websiteId, ideaId);
   if (!row) return fail("not_found");
   const destinations = readDestinations(row.destinations);
-  if (["posting", "skipped"].includes(row.status) || destinations.instagram?.status === "posted" || destinations.instagram?.status === "posting") {
+  if (["posting", "skipped", "deleted"].includes(row.status) || destinations.instagram?.status === "posted" || destinations.instagram?.status === "posting") {
     return fail("already_handled");
   }
   let clean: NativeAudioSelection | null = null;

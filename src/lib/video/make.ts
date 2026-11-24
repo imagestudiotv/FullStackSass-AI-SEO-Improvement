@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, inArray, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, lt, or, sql } from "drizzle-orm";
 
 import { refundSpend } from "@/lib/credits/spend";
 import { db } from "@/lib/db";
@@ -66,7 +66,7 @@ import { MUSIC_VOLUME, ideaTrack, musicTrack, musicUrl } from "./music";
 import { remuxNoMusic, renderReelLocally, renderSlides, type CoverRequest } from "./render";
 import { autoPublishTime, releaseScheduleSlot } from "./schedule";
 import { readVideoSettings, websiteBrand } from "./settings";
-import { sharedFileUrl, storeVideoFile } from "./storage";
+import { deleteVideoFiles, sharedFileUrl, storeVideoFile } from "./storage";
 import { stableHash } from "./strategy/creative";
 import { canHook } from "./strategy/hooks";
 import { isVoiceConfigured, speakScript, UnsupportedVoiceLanguageError, voiceLanguage, VOICE_COST_PER_MINUTE, VoiceServiceError } from "./voice";
@@ -231,6 +231,12 @@ export async function claimMaking(id: string, run: string, now: Date = new Date(
   return { format: row.format };
 }
 
+/** Whether an idea is still being made: not once its customer deleted it, so its job stops before the next paid step. */
+export async function isMaking(id: string): Promise<boolean> {
+  const [row] = await db.select({ status: videoIdeas.status }).from(videoIdeas).where(eq(videoIdeas.id, id));
+  return row?.status === "making";
+}
+
 /* ------------------------------------------------------------------ budget */
 
 function videoSecondsLimit(idea: VideoIdea): number {
@@ -266,6 +272,19 @@ export async function holdProductionBudget(id: string): Promise<void> {
     await reserveCost(id, "storage", storageEstimate(format), "storing the files");
   } catch (error) {
     if (error instanceof BudgetExceededError) throw new ProductionError(error.message);
+    throw error;
+  }
+}
+
+/** A second render's hold, after the first one broke: refused (false) when the video's budget has no room for it. */
+export async function holdSecondRender(id: string): Promise<boolean> {
+  const [idea] = await db.select().from(videoIdeas).where(eq(videoIdeas.id, id));
+  if (idea?.status !== "making") return false;
+  try {
+    await reserveCost(id, "render", renderEstimate(videoSecondsLimit(idea), formatOf(idea)), "rendering the video again");
+    return true;
+  } catch (error) {
+    if (error instanceof BudgetExceededError) return false;
     throw error;
   }
 }
@@ -707,20 +726,31 @@ export async function makeNoMusicVersion(ideaId: string): Promise<string> {
 
 /* ------------------------------------------------------------------ finish */
 
-/** The video is made: ready, and on its way when the website publishes automatically. */
+/**
+ * The video is made: ready, and on its way when the website publishes
+ * automatically. Only while it is still being made: a video its customer
+ * deleted meanwhile stays deleted, its slot is given back and the files that
+ * were just stored are removed.
+ */
 export async function finishMaking(
   id: string,
   files: { videoUrl?: string; slideUrls?: string[]; altVideoUrl?: string | null; coverUrl?: string | null },
   now: Date = new Date(),
 ): Promise<{ autoAt: Date | null }> {
   const [idea] = await db.select().from(videoIdeas).where(eq(videoIdeas.id, id));
-  if (!idea || idea.status !== "making") return { autoAt: null };
+  if (!idea) return { autoAt: null };
+  const discard = async () => {
+    await deleteVideoFiles(idea.websiteId, [files.videoUrl, files.altVideoUrl, files.coverUrl, ...(files.slideUrls ?? [])]);
+    return { autoAt: null };
+  };
+  if (idea.status === "deleted") return discard();
+  if (idea.status !== "making") return { autoAt: null };
   const settings = await readVideoSettings(idea.websiteId);
   // Manual and draft keep it in Your videos; auto takes a slot within the posting frequency, unless a review is owed.
   const autoAt = await autoPublishTime(idea, settings, now);
   // The files' storage, estimated (kept FILE_DAYS after posting, fetched by the platforms).
   await recordCost(id, { kind: "storage", provider: "supabase", usd: storageEstimate(formatOf(idea)), basis: "estimated", note: "files and transfer at list price" }, "storage");
-  await db
+  const [finished] = await db
     .update(videoIdeas)
     .set({
       status: autoAt ? "scheduled" : "ready",
@@ -734,21 +764,35 @@ export async function finishMaking(
       error: null,
       updatedAt: now,
     })
-    .where(eq(videoIdeas.id, id));
-  return { autoAt };
+    .where(and(eq(videoIdeas.id, id), eq(videoIdeas.status, "making")))
+    .returning({ id: videoIdeas.id });
+  if (finished) return { autoAt };
+  // Deleted between the two: the hour it was just given is free again.
+  await releaseScheduleSlot(id);
+  const [fresh] = await db.select({ status: videoIdeas.status }).from(videoIdeas).where(eq(videoIdeas.id, id));
+  return fresh?.status === "deleted" ? discard() : { autoAt: null };
 }
 
-/** The video could not be made: the credit goes back and the customer sees why. The cost ledger keeps what was spent. */
+/**
+ * The video could not be made: the credit goes back, once, together with the
+ * status and under its lock (a video deleted at that moment is neither failed
+ * nor refunded). The reason stays for the team; the customer finds the idea
+ * back in Today's ideas (customer-view.ts). The cost ledger keeps what was spent.
+ */
 export async function failMaking(id: string, reason: string, now: Date = new Date()): Promise<void> {
-  const [idea] = await db.select().from(videoIdeas).where(eq(videoIdeas.id, id));
-  if (!idea || !["approved", "making"].includes(idea.status)) return;
-  if (idea.creditSpendKey) await refundSpend(idea.creditSpendKey);
+  const failed = await db.transaction(async (tx) => {
+    const [idea] = await tx.select().from(videoIdeas).where(eq(videoIdeas.id, id)).for("update");
+    if (!idea || !["approved", "making"].includes(idea.status)) return false;
+    if (idea.creditSpendKey) await refundSpend(idea.creditSpendKey, tx, now);
+    await releaseScheduleSlot(id, tx);
+    await tx
+      .update(videoIdeas)
+      .set({ status: "failed", error: reason.replace(/\s+/g, " ").slice(0, 300), updatedAt: now })
+      .where(eq(videoIdeas.id, id));
+    return true;
+  });
+  if (!failed) return;
   // Holds of the failed attempt are released; recorded items stay (retries never reset the ledger).
   const ledger = await readLedger(id);
   for (const key of Object.keys(ledger.holds)) await releaseCost(id, key);
-  await releaseScheduleSlot(id);
-  await db
-    .update(videoIdeas)
-    .set({ status: "failed", error: reason.replace(/\s+/g, " ").slice(0, 300), updatedAt: now })
-    .where(and(eq(videoIdeas.id, id), inArray(videoIdeas.status, ["approved", "making"])));
 }

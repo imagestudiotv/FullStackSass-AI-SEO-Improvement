@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { queueJob } from "@/inngest/send";
@@ -34,6 +34,7 @@ import {
   type VideoFormat,
   type VideoScript,
 } from "./formats";
+import { hasFiles } from "./customer-view";
 import { rewriteIdea } from "./ideas";
 import { spendKey } from "./make";
 import { musicTrack } from "./music";
@@ -45,6 +46,7 @@ import { POV_LINE_MAX } from "./strategy/pov";
 import { maxPointsFor } from "./strategy/duration";
 import { cleanOverrides, mergeProduction, productionOf } from "./strategy/production";
 import { cleanVideoProfile, type VideoProfileInput } from "./strategy/profile";
+import { readTags, YOUTUBE_TAGS_KEY } from "./youtube-tags";
 import { CLIP_TYPES, isVideoStorageConfigured, MAX_CLIP_BYTES, MAX_PHOTO_BYTES, PHOTO_TYPES, signedUpload, videoFilePath } from "./storage";
 
 /**
@@ -308,7 +310,9 @@ function cleanEdit(edit: IdeaEdit, row: IdeaRow, settings: VideoSettings): Parti
   if (edit.overrides !== undefined) {
     const overrides = cleanOverrides(edit.overrides);
     if (!overrides) return null;
-    out.overrides = overrides as Record<string, string>;
+    // The Short's tags are kept in the same column (youtube-tags.ts): an edit of the audience or tone leaves them.
+    const tags = readTags(row.overrides);
+    out.overrides = { ...(overrides as Record<string, string>), ...(tags !== null ? { [YOUTUBE_TAGS_KEY]: tags } : {}) };
   }
 
   // The plan follows the script and the direction.
@@ -397,7 +401,7 @@ export async function approveVideoReview(websiteId: string, id: string): Promise
       .where(and(eq(videoIdeas.id, id), eq(videoIdeas.websiteId, websiteId)))
       .for("update");
     if (!row) return fail("not_found");
-    if (row.reviewStatus === "none" || ["posting", "posted"].includes(row.status)) return fail("already_handled");
+    if (row.reviewStatus === "none" || ["posting", "posted", "deleted"].includes(row.status)) return fail("already_handled");
     const hash = contentHash({ script: row.script as VideoScript, caption: row.caption, plan: row.plan as ShotPlan | null, production: row.production as ProductionChoices | null });
     const now = new Date();
     await tx
@@ -430,6 +434,8 @@ export async function approveVideoIdea(websiteId: string, id: string, edit: Idea
     if (!["new", "failed"].includes(row.status)) return fail("already_handled");
     const changes = cleanEdit(edit, row, settings);
     if (!changes) return fail("bad_script");
+    // Made already (only its publishing failed): it is published, never made and charged again.
+    if (row.status === "failed" && hasFiles(row)) return fail("already_handled");
     // A retry, or a make after an Undo, is a new charge: the earlier credit was returned.
     const key = row.status === "failed" || row.creditSpendKey ? `${spendKey(id)}:${Date.now()}` : spendKey(id);
     const spent = await spendCredits(tx, { organizationId: checked.site.organizationId, action: "video_post", key, websiteId });
@@ -481,13 +487,19 @@ export async function undoVideoIdea(websiteId: string, id: string): Promise<Vide
     if (row.creditSpendKey) await refundSpend(row.creditSpendKey, tx, now);
     await tx
       .update(videoIdeas)
-      .set({ status: "new", approvedAt: null, approvedBy: null, approvedVia: null, updatedAt: now })
+      .set({ status: backTo(row.day, now), approvedAt: null, approvedBy: null, approvedVia: null, updatedAt: now })
       .where(eq(videoIdeas.id, id));
     return { ok: true as const, data: null };
   });
   revalidatePath(pagePath(websiteId));
   return result;
 }
+
+/**
+ * Where an undone idea goes: today's is "new" again. An older one was in the
+ * deck because its make had failed (lists.ts): it is listed by that again.
+ */
+const backTo = (day: string, now: Date) => (day === utcDay(now) ? "new" : "failed");
 
 /** Skips an idea (a swipe to the left): nothing is charged, and it is not shown again. */
 export async function skipVideoIdea(websiteId: string, id: string): Promise<VideoResult> {
@@ -505,9 +517,10 @@ export async function skipVideoIdea(websiteId: string, id: string): Promise<Vide
 export async function restoreVideoIdea(websiteId: string, id: string): Promise<VideoResult> {
   const editor = await requireEditor(websiteId);
   if (!editor.ok) return fail("view_only");
+  const now = new Date();
   await db
     .update(videoIdeas)
-    .set({ status: "new", updatedAt: new Date() })
+    .set({ status: sql`case when ${videoIdeas.day} = ${utcDay(now)} then 'new' else 'failed' end`, updatedAt: now })
     .where(and(eq(videoIdeas.id, id), eq(videoIdeas.websiteId, websiteId), eq(videoIdeas.status, "skipped")));
   revalidatePath(pagePath(websiteId));
   return { ok: true, data: null };

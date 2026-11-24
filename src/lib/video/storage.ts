@@ -144,16 +144,37 @@ export function videoFilePath(url: string, websiteId: string): string | null {
   return path.startsWith(`${websiteId}/`) && !path.includes("..") ? path : null;
 }
 
-/** Deletes files of ours, best effort: a file left behind costs a little storage, nothing more. */
-export async function deleteVideoFiles(websiteId: string, urls: (string | null | undefined)[]): Promise<void> {
-  if (!isVideoStorageConfigured()) return;
+/** Deletes files of ours, best effort: a file left behind costs a little storage, nothing more. Says whether storage took it. */
+export async function deleteVideoFiles(websiteId: string, urls: (string | null | undefined)[]): Promise<boolean> {
+  if (!isVideoStorageConfigured()) return true;
   const paths = urls.flatMap((url) => {
     const path = url ? videoFilePath(url, websiteId) : null;
     return path ? [path] : [];
   });
-  if (paths.length === 0) return;
-  await client()
+  return removePaths(paths);
+}
+
+async function removePaths(paths: string[]): Promise<boolean> {
+  if (paths.length === 0) return true;
+  const result = await client()
     .storage.from(BUCKET)
     .remove(paths)
-    .catch(() => undefined);
+    .catch(() => null);
+  return Boolean(result && !result.error);
+}
+
+/**
+ * Deletes everything in one of a website's folders (an idea's: "ideas/<id>"),
+ * apart from the paths to keep: files a job stored that no row names any
+ * more go too. Best effort, like deleteVideoFiles.
+ */
+export async function deleteVideoFolder(websiteId: string, folder: string, keep: ReadonlySet<string> = new Set()): Promise<boolean> {
+  if (!isVideoStorageConfigured()) return true;
+  const path = `${websiteId}/${folder}`;
+  const listed = await client()
+    .storage.from(BUCKET)
+    .list(path, { limit: 1000 })
+    .catch(() => null);
+  if (!listed || listed.error) return false;
+  return removePaths((listed.data ?? []).map((file) => `${path}/${file.name}`).filter((name) => !keep.has(name)));
 }
