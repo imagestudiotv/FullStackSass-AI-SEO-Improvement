@@ -49,6 +49,7 @@ import { videoPublishingStatus } from "@/lib/video/publish-actions";
 import { reviewBlocksAutoPublish } from "@/lib/video/review";
 import { previewClips } from "@/lib/video/preview-media";
 import { videoProfile } from "@/lib/video/strategy/profile";
+import { cleanClipText } from "@/remotion/clip-text";
 
 import { POSTED_STATUSES, SAVED_STATUSES } from "./logic";
 import { VideosPanel, type IdeaView, type VideoAccountView } from "./videos-panel";
@@ -318,6 +319,7 @@ function productionOf(
   settings: VideoSettings,
 ): ProductionChoices {
   const saved = (row.production ?? {}) as Partial<ProductionChoices>;
+  const textStyle = cleanClipText(saved.textStyle);
   return {
     audio: saved.audio === "voiceover" || saved.audio === "text_music" ? saved.audio : row.voice ? "voiceover" : "text_music",
     narration: pick(NARRATION_STYLES, saved.narration, settings.narration),
@@ -327,5 +329,6 @@ function productionOf(
     showHook: typeof saved.showHook === "boolean" ? saved.showHook : true,
     includeCta: typeof saved.includeCta === "boolean" ? saved.includeCta : true,
     ctaText: typeof saved.ctaText === "string" && saved.ctaText.trim() ? saved.ctaText : null,
+    ...(textStyle ? { textStyle } : {}),
   };
 }

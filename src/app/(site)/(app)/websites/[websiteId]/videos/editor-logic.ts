@@ -40,7 +40,9 @@ import {
 } from "@/lib/video/formats";
 import { ideaTrack, MUSIC_VOLUME, musicUrl } from "@/lib/video/music";
 import { maxPointsFor } from "@/lib/video/strategy/duration";
-import { partEnd, productionOf, productionParts, productionTimeline } from "@/remotion/production";
+import { hookCaptionLook, povCaptionLook } from "@/remotion/caption-looks";
+import { clipTextFromLook, type ClipTextStyle } from "@/remotion/clip-text";
+import { partEnd, productionOf, productionParts, productionTimeline, safeArea } from "@/remotion/production";
 import { isProduction, type ProductionReelProps } from "@/remotion/props";
 import { reelTiming, sceneEnd } from "@/remotion/timing";
 
@@ -173,9 +175,32 @@ export function withTextStyle(form: EditorForm, value: string): EditorForm {
   return { ...form, production: { ...form.production, captionStyle: value as ProductionChoices["captionStyle"] } };
 }
 
-/** Whether the "Show hook" switch changes the video: productions only, and never a carousel (its cover is the hook). */
-export function hookSwitchApplies(form: Pick<EditorForm, "direction" | "format">): boolean {
-  return form.direction !== "animated" && form.format !== "carousel";
+/** Whether the text on the clip can be styled and moved: a POV clip video, or one opening on a hook clip (client, 2026-11-24). */
+export function clipTextApplies(form: Pick<EditorForm, "direction" | "format" | "pov" | "clipOnly">): boolean {
+  return form.pov || (form.clipOnly && form.direction !== "animated" && form.format !== "carousel");
+}
+
+/** The hook clip's chip above its text: its height and the gap (directions/HookClip.tsx). */
+const HOOK_CHIP_PX = 83;
+
+/** The text's style now: the customer's own, else one like the look picked for the video, where that look draws it (PovClip.tsx, HookClip.tsx). */
+export function clipTextOf(form: EditorForm, plan: ShotPlan | null | undefined): ClipTextStyle {
+  if (form.production.textStyle) return form.production.textStyle;
+  const safe = safeArea(form.format === "story");
+  if (plan?.povClip) return clipTextFromLook(povCaptionLook(plan.povClip), form.script.hook, { left: safe.left, top: safe.top + 20, width: safe.right - safe.left, align: "center" });
+  return clipTextFromLook(hookCaptionLook(plan?.hookClip?.pick?.id, form.script.hook), form.script.hook, { left: safe.left, top: safe.top + 150 + HOOK_CHIP_PX, width: safe.right - safe.left - 40, align: "left", scale: 1.2 });
+}
+
+/** The text on the clip for the part shown (the hook; on a hook clip video the proof too), or null when that part has none to drag. */
+export function clipTextPart(form: EditorForm, part: PartKey): string | null {
+  if (!clipTextApplies(form)) return null;
+  if (part === 0 || form.pov) return form.pov || form.production.showHook ? form.script.hook : null;
+  return part === form.script.points.length + 1 ? form.script.proof || null : null;
+}
+
+/** Whether the "Show hook" switch changes the video: productions only, never a carousel (its cover is the hook) or a POV clip video (its hook is the video). */
+export function hookSwitchApplies(form: Pick<EditorForm, "direction" | "format" | "pov">): boolean {
+  return form.direction !== "animated" && form.format !== "carousel" && !form.pov;
 }
 
 /** Whether the call-to-action switch and text change the video: productions only, not a Viral video ending on its clip. */
@@ -218,7 +243,7 @@ export function editFromForm(form: EditorForm): IdeaEdit {
     format: form.format,
     category: form.category,
     direction: form.direction,
-    production: { ...form.production, audio, ctaText: form.production.ctaText?.trim() ? form.production.ctaText.trim() : null },
+    production: { ...form.production, audio, ctaText: form.production.ctaText?.trim() ? form.production.ctaText.trim() : null, textStyle: form.production.textStyle ?? null },
     overrides,
     // The older columns follow the new choices, so an older server reads them the same way.
     voice: narrated ? form.voice : null,

@@ -35,11 +35,15 @@ import {
 } from "@/lib/video/formats";
 import type { VideoSettings } from "@/lib/video/settings";
 import type { ProductionReelProps } from "@/remotion/props";
+import type { ClipTextStyle } from "@/remotion/clip-text";
 import { Reel } from "@/remotion/Reel";
 import { carouselSlideCount, Slide } from "@/remotion/Slide";
 
 import {
   audioLock,
+  clipTextApplies,
+  clipTextOf,
+  clipTextPart,
   canEditIdea,
   captionsApply,
   ctaSwitchApplies,
@@ -68,6 +72,7 @@ import {
   type EditorForm,
   type PartKey,
 } from "./editor-logic";
+import { ClipTextBox, ClipTextControls } from "./clip-text-editor";
 import { reelFrames } from "./preview";
 import { Field, MediaThumb, platformName, selectClass, type IdeaView, type MediaView, type Run, type T, type TrackView } from "./shared";
 
@@ -157,6 +162,12 @@ export function EditDialog(props: {
     );
 
   const n = form.script.points.length;
+  // The text on a Viral clip (client, 2026-11-24): its style now, and dragging it on the preview.
+  const plan = (idea.props as ProductionReelProps).plan;
+  const textStyle = clipTextApplies(form) ? clipTextOf(form, plan) : null;
+  const setTextStyle = (style: ClipTextStyle | null) => choose("textStyle", style);
+  const draggable = clipTextPart(form, selected);
+  const clipText = editable && textStyle && draggable ? { text: draggable, style: textStyle, onChange: setTextStyle } : null;
   const onScreen = (part: PartKey) => ({ onFocus: () => setSelected(part) });
 
   return (
@@ -190,7 +201,7 @@ export function EditDialog(props: {
 
         <div className="min-h-0 flex-1 overflow-y-auto md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] md:overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(0,30rem)]">
           <section aria-label={c.preview} className="flex flex-col items-center gap-3 bg-muted/40 px-4 py-4 md:justify-center md:overflow-y-auto">
-            <EditorPreview props={preview} part={selected} onPart={setSelected} t={t} />
+            <EditorPreview props={preview} part={selected} onPart={setSelected} clipText={clipText} t={t} />
             <p className="max-w-sm text-center text-xs text-muted-foreground">{form.direction === "animated" ? t.previewNote : (preview.music && video ? v.previewMusic : v.previewConcept)}</p>
           </section>
 
@@ -370,6 +381,8 @@ export function EditDialog(props: {
                 </TabsContent>
 
                 <TabsContent value="style" className="space-y-5 p-4">
+                  {/* A POV clip video has one look: its clip. */}
+                  {form.pov ? null : (
                   <Field label={c.look} hint={c.lookHint}>
                     <NativeLikeSelect className={selectClass} value={form.direction} onChange={(event) => update({ direction: event.target.value as CreativeDirection })}>
                       {CREATIVE_DIRECTIONS.map((value) => (
@@ -379,7 +392,13 @@ export function EditDialog(props: {
                       ))}
                     </NativeLikeSelect>
                   </Field>
+                  )}
 
+                  {textStyle ? (
+                    <ClipTextControls text={draggable ?? form.script.hook} style={textStyle} custom={Boolean(form.production.textStyle)} onChange={setTextStyle} onReset={() => setTextStyle(null)} c={c.clip} />
+                  ) : null}
+
+                  {form.pov ? null : (
                   <fieldset className="min-w-0 space-y-2">
                     <legend className="text-sm font-semibold">{c.textStyle}</legend>
                     {styles.kind === "fixed" ? (
@@ -403,6 +422,7 @@ export function EditDialog(props: {
                       </>
                     )}
                   </fieldset>
+                  )}
 
                   <div className="space-y-3 border-t pt-4">
                     {hookSwitchApplies(form) ? (
@@ -427,7 +447,8 @@ export function EditDialog(props: {
                   <fieldset className="min-w-0 space-y-2">
                     <legend className="text-sm font-semibold">{c.videoFormat}</legend>
                     <div className="grid grid-cols-3 gap-2">
-                      {VIDEO_FORMATS.map((value) => (
+                      {/* A POV clip video is never a carousel (cleanEdit). */}
+                      {VIDEO_FORMATS.filter((value) => !form.pov || value !== "carousel").map((value) => (
                         <button
                           key={value}
                           type="button"
@@ -444,6 +465,9 @@ export function EditDialog(props: {
 
                   {video ? (
                     <div className="grid gap-3 sm:grid-cols-2">
+                      {/* A POV clip video lasts as long as its clip and has no voice. */}
+                      {form.pov ? null : (
+                      <>
                       <Field label={e.duration}>
                         <NativeLikeSelect className={selectClass} value={form.production.duration} onChange={(event) => choose("duration", event.target.value as ProductionChoices["duration"])}>
                           {DURATION_RANGES.map((value) => (
@@ -463,7 +487,9 @@ export function EditDialog(props: {
                           ))}
                         </NativeLikeSelect>
                       </Field>
-                      {narrated ? (
+                      </>
+                      )}
+                      {narrated && !form.pov ? (
                         <Field label={e.narration}>
                           <NativeLikeSelect className={selectClass} value={form.production.narration} onChange={(event) => choose("narration", event.target.value as ProductionChoices["narration"])}>
                             {NARRATION_STYLES.map((value) => (
@@ -612,7 +638,7 @@ export function EditDialog(props: {
  * (9:16 for a reel or a Story), or the carousel's slide for it (4:5); the
  * chips under it show each text the video has.
  */
-function EditorPreview({ props, part, onPart, t }: { props: ProductionReelProps; part: PartKey; onPart: (part: PartKey) => void; t: T }) {
+function EditorPreview({ props, part, onPart, clipText, t }: { props: ProductionReelProps; part: PartKey; onPart: (part: PartKey) => void; clipText: { text: string; style: ClipTextStyle; onChange: (style: ClipTextStyle) => void } | null; t: T }) {
   const c = t.viral.editor;
   const player = useRef<PlayerRef>(null);
   const carousel = props.format === "carousel";
@@ -623,6 +649,21 @@ function EditorPreview({ props, part, onPart, t }: { props: ProductionReelProps;
   // The part shown: the one asked for, or the next one the video has (a hook or CTA switched off).
   const slide = partSlide(props, part);
   const slides = carousel ? carouselSlideCount(props) : 0;
+
+  // The text's box is for the paused preview: while it plays the text comes and goes.
+  const [playing, setPlaying] = useState(false);
+  useEffect(() => {
+    const current = player.current;
+    if (!current) return;
+    const on = () => setPlaying(true);
+    const off = () => setPlaying(false);
+    current.addEventListener("play", on);
+    current.addEventListener("pause", off);
+    return () => {
+      current.removeEventListener("play", on);
+      current.removeEventListener("pause", off);
+    };
+  }, [carousel]);
 
   // The words being edited stay on screen while they are typed.
   useEffect(() => {
@@ -657,7 +698,7 @@ function EditorPreview({ props, part, onPart, t }: { props: ProductionReelProps;
           </div>
         </div>
       ) : (
-        <div className="w-full max-w-[220px] md:max-w-[min(340px,calc((100dvh_-_15rem)*0.5625))]">
+        <div className="relative w-full max-w-[220px] md:max-w-[min(340px,calc((100dvh_-_15rem)*0.5625))]">
           <Player
             ref={player}
             component={Reel}
@@ -676,6 +717,7 @@ function EditorPreview({ props, part, onPart, t }: { props: ProductionReelProps;
             acknowledgeRemotionLicense
             style={{ width: "100%", aspectRatio: `${REEL.width} / ${REEL.height}`, borderRadius: 16, overflow: "hidden" }}
           />
+          {clipText && !playing ? <ClipTextBox {...clipText} story={props.format === "story"} c={c.clip} /> : null}
         </div>
       )}
       <div role="group" aria-label={c.showPart} className="flex max-w-full flex-wrap justify-center gap-1.5">
