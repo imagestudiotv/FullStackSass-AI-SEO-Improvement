@@ -55,9 +55,9 @@ describe("Grow + Visibility (client, 2026-11-11)", () => {
   const bundle = catalogRows().filter((row) => row.tier === GROW_VISIBILITY_TIER);
   const grow = TIERS.find((tier) => tier.tier === "grow")!;
 
-  it("has visibility perks, as Grow and Scale do and Launch does not, as the pricing page lists them", () => {
+  it("has visibility perks, as Scale does and Launch and Grow do not, as the pricing page lists them (2026-11-24)", () => {
     expect(planHasVisibilityPerks(GROW_VISIBILITY_TIER)).toBe(true);
-    expect(planHasVisibilityPerks("grow")).toBe(true);
+    expect(planHasVisibilityPerks("grow")).toBe(false);
     expect(planHasVisibilityPerks("scale")).toBe(true);
     expect(planHasVisibilityPerks("launch")).toBe(false);
     expect(planHasVisibilityPerks("starter")).toBe(false);

@@ -13,7 +13,7 @@ import { IDEAS_PER_DAY } from "@/lib/video/formats";
  * THE PRICING PAGE'S OWN LISTS, in the reader's language
  * (lib/i18n/pricing-page.ts): the articles, social posts and search terms from
  * the plan row (scripts/plan-catalog.mjs), the website, AI visibility, audits,
- * publishing, AI Growth Copilot and AI Social Opportunities, and each plan's
+ * publishing, AI Growth Copilot and AI Social Opportunities, and Scale's
  * visibility perks; for Grow + Visibility its bundle card's figures, features
  * and bonuses. So a plan reads the same before and after sign-up, and a new
  * line on /pricing reaches these screens too.
@@ -77,8 +77,9 @@ export function planBenefits(plan: BenefitPlan, locale: Locale, extra: { credits
 /**
  * Whether the pricing page lists visibility perks (a RepGet blog feature,
  * social channels, an email spotlight) for this tier: the same lists as
- * planBenefits, so today Grow, Scale and the Grow + Visibility bundle, never
- * Launch. The trial-ending email reads it, so a plan is not told of a perk its
+ * planBenefits, so today Scale and the Grow + Visibility bundle, never Launch,
+ * nor Grow since 2026-11-24 (Grow customers from before keep theirs by hand,
+ * no code). The trial-ending email reads it, so a plan is not told of a perk its
  * card does not list (lib/email/lifecycle-copy.ts).
  */
 export function planHasVisibilityPerks(tier: string | null | undefined): boolean {

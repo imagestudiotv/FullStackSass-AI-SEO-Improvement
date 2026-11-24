@@ -37,9 +37,9 @@ export function planCompareRows(plans: PlanRow[], locale: Locale, copy: BillingP
   const count = (n: number): CompareCell => ({ kind: "text", text: n < 0 ? unlimited : formatNumber(n, locale) });
   const yes: CompareCell = { kind: "yes" };
   const no: CompareCell = { kind: "no" };
-  // The visibility perks: Priority on Scale, included on Grow and the bundle, none on Launch.
+  // The visibility perks: Priority on Scale, included in the bundle, none on Launch or Grow (client, 2026-11-24).
   const perk = (plan: PlanRow): CompareCell =>
-    plan.tier === "scale" ? { kind: "text", text: words.statusPriority } : plan.tier === "grow" || isDirectPurchaseTier(plan.tier) ? yes : no;
+    plan.tier === "scale" ? { kind: "text", text: words.statusPriority } : isDirectPurchaseTier(plan.tier) ? yes : no;
   const row = (key: string, label: string, cell: (plan: PlanRow) => CompareCell, extra = true, help?: string): CompareRow => ({
     key,
     label,

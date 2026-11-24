@@ -41,7 +41,7 @@ const SUMMARY = `RepGet is an AI SEO platform for articles, social posts and vid
  * in the messages. Each must stay identical to that page's meta description.
  */
 export const PAGE_NOTES = {
-  "/pricing": "Simple monthly pricing. Every plan includes everything; plans differ in how much we write for you and how many backlinks you get. Cancel any time.",
+  "/pricing": "Simple monthly pricing. Plans differ in how much we write for you, how many backlinks you get and whether RepGet promotes you. Cancel any time.",
   "/blog":
     "Guides, comparisons and playbooks for getting found on Google and cited by AI assistants - written for people who run a business, not marketers.",
   "/privacy": "What data RepGet collects, why, how it is stored and protected, who we share it with, how long we keep it and your rights.",

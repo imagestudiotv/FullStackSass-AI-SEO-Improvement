@@ -24,6 +24,7 @@ import { LOCALES } from "@/lib/i18n/config";
 import { format } from "@/lib/i18n/format";
 import { OFFER_CODE } from "@/lib/i18n/offer-code";
 import { PLAN_CARDS_COPY } from "@/lib/i18n/plan-cards";
+import { pricingPageCopy } from "@/lib/i18n/pricing-page";
 import { TRIAL_DAYS } from "@/lib/plans/features";
 
 import { BillingClient } from "./billing-client";
@@ -196,6 +197,11 @@ describe("the comparison and the checkout dialog", () => {
       expect(cells("credits")).toEqual(["250", "250", "700"]);
       expect(cells("websites")).toEqual(["1", "1", "1"]);
       expect(cells("custom")).toEqual(["no", "no", "yes"]);
+      // The visibility perks: not on Grow, in the bundle, Priority on Scale (client, 2026-11-24).
+      for (const key of ["blog", "channels", "email"]) {
+        expect(rows.find((row) => row.key === key)!.cells).toEqual([{ kind: "no" }, { kind: "yes" }, { kind: "text", text: pricingPageCopy(locale).compare.statusPriority }]);
+      }
+      expect(cells("backlinks")).toEqual(["yes", "yes", "yes"]);
       expect(JSON.stringify(rows)).not.toMatch(/DA ?60/i);
       // Five figures at a glance; the rest with "Show complete comparison".
       expect(rows.filter((row) => !row.extra)).toHaveLength(5);
@@ -211,6 +217,10 @@ describe("the comparison and the checkout dialog", () => {
         for (const line of view.highlights) expect(view.features).toContain(line);
         expect(view.highlights.some((line) => line.includes("Growth Copilot"))).toBe(true);
         expect(new Set(view.highlights).size).toBe(view.highlights.length);
+        // Grow's card has no perks block (its title is null); Scale's and the bundle's have their three.
+        const tier = CATALOG.find((row) => row.id === id)!.tier;
+        expect(view.perks, `${locale} ${tier}`).toHaveLength(tier === "grow" ? 0 : 3);
+        expect(view.perksTitle === null, `${locale} ${tier}`).toBe(tier === "grow");
       }
     }
   });
