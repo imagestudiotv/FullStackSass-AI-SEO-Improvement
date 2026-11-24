@@ -3,6 +3,7 @@ import "server-only";
 import * as cheerio from "cheerio";
 
 import { MODELS } from "@/lib/ai/client";
+import { cleanDashes, cleanDashesHtml, NO_DASH_RULE } from "@/lib/articles/dashes";
 import { addUsage, askClaude, type CallUsage } from "@/lib/blog/autopilot/model";
 import { bodySlices } from "@/lib/blog/autopilot/translate";
 
@@ -59,6 +60,7 @@ function instructions(from: string, to: string): string {
     `Keep the names of people, businesses, brands and products as they are. A place keeps its name unless it has a usual ${to} one (for example "Lake Como" is "Lago di Como" in Italian).`,
     `Use the words people searching in ${to} would use for the same thing. Address the reader as the original does, in the form a ${to} business website would use for its readers.`,
     "HTML: keep every tag and attribute exactly as given, in the same order. Translate only the text between tags and the alt and title attributes of pictures. Never change an href, src, id or class. Keep every heading, paragraph, list, list item, table row, picture and link: the same number, in the same places.",
+    NO_DASH_RULE,
   ].join("\n");
 }
 
@@ -153,10 +155,11 @@ export async function translateArticle(article: ArticleToTranslate): Promise<Tra
       model: MODELS.ARTICLE_TRANSLATION,
     });
     usages.push(fields.usage);
-    const title = String(fields.value.title ?? "").trim();
+    const language = { language: article.to };
+    const title = cleanDashes(String(fields.value.title ?? "").trim(), { kind: "title", ...language });
     if (!title) fail(`The ${article.to} translation came back without a title.`);
-    const description = String(fields.value.description ?? "").trim();
-    const pictureAlt = String(fields.value.pictureAlt ?? "").trim();
+    const description = cleanDashes(String(fields.value.description ?? "").trim(), language);
+    const pictureAlt = cleanDashes(String(fields.value.pictureAlt ?? "").trim(), language);
     const slug = slugFrom(String(fields.value.slug ?? "")) || slugFrom(title);
 
     const parts: string[] = [];
@@ -183,7 +186,7 @@ export async function translateArticle(article: ArticleToTranslate): Promise<Tra
       if (skeleton(part, article.siteHosts) !== skeleton(translated, article.siteHosts)) {
         fail(`The ${article.to} translation changed the article's headings, lists, tables, pictures or links.`);
       }
-      parts.push(restoreAddresses(part, translated, article.siteHosts));
+      parts.push(cleanDashesHtml(restoreAddresses(part, translated, article.siteHosts), language));
     }
 
     return {
