@@ -14,7 +14,7 @@ import { seedWebsite } from "@/test/fixtures";
 const state = vi.hoisted(() => ({ db: null as unknown }));
 vi.mock("@/lib/db", () => ({ db: new Proxy({}, { get: (_t, p) => Reflect.get(state.db as object, p) }) }));
 
-import { moveMissedTopicsForward } from "./missed-days";
+import { moveMissedTopicsForward, spaceTopics } from "./missed-days";
 
 const NOW = new Date("2026-11-20T06:00:00Z");
 let test: TestDb;
@@ -95,5 +95,39 @@ describe("missed days after a pause", () => {
 
     expect((await moveMissedTopicsForward(mine.websiteId, NOW)).moved).toBe(1);
     expect(await dayOf(theirs)).toBe("2026-11-10T09:00:00.000Z");
+  });
+});
+
+describe("Free's topics, a week apart (client, 2026-11-24)", () => {
+  const utc = (day: string) => new Date(`${day}T00:00:00Z`);
+
+  it("spaces a topic-a-day calendar from the next day the pace allows, and is the same when run again", async () => {
+    const { websiteId } = await seedWebsite(test);
+    const started = await topic(websiteId, "2026-11-20", { article: "draft" });
+    const rest = [await topic(websiteId, "2026-11-21"), await topic(websiteId, "2026-11-22"), await topic(websiteId, "2026-11-23")];
+    const undated = await topic(websiteId, null);
+
+    expect(await spaceTopics(websiteId, 7, utc("2026-11-27"), NOW)).toEqual({ moved: 3 });
+    expect(await Promise.all(rest.map(dayOf))).toEqual(["2026-11-27T09:00:00.000Z", "2026-12-04T09:00:00.000Z", "2026-12-11T09:00:00.000Z"]);
+    expect(await dayOf(started)).toBe("2026-11-20T09:00:00.000Z");
+    expect(await dayOf(undated)).toBeNull();
+    expect(await spaceTopics(websiteId, 7, utc("2026-11-27"), NOW)).toEqual({ moved: 0 });
+  });
+
+  it("moves overdue topics to today, and leaves one that is far enough where it is", async () => {
+    const { websiteId } = await seedWebsite(test);
+    const overdue = await topic(websiteId, "2026-11-02");
+    const far = await topic(websiteId, "2026-12-20");
+    expect(await spaceTopics(websiteId, 7, utc("2026-11-10"), NOW)).toEqual({ moved: 1 });
+    expect(await dayOf(overdue)).toBe("2026-11-20T09:00:00.000Z");
+    expect(await dayOf(far)).toBe("2026-12-20T09:00:00.000Z");
+  });
+
+  it("brings the first topic forward only for a website still without an article", async () => {
+    const { websiteId } = await seedWebsite(test);
+    const first = await topic(websiteId, "2026-11-28");
+    expect(await spaceTopics(websiteId, 7, utc("2026-11-20"), NOW)).toEqual({ moved: 0 });
+    expect(await spaceTopics(websiteId, 7, utc("2026-11-20"), NOW, { startNow: true })).toEqual({ moved: 1 });
+    expect(await dayOf(first)).toBe("2026-11-20T09:00:00.000Z");
   });
 });

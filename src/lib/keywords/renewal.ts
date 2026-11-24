@@ -1,15 +1,18 @@
-import { and, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, sql, type AnyColumn, type SQL } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import {
   agencyWorkspaces,
+  calendarItems,
   keywords,
   spendReservations,
   subscriptions,
   websites,
 } from "@/lib/db/schema";
 import { researchSiteKey, startResearchJob } from "@/lib/keywords/research-job";
-import { articleAllowanceRule } from "@/lib/usage";
+import { isEntitledToSpend } from "@/lib/billing/entitled";
+import { onFreePlan } from "@/lib/plans/free-plan-server";
+import { articleAllowanceRule, checkLimit } from "@/lib/usage";
 
 /**
  * A new content plan when a website's monthly allowance renews.
@@ -26,6 +29,13 @@ import { articleAllowanceRule } from "@/lib/usage";
  *
  * It runs the same research job as Refresh - so keywords and their figures
  * are refreshed too - at the same cost as one press, once a month.
+ *
+ * FREE (2026-11-24). Its articles come one a week, so its topics do not follow
+ * the calendar month its allowance is counted over: four planned on the 21st
+ * last until the 12th of the next month. A new plan is built when the last of
+ * them has been started and the month has articles left, still at most once a
+ * month. Before this nothing ever planned a Free website again, and its
+ * weekly articles ended with its first four topics.
  */
 
 /**
@@ -43,12 +53,23 @@ export type RenewalOutcome =
   | "not_entitled"
   /** This window opened more than RENEWAL_GRACE_MS ago. */
   | "not_renewed"
+  /** Free: topics are still planned, or the month's articles are used, or its AI budget is. */
+  | "not_needed"
   /** A research run has already been reserved in this window. */
   | "already_planned"
   /** A run is going right now. */
   | "running"
   /** An hourly allowance is used up, or this window's re-plan was already taken: next hour. */
   | "limited";
+
+/** Whether a website still has a topic nothing was written for. */
+function hasUnstartedTopic(websiteId: AnyColumn | string): SQL {
+  return sql`exists (
+    select 1 from ${calendarItems} ci
+    where ci.website_id = ${websiteId} and ci.status = 'planned'
+      and not exists (select 1 from articles sa where sa.calendar_item_id = ci.id)
+  )`;
+}
 
 /**
  * Websites that could be due: analysed and researched before (onboarding
@@ -73,6 +94,10 @@ export async function renewalCandidates(): Promise<string[]> {
             select 1 from ${agencyWorkspaces}
             where ${agencyWorkspaces.organizationId} = ${websites.organizationId}
           )
+          -- Planned before (a first plan is first-plan.ts's) and all of it started.
+          or (${onFreePlan(websites.id)}
+            and exists (select 1 from ${calendarItems} pi where pi.website_id = ${websites.id})
+            and not ${hasUnstartedTopic(websites.id)})
         )`,
       ),
     )
@@ -101,7 +126,14 @@ export async function replanIfRenewed(
   // Always "since" for articles; narrowed for the type.
   if (!("since" in window)) return "not_renewed";
   const opened = window.since;
-  if (now.getTime() - opened.getTime() > RENEWAL_GRACE_MS) return "not_renewed";
+  if (allowance.free) {
+    const [topics] = await db.select({ waiting: sql<boolean>`${hasUnstartedTopic(websiteId)}` }).from(websites).where(eq(websites.id, websiteId));
+    if (topics?.waiting) return "not_needed";
+    if (!(await checkLimit(websiteId, "articles")).allowed) return "not_needed";
+    if (!(await isEntitledToSpend(websiteId, { freeArticles: true })).ok) return "not_needed";
+  } else if (now.getTime() - opened.getTime() > RENEWAL_GRACE_MS) {
+    return "not_renewed";
+  }
 
   const [planned] = await db
     .select({ id: spendReservations.id })

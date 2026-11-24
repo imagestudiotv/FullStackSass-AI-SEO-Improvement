@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { articlesInDays, articlesOnDay, DAYS_PER_MONTH } from "./cadence";
+import { articlePace, articlesOnDay, dayIndex, DAYS_PER_MONTH, paceWindowStart, utcDayStart } from "./cadence";
 
 const month = (perMonth: number) =>
   Array.from({ length: DAYS_PER_MONTH }, (_, day) => articlesOnDay(perMonth, day));
@@ -32,21 +32,42 @@ describe("articlesOnDay", () => {
   });
 });
 
-describe("articlesInDays", () => {
-  it("is the most any run of days holds", () => {
-    for (const perMonth of [30, 45, 60, 100, 150]) {
-      const days = month(perMonth);
-      const busiestPair = Math.max(...days.slice(1).map((value, i) => days[i] + value));
-      expect(articlesInDays(perMonth, 2)).toBe(busiestPair);
+describe("articlePace", () => {
+  it("is one every seven days on Free, whatever the day", () => {
+    expect(articlePace({ free: true, perMonth: 4 }, 0)).toEqual({ articles: 1, days: 7 });
+    expect(articlePace({ free: true, perMonth: 4 }, 19)).toEqual({ articles: 1, days: 7 });
+  });
+
+  it("is one a day for a paid plan of 30 a month or fewer, and without an article limit", () => {
+    for (const perMonth of [-1, 1, 5, 10, 30]) {
+      expect(articlePace({ free: false, perMonth }, 3)).toEqual({ articles: 1, days: 1 });
     }
   });
 
-  it("is two days' worth of one a day for small plans", () => {
-    expect(articlesInDays(5, 2)).toBe(2);
-    expect(articlesInDays(30, 2)).toBe(2);
+  it("is the plan's own daily share above 30 a month: Scale's 60 is two a day", () => {
+    expect(articlePace({ free: false, perMonth: 60 }, 0)).toEqual({ articles: 2, days: 1 });
+    expect(articlePace({ free: false, perMonth: 60 }, 29)).toEqual({ articles: 2, days: 1 });
+    expect([0, 1, 2].map((day) => articlePace({ free: false, perMonth: 100 }, day).articles)).toEqual([4, 3, 3]);
   });
 
-  it("is 7 for Scale's two-day batch, not the 8 of four a day", () => {
-    expect(articlesInDays(100, 2)).toBe(7);
+  it("counts in UTC calendar days, so a week after the 21st is the 28th from midnight", () => {
+    const pace = articlePace({ free: true, perMonth: 4 }, 0);
+    const started = new Date("2026-11-21T14:03:00Z");
+    expect(paceWindowStart(pace, new Date("2026-11-27T23:59:00Z")) <= started).toBe(true);
+    expect(paceWindowStart(pace, new Date("2026-11-28T06:00:00Z")) <= started).toBe(false);
+    const daily = articlePace({ free: false, perMonth: 30 }, 0);
+    expect(paceWindowStart(daily, new Date("2026-11-24T14:00:00Z"))).toEqual(new Date("2026-11-24T00:00:00Z"));
+  });
+
+  it("starts the day at midnight UTC", () => {
+    expect(utcDayStart(new Date("2026-11-21T14:43:41Z")).toISOString()).toBe("2026-11-21T00:00:00.000Z");
+    expect(utcDayStart(new Date("2026-11-21T00:00:00Z")).toISOString()).toBe("2026-11-21T00:00:00.000Z");
+  });
+
+  it("numbers the allowance month's days from its start", () => {
+    const since = new Date("2026-11-21T18:30:00Z");
+    expect(dayIndex(since, new Date("2026-11-21T23:00:00Z"))).toBe(0);
+    expect(dayIndex(since, new Date("2026-11-22T01:00:00Z"))).toBe(1);
+    expect(dayIndex(since, new Date("2026-11-20T01:00:00Z"))).toBe(0);
   });
 });

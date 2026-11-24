@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { articles, calendarItems, clusters, keywords, websites } from "@/lib/db/schema";
+import { articles, calendarItems, clusters, freePlanAccounts, keywords, sitePosts, websites } from "@/lib/db/schema";
 import { createTestDb, type TestDb } from "@/test/db";
 import { seedWebsite } from "@/test/fixtures";
 
@@ -271,6 +271,31 @@ describe("re-planning through the research job", () => {
         body: expect.stringContaining("30 articles planned"),
       }),
     );
+  });
+});
+
+describe("a website that would have got no plan at all (client, 2026-11-24: three sign-ups, one article)", () => {
+  const post = (websiteId: string, title: string, remoteId: number) => ({ websiteId, postType: "posts", remoteId, title, url: `https://blog.example/${remoteId}` });
+
+  it("plans other angles when the site's own blog covers every keyword it has", async () => {
+    const { orgId, websiteId } = await seedWebsite(test, { articleLimit: 5 });
+    await test.db.update(websites).set({ inventoryCheckedAt: new Date(), inventoryStatus: "ok" }).where(eq(websites.id, websiteId));
+    await test.db.insert(sitePosts).values([post(websiteId, "Wedding Photographer", 1), post(websiteId, "Elopement Photographer", 2)]);
+
+    expect((await runResearch(websiteId, orgId)).articles).toBe(5);
+    const [groups, , , schedule] = calendar.planCalendar.mock.calls.at(-1)!;
+    expect(groups[0].terms).toEqual(["wedding photographer", "elopement photographer"]);
+    // The planner still sees what the blog has, to take another angle.
+    expect((schedule as { existingTitles: string[] }).existingTitles).toContain("Wedding Photographer");
+    expect(queue.queueJob).toHaveBeenCalled();
+  });
+
+  it("puts a Free website's topics a week apart, the first one today", async () => {
+    const { orgId, websiteId } = await seedWebsite(test, { status: null });
+    await test.db.insert(freePlanAccounts).values({ organizationId: orgId, websiteId, domain: `${orgId}.example` });
+    expect((await runResearch(websiteId, orgId)).articles).toBe(4);
+    const days = (await itemsOf(websiteId)).map((item) => item.scheduledFor!.getTime()).sort((a, b) => a - b).map((at) => localDay(new Date(at)));
+    expect(days).toEqual([0, 7, 14, 21].map((n) => localDay(new Date(Date.now() + n * DAY))));
   });
 });
 

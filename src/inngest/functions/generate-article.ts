@@ -11,12 +11,14 @@ import { correctResearchDraft, needsEvidenceCorrection } from "@/lib/articles/ev
 import { articleSearch } from "@/lib/providers/dataforseo";
 import { researchMode, researchNeedsReview, type ResearchBrief } from "@/lib/articles/research-types";
 import { db } from "@/lib/db";
+import { utcDayStart } from "@/lib/keywords/cadence";
 import {
   articles,
   articleVersions,
   brandVoice,
   calendarItems,
   keywords,
+  spendReservations,
   subscriptions,
   websites,
 } from "@/lib/db/schema";
@@ -25,6 +27,8 @@ import {
   generateOutline,
   type ArticleBrief,
 } from "@/lib/articles/generate";
+import { cleanDashes } from "@/lib/articles/dashes";
+import { autoRetryKey, lockPace, startsLeft } from "@/lib/articles/pace";
 import { articleAllowanceRule, checkLimit, PRICING, track } from "@/lib/usage";
 import { backlinkRequests, placements } from "@/lib/db/schema";
 import { markPlacementDrafted } from "@/lib/backlinks/placements";
@@ -34,6 +38,7 @@ import {
   summarize,
 } from "@/lib/articles/internal-links";
 import { applyTableOfContents } from "@/lib/articles/toc";
+import { emailFirstArticleReady } from "@/lib/email/lifecycle-triggers";
 import { emailTeamArticleHeld } from "@/lib/articles/team-notify";
 import { checkReleasable, heldFromCustomer, PREPARING_MESSAGE, reviewStatusForNewDraft, twoStepArticles } from "@/lib/articles/review";
 import { ArticleInFlightError, lockForEdit } from "@/lib/publishing/dispatch";
@@ -646,7 +651,7 @@ export const generateArticle = inngest.createFunction(
       }
       // The site's own photograph: nothing to make or store.
       if (library?.cover) {
-        return { url: library.cover.url, alt: library.cover.alt, scene: null };
+        return { url: library.cover.url, alt: cleanDashes(library.cover.alt, { language: brief.brief.language }), scene: null };
       }
 
       if (!isImageGenerationConfigured() || !isImageStorageConfigured()) {
@@ -726,7 +731,7 @@ export const generateArticle = inngest.createFunction(
           "Header image generated and saved",
         );
 
-        return { url, alt: generated.alt, scene: scene?.scene ?? null };
+        return { url, alt: cleanDashes(generated.alt, { language: brief.brief.language }), scene: scene?.scene ?? null };
       } catch (error) {
         /*
           The swallow is the point of this log. The catch is deliberate - an
@@ -839,7 +844,10 @@ export const generateArticle = inngest.createFunction(
       if (placed) placedImages.push(placed);
     }
     // Pure, so it is the same on every replay of the steps above.
-    const bodyHtml = placedImages.length > 0 ? placeBodyImages(written.bodyHtml, placedImages) : written.bodyHtml;
+    const bodyHtml =
+      placedImages.length > 0
+        ? placeBodyImages(written.bodyHtml, placedImages.map((picture) => ({ ...picture, alt: cleanDashes(picture.alt, { language: brief.brief.language }) })))
+        : written.bodyHtml;
 
     /**
      * Internal links are chosen here, never by the writer: asked to link, a
@@ -1272,6 +1280,9 @@ export const generateArticle = inngest.createFunction(
       });
     });
 
+    // "Your first article is ready to publish", once per website; held for the team, it goes with their approval (lib/articles/release.ts).
+    await step.run("email-first-article", () => emailFirstArticleReady({ articleId, publishing: autoPublished, written: true }));
+
     /*
       A LEGACY free-articles trial's last free article starts its plan (lib/
       billing/free-articles.ts) - by card; through PayPal the customer is
@@ -1336,9 +1347,29 @@ type QueueOutcome =
   | { ok: true; articleId: string }
   | { ok: false; error: string };
 
+/** Who starts the article: RepGet by itself (the scheduler, which keeps the pace) or a person. */
+type StartOptions = { automatic?: boolean; now?: Date };
+
+/** The scheduler's answer when the website's pace has no room left (lib/articles/pace.ts). */
+export const PACE_REACHED = "The pace of this website's plan allows no more articles for now";
+
+/**
+ * How often an article whose writing failed is tried again BY ITSELF. Before
+ * this the scheduler re-queued a failed topic on every run, for ever: a topic
+ * that could not be written was paid for twice a day and kept every topic
+ * after it from being written at all.
+ *
+ *  - spent: tries that reached a paid call;
+ *  - total: every try, including those that failed before spending (a
+ *    provider outage), which cost nothing but must end too.
+ */
+export const AUTO_RETRIES = { spent: 2, total: 5 } as const;
+
 const NOT_ENTITLED =
   "This workspace has no active plan. Choose one to keep writing.";
 const ALREADY_WRITING = "This article is already being written";
+/** Every automatic try of a failed article is used (AUTO_RETRIES): it waits for a person. */
+export const RETRIES_USED = "This article could not be written after several tries";
 
 function isInactive(reason: string | null): boolean {
   return reason === "no_active_plan" || reason === "subscription_inactive";
@@ -1394,6 +1425,7 @@ function generationJob(data: {
 export async function queueArticleForCalendarItem(
   websiteId: string,
   calendarItemId: string,
+  options: StartOptions = {},
 ): Promise<QueueOutcome> {
   const [item] = await db
     .select()
@@ -1425,6 +1457,8 @@ export async function queueArticleForCalendarItem(
     .limit(1);
 
   if (existing) {
+    // The scheduler takes topics without an article; a second try of a failed one is retryFailedArticle.
+    if (options.automatic) return { ok: false, error: ALREADY_WRITING };
     return requeueArticle({ websiteId, articleId: existing.id, status: "queued" });
   }
 
@@ -1441,6 +1475,9 @@ export async function queueArticleForCalendarItem(
       sql`select pg_advisory_xact_lock(hashtextextended(${`article-item:${calendarItemId}`}, 0))`,
     );
 
+    // Every start waits here for the website's others, so the count below includes them.
+    await lockPace(tx, websiteId);
+
     // Another request may have created it while this one waited.
     const [raced] = await tx
       .select({ id: articles.id })
@@ -1448,6 +1485,15 @@ export async function queueArticleForCalendarItem(
       .where(eq(articles.calendarItemId, calendarItemId))
       .limit(1);
     if (raced) return { ok: false as const, error: ALREADY_WRITING };
+
+    /*
+      The pace, counted under the lock: two overlapping scheduler runs (the
+      cron, and the one a finished research wakes) cannot both take the day's
+      article. A person's press is not refused, and it counts.
+    */
+    if (options.automatic && (await startsLeft(websiteId, options.now, tx)).left === 0) {
+      return { ok: false as const, error: PACE_REACHED };
+    }
 
     const allowance = await articleAllowanceRule(websiteId, tx);
     if (!allowance.ok) return { ok: false as const, error: NOT_ENTITLED };
@@ -1503,7 +1549,8 @@ export async function queueArticleForCalendarItem(
         id: articleId,
         websiteId,
         calendarItemId,
-        title: item.title,
+        // A topic planned before the titles were written without dashes (lib/articles/dashes.ts).
+        title: cleanDashes(item.title, { kind: "title" }),
         targetKeyword: item.targetKeyword,
         status: "queued",
       })
@@ -1571,6 +1618,9 @@ export async function requeueArticle(input: {
   articleId: string;
   /** What the row shows while waiting: a refresh shows "generating" at once. */
   status: "queued" | "generating";
+  /** A second try RepGet makes by itself (retryFailedArticle): bounded, and within the pace. */
+  automatic?: boolean;
+  now?: Date;
 }): Promise<QueueOutcome> {
   const { websiteId, articleId } = input;
 
@@ -1618,22 +1668,29 @@ export async function requeueArticle(input: {
     return { ok: false, error: freePlanMessage("rewriteLocked") };
   }
 
-  const slot = await reserveAll(
-    [
-      {
-        key: `article-rewrite:${websiteId}`,
-        limit: REWRITES_PER_WEBSITE_PER_DAY,
-        window: { seconds: 24 * 60 * 60 },
-      },
-    ],
+  const rules: QuotaRule[] = [
     {
-      operation: "article.rewrite",
-      organizationId,
-      websiteId,
-      metadata: { articleId },
+      key: `article-rewrite:${websiteId}`,
+      limit: REWRITES_PER_WEBSITE_PER_DAY,
+      window: { seconds: 24 * 60 * 60 },
     },
-  );
+  ];
+  const reserveContext = { operation: "article.rewrite", organizationId, websiteId, metadata: { articleId } };
+  const slot = input.automatic
+    ? await db.transaction(async (tx) => {
+        // As a new article's start: the pace is counted, and the attempts, with every other start waiting.
+        await lockPace(tx, websiteId);
+        const refused = await automaticRetryRefused(tx, websiteId, articleId, input.now);
+        if (refused) return { ok: false as const, refused };
+        return reserveAll(
+          [...rules, { key: autoRetryKey(websiteId), limit: REWRITES_PER_WEBSITE_PER_DAY, window: { seconds: 24 * 60 * 60 } }],
+          reserveContext,
+          { executor: tx, now: input.now },
+        );
+      })
+    : await reserveAll(rules, reserveContext);
   if (!slot.ok) {
+    if ("refused" in slot) return { ok: false, error: slot.refused };
     return {
       ok: false,
       error: `This website has rewritten ${REWRITES_PER_WEBSITE_PER_DAY} articles in the last day. Try again later.`,
@@ -1694,4 +1751,39 @@ export async function requeueArticle(input: {
 
   await deliverNow(job.id);
   return { ok: true, articleId };
+}
+
+/**
+ * Why the scheduler may not try a failed article again now, or null when it
+ * may. Read under lockPace. An article that already counts for today (it
+ * failed today) takes no more of the day's pace.
+ */
+async function automaticRetryRefused(
+  tx: Pick<typeof db, "select" | "execute">,
+  websiteId: string,
+  articleId: string,
+  now: Date = new Date(),
+): Promise<string | null> {
+  const [tries] = await tx
+    .select({
+      total: sql<number>`count(*)::int`,
+      spent: sql<number>`(count(*) filter (where ${spendReservations.state} = 'consumed'))::int`,
+      today: sql<number>`(count(*) filter (where ${spendReservations.countedAt} >= ${utcDayStart(now).toISOString()}::timestamp))::int`,
+    })
+    .from(spendReservations)
+    .where(and(eq(spendReservations.key, autoRetryKey(websiteId)), sql`${spendReservations.metadata} ->> 'articleId' = ${articleId}`));
+  if (Number(tries?.spent ?? 0) >= AUTO_RETRIES.spent || Number(tries?.total ?? 0) >= AUTO_RETRIES.total) return RETRIES_USED;
+
+  const [row] = await tx.select({ createdAt: articles.createdAt }).from(articles).where(eq(articles.id, articleId)).limit(1);
+  if (!row) return "Article not found";
+  const countsToday = row.createdAt >= utcDayStart(now) || Number(tries?.today ?? 0) > 0;
+  if (!countsToday && (await startsLeft(websiteId, now, tx)).left === 0) return PACE_REACHED;
+  return null;
+}
+
+/** An article whose writing failed, tried again by itself: bounded (AUTO_RETRIES), and within the website's pace. */
+export async function retryFailedArticle(websiteId: string, articleId: string, now?: Date): Promise<QueueOutcome> {
+  const entitled = await isEntitledToSpend(websiteId, { freeArticles: true });
+  if (!entitled.ok) return { ok: false, error: entitled.error };
+  return requeueArticle({ websiteId, articleId, status: "queued", automatic: true, now });
 }

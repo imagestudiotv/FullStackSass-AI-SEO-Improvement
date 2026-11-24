@@ -3,8 +3,9 @@ import { and, eq, gte, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { articles, calendarItems, clusters } from "@/lib/db/schema";
 import type { PlannedArticle } from "@/lib/keywords/calendar";
-import { DAYS_PER_MONTH } from "@/lib/keywords/cadence";
-import { checkLimit, UNLIMITED } from "@/lib/usage";
+import { nextStartDay, paceFor } from "@/lib/articles/pace";
+import { dayIndex, DAYS_PER_MONTH } from "@/lib/keywords/cadence";
+import { articleAllowanceRule, checkLimit, UNLIMITED } from "@/lib/usage";
 
 /**
  * What a re-plan may replace, and how much it may add.
@@ -81,6 +82,27 @@ export async function articlesToPlan(
     usedUp: allowance.limit > 0 && count === 0,
     limit: allowance.limit,
     used: allowance.used,
+  };
+}
+
+/**
+ * How the planned topics are laid out (calendar.ts scheduleDates): the
+ * website's pace, so the calendar shows the days its articles are written
+ * (cadence.ts articlePace). Free's are a week apart, from the day after which
+ * its last article allows another.
+ */
+export async function planSchedule(
+  websiteId: string,
+  now: Date = new Date(),
+  executor: Executor = db,
+): Promise<{ everyDays: number; notBefore: Date; firstDay: number }> {
+  const pace = await paceFor(websiteId, now, executor);
+  const allowance = await articleAllowanceRule(websiteId, executor);
+  const window = allowance.ok ? allowance.rule.window : null;
+  return {
+    everyDays: pace?.days ?? 1,
+    notBefore: pace ? await nextStartDay(websiteId, pace, now, executor) : now,
+    firstDay: window && "since" in window ? dayIndex(window.since, now) : 0,
   };
 }
 
