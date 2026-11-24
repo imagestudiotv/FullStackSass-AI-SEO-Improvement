@@ -20,6 +20,7 @@ const KIND_ADMIN: Record<LifecycleKind, { label: string; when: string }> = {
   plan_started: { label: "Welcome to your plan", when: "On the subscription's first payment of real money." },
   payment_failed: { label: "Payment failed", when: "When Stripe or PayPal marks a plan as waiting for payment." },
   cancellation_confirmed: { label: "Cancellation confirmed", when: "When a plan is cancelled, with the day access ends." },
+  first_article_ready: { label: "First article ready", when: "Once per website, when the customer can read their first article (after the team's approval when it is held)." },
   article_published: { label: "Article live", when: "When an article goes live on the customer's site, once per article." },
   article_failed: { label: "Article not published", when: "When publishing fails for good; at most one a day per website." },
   video_views: { label: "Video passed 500 views", when: "Once per video (the 1,000-views email is separate and always on)." },

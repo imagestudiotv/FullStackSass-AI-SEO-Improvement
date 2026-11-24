@@ -34,11 +34,47 @@ export function articlesOnDay(perMonth: number, day: number): number {
   );
 }
 
+/** One day, in milliseconds. Days here are UTC calendar days, as the scheduler counts them. */
+export const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** On the Free plan: the first article at once, then one every this many days (client, 2026-11-24). */
+export const FREE_DAYS_PER_ARTICLE = 7;
+
+/** At most `articles` started in any `days` UTC calendar days, today included. */
+export type ArticlePace = { articles: number; days: number };
+
+/** Start of the UTC calendar day. */
+export function utcDayStart(now: Date): Date {
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+}
+
+/** The first UTC day that counts towards the pace now: starts since then use it up. */
+export function paceWindowStart(pace: ArticlePace, now: Date): Date {
+  return new Date(utcDayStart(now).getTime() - (pace.days - 1) * DAY_MS);
+}
+
+/** Whole UTC days from `since` to `now`: 0 on the first day. */
+export function dayIndex(since: Date, now: Date): number {
+  return Math.max(0, Math.round((utcDayStart(now).getTime() - utcDayStart(since).getTime()) / DAY_MS));
+}
+
 /**
- * The most articles any `days` days in a row hold: what the scheduler writes
- * ahead as one batch. For 100 a month, two days hold at most 7 (4 + 3).
+ * THE PACE: how many articles RepGet may start by itself (client, 2026-11-24:
+ * "one article per week. And for subscribers 1 article a day"; a Free website
+ * had three in one day, because writing ahead was done in batches of two days).
+ *
+ *  - Free: one every FREE_DAYS_PER_ARTICLE days, counted from the last one
+ *    started (the first is written at once);
+ *  - a plan with a month's worth or fewer: one a day;
+ *  - a larger plan: its own daily share (articlesOnDay; Scale's 60 is two a
+ *    day), because one a day could not deliver what it sells.
+ *
+ * `perMonth` is the plan's monthly allowance, or a value of 0 or less for a
+ * plan without one; `day` is the day of the allowance month (dayIndex).
+ * An administrator's "Articles per day" (lib/publishing/daily-cap.ts) also
+ * applies: the lower of the two wins (lib/articles/pace.ts).
  */
-export function articlesInDays(perMonth: number, days: number): number {
-  if (perMonth <= DAYS_PER_MONTH) return days;
-  return Math.ceil((days * perMonth) / DAYS_PER_MONTH);
+export function articlePace(plan: { free: boolean; perMonth: number }, day: number): ArticlePace {
+  if (plan.free) return { articles: 1, days: FREE_DAYS_PER_ARTICLE };
+  return { articles: articlesOnDay(plan.perMonth, day), days: 1 };
 }

@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { user } from "@/lib/db/auth-tables";
-import { agencyWorkspaces, calendarItems, freePlanAccounts, keywords, websites } from "@/lib/db/schema";
+import { agencyWorkspaces, articles, calendarItems, freePlanAccounts, keywords, websites } from "@/lib/db/schema";
 import { createTestDb, type TestDb } from "@/test/db";
 import { seedWebsite } from "@/test/fixtures";
 
@@ -21,14 +21,16 @@ vi.mock("@/inngest/client", () => ({ inngest: inngestMock }));
 vi.mock("@/lib/notifications/create", () => ({ notify: vi.fn() }));
 
 import { firstContentPlan } from "@/inngest/functions/first-content-plan";
-import { FIRST_PLAN_WINDOW_MS, firstPlanCandidates, planFirstIfDue } from "./first-plan";
+import { FIRST_PLAN_ATTEMPTS, FIRST_PLAN_WAITS_MS, FIRST_PLAN_WINDOW_MS, firstPlanCandidates, planFirstIfDue } from "./first-plan";
 import { startResearchJob } from "./research-job";
 
 /**
  * The first content plan starts by itself (client, 2026-11-21: the first Free
  * sign-up stopped before the onboarding's "Build my content plan" and got no
  * article): an analysed website with a plan - paid or Free - that was never
- * planned gets one research run, once, ever.
+ * planned gets its research run; and one whose run brought no calendar is
+ * tried again, bounded, instead of counting as planned for ever (client,
+ * 2026-11-24: three sign-ups at once, one article).
  */
 
 let test: TestDb;
@@ -67,11 +69,71 @@ describe("planFirstIfDue", () => {
     // The Content page follows the run from the moment it is queued.
     expect(await statusOf(websiteId)).toBe("researching");
 
-    // While it runs, and after it ended without keywords: never a second automatic run.
+    // While it runs, and once it brought its calendar: never a second automatic run.
     expect(await planFirstIfDue(websiteId)).toBe("running");
     await finish(websiteId);
+    await test.db.insert(calendarItems).values({ websiteId, title: "A topic" });
     expect(await planFirstIfDue(websiteId)).toBe("already_planned");
     expect(await researchJobs(websiteId)).toHaveLength(1);
+  });
+
+  it("tries again when a run ended without a calendar - keywords or not - waiting longer each time, then gives up", async () => {
+    const { websiteId } = await freeSite();
+    const start = new Date();
+    const at = (ms: number) => new Date(start.getTime() + ms);
+    // Each run's reservation is stamped with the real clock: move them to the test's.
+    const stamp = (when: Date) =>
+      test.client.query("update spend_reservations set created_at = $2, counted_at = $2, state = 'consumed' where website_id = $1 and created_at > $3", [
+        websiteId, when.toISOString(), at(-1000).toISOString(),
+      ]);
+    expect(await planFirstIfDue(websiteId, start)).toBe("queued");
+    await stamp(at(-10_000));
+    await finish(websiteId);
+    // Its clustering failed after the keywords were stored: a paid run, and nothing to write.
+    await test.db.insert(keywords).values({ websiteId, term: "wedding videographer", source: "ai_seed" });
+    expect(await firstPlanCandidates()).toContain(websiteId);
+    expect(await planFirstIfDue(websiteId, start)).toBe("waiting");
+
+    let clock = FIRST_PLAN_WAITS_MS[0];
+    for (let run = 2; run <= FIRST_PLAN_ATTEMPTS; run += 1) {
+      // Two hours on, the hourly research limits have room too.
+      expect(await planFirstIfDue(websiteId, at(clock))).toBe("queued");
+      await finish(websiteId);
+      await test.client.query("update spend_reservations set created_at = $2, counted_at = $2, state = 'consumed' where website_id = $1 and state = 'reserved'", [websiteId, at(clock).toISOString()]);
+      expect(await planFirstIfDue(websiteId, at(clock + 60_000))).toBe(run < FIRST_PLAN_ATTEMPTS ? "waiting" : "gave_up");
+      clock += FIRST_PLAN_WAITS_MS[run - 1];
+    }
+    expect(await planFirstIfDue(websiteId, at(clock + 10 * 24 * 3600 * 1000))).toBe("gave_up");
+    expect(await researchJobs(websiteId)).toHaveLength(FIRST_PLAN_ATTEMPTS);
+  });
+
+  it("waits between runs that failed before spending anything, but does not count them as tries", async () => {
+    const { websiteId } = await freeSite();
+    expect(await planFirstIfDue(websiteId)).toBe("queued");
+    await test.client.query("update spend_reservations set state = 'released' where website_id = $1", [websiteId]);
+    await finish(websiteId);
+    expect(await planFirstIfDue(websiteId)).toBe("waiting");
+    expect(await planFirstIfDue(websiteId, new Date(Date.now() + FIRST_PLAN_WAITS_MS[0] + 1000))).toBe("queued");
+    const [job] = (await researchJobs(websiteId)) as { data: { trigger?: string } }[];
+    // So its failure is not reported to the customer: RepGet tries again by itself.
+    expect(job.data.trigger).toBe("first");
+  });
+
+  it("takes over a run that never ended, and waits out Free's AI pause", async () => {
+    const stuck = await freeSite();
+    await test.db.update(websites).set({ status: "researching", updatedAt: new Date(Date.now() - 3600_000) }).where(eq(websites.id, stuck.websiteId));
+    expect(await firstPlanCandidates()).toContain(stuck.websiteId);
+    expect(await planFirstIfDue(stuck.websiteId)).toBe("queued");
+
+    const paused = await freeSite();
+    process.env.FREE_PLAN_DAILY_AI_BUDGET_CENTS = "0";
+    try {
+      expect(await planFirstIfDue(paused.websiteId)).toBe("paused");
+    } finally {
+      delete process.env.FREE_PLAN_DAILY_AI_BUDGET_CENTS;
+    }
+    expect(await researchJobs(paused.websiteId)).toHaveLength(0);
+    expect(await planFirstIfDue(paused.websiteId)).toBe("queued");
   });
 
   it("starts it for a paying website too", async () => {
@@ -91,10 +153,10 @@ describe("planFirstIfDue", () => {
     expect(await researchJobs(noPlan.websiteId)).toHaveLength(0);
   });
 
-  it("leaves alone a website already planned: keywords, a calendar, or a research run by the onboarding step", async () => {
-    const withKeywords = await seedWebsite(test);
-    await test.db.insert(keywords).values({ websiteId: withKeywords.websiteId, term: "wedding videographer", source: "ai_seed" });
-    expect(await planFirstIfDue(withKeywords.websiteId)).toBe("already_planned");
+  it("leaves alone a website already planned: a calendar or an article; and waits after the onboarding step's run", async () => {
+    const withArticle = await seedWebsite(test);
+    await test.db.insert(articles).values({ websiteId: withArticle.websiteId, title: "Written" });
+    expect(await planFirstIfDue(withArticle.websiteId)).toBe("already_planned");
 
     const withCalendar = await seedWebsite(test);
     await test.db.insert(calendarItems).values({ websiteId: withCalendar.websiteId, title: "A topic" });
@@ -104,7 +166,7 @@ describe("planFirstIfDue", () => {
     const pressed = await seedWebsite(test);
     expect(await startResearchJob(pressed.websiteId, pressed.orgId, { refuseIfRunning: true })).toBe("queued");
     await finish(pressed.websiteId);
-    expect(await planFirstIfDue(pressed.websiteId)).toBe("already_planned");
+    expect(await planFirstIfDue(pressed.websiteId)).toBe("waiting");
     expect(await researchJobs(pressed.websiteId)).toHaveLength(1);
   });
 

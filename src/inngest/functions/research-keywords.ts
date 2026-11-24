@@ -14,7 +14,7 @@ import { MODELS } from "@/lib/ai/client";
 import { db } from "@/lib/db";
 import { clusters, keywords, websites } from "@/lib/db/schema";
 import { planCalendar } from "@/lib/keywords/calendar";
-import { articlesToPlan, keptDates, replaceUnstartedPlan } from "@/lib/keywords/replan";
+import { articlesToPlan, keptDates, planSchedule, replaceUnstartedPlan } from "@/lib/keywords/replan";
 import { clusterKeywords } from "@/lib/keywords/cluster";
 import { brandMarks, isBrandSearch } from "@/lib/keywords/brand";
 import { rankKeywords, type SearchIntent } from "@/lib/keywords/score";
@@ -74,6 +74,8 @@ export const researchKeywords = inngest.createFunction(
        * Without this the status quietly returns to "ready" and the customer is
        * left believing research ran, with no keywords and no explanation.
        */
+      // A first plan RepGet started by itself is tried again by itself (first-plan.ts): nothing for the customer to do.
+      if (event.data.event.data.trigger === "first") return;
       await notify({
         organizationId: event.data.event.data.organizationId as string,
         type: "keywords.failed",
@@ -91,8 +93,8 @@ export const researchKeywords = inngest.createFunction(
       /** The website's owner: whoever pays. */
       organizationId: string;
       reservations?: Reservation[];
-      /** "renewal" when the month's automatic re-plan started it (lib/keywords/renewal.ts). */
-      trigger?: "renewal";
+      /** "renewal": the month's automatic re-plan (lib/keywords/renewal.ts). "first": a new website's first plan (first-plan.ts). */
+      trigger?: "renewal" | "first";
     };
 
     /*
@@ -450,7 +452,11 @@ export const researchKeywords = inngest.createFunction(
         limit.limit === UNLIMITED
           ? ranked.length
           : Math.max(limit.limit - limit.used, 0);
-      const selected = ranked.slice(0, allowance);
+      /*
+        Searches for a business by name last: the plan leaves them out, and a
+        small allowance (Free's 10) spent on them had nothing left to plan.
+      */
+      const selected = [...ranked.filter((k) => k.intent !== "navigational"), ...ranked.filter((k) => k.intent === "navigational")].slice(0, allowance);
 
       if (selected.length > 0) {
         await db
@@ -542,9 +548,11 @@ export const researchKeywords = inngest.createFunction(
         them. A term the customer typed in is theirs to plan, so it stays.
       */
       const marks = brandMarks(site);
-      const all = everything.filter(
+      const plannable = everything.filter(
         (keyword) => keyword.source === "manual" || (keyword.intent !== "navigational" && !isBrandSearch(keyword.term, marks)),
       );
+      // Nothing else at all (a plan spent on business names): a plan around those is better than none.
+      const all = plannable.length > 0 ? plannable : everything;
 
       /*
         A manually added term has no priority score — nothing measured it.
@@ -649,7 +657,13 @@ export const researchKeywords = inngest.createFunction(
         .where(eq(websites.id, websiteId))
         .limit(1);
       if (!row || !inventoryDue(row)) return { read: false };
-      return { read: true, ...(await refreshSiteInventory(websiteId)) };
+      // Reading the site helps the plan; failing to read it must not lose one already paid for.
+      try {
+        return { read: true, ...(await refreshSiteInventory(websiteId)) };
+      } catch (error) {
+        logger.warn({ step: "site-inventory", websiteId, reason: error instanceof Error ? error.message.slice(0, 200) : "unknown" }, "The site's own posts could not be read - planning without them");
+        return { read: false };
+      }
     });
 
     const planned = await step.run("plan-calendar", async () => {
@@ -670,6 +684,7 @@ export const researchKeywords = inngest.createFunction(
         return [];
       }
       const occupied = await keptDates(websiteId);
+      const layout = await planSchedule(websiteId);
 
       const intents = new Map(
         stored
@@ -685,7 +700,18 @@ export const researchKeywords = inngest.createFunction(
         ones take another angle (lib/sites/covered.ts).
       */
       const covered = await coveredTopics(websiteId);
-      const fresh = withoutCovered(grouped, covered);
+      let fresh = withoutCovered(grouped, covered);
+      /*
+        Everything left out: a small plan (Free keeps 10 search terms) on a
+        site whose blog already has an article on each. No plan at all was the
+        answer, and a website that never got its first article. Only what
+        RepGet itself wrote is then left out; the planner still sees the
+        site's own titles and takes another angle.
+      */
+      if (fresh.clusters.length === 0 && grouped.length > 0) {
+        fresh = withoutCovered(grouped, { ...covered, siteTitles: [] });
+        logger.warn({ step: "plan-calendar", websiteId, clusters: grouped.length, replanned: fresh.clusters.length }, "The site's own articles cover every keyword - planning other angles on them");
+      }
       if (fresh.dropped.length > 0) {
         logger.info({ step: "plan-calendar", websiteId, covered: fresh.dropped.length, examples: fresh.dropped.slice(0, 5) }, "Keywords the site already covers were left out of the plan");
       }
@@ -694,6 +720,7 @@ export const researchKeywords = inngest.createFunction(
         planCalendar(fresh.clusters, allowance.count, intents, {
           perMonth: allowance.perMonth,
           occupied,
+          ...layout,
           existingTitles: [...covered.siteTitles, ...covered.writtenTitles],
         }),
       );

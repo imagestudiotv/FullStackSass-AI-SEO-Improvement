@@ -30,6 +30,7 @@ administrators' own emails and the existing 1,000-views video email.
 | Welcome to your plan | The subscription's first payment of real money (Stripe `invoice.paid`, PayPal `PAYMENT.SALE.COMPLETED`) | Essential |
 | Payment failed | The subscription becomes `past_due` / `unpaid`; once per billing period | Essential |
 | Cancellation confirmed | Set to cancel at period end (with that date), or ended at once from a paid plan | Essential |
+| First article ready | Once per website, when the customer can open and read its first article: as the writing ends, or with the team's approval when it was held (`emailFirstArticleReady`). Never for a website that already has another article, nor a rewrite. The button goes through sign-in to that article | Tips and reports |
 | Article live | An article goes live (publish job or WordPress plugin report), once per article, with its URL | Tips and reports |
 | Article not published | Publishing fails for good (publish job's last retry, or the plugin reports a failure); at most one a day per website | Essential |
 | Video passed 500 views | The daily video follow-up sees 500+ (and under 1,000) views; once per video | Tips and reports |

@@ -1,7 +1,7 @@
-import { and, count, eq, gte, inArray, like } from "drizzle-orm";
+import { eq, inArray, like } from "drizzle-orm";
 
 import { db } from "@/lib/db";
-import { articles, creditSettings, websites } from "@/lib/db/schema";
+import { creditSettings, websites } from "@/lib/db/schema";
 import type { Executor } from "@/lib/db/types";
 
 /**
@@ -30,8 +30,10 @@ import type { Executor } from "@/lib/db/types";
  * The topics not written are not lost: moveMissedTopicsForward slides the
  * whole calendar forward each day, keeping its spacing.
  *
- * Only the scheduler reads this. "Write" pressed by hand is not limited, but
- * it counts towards the day (articlesStartedToday).
+ * Since 2026-11-24 every website also has its plan's pace (one article a day
+ * for most plans, lib/keywords/cadence.ts articlePace); this limit applies
+ * when it is lower. Both are enforced in lib/articles/pace.ts. "Write" pressed
+ * by hand is not limited, but it counts towards the day.
  */
 export const DAILY_LIMIT_PREFIX = "articles_per_day:";
 
@@ -102,21 +104,4 @@ export async function listDailyLimits(
     if (perDay !== null) limits.push({ websiteId: site.id, domain: site.domain, perDay, saved: stored.has(site.id) });
   }
   return limits.sort((a, b) => a.domain.localeCompare(b.domain));
-}
-
-/** Start of the UTC calendar day, the day the scheduler counts in (see missed-days.ts). */
-export function utcDayStart(now: Date): Date {
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-}
-
-/**
- * Articles this website has started since the UTC day began, however they
- * were started. `created_at` holds UTC wall-clock time, as usage.ts compares it.
- */
-export async function articlesStartedToday(websiteId: string, now: Date = new Date()): Promise<number> {
-  const [row] = await db
-    .select({ n: count() })
-    .from(articles)
-    .where(and(eq(articles.websiteId, websiteId), gte(articles.createdAt, utcDayStart(now))));
-  return row?.n ?? 0;
 }

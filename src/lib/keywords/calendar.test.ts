@@ -66,4 +66,25 @@ describe("scheduleDates", () => {
     expect(first.getTime()).toBe(evening.getTime());
     expect(day(second)).toBe("10/14");
   });
+
+  it("puts Free's topics a week apart, the first one today (client, 2026-11-24: one article per week)", () => {
+    const from = at(13, 11);
+    const dates = scheduleDates(4, from, { perMonth: 4, everyDays: 7 });
+    expect(dates.map((d) => d.getDate())).toEqual([13, 20, 27, new Date(from.getFullYear(), from.getMonth(), 34).getDate()]);
+    // Never earlier today than now.
+    expect(dates[0]).toEqual(from);
+  });
+
+  it("starts Free's topics a week after its last article, and keeps a week from a kept item", () => {
+    const from = at(13, 11);
+    expect(scheduleDates(2, from, { everyDays: 7, notBefore: at(18, 0) }).map((d) => d.getDate())).toEqual([18, 25]);
+    expect(scheduleDates(2, from, { everyDays: 7, occupied: [at(15, 9)] }).map((d) => d.getDate())).toEqual([22, 29]);
+  });
+
+  it("follows the allowance month's day, so the calendar and the scheduler share a day's number", () => {
+    const from = at(13, 8);
+    // Day 1 of a 100 plan holds 3, day 2 holds 3, day 3 holds 4.
+    const days = scheduleDates(10, from, { perMonth: 100, firstDay: 1 }).map((d) => d.getDate());
+    expect([13, 14, 15].map((day) => days.filter((d) => d === day).length)).toEqual([3, 3, 4]);
+  });
 });

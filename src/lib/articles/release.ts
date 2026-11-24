@@ -10,6 +10,7 @@ import { articles, calendarItems, websites } from "@/lib/db/schema";
 import { ARTICLE_DELIVERY, draftRefusalText, type ArticleDeliveryCopy } from "@/lib/i18n/article-delivery";
 import { DEFAULT_LOCALE, isLocale } from "@/lib/i18n/config";
 import { format } from "@/lib/i18n/format";
+import { emailFirstArticleReady } from "@/lib/email/lifecycle-triggers";
 import { notify } from "@/lib/notifications/create";
 import { nudgePluginIfDue } from "@/lib/plugin/sync";
 import { PUBLISHING_KINDS } from "@/lib/publishing/kinds";
@@ -128,6 +129,8 @@ export async function notifyDraftRefused(input: { organizationId: string; href: 
  * fails the approval, and nothing with the flow off.
  */
 export async function notifyReady(articleId: string, release: ReleaseOutcome): Promise<void> {
+  // The website's first article, by email, with the flow on or off: the team's approval is when it can be read and published. Never throws.
+  await emailFirstArticleReady({ articleId, publishing: release === "queued" || release === "plugin" });
   if (release === "queued" || release === "plugin") return;
   try {
     if (!(await twoStepArticles())) return;

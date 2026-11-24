@@ -43,6 +43,7 @@ const SAMPLES: Record<LifecycleKind, LifecycleEmail> = {
     endsOn: new Date("2026-12-01T00:00:00Z"),
     trial: false,
   },
+  first_article_ready: { kind: "first_article_ready", websiteId: "w1", articleId: "a1", domain: "example.com", title: "Hello", publishing: false, connected: false },
   article_published: { kind: "article_published", websiteId: "w1", articleId: "a1", domain: "example.com", title: "Hello", url: "https://example.com/hello" },
   article_failed: { kind: "article_failed", websiteId: "w1", articleId: "a1", domain: "example.com", title: "Hello", error: "401 Unauthorized" },
   video_views: { kind: "video_views", websiteId: "w1", domain: "example.com", title: "Clip", views: 500 },

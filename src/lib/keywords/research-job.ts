@@ -58,7 +58,7 @@ export async function startResearchJob(
   options: {
     refuseIfRunning?: boolean;
     rules?: QuotaRule[];
-    trigger?: "renewal";
+    trigger?: "renewal" | "first";
   } = {},
 ): Promise<"queued" | "running" | "limited"> {
   /*

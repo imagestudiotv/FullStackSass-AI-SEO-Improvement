@@ -1,5 +1,6 @@
 import { anthropic, isAiConfigured, MODELS } from "@/lib/ai/client";
-import { articlesOnDay } from "@/lib/keywords/cadence";
+import { cleanDashes, NO_DASH_RULE } from "@/lib/articles/dashes";
+import { articlesOnDay, DAY_MS } from "@/lib/keywords/cadence";
 import type { KeywordCluster } from "@/lib/keywords/cluster";
 
 /**
@@ -16,6 +17,18 @@ export type PlannedArticle = {
   intent: string | null;
   clusterName: string;
   scheduledFor: Date;
+};
+
+/** How scheduleDates lays the topics out; see there. */
+export type ScheduleOptions = {
+  perMonth?: number;
+  occupied?: Date[];
+  /** Days from one topic to the next: 1, or Free's week. */
+  everyDays?: number;
+  /** With everyDays above 1: the first day a topic may have. */
+  notBefore?: Date;
+  /** The day of the allowance month planning starts on. */
+  firstDay?: number;
 };
 
 const SCHEMA = {
@@ -59,7 +72,8 @@ Rules:
 - Several keywords may belong to the same topic. When they do, each title must
   answer a DIFFERENT question - a cost guide, a how-to and a comparison, not
   three rewordings of one article. Two titles that would produce the same
-  article are a failure.`;
+  article are a failure.
+- ${NO_DASH_RULE}`;
 
 /**
  * Fills consecutive days, several per day where the plan allows it.
@@ -101,13 +115,24 @@ Rules:
  *  - `occupied` holds the dates of the kept items. A day already holding its
  *    share of them is skipped, so today's published article and the drafts
  *    written ahead are not doubled up with new topics.
+ *
+ * ON FREE the topics are a week apart (`everyDays`, cadence.ts
+ * FREE_DAYS_PER_ARTICLE), the first on the day the next article may be started
+ * (`notBefore`): the calendar shows the pace the articles are written at
+ * (client, 2026-11-24). Never closer than that to a kept item either.
+ *
+ * `firstDay` is the day of the allowance month planning starts on, so a plan
+ * above 30 a month has the same share on a day here and in the scheduler.
  */
 export function scheduleDates(
   count: number,
   from: Date = new Date(),
-  options: { perMonth?: number; occupied?: Date[] } = {},
+  options: ScheduleOptions = {},
 ): Date[] {
   if (count <= 0) return [];
+
+  const everyDays = options.everyDays ?? 1;
+  if (everyDays > 1) return spacedDates(count, from, everyDays, options);
 
   // Without the plan's allowance, `count` is taken to be the whole month.
   const perMonth = options.perMonth ?? count;
@@ -125,7 +150,7 @@ export function scheduleDates(
   for (let day = 0; dates.length < count; day += 1) {
     const base = new Date(from);
     base.setDate(base.getDate() + day);
-    const share = articlesOnDay(perMonth, day);
+    const share = articlesOnDay(perMonth, (options.firstDay ?? 0) + day);
 
     for (
       let position = taken.get(dayKey(base)) ?? 0;
@@ -154,6 +179,35 @@ export function scheduleDates(
     }
   }
 
+  return dates;
+}
+
+/** One topic every `everyDays` days: scheduleDates for a plan slower than one a day (Free). */
+function spacedDates(count: number, from: Date, everyDays: number, options: ScheduleOptions): Date[] {
+  const startOfDay = (date: Date) => {
+    const day = new Date(date);
+    day.setHours(0, 0, 0, 0);
+    return day;
+  };
+  const daysBetween = (a: Date, b: Date) => Math.round((startOfDay(a).getTime() - startOfDay(b).getTime()) / DAY_MS);
+  const occupied = [...(options.occupied ?? [])].sort((a, b) => a.getTime() - b.getTime());
+
+  const dates: Date[] = [];
+  let day = startOfDay(options.notBefore && options.notBefore > from ? options.notBefore : from);
+  while (dates.length < count) {
+    const clash = occupied.find((kept) => Math.abs(daysBetween(kept, day)) < everyDays);
+    const base = new Date(clash ?? day);
+    if (clash) {
+      base.setDate(base.getDate() + everyDays);
+      day = startOfDay(base);
+      continue;
+    }
+    const date = new Date(base);
+    date.setHours(9, 0, 0, 0);
+    dates.push(date.getTime() < from.getTime() ? new Date(from) : date);
+    day = new Date(base);
+    day.setDate(day.getDate() + everyDays);
+  }
   return dates;
 }
 
@@ -186,7 +240,7 @@ export async function planCalendar(
    * scheduleDates), and the titles the site and RepGet already have, which
    * the new ones must not repeat (lib/sites/covered.ts).
    */
-  schedule: { perMonth?: number; occupied?: Date[]; existingTitles?: string[] } = {},
+  schedule: ScheduleOptions & { existingTitles?: string[] } = {},
 ): Promise<PlannedArticle[]> {
   if (!isAiConfigured()) {
     throw new Error("ANTHROPIC_API_KEY is not set");
@@ -359,7 +413,8 @@ export async function planCalendar(
       continue;
     byKeyword.set(
       targetKeyword.trim().toLowerCase(),
-      title.trim().slice(0, 200),
+      // Of the model's titles only: a search term keeps its own hyphens.
+      cleanDashes(title.trim(), { kind: "title" }).slice(0, 200),
     );
   }
 
