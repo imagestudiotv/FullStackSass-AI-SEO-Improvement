@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getReviewQueue, listMissingLinks, type QueueArticle } from "@/lib/admin/network";
+import { pageFrom } from "@/lib/admin/shared";
 import { FAILURES_BEFORE_REMOVED } from "@/lib/backlinks/placements";
 import { formatDate, formatNumber } from "@/lib/i18n/format";
 
@@ -12,7 +13,10 @@ import { AdminPage, AdminPageHeader, AdminSection, AdminStat } from "../_ui/page
 import { AdminStatus, type StatusTone } from "../_ui/status";
 import { AdminEmpty } from "../_ui/states";
 import { AdminTableCard } from "../_ui/table";
+import { AdminToolbar } from "../_ui/toolbar";
 import { ExpandableText } from "../_ui/expandable-text";
+import { BulkCheckbox, BulkDeleteBar, BulkRow, BulkSelectAll, BulkSelectionProvider } from "../bulk-delete";
+import { Pagination } from "../pagination";
 import { MissingLinkActions } from "./missing-links";
 import { RowLinksMenu, type RowLink } from "./row-menu";
 
@@ -20,12 +24,10 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Partner Network" };
 
 /**
- * The loaders stop at these many rows and say nothing about it
- * (lib/admin/network.ts getReviewQueue, lib/backlinks/placements.ts
- * missingPlacements). Mirrored here only to say on screen that a full list
- * may be longer - the queries themselves are unchanged.
+ * missingPlacements (lib/backlinks/placements.ts) stops at this many rows and
+ * says nothing about it. Mirrored here only to say on screen that a full list
+ * may be longer.
  */
-const QUEUE_LIMIT = 200;
 const MISSING_LIMIT = 100;
 
 const n = (value: number) => formatNumber(value, "en");
@@ -52,14 +54,17 @@ const websiteHref = (domain: string) => `/admin/websites?q=${encodeURIComponent(
  * taking part and each workspace's credits. The figures at the top jump to
  * their section (the overview links straight to #missing-links).
  */
-export default async function AdminNetworkPage() {
+export default async function AdminNetworkPage({ searchParams }: PageProps<"/admin/network">) {
+  const params = await searchParams;
+  const site = Array.isArray(params.site) ? params.site[0] : params.site;
   // getReviewQueue also grants each workspace's monthly credits on first read - keep calling it.
-  const [queue, missing] = await Promise.all([getReviewQueue(), listMissingLinks()]);
+  const [queue, missing] = await Promise.all([getReviewQueue({ page: pageFrom(params.page), websiteId: site }), listMissingLinks()]);
   const pending = queue.articles.filter((a) => !a.approvedCurrent);
   const approved = queue.articles.filter((a) => a.approvedCurrent);
-  const queueCut = queue.articles.length >= QUEUE_LIMIT;
+  const { total: waiting, matching, changed, page, pageSize, websites: waitingSites } = queue.pending;
+  const filtered = waitingSites.find((row) => row.websiteId === site);
+  const approvedCut = queue.approved.total > approved.length;
   const missingCut = missing.length >= MISSING_LIMIT;
-  const changed = pending.filter((a) => a.reviewStatus === "approved").length;
   const capped = (value: number, cut: boolean) => (cut ? `${n(value)}+` : n(value));
 
   return (
@@ -80,7 +85,7 @@ export default async function AdminNetworkPage() {
       <nav aria-label="Partner Network sections" className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
         <AdminStat
           label="Waiting for review"
-          value={capped(pending.length, queueCut)}
+          value={n(waiting)}
           href="#review"
           hint={changed > 0 ? `${n(changed)} changed since approval` : "Held until approved"}
         />
@@ -90,7 +95,7 @@ export default async function AdminNetworkPage() {
           href="#missing-links"
           hint="Still live - nothing refunded"
         />
-        <AdminStat label="Approved, not yet published" value={capped(approved.length, queueCut)} href="#approved" hint="Waiting for their planned day" />
+        <AdminStat label="Approved, not yet published" value={n(queue.approved.total)} href="#approved" hint="Waiting for their planned day" />
         <AdminStat label="Participating websites" value={n(queue.sites.length)} href="#websites" hint="Accepting network links" />
         <AdminStat label="Workspaces" value={n(queue.credits.length)} href="#credits" hint="Credit balances of participating owners" />
       </nav>
@@ -98,73 +103,95 @@ export default async function AdminNetworkPage() {
       {/* Waiting for review */}
       <AdminSection
         id="review"
-        title={`Waiting for review (${capped(pending.length, queueCut)})`}
-        description={
-          <>
-            Held from every publishing path until approved. New customers&apos; first articles first, then oldest planned date.
-            {queueCut ? <CutNote>Only the first {n(QUEUE_LIMIT)} articles in the queue are loaded - more may be waiting.</CutNote> : null}
-          </>
-        }
+        title={`Waiting for review (${n(waiting)})`}
+        description="Held from every publishing path until approved. New customers' first articles first, then oldest planned date."
         bodyClassName="p-0"
         className="scroll-mt-20"
       >
         {pending.length === 0 ? (
-          <AdminEmpty filtering={false} icon={ClipboardCheck} noun="articles" title="Nothing is waiting." description="New drafts on participating websites appear here for review." />
+          <AdminEmpty filtering={waiting > 0} clearHref="/admin/network" icon={ClipboardCheck} noun="articles" title="Nothing is waiting." description="New drafts on participating websites appear here for review." />
         ) : (
-          <SectionTable>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Article</TableHead>
-                  <TableHead className="hidden md:table-cell">Website</TableHead>
-                  <TableHead>Planned</TableHead>
-                  <TableHead>Review</TableHead>
-                  <TableHead data-numeric className="hidden sm:table-cell">Links</TableHead>
-                  <TableHead className="hidden xl:table-cell">Delivery</TableHead>
-                  <TableHead className="w-12">
-                    <span className="sr-only">Actions</span>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pending.map((article) => (
-                  <TableRow key={article.id}>
-                    <TableCell className="max-w-88 whitespace-normal">
-                      <ArticleLink article={article} />
-                      <span className="block [overflow-wrap:anywhere] text-xs text-muted-foreground md:hidden">{article.domain}</span>
-                    </TableCell>
-                    <TableCell className="hidden max-w-64 whitespace-normal md:table-cell">
-                      <span className="block [overflow-wrap:anywhere]">{article.domain}</span>
-                      <span className="block [overflow-wrap:anywhere] text-xs text-muted-foreground">
-                        {article.organizationName}
-                        {article.language ? ` · ${article.language}` : ""}
-                      </span>
-                    </TableCell>
-                    <TableCell className="tabular-nums">{day(article.plannedFor)}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {article.reviewStatus === "approved" ? (
-                          <AdminStatus tone="warning" label="Changed since approval" title="Approved earlier, then changed - held until it is approved again" />
-                        ) : (
-                          <AdminStatus tone="pending" label="Pending" />
-                        )}
-                        {/* A new customer's first article: shown first, to be ready quickly. */}
-                        {article.firstArticle ? <AdminStatus tone="info" label="First article" title="Nothing of this website is published yet - a new customer is waiting" /> : null}
-                        {article.researchHeld ? <AdminStatus tone="warning" label="Check sources" title="Its sources are flagged: check them on the review page before approving" /> : null}
-                      </div>
-                    </TableCell>
-                    <TableCell data-numeric className="hidden sm:table-cell">{n(article.placements)}</TableCell>
-                    <TableCell className="hidden xl:table-cell">
-                      <AdminStatus tone={CONNECTION[article.connected].tone} label={CONNECTION[article.connected].label} />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <RowLinksMenu label={`Actions for ${article.title}`} links={articleLinks(article)} />
-                    </TableCell>
+          <BulkSelectionProvider items={pending.map((article) => ({ id: article.id, label: `${article.title} (${article.domain})` }))}>
+            <AdminToolbar
+              className="border-b px-5 py-3"
+              filters={[
+                {
+                  param: "site",
+                  label: "Website",
+                  allValue: "all",
+                  options: [{ value: "all", label: "All" }, ...waitingSites.map((row) => ({ value: row.websiteId, label: `${row.domain} (${n(row.count)})` }))],
+                },
+              ]}
+              resultLabel={filtered ? `${n(matching)} of ${n(waiting)} waiting` : undefined}
+            />
+            <SectionTable
+              toolbar={<BulkDeleteBar kind="drafts" />}
+              footer={
+                matching > pageSize ? (
+                  <Pagination page={page} pageSize={pageSize} total={matching} params={{ site: filtered?.websiteId }} basePath="/admin/network" />
+                ) : undefined
+              }
+            >
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-10">
+                      <BulkSelectAll label="Select every draft on this page" />
+                    </TableHead>
+                    <TableHead>Article</TableHead>
+                    <TableHead className="hidden md:table-cell">Website</TableHead>
+                    <TableHead>Planned</TableHead>
+                    <TableHead>Review</TableHead>
+                    <TableHead data-numeric className="hidden sm:table-cell">Links</TableHead>
+                    <TableHead className="hidden xl:table-cell">Delivery</TableHead>
+                    <TableHead className="w-12">
+                      <span className="sr-only">Actions</span>
+                    </TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </SectionTable>
+                </TableHeader>
+                <TableBody>
+                  {pending.map((article) => (
+                    <BulkRow key={article.id} id={article.id}>
+                      <TableCell>
+                        <BulkCheckbox id={article.id} label={article.title} />
+                      </TableCell>
+                      <TableCell className="max-w-88 whitespace-normal">
+                        <ArticleLink article={article} />
+                        <span className="block [overflow-wrap:anywhere] text-xs text-muted-foreground md:hidden">{article.domain}</span>
+                      </TableCell>
+                      <TableCell className="hidden max-w-64 whitespace-normal md:table-cell">
+                        <span className="block [overflow-wrap:anywhere]">{article.domain}</span>
+                        <span className="block [overflow-wrap:anywhere] text-xs text-muted-foreground">
+                          {article.organizationName}
+                          {article.language ? ` · ${article.language}` : ""}
+                        </span>
+                      </TableCell>
+                      <TableCell className="tabular-nums">{day(article.plannedFor)}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {article.reviewStatus === "approved" ? (
+                            <AdminStatus tone="warning" label="Changed since approval" title="Approved earlier, then changed - held until it is approved again" />
+                          ) : (
+                            <AdminStatus tone="pending" label="Pending" />
+                          )}
+                          {/* A new customer's first article: shown first, to be ready quickly. */}
+                          {article.firstArticle ? <AdminStatus tone="info" label="First article" title="Nothing of this website is published yet - a new customer is waiting" /> : null}
+                          {article.researchHeld ? <AdminStatus tone="warning" label="Check sources" title="Its sources are flagged: check them on the review page before approving" /> : null}
+                        </div>
+                      </TableCell>
+                      <TableCell data-numeric className="hidden sm:table-cell">{n(article.placements)}</TableCell>
+                      <TableCell className="hidden xl:table-cell">
+                        <AdminStatus tone={CONNECTION[article.connected].tone} label={CONNECTION[article.connected].label} />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <RowLinksMenu label={`Actions for ${article.title}`} links={articleLinks(article)} />
+                      </TableCell>
+                    </BulkRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </SectionTable>
+          </BulkSelectionProvider>
         )}
       </AdminSection>
 
@@ -262,8 +289,13 @@ export default async function AdminNetworkPage() {
       {/* Approved, waiting for their day */}
       <AdminSection
         id="approved"
-        title={`Approved, not yet published (${capped(approved.length, queueCut)})`}
-        description="Released on their planned day, following each customer's publishing mode. Any change holds an article again."
+        title={`Approved, not yet published (${n(queue.approved.total)})`}
+        description={
+          <>
+            Released on their planned day, following each customer&apos;s publishing mode. Any change holds an article again.
+            {approvedCut ? <CutNote>Only the first {n(queue.approved.limit)} are listed.</CutNote> : null}
+          </>
+        }
         bodyClassName="p-0"
         className="scroll-mt-20"
       >
@@ -443,8 +475,12 @@ export default async function AdminNetworkPage() {
 }
 
 /** A table inside a section card: the list density, without a second frame. */
-function SectionTable({ children }: { children: ReactNode }) {
-  return <AdminTableCard className="rounded-t-none border-0 shadow-none">{children}</AdminTableCard>;
+function SectionTable({ children, toolbar, footer }: { children: ReactNode; toolbar?: ReactNode; footer?: ReactNode }) {
+  return (
+    <AdminTableCard className="rounded-t-none border-0 shadow-none" toolbar={toolbar} footer={footer}>
+      {children}
+    </AdminTableCard>
+  );
 }
 
 function CutNote({ children }: { children: ReactNode }) {
