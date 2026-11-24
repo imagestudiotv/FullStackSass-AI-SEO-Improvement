@@ -357,6 +357,13 @@ async function processBillingEvent(event: Stripe.Event): Promise<void> {
       const status = event.type === "invoice.paid" ? "paid" : "failed";
       const providerPaidAt = invoice.status_transitions?.paid_at
         ? new Date(invoice.status_transitions.paid_at * 1000) : null;
+      /*
+        Paid: what was paid. Failed: what was asked for. A failed invoice's
+        amount_paid is 0, not missing, so `amount_paid ?? amount_due` recorded
+        every failed payment as €0.00 in Admin -> Payments (2026-11-20: a
+        declined €89 Grow charge showed as "Failed €0.00").
+      */
+      const amountCents = status === "paid" ? (invoice.amount_paid ?? 0) : (invoice.amount_due ?? 0);
       if (invoice.id) {
         await db
           .insert(payments)
@@ -364,7 +371,7 @@ async function processBillingEvent(event: Stripe.Event): Promise<void> {
             organizationId: orgId,
             provider: "stripe",
             externalId: invoice.id,
-            amountCents: invoice.amount_paid ?? invoice.amount_due ?? 0,
+            amountCents,
             currency: invoice.currency ?? "eur",
             status,
             invoiceUrl: invoice.hosted_invoice_url ?? invoice.invoice_pdf ?? null,
@@ -388,8 +395,9 @@ async function processBillingEvent(event: Stripe.Event): Promise<void> {
               status,
               // A failed invoice later paid must use the actual paid amount/time,
               // not the earlier failure's amount_due/date. Replays keep the provider timestamp.
+              // A failed retry states the amount asked for, which also corrects a row recorded as €0.00 before.
+              amountCents,
               ...(status === "paid" ? {
-                amountCents: invoice.amount_paid ?? 0,
                 currency: invoice.currency ?? "eur",
                 ...(providerPaidAt ? { paidAt: providerPaidAt } : {}),
               } : {}),
