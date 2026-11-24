@@ -31,6 +31,7 @@ vi.mock("next/image", () => ({
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => "/" }));
 
+import { plain } from "./_home/text";
 import { HomePageSections } from "./home-page";
 import { PricingPreview } from "./pricing-preview";
 import { Testimonials } from "./testimonials-section";
@@ -84,6 +85,13 @@ function positions(html: string, markers: string[]) {
   });
 }
 
+/** What a screen reader and a search engine read of a piece of markup: its words, apart. */
+const words = (html: string) =>
+  html
+    .replace(/<[^>]+>/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
 const sectionIds = (html: string) => [...html.matchAll(/<section[^>]*?id="([^"]+)"/g)].map((m) => m[1]);
 
 describe("homepage sections", () => {
@@ -92,6 +100,7 @@ describe("homepage sections", () => {
     const order = positions(html, [
       "<h1",
       esc(heroCopy(locale).ribbon.counterLabel),
+      'id="home-meet-title"',
       'id="features"',
       'id="growth-engines"',
       'id="repget-demo-video"',
@@ -123,21 +132,36 @@ describe("homepage sections", () => {
     expect(html).toContain('href="#repget-demo-video"');
   });
 
-  it.each(LOCALES)("%s: the hero's one heading says the name and the promise; the mascots are decoration", (locale) => {
+  it.each(LOCALES)("%s: the hero's one heading says the opening and the promise", (locale) => {
     const t = heroCopy(locale).hero;
     const html = renderHome(locale);
     const h1 = html.match(/<h1[\s\S]*?<\/h1>/)?.[0] ?? "";
-    // What a screen reader and a search engine read: the visible words, apart, without the mascots' own.
-    const words = h1
-      .replace(/<span[^>]*aria-hidden="true"[\s\S]*?(?=<span[^>]*>RepGet\.<\/span>)/, " ")
-      .replace(/<[^>]+>/g, "")
-      .replace(/\s+/g, " ")
-      .trim();
-    expect(words).toBe(esc(`${t.meet} RepGet. ${t.subtitleLine1} ${t.subtitleLine2}`));
-    expect(h1).toMatch(/<span[^>]*aria-hidden="true"[^>]*>/);
-    expect(h1).not.toContain("<button");
+    expect(words(h1)).toBe(esc(`${t.opening} ${plain(t.promise)}`));
+    // The promise's last word is the accented one; the streams keep clear of both lines.
+    expect(h1).toMatch(/<em[^>]*>[^<]+<\/em><\/span><\/h1>$/);
+    expect(h1.match(/data-stream-text/g)).toHaveLength(2);
+    // The pill and "Meet RepGet." are no longer in the hero.
+    expect(h1).not.toContain("RepGet");
     // The old hero's floating cards and rating pill are gone.
     expect(html).not.toContain("growth features");
+  });
+
+  it.each(LOCALES)("%s: Meet RepGet comes after the ribbon, small, with the mascots as still decoration", (locale) => {
+    const { eyebrow, meet } = heroCopy(locale).meet;
+    const html = renderHome(locale);
+    const h2 = html.match(/<h2 id="home-meet-title"[\s\S]*?<\/h2>/)?.[0] ?? "";
+    const spoken = h2.replace(/<span[^>]*aria-hidden="true"[\s\S]*?(?=<span[^>]*>RepGet\.<\/span>)/, " ");
+    expect(words(spoken)).toBe(esc(`${meet} RepGet.`));
+    expect(h2.match(/<img/g)).toHaveLength(2);
+    expect(h2).not.toContain("<button");
+    expect(html).toContain(`>${esc(eyebrow)}</p>`);
+  });
+
+  it.each(LOCALES)("%s: the signal streams are empty decoration until the browser draws them", (locale) => {
+    const html = renderHome(locale);
+    expect(html.match(/<div class="[^"]*streams[^"]*" aria-hidden="true"><svg[^>]*><\/svg><\/div>/g)).toHaveLength(1);
+    // Behind the words and the field: before them in the page, and out of the form.
+    expect(html.indexOf("streams")).toBeLessThan(html.indexOf("<h1"));
   });
 
   it("loads nothing from YouTube on the first paint, and still links to the video", () => {
