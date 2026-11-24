@@ -2,14 +2,17 @@ import "server-only";
 
 import { and, asc, count, eq, gt, gte, inArray, isNotNull, isNull, lte, sql, type SQL } from "drizzle-orm";
 
-import { customerTitleSql } from "@/lib/articles/review";
+import { customerTitleSql, heldFromCustomer, twoStepArticles } from "@/lib/articles/review";
 
 import { WINBACK_BONUS_CREDITS, WINBACK_PERCENT_OFF, winbackOfferEnabled } from "@/lib/billing/winback-offer";
 import { db } from "@/lib/db";
 import {
   articles,
+  articleVersions,
   calendarItems,
   creditLedger,
+  integrationKeys,
+  integrations,
   member,
   payments,
   plans,
@@ -23,6 +26,7 @@ import {
 } from "@/lib/db/schema";
 import type { Executor } from "@/lib/db/types";
 import { planHasVisibilityPerks } from "@/lib/plans/benefits";
+import { PUBLISHING_KINDS } from "@/lib/publishing/kinds";
 import { isSubscriptionEnded } from "@/lib/websites/deletion";
 
 import { sendLifecycleEmail, type LifecycleOutcome } from "./lifecycle";
@@ -546,6 +550,79 @@ export async function emailTrialEnding(subscriptionId: string, executor: Executo
 async function domainOf(executor: Executor, websiteId: string): Promise<string | null> {
   const [site] = await executor.select({ domain: websites.domain }).from(websites).where(eq(websites.id, websiteId)).limit(1);
   return site?.domain ?? null;
+}
+
+/** A first article older than this when it becomes ready is not announced (nobody is emailed about an old one). */
+const FIRST_ARTICLE_NEWS_MS = 21 * DAY_MS;
+
+/**
+ * "Your first article is ready to publish" (client, 2026-11-24): every website,
+ * free or paid, once, when the customer can open and READ its first article -
+ * called after it is written (generate-article.ts) and after the RepGet team
+ * approves it (lib/articles/release.ts), whichever comes second.
+ *
+ * Not while it is held: under the two-step flow the customer reads none of it,
+ * and in managed review it may not be published yet. Not for a website that
+ * has any other article with a text, so nothing is sent about an old one, nor
+ * for one written before this existed and rewritten since (`written`).
+ */
+export async function emailFirstArticleReady(
+  input: { articleId: string; publishing?: boolean; /** Called as the writing ends: a rewrite is not a first article. */ written?: boolean },
+  executor: Executor = db,
+): Promise<LifecycleOutcome> {
+  try {
+    return await firstArticleReady(input, executor);
+  } catch (error) {
+    // Its callers are the writing and the approval: neither may fail for an email.
+    console.error(`[lifecycle-email] first_article_ready ${input.articleId} could not be decided`, error);
+    return { status: "failed", reason: error instanceof Error ? error.message : "unknown" };
+  }
+}
+
+async function firstArticleReady(input: { articleId: string; publishing?: boolean; written?: boolean }, executor: Executor): Promise<LifecycleOutcome> {
+  const [row] = await executor
+    .select({
+      article: articles,
+      title: customerTitleSql,
+      organizationId: websites.organizationId,
+      domain: websites.domain,
+      connected: sql<boolean>`(exists (select 1 from ${integrations} i where i.website_id = ${articles.websiteId}
+          and i.status = 'connected' and i.kind in (${sql.join(PUBLISHING_KINDS.map((kind) => sql`${kind}`), sql`, `)}))
+        or exists (select 1 from ${integrationKeys} k where k.website_id = ${articles.websiteId}
+          and k.revoked_at is null and k.last_used_at is not null))`,
+      others: sql<number>`(select count(*)::int from articles o where o.website_id = ${articles.websiteId}
+        and o.id <> ${articles.id} and o.translation_of is null and o.body_html is not null)`,
+      versions: sql<number>`(select count(*)::int from ${articleVersions} v where v.article_id = ${articles.id})`,
+    })
+    .from(articles)
+    .innerJoin(websites, eq(websites.id, articles.websiteId))
+    .where(eq(articles.id, input.articleId))
+    .limit(1);
+  if (!row || !row.article.bodyHtml) return { status: "skipped", reason: "no_article" };
+  if (row.article.translationOf) return { status: "skipped", reason: "translation" };
+  if (Number(row.others) > 0 || (input.written && Number(row.versions) > 1)) return { status: "skipped", reason: "not_first" };
+  // Approved again long after it was written, or already on the website: not news.
+  if (row.article.publishedUrl || Date.now() - row.article.createdAt.getTime() > FIRST_ARTICLE_NEWS_MS) return { status: "skipped", reason: "old" };
+  if (row.article.reviewStatus === "pending" || (heldFromCustomer(row.article) && (await twoStepArticles(executor)))) {
+    return { status: "skipped", reason: "held" };
+  }
+  return sendLifecycleEmail(
+    {
+      organizationId: row.organizationId,
+      kind: "first_article_ready",
+      dedupeKey: row.article.websiteId,
+      build: () => ({
+        kind: "first_article_ready",
+        websiteId: row.article.websiteId,
+        articleId: row.article.id,
+        domain: row.domain,
+        title: row.title,
+        publishing: Boolean(input.publishing),
+        connected: Boolean(row.connected),
+      }),
+    },
+    executor,
+  );
 }
 
 /** An article went live (publish-article.ts, the plugin's report): once per article, with its live address. */

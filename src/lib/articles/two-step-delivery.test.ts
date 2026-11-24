@@ -79,7 +79,7 @@ vi.mock("@/lib/notifications/create", () => ({
     return true;
   }),
 }));
-vi.mock("@/lib/email/lifecycle-triggers", () => ({ emailArticlePublished: vi.fn(), emailArticleFailed: vi.fn() }));
+vi.mock("@/lib/email/lifecycle-triggers", () => ({ emailArticlePublished: vi.fn(), emailArticleFailed: vi.fn(), emailFirstArticleReady: vi.fn() }));
 vi.mock("@/lib/publishing/credentials", () => ({
   resolveIntegration: vi.fn(async () => ({ integrationId: cms.integrationId, providerId: "wordpress" })),
   loadCredentialsById: vi.fn(async () => ({ integrationId: cms.integrationId, providerId: "wordpress", credentials: {} })),

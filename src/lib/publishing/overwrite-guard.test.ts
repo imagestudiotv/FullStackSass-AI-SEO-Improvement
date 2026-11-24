@@ -27,7 +27,7 @@ vi.mock("@/lib/plugin/sync", () => ({ nudgePluginIfDue: vi.fn(async () => "nothi
 const bell = vi.hoisted(() => ({ sent: [] as Array<{ type: string; title: string; body?: string }> }));
 vi.mock("@/lib/notifications/create", () => ({ notify: vi.fn(async (input: { type: string; title: string; body?: string }) => void bell.sent.push(input)) }));
 const emails = vi.hoisted(() => ({ failed: vi.fn(async () => undefined), published: vi.fn(async () => undefined) }));
-vi.mock("@/lib/email/lifecycle-triggers", () => ({ emailArticleFailed: emails.failed, emailArticlePublished: emails.published }));
+vi.mock("@/lib/email/lifecycle-triggers", () => ({ emailArticleFailed: emails.failed, emailArticlePublished: emails.published, emailFirstArticleReady: vi.fn() }));
 vi.mock("@/lib/publishing/credentials", () => ({
   resolveIntegration: vi.fn(async () => ({ integrationId: cms.integrationId, providerId: "wordpress" })),
   loadCredentialsById: vi.fn(async () => ({ integrationId: cms.integrationId, providerId: "wordpress", credentials: {} })),
