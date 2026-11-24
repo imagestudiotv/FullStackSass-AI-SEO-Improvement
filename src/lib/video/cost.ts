@@ -114,7 +114,7 @@ export function productionChoicesOf(idea: { production: unknown; voice?: string 
     showHook: stored?.showHook ?? true,
     includeCta: stored?.includeCta ?? true,
     ctaText: stored?.ctaText ?? null,
-    ...(stored?.captionLook ? { captionLook: stored.captionLook } : {}),
+    ...(stored?.textStyle ? { textStyle: stored.textStyle } : {}),
   };
 }
 

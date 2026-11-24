@@ -9,7 +9,7 @@ import {
   type ResolvedAudio,
   type VideoFormat,
 } from "../formats";
-import { isCaptionLook } from "../../../remotion/caption-looks";
+import { cleanClipText } from "../../../remotion/clip-text";
 import { durationFor } from "./allocation";
 
 /**
@@ -40,6 +40,7 @@ export function productionOf(
   defaults: ProductionDefaults,
 ): ProductionChoices {
   const stored = (row.production && typeof row.production === "object" ? row.production : {}) as Partial<ProductionChoices>;
+  const textStyle = cleanClipText(stored.textStyle);
   const format = (["reel", "story", "carousel"].includes(row.format) ? row.format : "reel") as VideoFormat;
   return {
     audio: stored.audio === "voiceover" || stored.audio === "text_music" ? stored.audio : row.voice ? "voiceover" : "text_music",
@@ -50,7 +51,7 @@ export function productionOf(
     showHook: typeof stored.showHook === "boolean" ? stored.showHook : defaults.showHook,
     includeCta: typeof stored.includeCta === "boolean" ? stored.includeCta : defaults.includeCta,
     ctaText: typeof stored.ctaText === "string" ? stored.ctaText : stored.ctaText === null ? null : defaults.includeCta ? defaults.defaultCta : null,
-    ...(isCaptionLook(stored.captionLook) ? { captionLook: stored.captionLook } : {}),
+    ...(textStyle ? { textStyle } : {}),
   };
 }
 
@@ -82,11 +83,14 @@ export function mergeProduction(current: ProductionChoices, edit: Partial<Record
     if (typeof edit[key] !== "boolean") return null;
     next[key] = edit[key] as boolean;
   }
-  if (edit.captionLook !== undefined) {
+  if (edit.textStyle !== undefined) {
     // null: back to the look picked for the video.
-    if (edit.captionLook === null) delete next.captionLook;
-    else if (!isCaptionLook(edit.captionLook)) return null;
-    else next.captionLook = edit.captionLook;
+    if (edit.textStyle === null) delete next.textStyle;
+    else {
+      const style = cleanClipText(edit.textStyle);
+      if (!style) return null;
+      next.textStyle = style;
+    }
   }
   if (edit.ctaText !== undefined) {
     if (edit.ctaText === null) next.ctaText = null;

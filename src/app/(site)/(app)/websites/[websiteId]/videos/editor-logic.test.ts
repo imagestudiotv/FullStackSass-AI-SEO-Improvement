@@ -7,7 +7,9 @@ import { reelTiming } from "@/remotion/timing";
 
 import {
   audioLock,
-  captionLookApplies,
+  clipTextApplies,
+  clipTextOf,
+  clipTextPart,
   canEditIdea,
   captionsApply,
   ctaSwitchApplies,
@@ -100,7 +102,8 @@ describe("the editor's form", () => {
       format: "reel",
       category: "educational",
       direction: "animated",
-      production: { ...production(), ctaText: null },
+      // textStyle null: the look picked for the video.
+      production: { ...production(), ctaText: null, textStyle: null },
       overrides: {},
       voice: "nova",
       musicTrack: null,
@@ -301,20 +304,39 @@ describe("the editor preview's music", () => {
   });
 });
 
-describe("the text look on a Viral clip", () => {
-  it("can be chosen on a POV or hook clip video only, is previewed and saved; Auto clears it", () => {
-    const pov = formFromIdea({ ...idea({ direction: "meme" }), props: { script: SCRIPT, plan: { ...PLAN, direction: "meme", povClip: { id: "pov", mirror: false, zoom: 1, hue: 0 } } } }, "coral");
-    const hook = formFromIdea({ ...idea({ direction: "footage" }), props: { script: SCRIPT, plan: { ...PLAN, hookClip: { type: "danger" } } } }, "coral");
-    expect(captionLookApplies(pov)).toBe(true);
+describe("the text on a Viral clip", () => {
+  const pov = formFromIdea({ ...idea({ direction: "meme" }), props: { script: SCRIPT, plan: { ...PLAN, direction: "meme", povClip: { id: "pov", mirror: false, zoom: 1, hue: 0 } } } }, "coral");
+  const hook = formFromIdea({ ...idea({ direction: "footage" }), props: { script: SCRIPT, plan: { ...PLAN, hookClip: { type: "danger" } } } }, "coral");
+
+  it("can be styled on a POV or hook clip video only", () => {
+    expect(clipTextApplies(pov)).toBe(true);
     expect(hookSwitchApplies(pov)).toBe(false);
-    expect(captionLookApplies(hook)).toBe(true);
-    expect(captionLookApplies({ ...hook, format: "carousel" })).toBe(false);
-    expect(captionLookApplies({ ...hook, direction: "animated" })).toBe(false);
-    expect(captionLookApplies(formFromIdea(idea({ direction: "footage" }), "coral"))).toBe(false);
-    expect(editFromForm(pov).production?.captionLook).toBeNull();
-    const chosen = { ...pov, production: { ...pov.production, captionLook: "marker" as const } };
-    expect(editFromForm(chosen).production?.captionLook).toBe("marker");
-    expect(previewProps({ ...BASE, plan: PLAN }, chosen, []).production?.captionLook).toBe("marker");
-    expect(isDirty(pov, chosen)).toBe(true);
+    expect(clipTextApplies(hook)).toBe(true);
+    expect(clipTextApplies({ ...hook, format: "carousel" })).toBe(false);
+    expect(clipTextApplies({ ...hook, direction: "animated" })).toBe(false);
+    expect(clipTextApplies(formFromIdea(idea({ direction: "footage" }), "coral"))).toBe(false);
+  });
+
+  it("starts as the look picked for the video, is previewed and saved once changed, and reset clears it", () => {
+    const plan = { ...PLAN, direction: "meme" as const, povClip: { id: "pov", mirror: false, zoom: 1, hue: 0 } };
+    const auto = clipTextOf(pov, plan);
+    expect(auto).toMatchObject({ align: "center", x: 7.4, w: 79.6 });
+    expect(editFromForm(pov).production?.textStyle).toBeNull();
+    const style = { ...auto, color: "#ff0000", size: 100, y: 60 };
+    const changed = { ...pov, production: { ...pov.production, textStyle: style } };
+    expect(clipTextOf(changed, plan)).toEqual(style);
+    expect(editFromForm(changed).production?.textStyle).toEqual(style);
+    expect(previewProps({ ...BASE, plan }, changed, []).production?.textStyle).toEqual(style);
+    expect(isDirty(pov, changed)).toBe(true);
+    expect(isDirty(pov, { ...changed, production: { ...changed.production, textStyle: null } })).toBe(false);
+  });
+
+  it("is dragged on the part that shows it", () => {
+    expect(clipTextPart(pov, 0)).toBe(SCRIPT.hook);
+    expect(clipTextPart(hook, 0)).toBe(SCRIPT.hook);
+    expect(clipTextPart(hook, 1)).toBeNull();
+    expect(clipTextPart(hook, SCRIPT.points.length + 1)).toBe(SCRIPT.proof);
+    expect(clipTextPart({ ...hook, production: { ...hook.production, showHook: false } }, 0)).toBeNull();
+    expect(clipTextPart(formFromIdea(idea({ direction: "footage" }), "coral"), 0)).toBeNull();
   });
 });

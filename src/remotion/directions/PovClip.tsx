@@ -1,7 +1,9 @@
 import { useState, type CSSProperties } from "react";
 import { AbsoluteFill, Freeze, OffthreadVideo, Sequence, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
 
-import { chosenLook, povCaptionLook } from "../caption-looks";
+import { povCaptionLook } from "../caption-looks";
+import { cleanClipText } from "../clip-text";
+import { ClipText } from "../components/ClipText";
 import { LookText } from "../components/LookText";
 import { partEnd } from "../production";
 import type { SceneMedia } from "../props";
@@ -72,7 +74,10 @@ function ClipFill({ clip, lookStyle, startFrom, pal, concept, plan }: DirectionP
 function PovLine({ text, safe, plan, production }: DirectionProps & { text: string }) {
   const frame = useCurrentFrame();
   const enter = interpolate(frame, [0, 6], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const look = chosenLook(production?.captionLook, plan?.povClip ? povCaptionLook(plan.povClip) : "native");
+  const look = plan?.povClip ? povCaptionLook(plan.povClip) : "native";
+  // The customer's own style and place (client, 2026-11-24), else the look picked for the video.
+  const own = cleanClipText(production?.textStyle);
+  if (own) return <ClipText text={text} style={own} enter={{ opacity: enter, transform: `scale(${0.9 + 0.1 * enter})` }} />;
   return (
     <LookText
       look={look}

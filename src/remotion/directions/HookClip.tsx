@@ -2,7 +2,9 @@ import type { CSSProperties } from "react";
 import { AbsoluteFill, Freeze, OffthreadVideo, Sequence, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
 
 import type { HookType } from "../../lib/video/formats";
-import { chosenLook, hookCaptionLook } from "../caption-looks";
+import { hookCaptionLook } from "../caption-looks";
+import { cleanClipText } from "../clip-text";
+import { ClipText } from "../components/ClipText";
 import { LookText } from "../components/LookText";
 import { FONT } from "../fonts";
 import { hookTiming, type HookSegment, type ProductionPart } from "../production";
@@ -124,8 +126,28 @@ function FullScreen(props: DirectionProps & ClipProps & { text: string; chip: st
   const enter = interpolate(frame, [2, 10], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   const width = safe.right - safe.left;
   // The video's caption look (client, 2026-11-23), the same for the opening and the payoff.
-  const look = chosenLook(props.production?.captionLook, hookCaptionLook(props.plan?.hookClip?.pick?.id, props.script.hook));
+  const look = hookCaptionLook(props.plan?.hookClip?.pick?.id, props.script.hook);
+  // The customer's own style and place (client, 2026-11-24), else that look.
+  const own = cleanClipText(props.production?.textStyle);
   const blink = chip ? 0.75 + 0.25 * Math.sin((frame / fps) * Math.PI * 2.4) : 1;
+  const badge = chip ? (
+      <div
+        style={{
+          display: "inline-block",
+          padding: "10px 22px",
+          borderRadius: 999,
+          background: pal.accent,
+          color: "#fff",
+          fontFamily: FONT,
+          fontSize: 34,
+          fontWeight: 800,
+          opacity: blink,
+          boxShadow: "0 6px 24px rgba(0,0,0,0.35)",
+        }}
+      >
+        {chip}
+      </div>
+  ) : null;
   return (
     <AbsoluteFill style={{ background: "#000", zIndex: 30 }}>
       <AbsoluteFill style={{ transform: `scale(${punch})` }}>
@@ -133,28 +155,14 @@ function FullScreen(props: DirectionProps & ClipProps & { text: string; chip: st
       </AbsoluteFill>
       <LegibilityShade strength={0.85} top={0.55} />
       <FilmTexture strength={0.6} />
-      <div style={{ position: "absolute", left: safe.left, width, top: safe.top + 150, opacity: enter, transform: `translateY(${(1 - enter) * 24}px)` }}>
-        {chip ? (
-          <div
-            style={{
-              display: "inline-block",
-              marginBottom: 22,
-              padding: "10px 22px",
-              borderRadius: 999,
-              background: pal.accent,
-              color: "#fff",
-              fontFamily: FONT,
-              fontSize: 34,
-              fontWeight: 800,
-              opacity: blink,
-              boxShadow: "0 6px 24px rgba(0,0,0,0.35)",
-            }}
-          >
-            {chip}
-          </div>
-        ) : null}
-        <LookText look={look} text={text} width={width - 40} align="left" scale={1.2} />
-      </div>
+      {own ? (
+        <ClipText text={text} style={own} above={badge} enter={{ opacity: enter, transform: `translateY(${(1 - enter) * 24}px)` }} />
+      ) : (
+        <div style={{ position: "absolute", left: safe.left, width, top: safe.top + 150, opacity: enter, transform: `translateY(${(1 - enter) * 24}px)` }}>
+          {badge ? <div style={{ marginBottom: 22 }}>{badge}</div> : null}
+          <LookText look={look} text={text} width={width - 40} align="left" scale={1.2} />
+        </div>
+      )}
       {note ? (
         <div style={{ position: "absolute", left: safe.left, top: safe.bottom - 60, fontFamily: FONT, fontSize: 26, fontWeight: 600, color: "rgba(255,255,255,0.8)", textShadow: "0 2px 10px rgba(0,0,0,0.7)" }}>
           {note}
