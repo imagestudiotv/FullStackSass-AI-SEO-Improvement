@@ -215,7 +215,7 @@ const SKIPPABLE: Stage[] = ["suggested", "draft", "scheduled", "failed"];
 function Opportunity({ row, websiteId, editable, pending, onReview, onSkip, priceLabel, locale, t }: RowProps & { row: SuggestionView }) {
   const id = useId();
   const copy = OPPORTUNITIES_COPY[locale];
-  const oneClick = useOneClickPost(websiteId, t, priceLabel);
+  const oneClick = useOneClickPost(websiteId, t, copy, priceLabel);
   const stage = stageOf(row.status);
   const mine = editable(row);
   const name = platformName(row.platform);

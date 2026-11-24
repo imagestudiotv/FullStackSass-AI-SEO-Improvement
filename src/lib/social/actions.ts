@@ -14,15 +14,8 @@ import { requireEditor } from "@/lib/websites/require-editor";
 
 import { connectUsername, ensureTeam, inWarmup, removeAccount, socialAccess } from "./accounts";
 import { disconnectAccount, isBundleConfigured, portalLink } from "./bundle";
-import {
-  cleanUsername,
-  composeUrl,
-  isSocialPlatform,
-  PLATFORMS,
-  replyUrl,
-  threadFromUrl,
-  type SocialPlatform,
-} from "./platforms";
+import { cleanUsername, isSocialPlatform, PLATFORMS, type SocialPlatform } from "./platforms";
+import { postTarget, postText, type PostEdit as Edit } from "./post-target";
 import { checkDraft } from "./rules";
 
 /**
@@ -180,8 +173,6 @@ export async function findSocialSuggestions(websiteId: string): Promise<SocialRe
 
 // ------------------------------------------------------------- suggestions
 
-type Edit = { body: string; title?: string | null };
-
 /**
  * Waiting for the customer's one click: a new suggestion, one they edited and
  * saved as a draft (client's design, 2026-11-03: the Drafts stage), one
@@ -223,12 +214,9 @@ async function checkEdit(
   edit: Edit,
 ): Promise<SocialResult<{ body: string; title: string | null }>> {
   const platform = row.platform as SocialPlatform;
-  const body = edit.body.trim();
-  const title = edit.title === undefined ? row.title : edit.title?.trim() || null;
-  if (!body) return fail("empty");
-  if (body.length > PLATFORMS[platform].maxLength || (title && PLATFORMS[platform].titleMax && title.length > PLATFORMS[platform].titleMax!)) {
-    return fail("too_long");
-  }
+  const text = postText(platform, row.title, edit);
+  if (!text.ok) return fail(text.error);
+  const { body, title } = text;
   const [site] = await db.select({ brandName: websites.brandName, domain: websites.domain }).from(websites).where(eq(websites.id, websiteId));
   const [account] = await db
     .select({ warmupEndsAt: socialAccounts.warmupEndsAt })
@@ -252,7 +240,8 @@ async function checkEdit(
  * instead, lib/plans/free-plan-server.ts takeFreePlanPost) and returns where
  * to post it, and whether that page has the text filled in (X, Threads) or the customer pastes it (Quora, and
  * replies on Reddit and Bluesky). The page has already copied the text and
- * opened a window; it sends that window here.
+ * opened that same address in the click (post-target.ts): a refusal here
+ * charges nothing and moves nothing, and that tab stays open.
  */
 export async function postSocialSuggestion(
   websiteId: string,
@@ -269,10 +258,7 @@ export async function postSocialSuggestion(
   const text = await checkEdit(websiteId, row, edit);
   if (!text.ok) return text;
   const { body, title } = text.data;
-  const thread = row.threadUrl ? threadFromUrl(platform, row.threadUrl) : null;
-  const url = thread ? replyUrl(thread, body) : composeUrl(platform, { title, body, link: row.link, imageUrl: row.imageUrl });
-  // replyUrl falls back to the discussion itself, and Quora has no compose link: there the text is pasted.
-  const filled = thread ? url !== thread.url : platform !== "quora";
+  const { url, filled } = postTarget({ platform, threadUrl: row.threadUrl, link: row.link, imageUrl: row.imageUrl }, { body, title });
 
   const result = await db.transaction(async (tx) => {
     const [locked] = await tx.select().from(socialSuggestions).where(eq(socialSuggestions.id, id)).for("update");

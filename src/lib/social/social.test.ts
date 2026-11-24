@@ -54,6 +54,8 @@ vi.mock("@/lib/providers/dataforseo", () => ({ isDataForSeoConfigured: () => tru
 import { recordCredit } from "@/lib/backlinks/credits";
 import { FREE_PLAN } from "@/lib/plans/free-plan";
 import { connectSocialUsername, editScheduledPost, postSocialSuggestion, saveSocialDraft, skipSocialSuggestion } from "./actions";
+import type { SocialPlatform } from "./platforms";
+import { postTarget, postText } from "./post-target";
 import { dailySuggestionWebsites } from "./daily";
 import { checkPublished, publishSuggestion } from "./publish";
 import { resumeQuotaPauses } from "./recover";
@@ -567,6 +569,40 @@ describe("the one-click post", () => {
     expect(await postSocialSuggestion(websiteId, row.id, { body: "More on my site: imagestudio.io" })).toEqual({ ok: false, error: "warmup_link" });
     expect(await postSocialSuggestion(websiteId, row.id, { body: "At Image Studio we test first." })).toEqual({ ok: false, error: "warmup_brand" });
     expect(await postSocialSuggestion(websiteId, row.id, { body: "x".repeat(281) })).toEqual({ ok: false, error: "too_long" });
+  });
+});
+
+describe("the address the page opens in the click", () => {
+  // The page works it out from what it was given (SuggestionView), before the server answers.
+  it.each([
+    ["reddit", "reply", "https://old.reddit.com/r/Photography/comments/1ABC23/best_lens/?share=1", {}],
+    ["reddit", "post", null, { title: " Soft light & shade? " }],
+    ["reddit", "post", null, { title: "A long one", body: "long text ".repeat(390) }],
+    ["quora", "reply", "https://www.quora.com/unanswered/How-do-I-choose-a-photographer", {}],
+    ["quora", "post", null, {}],
+    ["x", "reply", "https://twitter.com/someone/status/1234567890?s=20", {}],
+    ["x", "post", null, {}],
+    ["threads", "reply", "https://www.threads.net/@someone/post/C9abcDEF12x", {}],
+    ["threads", "post", null, {}],
+    ["pinterest", "post", null, { title: "A Pin", link: "https://DOMAIN/lights?a=1&b=2", imageUrl: "https://DOMAIN/i.jpg" }],
+    ["bluesky", "reply", "https://bsky.app/profile/someone.bsky.social/post/3kabcdefg2x", {}],
+    ["bluesky", "post", null, {}],
+  ] as const)("is the server's: %s, a %s (%s)", async (platform: SocialPlatform, kind, threadUrl, values: { title?: string; body?: string; link?: string; imageUrl?: string }) => {
+    const { orgId, websiteId } = await site();
+    const [{ domain }] = await test.db.select({ domain: websites.domain }).from(websites).where(eq(websites.id, websiteId));
+    const here = (value?: string) => value?.replace("DOMAIN", domain) ?? null;
+    await recordCredit(orgId, { type: "adjustment", amount: 5, note: "test" });
+    const row = await suggestion(websiteId, { ...values, platform, kind, threadUrl, warmup: false, link: here(values.link), imageUrl: here(values.imageUrl) });
+
+    // Typed in the drawer: spaces around it are not posted.
+    const edit = { body: `  ${row.body} & more #1  `, title: row.title ?? undefined };
+    const text = postText(platform, row.title, edit);
+    if (!text.ok) throw new Error(text.error);
+    const target = postTarget({ platform, threadUrl: row.threadUrl, link: row.link, imageUrl: row.imageUrl }, text);
+    expect(new URL(target.url).protocol).toBe("https:");
+    expect(await postSocialSuggestion(websiteId, row.id, edit)).toEqual({ ok: true, data: target });
+    const [saved] = await test.db.select().from(socialSuggestions).where(eq(socialSuggestions.id, row.id));
+    expect(saved).toMatchObject({ status: "posted", body: text.body, title: text.title });
   });
 });
 

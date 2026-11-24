@@ -2,7 +2,7 @@
 
 import { Check, Copy } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { BrandIcon } from "@/components/brand-icons";
@@ -11,10 +11,13 @@ import { copyTextNow } from "@/lib/copy-text";
 import type { Locale } from "@/lib/i18n/config";
 import { format, formatDate, intlTag } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
+import type { OpportunitiesCopy } from "@/lib/i18n/opportunities";
 import { postSocialSuggestion, type SocialError, type SocialResult } from "@/lib/social/actions";
 import { isSocialPlatform, type SocialPlatform } from "@/lib/social/platforms";
+import type { PostEdit } from "@/lib/social/post-target";
 import { cn } from "@/lib/utils";
 
+import { oneClickPost, openTab } from "./one-click";
 import { platformName, type Stage, type SuggestionView } from "./opportunities";
 
 /** The Opportunities page's small shared pieces: tiles, chips, times, copy and the action runner. */
@@ -61,38 +64,75 @@ export function useSocialAction(t: T, priceLabel: string) {
 
 /**
  * The one-click post, from a row or from the review drawer: copies the text,
- * opens the discussion or the platform's page for a new post, and records it
- * (its credit is charged once, lib/social/actions.ts postSocialSuggestion).
+ * opens the discussion or the platform's page for a new post at once
+ * (one-click.ts), and records it behind it (its credit is charged once,
+ * lib/social/actions.ts postSocialSuggestion).
+ *
+ * Waiting for the record is a plain state, not a transition: React holds every
+ * transition of the page for an action that has not answered, and one that
+ * never does would keep the buttons disabled for good.
  */
-export function useOneClickPost(websiteId: string, t: T, priceLabel: string) {
+export function useOneClickPost(websiteId: string, t: T, copy: OpportunitiesCopy, priceLabel: string) {
   const { pending, start, refuse, router } = useSocialAction(t, priceLabel);
+  const [waiting, setWaiting] = useState(false);
+  // A second click in the same moment, before the button is drawn disabled.
+  const busy = useRef(false);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
-  function post(row: Pick<SuggestionView, "id" | "platform">, text: string, edit: { body: string; title?: string | null }, onDone?: () => void) {
+  function post(
+    row: Pick<SuggestionView, "id" | "platform" | "threadUrl" | "title" | "link" | "imageUrl">,
+    text: string,
+    edit: PostEdit,
+    onDone?: () => void,
+  ) {
+    if (busy.current) return;
+    busy.current = true;
+    setWaiting(true);
     const name = platformName(row.platform);
-    // Both in the click itself: browsers allow neither once the click has passed. The copy goes
-    // first, while this page still has the focus the new tab is about to take (lib/copy-text.ts).
-    const copying = copyTextNow(text);
-    const win = window.open("about:blank", "_blank");
-    if (win) win.opener = null;
-    start(async () => {
-      const copied = await copying;
-      const result = await postSocialSuggestion(websiteId, row.id, edit).catch(() => null);
-      if (!result?.ok) {
-        win?.close();
-        refuse(result && !result.ok ? result : null);
-        return;
-      }
-      if (win) win.location.href = result.data.url;
-      // Quora and replies on Reddit and Bluesky only have the clipboard: never say "copied" when it is not.
-      if (!copied && (!win || !result.data.filled)) toast.error(format(t.copyFailed, { platform: name }));
-      else if (!win) toast.message(format(t.popupBlocked, { platform: name }));
-      else if (copied) toast.success(format(t.copied, { platform: name }));
-      onDone?.();
-      router.refresh();
-    });
+    const release = () => {
+      busy.current = false;
+      setWaiting(false);
+    };
+    // In a transition: the button stays disabled until the row shows where it has moved.
+    const refresh = () => start(() => router.refresh());
+
+    oneClickPost(
+      { row, text, edit, record: () => postSocialSuggestion(websiteId, row.id, edit) },
+      {
+        refused(result) {
+          release();
+          refuse(result);
+          // No readable answer: it may have been recorded all the same.
+          if (!result) refresh();
+        },
+        slow() {
+          release();
+          toast.message(copy.recordSlow);
+        },
+        done({ url, opened, copied, filled }) {
+          // Quora and replies on Reddit and Bluesky only have the clipboard: never say "copied" when it is not.
+          if (!copied && (!opened || !filled)) toast.error(format(t.copyFailed, { platform: name }));
+          else if (!opened) {
+            toast.message(format(t.popupBlocked, { platform: name }), {
+              action: { label: format(copy.openOn, { platform: name }), onClick: () => void openTab(url) },
+            });
+          } else if (copied) toast.success(format(t.copied, { platform: name }));
+          // The drawer this came from, unless another suggestion has been opened in it since.
+          if (mounted.current) onDone?.();
+          refresh();
+          release();
+        },
+      },
+    );
   }
 
-  return { pending, post };
+  return { pending: waiting || pending, post };
 }
 
 /* Brand tints for the platform marks, each with its night-mode pair. */

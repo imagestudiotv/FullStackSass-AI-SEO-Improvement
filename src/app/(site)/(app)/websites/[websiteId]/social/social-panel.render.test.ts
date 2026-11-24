@@ -51,6 +51,7 @@ const row = (over: Partial<SuggestionView> = {}): SuggestionView => ({
   title: null,
   body: "Ask to see one full wedding, not a highlight reel.",
   warmup: false,
+  link: null,
   imageUrl: null,
   scheduledFor: null,
   postedAt: null,

@@ -33,6 +33,7 @@ const row = (over: Partial<SuggestionView> = {}): SuggestionView => ({
   title: null,
   body: "A window and a white sheet.",
   warmup: false,
+  link: null,
   imageUrl: null,
   scheduledFor: null,
   postedAt: null,
