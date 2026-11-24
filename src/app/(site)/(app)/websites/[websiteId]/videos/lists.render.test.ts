@@ -83,7 +83,17 @@ describe("the lists", () => {
     expect(html).toContain(r.button);
   });
 
-  it("keep each card's buttons right under the title and status, whatever else a card says", () => {
+  it("lay every card's picture over its 4:5 frame, so a tall reel cannot stretch one card past the others", () => {
+    const html = made("en", [view(), view({ coverUrl: "https://x.test/cover.jpg" }), view({ format: "carousel", videoUrl: null, slideUrls: ["https://x.test/1.png"] })]);
+    const cards = html.split("<article").slice(1);
+    expect(cards).toHaveLength(3);
+    for (const card of cards) {
+      expect(card).toContain("aspect-[4/5]");
+      expect(card.match(/<(?:img|video)[^>]*>/)?.[0]).toContain("absolute inset-0");
+    }
+  });
+
+  it("keep each card's buttons in one order at its end, after whatever else it says", () => {
     const html = made("en", [view(), view({ destinations: { instagram: { status: "scheduled", bundlePostId: null, url: null, error: null, attempts: 0 } } })]);
     const cards = html.split("<article").slice(1);
     const order = (card: string) => ["<h3", "Ready to publish", "Preview", "Download", "Publish</button>", "Delete"].map((part) => card.indexOf(part));
@@ -92,7 +102,9 @@ describe("the lists", () => {
       expect(at.every((value) => value >= 0)).toBe(true);
       expect([...at].sort((a, b) => a - b)).toEqual(at);
     }
-    expect(cards[1].indexOf("Scheduled")).toBeGreaterThan(cards[1].indexOf("Delete"));
+    expect(cards[1].indexOf("Scheduled")).toBeGreaterThan(0);
+    expect(cards[1].indexOf("Scheduled")).toBeLessThan(cards[1].indexOf("Preview"));
+    for (const card of cards) expect(card).toMatch(/class="mt-auto grid grid-cols-2/);
     expect(cards[0]).toContain("v.mp4?download=video-");
   });
 

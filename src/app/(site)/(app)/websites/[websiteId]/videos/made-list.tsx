@@ -127,7 +127,8 @@ function MadeCard(props: ListProps & { idea: IdeaView; connected: VideoAccountVi
 
   return (
     <article className="flex flex-col overflow-hidden rounded-2xl border bg-card">
-      <div className="relative aspect-[4/5] bg-muted">
+      {/* The picture is laid over the frame, never in it: in it, a reel's 9:16 stretched the frame past 4:5 and left its neighbours' cards with an empty end. */}
+      <div className="relative aspect-[4/5] shrink-0 overflow-hidden bg-muted">
         {working ? (
           <div className="flex size-full flex-col items-center justify-center gap-2 p-4 text-center text-sm text-muted-foreground">
             <Loader2 className="size-6 animate-spin" aria-hidden="true" />
@@ -136,13 +137,13 @@ function MadeCard(props: ListProps & { idea: IdeaView; connected: VideoAccountVi
         ) : idea.videoUrl && idea.coverUrl ? (
           // The reel's cover still: its opening fully drawn, without captions (src/remotion/cover.ts). Preview plays it.
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={idea.coverUrl} alt="" className="size-full object-cover" />
+          <img src={idea.coverUrl} alt="" className="absolute inset-0 size-full object-cover" />
         ) : idea.videoUrl ? (
           // A video made before covers: the browser shows the MP4 at the cover's moment (#t), the opening fully drawn.
-          <video src={`${idea.videoUrl}#t=${coverMoment(idea)}`} muted playsInline preload="metadata" aria-hidden="true" className="size-full object-cover" />
+          <video src={`${idea.videoUrl}#t=${coverMoment(idea)}`} muted playsInline preload="metadata" aria-hidden="true" className="absolute inset-0 size-full object-cover" />
         ) : idea.slideUrls[0] ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={idea.slideUrls[0]} alt="" className="size-full object-cover" />
+          <img src={idea.slideUrls[0]} alt="" className="absolute inset-0 size-full object-cover" />
         ) : (
           <div className="flex size-full items-center justify-center text-muted-foreground">
             <Clapperboard className="size-8" aria-hidden="true" />
@@ -154,7 +155,7 @@ function MadeCard(props: ListProps & { idea: IdeaView; connected: VideoAccountVi
         <SelectBox idea={idea} deletion={props.deletion} t={t} className="absolute top-2 right-2" />
       </div>
 
-      {/* The title keeps two lines and the status one, so the buttons are level on every card, whatever the text. */}
+      {/* The title keeps two lines and the status one, what only some cards have comes next, and the buttons are at the card's end: level along a row, with nothing empty under them. */}
       <div className="flex flex-1 flex-col gap-3 p-3">
         <div className="space-y-1.5">
           <h3 className="line-clamp-2 min-h-[2.75em] leading-snug font-medium" title={idea.title}>
@@ -166,7 +167,21 @@ function MadeCard(props: ListProps & { idea: IdeaView; connected: VideoAccountVi
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
+        {audioChoice ? (
+          <Button variant="ghost" size="sm" className="self-start" onClick={() => setDialog("audio")}>
+            <Music2 aria-hidden="true" />
+            {v.nativeAudio.button}
+          </Button>
+        ) : null}
+        {idea.nativeAudio ? (
+          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Music2 className="size-3.5 shrink-0" aria-hidden="true" />
+            {format(v.nativeAudio.chosen, { title: idea.nativeAudio.title, artist: idea.nativeAudio.artist ?? "" })}
+          </p>
+        ) : null}
+        <DestinationChips destinations={idea.destinations} postedUrls={idea.postedUrls} t={t} />
+
+        <div className="mt-auto grid grid-cols-2 gap-2">
           <Button variant="outline" size="sm" disabled={!files} onClick={() => setDialog("preview")}>
             <Eye aria-hidden="true" />
             {t.list.preview}
@@ -202,20 +217,6 @@ function MadeCard(props: ListProps & { idea: IdeaView; connected: VideoAccountVi
             </Button>
           ) : null}
         </div>
-
-        {audioChoice ? (
-          <Button variant="ghost" size="sm" className="self-start" onClick={() => setDialog("audio")}>
-            <Music2 aria-hidden="true" />
-            {v.nativeAudio.button}
-          </Button>
-        ) : null}
-        {idea.nativeAudio ? (
-          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Music2 className="size-3.5 shrink-0" aria-hidden="true" />
-            {format(v.nativeAudio.chosen, { title: idea.nativeAudio.title, artist: idea.nativeAudio.artist ?? "" })}
-          </p>
-        ) : null}
-        <DestinationChips destinations={idea.destinations} postedUrls={idea.postedUrls} t={t} />
       </div>
 
       {dialog === "preview" ? <PreviewDialog idea={idea} length={length} locale={props.locale} t={t} onClose={() => setDialog(null)} /> : null}
