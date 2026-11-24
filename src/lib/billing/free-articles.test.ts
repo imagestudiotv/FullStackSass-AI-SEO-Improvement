@@ -187,15 +187,6 @@ describe("what waits for the plan", () => {
     expect(await grantMonthlyCredits(orgId)).toBe(25);
   });
 
-  it("takes the AI visibility step out of setup", async () => {
-    const trial = await onTrial(30);
-    const steps = (await getOnboardingState(trial.orgId)).steps.map((step) => step.id);
-    expect(steps).toEqual(["website", "plan", "content"]);
-    expect((await getOnboardingState(trial.orgId)).freeArticles).toBe(true);
-
-    const paying = await seedWebsite(test);
-    expect((await getOnboardingState(paying.orgId)).steps.map((step) => step.id)).toContain("visibility");
-  });
 });
 
 describe("writing the free articles", () => {
@@ -322,16 +313,14 @@ describe("the free trial (TRIAL_DAYS)", () => {
     expect(await isEntitledToSpend(websiteId, { freeArticles: true })).toEqual({ ok: true });
   });
 
-  it("is in the Partner Network's review and keeps the AI visibility step", async () => {
+  it("is in the Partner Network's review, and its setup is complete", async () => {
     await test.db.insert(platformControls).values({ key: "managed_review", enabled: true, updatedBy: "test" });
     const trial = await onGrowTrial();
     await test.db.insert(networkSites).values({ websiteId: trial.websiteId, acceptingLinks: true, monthlyCap: 3 });
     expect(await inManagedNetwork(trial.websiteId)).toBe(true);
     await test.client.exec("delete from platform_controls");
 
-    const state = await getOnboardingState(trial.orgId);
-    expect(state.steps.map((step) => step.id)).toEqual(["website", "plan", "visibility", "content"]);
-    expect(state.freeArticles).toBe(false);
+    expect((await getOnboardingState(trial.orgId)).complete).toBe(true);
   });
 
   it("writes its share at the plan's pace, never ends the trial, and is not held by the free articles' daily cap", async () => {

@@ -24,7 +24,7 @@ export const dynamic = "force-dynamic";
 /**
  * The launch checklist, inside the dashboard.
  *
- * The client asked for the end of signup to land here rather than on a
+ * The client asked for a checklist inside the dashboard rather than a
  * celebration screen: "Right after this 5 step, can the next one be directly
  * the integration part. We start seeing the dashboard on the left, similar
  * nice design on the center… On this step people can also already navigate the
@@ -40,8 +40,6 @@ export default async function SetupPage({ searchParams }: PageProps<"/setup">) {
   const { orgId } = await requireOrg();
   const { t } = await getAppMessages(session.user.id);
 
-  // Paywall. See lib/billing/require-plan.ts.
-  await requirePlan(orgId);
   const params = await searchParams;
   const siteParam = typeof params.site === "string" ? params.site : null;
 
@@ -77,6 +75,8 @@ export default async function SetupPage({ searchParams }: PageProps<"/setup">) {
       owned.map((site) => site.id),
     ) ?? owned[0].id;
   const site = owned.find((s) => s.id === websiteId) ?? owned[0];
+  // Paywall. See lib/billing/require-plan.ts.
+  await requirePlan(orgId, site.id);
 
   /**
    * Signup itself is still unfinished — no plan, say. Send them back to it:

@@ -3,12 +3,12 @@
 import { and, desc, eq, inArray, sql as raw } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
-import { anthropic, isAiConfigured, MODELS } from "@/lib/ai/client";
-import { dataBlock, dataRule } from "@/lib/ai/untrusted";
+import { isAiConfigured } from "@/lib/ai/client";
 import { db } from "@/lib/db";
 import { geoPrompts, geoResults } from "@/lib/db/schema";
 import { summarise } from "@/lib/geo/score";
 import { maxPromptsFor } from "@/lib/geo/allowance";
+import { cleanPrompt, suggestQuestions } from "@/lib/geo/suggest";
 import {
   MAX_PROMPT_LENGTH,
   type GeoOverview,
@@ -18,19 +18,10 @@ import { requireWebsite } from "@/lib/tenant";
 import { requireEditor } from "@/lib/websites/require-editor";
 import type { ActionResult } from "@/lib/websites/actions";
 import { isEntitledToSpend } from "@/lib/billing/entitled";
-import { paidCall, releaseUnspent, reserve } from "@/lib/billing/spend-quota";
 import { reserveAndQueue } from "@/lib/jobs/outbox";
-import { PRICING, track } from "@/lib/usage";
 import { calendarMonth } from "@/lib/billing/entitlement-period";
 import { FREE_PLAN, freePlanMessage } from "@/lib/plans/free-plan";
 import { freePlanSnapshotsThisMonth, isFreePlanWebsite } from "@/lib/plans/free-plan-server";
-
-/**
- * Suggestion requests per workspace per hour. Onboarding fills a list once and
- * "suggest more" is pressed a handful of times; thirty is room for both and a
- * ceiling on a loop.
- */
-const SUGGESTIONS_PER_WORKSPACE_PER_HOUR = 30;
 
 /** Tracked questions quoted back to the model; the largest plan tracks 50. */
 const MAX_EXISTING_SENT = 60;
@@ -212,13 +203,6 @@ export async function getGeoOverview(websiteId: string): Promise<GeoOverview> {
   };
 }
 
-/** Trims and rejects a prompt that is empty or over-long. */
-function cleanPrompt(value: string): string | null {
-  const trimmed = value.trim().replace(/\s+/g, " ");
-  if (trimmed.length < 5) return null;
-  return trimmed.slice(0, MAX_PROMPT_LENGTH);
-}
-
 export async function addGeoPrompt(
   websiteId: string,
   prompt: string,
@@ -396,8 +380,6 @@ export async function suggestGeoPrompts(
   const guard = await requireEditor(websiteId);
   if (!guard.ok) return { ok: false, error: guard.error };
   const { site } = guard.context;
-  // Billed to the website's owner, not an invited editor's own workspace.
-  const ownerOrgId = site.organizationId;
 
   if (!isAiConfigured()) {
     return { ok: false, error: "AI is not configured on this deployment" };
@@ -416,191 +398,13 @@ export async function suggestGeoPrompts(
     .slice(0, MAX_EXISTING_SENT)
     .map((e) => e.slice(0, MAX_PROMPT_LENGTH));
 
-  const slot = await reserve(
-    {
-      key: `geo-suggest:org:${ownerOrgId}`,
-      limit: SUGGESTIONS_PER_WORKSPACE_PER_HOUR,
-      window: { seconds: 60 * 60 },
-    },
-    { operation: "geo.suggest", organizationId: ownerOrgId, websiteId: site.id },
-  );
-  if (!slot) {
-    return {
-      ok: false,
-      error: "You have asked for suggestions many times this hour. Please try again shortly.",
-    };
-  }
-
-  // As material (lib/ai/untrusted.ts): the profile was first filled from the crawled homepage.
-  const facts = [
-    site.industry && `Industry: ${site.industry}`,
-    site.country && `Country: ${site.country}`,
-    site.description && `About: ${site.description}`,
-  ]
-    .filter(Boolean)
-    .join("\n");
-  const description = facts ? dataBlock("business_profile", facts) : "";
-
-  /**
-   * Questions already tracked, listed so the model does not return them
-   * again. Without this, "suggest more" comes back with rephrasings of what
-   * is already on screen and the button looks broken.
-   */
-  const avoid = tracked.length
-    ? [
-        "- Do NOT repeat or rephrase any of these, which are already tracked:",
-        ...tracked.map((e) => `  - ${e}`),
-      ].join("\n")
-    : "";
-
-  let response;
-  try {
-    response = await paidCall([slot], () => anthropic.messages.create({
-      model: MODELS.EXTRACTION,
-      // ~60 tokens a question plus overhead; 50 questions needs real room.
-      max_tokens: Math.min(4000, 400 + count * 70),
-      messages: [
-        {
-          role: "user",
-          content: `A business has this website: ${site.domain}
-${description}
-
-Write ${count} questions a potential customer might ask an AI assistant when looking for a business like this one.
-
-Rules:
-- Never name this business. The question must be one someone asks BEFORE they know it exists.
-- Ask the way a real person types, not like a search query.
-- Be specific to the industry and, where it matters, the location.
-- Vary the intent: some comparing options, some asking about price, some about a specific service or place.
-- ${dataRule("business_profile")}
-${avoid}
-
-Reply with JSON only: {"prompts": ["...", "..."]}`,
-        },
-      ],
-    }));
-  } catch {
-    /*
-      A provider refusal was not billed, so its slot goes back; a timeout may
-      have been, and paidCall has already recorded it as spent - releasing a
-      consumed reservation changes nothing.
-    */
-    await releaseUnspent([slot], "provider_refused");
-    return { ok: false, error: "Could not suggest questions. Try again." };
-  }
-
-  const price = PRICING.llm[MODELS.EXTRACTION];
-  await track(ownerOrgId, {
-    kind: "llm",
-    websiteId: site.id,
-    provider: "anthropic",
-    model: MODELS.EXTRACTION,
-    costUsd:
-      (response.usage.input_tokens / 1000) * price.inputPer1k +
-      (response.usage.output_tokens / 1000) * price.outputPer1k,
-    metadata: { purpose: "geo_suggest", wanted: count },
-  }).catch(() => {});
-
-  try {
-    const text = response.content
-      .filter((b) => b.type === "text")
-      .map((b) => (b.type === "text" ? b.text : ""))
-      .join("")
-      .trim()
-      .replace(/^```(?:json)?\s*/i, "")
-      .replace(/\s*```$/, "");
-
-    const parsed = JSON.parse(text) as { prompts?: unknown };
-    const suggestions = Array.isArray(parsed.prompts)
-      ? parsed.prompts
-          .filter((p): p is string => typeof p === "string")
-          .map((p) => cleanPrompt(p))
-          .filter((p): p is string => p !== null)
-          .slice(0, count)
-      : [];
-
-    if (suggestions.length === 0) {
-      return { ok: false, error: "Could not suggest questions. Try again." };
-    }
-
-    return { ok: true, data: suggestions };
-  } catch {
-    return { ok: false, error: "Could not suggest questions. Try again." };
-  }
-}
-
-/**
- * Fills an empty list with a plan's worth of questions, already saved.
- *
- * THIS IS THE FIX FOR THE CLIENT'S MAIN COMPLAINT: "This was the most
- * confusing part for me when firstly I joined this platforms. So it will be
- * nice to having it simple that we generate prompts without people click
- * suggest question … we want to be able to cancel prompts and also having
- * them selected from first glance."
- *
- * Before this, the screen opened empty and nothing happened until somebody
- * found the "Suggest questions" button — so the step read as broken. Now the
- * page calls this on arrival and the customer edits a finished list instead
- * of building one.
- *
- * Idempotent by design: it returns what is already there if the website has
- * any prompts, so a refresh, a double render in development, or two tabs open
- * cannot produce two sets. The unique index on (website, prompt) is the
- * backstop.
- */
-export async function ensureGeoPrompts(
-  websiteId: string,
-): Promise<ActionResult<GeoPromptView[]>> {
-  const { site } = await requireWebsite(websiteId);
-
-  const existing = await db
-    .select()
-    .from(geoPrompts)
-    .where(eq(geoPrompts.websiteId, site.id))
-    .orderBy(desc(geoPrompts.createdAt));
-
-  // Already populated: never top up silently, because the customer may have
-  // deliberately removed the ones they did not want.
-  if (existing.length > 0) {
-    return { ok: true, data: existing.map(toView) };
-  }
-
-  if (!isAiConfigured()) {
-    return { ok: false, error: "AI is not configured on this deployment" };
-  }
-
-  const allowance = await maxPromptsFor(site.id);
-  const suggested = await suggestGeoPrompts(websiteId, allowance);
-  if (!suggested.ok) return suggested;
-
-  /**
-   * Inserted in one statement, marked isSuggested so the UI can tell ours
-   * apart from the customer's own. onConflictDoNothing covers the race where
-   * two tabs arrive at once.
-   */
-  const rows = await db
-    .insert(geoPrompts)
-    .values(
-      suggested.data.slice(0, allowance).map((prompt) => ({
-        websiteId: site.id,
-        prompt,
-        isSuggested: true,
-      })),
-    )
-    .onConflictDoNothing()
-    .returning();
-
-  revalidatePath(`/websites/${site.id}/ai-visibility`);
-  return { ok: true, data: rows.map(toView) };
-}
-
-/** A stored row as the client component wants it. */
-function toView(row: typeof geoPrompts.$inferSelect): GeoPromptView {
+  const suggested = await suggestQuestions({ site, count, tracked });
+  if (suggested.ok) return { ok: true, data: suggested.questions };
   return {
-    id: row.id,
-    prompt: row.prompt,
-    isSuggested: row.isSuggested,
-    active: row.active,
-    latest: null,
+    ok: false,
+    error:
+      suggested.reason === "limited"
+        ? "You have asked for suggestions many times this hour. Please try again shortly."
+        : "Could not suggest questions. Try again.",
   };
 }

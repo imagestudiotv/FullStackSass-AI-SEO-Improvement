@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, Clock, TrendingUp } from "lucide-react";
+import { Building2, ListChecks, TrendingUp } from "lucide-react";
 import { getMessages, type Messages } from "@/lib/i18n/messages";
 
 import { WorldMap } from "@/components/onboarding/world-map";
@@ -44,7 +44,8 @@ const STATS: {
 }[] = [
   { icon: Building2, value: "8", label: "aiAssistantsTracked" },
   { icon: TrendingUp, value: "weekly", label: "freshArticles" },
-  { icon: Clock, value: "twoMinutes", label: "toSetUp" },
+  // Add the website, choose a plan (lib/onboarding/wizard.ts): onboarding is those two steps and no more.
+  { icon: ListChecks, value: "twoSteps", label: "toGetStarted" },
 ];
 
 export function OnboardingAside({

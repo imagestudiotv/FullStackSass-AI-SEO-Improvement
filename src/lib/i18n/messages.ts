@@ -2707,10 +2707,10 @@ export type Messages = {
       uploadLabel: string;
       aiAssistantsTracked: string;
       freshArticles: string;
-      toSetUp: string;
+      toGetStarted: string;
       trustedByBusinesses: string;
       weekly: string;
-      twoMinutes: string;
+      twoSteps: string;
       notAvailable: string;
       notAvailableHelp: string;
       backToDashboard: string;
@@ -5932,10 +5932,10 @@ const en: Messages = {
       uploadLabel: "Upload",
       aiAssistantsTracked: "AI assistants tracked",
       freshArticles: "Fresh articles",
-      toSetUp: "To set up",
+      toGetStarted: "To get started",
       trustedByBusinesses: "Trusted by businesses worldwide",
       weekly: "Weekly",
-      twoMinutes: "2 min",
+      twoSteps: "2 steps",
       notAvailable: "This page is not available",
       notAvailableHelp: "The page may have moved, or it belongs to a workspace you are not a member of.",
       backToDashboard: "Back to dashboard",
@@ -9121,10 +9121,10 @@ const es: Messages = {
       uploadLabel: "Subir",
       aiAssistantsTracked: "Asistentes de IA supervisados",
       freshArticles: "Artículos nuevos",
-      toSetUp: "Por configurar",
+      toGetStarted: "Para empezar",
       trustedByBusinesses: "La confianza de negocios de todo el mundo",
       weekly: "Cada semana",
-      twoMinutes: "2 min",
+      twoSteps: "2 pasos",
       notAvailable: "Esta página no está disponible",
       notAvailableHelp: "Puede que la página se haya movido o que pertenezca a un espacio de trabajo del que no forma parte.",
       backToDashboard: "Volver al panel",
@@ -12310,10 +12310,10 @@ const fr: Messages = {
       uploadLabel: "Importer",
       aiAssistantsTracked: "Assistants IA suivis",
       freshArticles: "Nouveaux articles",
-      toSetUp: "À configurer",
+      toGetStarted: "Pour commencer",
       trustedByBusinesses: "La confiance d’entreprises du monde entier",
       weekly: "Chaque semaine",
-      twoMinutes: "2 min",
+      twoSteps: "2 étapes",
       notAvailable: "Cette page n\u2019est pas disponible",
       notAvailableHelp: "La page a peut-être été déplacée, ou elle appartient à un espace de travail dont vous n\u2019êtes pas membre.",
       backToDashboard: "Retour au tableau de bord",
@@ -15499,10 +15499,10 @@ const it: Messages = {
       uploadLabel: "Carica",
       aiAssistantsTracked: "Assistenti IA monitorati",
       freshArticles: "Articoli nuovi",
-      toSetUp: "Da configurare",
+      toGetStarted: "Per iniziare",
       trustedByBusinesses: "La fiducia di attività in tutto il mondo",
       weekly: "Ogni settimana",
-      twoMinutes: "2 min",
+      twoSteps: "2 passaggi",
       notAvailable: "Questa pagina non è disponibile",
       notAvailableHelp: "La pagina potrebbe essere stata spostata, oppure appartiene a uno spazio di lavoro di cui non fa parte.",
       backToDashboard: "Torna alla dashboard",
@@ -18684,10 +18684,10 @@ const de: Messages = {
       uploadLabel: "Hochladen",
       aiAssistantsTracked: "Beobachtete KI-Assistenten",
       freshArticles: "Neue Artikel",
-      toSetUp: "Einzurichten",
+      toGetStarted: "Bis zum Start",
       trustedByBusinesses: "Unternehmen weltweit vertrauen darauf",
       weekly: "Wöchentlich",
-      twoMinutes: "2 Min.",
+      twoSteps: "2 Schritte",
       notAvailable: "Diese Seite ist nicht verfügbar",
       notAvailableHelp: "Die Seite wurde möglicherweise verschoben oder gehört zu einem Arbeitsbereich, in dem Sie kein Mitglied sind.",
       backToDashboard: "Zurück zum Dashboard",

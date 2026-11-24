@@ -27,6 +27,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { WIZARD_STEPS, wizardStepIndex } from "@/lib/onboarding/wizard";
 import { addWebsite } from "@/lib/websites/actions";
 import { previewWebsite, type WebsitePreview } from "@/lib/websites/preview";
 
@@ -134,7 +135,8 @@ export function WebsiteStep({
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:gap-12">
       <div>
         <p className="text-sm font-semibold tracking-wide text-primary">
-          STEP 01 <span className="text-muted-foreground">/ 02</span>
+          STEP {String(wizardStepIndex("website") + 1).padStart(2, "0")}{" "}
+          <span className="text-muted-foreground">/ {String(WIZARD_STEPS.length).padStart(2, "0")}</span>
         </p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
           {t.whatsYourWebsite}
