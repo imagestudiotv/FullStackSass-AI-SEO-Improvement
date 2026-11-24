@@ -127,6 +127,7 @@ export default async function WebsiteSocialPage({ params, searchParams }: PagePr
     title: row.title,
     body: row.body,
     warmup: row.warmup,
+    link: row.link,
     imageUrl: row.imageUrl,
     scheduledFor: row.scheduledFor?.toISOString() ?? null,
     // Scheduled on an account paused since: RepGet will not publish it (publish.ts), so it is the customer's to post.

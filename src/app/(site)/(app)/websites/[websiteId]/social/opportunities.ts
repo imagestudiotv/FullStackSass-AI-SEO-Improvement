@@ -31,6 +31,8 @@ export type SuggestionView = {
   title: string | null;
   body: string;
   warmup: boolean;
+  /** A Pin's link: what the page opened for it needs (lib/social/post-target.ts). */
+  link: string | null;
   imageUrl: string | null;
   scheduledFor: string | null;
   postedAt: string | null;
