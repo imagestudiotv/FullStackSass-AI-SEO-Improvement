@@ -19,27 +19,27 @@ vi.mock("sonner", () => ({ toast: Object.assign(vi.fn(), { success: vi.fn(), err
 vi.mock("@/lib/stripe/actions", () => ({ createCheckoutSession: vi.fn() }));
 vi.mock("@/lib/paypal/actions", () => ({ createPayPalCheckout: vi.fn(), confirmPayPalReturn: vi.fn() }));
 vi.mock("@/lib/stripe/portal", () => ({ createPortalSession: vi.fn() }));
-vi.mock("@/lib/addons/actions", () => ({ buyAddon: vi.fn(), buyAddonWithCredits: vi.fn() }));
 
-import type { AddonRow, PurchaseRow } from "@/lib/addons/shared";
 import type { PaymentRow } from "@/lib/billing";
 import type { CurrentSubscription, PlanRow, WebsiteSubscription } from "@/lib/billing-shared";
+import { BILLING_PLANS_COPY } from "@/lib/i18n/billing-plans";
 import { getMessages } from "@/lib/i18n/messages";
 
-import { AddonsPanel } from "./addons-panel";
 import { BillingClient } from "./billing-client";
 import {
   formatMoney,
+  packsReturnPath,
   paymentOptions,
   payPalForPlan,
   payPalIntervalBlocked,
   planFeatures,
-  planGridClass,
+  selectedPlanOf,
   subscriptionStatus,
   upgradeSentence,
   withoutReturnParams,
 } from "./billing-view";
 import { PaymentsPanel } from "./payments-panel";
+import { planMethods } from "./plan-picker";
 
 const en = getMessages("en").app;
 const de = getMessages("de").app;
@@ -214,10 +214,28 @@ describe("statuses, prices and allowances", () => {
     expect(plain(upgradeSentence(SCALE, de.billing, "de"))).toContain("1.500 Suchbegriffe überwacht");
   });
 
-  it("sizes the plan grid to the number of plans", () => {
-    expect(planGridClass(2)).toContain("lg:grid-cols-2");
-    expect(planGridClass(2)).not.toContain("grid-cols-4");
-    expect(planGridClass(4)).toContain("xl:grid-cols-4");
+  it("sends an older credits address on to the packs' page, keeping the outcome or the quote", () => {
+    expect(packsReturnPath({ addon: "success" })).toBe("/credits/buy?addon=success");
+    expect(packsReturnPath({ addon: "pending", via: "paypal" })).toBe("/credits/buy?addon=pending&via=paypal");
+    expect(packsReturnPath({ project: "p1", revision: "123" })).toBe("/credits/buy?project=p1&revision=123");
+    expect(packsReturnPath({ addon: "cancelled", via: "paypal", project: "p1", revision: "123" })).toBe(
+      "/credits/buy?addon=cancelled&via=paypal&project=p1&revision=123",
+    );
+    // Plans' own addresses stay on Billing.
+    for (const params of [{}, { site: "a" }, { checkout: "success" }, { paypal: "success" }, { plan_change: "completed", via: "paypal" }, { plan: "scale" }, { project: "p1" }]) {
+      expect(packsReturnPath(params)).toBeNull();
+    }
+  });
+
+  it("selects the plan a link names only when it is on sale", () => {
+    const rows = [GROW, SCALE, plan({ id: "y", tier: "grow", interval: "year" })];
+    expect(selectedPlanOf({ plan: "scale" }, rows)).toEqual({ tier: "scale", interval: null });
+    expect(selectedPlanOf({ plan: "grow", period: "year" }, rows)).toEqual({ tier: "grow", interval: "year" });
+    // No yearly row for it: the plan, on the page's own period.
+    expect(selectedPlanOf({ plan: "scale", period: "year" }, rows)).toEqual({ tier: "scale", interval: null });
+    expect(selectedPlanOf({ plan: "launch" }, rows)).toBeNull();
+    expect(selectedPlanOf({ plan: ["grow", "scale"] }, rows)).toBeNull();
+    expect(selectedPlanOf({}, rows)).toBeNull();
   });
 
   it("drops only the return parameters, keeping the site and the anchor", () => {
@@ -391,11 +409,11 @@ describe("BillingClient", () => {
       websiteSubscriptions: [{ ...paypal, websiteId: "site_a", domain: "alpha.example" }],
     });
     expect(out).toContain(en.common.manageInPayPal);
-    expect(out).toContain(en.common.payWithPayPal);
     expect(out).not.toContain("Cancel subscription");
     expect(out).not.toContain(en.common.manageBilling);
-    expect(out).not.toContain(en.billing.payByCard);
-    expect(out).not.toContain(en.billing.switchPlan);
+    // The other plan can be moved to, through PayPal only.
+    expect(planMethods(SCALE, paymentOptions(paypal, true), paypal)).toEqual(["paypal"]);
+    expect(out.split(en.billing.switchPlan).length - 1).toBe(1);
   });
 
   it("shows no PayPal button on a plan that is not in PayPal", () => {
@@ -405,9 +423,14 @@ describe("BillingClient", () => {
       entitled: false,
       websiteSubscriptions: [],
     });
-    // Two cards can be paid by card; only Grow offers PayPal.
-    expect(out.split(en.billing.payByCard).length - 1).toBe(2);
-    expect(out.split(en.common.payWithPayPal).length - 1).toBe(1);
+    // Both can be chosen; only Grow offers PayPal in its dialog.
+    expect(out).toContain("Choose Grow");
+    expect(out).toContain("Choose Scale");
+    const options = paymentOptions(null, true);
+    expect(planMethods(GROW, options, null)).toEqual(["card", "paypal"]);
+    expect(planMethods({ ...SCALE, paypalPlanId: null }, options, null)).toEqual(["card"]);
+    // PayPal not configured: card only, everywhere.
+    expect(planMethods(GROW, paymentOptions(null, false), null)).toEqual(["card"]);
   });
 
   it("is fully translated: German labels, prices and periods", () => {
@@ -416,8 +439,9 @@ describe("BillingClient", () => {
     );
     expect(out).toContain("99 €");
     expect(out).toContain("/ Monat");
-    expect(out).toContain("Mit Karte bezahlen");
-    for (const english of ["Pay by card", "Switch to this plan", " / month", "Opening", "Cancel subscription"]) {
+    expect(out).toContain("Grow wählen");
+    expect(out).toContain(BILLING_PLANS_COPY.de.title);
+    for (const english of ["Choose Grow", "Switch to this plan", "Plan highlights", " / month", "Opening", "Cancel subscription"]) {
       expect(out).not.toContain(english);
     }
   });
@@ -439,7 +463,7 @@ describe("BillingClient", () => {
     const out = renderClient({ websiteSubscriptions: [a, b] });
     expect(out).toContain('href="/billing?site=site_b#plan"');
     expect(out).not.toContain('href="/billing?site=site_a#plan"');
-    expect(out).toContain(en.billing.shownBelow);
+    expect(out).toContain(BILLING_PLANS_COPY.en.shownAbove);
   });
 });
 
@@ -503,121 +527,4 @@ describe("PaymentsPanel", () => {
     ).toBe("");
   });
 
-});
-
-describe("AddonsPanel", () => {
-  const pack = (id: string, credits: number, cents: number): AddonRow => ({
-    id,
-    slug: id,
-    name: `${credits} credits`,
-    description: null,
-    priceCents: cents,
-    currency: "eur",
-    creditsGranted: credits,
-    kind: "credits",
-    creditPrice: null,
-    purchasable: true,
-  });
-  const service = (kind: "service" | "quote", creditPrice: number | null): AddonRow => ({
-    id: kind,
-    slug: kind,
-    name: kind === "service" ? "Top 250 live USA Local Citations" : "We fix the errors for you",
-    description: null,
-    priceCents: 19900,
-    currency: "eur",
-    creditsGranted: 0,
-    kind,
-    creditPrice,
-    // A service may still carry a Stripe price from when it was sold by card; it is not used.
-    purchasable: true,
-  });
-  const purchase: PurchaseRow = {
-    id: "p1",
-    slug: "credits_10",
-    name: "10 credits",
-    kind: "credits",
-    pricePaidCents: 4900,
-    currency: "eur",
-    creditsPaid: null,
-    status: "paid",
-    fulfilledAt: null,
-    createdAt: new Date(Date.UTC(2026, 8, 1)),
-  };
-
-  it("sells packs with a translated per-credit price", () => {
-    const out = plain(
-      html(
-        createElement(AddonsPanel, {
-          addons: [pack("a", 10, 4900), pack("b", 25, 9900)],
-          purchases: [],
-          canBuy: true,
-          locale: "de",
-          t: de.addons,
-          tCredits: de.credits,
-          tCommon: de.common,
-        }),
-      ),
-    );
-    expect(out).toContain('id="addons"');
-    expect(out).toContain("4,90 € pro Credit");
-    expect(out).not.toContain("per credit");
-  });
-
-  it("hides the shop from someone who cannot buy, keeping their purchase history", () => {
-    const out = html(
-      createElement(AddonsPanel, {
-        addons: [pack("a", 10, 4900)],
-        purchases: [purchase],
-        canBuy: false,
-        locale: "en",
-        t: en.addons,
-        tCredits: en.credits,
-        tCommon: en.common,
-      }),
-    );
-    expect(out).not.toContain("Buy 10 credits");
-    expect(out).toContain(en.addons.yourPurchases);
-    expect(out).toContain("1 Sept 2026");
-    expect(
-      html(createElement(AddonsPanel, { addons: [pack("a", 10, 4900)], purchases: [], canBuy: false, locale: "en", t: en.addons, tCredits: en.credits, tCommon: en.common })),
-    ).toBe("");
-  });
-  it("sells services for credits, not money, and a quote from a price in credits", () => {
-    const out = plain(
-      html(
-        createElement(AddonsPanel, {
-          addons: [service("service", 250), service("quote", 190)],
-          purchases: [{ ...purchase, name: "Top 250 live USA Local Citations", kind: "service", pricePaidCents: 0, creditsPaid: 250 }],
-          canBuy: true,
-          locale: "en",
-          t: en.addons,
-          tCredits: en.credits,
-          tCommon: en.common,
-        }),
-      ),
-    );
-    expect(out).toContain(en.addons.servicesHelp);
-    // The service's price is in credits; its old card price is nowhere.
-    expect(out).toContain("250 credits");
-    expect(out).not.toContain("199");
-    expect(out).toContain("From 190 credits.");
-    // The purchase paid with credits says so.
-    expect(out).toMatch(/<span class="tabular-nums">250 credits<\/span>/);
-    expect(out).not.toContain("0,00");
-  });
-
-  it("offers no Buy button for a service without a price in credits", () => {
-    const out = html(
-      createElement(AddonsPanel, {
-        addons: [service("service", null)],
-        purchases: [],
-        canBuy: true,
-        locale: "it",
-        t: getMessages("it").app.addons,
-        tCredits: getMessages("it").app.credits,
-        tCommon: getMessages("it").app.common,
-      }),
-    );
-    expect(out).toMatch(/<button[^>]*disabled[^>]*>Non disponibile<\/button>/);
-  });
 });
