@@ -22,7 +22,7 @@ import { formatMoney, planFeatures } from "./billing-view";
  * function /pricing and the onboarding plan step read, which only shows a
  * discount checkout really gives: REPGET's launch price while
  * REPGET_OFFER_ENABLED=1 (LP40_* coupons) and the Grow + Visibility bundle's
- * EUR 299 -> 99 (REPGET_GV_M). A yearly plan is quoted per month with the
+ * EUR 299 -> 129 (REPGET_GV129_M). A yearly plan is quoted per month with the
  * year's total beside it, as /pricing quotes it.
  *
  * THE TERMS ARE CHECKOUT'S: the TRIAL_DAYS free trial only for a workspace that has
@@ -38,7 +38,7 @@ export type PlanCardView = {
   price: string;
   /** The regular figure on the same basis, struck through; null when nothing is taken off. */
   strike: string | null;
-  /** "40% OFF" for REPGET, "SAVE 67%"-style for the bundle; null without a discount. */
+  /** "40% OFF" for REPGET, "SAVE 57%"-style for the bundle; null without a discount. */
   badge: string | null;
   /** "/ month". */
   per: string;
@@ -59,6 +59,10 @@ export type PlanCardView = {
   highlights: string[];
   /** The server refuses this change: the website is on the launch price, which this plan does not have. */
   launchNotCovered: boolean;
+  /** The server refuses this change onto the bundle: from a yearly plan, or during a free trial (repget-subscription.ts bundleChangeRefusal). */
+  bundleBlocked: "yearly" | "trial" | null;
+  /** A change onto the bundle leaves the launch price, which a change back brings back: said before choosing. */
+  leavesLaunchPrice: boolean;
   perksTitle: string | null;
   perks: PerkItem[];
 };
@@ -82,6 +86,8 @@ export function planCardsFor(
      * offer is on - and a plan it does not cover cannot be moved to.
      */
     launchPrice?: boolean;
+    /** The plan the website on screen has now, when switching. */
+    current?: { interval: string | null; status: string } | null;
     locale: Locale;
     t: Messages["app"]["billing"];
   },
@@ -147,8 +153,17 @@ export function planCardsFor(
       directBadge: direct ? DIRECT_PURCHASE[locale].badge : null,
       features,
       highlights: benefits?.highlights ?? features,
-      // As the server decides it (offerForPlanChange): only a price its coupon was made for.
-      launchNotCovered: Boolean(context.switching && context.launchPrice) && repgetFirstPaymentCents(plan) === null,
+      // As the server decides it (offerForPlanChange): only a price its coupon was made for, or the bundle at its own price.
+      launchNotCovered: Boolean(context.switching && context.launchPrice) && !direct && repgetFirstPaymentCents(plan) === null,
+      bundleBlocked:
+        !direct || !context.switching
+          ? null
+          : context.current?.status === "trialing"
+            ? "trial"
+            : context.current?.interval === "year"
+              ? "yearly"
+              : null,
+      leavesLaunchPrice: direct && Boolean(context.switching && context.launchPrice),
       perksTitle: benefits && benefits.perks.length > 0 ? page.card.perksTitle : null,
       perks: benefits?.perks ?? [],
     };

@@ -164,11 +164,14 @@ describe("the Email Autopilot additions (2026-11-11)", () => {
       const launch = ending("Launch", "launch");
       for (const sentence of [c.blogPost, c.social]) expect(launch.text, locale).not.toContain(sentence);
       for (const sentence of [c.body.split("{")[0], c.backlink, c.cancel]) expect(launch.text, locale).toContain(sentence);
-      for (const tier of ["grow", "scale"]) {
-        const email = ending("Grow", tier);
+      const grow = ending("Grow", "grow");
+      for (const sentence of [c.blogPost, c.social]) expect(grow.text, locale).not.toContain(sentence);
+      expect(grow.text, locale).toContain(c.backlink);
+      for (const tier of ["scale", "grow_visibility"]) {
+        const email = ending("Scale", tier);
         for (const sentence of [c.blogPost, c.social, c.backlink]) expect(email.text, `${locale} ${tier}`).toContain(sentence);
       }
-      for (const email of [launch, ending("Grow", "grow")]) {
+      for (const email of [launch, grow, ending("Scale", "scale")]) {
         expect(email.text, locale).not.toMatch(/DR ?60|dofollow/i);
         expect(email.html, locale).not.toMatch(/DR ?60|dofollow/i);
       }

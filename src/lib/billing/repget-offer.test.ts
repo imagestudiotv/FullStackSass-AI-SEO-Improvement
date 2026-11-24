@@ -20,10 +20,10 @@ vi.mock("@/lib/stripe/client", () => ({
 const mail = vi.hoisted(() => ({ sendEmail: vi.fn() }));
 vi.mock("@/lib/email/send", () => mail);
 
-import { BUNDLE_COUPON, bundleCouponFor, offerDisplayCents, repgetCouponFor, repgetDiscountCents, repgetFirstPaymentCents } from "@/lib/billing/repget-offer";
+import { BUNDLE_COUPON, bundleCouponFor, EARLIER_BUNDLE_COUPON, offerDisplayCents, repgetCouponFor, repgetDiscountCents, repgetFirstPaymentCents } from "@/lib/billing/repget-offer";
 import { BUNDLE_STRIPE_COUPONS, BUNDLES, REPGET_STRIPE_COUPONS, stripeAmountFor } from "../../../scripts/plan-catalog.mjs";
 import { GROW_VISIBILITY_COMPARE_AT_CENTS, GROW_VISIBILITY_TIER } from "@/lib/plans/features";
-import { isCouponRefusal, matchOfferToPlan, offerForPlanChange } from "@/lib/billing/repget-subscription";
+import { bundleChangeRefusal, isCouponRefusal, matchOfferToPlan, offerForPlanChange } from "@/lib/billing/repget-subscription";
 
 let test: TestDb;
 const SUB = "sub_1";
@@ -45,6 +45,7 @@ beforeAll(async () => {
     { ...row, name: "T Grow (Annual)", tier: "grow", interval: "year", priceCents: 149000, stripePriceId: "price_grow_year", catalogVersion: 2 },
     { ...row, name: "T Scale (Annual)", tier: "scale", interval: "year", priceCents: 349000, stripePriceId: "price_scale_year", catalogVersion: 2 },
     // An older catalogue's price on the same tier: the offer does not cover it.
+    { ...row, name: "T Bundle", tier: "grow_visibility", interval: "month", priceCents: 12900, stripePriceId: "price_bundle", catalogVersion: 2 },
     { ...row, name: "T Old Grow", tier: "grow", interval: "month", priceCents: 9900, stripePriceId: "price_grow_old", catalogVersion: 1 },
   ]);
 });
@@ -98,7 +99,7 @@ describe("which coupon a plan gets", () => {
     expect(REPGET_STRIPE_COUPONS).toHaveLength(6);
   });
 
-  it("the bundle: its coupon brings the struck-through EUR 299 to the EUR 99 it costs, and the setup script agrees", () => {
+  it("the bundle: its coupon brings the struck-through EUR 299 to the EUR 129 it costs, and the setup script agrees", () => {
     const [coupon] = BUNDLE_STRIPE_COUPONS;
     const [bundle] = BUNDLES;
     expect(BUNDLE_STRIPE_COUPONS).toHaveLength(1);
@@ -106,17 +107,20 @@ describe("which coupon a plan gets", () => {
     expect(BUNDLE_COUPON.tier).toBe(GROW_VISIBILITY_TIER);
     expect(BUNDLE_COUPON.listCents).toBe(GROW_VISIBILITY_COMPARE_AT_CENTS);
     expect(BUNDLE_COUPON.listCents - BUNDLE_COUPON.offCents).toBe(bundle.monthlyCents);
-    expect(stripeAmountFor({ tier: GROW_VISIBILITY_TIER, interval: "month", price_cents: 9900 })).toBe(29900);
+    expect(stripeAmountFor({ tier: GROW_VISIBILITY_TIER, interval: "month", price_cents: 12900 })).toBe(29900);
     expect(stripeAmountFor({ tier: "grow", interval: "month", price_cents: 14900 })).toBe(14900);
   });
 
-  it("the bundle's coupon only at the price it was made for: none on the old EUR 99 price, refused at any other", () => {
-    const bundle = month(GROW_VISIBILITY_TIER, 9900);
+  it("the bundle's coupon only at the price it was made for: none on a Stripe price that is the row's own, refused at any other", () => {
+    const bundle = month(GROW_VISIBILITY_TIER, 12900);
     expect(bundleCouponFor(bundle, 29900)).toEqual({ coupon: BUNDLE_COUPON.id });
-    expect(bundleCouponFor(bundle, 9900)).toEqual({ coupon: null });
+    expect(bundleCouponFor(bundle, 12900)).toEqual({ coupon: null });
+    // Until the row itself changes, the bundle is still sold at EUR 99, with the coupon of that price.
+    expect(bundleCouponFor(month(GROW_VISIBILITY_TIER, 9900), 29900)).toEqual({ coupon: EARLIER_BUNDLE_COUPON.id });
+    expect(EARLIER_BUNDLE_COUPON.listCents - EARLIER_BUNDLE_COUPON.offCents).toBe(9900);
     expect(bundleCouponFor(bundle, 19900)).toEqual({ refuse: true });
     expect(bundleCouponFor(bundle, null)).toEqual({ refuse: true });
-    expect(bundleCouponFor(month(GROW_VISIBILITY_TIER, 12900), 29900)).toEqual({ refuse: true });
+    expect(bundleCouponFor(month(GROW_VISIBILITY_TIER, 14900), 29900)).toEqual({ refuse: true });
     expect(bundleCouponFor(month("grow", 14900), 14900)).toEqual({ coupon: null });
     expect(repgetCouponFor(bundle)).toBeNull();
   });
@@ -128,8 +132,8 @@ describe("which coupon a plan gets", () => {
     expect(repgetCouponFor(month("grow", 9900))).toBeNull();
     expect(repgetCouponFor({ ...month("grow", 14900), currency: "usd" })).toBeNull();
     expect(repgetCouponFor(month("legacy", 14900))).toBeNull();
-    expect(repgetCouponFor(month("grow_visibility", 9900))).toBeNull();
-    expect(repgetDiscountCents(month("grow_visibility", 9900))).toBeNull();
+    expect(repgetCouponFor(month("grow_visibility", 12900))).toBeNull();
+    expect(repgetDiscountCents(month("grow_visibility", 12900))).toBeNull();
   });
 });
 
@@ -246,6 +250,83 @@ describe("after the free period: the coupon is forever, never used up", () => {
     await matchOfferToPlan(event, "in_1");
     expect(stripeMock.update.mock.calls[0]).toEqual([SUB, { discounts: "" }]);
     expect(mail.sendEmail).not.toHaveBeenCalled();
+  });
+});
+
+describe("Grow + Visibility, reached from the launch price (Daniel, 2026-11-24)", () => {
+  const onBundle = (discounts: unknown[], unitAmount: number | null = 29900, latest: unknown = paid(17000, 29900)) =>
+    stripeMock.retrieve.mockResolvedValue({
+      id: SUB,
+      status: "active",
+      discounts,
+      metadata: { repget_offer: "REPGET" },
+      latest_invoice: latest,
+      items: { data: [{ price: { id: "price_bundle", unit_amount: unitAmount } }] },
+    });
+
+  it("its own coupon is kept: never taken off, so it is never charged EUR 299", async () => {
+    onBundle([discount("di_1", BUNDLE_COUPON.id)]);
+    await matchOfferToPlan(event);
+    onBundle([discount("di_1", BUNDLE_COUPON.id)], 29900, paid(17000, 29900));
+    await matchOfferToPlan(event, undefined);
+    expect(stripeMock.update).not.toHaveBeenCalled();
+    expect(mail.sendEmail).not.toHaveBeenCalled();
+  });
+
+  it("the launch coupon left over from Grow comes off, and the bundle's goes on when it is missing", async () => {
+    onBundle([discount("di_1", "LP40_GROW_M"), discount("di_2", BUNDLE_COUPON.id)]);
+    await matchOfferToPlan(event);
+    expect(stripeMock.update.mock.calls[0]).toEqual([SUB, { discounts: [{ coupon: BUNDLE_COUPON.id }] }]);
+    stripeMock.update.mockClear();
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    onBundle([discount("di_1", "LP40_GROW_M")], 29900, paid(0, 29900));
+    await matchOfferToPlan(event);
+    expect(stripeMock.update.mock.calls[0]).toEqual([SUB, { discounts: [{ coupon: BUNDLE_COUPON.id }] }]);
+    // That invoice was charged in full: a person is told.
+    expect(mail.sendEmail).toHaveBeenCalledTimes(1);
+    log.mockRestore();
+  });
+
+  it("a partner's own discount beside it stays", async () => {
+    onBundle([discount("di_9", "PARTNER10"), discount("di_1", "LP40_GROW_M")]);
+    await matchOfferToPlan(event);
+    expect(stripeMock.update.mock.calls[0]).toEqual([SUB, { discounts: [{ discount: "di_9" }, { coupon: BUNDLE_COUPON.id }] }]);
+  });
+
+  it("bought at EUR 99: that price's coupon stays", async () => {
+    onBundle([discount("di_1", EARLIER_BUNDLE_COUPON.id)]);
+    await matchOfferToPlan(event);
+    expect(stripeMock.update).not.toHaveBeenCalled();
+  });
+
+  it("a Stripe price no coupon was made for: nothing is changed, staff are told", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    onBundle([discount("di_1", BUNDLE_COUPON.id)], 19900);
+    await matchOfferToPlan(event);
+    expect(stripeMock.update).not.toHaveBeenCalled();
+    expect(mail.sendEmail).toHaveBeenCalledTimes(1);
+    log.mockRestore();
+  });
+
+  it("back on Grow: the launch price returns and the bundle's coupon comes off", async () => {
+    expect(offerForPlanChange({ metadata: { repget_offer: "REPGET" } }, month("grow", 14900))).toEqual({ coupon: "LP40_GROW_M" });
+    live("price_grow", [discount("di_1", BUNDLE_COUPON.id)], "active", paid(6000));
+    await matchOfferToPlan(event);
+    expect(stripeMock.update.mock.calls[0]).toEqual([SUB, { discounts: [{ coupon: "LP40_GROW_M" }] }]);
+  });
+
+  it("is not refused, and carries no launch coupon: its own one is the caller's", () => {
+    expect(offerForPlanChange({ metadata: { repget_offer: "REPGET" } }, month(GROW_VISIBILITY_TIER, 12900))).toEqual({});
+  });
+
+  it("not from a yearly plan and not during a free trial, launch price or not; any other plan is untouched", () => {
+    const sub = (status: string, interval: string) => ({ status, items: { data: [{ price: { recurring: { interval } } }] } }) as never;
+    const bundle = { tier: GROW_VISIBILITY_TIER };
+    expect(bundleChangeRefusal(sub("active", "month"), bundle)).toBeNull();
+    expect(bundleChangeRefusal(sub("past_due", "month"), bundle)).toBeNull();
+    expect(bundleChangeRefusal(sub("active", "year"), bundle)).toContain("monthly only");
+    expect(bundleChangeRefusal(sub("trialing", "month"), bundle)).toContain("free trial has ended");
+    expect(bundleChangeRefusal(sub("trialing", "year"), { tier: "scale" })).toBeNull();
   });
 });
 

@@ -2,11 +2,12 @@ import { and, eq, notInArray, sql } from "drizzle-orm";
 import type Stripe from "stripe";
 
 import { adminEmails } from "@/lib/admin/guard";
-import { ALL_REPGET_COUPONS, REPGET_CODE, repgetCouponFor, type OfferPlan } from "@/lib/billing/repget-offer";
+import { ALL_REPGET_COUPONS, BUNDLE_COUPON_IDS, bundleCouponFor, REPGET_CODE, repgetCouponFor, type OfferPlan } from "@/lib/billing/repget-offer";
 import { db } from "@/lib/db";
 import { billingCheckouts, plans, subscriptions } from "@/lib/db/schema";
 import { emailLayout, emailText, escapeHtml } from "@/lib/email/layout";
 import { sendEmail } from "@/lib/email/send";
+import { isDirectPurchaseTier } from "@/lib/plans/features";
 import { stripe } from "@/lib/stripe/client";
 
 /**
@@ -31,6 +32,11 @@ import { stripe } from "@/lib/stripe/client";
  *   - matchOfferToPlan is what is left: a change made some other way, in Stripe's
  *     dashboard say. It corrects the coupon for the payments to come, and tells
  *     staff when an invoice already went out without it.
+ *
+ * GROW + VISIBILITY (Daniel, 2026-11-24: "allow for upgrade") has its own price
+ * and its own coupon instead (repget-offer.ts bundleCouponFor), which goes on in
+ * the same request. The metadata stays, so moving back to a plan the offer
+ * covers brings its launch price back.
  *
  * To end one customer's launch price by hand, remove the coupon AND clear the
  * subscription's repget_offer metadata in Stripe, or it is put back.
@@ -74,15 +80,16 @@ export async function alertStaffAboutOffer(reason: string, detail: string): Prom
   }
 }
 
-const OURS = ALL_REPGET_COUPONS as readonly (string | null)[];
+const OURS: readonly (string | null)[] = [...ALL_REPGET_COUPONS, ...BUNDLE_COUPON_IDS];
 
 /**
  * What a plan change owes a subscription on the launch price, for the Stripe
  * request that makes the change, at any time.
  *   coupon  the new plan's, to go in that request: a monthly price's monthly
  *           coupon, a yearly price's yearly one.
- *   refuse  the new plan has none (an older catalogue's price, the bundle), so
- *           the change would end the launch price: not done from here.
+ *   refuse  the new plan has none (an older catalogue's price), so the change
+ *           would end the launch price: not done from here.
+ * Neither for the bundle: the caller puts the bundle's own coupon on.
  */
 export function offerForPlanChange(
   subscription: Pick<Stripe.Subscription, "metadata">,
@@ -92,7 +99,26 @@ export function offerForPlanChange(
   if (!subscription.metadata?.[OFFER_KEY]) return {};
   const coupon = repgetCouponFor(plan);
   if (coupon) return { coupon };
+  if (isDirectPurchaseTier(plan.tier)) return {};
   return { refuse: `Your ${REPGET_CODE} launch price does not cover this plan, and moving to it would end your discount. Please contact us if you want to change to it.` };
+}
+
+/**
+ * Why a subscription cannot be moved onto the bundle now, or null. The bundle is
+ * sold monthly only and without a free trial (lib/plans/features.ts), so a
+ * yearly plan and a running trial stay as they are. The plan cards say the same
+ * (billing/plan-cards.ts changeBlocked).
+ */
+export function bundleChangeRefusal(
+  subscription: Pick<Stripe.Subscription, "status" | "items">,
+  plan: Pick<OfferPlan, "tier">,
+): string | null {
+  if (!isDirectPurchaseTier(plan.tier)) return null;
+  if (subscription.status === "trialing") return "This plan has no free trial. You can change to it as soon as your free trial has ended.";
+  if (subscription.items.data[0]?.price?.recurring?.interval === "year") {
+    return "This plan is billed monthly only, so a yearly plan cannot be changed to it. Please contact us if you want to move to it.";
+  }
+  return null;
 }
 
 /** A website of this workspace pays by card on the launch price: a REPGET checkout started its subscription, which has not ended. */
@@ -129,7 +155,8 @@ export async function matchOfferToPlan(event: Pick<Stripe.Subscription, "id" | "
   if (!event.metadata?.[OFFER_KEY]) return;
   const live = await stripe.subscriptions.retrieve(event.id, { expand: ["discounts", "latest_invoice"] });
   if (!live.metadata?.[OFFER_KEY] || ENDED.includes(live.status)) return;
-  const priceId = live.items.data[0]?.price.id;
+  const price = live.items.data[0]?.price;
+  const priceId = price?.id;
   const [plan] = priceId
     ? await db
         .select({ tier: plans.tier, interval: plans.interval, currency: plans.currency, priceCents: plans.priceCents })
@@ -137,10 +164,21 @@ export async function matchOfferToPlan(event: Pick<Stripe.Subscription, "id" | "
         .where(eq(plans.stripePriceId, priceId))
         .limit(1)
     : [];
-  const wanted = plan ? repgetCouponFor(plan) : null;
+  // On the bundle: its own coupon, never none. Without it Stripe charges the list price.
+  const bundle = plan && isDirectPurchaseTier(plan.tier) ? bundleCouponFor(plan, price?.unit_amount ?? null) : null;
+  if (bundle && "refuse" in bundle) {
+    await alertStaffAboutOffer(
+      `No coupon was made for the Grow + Visibility price in Stripe (${price?.unit_amount ?? "unknown"} cents).`,
+      `Stripe subscription: ${live.id}. Nothing was changed on it: check its price and discount in Stripe.`,
+    );
+    return;
+  }
+  const wanted = bundle ? bundle.coupon : plan ? repgetCouponFor(plan) : null;
+  // A bundle bought at an earlier price keeps that price's coupon.
+  const accepted: readonly (string | null)[] = bundle?.coupon ? BUNDLE_COUPON_IDS : [wanted];
   const others = live.discounts.filter((discount) => !OURS.includes(couponIdOf(discount)));
   const current = live.discounts.filter((discount) => OURS.includes(couponIdOf(discount))).map(couponIdOf);
-  const right = wanted ? current.length === 1 && current[0] === wanted : current.length === 0;
+  const right = wanted ? current.length === 1 && accepted.includes(current[0]) : current.length === 0;
   if (!right) {
     const kept = others.map((discount) => ({ discount: typeof discount === "string" ? discount : discount.id }));
     const discounts = [...kept, ...(wanted ? [{ coupon: wanted }] : [])];

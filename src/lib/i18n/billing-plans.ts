@@ -30,6 +30,11 @@ export type BillingPlansCopy = {
   monthlyOnly: string;
   /** In place of the button: the server refuses this change (repget-subscription.ts offerForPlanChange). */
   launchNotCovered: string;
+  /** Under the button of Grow + Visibility, for a website on the launch price. */
+  bundleLaunchNote: string;
+  /** In place of its button: during a free trial, and from a yearly plan (repget-subscription.ts bundleChangeRefusal). */
+  bundleAfterTrial: string;
+  bundleNotYearly: string;
   contactUs: string;
   trustSecure: string;
   trustClear: string;
@@ -85,6 +90,9 @@ export const BILLING_PLANS_COPY: Record<Locale, BillingPlansCopy> = {
     seeBenefits: "Explore all benefits",
     monthlyOnly: "Monthly only",
     launchNotCovered: "Your launch price does not cover this plan, so moving to it would end your discount.",
+    bundleLaunchNote: "Your 40% launch discount does not apply to this plan: you pay the price shown. Go back to Grow or Scale and it returns.",
+    bundleAfterTrial: "This plan has no free trial. You can change to it once your free trial has ended.",
+    bundleNotYearly: "This plan is billed monthly only, so a yearly plan cannot be changed to it.",
     contactUs: "Contact us to change to it",
     trustSecure: "Secure payments",
     trustClear: "Transparent billing",
@@ -137,6 +145,9 @@ export const BILLING_PLANS_COPY: Record<Locale, BillingPlansCopy> = {
     seeBenefits: "Ver todas las ventajas",
     monthlyOnly: "Solo mensual",
     launchNotCovered: "Su precio de lanzamiento no cubre este plan, así que al cambiar perdería el descuento.",
+    bundleLaunchNote: "Su descuento de lanzamiento del 40 % no se aplica a este plan: paga el precio indicado. Si vuelve a Grow o Scale, lo recupera.",
+    bundleAfterTrial: "Este plan no tiene prueba gratuita. Podrá cambiar a él cuando termine su prueba gratuita.",
+    bundleNotYearly: "Este plan solo se factura por meses, así que no se puede cambiar a él desde un plan anual.",
     contactUs: "Contáctenos para cambiar a él",
     trustSecure: "Pagos seguros",
     trustClear: "Facturación transparente",
@@ -189,6 +200,9 @@ export const BILLING_PLANS_COPY: Record<Locale, BillingPlansCopy> = {
     seeBenefits: "Découvrir tous les avantages",
     monthlyOnly: "Mensuel uniquement",
     launchNotCovered: "Votre prix de lancement ne couvre pas ce forfait : en changer mettrait fin à votre réduction.",
+    bundleLaunchNote: "Votre réduction de lancement de 40 % ne s’applique pas à ce forfait : vous payez le prix affiché. Elle revient si vous repassez à Grow ou Scale.",
+    bundleAfterTrial: "Ce forfait n’a pas d’essai gratuit. Vous pourrez y passer une fois votre essai gratuit terminé.",
+    bundleNotYearly: "Ce forfait est facturé au mois uniquement : un forfait annuel ne peut pas y passer.",
     contactUs: "Contactez-nous pour y passer",
     trustSecure: "Paiements sécurisés",
     trustClear: "Facturation transparente",
@@ -241,6 +255,9 @@ export const BILLING_PLANS_COPY: Record<Locale, BillingPlansCopy> = {
     seeBenefits: "Scopri tutti i vantaggi",
     monthlyOnly: "Solo mensile",
     launchNotCovered: "Il Suo prezzo di lancio non copre questo piano: passando a questo piano perderebbe lo sconto.",
+    bundleLaunchNote: "Il Suo sconto di lancio del 40% non si applica a questo piano: paga il prezzo indicato. Se torna a Grow o Scale, lo ritrova.",
+    bundleAfterTrial: "Questo piano non ha una prova gratuita. Potrà passare a questo piano al termine della prova gratuita.",
+    bundleNotYearly: "Questo piano si paga solo mensilmente: da un piano annuale non è possibile passare a questo.",
     contactUs: "Ci contatti per cambiare",
     trustSecure: "Pagamenti sicuri",
     trustClear: "Fatturazione trasparente",
@@ -293,6 +310,9 @@ export const BILLING_PLANS_COPY: Record<Locale, BillingPlansCopy> = {
     seeBenefits: "Alle Vorteile ansehen",
     monthlyOnly: "Nur monatlich",
     launchNotCovered: "Ihr Einführungspreis gilt nicht für diesen Tarif; mit einem Wechsel würde Ihr Rabatt enden.",
+    bundleLaunchNote: "Ihr Einführungsrabatt von 40 % gilt nicht für diesen Tarif: Sie zahlen den angezeigten Preis. Wechseln Sie zurück zu Grow oder Scale, gilt er wieder.",
+    bundleAfterTrial: "Dieser Tarif hat keine kostenlose Testphase. Sie können zu ihm wechseln, sobald Ihre Testphase endet.",
+    bundleNotYearly: "Dieser Tarif wird nur monatlich abgerechnet; von einem Jahrestarif ist kein Wechsel möglich.",
     contactUs: "Kontaktieren Sie uns für den Wechsel",
     trustSecure: "Sichere Zahlungen",
     trustClear: "Transparente Abrechnung",

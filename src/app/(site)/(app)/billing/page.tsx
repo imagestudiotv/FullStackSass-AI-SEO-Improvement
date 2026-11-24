@@ -232,6 +232,7 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
     trialEligible: await isTrialEligible(db, orgId),
     switching,
     launchPrice,
+    current: current ? { interval: current.interval, status: current.status } : null,
     locale,
     t: t.app.billing,
   });

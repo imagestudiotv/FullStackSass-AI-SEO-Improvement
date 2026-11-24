@@ -25,6 +25,8 @@ export type OpportunitiesCopy = {
   oneClickHelpFree: string;
   /** After a scheduled post is posted by hand. */
   scheduledHelp: string;
+  /** The one-click post opened its tab, and RepGet's record of it has not answered. */
+  recordSlow: string;
   /** A conversation's source, as a link: {where}. */
   sourceLabel: string;
   /** An open platform with nothing in it. */
@@ -58,6 +60,7 @@ export const OPPORTUNITIES_COPY: Record<Locale, OpportunitiesCopy> = {
     oneClickHelp: "Copies the text, opens {platform} and counts as posted. Costs {price}.",
     oneClickHelpFree: "Copies the text, opens {platform} and counts as posted.",
     scheduledHelp: "RepGet will then not publish it.",
+    recordSlow: "RepGet has not confirmed this post yet. Reload the page before trying again: a post is never charged twice.",
     sourceLabel: "Open the discussion in {where}",
     platformEmpty: "Nothing here yet. New suggestions arrive in the morning.",
     emptyTitle: "RepGet writes your first suggestions from your website's information.",
@@ -83,6 +86,7 @@ export const OPPORTUNITIES_COPY: Record<Locale, OpportunitiesCopy> = {
     oneClickHelp: "Copia el texto, abre {platform} y cuenta como publicado. Cuesta {price}.",
     oneClickHelpFree: "Copia el texto, abre {platform} y cuenta como publicado.",
     scheduledHelp: "RepGet ya no lo publicará.",
+    recordSlow: "RepGet aún no ha confirmado esta publicación. Recargue la página antes de volver a intentarlo: una publicación nunca se cobra dos veces.",
     sourceLabel: "Abrir la conversación en {where}",
     platformEmpty: "Todavía no hay nada. Las nuevas sugerencias llegan por la mañana.",
     emptyTitle: "RepGet escribe sus primeras sugerencias con la información de su sitio web.",
@@ -108,6 +112,7 @@ export const OPPORTUNITIES_COPY: Record<Locale, OpportunitiesCopy> = {
     oneClickHelp: "Copie le texte, ouvre {platform} et compte comme publié. Coûte {price}.",
     oneClickHelpFree: "Copie le texte, ouvre {platform} et compte comme publié.",
     scheduledHelp: "RepGet ne la publiera alors plus.",
+    recordSlow: "RepGet n'a pas encore confirmé cette publication. Rechargez la page avant de réessayer : une publication n'est jamais facturée deux fois.",
     sourceLabel: "Ouvrir la discussion dans {where}",
     platformEmpty: "Rien pour l'instant. Les nouvelles suggestions arrivent le matin.",
     emptyTitle: "RepGet rédige vos premières suggestions à partir des informations de votre site.",
@@ -133,6 +138,7 @@ export const OPPORTUNITIES_COPY: Record<Locale, OpportunitiesCopy> = {
     oneClickHelp: "Copia il testo, apre {platform} e conta come pubblicato. Costa {price}.",
     oneClickHelpFree: "Copia il testo, apre {platform} e conta come pubblicato.",
     scheduledHelp: "RepGet non lo pubblicherà più.",
+    recordSlow: "RepGet non ha ancora confermato questa pubblicazione. Ricarichi la pagina prima di riprovare: una pubblicazione non viene mai addebitata due volte.",
     sourceLabel: "Apri la discussione in {where}",
     platformEmpty: "Ancora niente. I nuovi suggerimenti arrivano al mattino.",
     emptyTitle: "RepGet scrive i suoi primi suggerimenti dalle informazioni del suo sito.",
@@ -158,6 +164,7 @@ export const OPPORTUNITIES_COPY: Record<Locale, OpportunitiesCopy> = {
     oneClickHelp: "Kopiert den Text, öffnet {platform} und zählt als veröffentlicht. Kostet {price}.",
     oneClickHelpFree: "Kopiert den Text, öffnet {platform} und zählt als veröffentlicht.",
     scheduledHelp: "RepGet veröffentlicht ihn dann nicht mehr.",
+    recordSlow: "RepGet hat diesen Beitrag noch nicht bestätigt. Laden Sie die Seite neu, bevor Sie es erneut versuchen: Ein Beitrag wird nie doppelt berechnet.",
     sourceLabel: "Diskussion in {where} öffnen",
     platformEmpty: "Noch nichts vorhanden. Neue Vorschläge kommen am Morgen.",
     emptyTitle: "RepGet schreibt Ihre ersten Vorschläge aus den Informationen Ihrer Website.",

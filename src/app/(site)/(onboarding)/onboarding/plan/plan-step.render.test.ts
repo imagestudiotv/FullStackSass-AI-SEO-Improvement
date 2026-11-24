@@ -196,13 +196,13 @@ describe("REPGET, applied automatically (2026-11-11)", () => {
 });
 
 describe("a direct purchase on the plan step (Grow + Visibility)", () => {
-  const BUNDLE = { ...GROW, id: "plan_bundle", tier: "grow_visibility", name: "Grow + Visibility", priceCents: 9900, articleLimit: 30, keywordLimit: 400 };
+  const BUNDLE = { ...GROW, id: "plan_bundle", tier: "grow_visibility", name: "Grow + Visibility", priceCents: 12900, articleLimit: 30, keywordLimit: 400 };
   const direct = (props: Partial<ComponentProps<typeof PlanStep>> = {}) =>
     render({ monthlyPlans: [BUNDLE], paypalPlanIds: [BUNDLE.id], paypalTrialPlanIds: [], directPurchase: DIRECT_PURCHASE.en, offerCopy: OFFER_CODE.en, ...props });
 
   it("charges at checkout: no free trial, no email code, no REPGET, and says so", () => {
     const html = direct({ emailVerified: false });
-    expect(html).toContain("€99 billed at checkout, then monthly. The 3-day free trial does not apply to this offer.");
+    expect(html).toContain("€129 billed at checkout, then monthly. The 3-day free trial does not apply to this offer.");
     expect(html).toContain(DIRECT_PURCHASE.en.button);
     expect(html).toContain(DIRECT_PURCHASE.en.badge);
     expect(html).not.toContain("Start free trial");
@@ -212,7 +212,7 @@ describe("a direct purchase on the plan step (Grow + Visibility)", () => {
     expect(html).not.toContain(OFFER_CODE.en.label);
     expect(html).not.toContain(markup(t.paypalNoTrial));
     expect(paypalButton(html)).not.toMatch(/disabled=""/);
-    // Its list value struck through, as /pricing shows it; the charge stays EUR 99.
+    // Its list value struck through, as /pricing shows it; the charge stays EUR 129.
     expect(html).toMatch(/<del[^>]*>€299<\/del>/);
     // The same card styling as the trial plans.
     expect(html).toMatch(/rounded-\[19px\] border-\[1\.5px\] border-primary/);

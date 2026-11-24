@@ -116,25 +116,46 @@ export function repgetFirstPaymentCents(plan: OfferPlan): number | null {
 /**
  * The Grow + Visibility bundle's coupon at Stripe (client, 2026-11-12: "In this
  * cases 67% applied ... We need like auto apply coupon code"). Its Stripe price
- * is the struck-through EUR 299 and this `forever` coupon takes EUR 200 off, so
- * Checkout shows "REPGET (67% off)" and charges the row's EUR 99. Not the launch
+ * is the struck-through EUR 299 and this `forever` coupon takes EUR 170 off, so
+ * Checkout shows "REPGET (57% off)" and charges the row's EUR 129. Not the launch
  * price: on every bundle checkout, REPGET on or off, and never marked as the
  * REPGET offer on the subscription. scripts/plan-catalog.mjs
  * BUNDLE_STRIPE_COUPONS, which a test keeps equal to this.
  */
-export const BUNDLE_COUPON = { tier: "grow_visibility", id: "REPGET_GV_M", listCents: 29900, offCents: 20000 } as const;
+export const BUNDLE_COUPON = { tier: "grow_visibility", id: "REPGET_GV129_M", listCents: 29900, offCents: 17000 } as const;
+
+/**
+ * The one before (EUR 99, until Daniel's EUR 129 of 2026-11-24). Kept because
+ * the plan row's price decides which coupon goes on: the code is deployed
+ * before the row changes, and the bundle stays on sale in between. Also what a
+ * subscription bought at EUR 99 has, which is never taken off it.
+ */
+export const EARLIER_BUNDLE_COUPON = { tier: "grow_visibility", id: "REPGET_GV_M", listCents: 29900, offCents: 20000 } as const;
+
+type BundleCoupon = { tier: string; id: string; listCents: number; offCents: number };
+
+const BUNDLE_COUPONS: readonly BundleCoupon[] = [BUNDLE_COUPON, EARLIER_BUNDLE_COUPON];
+
+/** Every coupon a bundle subscription may have. */
+export const BUNDLE_COUPON_IDS: readonly string[] = BUNDLE_COUPONS.map((coupon) => coupon.id);
+
+/** The bundle coupon that makes this row's price, or null: another plan, or a price no coupon was made for. */
+export function bundleCouponOf(plan: OfferPlan): BundleCoupon | null {
+  if (plan.tier !== BUNDLE_COUPON.tier || plan.interval !== "month" || plan.currency !== "eur") return null;
+  return BUNDLE_COUPONS.find((coupon) => coupon.listCents - coupon.offCents === plan.priceCents) ?? null;
+}
 
 /**
  * The bundle's coupon for this plan at this Stripe price amount, or null.
  * Only when the price really is the list price the coupon was made for: a
- * bundle row still on its old EUR 99 price takes no coupon (it would charge
- * nothing), and one at any other amount is refused rather than mischarged.
+ * bundle whose Stripe price is the row's own takes no coupon (it would charge
+ * too little), and one at any other amount is refused rather than mischarged.
  */
 export function bundleCouponFor(plan: OfferPlan, stripeAmountCents: number | null): { coupon: string | null } | { refuse: true } {
   if (plan.tier !== BUNDLE_COUPON.tier || plan.interval !== "month" || plan.currency !== "eur") return { coupon: null };
   if (stripeAmountCents === plan.priceCents) return { coupon: null };
-  if (stripeAmountCents === BUNDLE_COUPON.listCents && plan.priceCents === BUNDLE_COUPON.listCents - BUNDLE_COUPON.offCents) return { coupon: BUNDLE_COUPON.id };
-  return { refuse: true };
+  const coupon = bundleCouponOf(plan);
+  return coupon && stripeAmountCents === coupon.listCents ? { coupon: coupon.id } : { refuse: true };
 }
 
 /**

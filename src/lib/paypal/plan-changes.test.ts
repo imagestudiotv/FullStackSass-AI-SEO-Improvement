@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { organization, payments, paypalOrders, paypalPlanChanges, plans, subscriptions, websites } from "@/lib/db/schema";
+import { billingCheckouts, organization, payments, paypalOrders, paypalPlanChanges, plans, subscriptions, websites } from "@/lib/db/schema";
 import { createTestDb, type TestDb } from "@/test/db";
 
 /**
@@ -34,7 +34,7 @@ const pc = await import("@/lib/paypal/plan-changes");
 let test: TestDb;
 let siteId = "";
 let subId = "";
-const plan = { launch: "", grow: "", growYear: "" };
+const plan = { launch: "", grow: "", growYear: "", bundle: "" };
 const NOW = new Date("2026-11-16T00:00:00Z");
 
 type Order = { id: string; status: string; purchase_units?: { payments?: { captures?: Record<string, unknown>[] } }[] };
@@ -118,11 +118,13 @@ beforeEach(async () => {
       { name: "Launch", tier: "launch", interval: "month", paypalPlanId: "P-LAUNCH", priceCents: 4900, ...base },
       { name: "Grow", tier: "grow", interval: "month", paypalPlanId: "P-GROW", priceCents: 14900, ...base },
       { name: "Grow yearly", tier: "grow", interval: "year", paypalPlanId: "P-GROW-Y", priceCents: 149000, ...base },
+      { name: "Grow + Visibility", tier: "grow_visibility", interval: "month", paypalPlanId: "P-BUNDLE", priceCents: 12900, ...base },
     ])
     .returning();
   plan.launch = rows[0].id;
   plan.grow = rows[1].id;
   plan.growYear = rows[2].id;
+  plan.bundle = rows[3].id;
   const [site] = await test.db.insert(websites).values({ organizationId: "org_a", url: "https://acme.test", domain: "acme.test" }).returning();
   siteId = site.id;
   const [row] = await test.db
@@ -302,6 +304,55 @@ describe("an upgrade through PayPal", () => {
     await test.db.update(subscriptions).set({ status: "past_due" }).where(eq(subscriptions.id, subId));
     expect(await start(h, plan.grow)).toEqual({ kind: "error", error: expect.stringContaining("not gone through") });
     expect(h.ops.orders.createOrder).not.toHaveBeenCalled();
+  });
+});
+
+describe("Grow + Visibility from the launch price (Daniel, 2026-11-24)", () => {
+  beforeEach(async () => {
+    await test.db.update(subscriptions).set({ planId: plan.grow }).where(eq(subscriptions.id, subId));
+    await test.db.insert(billingCheckouts).values({
+      organizationId: "org_a",
+      websiteId: siteId,
+      planId: plan.grow,
+      provider: "paypal",
+      providerSubscriptionId: "I-1",
+      status: "completed",
+      requestParams: { offer: "REPGET" },
+    } as never);
+    state.paypal = live("P-GROW");
+  });
+
+  it("charges the difference from what Grow costs them (EUR 89), then the bundle at its own price", async () => {
+    const h = harness();
+    const started = await start(h, plan.bundle);
+    expect(started).toMatchObject({ kind: "redirect" });
+    const opened = await change();
+    expect(opened).toMatchObject({ kind: "upgrade", status: "awaiting_payment", toPlanId: plan.bundle });
+    expect(opened.differenceCents).toBe(
+      pc.prorateDifference({ fromCents: 8900, toCents: 12900, periodStart: new Date("2026-11-01T00:00:00Z"), periodEnd: new Date("2026-12-01T00:00:00Z"), now: NOW }),
+    );
+    expect(opened.differenceCents).toBeGreaterThan(0);
+
+    await test.db.update(paypalPlanChanges).set({ status: "awaiting_approval" });
+    expect(await pc.requestRevision(opened.id, h.options())).toMatchObject({ kind: "approve" });
+    const asked = h.ops.reviseSubscription.mock.calls[0][0] as { planId?: string; prices?: unknown };
+    // The PayPal plan's own EUR 129: no price override of the launch price.
+    expect(asked).toMatchObject({ planId: "P-BUNDLE", prices: undefined });
+  });
+
+  it("back to Grow: the launch price again, with nothing to pay", async () => {
+    await test.db.update(subscriptions).set({ planId: plan.bundle }).where(eq(subscriptions.id, subId));
+    state.paypal = live("P-BUNDLE");
+    const h = harness();
+    expect(await start(h, plan.grow)).toMatchObject({ kind: "redirect" });
+    expect(await change()).toMatchObject({ kind: "downgrade", differenceCents: 0 });
+    expect(h.ops.orders.createOrder).not.toHaveBeenCalled();
+    expect(h.ops.reviseSubscription.mock.calls[0][0]).toMatchObject({ planId: "P-GROW", prices: [{ sequence: 1, totalCycles: 0, priceCents: 8900 }] });
+  });
+
+  it("an older price is still refused", async () => {
+    const h = harness();
+    expect(await start(h, plan.launch)).toEqual({ kind: "error", error: expect.stringContaining("does not cover") });
   });
 });
 

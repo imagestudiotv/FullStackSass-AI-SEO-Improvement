@@ -92,7 +92,7 @@ function Review({
   const id = useId();
   const action = useSocialAction(t, priceLabel);
   const { run } = action;
-  const oneClickPost = useOneClickPost(websiteId, t, priceLabel);
+  const oneClickPost = useOneClickPost(websiteId, t, OPPORTUNITIES_COPY[locale], priceLabel);
   const pending = action.pending || oneClickPost.pending;
   const [body, setBody] = useState(suggestion.body);
   const [title, setTitle] = useState(suggestion.title ?? "");
