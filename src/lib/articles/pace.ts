@@ -2,7 +2,7 @@ import { sql, type AnyColumn, type SQL } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { articles, spendReservations } from "@/lib/db/schema";
-import type { Executor } from "@/lib/db/types";
+import type { Executor } from "@/lib/billing/spend-quota";
 import { articlePace, DAY_MS, dayIndex, paceWindowStart, utcDayStart, type ArticlePace } from "@/lib/keywords/cadence";
 import { dailyCapFor } from "@/lib/publishing/daily-cap";
 import { articleAllowanceKey, articleAllowanceRule } from "@/lib/usage";

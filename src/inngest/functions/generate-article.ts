@@ -11,7 +11,7 @@ import { correctResearchDraft, needsEvidenceCorrection } from "@/lib/articles/ev
 import { articleSearch } from "@/lib/providers/dataforseo";
 import { researchMode, researchNeedsReview, type ResearchBrief } from "@/lib/articles/research-types";
 import { db } from "@/lib/db";
-import type { Executor } from "@/lib/db/types";
+import type { Executor } from "@/lib/billing/spend-quota";
 import { utcDayStart } from "@/lib/keywords/cadence";
 import {
   articles,

@@ -94,14 +94,13 @@ export async function articlesToPlan(
 export async function planSchedule(
   websiteId: string,
   now: Date = new Date(),
-  executor: Executor = db,
 ): Promise<{ everyDays: number; notBefore: Date; firstDay: number }> {
-  const pace = await paceFor(websiteId, now, executor);
-  const allowance = await articleAllowanceRule(websiteId, executor);
+  const pace = await paceFor(websiteId, now);
+  const allowance = await articleAllowanceRule(websiteId);
   const window = allowance.ok ? allowance.rule.window : null;
   return {
     everyDays: pace?.days ?? 1,
-    notBefore: pace ? await nextStartDay(websiteId, pace, now, executor) : now,
+    notBefore: pace ? await nextStartDay(websiteId, pace, now) : now,
     firstDay: window && "since" in window ? dayIndex(window.since, now) : 0,
   };
 }
