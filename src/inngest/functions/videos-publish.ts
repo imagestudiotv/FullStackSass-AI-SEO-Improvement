@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { inngest } from "@/inngest/client";
 import { db } from "@/lib/db";
 import { videoIdeas } from "@/lib/db/schema";
-import { deleteOldFiles, refreshStats, videosToFollow } from "@/lib/video/followup";
+import { deleteOldFiles, latePublishing, refreshStats, videosToFollow } from "@/lib/video/followup";
 import { abandonVideoPublishing, checkVideoPublished, publishVideo } from "@/lib/video/publish";
 
 /** Split from videos.ts (2026-11-12) so each part has one owner; docs/videos.md. */
@@ -58,6 +58,16 @@ export const publishVideoJob = inngest.createFunction(
 export const videoFollowupDaily = inngest.createFunction(
   { id: "video-followup-daily", retries: 1, triggers: [{ cron: "30 8 * * *" }] },
   async ({ step, logger }) => {
+    // Videos the provider settled after their publish job stopped following them.
+    const late = await step.run("select-late", () => latePublishing());
+    for (const id of late) {
+      await step.run(`late-${id}`, () =>
+        checkVideoPublished(id).catch((error) => {
+          console.error("[video] late publishing not settled", { id, error });
+          return "posting" as const;
+        }),
+      );
+    }
     const ids = await step.run("select-videos", () => videosToFollow());
     for (const [index, id] of ids.entries()) await step.run(`stats-${index}`, () => refreshStats(id));
     const deleted = await step.run("delete-old-files", () => deleteOldFiles());

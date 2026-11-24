@@ -271,7 +271,7 @@ describe("approving an idea", () => {
 
   it("can be skipped and brought back, for nothing", async () => {
     const { orgId, websiteId } = await site();
-    const row = await idea(websiteId);
+    const row = await idea(websiteId, { day: new Date().toISOString().slice(0, 10) });
     await skipVideoIdea(websiteId, row.id);
     expect((await test.db.select().from(videoIdeas).where(eq(videoIdeas.id, row.id)))[0].status).toBe("skipped");
     await restoreVideoIdea(websiteId, row.id);
@@ -293,7 +293,7 @@ describe("a make by mistake", () => {
   it("can be undone at once: the idea is back and the credit returned, and making it again charges again", async () => {
     const { orgId, websiteId } = await site();
     await recordCredit(orgId, { type: "adjustment", amount: 3, note: "test" });
-    const row = await idea(websiteId);
+    const row = await idea(websiteId, { day: new Date().toISOString().slice(0, 10) });
     await approveVideoIdea(websiteId, row.id, {}, "swipe");
     expect(await balance(orgId)).toBe(2);
     expect(await undoVideoIdea(websiteId, row.id)).toEqual({ ok: true, data: null });

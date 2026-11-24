@@ -6,6 +6,8 @@ import {
   browse,
   browseKey,
   categoryCounts,
+  deckKey,
+  downloadUrl,
   manualPlatforms,
   PLATFORM_POST_URLS,
   platformText,
@@ -19,6 +21,7 @@ import {
   undoTarget,
   viralSplit,
   visibleIdeas,
+  withoutIdea,
   type ProfileForm,
   type UndoKeyEvent,
 } from "./logic";
@@ -233,5 +236,35 @@ describe("settings form", () => {
     expect(settingsProblems({ ...DEFAULT_SETTINGS, defaultCta: "x".repeat(151) }, profile)).toContain("cta_too_long");
     expect(settingsProblems({ ...DEFAULT_SETTINGS, goal: "fame" as never }, profile)).toContain("bad_value");
     expect(settingsProblems(DEFAULT_SETTINGS, profile)).toEqual([]);
+  });
+});
+
+describe("an idea brought back because it could not be made", () => {
+  const first = { id: "a", deckKey: "a", category: "viral", format: "reel" };
+  const back = { ...first, deckKey: "a@1000" };
+
+  it("is a new card: the one approved here stays handled, and Undo takes both back", () => {
+    const gone = new Set([deckKey(first), "b"]);
+    expect(visibleIdeas([first], gone, "all", "all")).toEqual([]);
+    expect(visibleIdeas([back], gone, "all", "all")).toEqual([back]);
+    expect(categoryCounts([back], gone, "all").viral).toBe(1);
+    const both = new Set([...gone, deckKey(back)]);
+    expect(visibleIdeas([back], both, "all", "all")).toEqual([]);
+    expect([...withoutIdea(both, "a")]).toEqual(["b"]);
+    expect(deckKey({ id: "c" })).toBe("c");
+  });
+});
+
+describe("a download", () => {
+  const url = "https://x.example/storage/v1/object/public/video-files/w/v.mp4";
+
+  it("asks our storage for the file, named after the video", () => {
+    expect(downloadUrl(url, "POV: Your Socials & Nap")).toBe(`${url}?download=pov-your-socials-nap.mp4`);
+    expect(downloadUrl(url.replace(".mp4", ".png"), "Élan", 2)).toBe(`${url.replace(".mp4", ".png")}?download=elan-3.png`);
+    expect(downloadUrl(url, "视频")).toMatch(/[?]download=video[.]mp4$/);
+  });
+
+  it("leaves any other address as it is", () => {
+    expect(downloadUrl("http://localhost:3001/dev-video-files/v.mp4", "x")).toBe("http://localhost:3001/dev-video-files/v.mp4");
   });
 });

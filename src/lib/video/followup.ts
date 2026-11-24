@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, gte, inArray, isNotNull, isNull, lt, or } from "drizzle-orm";
+import { and, eq, gte, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { member, user, videoIdeas, websites } from "@/lib/db/schema";
@@ -9,6 +9,7 @@ import { emailVideoViews } from "@/lib/email/lifecycle-triggers";
 import { sendEmail } from "@/lib/email/send";
 import { postStats, type PostStats } from "@/lib/social/bundle";
 
+import { removeIdeaFiles, STALE_POSTING_MS } from "./delete";
 import { readDestinations } from "./destinations";
 import { EARLY_MILESTONE_VIEWS, FILE_DAYS, isVideoPlatform, MILESTONE_VIEWS, VIDEO_PLATFORM_SPECS, type VideoPlatform } from "./formats";
 import { appUrl } from "./make";
@@ -91,10 +92,13 @@ export async function refreshStats(id: string, now: Date = new Date()): Promise<
   }
   const views = totalViews(stats);
   const milestone = !idea.milestoneAt && views >= MILESTONE_VIEWS;
-  await db
+  const [saved] = await db
     .update(videoIdeas)
     .set({ stats, statsAt: now, ...(milestone ? { milestoneAt: now } : {}) })
-    .where(eq(videoIdeas.id, id));
+    .where(and(eq(videoIdeas.id, id), eq(videoIdeas.status, "posted")))
+    .returning({ id: videoIdeas.id });
+  // Deleted (or no longer posted) while its numbers were read: no email about it.
+  if (!saved) return { views };
   if (milestone) await sendMilestone(idea, views).catch((error) => console.error("[video] milestone email failed", { id, error }));
   /*
     The first EARLY_MILESTONE_VIEWS, through the lifecycle emails: their
@@ -117,9 +121,27 @@ export async function videosToFollow(now: Date = new Date()): Promise<string[]> 
 }
 
 /**
- * Deletes the files of videos posted FILE_DAYS ago, and of ideas approved
- * but never published within 30 days. The record stays, with its links and
- * numbers.
+ * Videos still "posting" long after their publish job stopped following them
+ * (the provider answered late): looked at once more each day, so they end up
+ * posted, or ready to post by hand.
+ */
+export async function latePublishing(now: Date = new Date()): Promise<string[]> {
+  const rows = await db
+    .select({ id: videoIdeas.id })
+    .from(videoIdeas)
+    .where(and(eq(videoIdeas.status, "posting"), lt(videoIdeas.updatedAt, new Date(now.getTime() - STALE_POSTING_MS))))
+    .limit(100);
+  return rows.map((row) => row.id);
+}
+
+/** What a deleted video's job may still have been storing is in storage by now. */
+const DELETED_SETTLE_MS = 2 * 60 * 60 * 1000;
+
+/**
+ * Deletes the files of videos posted FILE_DAYS ago, of ideas approved but
+ * never published within 30 days, and of deleted videos whose files could
+ * not be removed at once (lib/video/delete.ts). The record stays, with its
+ * links and numbers.
  */
 export async function deleteOldFiles(now: Date = new Date()): Promise<number> {
   const rows = await db
@@ -131,13 +153,21 @@ export async function deleteOldFiles(now: Date = new Date()): Promise<number> {
         or(
           and(eq(videoIdeas.status, "posted"), lt(videoIdeas.postedAt, new Date(now.getTime() - FILE_DAYS * DAY_MS))),
           and(inArray(videoIdeas.status, ["ready", "failed"]), lt(videoIdeas.updatedAt, new Date(now.getTime() - 30 * DAY_MS))),
+          and(eq(videoIdeas.status, "deleted"), lt(videoIdeas.updatedAt, new Date(now.getTime() - DELETED_SETTLE_MS))),
         ),
       ),
     )
     .limit(200);
   for (const row of rows) {
-    await deleteVideoFiles(row.websiteId, [row.videoUrl, row.altVideoUrl, row.voiceUrl, row.coverUrl, ...(row.slideUrls ?? [])]);
-    await db.update(videoIdeas).set({ filesDeletedAt: now }).where(eq(videoIdeas.id, row.id));
+    if (row.status === "deleted") {
+      // Tried again tomorrow when storage did not answer.
+      if (!(await removeIdeaFiles(row).catch(() => false))) continue;
+    } else await deleteVideoFiles(row.websiteId, [row.videoUrl, row.altVideoUrl, row.voiceUrl, row.coverUrl, ...(row.slideUrls ?? [])]);
+    // updatedAt stays: a video a month old must not read as one that just moved (Saved Videos, Today's ideas).
+    await db
+      .update(videoIdeas)
+      .set({ filesDeletedAt: now, updatedAt: sql`${videoIdeas.updatedAt}` })
+      .where(eq(videoIdeas.id, row.id));
   }
   return rows.length;
 }

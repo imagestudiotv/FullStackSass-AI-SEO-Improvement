@@ -21,11 +21,13 @@ import {
   browseKey,
   categoryCounts,
   clampIndex,
+  deckKey,
   isPageUndo,
   overlayOpen,
   splitHashtags,
   undoTarget,
   visibleIdeas,
+  withoutIdea,
   type CategoryFilter,
   type LastAction,
 } from "./logic";
@@ -101,18 +103,14 @@ export function IdeasDeck(props: {
 
   const back = useCallback(
     (id: string) => {
-      setGone((set) => {
-        const next = new Set(set);
-        next.delete(id);
-        return next;
-      });
+      setGone((set) => withoutIdea(set, id));
     },
     [setGone],
   );
 
   const settle = useCallback(
     async (idea: IdeaView, action: Promise<ActionResult>, success?: string, onUndo?: () => void) => {
-      setGone((set) => new Set(set).add(idea.id));
+      setGone((set) => new Set(set).add(deckKey(idea)));
       const result = await action.catch(() => null);
       if (!result || !result.ok) {
         back(idea.id);
@@ -151,8 +149,7 @@ export function IdeasDeck(props: {
     (id: string) => {
       setLast(null);
       back(id);
-      const without = new Set(gone);
-      without.delete(id);
+      const without = withoutIdea(gone, id);
       setIndex(Math.max(0, visibleIdeas(props.ideas, without, props.category, "all").findIndex((idea) => idea.id === id)));
       setFocus(id);
       props.run(() => restoreVideoIdea(websiteId, id), v.undoSkip);
@@ -235,7 +232,7 @@ export function IdeasDeck(props: {
 
   if (!current) {
     // Ideas left under another content type: the filter hides them, they are not used up.
-    const others = props.ideas.filter((idea) => !gone.has(idea.id)).length;
+    const others = props.ideas.filter((idea) => !gone.has(deckKey(idea))).length;
     return others > 0 ? (
       <div className="space-y-4">
         <div className="flex justify-end">{filter}</div>

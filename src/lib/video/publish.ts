@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, gte, ne, or, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, ne, or, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { articles, socialAccounts, socialTeams, videoIdeas, websites } from "@/lib/db/schema";
@@ -51,7 +51,14 @@ import { chargeXSpend, releaseXSpend, reserveXSpend, trackXPost, xPostCostUsd, x
  * hour), and a platform that refuses a video pauses that account's automatic
  * posting until the customer resumes it - a refusal repeated daily is how
  * accounts get banned. (An Instagram refusal of a chosen native track does
- * not pause: the customer picks another track.)
+ * not pause: the customer picks another track.) RepGet's own provider limits
+ * (bundle.social's monthly posts, the X balance) pause it too, and the daily job
+ * starts it again by itself (lib/social/pause.ts, recover.ts).
+ *
+ * A publish that fails everywhere stays "failed" with its errors for the
+ * team; the customer sees the video Ready to publish (customer-view.ts,
+ * Daniel 2026-11-24). Every write after the claim holds only while the video
+ * is still "posting".
  */
 
 export type VideoPublishOutcome = "posting" | "posted" | "partly" | "skipped" | "failed" | "later";
@@ -114,7 +121,7 @@ export async function publishTargets(
   return { targets, noBoard, skipped };
 }
 
-/** Videos the website published (or is publishing) on a platform in the last day. */
+/** Videos the website published (or is publishing) on a platform in the last day - one deleted from RepGet since is still on it. */
 async function postedToday(websiteId: string, platform: VideoPlatform, now: Date, exceptId: string): Promise<number> {
   const [{ n }] = await db
     .select({ n: sql<number>`count(*)::int` })
@@ -123,7 +130,7 @@ async function postedToday(websiteId: string, platform: VideoPlatform, now: Date
       and(
         eq(videoIdeas.websiteId, websiteId),
         ne(videoIdeas.id, exceptId),
-        or(eq(videoIdeas.status, "posting"), and(eq(videoIdeas.status, "posted"), gte(videoIdeas.postedAt, new Date(now.getTime() - DAY_MS)))),
+        or(eq(videoIdeas.status, "posting"), and(inArray(videoIdeas.status, ["posted", "deleted"]), gte(videoIdeas.postedAt, new Date(now.getTime() - DAY_MS)))),
         sql`${videoIdeas.platforms} ? ${platform}`,
       ),
     );
@@ -255,6 +262,9 @@ async function pause(websiteId: string, platform: string, reason: string, now: D
     .where(and(eq(socialAccounts.websiteId, websiteId), eq(socialAccounts.platform, platform)));
 }
 
+/** A write by the job that claimed the video: only while it is still being published. */
+const stillPosting = (id: string) => and(eq(videoIdeas.id, id), eq(videoIdeas.status, "posting"));
+
 /** A bundle.social error that trying again will not change (not a rate limit). */
 const isPermanent = (error: unknown) => error instanceof BundleError && error.status !== undefined && error.status >= 400 && error.status < 500 && error.status !== 429;
 
@@ -336,7 +346,7 @@ export async function publishVideo(
   const wanted = (row.platforms ?? []).filter(isVideoPlatform).filter((platform) => !already.includes(platform));
 
   if (wanted.length === 0 && already.length > 0) {
-    await db.update(videoIdeas).set({ status: "posted", scheduledFor: null, updatedAt: now }).where(eq(videoIdeas.id, id));
+    await db.update(videoIdeas).set({ status: "posted", scheduledFor: null, updatedAt: now }).where(stillPosting(id));
     return { outcome: "skipped" };
   }
 
@@ -357,13 +367,13 @@ export async function publishVideo(
     await db
       .update(videoIdeas)
       .set({ status: already.length > 0 ? "posted" : "ready", scheduledFor: null, error, destinations, updatedAt: now })
-      .where(eq(videoIdeas.id, id));
+      .where(stillPosting(id));
     await releaseScheduleSlot(id);
     return { outcome: "skipped" };
   }
   if (open.length === 0) {
     const at = await nextPublishTime(row.websiteId, new Date(now.getTime() + DAY_MS / 2), id);
-    await db.update(videoIdeas).set({ status: "scheduled", scheduledFor: at, destinations, updatedAt: now }).where(eq(videoIdeas.id, id));
+    await db.update(videoIdeas).set({ status: "scheduled", scheduledFor: at, destinations, updatedAt: now }).where(stillPosting(id));
     return { outcome: "later", at: at.toISOString() };
   }
   // Some platforms had their videos today: the others go now, these are said to be left out.
@@ -472,7 +482,7 @@ export async function publishVideo(
       error: notes.length > 0 ? short(notes.join(" · ")) : null,
       updatedAt: now,
     })
-    .where(eq(videoIdeas.id, id));
+    .where(stillPosting(id));
   return { outcome: await settle(id, now, posts) };
 }
 
@@ -491,7 +501,7 @@ export async function checkVideoPublished(id: string, now: Date = new Date()): P
  */
 async function settle(id: string, now: Date, posts: Map<string, BundlePost>): Promise<VideoPublishOutcome> {
   const [row] = await db.select().from(videoIdeas).where(eq(videoIdeas.id, id));
-  if (!row) return "skipped";
+  if (row?.status !== "posting") return row?.status === "posted" ? "posted" : "skipped";
   const destinations = readDestinations(row.destinations);
   // A video handed over before per-destination results (2026-11-12): its platforms all ride on bundlePostId.
   if (Object.keys(destinations).length === 0 && row.bundlePostId) {
@@ -525,7 +535,7 @@ async function settle(id: string, now: Date, posts: Map<string, BundlePost>): Pr
 
   const all = Object.keys(destinations) as VideoPlatform[];
   if (all.some((platform) => destinations[platform]?.status === "posting")) {
-    await db.update(videoIdeas).set({ destinations, updatedAt: now }).where(eq(videoIdeas.id, id));
+    await db.update(videoIdeas).set({ destinations, updatedAt: now }).where(stillPosting(id));
     return "posting";
   }
   const posted = all.filter((platform) => destinations[platform]?.status === "posted");
@@ -544,7 +554,7 @@ async function settle(id: string, now: Date, posts: Map<string, BundlePost>): Pr
       error: notes.length > 0 ? short(notes.join(" · ")) : null,
       updatedAt: now,
     })
-    .where(eq(videoIdeas.id, id));
+    .where(stillPosting(id));
   if (!any) await releaseScheduleSlot(id);
   return !any ? "failed" : notes.length > 0 ? "partly" : "posted";
 }

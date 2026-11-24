@@ -16,7 +16,7 @@ export const videoIdeasDaily = inngest.createFunction(
         .selectDistinct({ websiteId: videoIdeas.websiteId })
         .from(videoIdeas)
         .innerJoin(websites, eq(videoIdeas.websiteId, websites.id))
-        .where(and(eq(websites.status, "ready"), inArray(videoIdeas.status, ["approved", "making", "ready", "scheduled", "posting", "posted", "skipped"]))),
+        .where(and(eq(websites.status, "ready"), inArray(videoIdeas.status, ["approved", "making", "ready", "scheduled", "posting", "posted", "skipped", "deleted"]))),
     );
     if (targets.length > 0) {
       await step.sendEvent(

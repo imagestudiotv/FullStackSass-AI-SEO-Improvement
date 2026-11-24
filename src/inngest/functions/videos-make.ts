@@ -13,6 +13,8 @@ import {
   finishMaking,
   hasRepgetMusic,
   holdProductionBudget,
+  holdSecondRender,
+  isMaking,
   makeCarousel,
   makeNoMusicVersion,
   makeReelLocally,
@@ -34,14 +36,25 @@ import { storeVideoFile } from "@/lib/video/storage";
  * (carousel) -> store -> finish. A step that cannot succeed by trying again
  * (over budget, unsupported voice language, too long, no footage) fails at
  * once; onFailure gives the credit back. The cost ledger keeps every attempt.
+ *
+ * A render that breaks is made once more, on the voice and pictures already
+ * there and only within the video's budget: no AI call and no credit twice.
+ * A video its customer deletes meanwhile stops before the next step.
  */
 
 /** How often, and how long, a render is followed. */
 const RENDER_CHECK_EVERY = "10s";
 const RENDER_CHECKS = 90;
+/** The first render, and one more when it broke. */
+const RENDER_ATTEMPTS = 2;
 
-/** Runs a step's work, turning a ProductionError into a failure Inngest does not retry. */
-async function final<T>(work: () => Promise<T>): Promise<T> {
+/**
+ * Runs a step's work, turning a ProductionError into a failure Inngest does
+ * not retry - and not at all once the video was deleted (failMaking then
+ * changes nothing: it is not being made any more).
+ */
+async function final<T>(id: string, work: () => Promise<T>): Promise<T> {
+  if (!(await isMaking(id))) throw new NonRetriableError("The video is not being made any more");
   try {
     return await work();
   } catch (error) {
@@ -80,11 +93,11 @@ export const makeVideo = inngest.createFunction(
     const started = await step.run("claim", () => claimMaking(id, runId));
     if (!started) return { outcome: "skipped" };
 
-    await step.run("budget", () => final(() => holdProductionBudget(id)));
-    const assets = await step.run("assets", () => final(() => prepareAssets(id)));
+    await step.run("budget", () => final(id, () => holdProductionBudget(id)));
+    const assets = await step.run("assets", () => final(id, () => prepareAssets(id)));
     if (assets.notes.length) logger.info({ ideaId: id, notes: assets.notes }, "Video assets");
     await step.run("voice", () =>
-      final(async () => {
+      final(id, async () => {
         await prepareVoice(id);
         return null;
       }),
@@ -95,7 +108,7 @@ export const makeVideo = inngest.createFunction(
     });
 
     if (started.format === "carousel") {
-      const slideUrls = await step.run("slides", async () => makeCarousel(await loadIdea(id)));
+      const slideUrls = await step.run("slides", () => final(id, async () => makeCarousel(await loadIdea(id))));
       const done = await step.run("finish", () => finishMaking(id, { slideUrls }));
       if (done.autoAt) await step.sendEvent("schedule", { name: "video/publish.scheduled", data: { ideaId: id, at: done.autoAt } });
       return { outcome: "ready", slides: slideUrls.length };
@@ -106,34 +119,47 @@ export const makeVideo = inngest.createFunction(
     let coverUrl: string | null = null;
     let localCopy = false;
     if (!onVercel()) {
-      const local = await step.run("render-here", async () => makeReelLocally(await loadIdea(id)));
+      const local = await step.run("render-here", () => final(id, async () => makeReelLocally(await loadIdea(id))));
       videoUrl = local.videoUrl;
       coverUrl = local.coverUrl;
       localCopy = wantsNoMusicCopy(await loadIdea(id));
     } else {
-      const handle: RenderHandle = await step.run("start-render", async () => startReelRender(await reelProps(await loadIdea(id))));
-      let finished = false;
-      for (let check = 1; check <= RENDER_CHECKS && !finished; check += 1) {
-        await step.sleep(`wait-${check}`, RENDER_CHECK_EVERY);
-        const state = await step.run(`check-${check}`, () => reelRenderProgress(handle));
-        if (state.stage === "error") {
-          await step.run("stop-render", async () => {
-            await stopRender(handle);
-            await recordRender(id, handle.startedAt ? Date.now() - handle.startedAt : null, handle.vcpus ?? 4);
-          });
-          throw new Error(state.message);
+      const stop = async (handle: RenderHandle) => {
+        await stopRender(handle);
+        await recordRender(id, handle.startedAt ? Date.now() - handle.startedAt : null, handle.vcpus ?? 4);
+      };
+      let rendered: RenderHandle | null = null;
+      for (let attempt = 1; attempt <= RENDER_ATTEMPTS && !rendered; attempt += 1) {
+        // The first attempt keeps the step names a run started before 2026-11-24 knows.
+        const name = (id: string) => (attempt === 1 ? id : `${id}-again`);
+        const handle: RenderHandle = await step.run(name("start-render"), () => final(id, async () => startReelRender(await reelProps(await loadIdea(id)))));
+        let broke: string | null = null;
+        for (let check = 1; check <= RENDER_CHECKS && !rendered && !broke; check += 1) {
+          await step.sleep(name(`wait-${check}`), RENDER_CHECK_EVERY);
+          const state = await step.run(name(`check-${check}`), async () => ((await isMaking(id)) ? reelRenderProgress(handle) : { stage: "deleted" as const }));
+          if (state.stage === "deleted") {
+            await step.run(name("stop-render"), () => stop(handle));
+            return { outcome: "deleted" };
+          }
+          if (state.stage === "error") broke = state.message || "The render machine stopped";
+          else if (state.stage === "done") rendered = handle;
         }
-        finished = state.stage === "done";
+        if (rendered) break;
+        await step.run(name("stop-render"), () => stop(handle));
+        // Too long would be too long again; a break is worth one more try, when the budget has room for it.
+        if (!broke) throw new NonRetriableError("The video took too long to make");
+        const again = attempt < RENDER_ATTEMPTS && (await step.run("hold-second-render", () => holdSecondRender(id)));
+        if (!again) throw new NonRetriableError(broke);
+        logger.warn({ ideaId: id, error: broke }, "The render broke: made once more");
       }
-      if (!finished) {
-        await step.run("stop-render", async () => {
-          await stopRender(handle);
-          await recordRender(id, handle.startedAt ? Date.now() - handle.startedAt : null, handle.vcpus ?? 4);
-        });
-        throw new Error("The video took too long to make");
-      }
+      if (!rendered) throw new NonRetriableError("The video could not be rendered");
+      const handle = rendered;
       const collected = await step.run("collect", async () => {
         const idea = await loadIdea(id);
+        if (idea.status === "deleted") {
+          await stop(handle);
+          return null;
+        }
         // The cover still is made on the same machine before it stops: its seconds are in the render's runtime.
         const result = await collectRender(handle, wantsNoMusicCopy(idea) ? { voiceUrl: idea.voiceUrl, durationMs: idea.durationMs ?? 0 } : null, coverRequest(await reelProps(idea)));
         await recordRender(id, result.runtimeMs, result.vcpus);
@@ -142,6 +168,7 @@ export const makeVideo = inngest.createFunction(
         const cover = await storeCover(id, idea.websiteId, result.cover, result.coverError);
         return { url, alt, altError: result.noMusicError, cover };
       });
+      if (!collected) return { outcome: "deleted" };
       videoUrl = collected.url;
       altVideoUrl = collected.alt;
       coverUrl = collected.cover;
