@@ -8,9 +8,9 @@ import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, Di
 import { Input } from "@/components/ui/input";
 import { NativeLikeSelect } from "@/components/ui/native-like-select";
 import { Switch } from "@/components/ui/switch";
-import { Notice } from "@/components/workspace/notice";
 import type { Locale } from "@/lib/i18n/config";
 import { format, formatDate } from "@/lib/i18n/format";
+import { OPPORTUNITIES_COPY } from "@/lib/i18n/opportunities";
 import type { SocialConnectionsCopy } from "@/lib/i18n/social-connections";
 import { setPinterestBoard, setSocialAutoPost, type SocialResult } from "@/lib/social/actions";
 import { PLATFORMS, profileUrl, SOCIAL_PLATFORMS, type SocialPlatform } from "@/lib/social/platforms";
@@ -23,8 +23,8 @@ type Run = (action: () => Promise<SocialResult<unknown>>, options?: { success?: 
 /**
  * The connected accounts' own settings, behind the "Social connections"
  * panel's "Account settings" (connections-panel.tsx; client, 2026-11-11):
- * the profile, the warm-up, automatic posting, a pause and the Pinterest
- * board. Connecting and disconnecting are the panel's cards now; until then
+ * the profile, the warm-up, automatic posting (and turning a paused one on
+ * again, without the provider's words) and the Pinterest board. Connecting and disconnecting are the panel's cards now; until then
  * this dialog (the channels strip's "Manage", 2026-11-03) did both.
  */
 export function AccountsDialog({
@@ -100,6 +100,7 @@ function AccountRow({
   t: T;
 }) {
   const id = useId();
+  const words = OPPORTUNITIES_COPY[locale];
   const spec = PLATFORMS[platform];
   const [board, setBoard] = useState(account.target ?? boards[0] ?? "");
   const warmup = account.inWarmup;
@@ -138,7 +139,7 @@ function AccountRow({
             </div>
             <Switch
               aria-labelledby={`${id}-auto`}
-              checked={account.autoPost && account.pausedReason === null}
+              checked={account.autoPost && !account.paused}
               disabled={!canEdit || pending}
               onCheckedChange={(on) => run(() => setSocialAutoPost(websiteId, platform, on))}
             />
@@ -146,19 +147,21 @@ function AccountRow({
         ) : (
           <p className="text-xs text-muted-foreground">{t.oneClick}</p>
         )}
-        {account.pausedReason !== null ? (
-          <Notice
-            tone="warning"
-            action={
-              canEdit ? (
-                <Button size="sm" variant="outline" disabled={pending} onClick={() => run(() => setSocialAutoPost(websiteId, platform, true))}>
-                  {t.resume}
-                </Button>
-              ) : null
-            }
-          >
-            {format(t.paused, { platform: spec.name, reason: account.pausedReason || "-" })}
-          </Notice>
+        {account.paused && account.connected && !manualOnly ? (
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="min-w-0 flex-1 text-xs text-muted-foreground">{words.paused}</p>
+            {canEdit ? (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={pending}
+                aria-label={`${spec.name}: ${words.turnOn}`}
+                onClick={() => run(() => setSocialAutoPost(websiteId, platform, true))}
+              >
+                {words.turnOn}
+              </Button>
+            ) : null}
+          </div>
         ) : null}
         {platform === "pinterest" && account.connected ? (
           <div className="flex flex-wrap items-end gap-2">

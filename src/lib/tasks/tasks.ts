@@ -126,8 +126,8 @@ export async function getTasks(
       .where(
         and(
           eq(socialSuggestions.websiteId, websiteId),
-          // A saved draft still waits for the customer's click.
-          inArray(socialSuggestions.status, ["new", "draft"]),
+          // A saved draft still waits for the customer's click, and so does one RepGet could not publish.
+          inArray(socialSuggestions.status, ["new", "draft", "failed"]),
           gte(socialSuggestions.createdAt, new Date(now.getTime() - SOCIAL_WINDOW_MS)),
         ),
       ),

@@ -64,6 +64,13 @@ export const PLATFORMS: Record<SocialPlatform, PlatformSpec> = {
   bluesky: { name: "Bluesky", bundleType: "BLUESKY", replies: true, ownPosts: true, maxLength: 300, search: "site:bsky.app" },
 };
 
+/**
+ * Where discussions are searched for although the website has no account
+ * there (Daniel, 2026-11-24). Google lists Reddit's and Quora's discussions
+ * well; X, Threads and Bluesky posts hardly at all, and each search costs.
+ */
+export const SEARCH_WITHOUT_ACCOUNT: readonly SocialPlatform[] = ["reddit", "quora"];
+
 /** A public discussion a reply can answer, in its one canonical form. */
 export type Thread = {
   platform: SocialPlatform;
@@ -141,6 +148,9 @@ export function replyUrl(thread: Thread, text: string): string {
   return thread.url;
 }
 
+/** The longest address a platform's compose page is opened with. */
+const MAX_COMPOSE_URL = 6000;
+
 /** Where "Post" sends the customer for an own post that RepGet does not publish itself. */
 export function composeUrl(
   platform: SocialPlatform,
@@ -153,8 +163,12 @@ export function composeUrl(
       return `https://www.threads.com/intent/post?text=${enc(post.body)}`;
     case "bluesky":
       return `https://bsky.app/intent/compose?text=${enc(post.body)}`;
-    case "reddit":
-      return `https://www.reddit.com/submit?type=TEXT&title=${enc(post.title ?? "")}&text=${enc(post.body)}`;
+    case "reddit": {
+      const base = `https://www.reddit.com/submit?type=TEXT&title=${enc(post.title ?? "")}`;
+      // A long post makes an address servers refuse; its text is on the clipboard.
+      const full = `${base}&text=${enc(post.body)}`;
+      return full.length > MAX_COMPOSE_URL ? base : full;
+    }
     case "pinterest": {
       const params = [
         ...(post.link ? [`url=${enc(post.link)}`] : []),

@@ -1,4 +1,4 @@
-import { isSocialPlatform, PLATFORMS, SOCIAL_PLATFORMS } from "@/lib/social/platforms";
+import { isSocialPlatform, PLATFORMS, SOCIAL_PLATFORMS, threadFromUrl, type SocialPlatform } from "@/lib/social/platforms";
 
 /**
  * The Opportunities page's list logic (client's design, 2026-11-03): which
@@ -15,8 +15,8 @@ export type AccountView = {
   warmupEndsAt: string;
   /** Still in the warm-up (decided on the server, as the rules are). */
   inWarmup: boolean;
-  /** Why automatic posting is paused; null when it is not. */
-  pausedReason: string | null;
+  /** Automatic posting is paused. Why is never sent to the browser (lib/social/pause.ts): administrators read it in Admin. */
+  paused: boolean;
   target: string | null;
 };
 
@@ -41,10 +41,25 @@ export type SuggestionView = {
 
 /**
  * The design's stages. "publishing" is RepGet handing a scheduled post to
- * the platform right now; "failed" is one it could not publish, shown under
- * All only, with its reason and a retry.
+ * the platform right now; "failed" is one that waits for credits or for next
+ * month's free posts (customerStatus), shown under All only, with what to do.
  */
 export type Stage = "suggested" | "draft" | "scheduled" | "publishing" | "failed" | "published";
+
+/** Our own reasons a post did not go out, which the customer can do something about. */
+const OWN_ERRORS = ["not_enough_credits", "free_posts_used"];
+
+/**
+ * A suggestion's status as its customer sees it (Daniel, 2026-11-24: "I think
+ * we don't need to show this message to the clients, because they still can
+ * use manual submissions"). One the provider or the platform refused is
+ * simply ready to post by hand, like a new one, without the provider's words;
+ * it stays "failed", with its error, in the database for administrators.
+ */
+export function customerStatus(row: { status: string; error: string | null }): { status: string; error: string | null } {
+  if (row.status !== "failed") return { status: row.status, error: null };
+  return row.error && OWN_ERRORS.includes(row.error) ? { status: "failed", error: row.error } : { status: "new", error: null };
+}
 
 export function stageOf(status: string): Stage {
   switch (status) {
@@ -86,7 +101,7 @@ export function tabCounts(rows: SuggestionView[]): Record<Tab, number> {
   return Object.fromEntries(TABS.map((tab) => [tab, stages.filter((stage) => inTab(stage, tab)).length])) as Record<Tab, number>;
 }
 
-export const SORTS = ["recommended", "newest", "platform"] as const;
+export const SORTS = ["recommended", "newest"] as const;
 export type Sort = (typeof SORTS)[number];
 
 /** Recommended: what needs the customer first, then what RepGet does next, then what is done. */
@@ -106,19 +121,73 @@ function recommended(a: SuggestionView, b: SuggestionView): number {
   return time(latest(b)) - time(latest(a));
 }
 
-const platformIndex = (platform: string) => {
-  const index = (SOCIAL_PLATFORMS as readonly string[]).indexOf(platform);
-  return index < 0 ? SOCIAL_PLATFORMS.length : index;
-};
-
 export function sortRows(rows: SuggestionView[], sort: Sort): SuggestionView[] {
   const copy = [...rows];
   if (sort === "newest") return copy.sort((a, b) => time(latest(b)) - time(latest(a)));
-  if (sort === "platform") return copy.sort((a, b) => platformIndex(a.platform) - platformIndex(b.platform) || recommended(a, b));
   return copy.sort(recommended);
 }
 
 export const platformName = (platform: string) => (isSocialPlatform(platform) ? PLATFORMS[platform].name : platform);
+
+/** Waiting for the customer and untouched: the dot, and the platform's "N new". */
+export const isNew = (row: Pick<SuggestionView, "status">) => stageOf(row.status) === "suggested";
+
+export type PlatformGroup = { platform: SocialPlatform; rows: SuggestionView[]; fresh: number };
+
+/**
+ * The list as the ticket has it (screenshot 06): one group per platform, in
+ * the platforms' own order, each keeping the rows' order. A platform with
+ * nothing is listed only while nothing is filtered out.
+ */
+export function groupRows(rows: SuggestionView[], options: { keepEmpty: boolean }): PlatformGroup[] {
+  return SOCIAL_PLATFORMS.flatMap((platform) => {
+    const own = rows.filter((row) => row.platform === platform);
+    return own.length > 0 || options.keepEmpty ? [{ platform, rows: own, fresh: own.filter(isNew).length }] : [];
+  });
+}
+
+/** The group's heading writes X as the connections panel does. */
+export const groupName = (platform: SocialPlatform) => (platform === "x" ? "X (Twitter)" : PLATFORMS[platform].name);
+
+/** The discussion a reply answers, in its canonical https address on the platform's own site; null for anything else. */
+export function discussionUrl(row: Pick<SuggestionView, "platform" | "threadUrl">): string | null {
+  if (!row.threadUrl || !isSocialPlatform(row.platform)) return null;
+  return threadFromUrl(row.platform, row.threadUrl)?.url ?? null;
+}
+
+/** A published post's address, as a link only when it is https. */
+export function postedLink(row: Pick<SuggestionView, "postedUrl">): string | null {
+  if (!row.postedUrl) return null;
+  try {
+    const url = new URL(row.postedUrl);
+    return url.protocol === "https:" && !url.username && !url.password ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * What a row's "Open on / Create on" button does:
+ *  - "post": the one-click post - copies the text, opens the discussion (to
+ *    comment) or the platform's page for a new post, and counts as posted;
+ *  - "link": opens the published post or the discussion, nothing else;
+ *  - null: nothing to open. Only an own post RepGet is handing over right
+ *    now, where posting it by hand would publish it twice, and a viewer's own
+ *    post (posting is the owner's, and costs).
+ */
+export function openAction(row: SuggestionView, editable: boolean): { kind: "post" } | { kind: "link"; href: string; published: boolean } | null {
+  const stage = stageOf(row.status);
+  const discussion = discussionUrl(row);
+  if (stage === "published") {
+    const posted = postedLink(row);
+    if (posted) return { kind: "link", href: posted, published: true };
+    if (discussion) return { kind: "link", href: discussion, published: false };
+    return editable ? { kind: "post" } : null;
+  }
+  if (stage === "publishing") return discussion ? { kind: "link", href: discussion, published: false } : null;
+  if (editable) return { kind: "post" };
+  return discussion ? { kind: "link", href: discussion, published: false } : null;
+}
 
 /**
  * Where a reply goes, from its discussion's address: r/subreddit, @account,

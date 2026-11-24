@@ -16,7 +16,15 @@ import { PRICING, track } from "@/lib/usage";
 
 import { inWarmup, listAccounts, socialAccess, type SocialAccount } from "./accounts";
 import { isBundleConfigured } from "./bundle";
-import { PLATFORMS, SUGGESTIONS_PER_DAY, threadFromUrl, type SocialPlatform, type Thread } from "./platforms";
+import {
+  PLATFORMS,
+  SEARCH_WITHOUT_ACCOUNT,
+  SOCIAL_PLATFORMS,
+  SUGGESTIONS_PER_DAY,
+  threadFromUrl,
+  type SocialPlatform,
+  type Thread,
+} from "./platforms";
 import { checkDraft, isRepeat, linksIn, mayLink, namesBrand, OWN_POSTS_PER_ACCOUNT, postingTime, replyText } from "./rules";
 import { writeDrafts, type BusinessProfile, type PostSlot, type ThreadInput } from "./write";
 
@@ -25,7 +33,16 @@ import { writeDrafts, type BusinessProfile, type PostSlot, type ThreadInput } fr
  * website), topped up to SUGGESTIONS_PER_DAY - so the daily run, a retry and
  * a run after a new connection never add more than the day's ten.
  *
- * Own posts first, one per account (OWN_POSTS_PER_ACCOUNT), at most half the
+ * NO ACCOUNT IS NEEDED (Daniel, 2026-11-24: "enable suggestions without
+ * social accounts connected, based on the website information"). Every
+ * platform the plan includes gets suggestions written from the website's
+ * profile, keywords and articles; those for a platform with no account are
+ * posted by hand (text copied, platform opened) and written as for an account
+ * in its warm-up - no links, no product names - because RepGet knows nothing
+ * about the account they will go out on. Connected accounts come first in the
+ * day's ten.
+ *
+ * Own posts first, one per platform (OWN_POSTS_PER_ACCOUNT), at most half the
  * day's ten; the rest are replies to public discussions found on Google for
  * the website's keywords (DataForSEO, `site:reddit.com <keyword>`). Every
  * draft passes the anti-ban rules (lib/social/rules.ts) or is dropped.
@@ -43,6 +60,12 @@ const KEYWORDS_PER_PLATFORM = 2;
 const MAX_SEARCHES_PER_PLATFORM = 3;
 /** Discussions offered to the model beyond what is needed: it skips the ones it cannot help with. */
 const SPARE_THREADS = 4;
+/** The Reddit discussions offered, when there are that many: two a day were too few to survive the model's choice. */
+const REDDIT_THREADS = 5;
+/** No account connected and this many suggestions still waiting: the daily run writes no more until they are used or a week old. */
+export const DORMANT_WAITING = SUGGESTIONS_PER_DAY;
+/** How long a suggestion stays on the Opportunities page. */
+const WAITING_MS = 7 * DAY_MS;
 
 export type SuggestDeps = {
   search: typeof discussionSearch;
@@ -57,7 +80,34 @@ export type SuggestResult = {
   scheduled: { id: string; at: Date }[];
   /** Why nothing was written, when nothing was. */
   reason?: string;
+  /** What each platform's search gave, for the job's log: why a day has no conversations. */
+  discussions?: DiscussionStats;
 };
+
+export type DiscussionStats = Partial<
+  Record<
+    SocialPlatform,
+    {
+      searches: number;
+      /** Searches the provider refused, "no results" among them. */
+      failed: number;
+      /** Results that are a discussion on this platform. */
+      found: number;
+      /** Left out: too old to comment on. */
+      old: number;
+      /** Left out: suggested before. */
+      known: number;
+      /** Given to the model. */
+      offered: number;
+      /** Replies the model wrote, and those that passed the checks. */
+      written: number;
+      kept: number;
+    }
+  >
+>;
+
+/** A platform this website gets suggestions for, with its account when one is connected. */
+type Channel = { platform: SocialPlatform; account: SocialAccount | null; warmup: boolean };
 
 const utcDay = (now: Date) => now.toISOString().slice(0, 10);
 
@@ -67,7 +117,12 @@ const servicesOf = (site: { services: unknown }): string[] =>
 
 type Candidate = Thread & { title: string; snippet: string; warmup: boolean };
 
-export async function suggestForWebsite(websiteId: string, deps: Partial<SuggestDeps> = {}): Promise<SuggestResult> {
+export async function suggestForWebsite(
+  websiteId: string,
+  deps: Partial<SuggestDeps> = {},
+  /** daily: the morning run rather than the customer asking (Find suggestions, a new connection). */
+  options: { daily?: boolean } = {},
+): Promise<SuggestResult> {
   const now = deps.now ?? new Date();
   const search = deps.search ?? discussionSearch;
   const write = deps.write ?? writeDrafts;
@@ -78,10 +133,18 @@ export async function suggestForWebsite(websiteId: string, deps: Partial<Suggest
   if (!site || site.status !== "ready") return { created: 0, scheduled: [], reason: "website not ready" };
 
   const access = await socialAccess(websiteId);
-  const accounts = (await listAccounts(websiteId)).filter((account) =>
-    access.platforms.includes(account.platform as SocialPlatform),
-  );
-  if (accounts.length === 0) return { created: 0, scheduled: [], reason: access.level === "none" ? "no plan" : "no accounts" };
+  if (access.platforms.length === 0) return { created: 0, scheduled: [], reason: "no plan" };
+  const accounts = await listAccounts(websiteId);
+  const channels: Channel[] = SOCIAL_PLATFORMS.filter((platform) => access.platforms.includes(platform))
+    .map((platform) => {
+      const account = accounts.find((row) => row.platform === platform) ?? null;
+      return { platform, account, warmup: account ? inWarmup(account, now) : true };
+    })
+    .sort((a, b) => Number(Boolean(b.account)) - Number(Boolean(a.account)));
+  // Nobody has connected an account and last time's are still waiting: no more searches and model calls for an unread page.
+  if (options.daily && channels.every((channel) => !channel.account) && (await countWaiting(websiteId, now)) >= DORMANT_WAITING) {
+    return { created: 0, scheduled: [], reason: "earlier suggestions are still waiting" };
+  }
 
   /*
     The Free plan gets its month's drafts (FREE_PLAN.socialSuggestionsPerMonth),
@@ -110,7 +173,7 @@ export async function suggestForWebsite(websiteId: string, deps: Partial<Suggest
     .orderBy(desc(socialSuggestions.createdAt))
     .limit(200);
 
-  // ---- Own posts: OWN_POSTS_PER_ACCOUNT per account a day (accounts are one per platform), at most half the day's ten.
+  // ---- Own posts: OWN_POSTS_PER_ACCOUNT per platform a day, at most half the day's ten.
   const live = await db
     .select({ title: customerTitleSql, url: articles.publishedUrl, imageUrl: publicFieldSql(articles.imageUrl, "imageUrl") })
     .from(articles)
@@ -118,15 +181,13 @@ export async function suggestForWebsite(websiteId: string, deps: Partial<Suggest
     .orderBy(desc(articles.firstLiveAt))
     .limit(10);
 
-  const slots: (PostSlot & { account: SocialAccount; imageUrl: string | null })[] = [];
-  for (const account of accounts) {
-    const platform = account.platform as SocialPlatform;
+  const slots: (PostSlot & { account: SocialAccount | null; imageUrl: string | null })[] = [];
+  for (const { platform, account, warmup } of channels) {
     if (!PLATFORMS[platform].ownPosts) continue;
     const postedToday = recent.filter((row) => row.kind === "post" && row.platform === platform && row.day === day).length;
     if (postedToday >= OWN_POSTS_PER_ACCOUNT) continue;
     if (slots.length >= Math.ceil(remaining / 2)) break;
 
-    const warmup = inWarmup(account, now);
     const own = recent.filter((row) => row.kind === "post" && row.platform === platform);
     const sinceLink = own.findIndex((row) => row.link || linksIn(row.body).length > 0);
     const linkAllowed = mayLink(warmup, sinceLink === -1 ? own.length : sinceLink);
@@ -160,11 +221,11 @@ export async function suggestForWebsite(websiteId: string, deps: Partial<Suggest
 
   // ---- Replies: discussions on Google for the website's keywords.
   const replyBudget = remaining - slots.length;
-  const candidates =
+  const { picked: candidates, stats } =
     replyBudget > 0 && isDataForSeoConfigured()
-      ? await findDiscussions(site, accounts, replyBudget + SPARE_THREADS, now, search)
-      : [];
-  if (slots.length === 0 && candidates.length === 0) return { created: 0, scheduled: [], reason: "nothing to suggest" };
+      ? await findDiscussions(site, channels, replyBudget + SPARE_THREADS, live.map((article) => article.title), now, search)
+      : { picked: [] as Candidate[], stats: {} as DiscussionStats };
+  if (slots.length === 0 && candidates.length === 0) return { created: 0, scheduled: [], reason: "nothing to suggest", discussions: stats };
 
   const [voice] = await db
     .select({ tone: brandVoice.tone, avoid: brandVoice.avoid })
@@ -189,7 +250,7 @@ export async function suggestForWebsite(websiteId: string, deps: Partial<Suggest
     warmup: candidate.warmup,
   }));
 
-  const { drafts, usage } = await write(profile, threads, slots);
+  const { drafts, usage } = await write(profile, threads, slots, replyBudget);
   const price = PRICING.llm[usage.model as keyof typeof PRICING.llm];
   await track(site.organizationId, {
     kind: "llm",
@@ -223,7 +284,7 @@ export async function suggestForWebsite(websiteId: string, deps: Partial<Suggest
     if (!slot.link && linksIn(`${title ?? ""} ${body}`).length > 0) continue;
     const auto = Boolean(
       !access.manualOnly &&
-        slot.account.bundleAccountId &&
+        slot.account?.bundleAccountId &&
         slot.account.autoPost &&
         !slot.account.pausedAt &&
         // A Pin needs its board; without one it waits for the customer's click.
@@ -246,10 +307,12 @@ export async function suggestForWebsite(websiteId: string, deps: Partial<Suggest
   }
 
   let replies = 0;
-  for (const draft of drafts.replies) {
-    if (replies >= replyBudget) break;
+  // In the discussions' order, which goes round the platforms: none takes the whole budget.
+  for (const draft of [...drafts.replies].sort((a, b) => a.thread - b.thread)) {
     const thread = candidates[draft.thread - 1];
-    if (!thread || rows.some((row) => row.threadUrl === thread.url)) continue;
+    if (!thread) continue;
+    if (stats[thread.platform]) stats[thread.platform]!.written += 1;
+    if (replies >= replyBudget || rows.some((row) => row.threadUrl === thread.url)) continue;
     // The business is named only in a disclosure saying it is the writer's own (replyText).
     const body = replyText(draft.body.trim(), draft.disclosure, brand);
     if (!body) continue;
@@ -268,10 +331,12 @@ export async function suggestForWebsite(websiteId: string, deps: Partial<Suggest
       warmup: thread.warmup,
       status: "new",
     });
+    if (rows.at(-1)?.threadUrl !== thread.url) continue;
     replies += 1;
+    if (stats[thread.platform]) stats[thread.platform]!.kept += 1;
   }
 
-  return save(websiteId, day, rows, free, now);
+  return { ...(await save(websiteId, day, rows, free, now)), discussions: stats };
 }
 
 /**
@@ -318,6 +383,21 @@ async function countOnDay(websiteId: string, day: string, executor: Pick<typeof 
     .select({ n: sql<number>`count(*)::int` })
     .from(socialSuggestions)
     .where(and(eq(socialSuggestions.websiteId, websiteId), eq(socialSuggestions.day, day)));
+  return Number(row?.n ?? 0);
+}
+
+/** Suggestions of the last week nobody has posted, edited or skipped. */
+async function countWaiting(websiteId: string, now: Date): Promise<number> {
+  const [row] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(socialSuggestions)
+    .where(
+      and(
+        eq(socialSuggestions.websiteId, websiteId),
+        inArray(socialSuggestions.status, ["new", "failed"]),
+        gte(socialSuggestions.day, utcDay(new Date(now.getTime() - WAITING_MS))),
+      ),
+    );
   return Number(row?.n ?? 0);
 }
 
@@ -372,14 +452,28 @@ async function save(websiteId: string, day: string, rows: (typeof socialSuggesti
  * then the rest go to the platforms still short of discussions; one with
  * plenty is not searched again. A discussion counts for its own platform
  * whichever search found it: the Reddit search turned up a Quora question.
+ *
+ * REDDIT COMES FIRST, AND IS ASKED IN MORE THAN ONE WAY (Daniel, 2026-11-24:
+ * "missing the part to find opportunities to reply on reddit posts"). Since
+ * 2026-11-04 only threads of the last five months are asked for (an archived
+ * one takes no comments). A long keyword, inside one site, inside five months
+ * is often an empty result page - which DataForSEO reports as an ERROR
+ * (40102), so the day's searches failed one after another in the same way and
+ * Reddit was left with own posts only. Every further Reddit search now widens
+ * (searchQuery): fewer words, then without "site:", with the date written in
+ * the query instead of the filter. The number of searches is unchanged.
+ *
+ * A platform with no account is searched only where Google lists its
+ * discussions well (SEARCH_WITHOUT_ACCOUNT): each search costs money.
  */
 async function findDiscussions(
   site: typeof websites.$inferSelect,
-  accounts: SocialAccount[],
+  channels: Channel[],
   wanted: number,
+  articleTitles: string[],
   now: Date,
   search: SuggestDeps["search"],
-): Promise<Candidate[]> {
+): Promise<{ picked: Candidate[]; stats: DiscussionStats }> {
   const terms = (
     await db
       .select({ term: keywords.term })
@@ -390,30 +484,39 @@ async function findDiscussions(
   )
     .map((row) => row.term)
     .filter((term) => !namesBrand(term, { brandName: site.brandName, domain: site.domain }));
-  const topics = terms.length > 0 ? terms : [site.industry, ...servicesOf(site)].filter((topic): topic is string => Boolean(topic));
-  if (topics.length === 0) return [];
+  const fallback = [site.industry, ...servicesOf(site)].filter((topic): topic is string => Boolean(topic?.trim()));
+  const topics = terms.length > 0 ? terms : fallback.length > 0 ? fallback : articleTitles.map(shortTopic).filter(Boolean);
+  if (topics.length === 0) return { picked: [], stats: {} };
 
   const market = labsMarket(site.country ?? "", site.language ?? "English");
   const language = mainLanguageCode(site.language);
   const dayIndex = Math.floor(now.getTime() / DAY_MS);
-  const replying = accounts.filter((account) => PLATFORMS[account.platform as SocialPlatform].replies);
-  if (replying.length === 0) return [];
+  const replying = channels
+    .filter(({ platform, account }) => PLATFORMS[platform].replies && (account || SEARCH_WITHOUT_ACCOUNT.includes(platform)))
+    .sort((a, b) => Number(b.platform === "reddit") - Number(a.platform === "reddit"));
+  if (replying.length === 0) return { picked: [], stats: {} };
 
-  const perPlatform = new Map<SocialPlatform, Candidate[]>(replying.map((account) => [account.platform as SocialPlatform, []]));
+  const stats: DiscussionStats = {};
+  for (const { platform } of replying) stats[platform] = { searches: 0, failed: 0, found: 0, old: 0, known: 0, offered: 0, written: 0, kept: 0 };
+  const perPlatform = new Map<SocialPlatform, Candidate[]>(replying.map(({ platform }) => [platform, []]));
   const searches = new Map<SocialPlatform, number>();
   const seen = new Set<string>();
-  const share = Math.ceil(wanted / replying.length);
-  const searchesPerPlatform = Math.min(MAX_SEARCHES_PER_PLATFORM, topics.length);
+  const evenShare = Math.ceil(wanted / replying.length);
+  const shareOf = (platform: SocialPlatform) => (platform === "reddit" ? Math.max(evenShare, REDDIT_THREADS) : evenShare);
+  /** The most searches a platform gets: no more than there are different ones to make (Reddit's widen, so always all). */
+  const searchesFor = (platform: SocialPlatform) =>
+    PLATFORMS[platform].maxAgeMonths ? MAX_SEARCHES_PER_PLATFORM : Math.min(MAX_SEARCHES_PER_PLATFORM, topics.length);
 
   const searchFor = async (index: number) => {
-    const platform = replying[index].platform as SocialPlatform;
+    const { platform } = replying[index];
     const k = searches.get(platform) ?? 0;
     searches.set(platform, k + 1);
+    stats[platform]!.searches += 1;
     const term = topics[(dayIndex * MAX_SEARCHES_PER_PLATFORM + index + k) % topics.length];
-    const maxAgeMonths = PLATFORMS[platform].maxAgeMonths;
+    const { query, options } = searchQuery(platform, term, k, now);
     let items: { url: string; title: string; description: string; postedAt?: Date | null }[];
     try {
-      ({ items } = await search(`${PLATFORMS[platform].search} ${term}`, market.location, market.language, (costUsd) =>
+      ({ items } = await search(query, market.location, market.language, (costUsd) =>
         track(site.organizationId, {
           kind: "seo_api",
           provider: "dataforseo",
@@ -421,24 +524,30 @@ async function findDiscussions(
           costUsd,
           metadata: { purpose: "social_discovery", platform, costBasis: costUsd === undefined ? "unknown" : "provider_reported" },
         }),
-      maxAgeMonths ? { maxAgeMonths } : {},
+        options,
       ));
     } catch (error) {
-      // One search failing costs that search's discussions, not the day's suggestions.
+      // One search failing costs that search's discussions, not the day's suggestions. "No results" arrives here too.
+      stats[platform]!.failed += 1;
       console.error("[social] discussion search failed", { websiteId: site.id, platform, error });
       return;
     }
 
     const found: Candidate[] = [];
     for (const item of items) {
-      // Google's date filter goes by the page's date; a dated result older than the limit is dropped too.
-      if (maxAgeMonths && item.postedAt && now.getTime() - item.postedAt.getTime() > maxAgeMonths * 30 * DAY_MS) continue;
-      for (const account of replying) {
-        const thread = threadFromUrl(account.platform as SocialPlatform, item.url);
+      for (const channel of replying) {
+        const thread = threadFromUrl(channel.platform, item.url);
         // A Quora question in another language than the website's is not one to answer.
         if (!thread || seen.has(thread.url) || (thread.language && thread.language !== language)) continue;
         seen.add(thread.url);
-        found.push({ ...thread, title: item.title, snippet: item.description, warmup: inWarmup(account, now) });
+        stats[channel.platform]!.found += 1;
+        // Google's date filter goes by the page's date; one dated too long ago to take comments is dropped whichever search found it.
+        const maxAgeMonths = PLATFORMS[channel.platform].maxAgeMonths;
+        if (maxAgeMonths && item.postedAt && now.getTime() - item.postedAt.getTime() > maxAgeMonths * 30 * DAY_MS) {
+          stats[channel.platform]!.old += 1;
+          continue;
+        }
+        found.push({ ...thread, title: item.title, snippet: item.description, warmup: channel.warmup });
       }
     }
     // Leave out discussions already suggested on an earlier day: they do not count towards a platform's share.
@@ -453,20 +562,22 @@ async function findDiscussions(
           ).map((row) => row.url),
     );
     for (const candidate of found) {
-      if (!known.has(candidate.url)) perPlatform.get(candidate.platform)!.push(candidate);
+      if (known.has(candidate.url)) stats[candidate.platform]!.known += 1;
+      else perPlatform.get(candidate.platform)!.push(candidate);
     }
   };
 
+  const emptyReddit = (entry: { platform: SocialPlatform; have: number }) => entry.platform === "reddit" && entry.have === 0;
   for (const index of replying.keys()) await searchFor(index);
   for (let left = KEYWORDS_PER_PLATFORM * replying.length - replying.length; left > 0; left -= 1) {
-    // The platform furthest short of its share; of two, the one searched less.
+    // Reddit while it has nothing (its searches widen); then the platform furthest short of its share; of two, the one searched less.
     const next = [...replying.keys()]
       .map((index) => {
-        const platform = replying[index].platform as SocialPlatform;
-        return { index, have: perPlatform.get(platform)!.length, done: searches.get(platform) ?? 0 };
+        const { platform } = replying[index];
+        return { index, platform, have: perPlatform.get(platform)!.length, done: searches.get(platform) ?? 0 };
       })
-      .filter((entry) => entry.have < share && entry.done < searchesPerPlatform)
-      .sort((a, b) => a.have - b.have || a.done - b.done)[0];
+      .filter((entry) => entry.have < shareOf(entry.platform) && entry.done < searchesFor(entry.platform))
+      .sort((a, b) => Number(emptyReddit(b)) - Number(emptyReddit(a)) || a.have - b.have || a.done - b.done)[0];
     if (!next) break;
     await searchFor(next.index);
   }
@@ -476,9 +587,59 @@ async function findDiscussions(
   const picked: Candidate[] = [];
   while (picked.length < wanted && queues.some((queue) => queue.length > 0)) {
     for (const queue of queues) {
+      if (picked.length >= wanted) break;
       const next = queue.shift();
-      if (next && picked.length < wanted) picked.push(next);
+      if (next) picked.push(next);
     }
   }
-  return picked;
+  // Reddit's spares, after everybody's: used only where the model skipped the others.
+  const reddit = perPlatform.get("reddit") ?? [];
+  while (reddit.length > 0 && picked.filter((candidate) => candidate.platform === "reddit").length < REDDIT_THREADS) picked.push(reddit.shift()!);
+  for (const candidate of picked) stats[candidate.platform]!.offered += 1;
+  return { picked, stats };
+}
+
+/**
+ * A platform's k-th search of the day. Where threads close (Reddit), each one
+ * widens the one before, because the narrowest is so often empty:
+ *  1. the keyword, on the site, Google's "past five months" filter;
+ *  2. its main words, on the site, with the date as a query word (`after:`);
+ *  3. its main words and the platform's name, anywhere: "site:" is sometimes
+ *     ignored or returns nothing, and Google's discussions block still lists
+ *     the threads.
+ * Other platforms ask the same way each time, with the next keyword.
+ */
+export function searchQuery(
+  platform: SocialPlatform,
+  term: string,
+  k: number,
+  now: Date,
+): { query: string; options: { maxAgeMonths?: number } } {
+  const { search: site, maxAgeMonths, name } = PLATFORMS[platform];
+  if (!maxAgeMonths) return { query: `${site} ${term}`, options: {} };
+  if (k === 0) return { query: `${site} ${term}`, options: { maxAgeMonths } };
+  const after = `after:${utcDay(new Date(now.getTime() - maxAgeMonths * 30 * DAY_MS))}`;
+  const topic = shortTopic(term) || term;
+  return { query: k === 1 ? `${site} ${topic} ${after}` : `${topic} ${name.toLowerCase()} ${after}`, options: {} };
+}
+
+/** Words that narrow a search without saying what it is about, in the languages websites are written in. */
+const FILLER = new Set(
+  (
+    "a an and are as at be best by can cheap cost costs do does for from guide how i in is it me my near of on or our price prices step tips to top vs what when where which who why will with you your " +
+    "como con cual cuales de del donde el en es guia la las lo los mejor mejores mi para por precio precios que se su un una y " +
+    "au aux avec ce comment dans des du est et le les meilleur meilleure meilleurs notre ou par pour prix quel quelle sur une votre " +
+    "al alla che come da dei della delle di e gli il migliore migliori nel o per prezzi prezzo quale quali " +
+    "am auf aus bei beste besten der die das den dem ein eine einen fur für im ist kosten mit oder preis preise und von was welche wie zu zum zur"
+  ).split(" "),
+);
+
+/** A keyword's main words, three at most: "how to choose a wedding photographer in 2026" -> "choose wedding photographer". */
+export function shortTopic(term: string): string {
+  return term
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}'+#.-]+/u)
+    .filter((word) => word && !FILLER.has(word) && !/^(?:19|20)\d\d$/.test(word))
+    .slice(0, 3)
+    .join(" ");
 }

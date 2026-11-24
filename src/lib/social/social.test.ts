@@ -54,7 +54,9 @@ vi.mock("@/lib/providers/dataforseo", () => ({ isDataForSeoConfigured: () => tru
 import { recordCredit } from "@/lib/backlinks/credits";
 import { FREE_PLAN } from "@/lib/plans/free-plan";
 import { connectSocialUsername, editScheduledPost, postSocialSuggestion, saveSocialDraft, skipSocialSuggestion } from "./actions";
+import { dailySuggestionWebsites } from "./daily";
 import { checkPublished, publishSuggestion } from "./publish";
+import { resumeQuotaPauses } from "./recover";
 import { suggestForWebsite, type SuggestDeps } from "./suggest";
 import type { Drafts } from "./write";
 
@@ -125,6 +127,8 @@ const search: SuggestDeps["search"] = vi.fn(async (query: string) => {
   const prefix = Object.keys(RESULTS).find((key) => query.startsWith(key)) ?? "";
   return { cached: false, items: (RESULTS[prefix] ?? []).map((url) => ({ url, title: `About ${url}`, description: "A question.", postedAt: null })) };
 });
+/** The same results, counted for one test. */
+const spySearch = () => vi.fn<SuggestDeps["search"]>((...args) => search(...args));
 const writer = (drafts: Drafts): SuggestDeps["write"] =>
   vi.fn(async () => ({ drafts, usage: { inputTokens: 100, outputTokens: 50, model: "claude-sonnet-5" } }));
 
@@ -192,7 +196,7 @@ describe("the day's suggestions", () => {
     const write = writer({ posts: [], replies: [{ thread: 1, body: "See https://example.com" }] });
     const result = await suggestForWebsite(websiteId, { now: NOW, search, write });
     const [, threads] = vi.mocked(write).mock.calls[0];
-    expect(threads).toEqual([]);
+    expect(threads.filter((thread) => thread.platform === "reddit")).toEqual([]);
     expect(result.created).toBe(0);
   });
 
@@ -242,7 +246,9 @@ describe("the day's suggestions", () => {
     const write = writer({ posts: [{ slot: 1, title: "Soft light at home", body: "Three ways to get soft light at home." }], replies: [] });
     await suggestForWebsite(websiteId, { now: NOW, search, write });
     const [, , slots] = vi.mocked(write).mock.calls[0];
-    expect(slots).toEqual([expect.objectContaining({ platform: "pinterest", imageUrl: "https://cdn.example.com/older.webp", topic: "older" })]);
+    expect(slots.filter((slot) => slot.platform === "pinterest")).toEqual([
+      expect.objectContaining({ platform: "pinterest", imageUrl: "https://cdn.example.com/older.webp", topic: "older" }),
+    ]);
     const pins = await test.db
       .select({ imageUrl: socialSuggestions.imageUrl })
       .from(socialSuggestions)
@@ -252,7 +258,8 @@ describe("the day's suggestions", () => {
     // Every picture pinned: no Pin until the next article.
     const next = writer({ posts: [], replies: [] });
     await suggestForWebsite(websiteId, { now: new Date(NOW.getTime() + DAY), search, write: next });
-    expect(next).not.toHaveBeenCalled();
+    const [, , later] = vi.mocked(next).mock.calls[0];
+    expect(later.map((slot) => slot.platform)).not.toContain("pinterest");
   });
 
   it("count a discussion for its own platform, whichever search found it, in the website's language", async () => {
@@ -295,7 +302,14 @@ describe("the day's suggestions", () => {
     const write = writer({ posts: [], replies: [] });
     await suggestForWebsite(websiteId, { now: NOW, search: dated, write });
     const options = vi.mocked(dated).mock.calls.map(([query, , , , opts]) => [query.split(" ")[0], opts]);
-    expect(options.filter(([prefix]) => prefix === "site:reddit.com").every(([, opts]) => (opts as { maxAgeMonths?: number }).maxAgeMonths === 5)).toBe(true);
+    // The first search uses Google's filter; the wider ones carry the date in the query.
+    expect(options.find(([prefix]) => prefix === "site:reddit.com")![1]).toEqual({ maxAgeMonths: 5 });
+    expect(
+      vi
+        .mocked(dated)
+        .mock.calls.filter(([query, , , , opts]) => /reddit/.test(query) && !(opts as { maxAgeMonths?: number }).maxAgeMonths)
+        .every(([query]) => query.includes("after:2026-05-31")),
+    ).toBe(true);
     expect(options.filter(([prefix]) => prefix === "site:quora.com").every(([, opts]) => !(opts as { maxAgeMonths?: number }).maxAgeMonths)).toBe(true);
     const [, threads] = vi.mocked(write).mock.calls[0];
     // Quora questions take answers at any age; Reddit's old thread is gone.
@@ -328,6 +342,145 @@ describe("the day's suggestions", () => {
     expect(on("site:quora.com")).toHaveLength(3);
     expect(new Set(on("site:quora.com")).size).toBe(3);
     expect(on("site:reddit.com")).toHaveLength(2);
+  });
+
+  it("find Reddit discussions to reply to when the narrow searches are empty (Daniel, 2026-11-24)", async () => {
+    const { websiteId } = await site();
+    await test.db.insert(keywords).values([{ websiteId, term: "how to choose the best wedding photographer near me in 2026", priorityScore: 20 }]);
+    for (const platform of ["reddit", "x", "bluesky", "pinterest"]) await account(websiteId, platform, { bundle: true });
+    // What DataForSEO answers for a long keyword, inside one site, inside five months: 40102, an error.
+    const empty: SuggestDeps["search"] = vi.fn(async (query: string) => {
+      if (query.startsWith("site:")) throw new Error("DataForSEO task error 40102: No Search Results.");
+      return {
+        cached: false,
+        items: [
+          { url: "https://www.reddit.com/r/weddingplanning/comments/zz99aa/lost/", title: "We are lost, every photographer looks the same", description: "Help.", postedAt: new Date(NOW.getTime() - 10 * DAY) },
+          { url: "https://www.reddit.com/r/weddingplanning/comments/zz00aa/old/", title: "Archived", description: "", postedAt: new Date(NOW.getTime() - 300 * DAY) },
+        ],
+      };
+    });
+    const write = writer({ posts: [], replies: [{ thread: 1, body: "Ask each one for a full gallery from one day." }] });
+    const result = await suggestForWebsite(websiteId, { now: NOW, search: empty, write });
+    const rows = await test.db.select().from(socialSuggestions).where(eq(socialSuggestions.websiteId, websiteId));
+    expect(rows).toEqual([
+      expect.objectContaining({ platform: "reddit", kind: "reply", status: "new", threadUrl: "https://www.reddit.com/r/weddingplanning/comments/zz99aa/" }),
+    ]);
+    expect(result.discussions!.reddit).toMatchObject({ searches: 3, failed: 2, found: 2, old: 1, offered: 1, written: 1, kept: 1 });
+    // Two searches a replying platform, as before (Reddit, X, Bluesky, and Quora although it has no account).
+    expect(vi.mocked(empty).mock.calls.length).toBeLessThanOrEqual(8);
+    // A reply is always the customer's click, whatever the account.
+    expect(result.scheduled).toEqual([]);
+  });
+
+  it("offer several Reddit discussions, so the model skipping some still leaves a reply", async () => {
+    const { websiteId } = await site();
+    for (const platform of ["quora", "x", "threads", "bluesky", "reddit"]) await account(websiteId, platform);
+    const plenty: SuggestDeps["search"] = vi.fn(async (query: string) => ({
+      cached: false,
+      items: Array.from({ length: 8 }, (_, i) => ({
+        url: query.startsWith("site:reddit.com")
+          ? `https://www.reddit.com/r/photography/comments/many0${i}/t/`
+          : query.startsWith("site:quora.com")
+            ? `https://www.quora.com/Question-number-${i}`
+            : query.startsWith("site:x.com")
+              ? `https://x.com/a/status/5550${i}`
+              : `https://bsky.app/profile/a.bsky.social/post/abcdef${i}`,
+        title: `T${i}`,
+        description: "",
+        postedAt: null,
+      })),
+    }));
+    const write = writer({ posts: [], replies: [] });
+    await suggestForWebsite(websiteId, { now: NOW, search: plenty, write });
+    const [, threads, , wanted] = vi.mocked(write).mock.calls[0];
+    expect(threads[0].platform).toBe("reddit");
+    expect(threads.filter((thread) => thread.platform === "reddit")).toHaveLength(5);
+    // Four own posts (no picture to pin yet), six replies.
+    expect(wanted).toBe(6);
+  });
+
+  it("need no connected account: own posts and discussions by hand, written as in a warm-up", async () => {
+    const { websiteId } = await site();
+    const write = writer({
+      posts: [
+        { slot: 1, title: "Soft light", body: "What is your go-to setup for soft light indoors?" },
+        // A new account's rules: RepGet knows nothing about the account this goes out on.
+        { slot: 2, title: null, body: "More at imagestudio.io" },
+      ],
+      replies: [
+        { thread: 1, body: "Shoot a test session first, then decide." },
+        { thread: 2, body: "Image Studio does this well." },
+      ],
+    });
+    const counted = spySearch();
+    const result = await suggestForWebsite(websiteId, { now: NOW, search: counted, write });
+    const [, threads, slots] = vi.mocked(write).mock.calls[0];
+    // No image to pin yet, so no Pin.
+    expect(slots.map((slot) => slot.platform)).toEqual(["reddit", "x", "threads", "bluesky"]);
+    expect(slots.every((slot) => slot.warmup && !slot.link)).toBe(true);
+    expect(threads.every((thread) => thread.warmup)).toBe(true);
+    const rows = await test.db.select().from(socialSuggestions).where(eq(socialSuggestions.websiteId, websiteId));
+    expect(rows.map((row) => [row.platform, row.kind, row.status, row.warmup]).sort()).toEqual([
+      ["reddit", "post", "new", true],
+      ["reddit", "reply", "new", true],
+    ]);
+    expect(result.scheduled).toEqual([]);
+    // Reddit and Quora only, two searches each.
+    expect(counted.mock.calls.every(([query]) => /reddit|quora/.test(query))).toBe(true);
+    expect(counted.mock.calls.length).toBeLessThanOrEqual(4);
+  });
+
+  it("fall back to what the analysis found when there are no keywords yet", async () => {
+    const { websiteId } = await site();
+    await test.db.delete(keywords).where(eq(keywords.websiteId, websiteId));
+    await test.db.update(websites).set({ industry: "Wedding photography", services: ["Album design"] }).where(eq(websites.id, websiteId));
+    const counted = spySearch();
+    await suggestForWebsite(websiteId, { now: NOW, search: counted, write: writer({ posts: [], replies: [] }) });
+    expect(counted.mock.calls.map(([query]) => query).join("\n")).toMatch(/wedding photography|album design/i);
+  });
+
+  it("wait for the website's analysis", async () => {
+    const { websiteId } = await site();
+    await test.db.update(websites).set({ status: "crawling" }).where(eq(websites.id, websiteId));
+    const write = writer({ posts: [], replies: [] });
+    expect(await suggestForWebsite(websiteId, { now: NOW, search, write })).toMatchObject({ created: 0, reason: "website not ready" });
+    expect(write).not.toHaveBeenCalled();
+  });
+
+  it("are not written every morning for a page nobody uses, but are when asked for", async () => {
+    const { websiteId } = await site();
+    await test.db.insert(socialSuggestions).values(
+      Array.from({ length: 10 }, (_, i) => ({ websiteId, platform: "x", kind: "post", day: "2026-10-26", body: `waiting ${i}` })),
+    );
+    const counted = spySearch();
+    const write = writer({ posts: [], replies: [] });
+    expect(await suggestForWebsite(websiteId, { now: NOW, search: counted, write }, { daily: true })).toMatchObject({ reason: "earlier suggestions are still waiting" });
+    expect(counted).not.toHaveBeenCalled();
+    await suggestForWebsite(websiteId, { now: NOW, search: counted, write });
+    expect(write).toHaveBeenCalledTimes(1);
+    // A week later they are off the page: one new run.
+    await suggestForWebsite(websiteId, { now: new Date(NOW.getTime() + 8 * DAY), search: counted, write }, { daily: true });
+    expect(write).toHaveBeenCalledTimes(2);
+    // With an account connected the morning run goes on as before.
+    await account(websiteId, "x");
+    await suggestForWebsite(websiteId, { now: NOW, search: counted, write }, { daily: true });
+    expect(write).toHaveBeenCalledTimes(3);
+  });
+
+  it("keep a Free website without accounts inside its month, and write nothing once its AI budget is spent", async () => {
+    const { websiteId } = await freeSite();
+    for (let n = 0; n < FREE_PLAN.socialSuggestionsPerMonth - 1; n += 1) {
+      await suggestion(websiteId, { platform: "reddit", threadUrl: `https://www.reddit.com/r/photography/comments/g${n}aaa/x/`, day: "2026-10-02", status: "dismissed" });
+    }
+    const write = writer({
+      posts: [{ slot: 1, title: "Soft light", body: "What is your go-to setup for soft light indoors?" }, { slot: 2, title: null, body: "Shade beats golden hour." }],
+      replies: [],
+    });
+    expect((await suggestForWebsite(websiteId, { now: NOW, search, write })).created).toBe(1);
+    vi.stubEnv("FREE_PLAN_DAILY_AI_BUDGET_CENTS", "0");
+    const other = await freeSite();
+    expect(await suggestForWebsite(other.websiteId, { now: NOW, search, write })).toMatchObject({ created: 0, reason: "no plan" });
+    expect(write).toHaveBeenCalledTimes(1);
   });
 
   it("on a trial use Quora only", async () => {
@@ -414,6 +567,114 @@ describe("the one-click post", () => {
     expect(await postSocialSuggestion(websiteId, row.id, { body: "More on my site: imagestudio.io" })).toEqual({ ok: false, error: "warmup_link" });
     expect(await postSocialSuggestion(websiteId, row.id, { body: "At Image Studio we test first." })).toEqual({ ok: false, error: "warmup_brand" });
     expect(await postSocialSuggestion(websiteId, row.id, { body: "x".repeat(281) })).toEqual({ ok: false, error: "too_long" });
+  });
+});
+
+describe("the websites the morning run asks for", () => {
+  it("are analysed, on a plan or Free - with or without accounts; a Free one without an account once a week", async () => {
+    const paid = await site();
+    const analysing = await site();
+    await test.db.update(websites).set({ status: "crawling" }).where(eq(websites.id, analysing.websiteId));
+    const none = await seedWebsite(test, { status: null });
+    const ended = await seedWebsite(test, { status: "canceled" });
+    const free = await freeSite();
+    const freeConnected = await freeSite();
+    await account(freeConnected.websiteId, "x");
+    await test.db.update(websites).set({ createdAt: new Date(NOW.getTime() - 30 * DAY) }).where(eq(websites.id, free.websiteId));
+
+    const days = await Promise.all(Array.from({ length: 7 }, (_, i) => dailySuggestionWebsites(new Date(NOW.getTime() + i * DAY))));
+    for (const day of days) {
+      expect(day).toContain(paid.websiteId);
+      expect(day).toContain(freeConnected.websiteId);
+      for (const id of [analysing.websiteId, none.websiteId, ended.websiteId]) expect(day).not.toContain(id);
+      expect(new Set(day).size).toBe(day.length);
+    }
+    expect(days.filter((day) => day.includes(free.websiteId))).toHaveLength(1);
+    // A new Free website does not wait for its weekday.
+    await test.db.update(websites).set({ createdAt: new Date(NOW.getTime() - DAY) }).where(eq(websites.id, free.websiteId));
+    expect(await dailySuggestionWebsites(NOW)).toContain(free.websiteId);
+  });
+});
+
+describe("a post RepGet could not publish", () => {
+  async function refused(error: { status: number; message: string }) {
+    await test.db.delete(socialAccounts);
+    const { orgId, websiteId } = await site();
+    await account(websiteId, "bluesky", { bundle: true });
+    await test.db.insert(socialTeams).values({ websiteId, teamId: `team_${websiteId}` });
+    await recordCredit(orgId, { type: "adjustment", amount: 5, note: "test" });
+    const row = await suggestion(websiteId, { platform: "bluesky", kind: "post", threadUrl: null, status: "scheduled", scheduledFor: NOW, body: "Shade beats golden hour." });
+    const waiting = await suggestion(websiteId, { platform: "bluesky", kind: "post", threadUrl: null, status: "scheduled", scheduledFor: new Date(NOW.getTime() + DAY), body: "Second tip." });
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ message: error.message }), { status: error.status })));
+    expect(await publishSuggestion(row.id, NOW)).toBe("failed");
+    const balance = async () => (await test.db.select().from(creditLedger).where(eq(creditLedger.organizationId, orgId))).reduce((sum, entry) => sum + entry.amount, 0);
+    const read = async (id: string) => (await test.db.select().from(socialSuggestions).where(eq(socialSuggestions.id, id)))[0];
+    const acct = async () => (await test.db.select().from(socialAccounts).where(eq(socialAccounts.websiteId, websiteId)))[0];
+    return { orgId, websiteId, row, waiting, balance, read, acct };
+  }
+  const LIMIT = { status: 403, message: "Monthly post limit reached. Limit for this month is 20 posts." };
+
+  it("keeps its text and error, gives the credit back, and is charged once when posted by hand", async () => {
+    const { orgId, websiteId, row, balance, read } = await refused(LIMIT);
+    // For administrators: the status and the provider's words stay on the row.
+    expect(await read(row.id)).toMatchObject({ status: "failed", body: row.body, postedAt: null, error: expect.stringContaining("Monthly post limit reached") });
+    expect(await balance()).toBe(5);
+
+    expect((await postSocialSuggestion(websiteId, row.id, { body: row.body })).ok).toBe(true);
+    expect(await balance()).toBe(4);
+    // Clicked again (a closed tab): nothing more.
+    expect((await postSocialSuggestion(websiteId, row.id, { body: row.body })).ok).toBe(true);
+    expect(await balance()).toBe(4);
+    expect(await read(row.id)).toMatchObject({ status: "posted", error: null, creditSpendKey: `social:${row.id}:hand` });
+    expect((await test.db.select().from(creditSpends).where(eq(creditSpends.organizationId, orgId))).filter((spend) => !spend.refundedAt)).toHaveLength(1);
+  });
+
+  it("hands the account's other waiting posts to the customer, and can be kept as a draft", async () => {
+    const { websiteId, row, waiting, balance, read } = await refused(LIMIT);
+    expect(await read(waiting.id)).toMatchObject({ status: "new", scheduledFor: null, body: "Second tip." });
+    expect(await saveSocialDraft(websiteId, row.id, { body: "Shade beats golden hour, always." })).toEqual({ ok: true, data: null });
+    // The error stays for administrators (lib/admin/social-posting.ts).
+    expect(await read(row.id)).toMatchObject({ status: "draft", body: "Shade beats golden hour, always.", error: expect.stringContaining("limit") });
+    expect(await balance()).toBe(5);
+  });
+
+  it("starts again by itself after a provider limit, once, and pauses again if it is still there", async () => {
+    const { websiteId, acct } = await refused(LIMIT);
+    expect((await acct()).pausedReason).toContain("Monthly post limit reached");
+    expect(await resumeQuotaPauses(new Date(NOW.getTime() + 2 * DAY))).toEqual([]);
+    const resumed = await resumeQuotaPauses(new Date(NOW.getTime() + 3 * DAY));
+    expect(resumed).toEqual([expect.objectContaining({ websiteId, platform: "bluesky" })]);
+    expect(await acct()).toMatchObject({ pausedAt: null, pausedReason: null, autoPost: true });
+    const again = await suggestion(websiteId, { platform: "bluesky", kind: "post", threadUrl: null, status: "scheduled", scheduledFor: NOW, body: "Third tip." });
+    const later = new Date(NOW.getTime() + 3 * DAY);
+    expect(await publishSuggestion(again.id, later)).toBe("failed");
+    expect((await acct()).pausedAt).toEqual(later);
+  });
+
+  it("never starts again by itself after the platform's own refusal", async () => {
+    const { acct } = await refused({ status: 403, message: "This account is suspended for spam" });
+    expect(await resumeQuotaPauses(new Date(NOW.getTime() + 60 * DAY))).toEqual([]);
+    expect((await acct()).pausedReason).toContain("suspended for spam");
+  });
+});
+
+describe("a scheduled post the customer posts by hand", () => {
+  it("goes out once: charged once, and RepGet no longer publishes it", async () => {
+    const { orgId, websiteId } = await site();
+    await account(websiteId, "x", { bundle: true });
+    await test.db.insert(socialTeams).values({ websiteId, teamId: "team_hand" });
+    await recordCredit(orgId, { type: "adjustment", amount: 5, note: "test" });
+    const row = await suggestion(websiteId, { kind: "post", threadUrl: null, status: "scheduled", scheduledFor: NOW, body: "Shade beats golden hour." });
+    expect(await postSocialSuggestion(websiteId, row.id, { body: row.body })).toMatchObject({ ok: true, data: { filled: true } });
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    expect(await publishSuggestion(row.id, NOW)).toBe("skipped");
+    expect(fetch).not.toHaveBeenCalled();
+    expect(await test.db.select().from(creditSpends).where(eq(creditSpends.organizationId, orgId))).toHaveLength(1);
+
+    // One RepGet is handing over right now is not: it would go out twice.
+    const handed = await suggestion(websiteId, { kind: "post", threadUrl: null, status: "posting", body: "Being published." });
+    expect(await postSocialSuggestion(websiteId, handed.id, { body: handed.body })).toEqual({ ok: false, error: "already_handled" });
   });
 });
 
@@ -514,7 +775,7 @@ describe("a saved draft", () => {
   it("is only for a suggestion waiting for the customer", async () => {
     const { websiteId } = await site();
     await account(websiteId, "x", { bundle: true });
-    for (const status of ["scheduled", "posting", "failed", "dismissed"]) {
+    for (const status of ["scheduled", "posting", "dismissed"]) {
       const row = await suggestion(websiteId, { kind: "post", threadUrl: null, status });
       expect(await saveSocialDraft(websiteId, row.id, { body: "An edit." })).toEqual({ ok: false, error: "already_handled" });
       const [kept] = await test.db.select().from(socialSuggestions).where(eq(socialSuggestions.id, row.id));

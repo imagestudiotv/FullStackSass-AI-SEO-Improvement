@@ -3,27 +3,25 @@
 import { Clock, ExternalLink, Save, Send, SkipForward } from "lucide-react";
 import Link from "next/link";
 import { useId, useState } from "react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { Notice } from "@/components/workspace/notice";
-import { copyTextNow } from "@/lib/copy-text";
 import type { Locale } from "@/lib/i18n/config";
 import { format, formatDate } from "@/lib/i18n/format";
+import { OPPORTUNITIES_COPY } from "@/lib/i18n/opportunities";
 import {
   editScheduledPost,
   postScheduledNow,
-  postSocialSuggestion,
   saveSocialDraft,
   skipSocialSuggestion,
 } from "@/lib/social/actions";
 import { isSocialPlatform, PLATFORMS } from "@/lib/social/platforms";
 
-import { latest, pasteText, platformName, stageOf, whereOf, type AccountView, type SuggestionView } from "./opportunities";
-import { Ago, atTime, CopyTextButton, PlatformTile, useSocialAction, type T } from "./social-shared";
+import { discussionUrl, latest, pasteText, platformName, postedLink, stageOf, whereOf, type AccountView, type SuggestionView } from "./opportunities";
+import { Ago, atTime, CopyTextButton, PlatformTile, useOneClickPost, useSocialAction, type T } from "./social-shared";
 
 /** A row's headline: the discussion it answers, or the own post's title. */
 export function headline(row: SuggestionView, t: T): string {
@@ -92,7 +90,10 @@ function Review({
   t: T;
 }) {
   const id = useId();
-  const { pending, start, run, refuse, router } = useSocialAction(t, priceLabel);
+  const action = useSocialAction(t, priceLabel);
+  const { run } = action;
+  const oneClickPost = useOneClickPost(websiteId, t, priceLabel);
+  const pending = action.pending || oneClickPost.pending;
   const [body, setBody] = useState(suggestion.body);
   const [title, setTitle] = useState(suggestion.title ?? "");
   const platform = isSocialPlatform(suggestion.platform) ? suggestion.platform : null;
@@ -104,35 +105,15 @@ function Review({
   const edited = body.trim() !== suggestion.body.trim() || (hasTitle && title.trim() !== (suggestion.title ?? "").trim());
   const name = platformName(suggestion.platform);
   const where = whereOf(suggestion);
+  const discussion = discussionUrl(suggestion);
+  const posted = postedLink(suggestion);
   const max = spec?.maxLength ?? 4000;
   const tooLong = body.length > max;
   const invalid = body.trim().length === 0 || tooLong;
   const text = pasteText(hasTitle ? title : null, body);
   const edit = { body, title: hasTitle ? title : undefined };
 
-  function postNow() {
-    // Both in the click itself: browsers allow neither once the click has passed. The copy goes
-    // first, while this page still has the focus the new tab is about to take (lib/copy-text.ts).
-    const copying = copyTextNow(text);
-    const win = window.open("about:blank", "_blank");
-    if (win) win.opener = null;
-    start(async () => {
-      const copied = await copying;
-      const result = await postSocialSuggestion(websiteId, suggestion.id, edit).catch(() => null);
-      if (!result?.ok) {
-        win?.close();
-        refuse(result && !result.ok ? result : null);
-        return;
-      }
-      if (win) win.location.href = result.data.url;
-      // Quora and replies on Reddit and Bluesky only have the clipboard: never say "copied" when it is not.
-      if (!copied && (!win || !result.data.filled)) toast.error(format(t.copyFailed, { platform: name }));
-      else if (!win) toast.message(format(t.popupBlocked, { platform: name }));
-      else if (copied) toast.success(format(t.copied, { platform: name }));
-      onDone();
-      router.refresh();
-    });
-  }
+  const postNow = () => oneClickPost.post(suggestion, text, edit, onDone);
 
   // A scheduled own post moves to Drafts rather than going away (client, 2026-11-03).
   const skip = () =>
@@ -170,9 +151,7 @@ function Review({
           >
             {suggestion.error === "not_enough_credits"
               ? t.failedCredits
-              : suggestion.error === "free_posts_used"
-                ? t.errors.free_posts_used
-                : format(t.failed, { reason: suggestion.error ?? "-" })}
+              : t.errors.free_posts_used}
           </Notice>
         ) : null}
         {!canEdit ? <Notice>{t.errors.view_only}</Notice> : !editable ? <Notice>{t.errors.not_included}</Notice> : null}
@@ -185,15 +164,17 @@ function Review({
             <div className="space-y-2 rounded-lg border bg-muted/40 p-3 text-sm">
               {suggestion.threadTitle ? <p className="font-medium">{suggestion.threadTitle}</p> : null}
               {suggestion.threadSnippet ? <p className="line-clamp-6 text-muted-foreground">{suggestion.threadSnippet}</p> : null}
-              <a
-                href={suggestion.threadUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs font-medium underline-offset-4 hover:underline"
-              >
-                {t.openThread}
-                <ExternalLink className="size-3" aria-hidden="true" />
-              </a>
+              {discussion ? (
+                <a
+                  href={discussion}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs font-medium underline-offset-4 hover:underline"
+                >
+                  {t.openThread}
+                  <ExternalLink className="size-3" aria-hidden="true" />
+                </a>
+              ) : null}
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">{format(t.ownPostNote, { platform: name })}</p>
@@ -207,6 +188,8 @@ function Review({
         {writable && account?.inWarmup ? (
           <Notice>{format(t.warmup, { date: formatDate(account.warmupEndsAt, locale, { day: "numeric", month: "long" }) })}</Notice>
         ) : null}
+
+        {writable && !account ? <Notice>{format(OPPORTUNITIES_COPY[locale].noAccountNote, { platform: name })}</Notice> : null}
 
         {hasTitle ? (
           <div className="grid gap-1.5">
@@ -326,10 +309,10 @@ function Review({
           ) : (
             <>
               <CopyTextButton text={text} label={t.copyText} variant="ghost" t={t} />
-              {suggestion.postedUrl || (stage === "published" && suggestion.threadUrl) ? (
+              {posted || (stage === "published" && discussion) ? (
                 <Button asChild size="sm" variant="outline">
-                  <a href={suggestion.postedUrl ?? suggestion.threadUrl ?? "#"} target="_blank" rel="noopener noreferrer">
-                    {suggestion.postedUrl ? t.viewPost : t.openThread}
+                  <a href={posted ?? discussion ?? "#"} target="_blank" rel="noopener noreferrer">
+                    {posted ? t.viewPost : t.openThread}
                     <ExternalLink aria-hidden="true" />
                   </a>
                 </Button>
