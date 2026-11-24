@@ -143,14 +143,16 @@ export function SetupTracker({
   );
 
   /*
-    An article's page starts on the badge. The open panel sits over its Publish
-    button at desktop widths, and the people with this panel are the ones
-    publishing their first article. One click on the badge still opens it.
+    Every page starts on the badge (Daniel, 2026-11-24: a clean, simple Home).
+    The open panel sits over what is on the right of the page: the Copilot's
+    Send, Connect website, the last credit pack, an article's Publish. One
+    click on the badge opens it, and it stays open from page to page - but an
+    article's page starts on the badge again, for its Publish button.
   */
   const pathname = usePathname();
   const [openedHere, setOpenedHere] = useState<string | null>(null);
   const coversPublish = /^\/websites\/[^/]+\/articles\/[^/]+/.test(pathname ?? "") && openedHere !== pathname;
-  const dismissed = dismissedBefore || dismissedNow || coversPublish;
+  const dismissed = dismissedBefore || dismissedNow || openedHere === null || coversPublish;
 
   function dismiss() {
     setOpenedHere(null);

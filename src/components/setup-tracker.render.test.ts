@@ -19,20 +19,13 @@ function render(pathname: string) {
 }
 
 /** The open panel lists the steps; the badge only offers to show them. */
-describe("setup panel over an article's Publish button", () => {
-  it("opens as usual on other pages", () => {
-    const html = render("/dashboard");
-    expect(html).toContain("Check your business profile");
-    expect(html).not.toContain("Show setup steps");
-  });
-
-  it("starts as the badge on an article's page, still offering the steps", () => {
-    const html = render("/websites/site-1/articles/article-1");
-    expect(html).not.toContain("Check your business profile");
-    expect(html).toContain("Show setup steps - 1 left");
-  });
-
-  it("stays open on the list of a website's pages", () => {
-    expect(render("/websites/site-1/content")).toContain("Check your business profile");
-  });
+describe("the setup panel never opens by itself", () => {
+  it.each(["/dashboard", "/websites/site-1/content", "/websites/site-1/backlinks", "/credits/buy", "/websites/site-1/articles/article-1"])(
+    "starts as the badge on %s, still offering the steps",
+    (pathname) => {
+      const html = render(pathname);
+      expect(html).not.toContain("Check your business profile");
+      expect(html).toContain("Show setup steps - 1 left");
+    },
+  );
 });

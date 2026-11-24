@@ -2831,7 +2831,6 @@ export type Messages = {
       autoPost: string;
       autoPostHelp: string;
       oneClick: string;
-      paused: string;
       resume: string;
       boardLabel: string;
       boardSave: string;
@@ -6044,7 +6043,6 @@ const en: Messages = {
       autoPost: "Publish my posts automatically",
       autoPostHelp: "One post a day, at a different time each day.",
       oneClick: "You post with one click.",
-      paused: "Automatic posting is paused: {platform} refused a post ({reason}). Check the account, then resume.",
       resume: "Resume",
       boardLabel: "Pinterest board",
       boardSave: "Use this board",
@@ -9233,7 +9231,6 @@ const es: Messages = {
       autoPost: "Publicar mis publicaciones automáticamente",
       autoPostHelp: "Una publicación al día, a una hora distinta cada día.",
       oneClick: "Usted publica con un clic.",
-      paused: "La publicación automática está en pausa: {platform} rechazó una publicación ({reason}). Revise la cuenta y reanude.",
       resume: "Reanudar",
       boardLabel: "Tablero de Pinterest",
       boardSave: "Usar este tablero",
@@ -12422,7 +12419,6 @@ const fr: Messages = {
       autoPost: "Publier mes publications automatiquement",
       autoPostHelp: "Une publication par jour, à une heure différente chaque jour.",
       oneClick: "Vous publiez en un clic.",
-      paused: "La publication automatique est en pause : {platform} a refusé une publication ({reason}). Vérifiez le compte, puis reprenez.",
       resume: "Reprendre",
       boardLabel: "Tableau Pinterest",
       boardSave: "Utiliser ce tableau",
@@ -15611,7 +15607,6 @@ const it: Messages = {
       autoPost: "Pubblica i miei post automaticamente",
       autoPostHelp: "Un post al giorno, a un orario diverso ogni giorno.",
       oneClick: "Pubblica lei con un clic.",
-      paused: "La pubblicazione automatica è in pausa: {platform} ha rifiutato un post ({reason}). Controlli l’account, poi riprenda.",
       resume: "Riprendi",
       boardLabel: "Bacheca Pinterest",
       boardSave: "Usa questa bacheca",
@@ -18796,7 +18791,6 @@ const de: Messages = {
       autoPost: "Meine Beiträge automatisch veröffentlichen",
       autoPostHelp: "Ein Beitrag pro Tag, jeden Tag zu einer anderen Uhrzeit.",
       oneClick: "Sie posten mit einem Klick.",
-      paused: "Das automatische Veröffentlichen ist pausiert: {platform} hat einen Beitrag abgelehnt ({reason}). Prüfen Sie das Konto und setzen Sie dann fort.",
       resume: "Fortsetzen",
       boardLabel: "Pinterest-Pinnwand",
       boardSave: "Diese Pinnwand verwenden",
