@@ -9,6 +9,8 @@ import {
   type LinkVerdict,
 } from "@/lib/articles/link-guard";
 import { findVerifiedTargets, pageTitle } from "@/lib/articles/link-inventory";
+import { unwrapOutsideLinks } from "@/lib/articles/outside-links";
+import { placementUrlsForArticle } from "@/lib/backlinks/placements";
 import { reviewHash, sendableRevision, twoStepArticles } from "@/lib/articles/review";
 import { ArticleInFlightError, lockForEdit } from "@/lib/publishing/dispatch";
 import { cachedPages, verifyUrls, type VerifyOptions } from "@/lib/articles/link-verify";
@@ -23,7 +25,9 @@ import { articles, articleVersions, publishLogs, websites } from "@/lib/db/schem
  *
  *  - linkGeneratedArticle: straight after the writer. Removes any link it
  *    made up, then adds up to the website's internalLinkTarget links to
- *    verified, relevant pages. Nothing verifiable, nothing added.
+ *    verified, relevant pages. Nothing verifiable, nothing added. Links to
+ *    other websites go too (lib/articles/outside-links.ts), except the
+ *    Partner Network placement and the business's own social profiles.
  *  - prepareStoredArticle: at every publication boundary (the WordPress
  *    plugin's pull, direct CMS publishing, scheduled and retried publishes),
  *    so drafts written before this fix are repaired before they go out.
@@ -90,7 +94,21 @@ export type GeneratedLinkInput = {
   internalLinkTarget: number;
   /** A matched backlink the article must keep, whatever it is. */
   backlinkUrl?: string | null;
+  /** The business's own social profiles (brand voice): the other outside links that stay. */
+  socialUrls?: readonly string[];
 };
+
+/** Findings for the outside links a pass unwrapped, so the run's counts show them. */
+function outsideFindings(removed: { href: string; text: string }[]): LinkFinding[] {
+  return removed.map(({ href, text }) => ({
+    href,
+    text,
+    outcome: "unwrapped" as const,
+    reason: "links to another website",
+    before: href,
+    after: text,
+  }));
+}
 
 export async function linkGeneratedArticle(
   input: GeneratedLinkInput,
@@ -142,27 +160,42 @@ export async function linkGeneratedArticle(
     maxAutoLinks: limit,
     protectedHrefs: input.backlinkUrl ? [input.backlinkUrl] : [],
   });
-  return { html: result.html, inserted: result.inserted, findings: result.findings };
+  // A rewrite keeps any placement already recorded for this article, as well as the one it was asked to carry.
+  const placed = input.articleId ? await placementUrlsForArticle(input.articleId) : [];
+  const outside = unwrapOutsideLinks(result.html, {
+    scope,
+    articleUrl,
+    keep: [input.backlinkUrl, ...placed, ...(input.socialUrls ?? [])],
+  });
+  return {
+    html: outside.html,
+    inserted: result.inserted,
+    findings: [...result.findings, ...outsideFindings(outside.removed)],
+  };
 }
 
 /**
  * The same rules with no network at all: every internal link the writer
  * made is unverified, so it goes; placeholders and dead section links go.
  * Used when checking itself failed, so a failure can only ever remove an
- * unproven link, never publish one.
+ * unproven link, never publish one. Links to other websites go as in
+ * linkGeneratedArticle, with the same exceptions.
  */
 export function stripUnverifiedLinks(
   html: string,
   site: { url: string; domain: string },
   backlinkUrl?: string | null,
+  socialUrls: readonly string[] = [],
 ): string {
-  return guardLinks(html, {
-    scope: siteScope(site),
+  const scope = siteScope(site);
+  const guarded = guardLinks(html, {
+    scope,
     mode: "generated",
     verdicts: new Map(),
     maxAutoLinks: 0,
     protectedHrefs: backlinkUrl ? [backlinkUrl] : [],
   }).html;
+  return unwrapOutsideLinks(guarded, { scope, keep: [backlinkUrl, ...socialUrls] }).html;
 }
 
 /* ------------------------------------------------------------------------ */
