@@ -69,8 +69,12 @@ export type ProductionReelProps = ReelProps & {
   hideCaptions?: boolean;
 };
 
-/** Whether the props describe one of the new productions (else the original templates render). */
+/**
+ * Whether the props describe one of the new productions (else the original
+ * templates render). An editorial video (client, 2026-11-26) needs no scenes:
+ * its pictures are plan.images and its parts the script's.
+ */
 export function isProduction(input: object): boolean {
   const props = input as Partial<Pick<ProductionReelProps, "direction" | "plan">>;
-  return Boolean(props.direction && props.direction !== "animated" && props.plan && Array.isArray(props.plan.scenes));
+  return Boolean(props.direction && props.direction !== "animated" && props.plan && (Array.isArray(props.plan.scenes) || props.direction === "editorial"));
 }

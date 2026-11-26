@@ -130,7 +130,7 @@ export function clipLineHeight(style: Pick<ClipTextStyle, "bg">): number {
 }
 
 /** The lines the words take in `width` px, word by word as the browser wraps them; a word longer than a line takes several. */
-function countLines(text: string, width: number, charPx: number): number {
+export function countLines(text: string, width: number, charPx: number): number {
   const room = Math.max(1, Math.floor(width / charPx));
   let lines = 1;
   let used = 0;

@@ -4,6 +4,8 @@ import { AbsoluteFill, Audio, Sequence, interpolate, useCurrentFrame, useVideoCo
 import type { ReelProps } from "../lib/video/formats";
 import { Captions } from "./components/Captions";
 import { ConceptBadge, type DirectionProps } from "./directions/common";
+import { EditorialProduction } from "./directions/Editorial";
+import { withoutStars } from "./editorial";
 import { FootageProduction } from "./directions/Footage";
 import { HookClipLayer } from "./directions/HookClip";
 import { MemeProduction } from "./directions/Meme";
@@ -30,7 +32,9 @@ import { reelTiming, sceneEnd, type ReelTiming } from "./timing";
  * Usable both as the "Reel" composition and in @remotion/player - pass the
  * Player `durationInFrames={reelTiming(props).durationInFrames}`.
  */
-export function Reel(props: ReelProps | ProductionReelProps) {
+export function Reel(input: ReelProps | ProductionReelProps) {
+  // Only the editorial look shows *starred* words, in its highlight colour; every other look draws them plain (client, 2026-11-26).
+  const props = withoutStars(input);
   if (isProduction(props)) return <ProductionReel {...(props as ProductionReelProps)} />;
   return <AnimatedReel {...props} />;
 }
@@ -50,6 +54,7 @@ function ProductionReel(props: ProductionReelProps) {
   const direction: DirectionProps = { ...props, timeline, pal, safe };
   // A POV clip video (client, 2026-11-21) is its own production, whatever the direction says ("meme").
   const pov = Boolean(props.plan?.povClip);
+  const editorial = props.direction === "editorial";
   return (
     <AbsoluteFill style={{ fontFamily: FONT, background: "#050508", color: "#fff", overflow: "hidden" }}>
       {pov ? <PovClipProduction {...direction} /> : null}
@@ -58,10 +63,12 @@ function ProductionReel(props: ProductionReelProps) {
       {!pov && props.direction === "storytelling" ? <StorytellingProduction {...direction} /> : null}
       {!pov && props.direction === "text_music" ? <TextMusicProduction {...direction} /> : null}
       {!pov && props.direction === "voiceover" ? <VoiceoverProduction {...direction} /> : null}
-      {!pov && props.plan?.hookClip ? <HookClipLayer {...direction} /> : null}
+      {!pov && editorial ? <EditorialProduction {...direction} /> : null}
+      {!pov && !editorial && props.plan?.hookClip ? <HookClipLayer {...direction} /> : null}
       {/* A meme's caption bar fills the top: its badge (preview only, never rendered) sits under the text area on the right, clear of the bar and the captions. */}
       {/* A POV clip video with its clip is the video itself (minus the music): no badge. */}
-      {props.concept && !(pov && props.sceneMedia?.[0]) ? (props.direction === "meme" ? <ConceptBadge top={safe.bottom + 30} right /> : <ConceptBadge top={safe.top + 60} />) : null}
+      {/* An editorial video's pictures are chosen with the idea, so its preview is the video itself (2026-11-26): no badge over the type. */}
+      {props.concept && !editorial && !(pov && props.sceneMedia?.[0]) ? (props.direction === "meme" ? <ConceptBadge top={safe.bottom + 30} right /> : <ConceptBadge top={safe.top + 60} />) : null}
       {timeline.voiced && props.voiceUrl ? <Audio src={props.voiceUrl} /> : null}
       {props.music ? <Music url={props.music.url} volume={props.music.volume} durationInFrames={timeline.durationInFrames} /> : null}
     </AbsoluteFill>

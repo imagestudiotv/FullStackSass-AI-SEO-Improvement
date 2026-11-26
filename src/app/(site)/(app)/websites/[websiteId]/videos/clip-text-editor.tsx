@@ -26,7 +26,10 @@ import {
   type ClipTextStyle,
 } from "@/remotion/clip-text";
 import { ClipText } from "@/remotion/components/ClipText";
-import { safeArea } from "@/remotion/production";
+import { EditorialPartText } from "@/remotion/directions/Editorial";
+import { EDITORIAL_FRAMES, EDITORIAL_RED } from "@/remotion/editorial";
+import { DEFAULT_PRODUCTION, safeArea } from "@/remotion/production";
+import type { ProductionReelProps } from "@/remotion/props";
 
 import { Field, selectClass, type T } from "./shared";
 
@@ -45,7 +48,22 @@ const percent = (value: number, of: number) => `${(value / of) * 100}%`;
  * lies on the text itself - the same component, drawn unseen at the preview's
  * scale - so it is as large as the words are.
  */
-export function ClipTextBox({ text, style, story, onChange, c }: { text: string; style: ClipTextStyle; story: boolean; onChange: (style: ClipTextStyle) => void; c: T["viral"]["editor"]["clip"] }) {
+export function ClipTextBox({
+  text,
+  style,
+  story,
+  onChange,
+  c,
+  editorial,
+}: {
+  text: string;
+  style: ClipTextStyle;
+  story: boolean;
+  onChange: (style: ClipTextStyle) => void;
+  c: T["viral"]["editor"]["clip"];
+  /** An editorial video (client, 2026-11-26): the box lies on its slide's or scene's text block (directions/Editorial.tsx), on its own frame (4:5 or 9:16). */
+  editorial?: { props: ProductionReelProps; part: number };
+}) {
   const layer = useRef<HTMLDivElement>(null);
   const grip = useRef<{ x: number; y: number } | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -95,10 +113,28 @@ export function ClipTextBox({ text, style, story, onChange, c }: { text: string;
     onChange(boundClipText({ ...style, x: style.x + by[0], y: placeOf(event.currentTarget).y + by[1] }));
   };
 
-  const scale = width / CLIP_FRAME.width;
+  const frameSize = editorial ? EDITORIAL_FRAMES[editorial.props.format ?? "reel"] : CLIP_FRAME;
+  // A carousel slide has no app buttons over it: nothing to mark while dragging.
+  const zones = dragging && editorial?.props.format !== "carousel";
+  const scale = width / frameSize.width;
+  const button = (
+    <button
+      type="button"
+      aria-label={c.drag}
+      title={c.drag}
+      onPointerDown={start}
+      onPointerMove={move}
+      onPointerUp={end}
+      onPointerCancel={end}
+      onKeyDown={key}
+      data-clip-text-box=""
+      className={`pointer-events-auto visible absolute inset-0 touch-none border-dashed transition-colors hover:border-primary focus-visible:border-primary focus-visible:outline-none ${dragging ? "cursor-grabbing border-primary" : "cursor-grab border-white/80"}`}
+      style={{ borderWidth: 2 / scale, borderRadius: 6 / scale, boxShadow: `0 0 0 ${1 / scale}px rgba(0,0,0,0.35)` }}
+    />
+  );
   return (
     <div ref={layer} className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl">
-      {dragging ? (
+      {zones ? (
         // What the platforms' own buttons and captions cover.
         <div aria-hidden="true" className="absolute inset-0">
           <div className="absolute inset-x-0 top-0 bg-red-500/20" style={{ height: percent(safe.top, CLIP_FRAME.height) }} />
@@ -107,39 +143,55 @@ export function ClipTextBox({ text, style, story, onChange, c }: { text: string;
         </div>
       ) : null}
       {scale > 0 ? (
-        <div className="absolute top-0 left-0 origin-top-left" style={{ width: CLIP_FRAME.width, height: CLIP_FRAME.height, transform: `scale(${scale})`, visibility: "hidden" }}>
-          <ClipText text={text} style={style}>
-            <button
-              type="button"
-              aria-label={c.drag}
-              title={c.drag}
-              onPointerDown={start}
-              onPointerMove={move}
-              onPointerUp={end}
-              onPointerCancel={end}
-              onKeyDown={key}
-              data-clip-text-box=""
-              className={`pointer-events-auto visible absolute inset-0 touch-none border-dashed transition-colors hover:border-primary focus-visible:border-primary focus-visible:outline-none ${dragging ? "cursor-grabbing border-primary" : "cursor-grab border-white/80"}`}
-              style={{ borderWidth: 2 / scale, borderRadius: 6 / scale, boxShadow: `0 0 0 ${1 / scale}px rgba(0,0,0,0.35)` }}
-            />
-          </ClipText>
+        <div className="absolute top-0 left-0 origin-top-left" style={{ width: frameSize.width, height: frameSize.height, transform: `scale(${scale})`, visibility: "hidden" }}>
+          {editorial ? (
+            <EditorialPartText props={{ ...editorial.props, production: { ...(editorial.props.production ?? DEFAULT_PRODUCTION), textStyle: style } }} part={editorial.part}>
+              {button}
+            </EditorialPartText>
+          ) : (
+            <ClipText text={text} style={style}>
+              {button}
+            </ClipText>
+          )}
         </div>
       ) : null}
     </div>
   );
 }
 
-/** The Style tab's controls for the text. `custom`: the customer changed it, so there is something to reset. */
-export function ClipTextControls({ text, style, custom, onChange, onReset, c }: { text: string; style: ClipTextStyle; custom: boolean; onChange: (style: ClipTextStyle) => void; onReset: () => void; c: T["viral"]["editor"]["clip"] }) {
+/**
+ * The Style tab's controls for the text. `custom`: the customer changed it, so there is something to reset.
+ * `editorial`: an editorial video (client, 2026-11-26) - one style for all its slides, with a highlight
+ * colour for the *starred* words; `limited` then says whether its title is drawn smaller than chosen.
+ */
+export function ClipTextControls({
+  text,
+  style,
+  custom,
+  onChange,
+  onReset,
+  c,
+  editorial = false,
+  limited: editorialLimited,
+}: {
+  text: string;
+  style: ClipTextStyle;
+  custom: boolean;
+  onChange: (style: ClipTextStyle) => void;
+  onReset: () => void;
+  c: T["viral"]["editor"]["clip"];
+  editorial?: boolean;
+  limited?: boolean;
+}) {
   const set = (change: Partial<ClipTextStyle>) => onChange(boundClipText({ ...style, ...change }));
   const preset = custom ? clipPresetOf(style) : null;
   const weights = CLIP_FONTS[style.font].weights as readonly number[];
-  const limited = clipTextLayout(text, style).size < style.size;
+  const limited = editorialLimited ?? clipTextLayout(text, style).size < style.size;
   return (
-    <section aria-label={c.title} className="space-y-4">
+    <section aria-label={editorial ? c.titleEditorial : c.title} className="space-y-4">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <h3 className="text-sm font-semibold">{c.title}</h3>
+          <h3 className="text-sm font-semibold">{editorial ? c.titleEditorial : c.title}</h3>
           <p className="text-xs text-muted-foreground">{custom ? c.hint : c.auto}</p>
         </div>
         {custom ? (
@@ -187,6 +239,12 @@ export function ClipTextControls({ text, style, custom, onChange, onReset, c }: 
 
       <Range label={c.size} value={style.size} min={CLIP_SIZE.min} max={CLIP_SIZE.max} unit="px" note={limited ? c.limited : undefined} onChange={(size) => set({ size })} />
       <Color label={c.color} value={style.color} onChange={(color) => set({ color })} />
+      {editorial ? (
+        <div className="space-y-1.5">
+          <Color label={c.accent} value={style.accent ?? EDITORIAL_RED} onChange={(accent) => set({ accent })} />
+          <p className="text-xs text-muted-foreground">{c.accentHint}</p>
+        </div>
+      ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2">
         <Segments label={c.align} value={style.align} options={CLIP_ALIGNS.map((value) => ({ value, label: c.aligns[value], icon: value === "left" ? <AlignLeft className="size-4" /> : value === "center" ? <AlignCenter className="size-4" /> : <AlignRight className="size-4" /> }))} onChange={(align) => set({ align })} />
@@ -208,7 +266,7 @@ export function ClipTextControls({ text, style, custom, onChange, onReset, c }: 
         </div>
       </details>
 
-      <p className="text-xs text-muted-foreground">{c.tip}</p>
+      <p className="text-xs text-muted-foreground">{editorial ? c.tipEditorial : c.tip}</p>
     </section>
   );
 }

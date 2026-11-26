@@ -1,10 +1,11 @@
 import * as cheerio from "cheerio";
 
+import { plainScript as videoPlainScript, stripHighlight } from "@/remotion/editorial";
 import { productionParts } from "@/remotion/production";
 import type { SceneMedia } from "@/remotion/props";
 
 import type { StoredAsset } from "./assets";
-import type { CreativeDirection, EditorialImage, ProductionChoices, ShotPlan, VideoFormat, VideoScript } from "./formats";
+import type { EditorialImage, ProductionChoices, ShotPlan, VideoFormat, VideoScript } from "./formats";
 
 /**
  * The editorial videos' pictures (client, 2026-11-26: "grabbing images from
@@ -26,37 +27,15 @@ import type { CreativeDirection, EditorialImage, ProductionChoices, ShotPlan, Vi
 /**
  * A text without its *highlight* marks: "*Use it*" reads "Use it". Every
  * asterisk goes, paired or not - a post text or a voice never needs one.
- * (src/remotion/editorial.ts stripHighlight does the same for the video.)
+ * One rule for the video and everything else: src/remotion/editorial.ts stripHighlight.
  */
-export function plainText(text: string): string {
-  if (!text.includes("*")) return text;
-  return text
-    .replace(/\*+([^*\n]+?)\*+/g, "$1")
-    .replace(/\*/g, "")
-    .replace(/[ \t]{2,}/g, " ")
-    .trim();
-}
+export const plainText: (text: string) => string = stripHighlight;
 
-/** The longest point title: an editorial slide's statement is up to about twelve words, the other productions' a short heading. */
-export const EDITORIAL_TITLE_MAX = 90;
-export function pointTitleMax(direction: CreativeDirection): number {
-  return direction === "editorial" ? EDITORIAL_TITLE_MAX : 48;
-}
+/** The longest point title (kept with the video rules in src/remotion/editorial.ts, so the editor reads it without this module's HTML parser). */
+export { EDITORIAL_TITLE_MAX, pointTitleMax } from "@/remotion/editorial";
 
-/** A script with every text plain (plainText): for any idea that is not editorial. */
-export function plainScript(script: VideoScript): VideoScript {
-  return {
-    hook: plainText(script.hook),
-    points: script.points.map((point) => ({
-      ...point,
-      title: plainText(point.title),
-      detail: plainText(point.detail),
-      stat: point.stat ? { ...point.stat, suffix: plainText(point.stat.suffix), label: plainText(point.stat.label) } : null,
-    })),
-    proof: plainText(script.proof),
-    cta: plainText(script.cta),
-  };
-}
+/** A script with every text plain (plainText): for any idea that is not editorial. The video's own rule (src/remotion/editorial.ts). */
+export const plainScript: (script: VideoScript) => VideoScript = videoPlainScript;
 
 /* -------------------------------------------------------------- pictures */
 
