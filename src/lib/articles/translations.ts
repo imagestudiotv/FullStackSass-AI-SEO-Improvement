@@ -7,10 +7,12 @@ import { and, eq, sql } from "drizzle-orm";
 
 import { MODELS } from "@/lib/ai/client";
 import { siteScope } from "@/lib/articles/link-guard";
+import { unwrapOutsideLinks } from "@/lib/articles/outside-links";
 import { heldFromCustomer, reviewStatusForNewDraft, storedRevision, twoStepArticles } from "@/lib/articles/review";
+import { placementUrlsForArticle } from "@/lib/backlinks/placements";
 import { isEntitledToSpend } from "@/lib/billing/entitled";
 import { db } from "@/lib/db";
-import { articles, articleTranslationAttempts, spendReservations, websites } from "@/lib/db/schema";
+import { articles, articleTranslationAttempts, brandVoice, spendReservations, websites } from "@/lib/db/schema";
 import { articleAllowanceKey, track } from "@/lib/usage";
 import { normalizeLanguage } from "@/lib/websites/languages";
 
@@ -177,6 +179,25 @@ export async function translateLiveArticle(due: TranslationDue): Promise<Transla
     return { status: "failed", error: message, costUsd: usage?.costUsd ?? 0 };
   }
 
+  /*
+    No links to other websites, as in every article RepGet writes (lib/
+    articles/outside-links.ts): an original that went live before that rule
+    may still carry research links. The original's Partner Network
+    placements and the business's own social profiles stay.
+  */
+  const [voice] = await db
+    .select({ socialLinks: brandVoice.socialLinks })
+    .from(brandVoice)
+    .where(eq(brandVoice.websiteId, due.websiteId))
+    .limit(1);
+  const socialUrls = Array.isArray(voice?.socialLinks)
+    ? (voice.socialLinks as { url?: unknown }[]).flatMap((link) => (typeof link?.url === "string" ? [link.url] : []))
+    : [];
+  const bodyHtml = unwrapOutsideLinks(translated.bodyHtml, {
+    scope: siteScope({ url: row.url, domain: row.domain }),
+    keep: [...(await placementUrlsForArticle(due.articleId)), ...socialUrls],
+  }).html;
+
   const translationId = randomUUID();
   const saved = await db.transaction(async (tx) => {
     const [taken] = await tx
@@ -213,8 +234,8 @@ export async function translateLiveArticle(due: TranslationDue): Promise<Transla
       title: translated.title,
       slug: translated.slug,
       metaDescription: translated.metaDescription,
-      bodyHtml: translated.bodyHtml,
-      wordCount: wordsIn(translated.bodyHtml),
+      bodyHtml,
+      wordCount: wordsIn(bodyHtml),
       status: "draft",
       imageUrl: source.imageUrl,
       imageAlt: translated.imageAlt ?? source.imageAlt,

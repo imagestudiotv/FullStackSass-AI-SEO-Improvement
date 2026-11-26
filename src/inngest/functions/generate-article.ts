@@ -1,5 +1,4 @@
 import { randomUUID } from "node:crypto";
-import { load } from "cheerio";
 
 import { and, eq, lt, notInArray, or, sql } from "drizzle-orm";
 import { NonRetriableError } from "inngest";
@@ -882,6 +881,8 @@ export const generateArticle = inngest.createFunction(
           html: structured,
           internalLinkTarget: brief.brief.internalLinkTarget ?? 0,
           backlinkUrl: brief.brief.backlink?.url ?? null,
+          // No links to other websites but these (lib/articles/outside-links.ts).
+          socialUrls: brief.brief.socialLinks.map((link) => link.url),
         });
         html = result.html;
         linked = result.inserted;
@@ -898,7 +899,9 @@ export const generateArticle = inngest.createFunction(
           .from(websites)
           .where(eq(websites.id, brief.websiteId))
           .limit(1);
-        html = site ? stripUnverifiedLinks(structured, site, brief.brief.backlink?.url) : structured;
+        html = site
+          ? stripUnverifiedLinks(structured, site, brief.brief.backlink?.url, brief.brief.socialLinks.map((link) => link.url))
+          : structured;
         linked = [];
         logger.warn(
           {
@@ -943,17 +946,13 @@ export const generateArticle = inngest.createFunction(
     });
 
     await step.run("save-article", async () => {
-      let finalResearch = reviewedResearch;
-      if (finalResearch?.claims.length) {
-        const $ = load(linkedHtml.html);
-        const links = new Set($("a[href]").map((_, node) => $(node).attr("href")).get());
-        if (!finalResearch.sources.some(source => links.has(source.url))) {
-          finalResearch = { ...finalResearch, quality: {
-            checked: finalResearch.quality?.checked ?? false,
-            issues: [...(finalResearch.quality?.issues ?? []), "Research citations were removed during formatting. Review the saved article."],
-          } };
-        }
-      }
+      /*
+        No check that the research sources are still linked: client articles
+        name their sources in plain text and link no other website (Daniel,
+        2026-11-26; lib/articles/outside-links.ts), so a stored article never
+        links one. The evidence check itself is unchanged.
+      */
+      const finalResearch = reviewedResearch;
       /*
         The managed Partner Network's review gate: a website accepting network
         links has every new draft held for the RepGet team, who place links
