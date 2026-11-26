@@ -19,6 +19,7 @@ import {
   type VideoPlatform,
   type VideoScript,
 } from "./formats";
+import { plainText } from "./editorial-images";
 import { makeNoMusicVersion } from "./make";
 import { isAudioRefusal, musicSoundInfo, nativeAudioApplies, readNativeAudio } from "./native-audio";
 import { nextPublishTime, releaseScheduleSlot, reviewBlocksAutoPublish } from "./schedule";
@@ -380,7 +381,8 @@ export async function publishVideo(
   for (const platform of full) destinations[platform] = { ...(destinations[platform] ?? emptyDestination()), status: "skipped", error: "daily_limit" };
 
   const script = row.script as VideoScript;
-  const title = row.title || script.hook;
+  // An editorial hook's *highlight* marks are for the screen only.
+  const title = row.title || plainText(script.hook);
   const files = format === "carousel" ? (row.slideUrls ?? []) : row.videoUrl ? [row.videoUrl] : [];
   const nativeAudio = readNativeAudio(row.nativeAudio);
   const posts = new Map<string, BundlePost>();

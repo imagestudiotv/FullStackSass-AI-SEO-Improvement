@@ -49,7 +49,7 @@ import { DAILY_MAX_ATTEMPTS, ideaAllowance } from "@/lib/video/batches";
 import { readNativeAudio } from "@/lib/video/native-audio";
 import { videoPublishingStatus } from "@/lib/video/publish-actions";
 import { reviewBlocksAutoPublish } from "@/lib/video/review";
-import { previewClips } from "@/lib/video/preview-media";
+import { previewClips, previewSceneProps } from "@/lib/video/preview-media";
 import { videoProfile } from "@/lib/video/strategy/profile";
 import { readTags, YOUTUBE_TAGS_KEY } from "@/lib/video/youtube-tags";
 import { cleanClipText } from "@/remotion/clip-text";
@@ -199,7 +199,7 @@ export default async function WebsiteVideosPage({ params, searchParams }: PagePr
       format: isVideoFormat(row.format) ? row.format : "reel",
       concept: !voiced,
       language: row.language,
-      ...(!voiced && previewClipOf.get(row.id) ? { sceneMedia: [previewClipOf.get(row.id)!] } : {}),
+      ...previewSceneProps(voiced, plan, script, productionChoicesOf(row), row.format, previewClipOf.get(row.id)),
     };
     return {
       id: row.id,

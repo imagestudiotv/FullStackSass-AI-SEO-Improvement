@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { CaptionWord, NarrationStyle, Voice } from "./formats";
+import { plainText } from "./editorial-images";
 import { classifyVoiceFailure, type MakeErrorCode, type VoiceFailureReason } from "./make-errors";
 
 /**
@@ -218,10 +219,12 @@ export type SpokenScript = {
  * Speaks the parts in order. The scenes follow the voice: part n starts at
  * sceneStartsMs[n].
  */
-export async function speakScript(parts: string[], voice: Voice, language: string, narration: NarrationStyle | null = null): Promise<SpokenScript> {
+export async function speakScript(texts: string[], voice: Voice, language: string, narration: NarrationStyle | null = null): Promise<SpokenScript> {
   // Never a silent English fallback: an unsupported language fails before anything is paid for.
   const code = voiceLanguage(language);
   if (!code) throw new UnsupportedVoiceLanguageError(language);
+  // An editorial script's *highlight* marks are for the screen: never read out, never in the captions' words.
+  const parts = texts.map(plainText);
   const spoken = await Promise.all(parts.map((part) => speak(part, voice, code, narration)));
   const heard = await Promise.all(spoken.map((pcm) => transcribe(pcm, code)));
 
