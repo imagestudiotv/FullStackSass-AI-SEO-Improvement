@@ -262,7 +262,17 @@ export function IdeasDeck(props: {
         ? v.formats.story
         : t.reel;
   // The animated templates are what the preview really plays; the new directions are made from footage, voice and music later.
-  const previewNote = current.direction === "animated" ? t.previewNote : current.direction === "editorial" && current.format === "carousel" ? v.previewEditorial : current.props.music && current.format !== "carousel" ? v.previewMusic : v.previewConcept;
+  // An editorial idea's pictures and words are fixed with the idea, so its preview is the video itself (owner, 2026-11-26).
+  const previewNote =
+    current.direction === "animated"
+      ? t.previewNote
+      : current.direction === "editorial"
+        ? current.format === "carousel"
+          ? v.previewEditorial
+          : v.previewEditorialVideo
+        : current.props.music && current.format !== "carousel"
+          ? v.previewMusic
+          : v.previewConcept;
   const arrow =
     "absolute top-[45%] z-10 flex size-9 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm transition hover:bg-primary/10 hover:text-primary focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none disabled:opacity-40 sm:size-11";
 

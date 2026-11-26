@@ -460,18 +460,24 @@ export type HookClipPick = { provider: "ai" | "pixabay"; id: string };
 export type PovClipPlan = { id: string; mirror: boolean; zoom: number; hue: number };
 
 /**
- * A picture of the customer's own, for an editorial video (client, 2026-11-26):
+ * A picture for an editorial video (client, 2026-11-26): the customer's own -
  * from one of its articles (the featured picture or one in the text) or from a
- * page of its website. Stored at idea time; never a stock or AI picture.
+ * page of its website - or, for a website with too few of those, a licensed
+ * stock photo ("stock", with its credit). Chosen and copied at idea time, so
+ * the idea's preview shows the very pictures the video is made with; never AI.
  */
 export type EditorialImage = {
   url: string;
   alt: string | null;
-  source: "article" | "website";
-  /** The page it was found on (the article's or the website's), for the record. */
+  source: "article" | "website" | "stock";
+  /** The page it was found on (the article's, the website's, or the stock photo's), for the record. */
   pageUrl: string | null;
   width: number | null;
   height: number | null;
+  /** A diagram, chart or screenshot rather than a photograph (normalizePicture): shown framed, never under the words. */
+  graphic?: boolean;
+  /** A stock photo's provider, id, author and licence (source "stock" only). */
+  credit?: { provider: string; providerId: string; author: string | null; licence: string } | null;
 };
 
 export type ShotPlan = {

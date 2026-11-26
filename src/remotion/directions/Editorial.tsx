@@ -2,6 +2,7 @@ import { Fragment, useState, type CSSProperties, type ReactNode } from "react";
 import { AbsoluteFill, Img, Sequence, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
 
 import type { EditorialImage, VideoFormat } from "../../lib/video/formats";
+import { identityClaim } from "../../lib/video/identity";
 import { shownClipText, type ClipTextStyle } from "../clip-text";
 import { CLIP_FAMILIES } from "../components/ClipText";
 import { ArrowIcon, LogoTile, TEXT_SAFE } from "../components/ui";
@@ -24,7 +25,7 @@ import { ensureClipFont, FONT } from "../fonts";
 import { partEnd, productionOf, productionParts, type ProductionPart } from "../production";
 import type { ProductionReelProps } from "../props";
 import { alpha, contrast, ensureContrast, mix, palette, type Palette } from "../theme";
-import type { DirectionProps } from "./common";
+import { IllustrativeLabel, type DirectionProps } from "./common";
 
 /**
  * The editorial look (client, 2026-11-26: "a second one that reads images
@@ -58,7 +59,7 @@ function sceneOf(props: ProductionReelProps, parts: ProductionPart[], index: num
   const images = editorialImages(props.plan, props.media);
   // The closing card reuses the cover's picture rather than the next one: the brand ends on its opening image.
   const image = editorialImageFor(images, part.role === "cta" ? 0 : index);
-  const layout = editorialLayout(index, part.role, Boolean(image));
+  const layout = editorialLayout(index, part.role, Boolean(image), image?.graphic === true);
   const style = editorialStyleOf(props.production, format, props.brand);
   const scene = editorialScene(part.title, part.detail, style, format, layout);
   return { format, part, image, layout, style, scene };
@@ -149,6 +150,8 @@ function EditorialCanvas({ props, parts, index, carousel, motion }: { props: Pro
         <EditorialText title={part.title} detail={part.detail} style={style} scene={scene} accent={shownAccent} motion={motion} />
       </TextColumn>
       <Footer props={props} pal={pal} index={index} total={parts.length} scene={scene} carousel={carousel} layout={layout} settle={settle} />
+      {/* A stock photo under words about the customer's own people is marked, as the other looks mark stock footage: a stock model never passes as a real client. */}
+      {image?.source === "stock" && identityClaim(`${part.title} ${part.detail ?? ""}`) ? <IllustrativeLabel language={props.language} top={carousel ? 40 : 150} /> : null}
     </AbsoluteFill>
   );
 }

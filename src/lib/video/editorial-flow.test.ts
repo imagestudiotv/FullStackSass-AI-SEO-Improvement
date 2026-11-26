@@ -39,6 +39,7 @@ import type { SitePicture } from "./editorial-images";
 import type { ProductionChoices, ShotPlan, VideoScript } from "./formats";
 import { suggestVideoIdeas, type IdeaInput } from "./ideas";
 import { prepareAssets, ProductionError } from "./make";
+import { previewSceneProps } from "./preview-media";
 import { speakScript } from "./voice";
 
 let test: TestDb;
@@ -232,6 +233,49 @@ describe("an editorial video", () => {
     expect(await editVideoIdea(websiteId, row.id, { script: { ...script, points: [{ ...script.points[0], title: long }, ...script.points.slice(1)] } })).toMatchObject({ ok: true });
     const [edited] = await test.db.select().from(videoIdeas).where(eq(videoIdeas.id, row.id));
     expect((edited.script as VideoScript).points[0].title).toBe(long);
+  });
+});
+
+describe("an editorial idea's preview (owner, 2026-11-26: 'when it creates it's looking different')", () => {
+  const stock = (n: number): SitePicture => ({
+    ...picture(n),
+    source: "stock",
+    alt: "photographer, studio, camera",
+    pageUrl: `https://pixabay.com/photos/${n}/`,
+    credit: { provider: "pixabay", providerId: String(n), author: "someone", licence: "Pixabay Content License" },
+  });
+
+  it("asks for stock photos on the website's own topics when it has few pictures", async () => {
+    const { websiteId } = await site();
+    await test.db.update(websites).set({ industry: "Photography studio" }).where(eq(websites.id, websiteId));
+    const pictures = vi.fn(async () => [picture(1), stock(20), stock(21)]);
+    await suggestVideoIdeas(websiteId, NOW, { write: writer(), povLibrary: noPov, pictures });
+    expect(pictures).toHaveBeenCalledWith(expect.objectContaining({ id: websiteId }), expect.arrayContaining(["Photography studio", "Product photography"]));
+    expect((await ideasOf(websiteId)).some((row) => row.direction === "editorial")).toBe(true);
+  });
+
+  it("shows exactly the pictures each slide or scene is made with, the stock photos' credit recorded", async () => {
+    const { websiteId } = await site();
+    await suggestVideoIdeas(websiteId, NOW, { write: writer(), povLibrary: noPov, pictures: async () => [picture(1), stock(20), stock(21)] });
+    const editorial = (await ideasOf(websiteId)).filter((row) => row.direction === "editorial");
+    expect(editorial.length).toBeGreaterThan(1);
+    const fetcher = vi.fn();
+    vi.stubGlobal("fetch", fetcher);
+    for (const row of editorial) {
+      const preview = previewSceneProps(false, row.plan as ShotPlan, row.script as VideoScript, row.production as ProductionChoices, row.format, null).sceneMedia ?? [];
+      await prepareAssets(row.id);
+      const [made] = await test.db.select().from(videoIdeas).where(eq(videoIdeas.id, row.id));
+      const assets = made.assets as { sceneIndex: number; url: string; source: string; provider: string; licence: string }[];
+      // Every part the video shows has a picture, and it is the one the preview showed for that part.
+      expect(assets.length).toBeGreaterThan(0);
+      for (const asset of assets) expect(preview[asset.sceneIndex]?.url).toBe(asset.url);
+      expect(preview.filter(Boolean)).toHaveLength(assets.length);
+      for (const asset of assets.filter((entry) => entry.url.includes("/20.jpg") || entry.url.includes("/21.jpg"))) {
+        expect(asset).toMatchObject({ source: "stock", provider: "pixabay", licence: "Pixabay Content License" });
+      }
+    }
+    // Nothing is searched or downloaded when the video is made: the pictures were fixed with the idea.
+    expect(fetcher).not.toHaveBeenCalled();
   });
 });
 

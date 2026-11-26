@@ -197,7 +197,9 @@ async function loadMaterial(site: Site, now: Date, pictureSource: PictureSource)
     readLearning(websiteId, now),
   ]);
   // Never a failed batch for want of pictures: none = the usual directions.
-  const pictures = await pictureSource(site).catch(() => [] as SitePicture[]);
+  // Its industry, services and newest article keywords: the stock top-up's searches when it has few pictures of its own.
+  const topics = [site.industry, ...servicesOf(site).slice(0, 2), ...live.slice(0, 3).map((article) => article.keyword)];
+  const pictures = await pictureSource(site, topics).catch(() => [] as SitePicture[]);
   const recentDirections: Partial<Record<CreativeDirection, number>> = {};
   for (const row of recipes) if (isCreativeDirection(row.direction)) recentDirections[row.direction] = (recentDirections[row.direction] ?? 0) + 1;
   const services = servicesOf(site);
@@ -493,7 +495,7 @@ function composeRows(composed: Composed[], context: RowContext): (typeof videoId
     const shows = povClip ? context.povLibrary.find((clip) => clip.id === povClip)?.shows ?? item.title : null;
     const scenes = shows !== null ? [{ query: shows, kind: "video" as const, overlay: script.hook, reaction: null }] : Array.isArray(written.scenes) ? written.scenes : [];
     // An editorial idea's pictures: its article's first, then the website's others (client, 2026-11-26).
-    const images = direction === "editorial" ? picturesForIdea(material.pictures, article?.id ?? null, slot.index) : null;
+    const images = direction === "editorial" ? picturesForIdea(material.pictures, article?.id ?? null, slot.index, undefined, `${item.title} ${article?.keyword ?? ""}`) : null;
     const planFor = (variant?: { pacing: number; transitions: number; mood: number }): ShotPlan => {
       const plan = buildPlan({
         direction,
