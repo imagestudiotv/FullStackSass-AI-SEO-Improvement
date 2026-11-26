@@ -369,6 +369,17 @@ ${dataRule("website_page")} ${dataRule("business_profile")}`,
     ...validateResearch(JSON.stringify({ ...selected, claims, warnings }), relevantSources), status: "ready" };
 }
 
+/**
+ * Link problems a checker should report. Sources are NAMED in plain text, not
+ * linked (Daniel, 2026-11-26: no links to other websites in client articles),
+ * so a draft without source links is the expected draft: there is no "does
+ * not cite its sources" finding any more, which would otherwise send every
+ * researched article into a paid correction that could never satisfy it.
+ * A link to a supplied source is not reported either - the code unwraps it
+ * before storage (lib/articles/outside-links.ts) and a correction pass is
+ * not worth paying for. A link to an address nobody supplied still is: it
+ * suggests a fact from memory.
+ */
 export function citationIssues(html: string, research: ResearchBrief, brief: ArticleBrief): string[] {
   const $ = load(html);
   const allowed = new Set([
@@ -378,9 +389,6 @@ export function citationIssues(html: string, research: ResearchBrief, brief: Art
   const links = $("a[href]").map((_, node) => $(node).attr("href")!).get();
   const issues: string[] = [];
   if (links.some(url => !url.startsWith("#") && !allowed.has(url))) issues.push("The draft contains a link outside the supplied sources.");
-  if (research.claims.length && !links.some(url => research.sources.some(s => s.url === url))) {
-    issues.push("The draft does not cite its research sources.");
-  }
   return issues;
 }
 
@@ -395,13 +403,13 @@ export async function checkResearchEvidence(
     model: route.model, max_tokens: route.maxTokens,
     output_config: { format: zodOutputFormat(evidenceSchema) },
     system: `Check the draft against the provided evidence and business facts. Return JSON only: {"issues": ["specific unsupported claim or citation mismatch"]}. Use an empty list only when no material issues are found.
-Check factual specifics, invented services, quotations, numbers, conflicting evidence, and whether cited sources actually support the associated sentences. A citation's presence is not proof. Describe each issue in the article's language. Do not rewrite the article. Do not treat paid placements as evidence.
+Check factual specifics, invented services, quotations, numbers, conflicting evidence, and whether the sources the draft names actually support the associated sentences. An attribution's presence is not proof. Sources are named in plain text and deliberately never linked: do not report a missing source link, URL or citation link. Describe each issue in the article's language. Do not rewrite the article. Do not treat paid placements as evidence.
 Check how sources are introduced: locations, credentials, awards and market position of a publisher are factual claims too. Flag added descriptors absent from the supplied evidence, even when the publisher is familiar.
 Distinguish factual assertions from clearly framed recommendations, questions to ask a supplier and hypothetical examples. Ordinary advice such as "ask who owns the footage" does not require a citation. An embedded factual claim still does: "ask for the required national licence" asserts that such a licence is required. Do not flag a claim merely because the writer did not use it, nor demand that every source be cited. Do not flag absence of general research coverage as a defect in an otherwise supported sentence. For each reported issue identify the actual draft wording and the missing or conflicting support; avoid speculative objections.
 The business profile includes the same saved description, services and differentiators supplied to the writer, as well as the owner's confirmed facts. For descriptions of THIS business, those supplied details are sufficient support: accept locations and working approach explicitly given in the description or differentiators even when the research sources list is empty. Do not demand outside citations for them or flag the absence of independent verification. This check tests consistency with the saved profile; independently verifying that profile is outside its scope. Do flag contradictions or details the writer added beyond the profile. The profile does not establish claims about other businesses, regional markets, industry trends, prices or outcomes.
 Actively check scope: platform-specific advice must not be presented as universal. Compare the source title, publisher, relevant method and caveats with EACH claim. In particular, ownership verification, crawling and indexing are different operations; a restriction on one does not establish a restriction on the others. Flag unsupported universal requirements, guarantees, and timelines even if a sentence resembles a quoted excerpt.
 Check simplified definitions and contrasts too: does an address, identifier or example represent one item or an entire collection? A Search Console URL-prefix property is not a single-page property. Flag an unsupported statement that narrows or broadens coverage, including short transitional sentences that are not attached to a citation. When the supplied evidence does not establish a comparison, identify the unsupported comparison rather than supplying facts from memory.
-Review the WHOLE draft in three passes before returning findings: (1) opening and all paragraphs, including causal or outcome claims such as "most delays disappear"; (2) table cells and FAQ answers, including invented definitions, typical lengths or industry practices; (3) business figures, differentiators and every citation. Return all material findings together, not just the first few. Advice can remain advice without an unsupported promise explaining why it works. Do not overlook an assertion because it sounds plausible or appears in an introduction.
+Review the WHOLE draft in three passes before returning findings: (1) opening and all paragraphs, including causal or outcome claims such as "most delays disappear"; (2) table cells and FAQ answers, including invented definitions, typical lengths or industry practices; (3) business figures, differentiators and every source attribution. Return all material findings together, not just the first few. Advice can remain advice without an unsupported promise explaining why it works. Do not overlook an assertion because it sounds plausible or appears in an introduction.
 Judge the exact wording and modality. An optional example or suggestion in a source does not establish a mandatory standard; distinguish "can", "may" and "recommended" from "must", "always" and "standard". Applying a saved business-wide working approach to one of its listed services is not itself a contradiction; inventing service-specific totals, exclusivity or outcomes is. Report material factual problems, not alternative stylistic preferences.
 ${dataRule("website_page")} ${dataRule("business_profile")}`,
     messages: [{ role: "user", content:
