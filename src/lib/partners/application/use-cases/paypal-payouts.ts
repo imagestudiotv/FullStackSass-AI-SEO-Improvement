@@ -1,5 +1,6 @@
 import { canReceiveAutomaticPayout } from "../../domain/entities/partner";
 import { Money } from "../../domain/value-objects/money";
+import { CREDIT_PARTNER_COUNTRIES } from "../../domain/policies/countries";
 import type { AdminContext } from "../contracts/commands";
 import { fail, ok, type Result } from "../contracts/results";
 import type { PayPalPayoutEvidence } from "../ports/payout-gateway";
@@ -102,6 +103,16 @@ export function payableCountries(deps: PartnerDeps): string[] {
   const mode = deps.settings.paypalPayoutMode?.() ?? "off";
   const paypal = mode !== "off" && deps.settings.paypalFeeBearer?.() === "repget" ? (deps.settings.paypalPayoutCountries?.() ?? []) : [];
   return [...new Set([...stripe, ...paypal])].sort();
+}
+
+/**
+ * The countries an application is accepted from: while partners are paid in
+ * RepGet credits, every country (domain/policies/countries.ts), since no cash
+ * is paid; with cash payouts, only the ones we can pay (payableCountries).
+ */
+export function applicationCountries(deps: PartnerDeps): string[] {
+  if ((deps.settings.payoutForm?.() ?? "cash") === "credits") return [...CREDIT_PARTNER_COUNTRIES];
+  return payableCountries(deps);
 }
 
 /* -------------------------------------------------------- recipient setup */

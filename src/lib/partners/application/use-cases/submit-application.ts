@@ -3,7 +3,7 @@ import type { ApplicantContext } from "../contracts/commands";
 import { fail, ok, type Result } from "../contracts/results";
 import { applicationNoticeId } from "./application-notices";
 import type { PartnerDeps } from "./deps";
-import { payableCountries } from "./paypal-payouts";
+import { applicationCountries } from "./paypal-payouts";
 
 /**
  * A signed-in user with a proven address applies to the partner program.
@@ -45,8 +45,8 @@ export async function submitApplication(
   const repos = deps.uow.repositories;
   if (!(await repos.controls.isEnabled("partner_program"))) return fail("disabled", "partner_program");
 
-  // Stripe's countries, and PayPal's while PayPal payouts can run (paypal-payouts.ts).
-  const answers = validateAnswers(input, payableCountries(deps));
+  // Every country while partners are paid in credits; otherwise the ones we can pay (paypal-payouts.ts).
+  const answers = validateAnswers(input, applicationCountries(deps));
   if (!answers.ok) return answers;
 
   if (await repos.partners.findByUserId(applicant.userId)) return fail("already_processed", "already_partner");

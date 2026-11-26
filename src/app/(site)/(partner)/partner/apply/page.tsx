@@ -85,20 +85,22 @@ async function ApplicationState({
   return (
     <div className="space-y-6">
       {status.latest?.status === "rejected" ? <Notice icon={XCircle} title={copy.apply.rejectedTitle} body={copy.apply.rejectedBody} /> : null}
-      {/* The countries the server accepts (Stripe's, plus PayPal's while PayPal payouts run), and the hint for how partners are paid now. */}
+      {/* The countries the server accepts (every country while paid in credits; otherwise Stripe's, plus PayPal's while PayPal payouts run), and the hint for how partners are paid now. */}
       <ApplicationForm
         copy={payout.form === "credits" ? { ...copy.apply, countryHint: copy.apply.countryHintCredits } : copy.apply}
         countries={countryNames(payout.countries, locale)}
         termsHref={program}
         limits={APPLICATION_LIMITS}
       />
-      {/* A country we cannot pay yet is not a dead end: they can still tell us. */}
-      <p className="text-center text-xs leading-relaxed text-muted-foreground">
-        {payoutCopy.countryMissing}{" "}
-        <Link href={contact} className="font-bold hover:text-primary">
-          {payoutCopy.contact}
-        </Link>
-      </p>
+      {/* With cash payouts, a country we cannot pay yet is not a dead end: they can still tell us. Paid in credits, every country is listed. */}
+      {payout.form === "credits" ? null : (
+        <p className="text-center text-xs leading-relaxed text-muted-foreground">
+          {payoutCopy.countryMissing}{" "}
+          <Link href={contact} className="font-bold hover:text-primary">
+            {payoutCopy.contact}
+          </Link>
+        </p>
+      )}
     </div>
   );
 }
