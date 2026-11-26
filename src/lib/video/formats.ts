@@ -288,9 +288,12 @@ export function isIdeaCategory(value: unknown): value is IdeaCategory {
  *  - storytelling: situation -> development -> resolution over footage/pictures;
  *  - text_music: fast animated typography over visuals, no narration;
  *  - voiceover: narration over relevant footage with transitions, captions and music;
- *  - animated: the original motion-graphics templates (VideoStyle bold/numbers/story).
+ *  - animated: the original motion-graphics templates (VideoStyle bold/numbers/story);
+ *  - editorial: the premium look for the non-viral ideas (client, 2026-11-26: "reads images from
+ *    blog posts and website and create a clean carousel"): the website's own pictures
+ *    (ShotPlan.images) under big, editable type, as a carousel or a reel.
  */
-export const CREATIVE_DIRECTIONS = ["meme", "footage", "storytelling", "text_music", "voiceover", "animated"] as const;
+export const CREATIVE_DIRECTIONS = ["meme", "footage", "storytelling", "text_music", "voiceover", "animated", "editorial"] as const;
 export type CreativeDirection = (typeof CREATIVE_DIRECTIONS)[number];
 
 export function isCreativeDirection(value: unknown): value is CreativeDirection {
@@ -456,6 +459,21 @@ export type HookClipPick = { provider: "ai" | "pixabay"; id: string };
 /** A POV clip video's clip and its per-video look: mirrored or not, a zoom of 1-1.12, a hue turn of -8..8 degrees. */
 export type PovClipPlan = { id: string; mirror: boolean; zoom: number; hue: number };
 
+/**
+ * A picture of the customer's own, for an editorial video (client, 2026-11-26):
+ * from one of its articles (the featured picture or one in the text) or from a
+ * page of its website. Stored at idea time; never a stock or AI picture.
+ */
+export type EditorialImage = {
+  url: string;
+  alt: string | null;
+  source: "article" | "website";
+  /** The page it was found on (the article's or the website's), for the record. */
+  pageUrl: string | null;
+  width: number | null;
+  height: number | null;
+};
+
 export type ShotPlan = {
   direction: CreativeDirection;
   pacing: Pacing;
@@ -477,6 +495,8 @@ export type ShotPlan = {
    * (src/remotion/directions/PovClip.tsx). Absent = not a POV clip video.
    */
   povClip?: PovClipPlan | null;
+  /** An editorial video's pictures, in the order the slides or scenes use them (direction "editorial"); absent otherwise. */
+  images?: EditorialImage[] | null;
   /**
    * A fingerprint of the production recipe (direction/pacing/transition set/
    * caption style/music mood/visual mix) the variety rules compare, so a day

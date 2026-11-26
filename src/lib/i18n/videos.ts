@@ -229,7 +229,7 @@ export type ViralCopy = {
   undoSkip: string;
   viralBadge: string;
   formats: { reel: string; story: string; carousel: string; stories: string };
-  directions: { meme: string; footage: string; storytelling: string; text_music: string; voiceover: string; animated: string };
+  directions: { meme: string; footage: string; storytelling: string; text_music: string; voiceover: string; animated: string; editorial: string };
   audio: { voiceover: string; text_music: string };
   narration: { natural: string; warm: string; energetic: string };
   captionStyles: { bold: string; editorial: string; minimal: string };
@@ -605,6 +605,7 @@ const viralEn: ViralCopy = {
     text_music: "Text + music",
     voiceover: "Voiceover",
     animated: "Animated",
+    editorial: "Editorial",
   },
   audio: { voiceover: "Voiceover", text_music: "Text + music" },
   narration: { natural: "Natural and conversational", warm: "Warm and cinematic", energetic: "Energetic and upbeat" },
@@ -1016,6 +1017,7 @@ const viralEs: ViralCopy = {
     text_music: "Texto + música",
     voiceover: "Voz en off",
     animated: "Animado",
+    editorial: "Editorial",
   },
   audio: { voiceover: "Voz en off", text_music: "Texto + música" },
   narration: { natural: "Natural y cercana", warm: "Cálida y cinematográfica", energetic: "Enérgica y animada" },
@@ -1435,6 +1437,7 @@ const viralFr: ViralCopy = {
     text_music: "Texte + musique",
     voiceover: "Voix off",
     animated: "Animé",
+    editorial: "Éditorial",
   },
   audio: { voiceover: "Voix off", text_music: "Texte + musique" },
   narration: { natural: "Naturelle et conversationnelle", warm: "Chaleureuse et cinématographique", energetic: "Énergique et entraînante" },
@@ -1854,6 +1857,7 @@ const viralIt: ViralCopy = {
     text_music: "Testo + musica",
     voiceover: "Voce fuori campo",
     animated: "Animato",
+    editorial: "Editoriale",
   },
   audio: { voiceover: "Voce fuori campo", text_music: "Testo + musica" },
   narration: { natural: "Naturale e colloquiale", warm: "Calda e cinematografica", energetic: "Energica e vivace" },
@@ -2273,6 +2277,7 @@ const viralDe: ViralCopy = {
     text_music: "Text + Musik",
     voiceover: "Sprecherstimme",
     animated: "Animiert",
+    editorial: "Editorial",
   },
   audio: { voiceover: "Sprecherstimme", text_music: "Text + Musik" },
   narration: { natural: "Natürlich und im Gesprächston", warm: "Warm und filmisch", energetic: "Energisch und schwungvoll" },

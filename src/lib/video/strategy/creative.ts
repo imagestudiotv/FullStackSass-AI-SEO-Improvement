@@ -141,6 +141,7 @@ const PACING_BY_DIRECTION: Record<CreativeDirection, readonly Pacing[]> = {
   storytelling: ["medium", "calm", "fast"],
   voiceover: ["medium", "fast", "calm"],
   animated: ["medium", "fast"],
+  editorial: ["medium", "calm"],
 };
 
 const TRANSITIONS_BY_DIRECTION: Record<CreativeDirection, readonly Transition[]> = {
@@ -150,6 +151,7 @@ const TRANSITIONS_BY_DIRECTION: Record<CreativeDirection, readonly Transition[]>
   storytelling: ["fade", "cut", "slide", "zoom"],
   voiceover: ["cut", "zoom", "slide", "fade"],
   animated: ["slide", "zoom", "cut", "whip"],
+  editorial: ["slide", "fade", "cut"],
 };
 
 /** Moods for the licensed music when the customer left it on Auto; Worker B maps a mood to a track. */
@@ -160,6 +162,7 @@ const MOODS_BY_DIRECTION: Record<CreativeDirection, readonly string[]> = {
   storytelling: ["emotional", "cinematic"],
   voiceover: ["calm", "inspiring"],
   animated: ["upbeat", "corporate"],
+  editorial: ["inspiring", "calm"],
 };
 
 const MOOD_FOR_MUSIC: Record<Exclude<MusicDirection, "auto" | "none">, string> = {

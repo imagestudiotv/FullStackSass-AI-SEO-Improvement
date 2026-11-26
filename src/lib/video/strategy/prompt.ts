@@ -127,6 +127,7 @@ const DIRECTION_TEXT: Record<CreativeDirection, string> = {
   text_music: "TEXT + MUSIC: no narration. Fast animated typography over strong visuals and music. Every word is read on screen: point titles are the screens, details at most 10 words.",
   voiceover: "AI VOICEOVER: narration over relevant footage, with transitions, captions and music. Natural, like a creator talking, not an advert.",
   animated: "ANIMATED: the brand's motion-graphics templates - big words, an animated checklist or figures, the brand colours.",
+  editorial: "EDITORIAL: a premium magazine-style post on the business's OWN pictures (its articles and website): one strong statement per slide or scene in very big type, a few words, one or two words to highlight. No narration needed; every point must read on its own.",
 };
 
 const CATEGORY_TEXT: Record<IdeaCategory, string> = {
