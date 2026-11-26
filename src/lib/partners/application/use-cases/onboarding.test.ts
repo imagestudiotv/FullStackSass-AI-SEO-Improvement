@@ -20,6 +20,7 @@ vi.mock("@/lib/db", () => ({
 import type { AdminContext, ApplicantContext } from "../contracts/commands";
 import { recordReferralClick } from "./record-referral-click";
 import { approveApplication, rejectApplication, sendWelcome, setPartnerStatus, setPayoutHold, welcomeJobId } from "./review-application";
+import { applicationCountries } from "./paypal-payouts";
 import { submitApplication } from "./submit-application";
 
 let test: TestDb;
@@ -71,6 +72,23 @@ describe("applying", () => {
     expect(await submitApplication(deps, me, { ...answers, website: "not a url" })).toMatchObject({ detail: "website" });
     expect(await submitApplication(deps, me, { ...answers, country: "IN" })).toMatchObject({ detail: "country" });
     expect(await submitApplication(deps, me, { ...answers, audience: "short" })).toMatchObject({ detail: "audience" });
+  });
+
+  it("accepts any country while partners are paid in credits, even one cash cannot reach (Daniel, 26 Nov: a US partner could not apply)", async () => {
+    const { deps } = partnerTestDeps(test.db);
+    // Production narrows the cash list; credits are paid in RepGet, so the list does not apply.
+    const credits = { ...deps, settings: { ...deps.settings, payoutForm: () => "credits" as const, payoutCountries: () => ["IT", "DE"] } };
+    expect(applicationCountries(credits)).toContain("US");
+    expect(applicationCountries(credits)).not.toContain("KP");
+    expect(applicationCountries(credits).length).toBeGreaterThan(240);
+    expect(await submitApplication(credits, await applicant(), { ...answers, country: "US" })).toMatchObject({ ok: true });
+    expect(await submitApplication(credits, await applicant(), { ...answers, country: "in" })).toMatchObject({ ok: true });
+    expect(await submitApplication(credits, await applicant(), { ...answers, country: "KP" })).toMatchObject({ detail: "country" });
+    expect(await submitApplication(credits, await applicant(), { ...answers, country: "XX" })).toMatchObject({ detail: "country" });
+    // With cash payouts, only the countries we can pay.
+    const cash = { ...deps, settings: { ...deps.settings, payoutForm: () => "cash" as const, payoutCountries: () => ["IT", "DE"] } };
+    expect(applicationCountries(cash)).toEqual(["DE", "IT"]);
+    expect(await submitApplication(cash, await applicant(), { ...answers, country: "US" })).toMatchObject({ detail: "country" });
   });
 
   it("takes 15 to 1,200 characters of audience and promotion, trimmed - the form's own limits", async () => {

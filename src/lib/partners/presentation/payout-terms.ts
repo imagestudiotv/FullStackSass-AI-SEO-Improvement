@@ -1,6 +1,6 @@
 import type { CreditPack } from "../application/ports/repositories";
 import type { PartnerDeps } from "../application/use-cases/deps";
-import { payableCountries } from "../application/use-cases/paypal-payouts";
+import { applicationCountries } from "../application/use-cases/paypal-payouts";
 
 /**
  * What the public partner pages (/partners, /partner/apply) may say about how
@@ -14,7 +14,8 @@ import { payableCountries } from "../application/use-cases/paypal-payouts";
  *            payouts through Stripe Connect, or PayPal where available -
  *            exactly as he wrote it.
  *
- * `countries` are the ones an application is accepted from: Stripe's, plus
+ * `countries` are the ones an application is accepted from: every country
+ * while partners are paid in credits; otherwise Stripe's, plus
  * PayPal's while PayPal payouts can run (use-cases/paypal-payouts.ts), the
  * same list the server checks.
  */
@@ -23,7 +24,7 @@ export type PublicPayoutTerms =
   | { form: "cash"; countries: string[] };
 
 export async function publicPayoutTerms(deps: PartnerDeps): Promise<PublicPayoutTerms> {
-  const countries = payableCountries(deps);
+  const countries = applicationCountries(deps);
   if ((deps.settings.payoutForm?.() ?? "cash") === "cash") return { form: "cash", countries };
   return { form: "credits", pack: await deps.uow.repositories.credits.smallestPack(), countries };
 }
