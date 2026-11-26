@@ -257,29 +257,109 @@ export function importantPageLinks(html: string, pageUrl: string, inSite: (url: 
     .map(([url]) => url);
 }
 
+/** A blog's listing page, in the languages customers write in. */
+const BLOG_PAGE = /^\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?(blog|blogs|news|articles|articole|journal|insights|stories|magazine|noutati|stiri|noticias|notizie|actualites|aktuelles|ratgeber|guides?)$/i;
+/** Pages under a listing that are not posts: pages of the list, tags, categories, authors, feeds. */
+const NOT_A_POST = /\/(page|tag|tags|category|categories|categorie|author|authors|feed|archive|search)(\/|$)|\/\d+\/?$/i;
+
+/**
+ * The website's blog listing page (/blog, /news, /articole...), linked from
+ * the given page; the shortest one, null when it links none. Its posts are
+ * where most websites keep their real photographs (client, 2026-11-26:
+ * "grabbing images from the blog post"), even a blog RepGet does not write.
+ */
+export function blogListingLink(html: string, pageUrl: string, inSite: (url: string) => boolean): string | null {
+  if (!html) return null;
+  const $ = cheerio.load(html);
+  let best: string | null = null;
+  for (const element of $("a[href]").toArray()) {
+    const url = absolute($(element).attr("href"), pageUrl);
+    if (!url || !inSite(url)) continue;
+    const parsed = new URL(url);
+    const path = parsed.pathname.replace(/\/+$/, "");
+    if (!BLOG_PAGE.test(path)) continue;
+    const candidate = `${parsed.origin}${path}`;
+    if (!best || candidate.length < best.length) best = candidate;
+  }
+  return best;
+}
+
+/**
+ * The newest posts a blog listing links, in the page's order (listings put
+ * the newest first): the in-site links one level or more under the listing's
+ * path, never its other pages, tags, categories or authors. At most `max`.
+ */
+export function blogPostLinks(html: string, listingUrl: string, inSite: (url: string) => boolean, max = 4): string[] {
+  if (!html) return [];
+  const $ = cheerio.load(html);
+  const listing = new URL(listingUrl).pathname.replace(/\/+$/, "");
+  const found: string[] = [];
+  for (const element of $("a[href]").toArray()) {
+    const url = absolute($(element).attr("href"), listingUrl);
+    if (!url || !inSite(url)) continue;
+    const parsed = new URL(url);
+    parsed.search = "";
+    const path = parsed.pathname.replace(/\/+$/, "");
+    if (!path.startsWith(`${listing}/`) || NOT_A_POST.test(path) || NOT_A_PAGE.test(path)) continue;
+    const post = `${parsed.origin}${path}`;
+    if (!found.includes(post)) found.push(post);
+    if (found.length >= max) break;
+  }
+  if (found.length > 0) return found;
+  // Posts at the site's root (WordPress's usual /post-name/): the listing's post titles and cards link them.
+  for (const element of $("article a[href], h2 a[href], h3 a[href]").toArray()) {
+    const url = absolute($(element).attr("href"), listingUrl);
+    if (!url || !inSite(url)) continue;
+    const parsed = new URL(url);
+    parsed.search = "";
+    const path = parsed.pathname.replace(/\/+$/, "");
+    if (!path || path === listing || NOT_A_POST.test(path) || NOT_A_PAGE.test(path) || BLOG_PAGE.test(path)) continue;
+    const post = `${parsed.origin}${path}`;
+    if (!found.includes(post)) found.push(post);
+    if (found.length >= max) break;
+  }
+  return found;
+}
+
 const squareish = (picture: { width: number | null; height: number | null }) =>
   picture.width !== null && picture.height !== null && Math.abs(picture.width / Math.max(1, picture.height) - 1) < 0.08;
 
-/** Landscape and portrait photographs before near-squares (often graphics), the order kept otherwise. */
-export function photosFirst<T extends { width: number | null; height: number | null }>(list: T[]): T[] {
-  return [...list.filter((item) => !squareish(item)), ...list.filter(squareish)];
+/** Landscape and portrait photographs before near-squares (often graphics), diagrams (graphic) last, the order kept otherwise. */
+export function photosFirst<T extends { width: number | null; height: number | null; graphic?: boolean }>(list: T[]): T[] {
+  const photos = list.filter((item) => !item.graphic);
+  return [...photos.filter((item) => !squareish(item)), ...photos.filter(squareish), ...list.filter((item) => item.graphic)];
 }
 
 const rotate = <T>(list: T[], by: number): T[] => (list.length ? list.map((_, i) => list[(i + by) % list.length]) : list);
+
+/** How many of an idea's words a stock photo's alt text (its tags) shares. */
+function topicHits(picture: { alt: string | null }, topic: ReadonlySet<string>): number {
+  if (topic.size === 0) return 0;
+  return words(picture.alt ?? "").filter((word) => word.length > 2 && topic.has(word)).length;
+}
 
 /**
  * An idea's pictures, cover first: those of the article it is about, then the
  * website's other articles', then its pages' - the other articles' and the
  * pages' turned by the idea's place in the batch, so the day's ideas open on
- * different pictures. At most `max`, each once.
+ * different pictures - and last the stock photos a website with few pictures
+ * of its own was given (editorial-pictures.ts), those sharing the most words
+ * with the idea (`topic`, its title and keyword) first. At most `max`, each once.
  */
-export function picturesForIdea(pool: SitePicture[], articleId: string | null | undefined, index: number, max = MAX_IDEA_PICTURES): EditorialImage[] {
+export function picturesForIdea(pool: SitePicture[], articleId: string | null | undefined, index: number, max = MAX_IDEA_PICTURES, topic = ""): EditorialImage[] {
   const own = articleId ? photosFirst(pool.filter((picture) => picture.articleId === articleId)) : [];
   const articles = photosFirst(pool.filter((picture) => picture.source === "article" && (!articleId || picture.articleId !== articleId)));
   const pages = photosFirst(pool.filter((picture) => picture.source === "website"));
   const shift = Math.max(0, Math.trunc(index));
-  const ordered = dedupePictures([...own, ...rotate(articles, shift), ...rotate(pages, shift)]);
-  return ordered.slice(0, Math.max(0, max)).map(({ url, alt, source, pageUrl, width, height }) => ({ url, alt, source, pageUrl, width, height }));
+  const topicWords = new Set(words(topic).filter((word) => word.length > 2));
+  const stock = rotate(pool.filter((picture) => picture.source === "stock"), shift)
+    .map((picture, order) => ({ picture, order, hits: topicHits(picture, topicWords) }))
+    .sort((a, b) => b.hits - a.hits || a.order - b.order)
+    .map((entry) => entry.picture);
+  const ordered = dedupePictures([...own, ...rotate(articles, shift), ...rotate(pages, shift), ...stock]);
+  return ordered
+    .slice(0, Math.max(0, max))
+    .map(({ url, alt, source, pageUrl, width, height, graphic, credit }) => ({ url, alt, source, pageUrl, width, height, ...(graphic ? { graphic } : {}), ...(credit ? { credit } : {}) }));
 }
 
 /* ---------------------------------------------------------------- scenes */
@@ -303,7 +383,7 @@ export function editorialSceneMedia(images: readonly EditorialImage[], parts: re
   if (chosen.size === 0) return null;
   return Array.from({ length: total }, (_, part) => {
     const image = chosen.get(part);
-    return image ? { url: image.url, kind: "image" as const, source: "article" as const } : null;
+    return image ? { url: image.url, kind: "image" as const, source: image.source === "stock" ? ("stock" as const) : ("article" as const) } : null;
   });
 }
 
@@ -311,8 +391,8 @@ export function editorialSceneMedia(images: readonly EditorialImage[], parts: re
 export const OWN_PICTURE_LICENCE = "The website's own picture";
 
 /**
- * An editorial video's assets, made from its plan's pictures (never stock or
- * AI): one per shown part, the ones already resolved (a retry) kept.
+ * An editorial video's assets, made from its plan's pictures (never AI; stock
+ * only when the website had too few of its own): one per shown part, the ones already resolved (a retry) kept.
  */
 export function editorialAssets(images: readonly EditorialImage[], parts: readonly number[], existing: readonly StoredAsset[] = []): StoredAsset[] {
   const kept = existing.filter((asset) => parts.includes(asset.sceneIndex));
@@ -326,12 +406,13 @@ export function editorialAssets(images: readonly EditorialImage[], parts: readon
         sceneIndex: part,
         url: image.url,
         kind: "image" as const,
-        source: "article" as const,
-        provider: image.source,
-        providerId: null,
-        licence: OWN_PICTURE_LICENCE,
+        // A stock photo keeps its provider, author and licence for the record.
+        source: image.credit ? ("stock" as const) : ("article" as const),
+        provider: image.credit?.provider ?? image.source,
+        providerId: image.credit?.providerId ?? null,
+        licence: image.credit?.licence ?? OWN_PICTURE_LICENCE,
         sourceUrl: image.pageUrl,
-        author: null,
+        author: image.credit?.author ?? null,
         assetId: null,
         width: image.width,
         height: image.height,

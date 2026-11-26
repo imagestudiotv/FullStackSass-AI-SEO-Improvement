@@ -12,7 +12,10 @@ import { db } from "@/lib/db";
 import { articles, providerCache } from "@/lib/db/schema";
 import { safeFetch } from "@/lib/net/safe-fetch";
 
+import { configuredProviders, searchProvider, STOCK_PROVIDERS, type StockCandidate } from "./footage";
 import {
+  blogListingLink,
+  blogPostLinks,
   dedupePictures,
   importantPageLinks,
   isLikelyPhoto,
@@ -36,7 +39,14 @@ import { isVideoStorageConfigured, MAX_PHOTO_BYTES, storeSharedFile } from "./st
  *     (about, services, products, gallery...): each one's share picture and
  *     the large pictures of its main content. Fetched through the SSRF-safe
  *     layer (fetchWithinScope: public addresses only, redirects kept on the
- *     site), 8 s and 768 KB a page, once a week.
+ *     site), 8 s and 768 KB a page, once a week;
+ *  3. its newest blog posts', read from its own blog listing (/blog, /news...)
+ *     even when RepGet does not write that blog (owner, 2026-11-26).
+ *
+ * Below STOCK_TOP_UP_BELOW pictures of its own, the pool is topped up with
+ * licensed stock photos on the website's topics (gatherStock), after its own,
+ * copied the same way - so every editorial idea shows real pictures, fixed
+ * with the idea, and its preview is the video.
  *
  * Each picture is then COPIED into the video bucket, once per website: the
  * render runs in a Vercel Sandbox and the preview in the customer's browser,
@@ -69,8 +79,10 @@ const CACHE_DAYS = 180;
 const MAX_COPIES_KEPT = 120;
 const MAX_ARTICLES = 12;
 const MAX_ARTICLE_CANDIDATES = 24;
-const MAX_WEBSITE_CANDIDATES = 12;
+const MAX_WEBSITE_CANDIDATES = 20;
 const MAX_EXTRA_PAGES = 5;
+/** Blog posts read from the website's own blog listing (a blog RepGet does not write included). */
+const MAX_BLOG_POSTS = 4;
 /** New downloads one collection may make; the rest wait for the next batch. */
 export const MAX_DOWNLOADS = 12;
 /** The most pictures a website's pool holds. */
@@ -83,7 +95,7 @@ const MAX_INPUT_PIXELS = 40_000_000;
 const OUTPUT_LONG_SIDE = 1920;
 
 export type CopyEntry =
-  | { url: string; width: number; height: number; hash: string; at: string }
+  | { url: string; width: number; height: number; hash: string; at: string; graphic?: boolean }
   | { rejected: string; at: string }
   | { failed: true; at: string };
 
@@ -95,11 +107,13 @@ export type PictureCache = {
   website: PictureCandidate[];
   /** pictureKey(original address) -> its copy, or why there is none. */
   copies: Record<string, CopyEntry>;
+  /** The stock photos a website with few pictures of its own was given, and for which searches (stockQueries). */
+  stock?: { at: string; query: string; pictures: SitePicture[] };
 };
 
 export type ArticlePictures = { id: string; pageUrl: string | null; imageUrl: string | null; imageAlt: string | null; bodyHtml: string | null };
 
-export type Normalized = { data: Buffer; width: number; height: number; hash: string } | { rejected: string };
+export type Normalized = { data: Buffer; width: number; height: number; hash: string; graphic?: boolean } | { rejected: string };
 
 export type PictureDeps = {
   /** A page of the website (null: no usable answer). */
@@ -129,16 +143,135 @@ export function articleCandidates(list: ArticlePictures[]): PictureCandidate[] {
   return dedupePictures(out).slice(0, MAX_ARTICLE_CANDIDATES);
 }
 
-/** The website's pages' candidates: the home page's, then up to MAX_EXTRA_PAGES important pages'. */
+/**
+ * The website's pages' candidates: the home page's, then its newest blog
+ * posts' (read from its own blog listing, so a blog RepGet does not write
+ * counts too), then up to MAX_EXTRA_PAGES important pages'.
+ */
 export async function websiteCandidates(site: { url: string; domain?: string | null }, deps: Pick<PictureDeps, "fetchHtml" | "expired">): Promise<{ candidates: PictureCandidate[]; answered: boolean }> {
   const home = await deps.fetchHtml(site.url).catch(() => null);
   if (!home) return { candidates: [], answered: false };
   const scope = siteScope(site);
+  const inSite = (url: string) => inScope(url, scope);
   const found = picturesInHtml(home.html, home.finalUrl, "website");
-  const links = importantPageLinks(home.html, home.finalUrl, (url) => inScope(url, scope), MAX_EXTRA_PAGES);
-  const pages = await Promise.all(links.map((url) => (deps.expired() ? null : deps.fetchHtml(url).catch(() => null))));
+  const listingUrl = blogListingLink(home.html, home.finalUrl, inSite);
+  const links = importantPageLinks(home.html, home.finalUrl, inSite, MAX_EXTRA_PAGES);
+  const [listing, ...pages] = await Promise.all([
+    listingUrl && !deps.expired() ? deps.fetchHtml(listingUrl).catch(() => null) : null,
+    ...links.map((url) => (deps.expired() ? null : deps.fetchHtml(url).catch(() => null))),
+  ]);
+  if (listing) {
+    const postLinks = blogPostLinks(listing.html, listing.finalUrl, inSite, MAX_BLOG_POSTS);
+    const posts = await Promise.all(postLinks.map((url) => (deps.expired() ? null : deps.fetchHtml(url).catch(() => null))));
+    for (const post of posts) if (post) found.push(...picturesInHtml(post.html, post.finalUrl, "website"));
+  }
   for (const page of pages) if (page) found.push(...picturesInHtml(page.html, page.finalUrl, "website"));
   return { candidates: dedupePictures(found).slice(0, MAX_WEBSITE_CANDIDATES), answered: true };
+}
+
+/* ------------------------------------------------------------ stock top-up */
+
+/**
+ * Below this many pictures of its own a website's editorial ideas are topped
+ * up with licensed stock photos (owner, 2026-11-26: every idea shows real
+ * pictures, chosen with the idea, so its preview is the video - never the old
+ * text-only slides with "footage chosen later").
+ */
+export const STOCK_TOP_UP_BELOW = 4;
+/** The most stock photos a website's pool holds. */
+export const MAX_STOCK = 10;
+const MAX_STOCK_QUERIES = 3;
+const STOCK_FRESH_MS = 7 * 86_400_000;
+
+/**
+ * The stock searches for a website: its industry, services and article
+ * keywords, as short plain phrases, each once, at most MAX_STOCK_QUERIES.
+ * Never the brand name (a search for it finds nothing of the business). Pure.
+ */
+export function stockQueries(topics: readonly (string | null | undefined)[]): string[] {
+  const out: string[] = [];
+  for (const topic of topics) {
+    const phrase = (topic ?? "")
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}\s-]+/gu, " ")
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 4)
+      .join(" ");
+    if (phrase.length < 3 || out.includes(phrase)) continue;
+    out.push(phrase);
+    if (out.length >= MAX_STOCK_QUERIES) break;
+  }
+  return out;
+}
+
+export type StockDeps = Pick<PictureDeps, "download" | "normalize" | "store" | "now" | "expired"> & {
+  /** Photo search (the first configured stock provider that answers); [] when none is set up. */
+  search(query: string): Promise<StockCandidate[]>;
+};
+
+const stockKey = (credit: { provider: string; providerId: string }) => `${credit.provider}:${credit.providerId}`;
+
+/**
+ * The website's stock photos, each copied into the video bucket like its own
+ * pictures: reused for a week for the same searches, then searched again. A
+ * search or download that fails means fewer photos, never a failed batch; with
+ * nothing new the ones found before are kept.
+ */
+export async function gatherStock(
+  input: { topics: readonly (string | null | undefined)[]; cache: PictureCache["stock"] | undefined },
+  deps: StockDeps,
+): Promise<{ pictures: SitePicture[]; cache: PictureCache["stock"] | undefined }> {
+  const queries = stockQueries(input.topics);
+  const now = deps.now();
+  const previous = input.cache;
+  if (queries.length === 0) return { pictures: previous?.pictures ?? [], cache: previous };
+  const key = queries.join("|");
+  if (previous && previous.query === key && previous.pictures.length > 0 && now.getTime() - new Date(previous.at).getTime() < STOCK_FRESH_MS) {
+    return { pictures: previous.pictures, cache: previous };
+  }
+  const per = Math.ceil(MAX_STOCK / queries.length);
+  const chosen: StockCandidate[] = [];
+  const seen = new Set<string>();
+  for (const query of queries) {
+    if (deps.expired()) break;
+    const found = await deps.search(query).catch(() => [] as StockCandidate[]);
+    const usable = found.filter((candidate) => candidate.kind === "image" && Math.min(candidate.width, candidate.height) >= MIN_SHORT_SIDE && !seen.has(stockKey(candidate)));
+    for (const candidate of usable.slice(0, per)) {
+      seen.add(stockKey(candidate));
+      chosen.push(candidate);
+    }
+  }
+  const known = new Map((previous?.pictures ?? []).flatMap((picture) => (picture.credit ? [[stockKey(picture.credit), picture] as const] : [])));
+  const copied = await inTurn(chosen.slice(0, MAX_STOCK), 4, async (candidate): Promise<SitePicture | null> => {
+    const again = known.get(stockKey(candidate));
+    if (again) return again;
+    if (deps.expired()) return null;
+    try {
+      const bytes = await deps.download(candidate.downloadUrl);
+      if (!bytes) return null;
+      const picture = await deps.normalize(bytes);
+      if ("rejected" in picture) return null;
+      const url = await deps.store(picture.data);
+      return {
+        url,
+        // The provider's tags: what picturesForIdea matches an idea's words against.
+        alt: candidate.tags.slice(0, 6).join(", ") || null,
+        source: "stock",
+        pageUrl: candidate.sourceUrl,
+        width: picture.width,
+        height: picture.height,
+        ...(picture.graphic ? { graphic: true } : {}),
+        articleId: null,
+        credit: { provider: candidate.provider, providerId: candidate.providerId, author: candidate.author, licence: candidate.licence },
+      };
+    } catch {
+      return null;
+    }
+  });
+  const pictures = copied.filter((picture): picture is SitePicture => picture !== null);
+  if (pictures.length === 0) return { pictures: previous?.pictures ?? [], cache: previous };
+  return { pictures, cache: { at: now.toISOString(), query: key, pictures } };
 }
 
 /** Runs `work` over `items`, `limit` at a time, results in order. */
@@ -184,16 +317,21 @@ export async function gatherPictures(
   const wanted = candidates.filter((candidate) => {
     const entry = cache.copies[pictureKey(candidate.url)];
     if (!entry) return true;
+    // A copy made before diagrams were told apart (2026-11-26) is made again once, to learn which it is.
+    if ("url" in entry) return entry.graphic === undefined;
     return "failed" in entry && now.getTime() - new Date(entry.at).getTime() > FAILED_RETRY_MS;
   });
   await inTurn(wanted.slice(0, MAX_DOWNLOADS), 4, async (candidate) => {
     if (deps.expired()) return;
     const key = pictureKey(candidate.url);
     const at = deps.now().toISOString();
+    // A copy being made again only to learn whether it is a diagram stays as it was when that fails (a photograph).
+    const before = cache.copies[key];
+    const failed = (): CopyEntry => (before && "url" in before ? { ...before, graphic: false } : { failed: true, at });
     try {
       const bytes = await deps.download(candidate.url);
       if (!bytes) {
-        cache.copies[key] = { failed: true, at };
+        cache.copies[key] = failed();
         return;
       }
       const picture = await deps.normalize(bytes);
@@ -202,9 +340,9 @@ export async function gatherPictures(
         return;
       }
       const url = await deps.store(picture.data);
-      cache.copies[key] = { url, width: picture.width, height: picture.height, hash: picture.hash, at };
+      cache.copies[key] = { url, width: picture.width, height: picture.height, hash: picture.hash, at, graphic: picture.graphic === true };
     } catch {
-      cache.copies[key] = { failed: true, at };
+      cache.copies[key] = failed();
     }
   });
 
@@ -216,7 +354,7 @@ export async function gatherPictures(
     // The same photograph under two addresses is used once.
     if (hashes.has(entry.hash)) continue;
     hashes.add(entry.hash);
-    pictures.push({ url: entry.url, alt: candidate.alt, source: candidate.source, pageUrl: candidate.pageUrl, width: entry.width, height: entry.height, articleId: candidate.articleId });
+    pictures.push({ url: entry.url, alt: candidate.alt, source: candidate.source, pageUrl: candidate.pageUrl, width: entry.width, height: entry.height, ...(entry.graphic ? { graphic: true } : {}), articleId: candidate.articleId });
     if (pictures.length >= MAX_POOL) break;
   }
   cache.copies = trimCopies(cache.copies);
@@ -258,9 +396,31 @@ export async function normalizePicture(data: Buffer): Promise<Normalized> {
       .resize({ width: OUTPUT_LONG_SIDE, height: OUTPUT_LONG_SIDE, fit: "inside", withoutEnlargement: true })
       .jpeg({ quality: 84, mozjpeg: true })
       .toBuffer({ resolveWithObject: true });
-    return { data: out.data, width: out.info.width, height: out.info.height, hash: createHash("sha1").update(data).digest("hex") };
+    return { data: out.data, width: out.info.width, height: out.info.height, hash: createHash("sha1").update(data).digest("hex"), graphic: await looksLikeGraphic(out.data) };
   } catch {
     return { rejected: "unreadable" };
+  }
+}
+
+/**
+ * Whether a picture is a diagram, chart or screenshot rather than a photograph:
+ * most of it in a few flat colours and little tonal detail. Measured on
+ * repget.com's blog diagrams (entropy 3.9-4.7, 86-89% in eight colours)
+ * against photographs (6.4-7.6, at most 73%). Never throws: false.
+ */
+export async function looksLikeGraphic(data: Buffer): Promise<boolean> {
+  try {
+    const small = await sharp(data).resize(96, 96, { fit: "fill" }).removeAlpha().raw().toBuffer();
+    const counts = new Map<number, number>();
+    for (let i = 0; i + 2 < small.length; i += 3) {
+      const key = ((small[i] >> 4) << 8) | ((small[i + 1] >> 4) << 4) | (small[i + 2] >> 4);
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    const flat = [...counts.values()].sort((a, b) => b - a).slice(0, 8).reduce((sum, n) => sum + n, 0) / (small.length / 3);
+    const { entropy } = await sharp(data).stats();
+    return flat >= 0.8 && entropy < 5.5;
+  } catch {
+    return false;
   }
 }
 
@@ -268,6 +428,16 @@ const PAGE_HEADERS = {
   "user-agent": "Mozilla/5.0 (compatible; RepGetVideoPictures/1.0; +https://repget.com)",
   accept: "text/html,application/xhtml+xml;q=0.9,*/*;q=0.5",
 };
+
+/** A photo search: the configured providers in turn (Pixabay, then Pexels), the first with results. */
+async function searchStockPhotos(query: string): Promise<StockCandidate[]> {
+  for (const provider of configuredProviders(STOCK_PROVIDERS)) {
+    if (provider.id === "collection") continue;
+    const found = await searchProvider(provider, { query, kind: "image", perPage: 15 }).catch(() => [] as StockCandidate[]);
+    if (found.length > 0) return found;
+  }
+  return [];
+}
 
 function realDeps(site: { id: string; url: string; domain?: string | null }): PictureDeps {
   const started = Date.now();
@@ -343,18 +513,26 @@ export function canCollectPictures(): boolean {
  * The website's editorial picture pool, collected and copied as above; an
  * empty pool on any failure (the ideas then keep their usual directions).
  */
-export async function collectSitePictures(site: { id: string; url: string; domain?: string | null }): Promise<SitePicture[]> {
+export async function collectSitePictures(site: { id: string; url: string; domain?: string | null }, topics: readonly (string | null | undefined)[] = []): Promise<SitePicture[]> {
   if (!canCollectPictures()) return [];
   try {
     const [articleRows, cache] = await Promise.all([readArticles(site.id), readCache(site.id)]);
     const deps = realDeps(site);
     const result = await gatherPictures({ site, articles: articleRows, cache }, deps);
+    let pictures = result.pictures;
+    // Too few pictures of its own: licensed stock photos on its topics, after its own (owner, 2026-11-26).
+    if (pictures.length < STOCK_TOP_UP_BELOW) {
+      const stock = await gatherStock({ topics, cache: result.cache.stock }, { ...deps, search: searchStockPhotos });
+      result.cache.stock = stock.cache;
+      pictures = [...pictures, ...stock.pictures];
+    }
     await writeCache(site.id, result.cache, deps.now()).catch((error) => console.error("[video] the editorial pictures were not cached", { websiteId: site.id, error }));
-    return result.pictures;
+    return pictures;
   } catch (error) {
     console.error("[video] the editorial pictures could not be collected", { websiteId: site.id, error: error instanceof Error ? error.message : error });
     return [];
   }
 }
 
-export type PictureSource = (site: { id: string; url: string; domain?: string | null }) => Promise<SitePicture[]>;
+/** `topics`: the website's industry, services and article keywords, for the stock top-up's searches. */
+export type PictureSource = (site: { id: string; url: string; domain?: string | null }, topics?: readonly (string | null | undefined)[]) => Promise<SitePicture[]>;

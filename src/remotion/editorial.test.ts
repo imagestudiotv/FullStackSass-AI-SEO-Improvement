@@ -127,6 +127,12 @@ describe("pictures and layouts", () => {
     expect(editorialLayout(5, "cta", true)).toBe("end");
   });
 
+  it("frames a diagram as a card, never under the words, and closes on plain type after one", () => {
+    expect(editorialLayout(0, "hook", true, true)).toBe("cover");
+    expect([1, 2, 3, 4].map((i) => editorialLayout(i, "point", true, true))).toEqual(["card", "card", "card", "card"]);
+    expect(editorialLayout(5, "cta", true, true)).toBe("type");
+  });
+
   it("keeps the text inside the frame and puts the picture on the side with more room", () => {
     const style = editorialDefaultStyle("carousel", null);
     const long = "Donaudampfschifffahrtsgesellschaft ".repeat(6);

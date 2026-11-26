@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Notice } from "@/components/workspace/notice";
 import { copyTextNow } from "@/lib/copy-text";
 import type { Locale } from "@/lib/i18n/config";
+import { popupCopy } from "@/lib/i18n/videos-flow";
 import { format, formatDate } from "@/lib/i18n/format";
 import { compatibility } from "@/lib/video/destinations";
 import { isVideoFormat, isVideoPlatform, REEL, VIDEO_PLATFORM_SPECS, type VideoPlatform } from "@/lib/video/formats";
@@ -88,7 +89,7 @@ export function PublishPopup(props: {
   onIdeas: () => void;
 }) {
   const { idea, t, websiteId, canEdit } = props;
-  const p = t.flow.popup;
+  const p = popupCopy(t.flow.popup, idea.format);
   const back = t.flow.library.returned;
   const [mode, setMode] = useState<Mode>("manual");
   const platforms = manualPlatforms(idea.format);
@@ -338,7 +339,7 @@ function CopyButton(props: {
  */
 function ActionBar(props: PaneProps & { mode: Mode; active: VideoPlatform; text: { title: string | null; caption: string } }) {
   const { idea, t, active, text, files } = props;
-  const p = t.flow.popup;
+  const p = popupCopy(t.flow.popup, idea.format);
   const state = idea.destinations[active];
   const done = state?.status === "posted";
   const manual = props.mode === "manual";
@@ -421,7 +422,7 @@ function ActionBar(props: PaneProps & { mode: Mode; active: VideoPlatform; text:
 /** The middle column: being made, or the video (or slides). */
 function VideoPane(props: PaneProps) {
   const { idea, t } = props;
-  const p = t.flow.popup;
+  const p = popupCopy(t.flow.popup, idea.format);
   const frame = "flex aspect-[9/16] w-full flex-col items-center justify-center gap-2 rounded-2xl bg-muted p-4 text-center";
   if (props.making) {
     return (
@@ -491,7 +492,7 @@ function ManualPane(
   },
 ) {
   const { idea, t, active } = props;
-  const p = t.flow.popup;
+  const p = popupCopy(t.flow.popup, idea.format);
   const ids = useId();
   const spec = VIDEO_PLATFORM_SPECS[active];
   const text = props.texts[active] ?? platformText(idea, active);
@@ -630,7 +631,7 @@ function problemText(t: T, platform: string, code: string, duration: IdeaView["p
  */
 function AutoPane(props: PaneProps) {
   const { idea, t, websiteId } = props;
-  const p = t.flow.popup;
+  const p = popupCopy(t.flow.popup, idea.format);
   const v = t.viral;
   const carousel = idea.format === "carousel";
   const takes = props.accounts.filter((account) => account.connected && isVideoPlatform(account.platform) && (!carousel || VIDEO_PLATFORM_SPECS[account.platform].carousel));

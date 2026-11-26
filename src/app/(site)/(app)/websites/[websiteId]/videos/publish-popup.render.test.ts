@@ -53,10 +53,10 @@ const idea = {
   production: { duration: "short" },
 } as unknown as IdeaView;
 
-const render = (locale: (typeof LOCALES)[number]) =>
+const render = (locale: (typeof LOCALES)[number], view: IdeaView = idea) =>
   renderToStaticMarkup(
     createElement(PublishPopup, {
-      idea,
+      idea: view,
       websiteId: "w",
       canEdit: true,
       accounts: [],
@@ -88,5 +88,39 @@ describe("the publishing window's feedback", () => {
     expect(html).not.toContain(`>${p.copied}<`);
     expect(toast).not.toHaveBeenCalled();
     expect(toast.success).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * A carousel is slides, never "your video" (client, 2026-11-26: "This is a
+ * carousel but when I click approve it says create your video"): while it is
+ * made and once it is, the window speaks of the carousel and its slides; a
+ * reel keeps the video's words.
+ */
+describe("the publishing window's words for a carousel", () => {
+  const making = { ...idea, status: "making", videoUrl: null, slideUrls: [] } as unknown as IdeaView;
+  const carousel = { ...making, format: "carousel" } as unknown as IdeaView;
+
+  it.each(LOCALES)("names the carousel and its slides while it is made, in %s", (locale) => {
+    const p = VIDEOS_COPY[locale].flow.popup;
+    const html = render(locale, carousel);
+    expect(html).not.toMatch(/\{[a-z]+\}|undefined/i);
+    for (const text of [p.carousel.making, p.carousel.makingBody, p.carousel.preview, p.carousel.download, p.carousel.manual, p.carousel.waitVideo]) expect(html).toContain(text);
+    for (const text of [p.making, p.makingBody, p.preview, p.download, p.modes.manual.body, p.waitVideo]) expect(html).not.toContain(text);
+  });
+
+  it.each(LOCALES)("keeps the video's words for a reel, in %s", (locale) => {
+    const p = VIDEOS_COPY[locale].flow.popup;
+    const html = render(locale, making);
+    for (const text of [p.making, p.preview, p.download, p.modes.manual.body]) expect(html).toContain(text);
+    expect(html).not.toContain(p.carousel.making);
+  });
+
+  it("is the English the client reads", () => {
+    const html = render("en", carousel);
+    expect(html).toContain("Making your carousel…");
+    expect(html).toContain("Download slides");
+    expect(html).not.toContain("Making your video");
+    expect(html).not.toContain("Download video");
   });
 });

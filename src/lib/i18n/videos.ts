@@ -83,6 +83,8 @@ export type VideosCopy = {
     failed: string;
   };
   makingBody: string;
+  /** makingBody for a carousel: slides, no voice or video. */
+  makingSlides: string;
   scheduledFor: string;
   download: string;
   downloadSlide: string;
@@ -264,6 +266,8 @@ export type ViralCopy = {
   previewConcept: string;
   /** An editorial carousel: the preview is the real thing (client, 2026-11-26). */
   previewEditorial: string;
+  /** An editorial reel or Story: its pictures and words are fixed with the idea (owner, 2026-11-26). */
+  previewEditorialVideo: string;
   /** An idea's preview that has music (client, 2026-11-23). */
   previewMusic: string;
   noCta: string;
@@ -302,6 +306,8 @@ export type ViralCopy = {
     close: string;
     tabs: { script: string; style: string; video: string };
     preview: string;
+    /** The heading, intro and preview label while the format is a carousel (client, 2026-11-26: a carousel is slides, never "your video"). */
+    carousel: { heading: string; intro: string; preview: string };
     /** The chips under the preview that show one text in it. */
     showPart: string;
     /** point: "Point {index}" */
@@ -655,7 +661,8 @@ const viralEn: ViralCopy = {
     checked: "Checked by you",
   },
   previewConcept: "Concept preview, muted. Footage, voice and music are chosen when the video is made.",
-  previewEditorial: "The slides as they will be made, on your website's own pictures.",
+  previewEditorial: "The slides exactly as they will be made.",
+  previewEditorialVideo: "The pictures and words exactly as they will be made. Tap the speaker to hear its music; a voice, if chosen, is added when the video is made.",
   previewMusic: "Preview, sound off: tap the speaker to hear its music. Anything still missing, such as the voice, is added when the video is made.",
   noCta: "No call to action",
   edit: {
@@ -692,6 +699,7 @@ const viralEn: ViralCopy = {
     close: "Close",
     tabs: { script: "Script", style: "Style", video: "Video" },
     preview: "Video preview",
+    carousel: { heading: "Edit your carousel", intro: "Change what these slides say and how they look. Saving is free; only creating uses credits.", preview: "Carousel preview" },
     showPart: "Show in the preview",
     parts: { hook: "Hook", point: "Point {index}", proof: "Proof", cta: "End" },
     slideOf: "Slide {index} of {total}",
@@ -1072,7 +1080,8 @@ const viralEs: ViralCopy = {
     checked: "Comprobado por usted",
   },
   previewConcept: "Vista previa del concepto, sin sonido. Las imágenes, la voz y la música se eligen al crear el vídeo.",
-  previewEditorial: "Las diapositivas tal como se crearán, con las imágenes de su propio sitio web.",
+  previewEditorial: "Las diapositivas exactamente como se crearán.",
+  previewEditorialVideo: "Las imágenes y los textos exactamente como se crearán. Toca el altavoz para oír su música; la voz, si la eliges, se añade al crear el vídeo.",
   previewMusic: "Vista previa sin sonido: toca el altavoz para oír su música. Lo que aún falta, como la voz, se añade al crear el vídeo.",
   noCta: "Sin llamada a la acción",
   edit: {
@@ -1109,6 +1118,7 @@ const viralEs: ViralCopy = {
     close: "Cerrar",
     tabs: { script: "Guion", style: "Estilo", video: "Vídeo" },
     preview: "Vista previa del vídeo",
+    carousel: { heading: "Editar su carrusel", intro: "Cambie lo que dicen estas diapositivas y cómo se ven. Guardar es gratis; solo crearlas usa créditos.", preview: "Vista previa del carrusel" },
     showPart: "Mostrar en la vista previa",
     parts: { hook: "Gancho", point: "Punto {index}", proof: "Prueba", cta: "Final" },
     slideOf: "Diapositiva {index} de {total}",
@@ -1497,7 +1507,8 @@ const viralFr: ViralCopy = {
     checked: "Vérifié par vous",
   },
   previewConcept: "Aperçu du concept, sans son. Les images, la voix et la musique sont choisies lors de la création de la vidéo.",
-  previewEditorial: "Les diapositives telles qu'elles seront créées, avec les images de votre propre site.",
+  previewEditorial: "Les diapositives exactement telles qu'elles seront créées.",
+  previewEditorialVideo: "Les images et les textes exactement tels qu'ils seront créés. Touchez le haut-parleur pour entendre sa musique ; la voix, si vous l'avez choisie, est ajoutée lors de la création de la vidéo.",
   previewMusic: "Aperçu, son coupé : touchez le haut-parleur pour entendre sa musique. Ce qui manque encore, comme la voix, est ajouté lors de la création de la vidéo.",
   noCta: "Pas d’appel à l’action",
   edit: {
@@ -1534,6 +1545,7 @@ const viralFr: ViralCopy = {
     close: "Fermer",
     tabs: { script: "Script", style: "Style", video: "Vidéo" },
     preview: "Aperçu de la vidéo",
+    carousel: { heading: "Modifier votre carrousel", intro: "Modifiez ce que disent ces diapositives et leur apparence. L’enregistrement est gratuit ; seule la création utilise des crédits.", preview: "Aperçu du carrousel" },
     showPart: "Afficher dans l’aperçu",
     parts: { hook: "Accroche", point: "Point {index}", proof: "Preuve", cta: "Fin" },
     slideOf: "Diapositive {index} sur {total}",
@@ -1922,7 +1934,8 @@ const viralIt: ViralCopy = {
     checked: "Controllato da lei",
   },
   previewConcept: "Anteprima del concept, senza audio. Riprese, voce e musica vengono scelte quando il video viene creato.",
-  previewEditorial: "Le slide come verranno create, con le immagini del suo sito.",
+  previewEditorial: "Le slide esattamente come verranno create.",
+  previewEditorialVideo: "Le immagini e i testi esattamente come verranno creati. Tocca l’altoparlante per sentire la musica; la voce, se scelta, viene aggiunta quando il video viene creato.",
   previewMusic: "Anteprima senza audio: tocca l’altoparlante per sentire la musica. Ciò che ancora manca, come la voce, viene aggiunto quando il video viene creato.",
   noCta: "Nessun invito all’azione",
   edit: {
@@ -1959,6 +1972,7 @@ const viralIt: ViralCopy = {
     close: "Chiudi",
     tabs: { script: "Testo", style: "Stile", video: "Video" },
     preview: "Anteprima del video",
+    carousel: { heading: "Modifichi il suo carosello", intro: "Cambi ciò che dicono queste slide e il loro aspetto. Salvare è gratuito; solo la creazione usa crediti.", preview: "Anteprima del carosello" },
     showPart: "Mostra nell’anteprima",
     parts: { hook: "Gancio", point: "Punto {index}", proof: "Prova", cta: "Fine" },
     slideOf: "Slide {index} di {total}",
@@ -2347,7 +2361,8 @@ const viralDe: ViralCopy = {
     checked: "Von Ihnen geprüft",
   },
   previewConcept: "Konzeptvorschau, ohne Ton. Aufnahmen, Stimme und Musik werden beim Erstellen des Videos gewählt.",
-  previewEditorial: "Die Folien so, wie sie erstellt werden, mit den Bildern Ihrer eigenen Website.",
+  previewEditorial: "Die Folien genau so, wie sie erstellt werden.",
+  previewEditorialVideo: "Die Bilder und Texte genau so, wie sie erstellt werden. Tippen Sie auf den Lautsprecher, um die Musik zu hören; eine gewählte Stimme kommt beim Erstellen des Videos dazu.",
   previewMusic: "Vorschau, Ton aus: Tippen Sie auf den Lautsprecher, um die Musik zu hören. Was noch fehlt, etwa die Stimme, kommt beim Erstellen des Videos dazu.",
   noCta: "Kein Handlungsaufruf",
   edit: {
@@ -2384,6 +2399,7 @@ const viralDe: ViralCopy = {
     close: "Schließen",
     tabs: { script: "Skript", style: "Stil", video: "Video" },
     preview: "Videovorschau",
+    carousel: { heading: "Ihr Karussell bearbeiten", intro: "Ändern Sie, was diese Folien sagen und wie sie aussehen. Speichern ist kostenlos; nur das Erstellen verbraucht Credits.", preview: "Karussell-Vorschau" },
     showPart: "In der Vorschau zeigen",
     parts: { hook: "Hook", point: "Punkt {index}", proof: "Beleg", cta: "Schluss" },
     slideOf: "Folie {index} von {total}",
@@ -2759,6 +2775,7 @@ const en: VideosCopy = {
     failed: "Not made",
   },
   makingBody: "The voice, captions and video are being made. This takes 2 to 5 minutes.",
+  makingSlides: "The carousel's slides are being made. This takes a few minutes.",
   scheduledFor: "Publishes {date}",
   download: "Download",
   downloadSlide: "Slide {index}",
@@ -2963,6 +2980,7 @@ const es: VideosCopy = {
     failed: "No creado",
   },
   makingBody: "Se están creando la voz, los subtítulos y el vídeo. Tarda de 2 a 5 minutos.",
+  makingSlides: "Se están creando las diapositivas del carrusel. Tarda unos minutos.",
   scheduledFor: "Se publica el {date}",
   download: "Descargar",
   downloadSlide: "Diapositiva {index}",
@@ -3167,6 +3185,7 @@ const fr: VideosCopy = {
     failed: "Non créée",
   },
   makingBody: "La voix, les sous-titres et la vidéo sont en cours de création. Cela prend de 2 à 5 minutes.",
+  makingSlides: "Les diapositives du carrousel sont en cours de création. Cela prend quelques minutes.",
   scheduledFor: "Publication le {date}",
   download: "Télécharger",
   downloadSlide: "Diapositive {index}",
@@ -3371,6 +3390,7 @@ const it: VideosCopy = {
     failed: "Non creato",
   },
   makingBody: "Voce, sottotitoli e video sono in creazione. Ci vogliono da 2 a 5 minuti.",
+  makingSlides: "Le slide del carosello sono in creazione. Ci vogliono alcuni minuti.",
   scheduledFor: "Pubblicazione il {date}",
   download: "Scarica",
   downloadSlide: "Slide {index}",
@@ -3575,6 +3595,7 @@ const de: VideosCopy = {
     failed: "Nicht erstellt",
   },
   makingBody: "Stimme, Untertitel und Video werden erstellt. Das dauert 2 bis 5 Minuten.",
+  makingSlides: "Die Folien des Karussells werden erstellt. Das dauert einige Minuten.",
   scheduledFor: "Wird am {date} veröffentlicht",
   download: "Herunterladen",
   downloadSlide: "Folie {index}",

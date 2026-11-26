@@ -3,7 +3,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { inngest } from "@/inngest/client";
 import { db } from "@/lib/db";
 import { videoIdeas, websites } from "@/lib/db/schema";
-import { suggestVideoIdeas, writeExtraBatch } from "@/lib/video/ideas";
+import { moveMadeClipsOffPendingIdeas, suggestVideoIdeas, writeExtraBatch } from "@/lib/video/ideas";
 
 /** Split from videos.ts (2026-11-12) so each part has one owner; docs/videos.md. */
 
@@ -54,6 +54,9 @@ export const suggestVideoIdeasJob = inngest.createFunction(
       batchId ? writeExtraBatch(batchId, new Date(), {}, options) : suggestVideoIdeas(websiteId, new Date(), {}, options),
     );
     logger.info({ step: "suggest", websiteId, batchId, created: result.created, reason: result.reason }, "Video ideas written");
+    // Ideas still on the list from before (returned ones, an older batch) never keep a clip the website already made a video with.
+    const moved = await step.run("move-made-clips", () => moveMadeClipsOffPendingIdeas(websiteId));
+    if (moved > 0) logger.info({ step: "move-made-clips", websiteId, moved }, "Clips moved off made ones");
     return result;
   },
 );

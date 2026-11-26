@@ -261,10 +261,17 @@ export function editorialImageFor(images: EditorialImage[] | null | undefined, p
 export type EditorialLayout = "cover" | "bleed" | "card" | "frame" | "end" | "type";
 const INNER: EditorialLayout[] = ["bleed", "card", "frame"];
 
-export function editorialLayout(index: number, role: SceneRole, hasImage: boolean): EditorialLayout {
-  if (role === "cta") return "end";
+/**
+ * A diagram, chart or screenshot (EditorialImage.graphic: flat colours and its own words) is only ever
+ * shown framed - the cover's card or a card beside the text - never full frame under the words, where its
+ * own text fights them (owner, 2026-11-26: repget.com's blog pictures are diagrams); the closing slide
+ * is then plain type on the brand colour.
+ */
+export function editorialLayout(index: number, role: SceneRole, hasImage: boolean, graphic = false): EditorialLayout {
+  if (role === "cta") return hasImage && graphic ? "type" : "end";
   if (index <= 0) return "cover";
   if (!hasImage) return "type";
+  if (graphic) return "card";
   return INNER[(index - 1) % INNER.length];
 }
 

@@ -224,7 +224,8 @@ function cleanQuery(query: string, fallback: string): string {
 }
 
 function sourceFor(input: PlanInput, index: number, count: number): VisualSource {
-  // The website's own pictures only (ShotPlan.images, lib/video/editorial-images.ts): never stock or AI.
+  // The pictures fixed with the idea (ShotPlan.images, lib/video/editorial-images.ts): the website's own, topped up
+  // with stock photos only when it has too few (editorial-pictures.ts); never AI.
   if (input.direction === "editorial") return "article";
   if (input.direction === "animated") return index === 0 || index === count - 1 ? "brand" : input.articlePicture ? "article" : "brand";
   if (input.ownMedia && index % 3 === 1) return "customer";
