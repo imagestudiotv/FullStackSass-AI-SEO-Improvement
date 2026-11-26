@@ -58,3 +58,25 @@ export function assembleBadges(parts: BadgePart[]): AdminBadges {
   }
   return badges;
 }
+
+/**
+ * One line of a page's own account of its badge (Daniel, 2026-11-26: "I see
+ * on blog dashboard 2 notifications, but I don't see anything there as new"):
+ * what is counted, how many, and the page where it is dealt with.
+ */
+export type BadgeNoticeItem = {
+  kind: "waiting" | "new";
+  count: number;
+  /** As the sidebar says it: "failed autopilot topics". */
+  what: string;
+  /** The same for one: "failed autopilot topic". */
+  one: string;
+  /** Where it is dealt with, and what the link says. */
+  href: string;
+  label: string;
+};
+
+/** "1 failed autopilot topic", "2 new comments". */
+export function noticeCount(item: Pick<BadgeNoticeItem, "count" | "what" | "one">): string {
+  return `${item.count} ${item.count === 1 ? item.one : item.what}`;
+}

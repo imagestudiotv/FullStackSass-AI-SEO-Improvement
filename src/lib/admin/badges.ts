@@ -1,6 +1,7 @@
 import "server-only";
 
 import { and, count, eq, gt, gte, inArray, isNotNull, isNull, lte, or } from "drizzle-orm";
+import { cookies } from "next/headers";
 
 import { requireAdmin } from "@/lib/admin/guard";
 import { waitingForReviewSql } from "@/lib/admin/review-queue-sql";
@@ -35,7 +36,8 @@ import {
 import { partnerDeps } from "@/lib/partners/server";
 import { IN_FLIGHT_TIMEOUT_MS, UNACKNOWLEDGED } from "@/lib/publishing/dispatch";
 
-import { assembleBadges, type AdminBadges, type BadgePart, type SeenPath } from "./badges-shared";
+import { readSeen, SEEN_COOKIE } from "./badges-seen";
+import { assembleBadges, type AdminBadges, type BadgeNoticeItem, type BadgePart, type SeenPath } from "./badges-shared";
 
 /**
  * The counts beside the admin sidebar's sections (Daniel, 2026-11-24: "it will
@@ -62,8 +64,10 @@ const FIRST_LOOK_MS = DAY_MS;
 
 const one = async (query: PromiseLike<{ n: number }[]>) => Number((await query)[0]?.n ?? 0);
 
-type WaitingSource = { href: string; what: string; count: (now: Date) => Promise<number> };
-type NewSource = { href: string; what: string; seen: SeenPath; count: (since: Date) => Promise<number> };
+/** Where a count is dealt with, for the page that explains its own badge (getBadgeNotice). */
+type Handled = { one: string; href: string; label: string };
+type WaitingSource = { href: string; what: string; handled?: Handled; count: (now: Date) => Promise<number> };
+type NewSource = { href: string; what: string; seen: SeenPath; handled?: Handled; count: (since: Date) => Promise<number> };
 
 /** The environment the partner program runs in here; its other one's rows are never shown on these pages. */
 const partnerEnvironment = () => partnerDeps().settings.environment();
@@ -157,11 +161,13 @@ export const WAITING_SOURCES: WaitingSource[] = [
   {
     href: "/admin/blog",
     what: "paid Get Featured requests",
+    handled: { one: "paid Get Featured request", href: "/admin/blog/sponsorships", label: "Open Featured placements to publish or decline" },
     count: () => one(db.select({ n: count() }).from(blogSponsorships).where(eq(blogSponsorships.status, "paid"))),
   },
   {
     href: "/admin/blog",
     what: "failed autopilot topics",
+    handled: { one: "failed autopilot topic", href: "/admin/blog/autopilot#failed-topics", label: "Open Autopilot to try again or remove" },
     count: () => one(db.select({ n: count() }).from(blogAutopilotTopics).where(eq(blogAutopilotTopics.status, "failed"))),
   },
   {
@@ -234,6 +240,7 @@ export const NEW_SOURCES: NewSource[] = [
     // Comments go live at once: moderating them starts with knowing there is one.
     href: "/admin/blog",
     what: "new comments",
+    handled: { one: "new comment", href: "/admin/blog/comments", label: "Open Comments (opening it clears this count)" },
     seen: "/admin/blog/comments",
     count: (since) =>
       one(
@@ -302,4 +309,31 @@ export async function getAdminBadges(seen: Seen, options: { fresh?: boolean; now
     ),
   ]);
   return assembleBadges([...waiting, ...fresh]);
+}
+
+/**
+ * What one page's sidebar badge counts, each with the page where it is dealt
+ * with (Daniel, 2026-11-26: "I see on blog dashboard 2 notifications, but I
+ * don't see anything there as new, all articles are published"). The same
+ * counts as the badge, read the same way - "new" from this administrator's
+ * last look (the cookie) - and only those above 0; none that cannot be read.
+ */
+export async function getBadgeNotice(href: string, options: { now?: Date } = {}): Promise<BadgeNoticeItem[]> {
+  const admin = await requireAdmin();
+  const now = options.now ?? new Date();
+  const seen = readSeen((await cookies()).get(SEEN_COOKIE)?.value, admin.userId);
+  const firstLook = new Date(now.getTime() - FIRST_LOOK_MS);
+  const line = async (kind: BadgeNoticeItem["kind"], what: string, handled: Handled, work: () => Promise<number>): Promise<BadgeNoticeItem> => ({
+    kind,
+    what,
+    ...handled,
+    count: await soft(href, work),
+  });
+  const items = await Promise.all([
+    ...WAITING_SOURCES.flatMap(({ href: at, what, handled, count: read }) => (at === href && handled ? [line("waiting", what, handled, () => read(now))] : [])),
+    ...NEW_SOURCES.flatMap(({ href: at, what, handled, seen: path, count: read }) =>
+      at === href && handled ? [line("new", what, handled, () => read(seen[path] ?? firstLook))] : [],
+    ),
+  ]);
+  return items.filter((item) => item.count > 0);
 }
