@@ -83,6 +83,8 @@ export type VideosCopy = {
     failed: string;
   };
   makingBody: string;
+  /** makingBody for a carousel: slides, no voice or video. */
+  makingSlides: string;
   scheduledFor: string;
   download: string;
   downloadSlide: string;
@@ -302,6 +304,8 @@ export type ViralCopy = {
     close: string;
     tabs: { script: string; style: string; video: string };
     preview: string;
+    /** The heading, intro and preview label while the format is a carousel (client, 2026-11-26: a carousel is slides, never "your video"). */
+    carousel: { heading: string; intro: string; preview: string };
     /** The chips under the preview that show one text in it. */
     showPart: string;
     /** point: "Point {index}" */
@@ -692,6 +696,7 @@ const viralEn: ViralCopy = {
     close: "Close",
     tabs: { script: "Script", style: "Style", video: "Video" },
     preview: "Video preview",
+    carousel: { heading: "Edit your carousel", intro: "Change what these slides say and how they look. Saving is free; only creating uses credits.", preview: "Carousel preview" },
     showPart: "Show in the preview",
     parts: { hook: "Hook", point: "Point {index}", proof: "Proof", cta: "End" },
     slideOf: "Slide {index} of {total}",
@@ -1109,6 +1114,7 @@ const viralEs: ViralCopy = {
     close: "Cerrar",
     tabs: { script: "Guion", style: "Estilo", video: "Vídeo" },
     preview: "Vista previa del vídeo",
+    carousel: { heading: "Editar su carrusel", intro: "Cambie lo que dicen estas diapositivas y cómo se ven. Guardar es gratis; solo crearlas usa créditos.", preview: "Vista previa del carrusel" },
     showPart: "Mostrar en la vista previa",
     parts: { hook: "Gancho", point: "Punto {index}", proof: "Prueba", cta: "Final" },
     slideOf: "Diapositiva {index} de {total}",
@@ -1534,6 +1540,7 @@ const viralFr: ViralCopy = {
     close: "Fermer",
     tabs: { script: "Script", style: "Style", video: "Vidéo" },
     preview: "Aperçu de la vidéo",
+    carousel: { heading: "Modifier votre carrousel", intro: "Modifiez ce que disent ces diapositives et leur apparence. L’enregistrement est gratuit ; seule la création utilise des crédits.", preview: "Aperçu du carrousel" },
     showPart: "Afficher dans l’aperçu",
     parts: { hook: "Accroche", point: "Point {index}", proof: "Preuve", cta: "Fin" },
     slideOf: "Diapositive {index} sur {total}",
@@ -1959,6 +1966,7 @@ const viralIt: ViralCopy = {
     close: "Chiudi",
     tabs: { script: "Testo", style: "Stile", video: "Video" },
     preview: "Anteprima del video",
+    carousel: { heading: "Modifichi il suo carosello", intro: "Cambi ciò che dicono queste slide e il loro aspetto. Salvare è gratuito; solo la creazione usa crediti.", preview: "Anteprima del carosello" },
     showPart: "Mostra nell’anteprima",
     parts: { hook: "Gancio", point: "Punto {index}", proof: "Prova", cta: "Fine" },
     slideOf: "Slide {index} di {total}",
@@ -2384,6 +2392,7 @@ const viralDe: ViralCopy = {
     close: "Schließen",
     tabs: { script: "Skript", style: "Stil", video: "Video" },
     preview: "Videovorschau",
+    carousel: { heading: "Ihr Karussell bearbeiten", intro: "Ändern Sie, was diese Folien sagen und wie sie aussehen. Speichern ist kostenlos; nur das Erstellen verbraucht Credits.", preview: "Karussell-Vorschau" },
     showPart: "In der Vorschau zeigen",
     parts: { hook: "Hook", point: "Punkt {index}", proof: "Beleg", cta: "Schluss" },
     slideOf: "Folie {index} von {total}",
@@ -2759,6 +2768,7 @@ const en: VideosCopy = {
     failed: "Not made",
   },
   makingBody: "The voice, captions and video are being made. This takes 2 to 5 minutes.",
+  makingSlides: "The carousel's slides are being made. This takes a few minutes.",
   scheduledFor: "Publishes {date}",
   download: "Download",
   downloadSlide: "Slide {index}",
@@ -2963,6 +2973,7 @@ const es: VideosCopy = {
     failed: "No creado",
   },
   makingBody: "Se están creando la voz, los subtítulos y el vídeo. Tarda de 2 a 5 minutos.",
+  makingSlides: "Se están creando las diapositivas del carrusel. Tarda unos minutos.",
   scheduledFor: "Se publica el {date}",
   download: "Descargar",
   downloadSlide: "Diapositiva {index}",
@@ -3167,6 +3178,7 @@ const fr: VideosCopy = {
     failed: "Non créée",
   },
   makingBody: "La voix, les sous-titres et la vidéo sont en cours de création. Cela prend de 2 à 5 minutes.",
+  makingSlides: "Les diapositives du carrousel sont en cours de création. Cela prend quelques minutes.",
   scheduledFor: "Publication le {date}",
   download: "Télécharger",
   downloadSlide: "Diapositive {index}",
@@ -3371,6 +3383,7 @@ const it: VideosCopy = {
     failed: "Non creato",
   },
   makingBody: "Voce, sottotitoli e video sono in creazione. Ci vogliono da 2 a 5 minuti.",
+  makingSlides: "Le slide del carosello sono in creazione. Ci vogliono alcuni minuti.",
   scheduledFor: "Pubblicazione il {date}",
   download: "Scarica",
   downloadSlide: "Slide {index}",
@@ -3575,6 +3588,7 @@ const de: VideosCopy = {
     failed: "Nicht erstellt",
   },
   makingBody: "Stimme, Untertitel und Video werden erstellt. Das dauert 2 bis 5 Minuten.",
+  makingSlides: "Die Folien des Karussells werden erstellt. Das dauert einige Minuten.",
   scheduledFor: "Wird am {date} veröffentlicht",
   download: "Herunterladen",
   downloadSlide: "Folie {index}",

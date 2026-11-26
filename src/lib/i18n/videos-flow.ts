@@ -8,6 +8,24 @@ import { VIDEO_LIBRARY_COPY, type LibraryCopy } from "@/lib/i18n/videos-library"
  * New ideas). Five languages, formal address, like lib/i18n/videos.ts, whose
  * VideosCopy carries these as `flow`. {placeholders} are filled with format().
  */
+/** The review window's words that differ for a carousel: the slides, never "the video". */
+export type CarouselPopup = {
+  /** Manual publish's body. */
+  manual: string;
+  /** Save for later's body. */
+  save: string;
+  /** The note under the modes for Save for later. */
+  saveNote: string;
+  preview: string;
+  making: string;
+  makingBody: string;
+  download: string;
+  waitVideo: string;
+  manualStill: string;
+  whenReady: string;
+  saveBody: string;
+};
+
 export type FlowCopy = {
   deck: {
     /** The content-type filter's first option. */
@@ -22,6 +40,8 @@ export type FlowCopy = {
     showDetails: string;
     hideDetails: string;
     hint: string;
+    /** The hint when the idea shown is a carousel (client, 2026-11-26: "This is a carousel but when I click approve it says create your video"). */
+    hintCarousel: string;
   };
   /** New ideas: extra batches cost credits; the daily twenty stay free. */
   ideas: {
@@ -76,6 +96,8 @@ export type FlowCopy = {
     saveBody: string;
     save: string;
     saved: string;
+    /** A carousel's words where they differ (client, 2026-11-26: a carousel is slides, never "your video"); popupCopy() lays them over the rest. */
+    carousel: CarouselPopup;
   };
   saved: { emptyTitle: string; emptyBody: string; ready: string };
   posted: { manual: string; publish: string };
@@ -94,6 +116,7 @@ const en: FlowCopy = {
     showDetails: "Idea details",
     hideDetails: "Hide details",
     hint: "← → browse the ideas. Approve makes the video and opens publishing.",
+    hintCarousel: "← → browse the ideas. Approve makes the carousel and opens publishing.",
   },
   ideas: {
     left: "{price} a batch · {left} of {total} left today",
@@ -148,6 +171,19 @@ const en: FlowCopy = {
     saveBody: "The video stays in Saved Videos. Publish it whenever you like, yourself or automatically.",
     save: "Save for later",
     saved: "Saved in Saved Videos.",
+    carousel: {
+      manual: "Copy the text, download the slides and post them yourself.",
+      save: "Keep the carousel in Saved Videos for another day.",
+      saveNote: "Nothing is published. The carousel waits in Saved Videos.",
+      preview: "Carousel preview",
+      making: "Making your carousel…",
+      makingBody: "This takes a few minutes. You can close this window: the carousel waits in Saved Videos.",
+      download: "Download slides",
+      waitVideo: "Download the slides once they are ready, post them, then mark the carousel as posted.",
+      manualStill: "You can still publish manually: copy the text, download the slides and post them yourself.",
+      whenReady: "Auto publish opens once the carousel is ready. You can close this window: the carousel waits in Saved Videos.",
+      saveBody: "The carousel stays in Saved Videos. Publish it whenever you like, yourself or automatically.",
+    },
   },
   saved: {
     emptyTitle: "No saved videos yet",
@@ -172,6 +208,7 @@ const es: FlowCopy = {
     showDetails: "Detalles de la idea",
     hideDetails: "Ocultar detalles",
     hint: "← → recorren las ideas. Aprobar crea el vídeo y abre la publicación.",
+    hintCarousel: "← → recorren las ideas. Aprobar crea el carrusel y abre la publicación.",
   },
   ideas: {
     left: "{price} por lote · quedan {left} de {total} hoy",
@@ -226,6 +263,19 @@ const es: FlowCopy = {
     saveBody: "El vídeo queda en Vídeos guardados. Publíquelo cuando quiera, usted mismo o automáticamente.",
     save: "Guardar para más tarde",
     saved: "Guardado en Vídeos guardados.",
+    carousel: {
+      manual: "Copie el texto, descargue las diapositivas y publíquelas usted mismo.",
+      save: "Deje el carrusel en Vídeos guardados para otro día.",
+      saveNote: "No se publica nada. El carrusel le espera en Vídeos guardados.",
+      preview: "Vista previa del carrusel",
+      making: "Creando su carrusel…",
+      makingBody: "Tarda unos minutos. Puede cerrar esta ventana: el carrusel le espera en Vídeos guardados.",
+      download: "Descargar diapositivas",
+      waitVideo: "Descargue las diapositivas cuando estén listas, publíquelas y marque el carrusel como publicado.",
+      manualStill: "Puede publicar manualmente: copie el texto, descargue las diapositivas y publíquelas usted mismo.",
+      whenReady: "La publicación automática se abre cuando el carrusel está listo. Puede cerrar esta ventana: el carrusel le espera en Vídeos guardados.",
+      saveBody: "El carrusel queda en Vídeos guardados. Publíquelo cuando quiera, usted mismo o automáticamente.",
+    },
   },
   saved: {
     emptyTitle: "Aún no hay vídeos guardados",
@@ -250,6 +300,7 @@ const fr: FlowCopy = {
     showDetails: "Détails de l’idée",
     hideDetails: "Masquer les détails",
     hint: "← → parcourent les idées. Approuver crée la vidéo et ouvre la publication.",
+    hintCarousel: "← → parcourent les idées. Approuver crée le carrousel et ouvre la publication.",
   },
   ideas: {
     left: "{price} par lot · {left} sur {total} restants aujourd’hui",
@@ -304,6 +355,19 @@ const fr: FlowCopy = {
     saveBody: "La vidéo reste dans Vidéos enregistrées. Publiez-la quand vous voulez, vous-même ou automatiquement.",
     save: "Enregistrer pour plus tard",
     saved: "Enregistrée dans Vidéos enregistrées.",
+    carousel: {
+      manual: "Copiez le texte, téléchargez les diapositives et publiez-les vous-même.",
+      save: "Gardez le carrousel dans Vidéos enregistrées pour un autre jour.",
+      saveNote: "Rien n’est publié. Le carrousel vous attend dans Vidéos enregistrées.",
+      preview: "Aperçu du carrousel",
+      making: "Création de votre carrousel…",
+      makingBody: "Cela prend quelques minutes. Vous pouvez fermer cette fenêtre : le carrousel vous attend dans Vidéos enregistrées.",
+      download: "Télécharger les diapositives",
+      waitVideo: "Téléchargez les diapositives une fois prêtes, publiez-les, puis marquez le carrousel comme publié.",
+      manualStill: "Vous pouvez toujours publier manuellement : copiez le texte, téléchargez les diapositives et publiez-les vous-même.",
+      whenReady: "La publication automatique s’ouvre une fois le carrousel prêt. Vous pouvez fermer cette fenêtre : le carrousel vous attend dans Vidéos enregistrées.",
+      saveBody: "Le carrousel reste dans Vidéos enregistrées. Publiez-le quand vous voulez, vous-même ou automatiquement.",
+    },
   },
   saved: {
     emptyTitle: "Pas encore de vidéos enregistrées",
@@ -328,6 +392,7 @@ const it: FlowCopy = {
     showDetails: "Dettagli dell’idea",
     hideDetails: "Nascondi dettagli",
     hint: "← → scorrono le idee. Approva crea il video e apre la pubblicazione.",
+    hintCarousel: "← → scorrono le idee. Approva crea il carosello e apre la pubblicazione.",
   },
   ideas: {
     left: "{price} a gruppo · ne restano {left} di {total} oggi",
@@ -382,6 +447,19 @@ const it: FlowCopy = {
     saveBody: "Il video resta in Video salvati. Lo pubblichi quando vuole, da sé o automaticamente.",
     save: "Salva per dopo",
     saved: "Salvato in Video salvati.",
+    carousel: {
+      manual: "Copi il testo, scarichi le slide e le pubblichi lei.",
+      save: "Tenga il carosello in Video salvati per un altro giorno.",
+      saveNote: "Nulla viene pubblicato. Il carosello la aspetta in Video salvati.",
+      preview: "Anteprima del carosello",
+      making: "Creazione del carosello…",
+      makingBody: "Ci vogliono alcuni minuti. Può chiudere questa finestra: il carosello la aspetta in Video salvati.",
+      download: "Scarica le slide",
+      waitVideo: "Scarichi le slide quando sono pronte, le pubblichi e poi segni il carosello come pubblicato.",
+      manualStill: "Può comunque pubblicare manualmente: copi il testo, scarichi le slide e le pubblichi lei.",
+      whenReady: "La pubblicazione automatica si apre quando il carosello è pronto. Può chiudere questa finestra: il carosello la aspetta in Video salvati.",
+      saveBody: "Il carosello resta in Video salvati. Lo pubblichi quando vuole, da sé o automaticamente.",
+    },
   },
   saved: {
     emptyTitle: "Ancora nessun video salvato",
@@ -406,6 +484,7 @@ const de: FlowCopy = {
     showDetails: "Details zur Idee",
     hideDetails: "Details ausblenden",
     hint: "← → blättern durch die Ideen. Genehmigen erstellt das Video und öffnet die Veröffentlichung.",
+    hintCarousel: "← → blättern durch die Ideen. Genehmigen erstellt das Karussell und öffnet die Veröffentlichung.",
   },
   ideas: {
     left: "{price} pro Paket · noch {left} von {total} heute",
@@ -460,6 +539,19 @@ const de: FlowCopy = {
     saveBody: "Das Video bleibt unter Gespeicherte Videos. Veröffentlichen Sie es, wann Sie möchten, selbst oder automatisch.",
     save: "Für später speichern",
     saved: "Unter Gespeicherte Videos gespeichert.",
+    carousel: {
+      manual: "Text kopieren, Folien herunterladen und selbst posten.",
+      save: "Das Karussell für einen anderen Tag unter Gespeicherte Videos behalten.",
+      saveNote: "Nichts wird veröffentlicht. Das Karussell wartet unter Gespeicherte Videos.",
+      preview: "Karussell-Vorschau",
+      making: "Ihr Karussell wird erstellt…",
+      makingBody: "Das dauert einige Minuten. Sie können dieses Fenster schließen: Das Karussell wartet unter Gespeicherte Videos.",
+      download: "Folien herunterladen",
+      waitVideo: "Laden Sie die Folien herunter, sobald sie fertig sind, posten Sie sie und markieren Sie das Karussell als gepostet.",
+      manualStill: "Sie können trotzdem manuell veröffentlichen: Text kopieren, Folien herunterladen und selbst posten.",
+      whenReady: "Die automatische Veröffentlichung öffnet sich, sobald das Karussell fertig ist. Sie können dieses Fenster schließen: Das Karussell wartet unter Gespeicherte Videos.",
+      saveBody: "Das Karussell bleibt unter Gespeicherte Videos. Veröffentlichen Sie es, wann Sie möchten, selbst oder automatisch.",
+    },
   },
   saved: {
     emptyTitle: "Noch keine gespeicherten Videos",
@@ -476,3 +568,25 @@ const de: FlowCopy = {
 
 /** One full translation per locale; keep the five objects in step when a key changes. */
 export const VIDEO_FLOW_COPY: Record<Locale, FlowCopy> = { en, es, fr, it, de };
+
+/**
+ * The review window's words for an idea of this format: a carousel's own
+ * where they differ (CarouselPopup), the video's everywhere else.
+ */
+export function popupCopy(popup: FlowCopy["popup"], format: string | null | undefined): FlowCopy["popup"] {
+  if (format !== "carousel") return popup;
+  const c = popup.carousel;
+  return {
+    ...popup,
+    modes: { ...popup.modes, manual: { ...popup.modes.manual, body: c.manual }, save: { ...popup.modes.save, body: c.save } },
+    notes: { ...popup.notes, save: c.saveNote },
+    preview: c.preview,
+    making: c.making,
+    makingBody: c.makingBody,
+    download: c.download,
+    waitVideo: c.waitVideo,
+    manualStill: c.manualStill,
+    whenReady: c.whenReady,
+    saveBody: c.saveBody,
+  };
+}

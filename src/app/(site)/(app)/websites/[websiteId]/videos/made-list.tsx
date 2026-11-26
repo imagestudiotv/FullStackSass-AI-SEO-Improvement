@@ -132,7 +132,7 @@ function MadeCard(props: ListProps & { idea: IdeaView; connected: VideoAccountVi
         {working ? (
           <div className="flex size-full flex-col items-center justify-center gap-2 p-4 text-center text-sm text-muted-foreground">
             <Loader2 className="size-6 animate-spin" aria-hidden="true" />
-            <p className="max-w-[220px]">{idea.status === "posting" ? t.publishing : t.makingBody}</p>
+            <p className="max-w-[220px]">{idea.status === "posting" ? t.publishing : idea.format === "carousel" ? t.makingSlides : t.makingBody}</p>
           </div>
         ) : idea.videoUrl && idea.coverUrl ? (
           // The reel's cover still: its opening fully drawn, without captions (src/remotion/cover.ts). Preview plays it.

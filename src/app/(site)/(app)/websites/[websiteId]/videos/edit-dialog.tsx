@@ -192,8 +192,8 @@ export function EditDialog(props: {
       >
         <header className="flex items-start gap-3 border-b px-4 py-3 pr-12">
           <div className="min-w-0 flex-1">
-            <DialogTitle className="text-base font-semibold">{c.heading}</DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground">{c.intro}</DialogDescription>
+            <DialogTitle className="text-base font-semibold">{form.format === "carousel" ? c.carousel.heading : c.heading}</DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">{form.format === "carousel" ? c.carousel.intro : c.intro}</DialogDescription>
           </div>
           {dirty ? (
             <Button variant="ghost" size="sm" onClick={() => setForm(initial)}>
@@ -204,7 +204,7 @@ export function EditDialog(props: {
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] md:overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(0,30rem)]">
-          <section aria-label={c.preview} className="flex flex-col items-center gap-3 bg-muted/40 px-4 py-4 md:justify-center md:overflow-y-auto">
+          <section aria-label={form.format === "carousel" ? c.carousel.preview : c.preview} className="flex flex-col items-center gap-3 bg-muted/40 px-4 py-4 md:justify-center md:overflow-y-auto">
             <EditorPreview props={preview} part={selected} onPart={setSelected} clipText={clipText} t={t} />
             <p className="max-w-sm text-center text-xs text-muted-foreground">{form.direction === "animated" ? t.previewNote : (preview.music && video ? v.previewMusic : v.previewConcept)}</p>
           </section>

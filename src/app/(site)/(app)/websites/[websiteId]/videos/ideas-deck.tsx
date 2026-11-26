@@ -334,7 +334,7 @@ export function IdeasDeck(props: {
             </Button>
           </div>
         ) : null}
-        <p className="mt-3 text-center text-xs text-muted-foreground">{d.hint}</p>
+        <p className="mt-3 text-center text-xs text-muted-foreground">{current.format === "carousel" ? d.hintCarousel : d.hint}</p>
         {props.complete ? (
           <div className="mt-4 w-full max-w-xl">
             <Notice tone="success" title={t.dayComplete}>
