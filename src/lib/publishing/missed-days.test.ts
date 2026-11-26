@@ -14,7 +14,7 @@ import { seedWebsite } from "@/test/fixtures";
 const state = vi.hoisted(() => ({ db: null as unknown }));
 vi.mock("@/lib/db", () => ({ db: new Proxy({}, { get: (_t, p) => Reflect.get(state.db as object, p) }) }));
 
-import { moveMissedTopicsForward, spaceTopics } from "./missed-days";
+import { bringTopicsToDailyPace, moveMissedTopicsForward, spaceTopics } from "./missed-days";
 
 const NOW = new Date("2026-11-20T06:00:00Z");
 let test: TestDb;
@@ -95,6 +95,29 @@ describe("missed days after a pause", () => {
 
     expect((await moveMissedTopicsForward(mine.websiteId, NOW)).moved).toBe(1);
     expect(await dayOf(theirs)).toBe("2026-11-10T09:00:00.000Z");
+  });
+});
+
+describe("from Free to a paid plan or its trial: one a day (client, 2026-11-26)", () => {
+  it("brings week-apart topics forward to one a day from today, in order, and is the same when run again", async () => {
+    const { websiteId } = await seedWebsite(test);
+    const started = await topic(websiteId, "2026-11-13", { article: "draft" });
+    const week = [await topic(websiteId, "2026-11-27"), await topic(websiteId, "2026-12-04"), await topic(websiteId, "2026-12-11")];
+    const undated = await topic(websiteId, null);
+    expect(await bringTopicsToDailyPace(websiteId, NOW)).toEqual({ moved: 3 });
+    expect(await Promise.all(week.map(dayOf))).toEqual(["2026-11-20T09:00:00.000Z", "2026-11-21T09:00:00.000Z", "2026-11-22T09:00:00.000Z"]);
+    expect(await dayOf(started)).toBe("2026-11-13T09:00:00.000Z");
+    expect(await dayOf(undated)).toBeNull();
+    expect(await bringTopicsToDailyPace(websiteId, NOW)).toEqual({ moved: 0 });
+  });
+
+  it("never moves a topic later: one already on or before its day keeps it", async () => {
+    const { websiteId } = await seedWebsite(test);
+    const today = await topic(websiteId, "2026-11-20");
+    const tomorrow = await topic(websiteId, "2026-11-21");
+    const later = await topic(websiteId, "2026-12-01");
+    expect(await bringTopicsToDailyPace(websiteId, NOW)).toEqual({ moved: 1 });
+    expect([await dayOf(today), await dayOf(tomorrow), await dayOf(later)]).toEqual(["2026-11-20T09:00:00.000Z", "2026-11-21T09:00:00.000Z", "2026-11-22T09:00:00.000Z"]);
   });
 });
 

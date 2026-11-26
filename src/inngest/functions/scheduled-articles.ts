@@ -18,7 +18,7 @@ import { deletedArticleSql, nextStartDay, startsLeft } from "@/lib/articles/pace
 import { lastDeliveryRefusedSql, releasableSql } from "@/lib/articles/review";
 import { onFreePlan } from "@/lib/plans/free-plan-server";
 import { isControlEnabled } from "@/lib/publishing/controls";
-import { moveMissedTopicsForward, spaceTopics } from "@/lib/publishing/missed-days";
+import { bringTopicsToDailyPace, moveMissedTopicsForward, spaceTopics } from "@/lib/publishing/missed-days";
 import { checkLimit } from "@/lib/usage";
 import { UNLIMITED } from "@/lib/usage-shared";
 
@@ -267,6 +267,8 @@ export const scheduledArticles = inngest.createFunction(
           // (Written out, not ${websites.id}: drizzle drops the table's name in a one-table select.)
           // One written and deleted since is still its first: the ledger keeps it.
           hasArticle: raw<boolean>`(exists (select 1 from articles wa where wa.website_id = websites.id and wa.body_html is not null) or ${deletedArticleSql(raw`websites.id`)})`,
+          // Was on Free (its row stays when it starts paying): topics laid out a week apart may be left to bring forward.
+          wasFree: raw<boolean>`exists (select 1 from free_plan_accounts fw where fw.website_id = websites.id)`,
           // A topic due now: a Free website is also looked at for its spacing alone.
           due: raw<boolean>`exists (
             select 1 from calendar_items di
@@ -304,7 +306,13 @@ export const scheduledArticles = inngest.createFunction(
               select 1 from ${calendarItems} ci
               where ci.website_id = ${websites.id}
                 and ci.status = 'planned'
-                and (ci.scheduled_for is null or ci.scheduled_for <= ${horizon.toISOString()}::timestamp or ${onFreePlan(websites.id)})
+                and (
+                  ci.scheduled_for is null
+                  or ci.scheduled_for <= ${horizon.toISOString()}::timestamp
+                  or ${onFreePlan(websites.id)}
+                  -- Was on Free and pays now: its week-apart topics are brought forward (bringTopicsToDailyPace).
+                  or exists (select 1 from free_plan_accounts fx where fx.website_id = ${websites.id})
+                )
             )`,
           ),
         )
@@ -385,6 +393,13 @@ export const scheduledArticles = inngest.createFunction(
             logger.info({ step: `queue-${site.websiteId}`, websiteId: site.websiteId, topicsMoved: spaced.moved }, "Planned topics spaced to the plan's pace");
           }
         } else {
+          // From Free to a paid plan or its free trial: Free's week-apart topics come forward to one a day.
+          if (site.wasFree && room.pace) {
+            const closer = await bringTopicsToDailyPace(site.websiteId, now);
+            if (closer.moved > 0) {
+              logger.info({ step: `queue-${site.websiteId}`, websiteId: site.websiteId, topicsMoved: closer.moved }, "Free's planned topics brought forward to the paid plan's daily pace");
+            }
+          }
           const missed = await moveMissedTopicsForward(site.websiteId, now);
           if (missed.moved > 0) {
             logger.info(
