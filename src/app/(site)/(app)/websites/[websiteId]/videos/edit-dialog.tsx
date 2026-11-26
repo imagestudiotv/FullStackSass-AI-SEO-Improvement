@@ -48,6 +48,8 @@ import {
   captionsApply,
   ctaSwitchApplies,
   editFromForm,
+  editorialLimited,
+  editorialText,
   editorProblems,
   effectiveAudio,
   figuresApply,
@@ -162,12 +164,13 @@ export function EditDialog(props: {
     );
 
   const n = form.script.points.length;
-  // The text on a Viral clip (client, 2026-11-24): its style now, and dragging it on the preview.
+  // The text on a Viral clip (client, 2026-11-24), and on every slide of an editorial video (2026-11-26): its style now, and dragging it on the preview.
   const plan = (idea.props as ProductionReelProps).plan;
-  const textStyle = clipTextApplies(form) ? clipTextOf(form, plan) : null;
+  const editorial = editorialText(form);
+  const textStyle = clipTextApplies(form) ? clipTextOf(form, plan, idea.props.brand) : null;
   const setTextStyle = (style: ClipTextStyle | null) => choose("textStyle", style);
   const draggable = clipTextPart(form, selected);
-  const clipText = editable && textStyle && draggable ? { text: draggable, style: textStyle, onChange: setTextStyle } : null;
+  const clipText: ClipTextEdit | null = editable && textStyle && draggable ? { text: draggable, style: textStyle, onChange: setTextStyle, ...(editorial ? { editorial: { props: preview, part: selected } } : {}) } : null;
   const onScreen = (part: PartKey) => ({ onFocus: () => setSelected(part) });
 
   return (
@@ -395,10 +398,20 @@ export function EditDialog(props: {
                   )}
 
                   {textStyle ? (
-                    <ClipTextControls text={draggable ?? form.script.hook} style={textStyle} custom={Boolean(form.production.textStyle)} onChange={setTextStyle} onReset={() => setTextStyle(null)} c={c.clip} />
+                    <ClipTextControls
+                      text={draggable ?? form.script.hook}
+                      style={textStyle}
+                      custom={Boolean(form.production.textStyle)}
+                      onChange={setTextStyle}
+                      onReset={() => setTextStyle(null)}
+                      c={c.clip}
+                      editorial={editorial}
+                      limited={editorial ? editorialLimited(form, textStyle, draggable ?? form.script.hook) : undefined}
+                    />
                   ) : null}
 
-                  {form.pov ? null : (
+                  {/* A POV clip and an editorial video style their text with the controls above. */}
+                  {form.pov || editorial ? null : (
                   <fieldset className="min-w-0 space-y-2">
                     <legend className="text-sm font-semibold">{c.textStyle}</legend>
                     {styles.kind === "fixed" ? (
@@ -633,12 +646,15 @@ export function EditDialog(props: {
   );
 }
 
+/** The text being styled and dragged on the preview; an editorial video's lies on the part shown (clip-text-editor.tsx). */
+type ClipTextEdit = { text: string; style: ClipTextStyle; onChange: (style: ClipTextStyle) => void; editorial?: { props: ProductionReelProps; part: PartKey } };
+
 /**
  * The live preview: the reel's real template paused on the text being edited
  * (9:16 for a reel or a Story), or the carousel's slide for it (4:5); the
  * chips under it show each text the video has.
  */
-function EditorPreview({ props, part, onPart, clipText, t }: { props: ProductionReelProps; part: PartKey; onPart: (part: PartKey) => void; clipText: { text: string; style: ClipTextStyle; onChange: (style: ClipTextStyle) => void } | null; t: T }) {
+function EditorPreview({ props, part, onPart, clipText, t }: { props: ProductionReelProps; part: PartKey; onPart: (part: PartKey) => void; clipText: ClipTextEdit | null; t: T }) {
   const c = t.viral.editor;
   const player = useRef<PlayerRef>(null);
   const carousel = props.format === "carousel";
@@ -677,6 +693,7 @@ function EditorPreview({ props, part, onPart, clipText, t }: { props: Production
     <div className="flex w-full flex-col items-center gap-3">
       {carousel ? (
         <div className="w-full max-w-[260px] space-y-2 md:max-w-[min(360px,calc((100dvh_-_15rem)*0.8))]">
+          <div className="relative">
           <Thumbnail
             component={Slide}
             inputProps={{ ...props, index: slide }}
@@ -687,6 +704,9 @@ function EditorPreview({ props, part, onPart, clipText, t }: { props: Production
             fps={30}
             style={{ width: "100%", aspectRatio: `${SLIDE.width} / ${SLIDE.height}`, borderRadius: 12, overflow: "hidden" }}
           />
+          {/* An editorial carousel's text is dragged on the slide itself (client, 2026-11-26). */}
+          {clipText?.editorial ? <ClipTextBox {...clipText} story={false} c={c.clip} /> : null}
+          </div>
           <div className="flex items-center justify-between gap-2">
             <Button variant="ghost" size="icon-sm" aria-label={c.previousSlide} disabled={slide <= 0} onClick={() => onPart(parts[slide - 1])}>
               <ChevronLeft aria-hidden="true" />

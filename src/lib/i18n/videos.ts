@@ -364,6 +364,11 @@ export type ViralCopy = {
       tip: string;
       drag: string;
       limited: string;
+      /** An editorial video (client, 2026-11-26): one text style for every slide, with a highlight colour for the *starred* words. */
+      titleEditorial: string;
+      accent: string;
+      accentHint: string;
+      tipEditorial: string;
     };
     templateAlways: string;
     /** A Viral video ending on its clip (formats.ts endsOnClip; client, 2026-11-23). */
@@ -741,6 +746,10 @@ const viralEn: ViralCopy = {
       tip: "Drag the text on the preview to move it, or select it and use the arrow keys. The areas in red are covered by the apps' own buttons.",
       drag: "Drag to move the text",
       limited: "Shown a little smaller, so no word is cut. For larger text, make it wider or shorter.",
+      titleEditorial: "Text on the slides",
+      accent: "Highlight color",
+      accentHint: "Put *stars* around words to highlight them, like *this*.",
+      tipEditorial: "One style for every slide. Drag the text on the preview to move it, or select it and use the arrow keys. The pictures make room for the text.",
     },
     templateAlways: "The animated templates always open on the hook and end on the closing line.",
     clipEnds: "Viral clip videos end on the clip, with no closing line. Want your web address in it? Write it in the hook.",
@@ -1153,6 +1162,10 @@ const viralEs: ViralCopy = {
       tip: "Arrastra el texto en la vista previa para moverlo, o selecciónalo y usa las flechas. Las zonas en rojo quedan tapadas por los botones de las apps.",
       drag: "Arrastra para mover el texto",
       limited: "Se muestra algo más pequeño para no cortar palabras. Para un texto más grande, hazlo más ancho o más corto.",
+      titleEditorial: "Texto de las diapositivas",
+      accent: "Color de resaltado",
+      accentHint: "Pon *asteriscos* alrededor de las palabras para resaltarlas, así: *esto*.",
+      tipEditorial: "Un mismo estilo para todas las diapositivas. Arrastra el texto en la vista previa para moverlo, o selecciónalo y usa las flechas. Las imágenes dejan sitio al texto.",
     },
     templateAlways: "Las plantillas animadas siempre empiezan con el gancho y terminan con la frase final.",
     clipEnds: "Los vídeos virales con clip terminan en el clip, sin frase final. ¿Quieres tu dirección web? Escríbela en el gancho.",
@@ -1573,6 +1586,10 @@ const viralFr: ViralCopy = {
       tip: "Faites glisser le texte sur l’aperçu pour le déplacer, ou sélectionnez-le et utilisez les flèches. Les zones en rouge sont couvertes par les boutons des applications.",
       drag: "Faire glisser pour déplacer le texte",
       limited: "Affiché un peu plus petit pour ne couper aucun mot. Pour un texte plus grand, élargissez-le ou raccourcissez-le.",
+      titleEditorial: "Texte des diapositives",
+      accent: "Couleur de mise en avant",
+      accentHint: "Entourez des mots d’*astérisques* pour les mettre en avant, comme *ceci*.",
+      tipEditorial: "Un même style pour toutes les diapositives. Faites glisser le texte sur l’aperçu pour le déplacer, ou sélectionnez-le et utilisez les flèches. Les images laissent la place au texte.",
     },
     templateAlways: "Les modèles animés commencent toujours par l’accroche et finissent par la phrase de fin.",
     clipEnds: "Les vidéos virales à clip se terminent sur le clip, sans phrase de fin. Vous voulez votre adresse web ? Écrivez-la dans l’accroche.",
@@ -1993,6 +2010,10 @@ const viralIt: ViralCopy = {
       tip: "Trascina il testo sull’anteprima per spostarlo, oppure selezionalo e usa le frecce. Le zone in rosso sono coperte dai pulsanti delle app.",
       drag: "Trascina per spostare il testo",
       limited: "Mostrato un po’ più piccolo per non tagliare le parole. Per un testo più grande, allargalo o accorcialo.",
+      titleEditorial: "Testo delle slide",
+      accent: "Colore di evidenziazione",
+      accentHint: "Metti degli *asterischi* intorno alle parole per evidenziarle, così: *questo*.",
+      tipEditorial: "Uno stesso stile per tutte le slide. Trascina il testo sull’anteprima per spostarlo, oppure selezionalo e usa le frecce. Le immagini lasciano spazio al testo.",
     },
     templateAlways: "I modelli animati iniziano sempre con il gancio e finiscono con la frase di chiusura.",
     clipEnds: "I video virali con clip finiscono sul clip, senza frase di chiusura. Vuoi il tuo indirizzo web? Scrivilo nel gancio.",
@@ -2413,6 +2434,10 @@ const viralDe: ViralCopy = {
       tip: "Ziehen Sie den Text in der Vorschau an seinen Platz, oder wählen Sie ihn aus und nutzen Sie die Pfeiltasten. Die roten Bereiche werden von den Schaltflächen der Apps verdeckt.",
       drag: "Ziehen, um den Text zu verschieben",
       limited: "Etwas kleiner gezeigt, damit kein Wort getrennt wird. Für größeren Text machen Sie ihn breiter oder kürzer.",
+      titleEditorial: "Text auf den Folien",
+      accent: "Hervorhebungsfarbe",
+      accentHint: "Setzen Sie *Sternchen* um Wörter, um sie hervorzuheben, etwa *so*.",
+      tipEditorial: "Ein Stil für alle Folien. Ziehen Sie den Text in der Vorschau an seinen Platz, oder wählen Sie ihn aus und nutzen Sie die Pfeiltasten. Die Bilder machen dem Text Platz.",
     },
     templateAlways: "Die animierten Vorlagen beginnen immer mit dem Hook und enden mit dem Schlusssatz.",
     clipEnds: "Virale Clip-Videos enden mit dem Clip, ohne Schlusssatz. Ihre Webadresse soll rein? Schreiben Sie sie in den Hook.",

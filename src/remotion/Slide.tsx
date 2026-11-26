@@ -9,6 +9,7 @@ import { AccentBar, ArrowIcon, CheckIcon, LogoTile, QuoteIcon, TEXT_SAFE } from 
 import { ProductionSlide, productionSlideParts } from "./directions/Slides";
 import { FONT } from "./fonts";
 import { isProduction, type ProductionReelProps } from "./props";
+import { withoutStars } from "./editorial";
 import { figureWords } from "./scenes/Bold";
 import { BoxedText } from "./scenes/Story";
 import { breakFits, decimalsOf, emphasis, findFigure, fitFontSize, formatNumber, splitHeadline, splitWords } from "./text";
@@ -37,7 +38,9 @@ const CONTENT = W - PADDING * 2;
 /** Springs in shared components are settled by then: a still shows them finished. */
 const SETTLED = -600;
 
-export function Slide(props: SlideProps) {
+export function Slide(input: SlideProps) {
+  // The *stars* around highlighted words show only as the editorial look's colour (client, 2026-11-26).
+  const props = withoutStars(input);
   if (isProduction(props)) return <ProductionSlide {...(props as ProductionReelProps & { index: number })} />;
   return <AnimatedSlide {...props} />;
 }

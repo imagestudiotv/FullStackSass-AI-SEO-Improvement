@@ -8,6 +8,7 @@ import { productionOf, productionParts, type ProductionPart } from "../productio
 import { emphasis, fitFontSize, splitWords } from "../text";
 import { palette, type Palette } from "../theme";
 import { ConceptFrame, SceneVisual, mediaFor } from "./common";
+import { EditorialSlide } from "./Editorial";
 
 /**
  * Carousel slides (1080x1350) for the new productions: a meme slide (white
@@ -25,6 +26,8 @@ export function productionSlideParts(props: ProductionReelProps): ProductionPart
 }
 
 export function ProductionSlide(props: ProductionSlideProps) {
+  // The editorial look (client, 2026-11-26): the website's own pictures under big, editable type.
+  if (props.direction === "editorial") return <EditorialSlide {...props} />;
   const parts = productionSlideParts(props);
   const index = Math.max(0, Math.min(parts.length - 1, Math.round(props.index)));
   const part = parts[index];

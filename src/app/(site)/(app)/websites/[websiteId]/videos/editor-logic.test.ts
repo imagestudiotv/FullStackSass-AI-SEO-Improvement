@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { ProductionChoices, ShotPlan, VideoScript } from "@/lib/video/formats";
+import { editorialDefaultStyle } from "@/remotion/editorial";
 import { DEFAULT_PRODUCTION, productionTimeline } from "@/remotion/production";
 import type { ProductionReelProps } from "@/remotion/props";
 import { reelTiming } from "@/remotion/timing";
@@ -14,6 +15,8 @@ import {
   captionsApply,
   ctaSwitchApplies,
   editFromForm,
+  editorialLimited,
+  editorialText,
   editorProblems,
   formFromIdea,
   hookSwitchApplies,
@@ -338,5 +341,47 @@ describe("the text on a Viral clip", () => {
     expect(clipTextPart(hook, SCRIPT.points.length + 1)).toBe(SCRIPT.proof);
     expect(clipTextPart({ ...hook, production: { ...hook.production, showHook: false } }, 0)).toBeNull();
     expect(clipTextPart(formFromIdea(idea({ direction: "footage" }), "coral"), 0)).toBeNull();
+  });
+});
+
+/** The editorial look (client, 2026-11-26: "the edits should be as we edit the video now, with different font and size"). */
+describe("the text of an editorial video", () => {
+  const plan: ShotPlan = { ...PLAN, direction: "editorial", scenes: [] };
+  const SCRIPT_STARS: VideoScript = { ...SCRIPT, hook: "Your site is *invisible*" };
+  const reel = formFromIdea({ ...idea({ direction: "editorial" }), props: { script: SCRIPT_STARS, plan } }, "coral");
+  const carousel = { ...reel, format: "carousel" };
+  const brand = { primary: "#4f46e5", accent: "#f59e0b" };
+
+  it("is styled with the text controls, in a carousel and a reel, and has no caption styles to pick", () => {
+    expect(clipTextApplies(reel)).toBe(true);
+    expect(clipTextApplies(carousel)).toBe(true);
+    expect(editorialText(reel)).toBe(true);
+    expect(editorialText(formFromIdea(idea({ direction: "footage" }), "coral"))).toBe(false);
+    expect(textStyles(reel).kind).toBe("fixed");
+  });
+
+  it("starts from the editorial default for its format, with the brand's highlight colour", () => {
+    expect(clipTextOf(reel, plan, brand)).toEqual(editorialDefaultStyle("reel", brand));
+    expect(clipTextOf(carousel, plan, brand)).toEqual(editorialDefaultStyle("carousel", brand));
+    expect(clipTextOf(reel, plan, brand).accent).toBe("#f59e0b");
+    const own = { ...editorialDefaultStyle("reel", brand), font: "inter" as const, weight: 900, accent: "#00ff00" };
+    const changed = { ...reel, production: { ...reel.production, textStyle: own } };
+    expect(clipTextOf(changed, plan, brand)).toEqual(own);
+    expect(editFromForm(changed).production?.textStyle).toEqual(own);
+  });
+
+  it("drags the text of every part, as typed (stars kept in the editor)", () => {
+    const n = SCRIPT.points.length;
+    expect(clipTextPart(reel, 0)).toBe("Your site is *invisible*");
+    expect(clipTextPart(reel, 2)).toBe(SCRIPT.points[1].title);
+    expect(clipTextPart(reel, n + 1)).toBe(SCRIPT.proof);
+    expect(clipTextPart(reel, n + 2)).toBe(SCRIPT.cta);
+    expect(clipTextPart({ ...reel, production: { ...reel.production, ctaText: "Call us" } }, n + 2)).toBe("Call us");
+  });
+
+  it("says when a title is drawn smaller than chosen", () => {
+    const style = editorialDefaultStyle("reel", brand);
+    expect(editorialLimited(reel, style, "Short")).toBe(false);
+    expect(editorialLimited(reel, { ...style, size: 160 }, "Donaudampfschifffahrtsgesellschaftskapitaen")).toBe(true);
   });
 });

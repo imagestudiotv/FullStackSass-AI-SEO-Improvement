@@ -1,4 +1,5 @@
 import { REEL, type ReelProps, type Transition } from "../lib/video/formats";
+import { editorialSettledFrame } from "./editorial";
 import { ENTER_FRAMES, partEnd, productionTimeline } from "./production";
 import { isProduction, type ProductionReelProps } from "./props";
 import { findFigure, splitWords } from "./text";
@@ -69,6 +70,8 @@ function animatedCover(props: ReelProps, fps: number): number {
 
 /** The transition each direction opens with when the plan names none (directions/*.tsx). */
 function openingTransition(direction: ProductionReelProps["direction"], planned: Transition | undefined): Transition {
+  // The editorial reel opens on its first scene with no transition (directions/Editorial.tsx).
+  if (direction === "editorial") return "cut";
   // Memes cut hard: only a flash or a glitch is kept (Meme.tsx memeCut).
   if (direction === "meme") return planned === "flash" || planned === "glitch" ? planned : "cut";
   if (planned) return planned;
@@ -116,6 +119,10 @@ function productionCover(props: ProductionReelProps, fps: number): number {
       if (part.detail && !hook) settled = Math.max(settled, words * reveal + 8 + SETTLE);
       break;
     }
+    case "editorial":
+      // The words rise one after another and the highlighted ones pop (editorial.ts EDITORIAL_REVEAL).
+      settled = editorialSettledFrame(words);
+      break;
     default:
       settled = SETTLE;
   }
