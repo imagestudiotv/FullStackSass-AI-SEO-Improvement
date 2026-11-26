@@ -216,9 +216,38 @@ describe("research evidence", () => {
     expect(filtered.claims).toHaveLength(1);
     expect(filtered.warnings).toHaveLength(1);
   });
-  it("refuses invented citations and notices omitted citations", () => {
-    expect(citationIssues('<p>A claim <a href="https://invented.example/">source</a></p>', research, brief)).toHaveLength(2);
+  it("refuses links to addresses nobody supplied", () => {
+    expect(citationIssues('<p>A claim <a href="https://invented.example/">source</a></p>', research, brief))
+      .toEqual(["The draft contains a link outside the supplied sources."]);
+    // A supplied source linked against the rules is unwrapped in code (outside-links.ts), not paid to correct.
     expect(citationIssues(`<p>${quote}<a href="${sources[0].url}">Source</a></p>`, research, brief)).toEqual([]);
+  });
+  it("accepts a source named in plain text, without a link (Daniel, 2026-11-26)", async () => {
+    const named = `<h2>Verify</h2><p>According to the Guide (October 2026), ${quote}</p>`;
+    expect(citationIssues(named, research, brief)).toEqual([]);
+    mocks.create.mockResolvedValue({ model: "writer", stop_reason: "end_turn",
+      content: [{ type: "text", text: '{"issues":[]}' }], usage: { input_tokens: 100, output_tokens: 20 } });
+    const quality = await checkResearchEvidence(named, brief, research);
+    expect(quality).toEqual({ checked: true, issues: [] });
+    expect(needsEvidenceCorrection(named, { ...research, quality })).toBe(false);
+    expect(researchNeedsReview({ ...research, quality })).toBe(false);
+    // The checker is told a missing link is not a finding.
+    expect(mocks.create.mock.calls[0][0].system).toContain("deliberately never linked");
+  });
+  it("asks every writer for named sources and no links to other websites", async () => {
+    // RESEARCH_BODY_SYSTEM and BODY_SYSTEM reach the model as `system`; read them through generateBody's call.
+    for (const researched of [true, false]) {
+      mocks.create.mockReset();
+      mocks.create.mockResolvedValue({ model: "writer", stop_reason: "end_turn", usage: { input_tokens: 1, output_tokens: 1 },
+        content: [{ type: "text", text: researched ? JSON.stringify({ bodyHtml: "<h2>A</h2><p>B</p>" }) : "<h2>A</h2><p>B</p>" }] });
+      await generateBody({ ...brief, research: researched ? research : null } as ArticleBrief,
+        { sections: [{ heading: "A", subheadings: [], points: [] }], metaDescription: "m", faq: [] });
+      const system = mocks.create.mock.calls[0][0].system as string;
+      expect(system).not.toMatch(/exact (supplied|evidence-card) URL/i);
+      expect(system).not.toMatch(/Cite research sources/i);
+      expect(system).toMatch(/Never link to a research source or to any other website|Do NOT link to any other website/);
+      expect(system).toMatch(/naming its source in plain text/);
+    }
   });
   it("checks against the saved business context the writer actually received, keeping it untrusted", async () => {
     mocks.create.mockResolvedValue({ model: "writer", stop_reason: "end_turn",
@@ -239,7 +268,7 @@ describe("research evidence", () => {
     expect(content).toContain("&lt;/business_profile>");
     expect(content.match(/<\/business_profile>/g)).toHaveLength(1);
     expect(content).not.toContain("A stale verdict");
-    expect(meter).toHaveBeenCalledWith(expect.objectContaining({ promptVersion: "article-evidence_check-v8" }));
+    expect(meter).toHaveBeenCalledWith(expect.objectContaining({ promptVersion: "article-evidence_check-v9" }));
   });
   it("keeps valid claims when another exceeds limits, without silently truncating quotations", () => {
     const result = validateResearch(JSON.stringify({ ...synthesis, claims: [

@@ -401,11 +401,16 @@ Structure rules:
 Link rules:
 - Do NOT link to pages of the business's own website. Those links are added
   afterwards, only to pages checked to exist. Never guess one of its URLs.
-- Only link to an address given in the brief (a required link, a social
-  profile, or a research source) or to a "#id" of a heading in this article.
-- Cite research sources next to the claims they support using their exact
-  supplied URLs. Use only relevant evidence, paraphrase rather than copy,
-  and never cite a source for something its excerpt does not establish.
+- Do NOT link to any other website either: no links to research sources,
+  studies, publishers, tools, products or references, and no bare web
+  addresses in the text.
+- The only links allowed are an address the brief tells you to include (the
+  required link and the business's own social profiles) and a "#id" of a
+  heading in this article.
+- Attribute a researched fact by naming its source in plain text next to the
+  claim it supports, for example "According to <publisher>'s guide (April
+  2026), ...". Use only relevant evidence, paraphrase rather than copy, and
+  never attribute to a source something its excerpt does not establish.
 - Never write a link without a real destination: no href="#", no empty or
   placeholder addresses. If there is nothing real to link to, write plain
   text.
@@ -424,7 +429,7 @@ Writing rules:
   Wix/Squarespace-specific setup advice into a universal Google requirement,
   or confuse ownership verification with crawling or indexing. If research
   warns of missing coverage, explain the limitation instead of filling it
-  with unsupported steps. Match every citation to the scope of its source.
+  with unsupported steps. Match every attribution to the scope of its source.
 - Simplify wording without changing what a feature covers. An identifier,
   address or example can represent a collection, not just one item. For
   example, a Search Console URL-prefix property covers matching URLs, not

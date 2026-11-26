@@ -11,9 +11,11 @@ import { NativeLikeSelect } from "@/components/ui/native-like-select";
 import { Notice } from "@/components/workspace/notice";
 import { format } from "@/lib/i18n/format";
 import { approveVideoIdea, approveVideoReview, restoreVideoIdea, skipVideoIdea, undoVideoIdea, type IdeaEdit } from "@/lib/video/actions";
-import { endsOnClip, slideCount, UNDO_SECONDS, VIDEO_PLATFORM_SPECS, type IdeaCategory, type MakeVia, type ShotPlan, type VideoScript, type VideoStyle } from "@/lib/video/formats";
+import { endsOnClip, UNDO_SECONDS, VIDEO_PLATFORM_SPECS, type IdeaCategory, type MakeVia, type ShotPlan, type VideoScript, type VideoStyle } from "@/lib/video/formats";
 import type { VideoPublishingStatus } from "@/lib/video/publish-actions";
 import type { VideoSettings } from "@/lib/video/settings";
+import { stripHighlight } from "@/remotion/editorial";
+import { carouselSlideCount } from "@/remotion/Slide";
 
 import { EditDialog } from "./edit-dialog";
 import {
@@ -255,12 +257,12 @@ export function IdeasDeck(props: {
 
   const kind =
     current.format === "carousel"
-      ? format(t.detail.carouselSlides, { count: String(slideCount(current.props.script)) })
+      ? format(t.detail.carouselSlides, { count: String(carouselSlideCount(current.props)) })
       : current.format === "story"
         ? v.formats.story
         : t.reel;
   // The animated templates are what the preview really plays; the new directions are made from footage, voice and music later.
-  const previewNote = current.direction === "animated" ? t.previewNote : current.props.music && current.format !== "carousel" ? v.previewMusic : v.previewConcept;
+  const previewNote = current.direction === "animated" ? t.previewNote : current.direction === "editorial" && current.format === "carousel" ? v.previewEditorial : current.props.music && current.format !== "carousel" ? v.previewMusic : v.previewConcept;
   const arrow =
     "absolute top-[45%] z-10 flex size-9 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm transition hover:bg-primary/10 hover:text-primary focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none disabled:opacity-40 sm:size-11";
 
@@ -309,7 +311,7 @@ export function IdeasDeck(props: {
         </p>
 
         <h2 className="mt-4 max-w-lg text-center text-base leading-snug font-semibold tracking-tight sm:text-lg">{current.title}</h2>
-        {current.production.showHook ? <p className="mt-1 max-w-md text-center text-sm text-muted-foreground">{current.props.script.hook}</p> : null}
+        {current.production.showHook ? <p className="mt-1 max-w-md text-center text-sm text-muted-foreground">{stripHighlight(current.props.script.hook)}</p> : null}
 
         {props.canEdit ? (
           <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
@@ -432,7 +434,7 @@ function IdeaDetail({
             <Quote className="size-3" aria-hidden="true" />
             {t.detail.hook}
           </p>
-          <p className="text-sm">{script.hook}</p>
+          <p className="text-sm">{stripHighlight(script.hook)}</p>
         </div>
       ) : null}
 
@@ -531,8 +533,8 @@ function ScriptSummary({ script, includeCta, ctaText, t }: { script: VideoScript
         <li key={index} className="flex gap-2">
           <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">{index + 1}</span>
           <span>
-            <span className="font-medium">{point.title}</span>
-            <span className="text-muted-foreground"> — {point.detail}</span>
+            <span className="font-medium">{stripHighlight(point.title)}</span>
+            <span className="text-muted-foreground"> — {stripHighlight(point.detail)}</span>
           </span>
         </li>
       ))}

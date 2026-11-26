@@ -35,7 +35,8 @@ import {
   type VideoScript,
 } from "./formats";
 import { hasFiles } from "./customer-view";
-import { rewriteIdea } from "./ideas";
+import { plainScript, pointTitleMax } from "./editorial-images";
+import { moveMadeClipsOffPendingIdeas, rewriteIdea } from "./ideas";
 import { spendKey } from "./make";
 import { musicTrack } from "./music";
 import { contentHash, reviewAfterEdit } from "./review";
@@ -230,6 +231,8 @@ function cleanEdit(edit: IdeaEdit, row: IdeaRow, settings: VideoSettings): Parti
   let direction: CreativeDirection = isCreativeDirection(row.direction) ? row.direction : "animated";
   if (edit.direction !== undefined && !pov) {
     if (!isCreativeDirection(edit.direction)) return null;
+    // Editorial is made from the idea's own pictures (plan.images): an idea without them cannot become one.
+    if (edit.direction === "editorial" && !((row.plan as ShotPlan | null)?.images?.length)) return null;
     direction = edit.direction;
     out.direction = edit.direction;
   }
@@ -254,7 +257,7 @@ function cleanEdit(edit: IdeaEdit, row: IdeaRow, settings: VideoSettings): Parti
     const clean: VideoScript = {
       hook: text(hook, 80),
       points: (Array.isArray(points) ? points : []).slice(0, maxPointsFor(direction, format)).map((point) => ({
-        title: text(point?.title, 48),
+        title: text(point?.title, pointTitleMax(direction)),
         detail: text(point?.detail, 180),
         stat:
           point?.stat && Number.isFinite(Number(point.stat.value))
@@ -270,6 +273,11 @@ function cleanEdit(edit: IdeaEdit, row: IdeaRow, settings: VideoSettings): Parti
   } else if (script.points.length > maxPointsFor(direction, format)) {
     // Back to the original templates or a carousel: they show four points at most.
     script = { ...script, points: script.points.slice(0, maxPointsFor(direction, format)) };
+    out.script = script;
+  }
+  // The *highlight* marks belong to editorial videos alone: another direction shows its words plain.
+  if (direction !== "editorial" && JSON.stringify(script).includes("*")) {
+    script = plainScript(script);
     out.script = script;
   }
   let caption = row.caption;
@@ -460,6 +468,8 @@ export async function approveVideoIdea(websiteId: string, id: string, edit: Idea
       .where(eq(videoIdeas.id, id));
     return { ok: true as const, data: null };
   });
+  // Its clip is now in one of the website's videos: other ideas still offered with it get the next one (client, 2026-11-26).
+  if (result.ok) await moveMadeClipsOffPendingIdeas(websiteId).catch((error) => console.error("[video] clips not moved off a made idea", { websiteId, id, error }));
   if (result.ok) await queueJob({ name: "video/make.requested", data: { ideaId: id } });
   revalidatePath(pagePath(websiteId));
   return result;

@@ -127,6 +127,7 @@ const DIRECTION_TEXT: Record<CreativeDirection, string> = {
   text_music: "TEXT + MUSIC: no narration. Fast animated typography over strong visuals and music. Every word is read on screen: point titles are the screens, details at most 10 words.",
   voiceover: "AI VOICEOVER: narration over relevant footage, with transitions, captions and music. Natural, like a creator talking, not an advert.",
   animated: "ANIMATED: the brand's motion-graphics templates - big words, an animated checklist or figures, the brand colours.",
+  editorial: "EDITORIAL: a premium, magazine-style carousel or reel on the business's OWN photographs (from its articles and website, chosen by RepGet): one strong statement per slide or scene in very big type over the photo, with real substance from the article - the kind of post people save. See EDITORIAL below.",
 };
 
 const CATEGORY_TEXT: Record<IdeaCategory, string> = {
@@ -158,6 +159,20 @@ const VISUAL_HOOK_TEXT = `VISUAL HOOK (slots whose techniques include anticipati
 - impossible: something that looks like it should not work but is real ("plasma ball lightning", "flower blooming timelapse", "ink cloud in water", "soap bubble freezing into crystals", "rainbow swirl on soap film"). Never a fake claim, never about the business's own results.
 - danger: controlled tension where one wrong move ends it, by trained people ("surfer inside a big wave barrel", "acrobat balancing on a partner's hands", "paraglider launching off a ridge", "climber on a rock face"). Never real injury, accidents, crashes, fire, weapons, vehicles at speed, animals or children at risk, or anything people could copy dangerously.
 - Never a real person, brand or famous stunt in "clip".`;
+
+/**
+ * The editorial rules (client, 2026-11-26: "it looks cheap and simple, we need
+ * something stronger ... so clients takes real benefits"), for batches with an
+ * editorial slot. The *asterisks* are read by src/remotion and taken out of
+ * everything else (lib/video/editorial-images.ts plainText).
+ */
+const EDITORIAL_TEXT = `EDITORIAL (slots with direction editorial): each slide or scene is ONE of the business's own photographs with ONE short, strong statement on it in very big type - a premium post, not a list of tips. So:
+- "hook" is the cover: a bold statement or promise of at most 8 words ("Instagram just gave you *an advantage*").
+- Each point "title" is the statement on its slide: at most 12 words, complete and strong on its own ("Answer every review the same day: *trust* starts there"). "detail": at most 12 words that add the how or the why, or "" when the title says it all.
+- "proof": one short line of real substance from the article or profile. "cta": at most 8 words, no link and no web address.
+- Highlight: in the hook, each point title, the proof and the cta, mark the one or two words that matter most with asterisks: "*Use it*". Never more than two marked spans per text, never a whole sentence. Asterisks ONLY there: never in the title, caption, hashtags, claims, overlays or reactions.
+- Substance: base it on its article ("article"), with the article's real advice, steps or facts - specific and useful, nothing generic. Never a web address or domain anywhere in the video.
+- "scenes": one per spoken part as usual; "query": 3-6 English words for what the slide's photograph should ideally show; "kind": image; "overlay" and "reaction": null.`;
 
 /** The POV clip video rules (client, 2026-11-21), for batches with a POV slot. The clips are RepGet's own and have no text in them. */
 function povClipText(clips: { id: string; shows: string }[], language: string): string {
@@ -215,6 +230,7 @@ function slotLine(slot: SlotBrief): string {
   }
   const parts = [
     `Slot ${slot.slot}: ${slot.category}`,
+    slot.direction === "editorial" ? "EDITORIAL slot (EDITORIAL above): the business's own photographs, *highlighted* words" : null,
     `direction ${slot.direction}${slot.alternatives.length ? ` (or, only when the concept clearly needs it: ${slot.alternatives.join(", ")})` : ""}`,
     `format ${slot.format}`,
     slot.format === "carousel" ? "slides, no audio" : slot.audio === "choose" ? "audio: choose voiceover or text_music for this concept" : `audio: ${slot.audio}`,
@@ -235,6 +251,7 @@ export function systemPrompt(input: IdeaInput): string {
   const narrated = input.slots.some((slot) => slot.audio !== "text_music" && slot.format !== "carousel");
   // POV clip videos (client, 2026-11-21): only with a POV slot and clips to pick from.
   const pov = input.slots.some((slot) => slot.pov) && (input.povClips?.length ?? 0) > 0;
+  const editorial = input.slots.some((slot) => slot.direction === "editorial" && !slot.pov);
   return `You plan and write short vertical social videos (TikTok, Instagram Reels, YouTube Shorts, Facebook Reels, LinkedIn) and photo carousels for a business, from its website's public content and business profile. They must feel native to those platforms - made by a sharp creator, not a conventional advert - and genuinely different from each other: different situations, angles, hooks, pacing and visuals.
 
 Write exactly ${input.count} ideas, one per slot below, in the order given. Write every customer-facing text (title, hook, points, proof, cta, caption, hashtags, why, overlays, reactions, claims) in ${input.language}${input.language === "Romanian" ? " (română, with correct diacritics: ă, â, î, ș, ț)" : ""}. Only scenes[].query is in English.
@@ -246,7 +263,7 @@ ${directions.map((direction) => `- ${DIRECTION_TEXT[direction]}`).join("\n")}
 
 CATEGORIES:
 ${categories.map((category) => `- ${CATEGORY_TEXT[category]}`).join("\n")}
-${techniques.some(isHookTechnique) ? `\n${VISUAL_HOOK_TEXT}\n` : ""}${pov ? `\n${povClipText(input.povClips ?? [], input.language)}\n` : ""}${techniques.length ? `\nTECHNIQUES (for the slots that name them; they shape the angle, they never justify invented claims):\n${techniques.map((technique) => `- ${technique}: ${TECHNIQUE_TEXT[technique]}`).join("\n")}\n` : ""}
+${techniques.some(isHookTechnique) ? `\n${VISUAL_HOOK_TEXT}\n` : ""}${editorial ? `\n${EDITORIAL_TEXT}\n` : ""}${pov ? `\n${povClipText(input.povClips ?? [], input.language)}\n` : ""}${techniques.length ? `\nTECHNIQUES (for the slots that name them; they shape the angle, they never justify invented claims):\n${techniques.map((technique) => `- ${technique}: ${TECHNIQUE_TEXT[technique]}`).join("\n")}\n` : ""}
 STYLE:
 - Tone: ${TONE_TEXT[s.tonePreset]}, together with the business's own tone and words to avoid (business profile).
 - ${HUMOR_TEXT[s.humor]}

@@ -229,7 +229,7 @@ export type ViralCopy = {
   undoSkip: string;
   viralBadge: string;
   formats: { reel: string; story: string; carousel: string; stories: string };
-  directions: { meme: string; footage: string; storytelling: string; text_music: string; voiceover: string; animated: string };
+  directions: { meme: string; footage: string; storytelling: string; text_music: string; voiceover: string; animated: string; editorial: string };
   audio: { voiceover: string; text_music: string };
   narration: { natural: string; warm: string; energetic: string };
   captionStyles: { bold: string; editorial: string; minimal: string };
@@ -262,6 +262,8 @@ export type ViralCopy = {
     checked: string;
   };
   previewConcept: string;
+  /** An editorial carousel: the preview is the real thing (client, 2026-11-26). */
+  previewEditorial: string;
   /** An idea's preview that has music (client, 2026-11-23). */
   previewMusic: string;
   noCta: string;
@@ -364,6 +366,11 @@ export type ViralCopy = {
       tip: string;
       drag: string;
       limited: string;
+      /** An editorial video (client, 2026-11-26): one text style for every slide, with a highlight colour for the *starred* words. */
+      titleEditorial: string;
+      accent: string;
+      accentHint: string;
+      tipEditorial: string;
     };
     templateAlways: string;
     /** A Viral video ending on its clip (formats.ts endsOnClip; client, 2026-11-23). */
@@ -605,6 +612,7 @@ const viralEn: ViralCopy = {
     text_music: "Text + music",
     voiceover: "Voiceover",
     animated: "Animated",
+    editorial: "Editorial",
   },
   audio: { voiceover: "Voiceover", text_music: "Text + music" },
   narration: { natural: "Natural and conversational", warm: "Warm and cinematic", energetic: "Energetic and upbeat" },
@@ -647,6 +655,7 @@ const viralEn: ViralCopy = {
     checked: "Checked by you",
   },
   previewConcept: "Concept preview, muted. Footage, voice and music are chosen when the video is made.",
+  previewEditorial: "The slides as they will be made, on your website's own pictures.",
   previewMusic: "Preview, sound off: tap the speaker to hear its music. Anything still missing, such as the voice, is added when the video is made.",
   noCta: "No call to action",
   edit: {
@@ -740,6 +749,10 @@ const viralEn: ViralCopy = {
       tip: "Drag the text on the preview to move it, or select it and use the arrow keys. The areas in red are covered by the apps' own buttons.",
       drag: "Drag to move the text",
       limited: "Shown a little smaller, so no word is cut. For larger text, make it wider or shorter.",
+      titleEditorial: "Text on the slides",
+      accent: "Highlight color",
+      accentHint: "Put *stars* around words to highlight them, like *this*.",
+      tipEditorial: "One style for every slide. Drag the text on the preview to move it, or select it and use the arrow keys. The pictures make room for the text.",
     },
     templateAlways: "The animated templates always open on the hook and end on the closing line.",
     clipEnds: "Viral clip videos end on the clip, with no closing line. Want your web address in it? Write it in the hook.",
@@ -1016,6 +1029,7 @@ const viralEs: ViralCopy = {
     text_music: "Texto + música",
     voiceover: "Voz en off",
     animated: "Animado",
+    editorial: "Editorial",
   },
   audio: { voiceover: "Voz en off", text_music: "Texto + música" },
   narration: { natural: "Natural y cercana", warm: "Cálida y cinematográfica", energetic: "Enérgica y animada" },
@@ -1058,6 +1072,7 @@ const viralEs: ViralCopy = {
     checked: "Comprobado por usted",
   },
   previewConcept: "Vista previa del concepto, sin sonido. Las imágenes, la voz y la música se eligen al crear el vídeo.",
+  previewEditorial: "Las diapositivas tal como se crearán, con las imágenes de su propio sitio web.",
   previewMusic: "Vista previa sin sonido: toca el altavoz para oír su música. Lo que aún falta, como la voz, se añade al crear el vídeo.",
   noCta: "Sin llamada a la acción",
   edit: {
@@ -1151,6 +1166,10 @@ const viralEs: ViralCopy = {
       tip: "Arrastra el texto en la vista previa para moverlo, o selecciónalo y usa las flechas. Las zonas en rojo quedan tapadas por los botones de las apps.",
       drag: "Arrastra para mover el texto",
       limited: "Se muestra algo más pequeño para no cortar palabras. Para un texto más grande, hazlo más ancho o más corto.",
+      titleEditorial: "Texto de las diapositivas",
+      accent: "Color de resaltado",
+      accentHint: "Pon *asteriscos* alrededor de las palabras para resaltarlas, así: *esto*.",
+      tipEditorial: "Un mismo estilo para todas las diapositivas. Arrastra el texto en la vista previa para moverlo, o selecciónalo y usa las flechas. Las imágenes dejan sitio al texto.",
     },
     templateAlways: "Las plantillas animadas siempre empiezan con el gancho y terminan con la frase final.",
     clipEnds: "Los vídeos virales con clip terminan en el clip, sin frase final. ¿Quieres tu dirección web? Escríbela en el gancho.",
@@ -1435,6 +1454,7 @@ const viralFr: ViralCopy = {
     text_music: "Texte + musique",
     voiceover: "Voix off",
     animated: "Animé",
+    editorial: "Éditorial",
   },
   audio: { voiceover: "Voix off", text_music: "Texte + musique" },
   narration: { natural: "Naturelle et conversationnelle", warm: "Chaleureuse et cinématographique", energetic: "Énergique et entraînante" },
@@ -1477,6 +1497,7 @@ const viralFr: ViralCopy = {
     checked: "Vérifié par vous",
   },
   previewConcept: "Aperçu du concept, sans son. Les images, la voix et la musique sont choisies lors de la création de la vidéo.",
+  previewEditorial: "Les diapositives telles qu'elles seront créées, avec les images de votre propre site.",
   previewMusic: "Aperçu, son coupé : touchez le haut-parleur pour entendre sa musique. Ce qui manque encore, comme la voix, est ajouté lors de la création de la vidéo.",
   noCta: "Pas d’appel à l’action",
   edit: {
@@ -1570,6 +1591,10 @@ const viralFr: ViralCopy = {
       tip: "Faites glisser le texte sur l’aperçu pour le déplacer, ou sélectionnez-le et utilisez les flèches. Les zones en rouge sont couvertes par les boutons des applications.",
       drag: "Faire glisser pour déplacer le texte",
       limited: "Affiché un peu plus petit pour ne couper aucun mot. Pour un texte plus grand, élargissez-le ou raccourcissez-le.",
+      titleEditorial: "Texte des diapositives",
+      accent: "Couleur de mise en avant",
+      accentHint: "Entourez des mots d’*astérisques* pour les mettre en avant, comme *ceci*.",
+      tipEditorial: "Un même style pour toutes les diapositives. Faites glisser le texte sur l’aperçu pour le déplacer, ou sélectionnez-le et utilisez les flèches. Les images laissent la place au texte.",
     },
     templateAlways: "Les modèles animés commencent toujours par l’accroche et finissent par la phrase de fin.",
     clipEnds: "Les vidéos virales à clip se terminent sur le clip, sans phrase de fin. Vous voulez votre adresse web ? Écrivez-la dans l’accroche.",
@@ -1854,6 +1879,7 @@ const viralIt: ViralCopy = {
     text_music: "Testo + musica",
     voiceover: "Voce fuori campo",
     animated: "Animato",
+    editorial: "Editoriale",
   },
   audio: { voiceover: "Voce fuori campo", text_music: "Testo + musica" },
   narration: { natural: "Naturale e colloquiale", warm: "Calda e cinematografica", energetic: "Energica e vivace" },
@@ -1896,6 +1922,7 @@ const viralIt: ViralCopy = {
     checked: "Controllato da lei",
   },
   previewConcept: "Anteprima del concept, senza audio. Riprese, voce e musica vengono scelte quando il video viene creato.",
+  previewEditorial: "Le slide come verranno create, con le immagini del suo sito.",
   previewMusic: "Anteprima senza audio: tocca l’altoparlante per sentire la musica. Ciò che ancora manca, come la voce, viene aggiunto quando il video viene creato.",
   noCta: "Nessun invito all’azione",
   edit: {
@@ -1989,6 +2016,10 @@ const viralIt: ViralCopy = {
       tip: "Trascina il testo sull’anteprima per spostarlo, oppure selezionalo e usa le frecce. Le zone in rosso sono coperte dai pulsanti delle app.",
       drag: "Trascina per spostare il testo",
       limited: "Mostrato un po’ più piccolo per non tagliare le parole. Per un testo più grande, allargalo o accorcialo.",
+      titleEditorial: "Testo delle slide",
+      accent: "Colore di evidenziazione",
+      accentHint: "Metti degli *asterischi* intorno alle parole per evidenziarle, così: *questo*.",
+      tipEditorial: "Uno stesso stile per tutte le slide. Trascina il testo sull’anteprima per spostarlo, oppure selezionalo e usa le frecce. Le immagini lasciano spazio al testo.",
     },
     templateAlways: "I modelli animati iniziano sempre con il gancio e finiscono con la frase di chiusura.",
     clipEnds: "I video virali con clip finiscono sul clip, senza frase di chiusura. Vuoi il tuo indirizzo web? Scrivilo nel gancio.",
@@ -2273,6 +2304,7 @@ const viralDe: ViralCopy = {
     text_music: "Text + Musik",
     voiceover: "Sprecherstimme",
     animated: "Animiert",
+    editorial: "Editorial",
   },
   audio: { voiceover: "Sprecherstimme", text_music: "Text + Musik" },
   narration: { natural: "Natürlich und im Gesprächston", warm: "Warm und filmisch", energetic: "Energisch und schwungvoll" },
@@ -2315,6 +2347,7 @@ const viralDe: ViralCopy = {
     checked: "Von Ihnen geprüft",
   },
   previewConcept: "Konzeptvorschau, ohne Ton. Aufnahmen, Stimme und Musik werden beim Erstellen des Videos gewählt.",
+  previewEditorial: "Die Folien so, wie sie erstellt werden, mit den Bildern Ihrer eigenen Website.",
   previewMusic: "Vorschau, Ton aus: Tippen Sie auf den Lautsprecher, um die Musik zu hören. Was noch fehlt, etwa die Stimme, kommt beim Erstellen des Videos dazu.",
   noCta: "Kein Handlungsaufruf",
   edit: {
@@ -2408,6 +2441,10 @@ const viralDe: ViralCopy = {
       tip: "Ziehen Sie den Text in der Vorschau an seinen Platz, oder wählen Sie ihn aus und nutzen Sie die Pfeiltasten. Die roten Bereiche werden von den Schaltflächen der Apps verdeckt.",
       drag: "Ziehen, um den Text zu verschieben",
       limited: "Etwas kleiner gezeigt, damit kein Wort getrennt wird. Für größeren Text machen Sie ihn breiter oder kürzer.",
+      titleEditorial: "Text auf den Folien",
+      accent: "Hervorhebungsfarbe",
+      accentHint: "Setzen Sie *Sternchen* um Wörter, um sie hervorzuheben, etwa *so*.",
+      tipEditorial: "Ein Stil für alle Folien. Ziehen Sie den Text in der Vorschau an seinen Platz, oder wählen Sie ihn aus und nutzen Sie die Pfeiltasten. Die Bilder machen dem Text Platz.",
     },
     templateAlways: "Die animierten Vorlagen beginnen immer mit dem Hook und enden mit dem Schlusssatz.",
     clipEnds: "Virale Clip-Videos enden mit dem Clip, ohne Schlusssatz. Ihre Webadresse soll rein? Schreiben Sie sie in den Hook.",

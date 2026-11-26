@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { NextRequest } from "next/server";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { articles, articleVersions, calendarItems, pages, publishLogs, websites } from "@/lib/db/schema";
+import { articles, articleVersions, brandVoice, calendarItems, pages, publishLogs, websites } from "@/lib/db/schema";
 import { createTestDb, type TestDb } from "@/test/db";
 import { seedWebsite } from "@/test/fixtures";
 import { NEW_SITE_DEFAULTS } from "@/lib/websites/new-site-defaults";
@@ -220,8 +220,9 @@ describe("a new article, from the writer to WordPress", () => {
     expect(stored).not.toContain("engagement-photography-sessions");
     expect(stored).not.toMatch(new RegExp(`href="${ORIGIN}/?"`));
     expect(stored).not.toContain("/category/");
-    // External citations are untouched.
-    expect(stored).toContain('<a href="https://en.wikipedia.org/wiki/Tuscany" target="_blank" rel="noopener nofollow">');
+    // No links to other websites (Daniel, 2026-11-26): the citation's words stay, its link goes.
+    expect(stored).not.toContain("wikipedia.org");
+    expect(stored).toContain("(Tuscany)");
     // Every internal href in the stored article is one the site answered 200 for.
     for (const [, href] of stored!.matchAll(/href="(https:\/\/imagestudio\.com[^"]*)"/g)) {
       const answer = net.site.get(href);
@@ -244,7 +245,27 @@ ${poweredByHtml()}`);
     const stored = (await storedBody(articleId))!;
     expect(stored).not.toMatch(/href="https:\/\/imagestudio\.com/);
     expect(stored).toContain("our team");
-    expect(stored).toContain("https://en.wikipedia.org/wiki/Tuscany");
+    expect(stored).not.toContain("https://en.wikipedia.org/wiki/Tuscany");
+  });
+
+  it("keeps no link to another website but the business's own social profiles, also when the site cannot be checked", async () => {
+    for (const reachable of [true, false]) {
+      const { websiteId } = await imagestudio();
+      await test.db.insert(brandVoice).values({ websiteId, socialLinks: [{ platform: "instagram", url: "https://instagram.com/imagestudio" }] });
+      if (!reachable) net.site.clear();
+      const articleId = await generate(
+        websiteId,
+        sanitizeHtml(
+          '<h2>Planning</h2><p>Deus Marketing\'s editorial playbook (updated April 2026) makes a similar point. ' +
+            '<a href="https://deusmarketing.example/playbook">Luxury content marketing optimises for perception</a>, ' +
+            'and <a href="//competitor.example/">a rival</a> agrees. Follow us on <a href="https://www.instagram.com/imagestudio/">Instagram</a>.</p>',
+        ),
+      );
+      const stored = (await storedBody(articleId))!;
+      expect(stored).toContain("makes a similar point. Luxury content marketing optimises for perception, and a rival agrees.");
+      expect(stored).not.toMatch(/deusmarketing|competitor\.example/);
+      expect(stored).toContain('<a href="https://instagram.com/imagestudio" target="_blank" rel="noopener nofollow">Instagram</a>');
+    }
   });
 
   it("when the site cannot be reached at all, adds nothing and keeps nothing it could not check", async () => {

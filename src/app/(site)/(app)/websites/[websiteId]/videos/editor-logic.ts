@@ -27,6 +27,7 @@ import {
   REEL,
   silentTiming,
   VIDEO_STYLES,
+  type BrandLook,
   type CreativeDirection,
   type IdeaCategory,
   type IdeaOverrides,
@@ -42,6 +43,7 @@ import { ideaTrack, MUSIC_VOLUME, musicUrl } from "@/lib/video/music";
 import { maxPointsFor } from "@/lib/video/strategy/duration";
 import { hookCaptionLook, povCaptionLook } from "@/remotion/caption-looks";
 import { clipTextFromLook, type ClipTextStyle } from "@/remotion/clip-text";
+import { editorialScene, editorialStyleOf, stripHighlight } from "@/remotion/editorial";
 import { partEnd, productionOf, productionParts, productionTimeline, safeArea } from "@/remotion/production";
 import { isProduction, type ProductionReelProps } from "@/remotion/props";
 import { reelTiming, sceneEnd } from "@/remotion/timing";
@@ -161,7 +163,8 @@ export type TextStyles = { kind: "template"; options: readonly VideoStyle[] } | 
 
 export function textStyles(form: Pick<EditorForm, "direction" | "format">): TextStyles {
   if (form.direction === "animated") return { kind: "template", options: VIDEO_STYLES };
-  if (form.format === "carousel" || form.direction === "text_music") return { kind: "fixed" };
+  // The editorial look draws no word captions: its text is styled with the text controls (clipTextApplies).
+  if (form.format === "carousel" || form.direction === "text_music" || form.direction === "editorial") return { kind: "fixed" };
   return { kind: "captions", options: CAPTION_STYLES };
 }
 
@@ -175,16 +178,29 @@ export function withTextStyle(form: EditorForm, value: string): EditorForm {
   return { ...form, production: { ...form.production, captionStyle: value as ProductionChoices["captionStyle"] } };
 }
 
-/** Whether the text on the clip can be styled and moved: a POV clip video, or one opening on a hook clip (client, 2026-11-24). */
+/**
+ * Whether the text can be styled and moved: a POV clip video, or one opening
+ * on a hook clip (client, 2026-11-24); and an editorial video, carousel or
+ * reel ("the edits should be as we edit the video now, with different font
+ * and size", client, 2026-11-26), one style for all its slides.
+ */
 export function clipTextApplies(form: Pick<EditorForm, "direction" | "format" | "pov" | "clipOnly">): boolean {
+  if (form.direction === "editorial" && !form.pov) return true;
   return form.pov || (form.clipOnly && form.direction !== "animated" && form.format !== "carousel");
+}
+
+/** Whether the text controls are the editorial look's: a highlight colour, the *stars* hint, every slide's text draggable. */
+export function editorialText(form: Pick<EditorForm, "direction" | "pov">): boolean {
+  return form.direction === "editorial" && !form.pov;
 }
 
 /** The hook clip's chip above its text: its height and the gap (directions/HookClip.tsx). */
 const HOOK_CHIP_PX = 83;
 
 /** The text's style now: the customer's own, else one like the look picked for the video, where that look draws it (PovClip.tsx, HookClip.tsx). */
-export function clipTextOf(form: EditorForm, plan: ShotPlan | null | undefined): ClipTextStyle {
+export function clipTextOf(form: EditorForm, plan: ShotPlan | null | undefined, brand?: Pick<BrandLook, "primary" | "accent"> | null): ClipTextStyle {
+  // The editorial look: the customer's own (with a highlight colour), else its default for the format (src/remotion/editorial.ts).
+  if (editorialText(form)) return editorialStyleOf(form.production, formatOf(form), brand);
   if (form.production.textStyle) return form.production.textStyle;
   const safe = safeArea(form.format === "story");
   if (plan?.povClip) return clipTextFromLook(povCaptionLook(plan.povClip), form.script.hook, { left: safe.left, top: safe.top + 20, width: safe.right - safe.left, align: "center" });
@@ -194,8 +210,19 @@ export function clipTextOf(form: EditorForm, plan: ShotPlan | null | undefined):
 /** The text on the clip for the part shown (the hook; on a hook clip video the proof too), or null when that part has none to drag. */
 export function clipTextPart(form: EditorForm, part: PartKey): string | null {
   if (!clipTextApplies(form)) return null;
+  if (editorialText(form)) {
+    // Every slide or scene has its text (as typed: the *stars* stay in the editor).
+    const n = form.script.points.length;
+    const text = part === 0 ? form.script.hook : part <= n ? form.script.points[part - 1]?.title : part === n + 1 ? form.script.proof : form.production.ctaText?.trim() || form.script.cta;
+    return text?.trim() ? text : null;
+  }
   if (part === 0 || form.pov) return form.pov || form.production.showHook ? form.script.hook : null;
   return part === form.script.points.length + 1 ? form.script.proof || null : null;
+}
+
+/** Whether an editorial title is drawn smaller than the size chosen, so no word is cut (the size control says so). */
+export function editorialLimited(form: Pick<EditorForm, "format">, style: ClipTextStyle, text: string): boolean {
+  return editorialScene(stripHighlight(text), null, style, formatOf(form), "bleed").text.size < style.size;
 }
 
 /** Whether the "Show hook" switch changes the video: productions only, never a carousel (its cover is the hook) or a POV clip video (its hook is the video). */

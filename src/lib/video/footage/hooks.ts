@@ -46,3 +46,56 @@ export function opensOnAiClip(seed: number, share: number = AI_HOOK_SHARE): bool
   x ^= x >>> 16;
   return (x >>> 0) % 1000 < Math.round(share * 1000);
 }
+
+/* ------------------------------------------------------- a website's clip order */
+
+/**
+ * A clip a website has used: when it last did (the newest of its ideas'
+ * written and made times, in ms) and whether one of its videos was made
+ * with it. Read once per batch (lib/video/ideas.ts readSiteClips).
+ */
+export type ClipUse = { lastUsedAt: number; made: boolean };
+
+/** A website's used clips: POV clips by id, hook clips by "<provider>:<id>". */
+export type SiteClips = { pov: ReadonlyMap<string, ClipUse>; hooks: ReadonlyMap<string, ClipUse> };
+
+export const NO_SITE_CLIPS: SiteClips = { pov: new Map(), hooks: new Map() };
+
+/** How far along a website is with a clip: 0 never used, 1 in an idea only, 2 in a video it made. */
+export function clipStanding(use: ClipUse | undefined): 0 | 1 | 2 {
+  return !use ? 0 : use.made ? 2 : 1;
+}
+
+/**
+ * A library in the order a website takes its clips (client, 2026-11-26: "We
+ * don't want same client to having same clips. We need to set a logic that
+ * every new client is following a clip order from clip a to clip y"):
+ *
+ *  1. the clips the website never used, in the library's own order (oldest
+ *     batch first, new batches appended at the end), so no clip is skipped
+ *     and left unused for ever;
+ *  2. once every clip was used: the ones only ever shown in an idea, least
+ *     recently used first;
+ *  3. then the ones it made a video with, least recently used first;
+ *  4. last, the clips this batch already holds (only when nothing else is left).
+ *
+ * `fit` (higher = better) only breaks ties of equal standing and time - clips
+ * used in the same batch were used at the same moment - never the order of
+ * never-used clips. Pure.
+ */
+export function siteClipOrder<Clip extends { id: string }>(
+  library: readonly Clip[],
+  keyOf: (clip: Clip) => string,
+  use: ReadonlyMap<string, ClipUse>,
+  batchUsed: ReadonlySet<string> = new Set(),
+  fit: (clip: Clip) => number = () => 0,
+): Clip[] {
+  return library
+    .map((clip, index) => {
+      const key = keyOf(clip);
+      const used = use.get(key);
+      return { clip, index, inBatch: batchUsed.has(key), standing: clipStanding(used), at: used?.lastUsedAt ?? 0, fit: used ? fit(clip) : 0 };
+    })
+    .sort((a, b) => Number(a.inBatch) - Number(b.inBatch) || a.standing - b.standing || a.at - b.at || b.fit - a.fit || a.index - b.index)
+    .map((entry) => entry.clip);
+}

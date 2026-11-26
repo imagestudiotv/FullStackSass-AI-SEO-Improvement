@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { articles, articleTranslationAttempts, integrationKeys, spendReservations, usageEvents, websites } from "@/lib/db/schema";
+import { articles, articleTranslationAttempts, backlinkRequests, brandVoice, integrationKeys, placements, spendReservations, usageEvents, websites } from "@/lib/db/schema";
 import { createTestDb, type TestDb } from "@/test/db";
 import { seedWebsite } from "@/test/fixtures";
 
@@ -187,6 +187,31 @@ describe("a translation", () => {
     expect((await translateLiveArticle(due)).status).toBe("made");
     expect(await translateLiveArticle(due)).toEqual({ status: "skipped", reason: "already translated" });
     expect(await test.db.select().from(articles).where(eq(articles.translationOf, original.id))).toHaveLength(1);
+  });
+
+  it("links no other website, keeping the site's own links, the original's placement and the social profiles (Daniel, 2026-11-26)", async () => {
+    const { orgId, websiteId, original } = await scene();
+    await test.db.update(websites).set({ url: "https://studio.test", domain: "studio.test" }).where(eq(websites.id, websiteId));
+    await test.db.insert(brandVoice).values({ websiteId, socialLinks: [{ platform: "instagram", url: "https://instagram.com/studio" }] });
+    const targetUrl = "https://partner.test/films/";
+    const [request] = await test.db.insert(backlinkRequests).values({ websiteId, targetUrl, status: "matched", creditsReserved: 1 }).returning();
+    await test.db.insert(placements).values({ requestId: request.id, hostWebsiteId: websiteId, articleId: original.id, status: "drafted", credits: 1, anchor: "film", managed: true });
+    translator.translate.mockResolvedValue({
+      ...ITALIAN,
+      bodyHtml:
+        '<h2>Ville</h2><p>Secondo <a href="https://deus.example/playbook" target="_blank" rel="noopener nofollow">la guida di <strong>Deus</strong></a>, ' +
+        'vedi <a href="https://www.studio.test/ville/">le ville</a>, <a href="/contatti">contatti</a>, <a href="https://partner.test/films/">un film</a> ' +
+        'e <a href="https://instagram.com/studio">Instagram</a>.</p>',
+    });
+    const outcome = await translateLiveArticle({ articleId: original.id, websiteId, organizationId: orgId, language: "it" });
+    if (outcome.status !== "made") throw new Error("not made");
+    const [row] = await test.db.select().from(articles).where(eq(articles.id, outcome.translationId));
+    expect(row.bodyHtml).toContain("Secondo la guida di <strong>Deus</strong>, ");
+    expect(row.bodyHtml).not.toContain("deus.example");
+    expect(row.bodyHtml).toContain('<a href="https://www.studio.test/ville/">le ville</a>');
+    expect(row.bodyHtml).toContain('<a href="/contatti">contatti</a>');
+    expect(row.bodyHtml).toContain('href="https://partner.test/films/"');
+    expect(row.bodyHtml).toContain('href="https://instagram.com/studio"');
   });
 
   it("is not made without an active plan: nothing is spent", async () => {

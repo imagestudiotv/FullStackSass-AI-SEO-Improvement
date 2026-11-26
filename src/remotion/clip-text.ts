@@ -59,6 +59,8 @@ export type ClipTextStyle = {
   stroke: number;
   strokeColor: string;
   bg: (typeof CLIP_BACKGROUNDS)[number];
+  /** #rrggbb for the highlighted words (*word* in the text; client, 2026-11-26 reference: white type with one word in red); absent = no highlight colour. */
+  accent?: string | null;
   /** The text box: its left, top and width, in percent of the frame. */
   x: number;
   y: number;
@@ -108,6 +110,7 @@ export function cleanClipText(value: unknown): ClipTextStyle | null {
     stroke: v.stroke,
     strokeColor: v.strokeColor.toLowerCase(),
     bg: v.bg,
+    ...(isColor(v.accent) ? { accent: v.accent.toLowerCase() } : {}),
     x: v.x,
     y: v.y,
     w: v.w,
@@ -127,7 +130,7 @@ export function clipLineHeight(style: Pick<ClipTextStyle, "bg">): number {
 }
 
 /** The lines the words take in `width` px, word by word as the browser wraps them; a word longer than a line takes several. */
-function countLines(text: string, width: number, charPx: number): number {
+export function countLines(text: string, width: number, charPx: number): number {
   const room = Math.max(1, Math.floor(width / charPx));
   let lines = 1;
   let used = 0;

@@ -89,6 +89,7 @@ const DIRECTION_MOODS: Record<CreativeDirection, MusicMood[]> = {
   text_music: ["energetic", "upbeat", "cinematic"],
   voiceover: ["minimal", "ambient", "chill", "upbeat"],
   animated: ["upbeat", "energetic", "minimal"],
+  editorial: ["minimal", "cinematic", "chill"],
 };
 
 /** The moods a MusicDirection choice allows (Auto: by direction and the plan's mood). */
