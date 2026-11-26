@@ -12,7 +12,7 @@ import { getMessages } from "@/lib/i18n/messages";
 import { CASE_STUDY_COPY, CASE_STUDY_PATH, IMAGE_STUDIO } from "@/lib/marketing/case-study-image-studio";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
 import { siteUrl } from "@/lib/site-url";
-import { breadcrumbList, entityIds } from "@/lib/structured-data";
+import { breadcrumbList, organizationRef } from "@/lib/structured-data";
 import { cn } from "@/lib/utils";
 
 /**
@@ -124,8 +124,8 @@ export function CaseStudyPage({ locale }: { locale: Locale }) {
       mainEntityOfPage: `${site}${path}`,
       datePublished: s.published,
       dateModified: s.updated,
-      author: { "@id": entityIds(site).organization },
-      publisher: { "@id": entityIds(site).organization },
+      author: organizationRef(site),
+      publisher: organizationRef(site),
       about: { "@type": "Organization", name: "Image Studio", url: s.site },
     },
     breadcrumbList(site, trail),

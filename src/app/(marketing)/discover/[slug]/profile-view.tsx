@@ -8,7 +8,7 @@ import { cache, type ReactNode } from "react";
 import { postEngagement, type PostEngagement } from "@/lib/blog/engagement";
 import { jsonLdScript } from "@/lib/blog/shared";
 import { discoverAlternates, discoverPath } from "@/lib/discover/paths";
-import { monogram, websiteHost } from "@/lib/discover/profile-fields";
+import { monogram, profileMetaDescription, websiteHost } from "@/lib/discover/profile-fields";
 import { getDiscoverProfile, type DiscoverProfile } from "@/lib/discover/profiles";
 import { COMMENTS_COPY } from "@/lib/i18n/blog-engagement";
 import { localePath, type Locale } from "@/lib/i18n/config";
@@ -47,7 +47,8 @@ export function profileMetadata(profile: DiscoverProfile, locale: Locale): Metad
   const copy = DISCOVER_COPY[locale].profile;
   const canonical = canonicalPath(profile);
   const languages = discoverAlternates(profile.slug, profile.locales);
-  const description = (profile.tagline || profile.description).slice(0, 300);
+  // The tagline, with the About or the story's description after it when it is short (profileMetaDescription).
+  const description = profileMetaDescription(profile.tagline, [profile.about[0], profile.description]);
   return {
     title: { absolute: fillDiscover(copy.metaTitle, { name: profile.name }) },
     description,
@@ -106,12 +107,15 @@ export function ProfileView({ profile, locale, initial }: { profile: DiscoverPro
     name: fillDiscover(copy.metaTitle, { name: profile.name }),
     url: shareUrl,
     inLanguage: profile.locale,
-    about: {
+    // Google requires a ProfilePage's subject as mainEntity, with a name
+    // (Search Console, 2026-11-20: "Missing field 'mainEntity'" - it was
+    // given as `about`, which Google does not read for a profile page).
+    mainEntity: {
       "@type": "Organization",
       name: profile.name,
       ...(profile.websiteUrl ? { url: profile.websiteUrl } : {}),
       description: profile.about[0] ?? profile.tagline,
-      ...(profile.logoUrl ? { logo: profile.logoUrl } : {}),
+      ...(profile.logoUrl ? { logo: profile.logoUrl, image: profile.logoUrl } : {}),
       ...(profile.availability ? { areaServed: profile.availability } : {}),
       ...(profile.location ? { location: { "@type": "Place", name: profile.location } } : {}),
     },
