@@ -186,6 +186,103 @@ export const AI_HOOK_LIBRARY: readonly AiHookClip[] = [
     prompt:
       "Medium shot from slightly below: a person in a red helmet and climbing harness, filling a third of the frame, balances on a thin slackline high above a sea of clouds and a deep rocky drop. The line bounces and sways hard under their feet, they wobble sideways with arms flailing and one foot slipping off the line. At about 5 seconds they catch the line with the foot, crouch low and freeze perfectly balanced, arms out. No close-up of the face. Photorealistic, golden morning light, vertical 9:16 framing with the walker centred, one continuous shot, no cuts. Natural wind sounds only, no music, no dialogue, no text, no captions, no logos.",
   },
+  // Batch 3, 2026-11-26 (client: "for next ticket we will generate 20 clips"): 8 of 10 kept.
+  // the press squashes a clear jelly ball until it bursts
+  {
+    id: "2026-11-26-hydraulic-press-bubble",
+    type: "anticipation",
+    tags: ["press", "pressure", "squeeze", "satisfying", "slow", "crunch"],
+    climaxMs: 5000,
+    durationMs: 8000,
+    costUsd: 0.56,
+    madeOn: "2026-11-26",
+    prompt:
+      "A shiny steel hydraulic press slowly lowers onto a perfectly round clear jelly ball on a metal plate in a clean workshop. The jelly bulges and stretches more and more, and at about 5 seconds it bursts outward in a slow-motion glossy splash. Photorealistic, vertical 9:16 framing, macro close-up, the press entering from the top, one smooth continuous shot, no cuts. Natural sound effects only, no music, no dialogue, no text, no captions, no logos.",
+  },
+  // a hand adds one more cube to a tall ice-cube tower, which holds
+  {
+    id: "2026-11-26-ice-cube-tower",
+    type: "anticipation",
+    tags: ["balance", "tower", "stacking", "steady hands", "will it fall", "patience"],
+    climaxMs: 4500,
+    durationMs: 8000,
+    costUsd: 0.56,
+    madeOn: "2026-11-26",
+    prompt:
+      "A hand carefully places one more ice cube on top of a tall wobbly tower of ice cubes on a dark marble counter, water droplets glistening. The tower sways, the hand slowly lets go, and the tower holds perfectly still at about 5 seconds while light glints through the ice. Photorealistic, vertical 9:16 framing, the tower centred and tall in frame, one smooth continuous shot, no cuts. Natural sound effects only, no music, no dialogue, no text, no captions, no logos.",
+  },
+  // a paper plane glides across an office and lands in a mug
+  {
+    id: "2026-11-26-paper-plane-window",
+    type: "anticipation",
+    tags: ["paper plane", "throw", "target", "aim", "perfect shot", "office"],
+    climaxMs: 6500,
+    durationMs: 8000,
+    costUsd: 0.56,
+    madeOn: "2026-11-26",
+    prompt:
+      "In a bright open-plan office, a white paper plane is thrown from across the room and glides in a long smooth arc between desks and chairs, and at about 6 seconds it lands perfectly inside a narrow coffee mug on a far desk. Photorealistic, vertical 9:16 framing, the camera following the plane, one smooth continuous shot, no cuts. Natural sound effects only, no music, no dialogue, no text, no captions, no logos.",
+  },
+  // poured water gathers into a floating sphere
+  {
+    id: "2026-11-26-floating-water-sphere",
+    type: "impossible",
+    tags: ["water", "floating", "sphere", "zero gravity", "magic", "impossible"],
+    climaxMs: 3200,
+    durationMs: 8000,
+    costUsd: 0.56,
+    madeOn: "2026-11-26",
+    prompt:
+      "In a calm sunlit living room, water poured from a glass jug does not fall but gathers in mid-air into a perfect floating sphere of water, slowly rotating and catching the light, small droplets orbiting around it. Photorealistic, vertical 9:16 framing, the sphere in the centre, one smooth continuous shot, no cuts. Gentle natural sound only, no music, no dialogue, no text, no captions, no logos.",
+  },
+  // a white spiral staircase rises from a meadow into the clouds
+  {
+    id: "2026-11-26-staircase-into-sky",
+    type: "impossible",
+    tags: ["stairs", "sky", "clouds", "growth", "climbing", "impossible", "surreal"],
+    climaxMs: 4500,
+    durationMs: 8000,
+    costUsd: 0.56,
+    madeOn: "2026-11-26",
+    prompt:
+      "A white spiral staircase rises from a green meadow straight up into the clouds, each step appearing just before the camera reaches it as the camera climbs upward along the staircase, golden sunset light. Photorealistic but surreal, vertical 9:16 framing, the staircase centred, one smooth continuous upward shot, no cuts. Gentle wind sound only, no music, no dialogue, no people, no text, no captions, no logos.",
+  },
+  // an old book opens and a tiny city unfolds out of it
+  {
+    id: "2026-11-26-book-city-unfolds",
+    type: "impossible",
+    tags: ["book", "city", "pop-up", "building", "growth", "magic", "surreal"],
+    climaxMs: 3000,
+    durationMs: 8000,
+    costUsd: 0.56,
+    madeOn: "2026-11-26",
+    prompt:
+      "An old leather book lying on a wooden desk opens by itself, and a tiny detailed city rises out of the pages like a living pop-up book: buildings unfolding, little trees springing up, tiny lights switching on in the windows. Photorealistic miniature look, vertical 9:16 framing, the book in the lower half, the camera slowly pushing in, one smooth continuous shot, no cuts. Soft natural sound only, no music, no dialogue, no text, no captions, no logos.",
+  },
+  // a biker rides a knife-edge ridge above the clouds
+  {
+    id: "2026-11-26-mountain-bike-ridge",
+    type: "danger",
+    tags: ["ridge", "mountain", "bike", "edge", "focus", "risk", "steady"],
+    climaxMs: 5100,
+    durationMs: 8000,
+    costUsd: 0.56,
+    madeOn: "2026-11-26",
+    prompt:
+      "A mountain biker in a red jacket rides along a very narrow rocky ridge high in the mountains, steep drops on both sides and clouds below, and at about 5 seconds hops over a gap in the rocks and keeps riding steadily. Seen from behind by a following drone, the rider small in frame and never facing the camera. Photorealistic, vertical 9:16 framing, one smooth continuous shot, no cuts. Wind sound only, no music, no dialogue, no text, no captions, no logos.",
+  },
+  // a diver leaps off a white cliff into a turquoise sea
+  {
+    id: "2026-11-26-cliff-diver-blue",
+    type: "danger",
+    tags: ["dive", "cliff", "jump", "leap", "courage", "sea", "go for it"],
+    climaxMs: 4000,
+    durationMs: 8000,
+    costUsd: 0.56,
+    madeOn: "2026-11-26",
+    prompt:
+      "A cliff diver stands at the edge of a high white limestone cliff above a deep turquoise sea, arms spread. At about 4 seconds the diver leaps, falling in a clean graceful dive, and enters the water with a small splash far below. Filmed from the side at a distance, the diver small in frame and the face never visible. Photorealistic, vertical 9:16 framing, one smooth continuous shot following the fall, no cuts. Wind and water sound only, no music, no dialogue, no text, no captions, no logos.",
+  },
 ];
 
 /** The checked POV clips, newest batch last (ids "<day>-pov-<subject>"). */
@@ -291,6 +388,107 @@ export const AI_POV_LIBRARY: readonly AiPovClip[] = [
     prompt:
       "Photorealistic funny meme video: a capybara sits relaxed in a steaming outdoor hot spring, wearing tiny round sunglasses with a small yellow citrus fruit balanced on its head. On a flat rock beside it a smartphone keeps lighting up and buzzing with notifications. The capybara ignores it completely, slowly closes its eyes and sinks a little lower into the warm water. Soft evening light, gentle steam. Vertical 9:16, the capybara in the lower two thirds, the top fifth of the frame calm steam and trees for a caption added later. One continuous shot, no cuts. No text, no captions, no logos, no watermark.",
   },
+  // Batch 2, 2026-11-26: 10 new reaction characters (two remade after a check: a logo, no dance).
+  {
+    id: "2026-11-26-pov-raccoon-notifications",
+    shows: "A raccoon at a desk stares at a phone that keeps buzzing with notifications, its eyes getting wider, then it slowly grins.",
+    tags: ["notifications", "results", "new customers", "phone blowing up", "surprised", "it worked", "leads coming in"],
+    durationMs: 10000,
+    costUsd: 0.7,
+    madeOn: "2026-11-26",
+    prompt:
+      "Photorealistic funny meme video. A raccoon sits upright at a small wooden desk in a bright home office, holding a smartphone in both paws. The phone keeps lighting up and vibrating on its own, the raccoon's eyes get wider and wider, and at about 6 seconds it slowly breaks into a delighted grin and looks straight at the camera. Vertical 9:16 framing, the raccoon in the lower two thirds, the top fifth of the frame calm and empty for a caption added later. One continuous shot, no cuts. No readable screen content, no text, no captions, no logos, no watermark.",
+  },
+  {
+    id: "2026-11-26-pov-golden-dog-hammock",
+    shows: "A golden retriever in sunglasses naps in a hammock between palm trees, one paw lazily waving.",
+    tags: ["relaxed", "on holiday", "while it works", "no stress", "autopilot", "sleeping", "passive"],
+    durationMs: 10000,
+    costUsd: 0.7,
+    madeOn: "2026-11-26",
+    prompt:
+      "Photorealistic funny meme video. A golden retriever wearing small round sunglasses lies on its back in a striped hammock strung between two palm trees on a quiet tropical beach, gently swinging. It lifts one front paw and waves it lazily, then lets out a contented sigh and settles deeper into the hammock. Vertical 9:16 framing, the dog in the lower two thirds, the top fifth of the frame plain blue sky for a caption added later. One continuous shot, no cuts. No text, no captions, no logos, no watermark.",
+  },
+  {
+    id: "2026-11-26-pov-goat-laptop-shut",
+    shows: "A goat in reading glasses stares at a plain grey laptop full of numbers, chews nervously, then pushes the lid shut with its nose and looks at the camera, unimpressed.",
+    tags: ["overwhelmed", "spreadsheets", "manual work", "confused", "too much data", "giving up", "doing it yourself"],
+    durationMs: 10000,
+    costUsd: 0.7,
+    madeOn: "2026-11-26",
+    prompt:
+      "Photorealistic funny meme video. A white goat wearing small round reading glasses stands at a wooden kitchen table in front of a plain matte dark grey laptop with a completely blank lid, no logo and no markings anywhere on it. The screen glows with blurry rows of numbers. The goat chews nervously, leans closer and blinks twice, then at about 6 seconds pushes the same grey laptop's lid shut with its nose and looks straight at the camera, unimpressed. The laptop stays the same dark grey laptop for the whole clip. Vertical 9:16 framing, the goat in the lower two thirds, the top fifth of the frame calm and empty for a caption added later. One continuous shot, no cuts. No brand logos, no readable screen content, no text, no captions, no watermark.",
+  },
+  {
+    id: "2026-11-26-pov-penguin-happy-dance",
+    shows: "A small penguin on an office chair looks at a monitor, freezes, then hops up and down flapping both flippers wildly in a happy dance.",
+    tags: ["celebrating", "success", "ranking", "first page", "good news", "happy dance", "it worked"],
+    durationMs: 10000,
+    costUsd: 0.7,
+    madeOn: "2026-11-26",
+    prompt:
+      "Photorealistic funny meme video. A small penguin stands on the seat of an office chair in front of a glowing computer monitor in a bright modern office, seen from the front so its face and both flippers are clearly visible. It stares at the screen, freezes for one second, then from about 3 seconds bursts into an obvious, energetic happy dance: hopping up and down several times, flapping both flippers wildly, wiggling its whole body from side to side and spinning around once on the chair, clearly overjoyed until the end. Vertical 9:16 framing, the penguin in the lower two thirds, the top fifth of the frame calm and empty for a caption added later. One continuous shot, no cuts. No brand logos, no readable screen content, no text, no captions, no watermark.",
+  },
+  {
+    id: "2026-11-26-pov-sloth-waiting-clock",
+    shows: "A sloth at a café table slowly turns to look at a wall clock, then very slowly face-palms.",
+    tags: ["waiting", "slow results", "still waiting", "agency", "too slow", "frustrated", "time"],
+    durationMs: 10000,
+    costUsd: 0.7,
+    madeOn: "2026-11-26",
+    prompt:
+      "Photorealistic funny meme video. A sloth sits at a small café table with a cup of coffee in front of it. Very slowly it turns its head to look at a large round clock on the wall behind, the clock's second hand ticking, then even more slowly brings one long-clawed hand up to its face in a face-palm and holds it there. Vertical 9:16 framing, the sloth in the lower two thirds, the top fifth of the frame calm and empty for a caption added later. One continuous shot, no cuts. No text, no captions, no logos, no watermark.",
+  },
+  {
+    id: "2026-11-26-pov-cutout-frog-money-rain",
+    shows: "A cut-out frog in a tiny crown sits calmly while paper confetti rains down around it.",
+    tags: ["winning", "sales", "rich", "celebrating", "smug", "results", "money"],
+    durationMs: 10000,
+    costUsd: 0.7,
+    madeOn: "2026-11-26",
+    prompt:
+      "Funny meme video in a cut-out collage style: a photo cut-out of a green frog wearing a tiny golden crown, with a slightly rough hand-cut white edge like a sticker, sits in the middle of the frame with a smug, calm expression, blinking slowly while colourful paper confetti rains down around it and settles. Behind it, a still photo of a plain pastel pink wall. Vertical 9:16, the top fifth of the frame plain wall for a caption added later. One continuous shot, no cuts. No banknotes, no text, no captions, no logos, no watermark.",
+  },
+  {
+    id: "2026-11-26-pov-hamster-coffee-overload",
+    shows: "A hamster surrounded by tiny coffee cups shakes with caffeine and types faster and faster on a mini keyboard.",
+    tags: ["late night", "working too hard", "deadline", "burnout", "caffeine", "doing it yourself", "manual work"],
+    durationMs: 10000,
+    costUsd: 0.7,
+    madeOn: "2026-11-26",
+    prompt:
+      "Photorealistic funny meme video. A hamster sits at a miniature wooden desk at night, lit by a desk lamp, surrounded by six tiny empty espresso cups. It types on a tiny keyboard faster and faster, its whiskers twitching, eyes wide and slightly trembling with too much caffeine, and at about 7 seconds it stops abruptly and stares at the camera. Vertical 9:16 framing, the hamster in the lower two thirds, the top fifth of the frame dark and empty for a caption added later. One continuous shot, no cuts. No text, no captions, no logos, no watermark.",
+  },
+  {
+    id: "2026-11-26-pov-parrot-side-eye",
+    shows: "A green parrot on a perch slowly turns its head and gives the camera a long suspicious side-eye.",
+    tags: ["suspicious", "competitor", "side-eye", "not convinced", "really?", "doubt", "judging"],
+    durationMs: 10000,
+    costUsd: 0.7,
+    madeOn: "2026-11-26",
+    prompt:
+      "Photorealistic funny meme video. A bright green parrot sits on a wooden perch in a sunny living room. It is preening calmly, then stops, slowly turns its head towards the camera and gives a long, suspicious side-eye, one eye narrowed, leaning back slightly, holding the look for several seconds. Vertical 9:16 framing, the parrot in the lower two thirds, the top fifth of the frame calm and empty for a caption added later. One continuous shot, no cuts. No text, no captions, no logos, no watermark.",
+  },
+  {
+    id: "2026-11-26-pov-cutout-bulldog-boss",
+    shows: "A cut-out bulldog in a tie leans back in an office chair with paws behind its head, looking very pleased.",
+    tags: ["boss", "in control", "everything handled", "smug", "relaxed", "automated", "confident"],
+    durationMs: 10000,
+    costUsd: 0.7,
+    madeOn: "2026-11-26",
+    prompt:
+      "Funny meme video in a cut-out collage style: a photo cut-out of a French bulldog wearing a red tie, with a slightly rough hand-cut white edge like a sticker, leans back in a black leather office chair with both front paws behind its head, rocking gently and looking very pleased with itself, then gives a slow satisfied nod. Behind it, a still photo of a bright minimal city office with large windows. Vertical 9:16, the top fifth of the frame plain bright window for a caption added later. One continuous shot, no cuts. No text, no captions, no logos, no watermark.",
+  },
+  {
+    id: "2026-11-26-pov-kitten-jaw-drop",
+    shows: "A grey kitten looks at a tablet, its jaw slowly drops and it leans back in shock.",
+    tags: ["shocked", "surprised", "results", "cannot believe", "jaw drop", "traffic", "numbers went up"],
+    durationMs: 10000,
+    costUsd: 0.7,
+    madeOn: "2026-11-26",
+    prompt:
+      "Photorealistic funny meme video. A fluffy grey kitten sits on a sofa cushion in front of a tablet propped up against a pillow, the screen glowing softly. The kitten leans in, its eyes widen, its mouth slowly drops open in disbelief, and at about 6 seconds it leans all the way back in shock and looks at the camera. Vertical 9:16 framing, the kitten in the lower two thirds, the top fifth of the frame calm and empty for a caption added later. One continuous shot, no cuts. No readable screen content, no text, no captions, no logos, no watermark.",
+  },
 ];
 
 export function povClipById(id: string): AiPovClip | null {
@@ -307,4 +505,8 @@ export const AI_REJECTED_TAKES: readonly AiRejectedTake[] = [
   { id: "2026-11-21-pov-smug-hamster", madeOn: "2026-11-21", costUsd: 0.7, why: "a blank stare, no smug side-eye" },
   { id: "2026-11-21-pov-smug-hamster-sideeye", madeOn: "2026-11-21", costUsd: 0.7, why: "still no readable side-eye (hamster eyes too small); remade as 2026-11-21-pov-smug-pug-sideeye" },
   { id: "2026-11-19-slackline-clouds", madeOn: "2026-11-19", costUsd: 0.56, why: "the walker was too small to see the wobble; remade closer as 2026-11-19-slackline-wobble" },
+  { id: "2026-11-26-pov-goat-spreadsheet-panic", madeOn: "2026-11-26", costUsd: 0.7, why: "the closed laptop showed a brand logo and changed colour; remade as 2026-11-26-pov-goat-laptop-shut" },
+  { id: "2026-11-26-pov-penguin-victory-dance", madeOn: "2026-11-26", costUsd: 0.7, why: "no visible dance; remade as 2026-11-26-pov-penguin-happy-dance" },
+  { id: "2026-11-26-domino-spiral", madeOn: "2026-11-26", costUsd: 0.56, why: "only a few dominoes fell, no chain reaction" },
+  { id: "2026-11-26-rooftop-skateboard-gap", madeOn: "2026-11-26", costUsd: 0.56, why: "the skater never jumped the gap, so no danger moment" },
 ];
