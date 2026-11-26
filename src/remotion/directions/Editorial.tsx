@@ -371,7 +371,7 @@ export function EditorialText({ title, detail, style, scene, accent, motion, chi
               );
             };
             // A short last word ("IT") never sits alone on the last line: it keeps the word before it.
-            const bind = words.length > 2 && words[words.length - 1].text.length <= 3 ? words.length - 2 : -1;
+            const bind = words.length > 2 && words[words.length - 1].text.length <= 4 ? words.length - 2 : -1;
             const nodes: ReactNode[] = [];
             for (let i = 0; i < words.length; i++) {
               if (i === bind) {

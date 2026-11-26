@@ -38,6 +38,7 @@ import type { ProductionReelProps } from "@/remotion/props";
 import type { ClipTextStyle } from "@/remotion/clip-text";
 import { Reel } from "@/remotion/Reel";
 import { carouselSlideCount, Slide } from "@/remotion/Slide";
+import { pointTitleMax } from "@/remotion/editorial";
 
 import {
   audioLock,
@@ -250,7 +251,7 @@ export function EditDialog(props: {
                                 <Field label={format(t.point, { index: String(index + 1) })}>
                                   <Input
                                     value={point.title}
-                                    maxLength={48}
+                                    maxLength={pointTitleMax(form.direction)}
                                     aria-invalid={(index < max && problems.includes("point") && !point.title.trim()) || undefined}
                                     {...onScreen(index + 1)}
                                     onChange={(event) => setPoint(index, { title: event.target.value })}

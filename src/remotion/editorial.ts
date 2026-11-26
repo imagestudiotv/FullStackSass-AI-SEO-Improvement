@@ -1,4 +1,4 @@
-import type { BrandLook, EditorialImage, MediaItem, ProductionChoices, ReelProps, ShotPlan, VideoFormat, VideoScript } from "../lib/video/formats";
+import type { BrandLook, CreativeDirection, EditorialImage, MediaItem, ProductionChoices, ReelProps, ShotPlan, VideoFormat, VideoScript } from "../lib/video/formats";
 import { boundClipText, cleanClipText, CLIP_FONTS, CLIP_SIZE, countLines, shownClipText, type ClipTextStyle } from "./clip-text";
 import { safeArea, type SceneRole } from "./production";
 import { isProduction, type ProductionReelProps } from "./props";
@@ -115,10 +115,20 @@ export function editorialStyleOf(production: Pick<ProductionChoices, "textStyle"
 
 const MARKED = /\*([^*\n]+)\*/g;
 
-/** The text without its stars, for every place it is shown, spoken or posted. */
+/**
+ * The text without its stars, for every place it is shown, spoken or posted:
+ * every asterisk goes, paired or not. The one rule: lib/video/editorial-images.ts
+ * plainText (post texts, titles, the voice) is this function.
+ */
 export function stripHighlight(text: string): string {
   if (!text.includes("*")) return text;
-  return text.replace(/\*+/g, "").replace(/ {2,}/g, " ").trim();
+  return text.replace(/\*+/g, "").replace(/[ \t]{2,}/g, " ").trim();
+}
+
+/** The longest point title: an editorial slide's statement is up to about twelve words, the other productions' a short heading. */
+export const EDITORIAL_TITLE_MAX = 90;
+export function pointTitleMax(direction: CreativeDirection): number {
+  return direction === "editorial" ? EDITORIAL_TITLE_MAX : 48;
 }
 
 export type HighlightRun = { text: string; strong: boolean };
@@ -186,7 +196,12 @@ export function plainScript(script: VideoScript): VideoScript {
   return {
     ...script,
     hook: stripHighlight(script.hook),
-    points: script.points.map((point) => ({ ...point, title: stripHighlight(point.title), detail: stripHighlight(point.detail ?? "") })),
+    points: script.points.map((point) => ({
+      ...point,
+      title: stripHighlight(point.title),
+      detail: stripHighlight(point.detail ?? ""),
+      stat: point.stat ? { ...point.stat, suffix: stripHighlight(point.stat.suffix), label: stripHighlight(point.stat.label) } : null,
+    })),
     proof: stripHighlight(script.proof),
     cta: stripHighlight(script.cta),
   };
