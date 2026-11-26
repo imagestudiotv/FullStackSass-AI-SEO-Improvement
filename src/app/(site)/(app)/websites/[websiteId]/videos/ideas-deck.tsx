@@ -11,10 +11,11 @@ import { NativeLikeSelect } from "@/components/ui/native-like-select";
 import { Notice } from "@/components/workspace/notice";
 import { format } from "@/lib/i18n/format";
 import { approveVideoIdea, approveVideoReview, restoreVideoIdea, skipVideoIdea, undoVideoIdea, type IdeaEdit } from "@/lib/video/actions";
-import { endsOnClip, slideCount, UNDO_SECONDS, VIDEO_PLATFORM_SPECS, type IdeaCategory, type MakeVia, type ShotPlan, type VideoScript, type VideoStyle } from "@/lib/video/formats";
+import { endsOnClip, UNDO_SECONDS, VIDEO_PLATFORM_SPECS, type IdeaCategory, type MakeVia, type ShotPlan, type VideoScript, type VideoStyle } from "@/lib/video/formats";
 import type { VideoPublishingStatus } from "@/lib/video/publish-actions";
 import type { VideoSettings } from "@/lib/video/settings";
 import { stripHighlight } from "@/remotion/editorial";
+import { carouselSlideCount } from "@/remotion/Slide";
 
 import { EditDialog } from "./edit-dialog";
 import {
@@ -256,12 +257,12 @@ export function IdeasDeck(props: {
 
   const kind =
     current.format === "carousel"
-      ? format(t.detail.carouselSlides, { count: String(slideCount(current.props.script)) })
+      ? format(t.detail.carouselSlides, { count: String(carouselSlideCount(current.props)) })
       : current.format === "story"
         ? v.formats.story
         : t.reel;
   // The animated templates are what the preview really plays; the new directions are made from footage, voice and music later.
-  const previewNote = current.direction === "animated" ? t.previewNote : current.props.music && current.format !== "carousel" ? v.previewMusic : v.previewConcept;
+  const previewNote = current.direction === "animated" ? t.previewNote : current.direction === "editorial" && current.format === "carousel" ? v.previewEditorial : current.props.music && current.format !== "carousel" ? v.previewMusic : v.previewConcept;
   const arrow =
     "absolute top-[45%] z-10 flex size-9 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm transition hover:bg-primary/10 hover:text-primary focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none disabled:opacity-40 sm:size-11";
 
