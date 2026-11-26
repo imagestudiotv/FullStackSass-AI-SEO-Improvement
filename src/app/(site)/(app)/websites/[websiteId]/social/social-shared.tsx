@@ -246,10 +246,16 @@ export function CopyTextButton({
     setDone(true);
     window.setTimeout(() => setDone(false), 2000);
   }
+  // "Copied" is said in the button, never a toast over the drawer's foot; a screen reader hears it too (2026-11-26).
   return (
-    <Button type="button" size="sm" variant={variant} onClick={copy}>
-      {done ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
-      {done ? t.copyDone : (label ?? t.copy)}
-    </Button>
+    <>
+      <Button type="button" size="sm" variant={variant} onClick={copy}>
+        {done ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
+        {done ? t.copyDone : (label ?? t.copy)}
+      </Button>
+      <span role="status" aria-live="polite" className="sr-only">
+        {done ? t.copyDone : ""}
+      </span>
+    </>
   );
 }
