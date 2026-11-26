@@ -39,6 +39,7 @@ import {
 } from "@/lib/video/formats";
 import { customerDestinations, customerNote, customerStatus, isReturned } from "@/lib/video/customer-view";
 import { totalViews } from "@/lib/video/followup";
+import { moveMadeClipsOffPendingIdeas } from "@/lib/video/ideas";
 import { returnedSql, savedVideosWhere, todaysIdeasWhere } from "@/lib/video/lists";
 import { productionChoicesOf } from "@/lib/video/cost";
 import { MUSIC_TRACKS, MUSIC_VOLUME, ideaTrack, musicUrl } from "@/lib/video/music";
@@ -85,6 +86,9 @@ export default async function WebsiteVideosPage({ params, searchParams }: PagePr
 
   const now = new Date();
   const today = now.toISOString().slice(0, 10);
+  // An idea written before its clip went into a video (an older batch, another tab) gets the next clip in the
+  // website's order before it is shown (client, 2026-11-26: "same clips from saved and new suggestion").
+  await moveMadeClipsOffPendingIdeas(site.id, now).catch((error) => console.error("[video] clips not moved off made ones", { websiteId: site.id, error }));
   const [level, settings, ideas, made, posted, approvedToday, media, accounts, credits, wallet, { t, locale }, query, allowance, profile, publishingStatus] = await Promise.all([
     videoAccess(site.id),
     readVideoSettings(site.id),
