@@ -148,6 +148,24 @@ describe("researched article pipeline", () => {
     expect(article.research).toMatchObject({ quality: { checked: outcome !== "check-failure" } });
     expect(article.researchReviewRequired).toBe(true);
   });
+  it("stores sources named in plain text, links to none, and does not hold the article for the missing links (Daniel, 2026-11-26)", async () => {
+    vi.stubEnv("ARTICLE_RESEARCH_MODE", "on");
+    const quote = "Luxury content marketing optimises for perception rather than traffic.";
+    calls.synthesize.mockResolvedValue({ ...research, mode: "on",
+      sources: [{ id: "S1", url: "https://deusmarketing.example/playbook", title: "Editorial playbook", excerpt: quote, retrievedAt: "2026-10-20" }],
+      claims: [{ sourceId: "S1", text: quote, quote }] });
+    calls.body.mockResolvedValue({ metaDescription: "Meta", slug: "test", wordCount: 20, bodyHtml:
+      "<h2>Reader question</h2><p>Deus Marketing's editorial playbook (April 2026) makes a similar point. " +
+      '<a href="https://deusmarketing.example/playbook">Luxury content marketing optimises for perception</a>.</p>' });
+    const f = await setup(); await f.run();
+    const [article] = await test.db.select().from(articles).where(eq(articles.id, f.articleId));
+    expect(article.bodyHtml).toContain("makes a similar point. Luxury content marketing optimises for perception.");
+    expect(article.bodyHtml).not.toContain("deusmarketing.example");
+    expect(JSON.stringify(article.research)).not.toMatch(/citations were removed/i);
+    expect(article.research).toMatchObject({ quality: { checked: true, issues: [] } });
+    expect(article.researchReviewRequired).toBe(false);
+    expect(calls.correct).not.toHaveBeenCalled();
+  });
   it("saves a reviewable draft when research or checking fails instead of claiming success", async () => {
     calls.collect.mockRejectedValue(new Error("Unavailable"));
     calls.synthesize.mockRejectedValue(new Error("Unavailable"));

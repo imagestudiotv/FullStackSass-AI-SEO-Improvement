@@ -1,13 +1,14 @@
 import "server-only";
 
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { and, desc, eq, gte, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull, ne, notInArray, or, sql } from "drizzle-orm";
 
 import { anthropic, isAiConfigured, MODELS } from "@/lib/ai/client";
 import { customerTitleSql, publicRevisionSql, publicFieldSql } from "@/lib/articles/review";
 import { mainLanguageCode } from "@/lib/articles/translation-languages";
 import { db } from "@/lib/db";
 import { articles, brandVoice, videoIdeaBatches, videoIdeas, videoMedia, websites } from "@/lib/db/schema";
+import type { Executor } from "@/lib/db/types";
 import { PRICING, track } from "@/lib/usage";
 import { normalizeLanguage } from "@/lib/websites/languages";
 
@@ -48,8 +49,10 @@ import { collectSitePictures, type PictureSource } from "./editorial-pictures";
 import { lengthPlan, maxPointsFor, MIN_POINTS, TEMPLATE_MAX_POINTS } from "./strategy/duration";
 import { canHook, hookQuery, hookTypeFor, withOneHook, withoutHooks } from "./strategy/hooks";
 import { LEARNING_DAYS, learnFrom, NO_LEARNING, type Learning } from "./strategy/learning";
-import { hookPick, hookPickKey, pickPovClip, POV_LENGTH, povLook, povScript, povSlots } from "./strategy/pov";
+import { hookPick, hookPickKey, movesOffMadeClips, pickPovClip, POV_LENGTH, povClipsOffered, povLook, povScript, povSlots } from "./strategy/pov";
 import { AI_POV_LIBRARY, type AiPovClip } from "./footage/ai-library";
+import type { ClipUse, SiteClips } from "./footage/hooks";
+import { hasFilesSql, todaysIdeasWhere } from "./lists";
 import { ideaSchema, maxTokensFor, systemPrompt, userContent, type IdeaInput, type SlotBrief, type WrittenIdea } from "./strategy/prompt";
 
 /**
@@ -331,9 +334,13 @@ function briefs(slots: PlannedSlot[], directions: CreativeDirection[], material:
   });
 }
 
-/** The POV clips the writer picks from, when the batch has a POV slot (client, 2026-11-21). */
-const povClipsFor = (slots: PlannedSlot[], library: readonly AiPovClip[]) =>
-  slots.some((slot) => slot.pov) ? library.map((clip) => ({ id: clip.id, shows: clip.shows })) : [];
+/**
+ * The POV clips the writer picks from, when the batch has a POV slot (client,
+ * 2026-11-21): only the website's next ones in its clip order (client,
+ * 2026-11-26: "We don't want same client to having same clips").
+ */
+const povClipsFor = (slots: PlannedSlot[], library: readonly AiPovClip[], clips: SiteClips) =>
+  povClipsOffered(slots.filter((slot) => slot.pov).length, library, clips.pov);
 
 function writerStrategy(settings: VideoSettings): IdeaInput["strategy"] {
   return {
@@ -445,17 +452,19 @@ type RowContext = {
   ledger: (count: number) => CostLedger;
   /** The AI POV clips (client, 2026-11-21). */
   povLibrary: readonly AiPovClip[];
+  /** The clips the website already used, read once per batch (readSiteClips; client, 2026-11-26). */
+  clips: SiteClips;
 };
 
 function composeRows(composed: Composed[], context: RowContext): (typeof videoIdeas.$inferInsert)[] {
   const { material } = context;
   const { settings } = material;
   const pictures = material.live.flatMap((article) => (article.imageUrl ? [article.imageUrl] : []));
-  // One POV clip per POV clip video, none twice in a batch; a POV idea without a clip is left out.
+  // One POV clip per POV clip video, none twice in a batch, in the website's clip order; a POV idea without a clip is left out.
   const usedPov = new Set<string>();
   const parts = composed.flatMap((item) => {
     const { slot, written, script } = item;
-    const povClip = slot.pov ? pickPovClip(written.povClip ?? null, script.hook, usedPov, stableHash(item.title), context.povLibrary) : null;
+    const povClip = slot.pov ? pickPovClip(written.povClip ?? null, script.hook, usedPov, context.povLibrary, context.clips.pov) : null;
     if (slot.pov && !povClip) return [];
     if (povClip) usedPov.add(povClip);
     const direction: CreativeDirection = povClip ? "meme" : item.direction;
@@ -516,7 +525,7 @@ function composeRows(composed: Composed[], context: RowContext): (typeof videoId
     const plan: ShotPlan = { ...plans[j] };
     if (povClip) plan.povClip = { id: povClip, ...povLook(stableHash(item.title)) };
     if (part.hookType) {
-      const pick = hookPick(part.hookType, part.hookQuery, stableHash(item.title), usedHooks);
+      const pick = hookPick(part.hookType, part.hookQuery, stableHash(item.title), usedHooks, undefined, undefined, context.clips.hooks);
       if (pick) usedHooks.add(hookPickKey(pick));
       plan.hookClip = { type: part.hookType, pick };
     }
@@ -588,6 +597,8 @@ async function writeBatchIdeas(
   const slots = base.map((slot, k) =>
     canHook(slot.format, planned[k]) ? slot : { ...slot, techniques: slot.category === "viral" ? withoutHooks(slot.techniques) : slot.techniques },
   );
+  // The clips the website already used, once for the batch (client, 2026-11-26).
+  const clips = await readSiteClips(site.id);
   const { ideas, usage } = await write({
     count: slots.length,
     language: material.languageName,
@@ -597,7 +608,7 @@ async function writeBatchIdeas(
     slots: briefs(slots, planned, material),
     strategy: writerStrategy(material.settings),
     learning: material.learning.summary,
-    povClips: povClipsFor(slots, povLibrary),
+    povClips: povClipsFor(slots, povLibrary, clips),
   });
   const cost = usageCost(usage);
   await track(site.organizationId, {
@@ -620,6 +631,7 @@ async function writeBatchIdeas(
     seed,
     ledger: (count) => planningLedger(cost, count, meta.now),
     povLibrary,
+    clips,
   });
 }
 
@@ -798,6 +810,8 @@ export async function rewriteIdea(websiteId: string, ideaId: string, now: Date =
         length: lengthPlan(production?.duration ?? durationFor(format, material.settings.duration), audio, format, direction),
         pov: false,
       };
+  // The clips the website used, this idea's own left out: it may keep its clip while no other idea of the website has it (client, 2026-11-26).
+  const clips = await readSiteClips(websiteId, ideaId);
   const { ideas, usage } = await write({
     count: 1,
     language: material.languageName,
@@ -808,7 +822,7 @@ export async function rewriteIdea(websiteId: string, ideaId: string, now: Date =
     strategy: writerStrategy({ ...material.settings, tonePreset: overrides.tonePreset ?? material.settings.tonePreset }),
     learning: [],
     rewrite: { title: row.title, hook: (row.script as VideoScript).hook, overrides },
-    povClips: povClipsFor([slot], povLibrary),
+    povClips: povClipsFor([slot], povLibrary, clips),
   });
   const cost = usageCost(usage);
   await track(ready.site.organizationId, {
@@ -837,6 +851,7 @@ export async function rewriteIdea(websiteId: string, ideaId: string, now: Date =
     seed: stableHash(`${ideaId}:${now.toISOString()}`),
     ledger: () => planningLedger(cost, 1, now, row.cost as CostLedger | null),
     povLibrary,
+    clips,
   });
   if (!next) return { ok: false, reason: "bad_script" };
   const [updated] = await db
@@ -865,6 +880,94 @@ export async function rewriteIdea(websiteId: string, ideaId: string, now: Date =
     .where(and(eq(videoIdeas.id, ideaId), inArray(videoIdeas.status, ["new", "failed"])))
     .returning({ id: videoIdeas.id });
   return updated ? { ok: true } : { ok: false, reason: "already_handled" };
+}
+
+/* ------------------------------------------------- a website's clip order */
+
+/**
+ * An idea that made a video, or is being made into one: it holds its clip for
+ * good. A deleted video counts by its files or its posting (deleteVideo keeps
+ * those columns); an approval undone or deleted before its make never does.
+ */
+const madeSql = sql`(${videoIdeas.status} in ('approved', 'making', 'ready', 'draft', 'scheduled', 'posting', 'posted') or ${videoIdeas.postedAt} is not null or ${hasFilesSql})`;
+
+/**
+ * The clips a website has used (client, 2026-11-26: "We don't want same
+ * client to having same clips"), with the last time it did and whether it
+ * made a video with one, in one query on video_ideas. Every idea whose plan
+ * holds a clip counts - written, waiting, made, scheduled or posted - except
+ * one skipped or deleted that was never made: that clip is free again. An
+ * idea left out (`exceptIdeaId`) is the one being rewritten.
+ */
+export async function readSiteClips(websiteId: string, exceptIdeaId?: string, executor: Executor = db): Promise<SiteClips> {
+  const povId = sql<string | null>`${videoIdeas.plan}->'povClip'->>'id'`;
+  const hookProvider = sql<string | null>`${videoIdeas.plan}->'hookClip'->'pick'->>'provider'`;
+  const hookId = sql<string | null>`${videoIdeas.plan}->'hookClip'->'pick'->>'id'`;
+  const rows = await executor
+    .select({
+      povId,
+      hookProvider,
+      hookId,
+      lastUsedAt: sql<number>`(extract(epoch from max(greatest(${videoIdeas.createdAt}, ${videoIdeas.approvedAt}))) * 1000)::float8`,
+      made: sql<boolean>`bool_or(${madeSql})`,
+    })
+    .from(videoIdeas)
+    .where(
+      and(
+        eq(videoIdeas.websiteId, websiteId),
+        exceptIdeaId ? ne(videoIdeas.id, exceptIdeaId) : undefined,
+        or(sql`${povId} is not null`, sql`${hookId} is not null`),
+        or(notInArray(videoIdeas.status, ["skipped", "deleted"]), madeSql),
+      ),
+    )
+    .groupBy(sql`1`, sql`2`, sql`3`);
+  const pov = new Map<string, ClipUse>();
+  const hooks = new Map<string, ClipUse>();
+  const add = (map: Map<string, ClipUse>, key: string, use: ClipUse) => {
+    const known = map.get(key);
+    map.set(key, known ? { lastUsedAt: Math.max(known.lastUsedAt, use.lastUsedAt), made: known.made || use.made } : use);
+  };
+  for (const row of rows) {
+    const use: ClipUse = { lastUsedAt: Number(row.lastUsedAt) || 0, made: Boolean(row.made) };
+    if (row.povId) add(pov, row.povId, use);
+    if (row.hookProvider && row.hookId) add(hooks, `${row.hookProvider}:${row.hookId}`, use);
+  }
+  return { pov, hooks };
+}
+
+/**
+ * After an idea is approved (made): the website's other ideas still on Today's
+ * ideas that hold a clip it has now made a video with get the next clip in
+ * its order (strategy/pov.ts movesOffMadeClips), so the dashboard never offers
+ * a clip already in one of its videos (client, 2026-11-26: "is recreating the
+ * same clips ... but I have it already saved and publish a very similar
+ * video"). Only what Today's ideas shows (lists.ts todaysIdeasWhere): older
+ * ideas are no longer offered. A stored copy of the old clip (a failed make
+ * keeps its assets) is dropped, so a retry loads the new one. How many moved.
+ */
+export async function moveMadeClipsOffPendingIdeas(websiteId: string, now: Date = new Date()): Promise<number> {
+  return db.transaction(async (tx) => {
+    const pending = await tx
+      .select({ id: videoIdeas.id, title: videoIdeas.title, script: videoIdeas.script, plan: videoIdeas.plan, assets: videoIdeas.assets })
+      .from(videoIdeas)
+      .where(and(todaysIdeasWhere(websiteId, now), or(sql`${videoIdeas.plan}->'povClip'->>'id' is not null`, sql`${videoIdeas.plan}->'hookClip'->'pick'->>'id' is not null`)))
+      .orderBy(videoIdeas.createdAt, videoIdeas.id)
+      // An idea another request holds is being approved or rewritten itself.
+      .for("update", { skipLocked: true });
+    if (pending.length === 0) return 0;
+    const moves = movesOffMadeClips(
+      pending.map((row) => ({ id: row.id, line: (row.script as VideoScript | null)?.hook ?? row.title, seed: stableHash(row.title), plan: row.plan as ShotPlan })),
+      await readSiteClips(websiteId, undefined, tx),
+      now.getTime(),
+    );
+    for (const move of moves) {
+      const row = pending.find((entry) => entry.id === move.id)!;
+      const assets = (row.assets ?? []).filter((asset) => !(asset.provider === move.from.provider && asset.providerId === move.from.id));
+      // updatedAt stays: it decides how long a failed make stays on Today's ideas (lists.ts).
+      await tx.update(videoIdeas).set({ plan: move.plan, assets, updatedAt: sql`${videoIdeas.updatedAt}` }).where(eq(videoIdeas.id, move.id));
+    }
+    return moves.length;
+  });
 }
 
 /** Slots one model call writes. A day's twenty in one answer ran past its output limit and past the SDK's ten-minute non-streaming cap. */

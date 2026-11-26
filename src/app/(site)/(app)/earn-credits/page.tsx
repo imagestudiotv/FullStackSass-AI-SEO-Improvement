@@ -19,6 +19,7 @@ import { EARN_WAYS } from "@/lib/earn/ways";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { DAILY_CLAIM_COPY, dailyWhen } from "@/lib/i18n/daily-claim";
 import { EARN_COPY } from "@/lib/i18n/earn";
+import { EARN_BRAND_KIT_COPY } from "@/lib/i18n/earn-brand-kit";
 import { EARN_DISCOVER_COPY } from "@/lib/i18n/earn-discover";
 import { EARN_REWARDED_ADS_COPY } from "@/lib/i18n/earn-rewarded-ads";
 import { EARN_SHARE_COPY } from "@/lib/i18n/earn-share";
@@ -30,6 +31,7 @@ import { siteUrl as canonicalSiteUrl } from "@/lib/site-url";
 import { requireOrg } from "@/lib/tenant";
 import { hasOnlySharedWork } from "@/lib/websites/accessible";
 
+import { BrandKit } from "./brand-kit";
 import { DiscoverEarn } from "./discover-earn";
 import { EarnWays, EnterReferralCode, ReferralShare } from "./earn-client";
 import { RewardedAdCard, RewardedAdUnavailable } from "./rewarded-ad-card";
@@ -297,6 +299,9 @@ export default async function EarnCreditsPage() {
       {referrals && link ? (
         <ShareKit code={referrals.code} link={link} postCredits={EARN_WAYS.post.credits} referralCredits={credits} locale={locale} t={k} />
       ) : null}
+
+      {/* Logo, ready-to-post pictures and the promo video (client, 2026-11-26). */}
+      <BrandKit postCredits={EARN_WAYS.post.credits} t={EARN_BRAND_KIT_COPY[locale]} />
 
       <section id="more-ways" aria-labelledby="ways" className="scroll-mt-20 space-y-3">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
