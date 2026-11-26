@@ -1,4 +1,5 @@
 import {
+  Activity,
   Award,
   Banknote,
   Building2,
@@ -105,6 +106,14 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         icon: Users,
         keywords: ["people", "accounts", "members"],
         description: "People with an account",
+      },
+      {
+        // Owner, 2026-11-26: "I have to check the activities of the new customers in real time."
+        href: "/admin/customer-activity",
+        label: "Customer activity",
+        icon: Activity,
+        keywords: ["live", "feed", "timeline", "trial", "new customers", "signups", "stuck", "attention", "real time"],
+        description: "Live feed of what customers do, their timelines, and trials that need attention",
       },
       {
         href: "/admin/feedback",
