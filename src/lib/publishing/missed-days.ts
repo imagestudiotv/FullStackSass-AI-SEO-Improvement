@@ -58,6 +58,45 @@ export async function moveMissedTopicsForward(websiteId: string, now: Date = new
 }
 
 /**
+ * A website that was on Free and now pays, its free trial included (client,
+ * 2026-11-26: "a trial client is getting 1 article per day and not one per
+ * week"): its topics were laid out a week apart for Free (spaceTopics), and
+ * the scheduler only writes a topic whose day has come, so the trial would
+ * have gone on at Free's pace. Its unstarted topics are brought forward to one
+ * a day from today, in order. Only ever earlier, never later: a topic already
+ * on or before its daily slot keeps its date. Articles that were started, and
+ * undated topics, are left alone. Idempotent; locked like spaceTopics.
+ */
+export async function bringTopicsToDailyPace(websiteId: string, now: Date = new Date()): Promise<{ moved: number }> {
+  return db.transaction(async (tx) => {
+    const result = await tx.execute(raw`
+      select ci.id, to_char(ci.scheduled_for, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as at
+      from calendar_items ci
+      where ci.website_id = ${websiteId}
+        and ci.status = 'planned'
+        and ci.scheduled_for is not null
+        and not exists (select 1 from articles a where a.calendar_item_id = ci.id)
+      order by ci.scheduled_for, ci.created_at, ci.id
+      for update of ci
+    `);
+    const topics = (Array.isArray(result) ? result : (result as { rows: unknown[] }).rows) as { id: string; at: string }[];
+    const today = utcDayStart(now).getTime();
+    let moved = 0;
+    for (const [index, topic] of topics.entries()) {
+      const at = new Date(topic.at);
+      const day = utcDayStart(at).getTime();
+      const slot = today + index * DAY_MS;
+      if (day <= slot) continue;
+      // The topic keeps its time of day.
+      const next = new Date(slot + (at.getTime() - day));
+      await tx.execute(raw`update calendar_items set scheduled_for = ${next.toISOString()}::timestamp, updated_at = now() where id = ${topic.id}`);
+      moved += 1;
+    }
+    return { moved };
+  });
+}
+
+/**
  * A Free website's unstarted topics, spaced by its pace: one every
  * `spacingDays` days (FREE_DAYS_PER_ARTICLE), the first on or after
  * `firstDay` (lib/articles/pace.ts nextStartDay), so its calendar shows the

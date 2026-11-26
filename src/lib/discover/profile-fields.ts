@@ -112,3 +112,34 @@ export function websiteHost(url: string): string {
     return url;
   }
 }
+
+/** A meta description shorter than this reads as thin (Ahrefs flags under ~110 characters). */
+export const META_DESCRIPTION_MIN = 110;
+/** ...and longer than this is cut off in results. */
+export const META_DESCRIPTION_MAX = 160;
+
+/**
+ * A profile page's meta description: its tagline, and when that is short
+ * (Dumitru Culiuc's was 64 characters - Ahrefs site audit, 2026-11-24, "Meta
+ * description too short") the first of the other texts that adds to it - the
+ * About's first paragraph, then the story's description - cut at a word
+ * within META_DESCRIPTION_MAX characters. Nothing is invented: every word is
+ * the business's own.
+ */
+export function profileMetaDescription(tagline: string, more: readonly (string | null | undefined)[]): string {
+  const clean = (text: string | null | undefined) => String(text ?? "").trim().replace(/\s+/g, " ");
+  const lead = clean(tagline);
+  if (lead.length >= META_DESCRIPTION_MIN) return lead.slice(0, 300);
+  const extra = more.map(clean).find((text) => text && text !== lead && !lead.includes(text));
+  if (!extra) return lead;
+  if (!lead) return cutAtWord(extra, META_DESCRIPTION_MAX);
+  return cutAtWord(`${/[.!?…]$/.test(lead) ? lead : `${lead}.`} ${extra}`, META_DESCRIPTION_MAX);
+}
+
+/** The text whole when it fits, otherwise cut at the last space within max characters (the ellipsis included). */
+function cutAtWord(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max - 1);
+  const space = cut.lastIndexOf(" ");
+  return `${(space > max / 2 ? cut.slice(0, space) : cut).replace(/[\s,;:.\-–—]+$/u, "")}…`;
+}

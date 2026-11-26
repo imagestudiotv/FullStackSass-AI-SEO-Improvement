@@ -8,7 +8,7 @@ import { describe, expect, it, vi } from "vitest";
  * languages at once"). The posts and categories are replaced with fixtures.
  */
 
-const state = vi.hoisted(() => ({ query: "", editorProps: null as unknown }));
+const state = vi.hoisted(() => ({ query: "", editorProps: null as unknown, notice: [] as unknown[] }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
   usePathname: () => "/admin/blog",
@@ -29,6 +29,7 @@ vi.mock("./blog-post-editor", () => ({
 vi.mock("@/lib/admin/guard", () => ({ requireAdmin: async () => ({ email: "admin@repget.test" }) }));
 vi.mock("@/lib/blog/categories", () => ({ listCategories: async () => [] }));
 vi.mock("@/lib/admin/blog-sponsorships", () => ({ placementsToReview: async () => 0 }));
+vi.mock("@/lib/admin/badges", () => ({ getBadgeNotice: async () => state.notice }));
 
 const { POSTS, CATEGORIES } = vi.hoisted(() => {
   const at = new Date("2026-10-15T10:00:00Z");
@@ -197,5 +198,37 @@ describe("a new post", () => {
     expect(await editorLocale("it")).toBe("it");
     expect(await editorLocale()).toBe("en");
     expect(await editorLocale("xx")).toBe("en");
+  });
+});
+
+describe("what the Blog badge counts", () => {
+  const notice = (html: string) => /<section aria-labelledby="badge-notice-title"[\s\S]*?<\/section>/.exec(html)?.[0] ?? "";
+  const links = (html: string) => [...notice(html).matchAll(/<a [^>]*href="([^"]+)"[^>]*>([^<]+)<\/a>/g)].map((match) => [match[1], match[2]]);
+
+  it("says nothing when the badge counts nothing", async () => {
+    state.notice = [];
+    expect(notice(await render())).toBe("");
+  });
+
+  it("lists each count above 0 at the top, with a link to where it is dealt with (Daniel, 2026-11-26)", async () => {
+    state.notice = [
+      { kind: "waiting", count: 1, what: "paid Get Featured requests", one: "paid Get Featured request", href: "/admin/blog/sponsorships", label: "Open Featured placements to publish or decline" },
+      { kind: "waiting", count: 2, what: "failed autopilot topics", one: "failed autopilot topic", href: "/admin/blog/autopilot#failed-topics", label: "Open Autopilot to try again or remove" },
+      { kind: "new", count: 0, what: "new comments", one: "new comment", href: "/admin/blog/comments", label: "Open Comments (opening it clears this count)" },
+    ];
+    const html = await render();
+    const box = notice(html);
+    expect(box).toContain("Why Blog shows 3 in the menu");
+    expect(box).toContain("1 paid Get Featured request<");
+    expect(box).toContain("2 failed autopilot topics<");
+    expect(box).not.toContain("comment");
+    expect(links(html)).toEqual([
+      ["/admin/blog/sponsorships", "Open Featured placements to publish or decline"],
+      ["/admin/blog/autopilot#failed-topics", "Open Autopilot to try again or remove"],
+    ]);
+    expect(box).toContain("None of these is a post: the posts below keep their own status.");
+    // Above the language tabs and the posts.
+    expect(html.indexOf("badge-notice-title")).toBeLessThan(html.indexOf('id="blog-language"'));
+    state.notice = [];
   });
 });

@@ -58,6 +58,7 @@ describe("activeNavItem", () => {
         "/admin/organizations",
         "/admin/websites",
         "/admin/users",
+        "/admin/customer-activity",
         "/admin/articles",
         "/admin/network",
         "/admin/blog",

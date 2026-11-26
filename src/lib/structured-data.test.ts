@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { PlanRow } from "@/lib/billing-shared";
 
-import { breadcrumbList, entityIds, softwareApplication } from "./structured-data";
+import { breadcrumbList, entityIds, organizationRef, softwareApplication } from "./structured-data";
 
 /**
  * The shared schema.org blocks (client's launch review, 2026-10-03). The price
@@ -42,6 +42,12 @@ describe("entityIds", () => {
       organization: `${SITE}/#organization`,
       software: `${SITE}/#software`,
     });
+  });
+});
+
+describe("organizationRef", () => {
+  it("names RepGet as well as pointing at the homepage's node, so a page without that node still has a named author", () => {
+    expect(organizationRef(`${SITE}/`)).toEqual({ "@type": "Organization", "@id": `${SITE}/#organization`, name: "RepGet", url: `${SITE}/` });
   });
 });
 

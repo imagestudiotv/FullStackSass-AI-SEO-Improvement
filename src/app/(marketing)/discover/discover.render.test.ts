@@ -186,6 +186,10 @@ describe("a business's profile", () => {
     // The design's placeholder without a picture.
     expect(html).toMatch(/<strong>Image Studio<\/strong><span>Creative Production · Photography · Film &amp; Video<\/span>/);
     expect(html).toContain('"@type":"ProfilePage"');
+    // Google's required field (Search Console, 2026-11-20): the profile's subject as mainEntity, with its name.
+    const [ld] = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1])).filter((j) => j["@type"] === "ProfilePage");
+    expect(ld.mainEntity).toMatchObject({ "@type": "Organization", name: "Image Studio" });
+    expect(ld).not.toHaveProperty("about");
     expect(html).not.toMatch(/design preview|demo/i);
   });
 

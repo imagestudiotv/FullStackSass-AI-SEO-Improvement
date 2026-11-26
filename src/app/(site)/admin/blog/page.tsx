@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { getBadgeNotice } from "@/lib/admin/badges";
 import { listBlogCategoriesAdmin, listBlogPostsAdmin } from "@/lib/admin/blog";
 import { placementsToReview } from "@/lib/admin/blog-sponsorships";
 import { BLOG_LOCALES, blogPath, isBlogLocale, LANGUAGE_NAMES, LANGUAGE_NAMES_EN } from "@/lib/blog/locale";
@@ -12,6 +13,7 @@ import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/config";
 import { formatDate, formatNumber } from "@/lib/i18n/format";
 import { cn } from "@/lib/utils";
 
+import { BadgeNotice } from "../_ui/badge-notice";
 import { ExpandableText } from "../_ui/expandable-text";
 import { AdminPage, AdminPageHeader } from "../_ui/page";
 import { AdminEmpty } from "../_ui/states";
@@ -61,7 +63,7 @@ export default async function AdminBlogPage({ searchParams }: { searchParams: Pr
   const params = await searchParams;
   const language = languageOf(params);
   const term = (first(params.q) ?? "").trim().slice(0, 100);
-  const [posts, categories, toReview] = await Promise.all([listBlogPostsAdmin(), listBlogCategoriesAdmin(), placementsToReview()]);
+  const [posts, categories, toReview, notice] = await Promise.all([listBlogPostsAdmin(), listBlogCategoriesAdmin(), placementsToReview(), getBadgeNotice("/admin/blog").catch(() => [])]);
 
   const counts = Object.fromEntries(BLOG_LOCALES.map((locale) => [locale, posts.filter((post) => post.locale === locale).length])) as Record<Locale, number>;
   // English, each language with a post, and the one shown; the others wait under "Add language".
@@ -149,6 +151,9 @@ export default async function AdminBlogPage({ searchParams }: { searchParams: Pr
           </>
         }
       />
+
+      {/* What the number beside Blog in the menu counts, and where each is dealt with (Daniel, 2026-11-26); nothing when it is 0. */}
+      <BadgeNotice page="Blog" items={notice} note="None of these is a post: the posts below keep their own status." />
 
       <div className="rounded-xl border bg-card">
         <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 px-4 pt-3 sm:px-5">
