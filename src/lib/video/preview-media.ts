@@ -6,7 +6,8 @@ import { db } from "@/lib/db";
 import { videoStockAssets } from "@/lib/db/schema";
 import type { SceneMedia } from "@/remotion/props";
 
-import type { ShotPlan } from "./formats";
+import { editorialParts, editorialSceneMedia } from "./editorial-images";
+import { spokenParts, type ProductionChoices, type ShotPlan, type VideoFormat, type VideoScript } from "./formats";
 import { AI_HOOK_LIBRARY, aiClipPath, povClipById } from "./footage/ai-library";
 import { HOOK_LIBRARY } from "./footage/hook-library";
 import { sharedFileUrl } from "./storage";
@@ -39,6 +40,31 @@ export function previewClip(plan: ShotPlan | null | undefined, aiUrl: (id: strin
   const stored = pixabay.get(pick.id);
   if (!clip || !stored) return null;
   return { url: stored.url, kind: "video", source: "stock", durationMs: stored.durationMs, climaxMs: clip.climaxMs, ...(typeof clip.focalX === "number" ? { focalX: clip.focalX } : {}) };
+}
+
+/**
+ * The scenes' media an idea's preview is given before the video is made (the
+ * Videos page): an editorial idea's own pictures on every slide or scene
+ * (client, 2026-11-26), the same ones the video is made with (make.ts
+ * prepareEditorial); otherwise its POV or hook clip on scene 0 (`clip`, from
+ * previewClips). Nothing (an empty object) when there is neither - or once the
+ * video is voiced, when the made assets apply.
+ */
+export function previewSceneProps(
+  voiced: boolean,
+  plan: ShotPlan | null | undefined,
+  script: VideoScript,
+  production: ProductionChoices,
+  format: string,
+  clip: SceneMedia | null | undefined,
+): { sceneMedia?: (SceneMedia | null)[] } {
+  if (voiced) return {};
+  if (plan?.direction === "editorial" && Array.isArray(plan.scenes) && plan.images?.length) {
+    const shape: VideoFormat = format === "carousel" ? "carousel" : format === "story" ? "story" : "reel";
+    const media = editorialSceneMedia(plan.images, editorialParts(script, production, plan, shape), spokenParts(script).length);
+    if (media) return { sceneMedia: media };
+  }
+  return clip ? { sceneMedia: [clip] } : {};
 }
 
 /** Each plan's preview clip (null = none), with one lookup for the Pixabay files. */

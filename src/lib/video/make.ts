@@ -12,6 +12,7 @@ import { productionParts, productionTimeline } from "@/remotion/production";
 import type { ProductionReelProps, SceneMedia } from "@/remotion/props";
 
 import { FOOTAGE_LED, identityClaim, resolveSceneAssets, storedAssets, type ResolverDeps, type StoredAsset } from "./assets";
+import { editorialAssets, editorialParts } from "./editorial-images";
 import {
   BudgetExceededError,
   canAfford,
@@ -414,6 +415,7 @@ export async function prepareAssets(id: string): Promise<{ assets: number; notes
   const plan = idea.plan as ShotPlan;
   const existing = storedAssets(idea.assets);
   if (plan.povClip) return preparePovClip(idea, plan.povClip.id, existing);
+  if (direction === "editorial") return prepareEditorial(idea, plan, existing);
   let result;
   try {
     result = await resolveSceneAssets(
@@ -469,6 +471,21 @@ async function preparePovClip(idea: VideoIdea, clipId: string, existing: StoredA
   };
   await db.update(videoIdeas).set({ assets: [asset], updatedAt: new Date() }).where(eq(videoIdeas.id, idea.id));
   return { assets: 1, notes: [] };
+}
+
+/**
+ * An editorial video's assets (client, 2026-11-26): its plan's pictures - the
+ * website's own, copied into the video bucket when the idea was written
+ * (editorial-pictures.ts) - one per shown slide or scene, in order. Never
+ * stock or AI pictures, nothing paid. A retry keeps what it had.
+ */
+async function prepareEditorial(idea: VideoIdea, plan: ShotPlan, existing: StoredAsset[]): Promise<{ assets: number; notes: string[] }> {
+  const images = Array.isArray(plan.images) ? plan.images.filter((image) => typeof image?.url === "string" && image.url) : [];
+  if (images.length === 0) throw new ProductionError("This video's pictures from your website are missing. Write the idea again, or choose another one.");
+  const parts = editorialParts(idea.script as VideoScript, choicesOf(idea), plan, formatOf(idea));
+  const assets = editorialAssets(images, parts, existing);
+  await db.update(videoIdeas).set({ assets, updatedAt: new Date() }).where(eq(videoIdeas.id, idea.id));
+  return { assets: assets.length, notes: [] };
 }
 
 /* ------------------------------------------------------------------ voice */

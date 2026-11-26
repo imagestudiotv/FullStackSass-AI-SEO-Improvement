@@ -1,5 +1,6 @@
 import {
   PACINGS,
+  type EditorialImage,
   spokenParts,
   TRANSITIONS,
   type AudioMode,
@@ -41,12 +42,30 @@ export const DIRECTION_POOLS: Record<IdeaCategory, readonly CreativeDirection[]>
   promotional: ["footage", "voiceover", "text_music", "animated"],
 };
 
+/** The fewest pictures of its own a website needs for its non-viral ideas to be editorial (client, 2026-11-26). */
+export const MIN_EDITORIAL_PICTURES = 2;
+
+/**
+ * Whether an idea is an editorial one (client, 2026-11-26: "2 structures now,
+ * one viral ... and a second one that reads images from blog posts and
+ * website"): every non-viral idea - carousels, reels and Stories alike - while
+ * the website has MIN_EDITORIAL_PICTURES pictures of its own. Viral ideas are
+ * never editorial; without the pictures the non-viral ones keep DIRECTION_POOLS.
+ */
+export function isEditorialSlot(category: IdeaCategory, ownPictures: number): boolean {
+  return category !== "viral" && ownPictures >= MIN_EDITORIAL_PICTURES;
+}
+
 /**
  * The directions an idea may use: its category's, without narration when the
  * customer chose Text + Music, without Text + Music when they chose
  * Voiceover, and without narration for a carousel (slides have no audio).
+ * An editorial slot (isEditorialSlot) has the one direction "editorial",
+ * whatever its format and audio: it is the non-viral structure, not one
+ * option among the others.
  */
-export function allowedDirections(category: IdeaCategory, format: VideoFormat, audioMode: AudioMode): CreativeDirection[] {
+export function allowedDirections(category: IdeaCategory, format: VideoFormat, audioMode: AudioMode, editorial = false): CreativeDirection[] {
+  if (editorial && category !== "viral") return ["editorial"];
   const pool = DIRECTION_POOLS[category].filter((direction) => {
     if (audioMode === "voiceover" && direction === "text_music") return false;
     if (audioMode === "text_music" && direction === "voiceover") return false;
@@ -56,7 +75,8 @@ export function allowedDirections(category: IdeaCategory, format: VideoFormat, a
   return pool.length > 0 ? pool : ["animated"];
 }
 
-export type Slot = { category: IdeaCategory; format: VideoFormat };
+/** `editorial`: an editorial slot (isEditorialSlot); absent = not. */
+export type Slot = { category: IdeaCategory; format: VideoFormat; editorial?: boolean };
 
 /** A small stable hash (FNV-1a), for seeds and fingerprints; not for security. */
 export function stableHash(text: string): number {
@@ -83,14 +103,14 @@ export function assignDirections(
   audioMode: AudioMode,
   options: { seed?: number; weights?: Partial<Record<CreativeDirection, number>>; recent?: Partial<Record<CreativeDirection, number>> } = {},
 ): CreativeDirection[] {
-  const all = [...new Set(slots.flatMap((slot) => allowedDirections(slot.category, slot.format, audioMode)))];
+  const all = [...new Set(slots.flatMap((slot) => allowedDirections(slot.category, slot.format, audioMode, slot.editorial)))];
   const shares = boundedShares(all, options.weights);
   const cap = all.length >= 3 ? directionCap(slots.length) : slots.length;
   const used = new Map<CreativeDirection, number>();
   const seed = options.seed ?? 0;
   const out: CreativeDirection[] = [];
   slots.forEach((slot, index) => {
-    const allowed = allowedDirections(slot.category, slot.format, audioMode);
+    const allowed = allowedDirections(slot.category, slot.format, audioMode, slot.editorial);
     const rotated = allowed.map((_, i) => allowed[(i + seed + index) % allowed.length]);
     const score = (direction: CreativeDirection) => {
       const count = used.get(direction) ?? 0;
@@ -116,11 +136,11 @@ export function assignDirections(
  * one the slot allows.
  */
 export function settleDirections(slots: Slot[], planned: CreativeDirection[], proposed: (CreativeDirection | null)[], audioMode: AudioMode): CreativeDirection[] {
-  const all = new Set(slots.flatMap((slot) => allowedDirections(slot.category, slot.format, audioMode)));
+  const all = new Set(slots.flatMap((slot) => allowedDirections(slot.category, slot.format, audioMode, slot.editorial)));
   const cap = all.size >= 3 ? directionCap(slots.length) : slots.length;
   const used = new Map<CreativeDirection, number>();
   return slots.map((slot, index) => {
-    const allowed = allowedDirections(slot.category, slot.format, audioMode);
+    const allowed = allowedDirections(slot.category, slot.format, audioMode, slot.editorial);
     const under = (direction: CreativeDirection) => (used.get(direction) ?? 0) < cap;
     const wish = proposed[index];
     let direction: CreativeDirection;
@@ -191,6 +211,8 @@ export type PlanInput = {
   fallbackQuery: string;
   /** A visual hook (strategy/hooks.ts): the opening scene is its stock clip. */
   hook?: { type: HookType; query: string } | null;
+  /** An editorial idea's own pictures, cover first (ShotPlan.images); ignored for the other directions. */
+  images?: EditorialImage[] | null;
 };
 
 const clipText = (value: string | null | undefined, max: number) => (value ? value.replace(/\s+/g, " ").trim().slice(0, max) || null : null);
@@ -202,6 +224,8 @@ function cleanQuery(query: string, fallback: string): string {
 }
 
 function sourceFor(input: PlanInput, index: number, count: number): VisualSource {
+  // The website's own pictures only (ShotPlan.images, lib/video/editorial-images.ts): never stock or AI.
+  if (input.direction === "editorial") return "article";
   if (input.direction === "animated") return index === 0 || index === count - 1 ? "brand" : input.articlePicture ? "article" : "brand";
   if (input.ownMedia && index % 3 === 1) return "customer";
   if (input.articlePicture && index === count - 2) return "article";
@@ -229,7 +253,7 @@ export function buildPlan(input: PlanInput): ShotPlan {
   const moods = MOODS_BY_DIRECTION[input.direction];
   const musicMood = input.music === "none" ? null : input.music === "auto" ? moods[variant.mood % moods.length] : MOOD_FOR_MUSIC[input.music];
   const kindFor = (written: WrittenScene | undefined): "video" | "image" => {
-    if (input.format === "carousel") return "image";
+    if (input.format === "carousel" || input.direction === "editorial") return "image";
     if (input.direction === "animated") return written?.kind === "video" ? "video" : "image";
     return written?.kind ?? "video";
   };
@@ -253,6 +277,7 @@ export function buildPlan(input: PlanInput): ShotPlan {
   });
   const plan: ShotPlan = { direction: input.direction, pacing, captionStyle: input.captionStyle, musicMood, scenes, recipe: "" };
   if (input.hook) plan.hookClip = { type: input.hook.type };
+  if (input.direction === "editorial") plan.images = input.images ?? [];
   plan.recipe = recipeOf(plan);
   return plan;
 }
@@ -262,7 +287,10 @@ export function recipeOf(plan: Omit<ShotPlan, "recipe">): string {
   const transitions = [...new Set(plan.scenes.slice(1).map((scene) => scene.transition))].sort().join("+") || "cut";
   const visuals = plan.scenes.map((scene) => `${scene.visual.source[0]}${scene.visual.kind[0]}`).join("");
   const recipe = [plan.direction, plan.pacing, transitions, plan.captionStyle, plan.musicMood ?? "none", visuals];
-  return (plan.hookClip ? [...recipe, `hook-${plan.hookClip.type}`] : recipe).join("|");
+  if (plan.hookClip) return [...recipe, `hook-${plan.hookClip.type}`].join("|");
+  // An editorial video differs by its pictures too: another cover picture is another look.
+  const cover = plan.direction === "editorial" && plan.images?.[0] ? [`cover-${stableHash(plan.images[0].url).toString(36)}`] : [];
+  return [...recipe, ...cover].join("|");
 }
 
 /**
