@@ -50,10 +50,12 @@ describe("a YouTube Short's tags", () => {
     expect(tags.length).toBeGreaterThanOrEqual(10);
     expect(tags.length).toBeLessThanOrEqual(15);
     expect(tags.slice(0, 4)).toEqual(["SEO", "Small Business", "marketingtips", "RepGet"]);
-    expect(tags).toEqual(expect.arrayContaining(["content marketing", "local SEO", "Google rankings", "website", "visitors", "shorts", "youtube shorts"]));
-    // The words used most (the title's counting most) first; one said once in a scene is left out past 15.
-    expect(tags.indexOf("visitors")).toBeLessThan(tags.indexOf("mistakes"));
+    expect(tags).toEqual(expect.arrayContaining(["content marketing", "local SEO", "Google rankings", "Slow pages lose visitors", "website", "mistakes", "shorts", "youtube shorts"]));
+    // The words used most (the title's counting most) first; one said once in a scene is left out.
+    expect(tags.indexOf("website")).toBeLessThan(tags.indexOf("mistakes"));
     expect(tags).not.toContain("broken");
+    // A word already in a scene's phrase is not repeated alone.
+    expect(tags).not.toContain("visitors");
     expect(tags.at(-1)).toBe("youtube shorts");
   });
 
@@ -88,10 +90,24 @@ describe("a YouTube Short's tags", () => {
       }),
     );
     expect(tags.slice(0, 2)).toEqual(["Marketing Digital", "Café Lumière"]);
-    expect(tags).toEqual(expect.arrayContaining(["Los errores de SEO más comunes", "errores", "SEO", "comunes", "clientes", "página"]));
+    expect(tags).toEqual(expect.arrayContaining(["Los errores de SEO más comunes", "errores", "SEO", "comunes", "web"]));
+    // A word said once, in the hook or the post only, is not a topic when there is a title.
+    expect(tags).not.toEqual(expect.arrayContaining(["clientes"]));
     expect(tags.map((tag) => tag.toLowerCase())).not.toEqual(expect.arrayContaining(["los", "de", "más", "tu", "en", "cada"]));
     // French and English apostrophes: the word, not its article or its "'s".
     expect(parseTags(suggestedTags({ caption: "L'automne arrive, et Google's update don't wait" }))).toEqual(["automne", "arrive", "Google", "update", "wait", "shorts", "youtube shorts"]);
+  });
+
+  it("leave out passing words and words already in a phrase (Daniel's bakery example, 2026-11-26)", () => {
+    expect(
+      suggestedTags({
+        caption: "Our bread story #SmallBusiness #Bakery",
+        title: "Sourdough secrets of a small bakery",
+        hook: "Why fresh sourdough sells out by noon",
+        points: ["Slow fermentation", "Local flour"],
+        brand: "Acme Bakery",
+      }),
+    ).toBe("Small Business, Bakery, Acme Bakery, Slow fermentation, Local flour, sourdough, secrets, shorts, youtube shorts");
   });
 
   it("never change saved tags: the suggestion is only offered when none were saved", () => {

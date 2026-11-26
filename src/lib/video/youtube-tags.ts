@@ -175,9 +175,18 @@ export function suggestedTags(source: string | TagSource): string {
   count(from.hook, 2);
   for (const point of from.points ?? []) count(point, 1);
   count(caption, 1, true);
-  const keywords = [...score.values()].sort((a, b) => b.score - a.score || a.at - b.at).map((entry) => entry.tag);
+  // With a title, a single word only when it is in the title or said more than once: one passing word of the hook ("noon") is not a topic.
+  const keywords = [...score.values()]
+    .filter((entry) => !from.title || entry.score >= 3)
+    .sort((a, b) => b.score - a.score || a.at - b.at)
+    .map((entry) => entry.tag);
+  // The scenes' titles are the video's subjects: a short one is a tag as it is ("Slow fermentation").
+  const scenes = (from.points ?? []).map((point) => tidy(point).replace(/[.!?…:]+$/u, "")).filter((point) => words(point).length <= 4);
 
-  const own = [...hashtags, tidy(from.brand ?? ""), ...topics, title, ...keywords].filter(sensibleTag);
+  const phrases = [...hashtags, tidy(from.brand ?? ""), ...topics, title, ...scenes].filter(sensibleTag);
+  // A word already inside a phrase above adds nothing ("small" beside "Small Business").
+  const inPhrase = new Set(phrases.filter((tag) => tag !== title && words(tag).length > 1).flatMap((tag) => words(tag).map((word) => word.toLocaleLowerCase())));
+  const own = [...phrases, ...keywords.filter((word) => !inPhrase.has(word.toLocaleLowerCase()))].filter(sensibleTag);
   const generic = GENERIC_TAGS.filter((tag) => !own.some((entry) => entry.toLocaleLowerCase() === tag));
   const kept = parseTags(own.join(",")).slice(0, SUGGESTED_MAX - generic.length);
   return cleanTags([...kept, ...generic].join(","));
