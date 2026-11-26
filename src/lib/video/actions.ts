@@ -35,7 +35,7 @@ import {
   type VideoScript,
 } from "./formats";
 import { hasFiles } from "./customer-view";
-import { rewriteIdea } from "./ideas";
+import { moveMadeClipsOffPendingIdeas, rewriteIdea } from "./ideas";
 import { spendKey } from "./make";
 import { musicTrack } from "./music";
 import { contentHash, reviewAfterEdit } from "./review";
@@ -460,6 +460,8 @@ export async function approveVideoIdea(websiteId: string, id: string, edit: Idea
       .where(eq(videoIdeas.id, id));
     return { ok: true as const, data: null };
   });
+  // Its clip is now in one of the website's videos: other ideas still offered with it get the next one (client, 2026-11-26).
+  if (result.ok) await moveMadeClipsOffPendingIdeas(websiteId).catch((error) => console.error("[video] clips not moved off a made idea", { websiteId, id, error }));
   if (result.ok) await queueJob({ name: "video/make.requested", data: { ideaId: id } });
   revalidatePath(pagePath(websiteId));
   return result;

@@ -36,7 +36,7 @@ import { STOCK_PROVIDERS, footageStatus, type StockCandidate } from "./footage";
 import { collectionCost } from "./footage/collection";
 import { AI_CLIP_SIZE, AI_HOOK_LIBRARY, AI_LICENCE, AI_PROVIDER, aiClipPath, povClipById, type AiHookClip, type AiPovClip } from "./footage/ai-library";
 import { HOOK_LIBRARY, type HookLibraryClip } from "./footage/hook-library";
-import { libraryPicks, opensOnAiClip, type HookCandidate } from "./footage/hooks";
+import { libraryPicks, opensOnAiClip, siteClipOrder, type ClipUse, type HookCandidate } from "./footage/hooks";
 import { pixabayVideoById } from "./footage/pixabay";
 import { cachedAsset, cachedForQuery, storeCandidate } from "./footage/store";
 import {
@@ -62,6 +62,7 @@ import {
   type VideoStyle,
   type Voice,
 } from "./formats";
+import { readSiteClips } from "./ideas";
 import { MUSIC_VOLUME, ideaTrack, musicTrack, musicUrl } from "./music";
 import { remuxNoMusic, renderReelLocally, renderSlides, type CoverRequest } from "./render";
 import { autoPublishTime, releaseScheduleSlot } from "./schedule";
@@ -302,7 +303,8 @@ function resolverDeps(idea: VideoIdea): ResolverDeps {
     findCached: (query, kind, exclude) => cachedForQuery(query, kind, exclude),
     storeStock: (candidate, query, cost) => storeCandidate(candidate, query, cost),
     stockCost: (candidate) => (candidate.provider === "collection" ? collectionCost(candidate.providerId) : Promise.resolve(null)),
-    hookCandidates: (type, query, exclude) => hookCandidates(type, query, exclude, stableHash(idea.id), (idea.plan as ShotPlan | null)?.hookClip?.pick ?? null),
+    hookCandidates: async (type, query, exclude) =>
+      hookCandidates(type, query, exclude, stableHash(idea.id), (idea.plan as ShotPlan | null)?.hookClip?.pick ?? null, (await readSiteClips(idea.websiteId, idea.id)).hooks),
     ai: {
       provider: () => activeProvider(),
       estimateUsd: () => imageEstimate(activeProvider()),
@@ -328,15 +330,27 @@ function resolverDeps(idea: VideoIdea): ResolverDeps {
  * when the idea was written (ShotPlan.hookClip.pick: the one its preview
  * showed), then RepGet's AI clips (in storage already) and the Pixabay
  * library's, about 70:30 across videos (opensOnAiClip), the other source
- * kept as the fallback. Pixabay clips already stored need no lookup, the
+ * kept as the fallback. Clips the website already used (`site`, without
+ * this idea) come after the ones it never used, least recently used first
+ * (client, 2026-11-26: "We don't want same client to having same clips"):
+ * an idea written without a pick never opens on one of its earlier clips
+ * while another is left. Pixabay clips already stored need no lookup, the
  * others are looked up by id (free).
  */
-async function hookCandidates(type: HookType, query: string, exclude: Set<string>, seed: number, pick: HookClipPick | null = null): Promise<HookCandidate[]> {
+async function hookCandidates(
+  type: HookType,
+  query: string,
+  exclude: Set<string>,
+  seed: number,
+  pick: HookClipPick | null = null,
+  site: ReadonlyMap<string, ClipUse> = new Map(),
+): Promise<HookCandidate[]> {
   const picked = pick && !exclude.has(`${pick.provider}:${pick.id}`) ? await pickedCandidate(pick) : null;
   const skip = picked ? new Set([...exclude, `${picked.provider}:${picked.providerId}`]) : exclude;
-  const ai = libraryPicks(type, query, seed, skip, AI_HOOK_LIBRARY, AI_PROVIDER).slice(0, 2).map(aiCandidate);
+  const unusedFirst = <Clip extends HookLibraryClip>(clips: Clip[], provider: string) => siteClipOrder(clips, (clip) => `${provider}:${clip.id}`, site);
+  const ai = unusedFirst(libraryPicks(type, query, seed, skip, AI_HOOK_LIBRARY, AI_PROVIDER), AI_PROVIDER).slice(0, 2).map(aiCandidate);
   const aiFirst = opensOnAiClip(seed);
-  const stock = await pixabayCandidates(libraryPicks(type, query, seed, skip).slice(0, aiFirst ? 3 - ai.length : 3 - Math.min(1, ai.length)));
+  const stock = await pixabayCandidates(unusedFirst(libraryPicks(type, query, seed, skip), "pixabay").slice(0, aiFirst ? 3 - ai.length : 3 - Math.min(1, ai.length)));
   return [...(picked ? [picked] : []), ...(aiFirst ? [...ai, ...stock] : [...stock, ...ai])];
 }
 

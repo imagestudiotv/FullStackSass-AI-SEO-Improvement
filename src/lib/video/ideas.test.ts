@@ -45,6 +45,7 @@ vi.mock("@/lib/ai/client", () => ({
 }));
 
 import {
+  approveVideoIdea,
   approveVideoReview,
   editVideoIdea,
   requestVideoIdeas,
@@ -54,8 +55,9 @@ import {
   saveVideoSettingsAction,
 } from "./actions";
 import { HOOK_TECHNIQUES, HOOK_TECHNIQUES_FROM, hookTypeOf, isHookTechnique, type ProductionChoices, type ShotPlan, type VideoScript } from "./formats";
-import type { AiPovClip } from "./footage/ai-library";
-import { suggestVideoIdeas, WRITE_CHUNK, writeChunks, writeExtraBatch, type IdeaInput } from "./ideas";
+import { AI_POV_LIBRARY, type AiPovClip } from "./footage/ai-library";
+import { moveMadeClipsOffPendingIdeas, suggestVideoIdeas, WRITE_CHUNK, writeChunks, writeExtraBatch, type IdeaInput } from "./ideas";
+import { POV_OFFER_SPARE } from "./strategy/pov";
 import { maxTokensFor } from "./strategy/prompt";
 import { contentHash, reviewBlocksAutoPublish } from "./review";
 import { readVideoSettings } from "./settings";
@@ -232,7 +234,8 @@ describe("POV clip videos", () => {
       expect(slot).toMatchObject({ direction: "meme", alternatives: [], audio: "text_music" });
       expect(slot.techniques.some(isHookTechnique)).toBe(false);
     }
-    expect(input.povClips).toEqual(LIBRARY.map(({ id, shows }) => ({ id, shows })));
+    // Since 2026-11-26 only the website's next clips in order (a new website: the library's first), one per POV slot and a few spare.
+    expect(input.povClips).toEqual(LIBRARY.slice(0, povSlots.length + POV_OFFER_SPARE).map(({ id, shows }) => ({ id, shows })));
 
     const rows = await ideasOf(websiteId);
     const povRows = rows.filter((row) => (row.plan as ShotPlan).povClip);
@@ -269,6 +272,85 @@ describe("POV clip videos", () => {
     expect(write.mock.calls[0][0].slots.some((slot) => slot.pov)).toBe(false);
     expect(write.mock.calls[0][0].povClips).toEqual([]);
     expect((await ideasOf(websiteId)).some((row) => (row.plan as ShotPlan).povClip)).toBe(false);
+  });
+
+  /* A website's clip order (client, 2026-11-26: "We don't want same client to having same clips"). */
+
+  const povPlan = (clip: { id: string; shows: string }): ShotPlan =>
+    ({
+      direction: "meme",
+      pacing: "fast",
+      captionStyle: "bold",
+      musicMood: null,
+      recipe: "r|pov",
+      scenes: [{ visual: { source: "stock", query: clip.shows, kind: "video" }, transition: "cut", reaction: null, overlay: "POV: x" }],
+      povClip: { id: clip.id, mirror: false, zoom: 1, hue: 0 },
+    }) as ShotPlan;
+  const POV_SCRIPT: VideoScript = { hook: "POV: a customer found you", points: [], proof: "", cta: "" };
+  async function stored(websiteId: string, clip: { id: string; shows: string }, values: Partial<typeof videoIdeas.$inferInsert> = {}) {
+    const [row] = await test.db
+      .insert(videoIdeas)
+      .values({ websiteId, day: "2026-11-12", style: "bold", language: "en", title: `Stored ${Math.random()}`, script: POV_SCRIPT, caption: "c", direction: "meme", category: "viral", plan: povPlan(clip), ...values })
+      .returning();
+    return row;
+  }
+
+  it("follow the website's clip order: never a clip it used, except one skipped or deleted before it was made", async () => {
+    const BIG: AiPovClip[] = Array.from({ length: 14 }, (_, i) => ({ ...LIBRARY[0], id: `2026-11-26-pov-clip-${String(i).padStart(2, "0")}`, shows: `Clip number ${i}.` }));
+    const { websiteId } = await site();
+    await test.db.insert(videoSettings).values({ websiteId, viralMix: 100, techniques: [...HOOK_TECHNIQUES], updatedAt: HOOK_TECHNIQUES_FROM });
+    await stored(websiteId, BIG[0], { day: "2026-11-10", status: "ready", videoUrl: "https://files.example/v.mp4" });
+    await stored(websiteId, BIG[1], { day: "2026-11-11", status: "skipped" });
+    await stored(websiteId, BIG[2], { day: "2026-11-11", status: "deleted" });
+    await stored(websiteId, BIG[3], { day: "2026-11-11", status: "deleted", videoUrl: "https://files.example/w.mp4", approvedAt: new Date("2026-11-11T08:00:00Z") });
+    await stored(websiteId, BIG[4], { day: "2026-11-11", status: "new" });
+    await stored(websiteId, BIG[5], { day: "2026-11-09", status: "posted", postedAt: new Date("2026-11-09T10:00:00Z") });
+    const write = povWriter();
+    await suggestVideoIdeas(websiteId, NOW, { write, povLibrary: BIG });
+    const input = write.mock.calls[0][0];
+    const povCount = input.slots.filter((slot) => slot.pov).length;
+    // Free: never used (6-13), and skipped or deleted before a make (1, 2); then the one only shown in an idea (4).
+    const order = [1, 2, 6, 7, 8, 9, 10, 11, 12, 13, 4].map((i) => BIG[i].id);
+    expect(povCount).toBeGreaterThan(0);
+    expect(povCount).toBeLessThanOrEqual(order.length);
+    expect(input.povClips!.map((clip) => clip.id)).toEqual(order.slice(0, Math.min(order.length, povCount + POV_OFFER_SPARE)));
+    const written = (await ideasOf(websiteId)).filter((row) => row.day === "2026-11-12" && (row.plan as ShotPlan).povClip);
+    // The writer asked for the first clip every time: the others follow the order.
+    expect(new Set(written.map((row) => (row.plan as ShotPlan).povClip!.id))).toEqual(new Set(order.slice(0, povCount)));
+  });
+
+  it("move off a clip once it is made: the website's other waiting ideas with it get the next one", async () => {
+    const { websiteId, orgId } = await site();
+    await recordCredit(orgId, { type: "adjustment", amount: 2, note: "test" });
+    const [c0, c1, c2, c3] = AI_POV_LIBRARY;
+    const approved = await stored(websiteId, c0, { status: "new" });
+    const waiting = await stored(websiteId, c0, { status: "new", createdAt: new Date(NOW.getTime() - 3000) });
+    const other = await stored(websiteId, c1, { status: "new", createdAt: new Date(NOW.getTime() - 2000) });
+    const earlier = new Date(NOW.getTime() - 3_600_000);
+    const failed = await stored(websiteId, c0, {
+      status: "failed",
+      createdAt: new Date(NOW.getTime() - 1000),
+      updatedAt: earlier,
+      assets: [
+        { sceneIndex: 0, provider: "ai", providerId: c0.id, url: "u0" },
+        { sceneIndex: 1, provider: "pixabay", providerId: "77", url: "u1" },
+      ],
+    });
+    // Yesterday's idea is no longer offered: left as it is.
+    const old = await stored(websiteId, c0, { day: "2026-11-11", status: "new" });
+    expect((await approveVideoIdea(websiteId, approved.id)).ok).toBe(true);
+    const plans = new Map((await ideasOf(websiteId)).map((row) => [row.id, row]));
+    expect((plans.get(approved.id)!.plan as ShotPlan).povClip!.id).toBe(c0.id);
+    expect((plans.get(waiting.id)!.plan as ShotPlan).povClip!.id).toBe(c2.id);
+    expect((plans.get(waiting.id)!.plan as ShotPlan).scenes[0].visual.query).toBe(c2.shows);
+    expect((plans.get(other.id)!.plan as ShotPlan).povClip!.id).toBe(c1.id);
+    expect((plans.get(failed.id)!.plan as ShotPlan).povClip!.id).toBe(c3.id);
+    // Its stored copy of the old clip goes, so a retry loads the new one; how long it stays offered does not change.
+    expect(plans.get(failed.id)!.assets).toEqual([{ sceneIndex: 1, provider: "pixabay", providerId: "77", url: "u1" }]);
+    expect(plans.get(failed.id)!.updatedAt.getTime()).toBe(earlier.getTime());
+    expect((plans.get(old.id)!.plan as ShotPlan).povClip!.id).toBe(c0.id);
+    // Nothing left to move.
+    expect(await moveMadeClipsOffPendingIdeas(websiteId, NOW)).toBe(0);
   });
 });
 
