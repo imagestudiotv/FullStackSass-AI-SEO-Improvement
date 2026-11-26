@@ -11,7 +11,14 @@ import { IMAGE_STUDIO } from "@/lib/marketing/case-study-image-studio";
  *    Several cards can be about it (its Customer stories post, the built-in
  *    case-study card); one is kept - a post's over the built-in card, which
  *    is only there so Image Studio is never missing.
- * 2. Then everything else by sortOrder (a blog customer story is 0; a story
+ * 2. One card per business (client, 2026-11-26: "Keep only the success
+ *    story; keep the blog post too of course, but don't display it twice"):
+ *    a business with a story from Admin -> Success stories is shown by that
+ *    story alone - its blog Customer stories posts are not listed as cards
+ *    of their own (they stay in the blog, at their own address). The same
+ *    business is the same website, or the same name when either card has
+ *    no website (sameBusiness).
+ * 3. Then everything else by sortOrder (a blog customer story is 0; a story
  *    from Admin -> Success stories is 1, 2, 3... as the administrator
  *    ordered them), then in the order added (oldest first), then by id so
  *    the order never flickers between two requests.
@@ -39,9 +46,6 @@ export type StoryCard = {
   addedAt: string | null;
 };
 
-/** Image Studio's website's host, without www. */
-const IMAGE_STUDIO_HOST = hostOf(IMAGE_STUDIO.site);
-
 function hostOf(url: string | null): string | null {
   if (!url) return null;
   try {
@@ -58,9 +62,24 @@ function hostOf(url: string | null): string | null {
  */
 export function isImageStudioCard(card: Pick<StoryCard, "source" | "name" | "websiteUrl">): boolean {
   if (card.source === "image-studio") return true;
-  const host = hostOf(card.websiteUrl);
-  if (host) return host === IMAGE_STUDIO_HOST;
-  return card.name.trim().replace(/\s+/g, " ").toLowerCase() === "image studio";
+  return sameBusiness(card, { name: "Image Studio", websiteUrl: IMAGE_STUDIO.site });
+}
+
+function nameKey(name: string): string {
+  return name.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+/**
+ * True when two cards are about the same business: the same website (www.
+ * and the path aside) when both have one - two websites are two businesses
+ * that happen to share a name - otherwise the same name, case and spacing
+ * aside.
+ */
+export function sameBusiness(a: Pick<StoryCard, "name" | "websiteUrl">, b: Pick<StoryCard, "name" | "websiteUrl">): boolean {
+  const [hostA, hostB] = [hostOf(a.websiteUrl), hostOf(b.websiteUrl)];
+  if (hostA && hostB) return hostA === hostB;
+  const name = nameKey(a.name);
+  return name !== "" && name === nameKey(b.name);
 }
 
 function compareRest(a: StoryCard, b: StoryCard): number {
@@ -75,8 +94,10 @@ function compareRest(a: StoryCard, b: StoryCard): number {
 
 /** The cards in the order every page shows them (see the top of this file). */
 export function orderStoryCards<T extends StoryCard>(cards: readonly T[]): T[] {
-  const imageStudio = cards.filter(isImageStudioCard);
+  const stories = cards.filter((card) => card.source === "story");
+  const shown = cards.filter((card) => card.source !== "blog" || !stories.some((story) => sameBusiness(card, story)));
+  const imageStudio = shown.filter(isImageStudioCard);
   const pinned = imageStudio.find((card) => card.source !== "image-studio") ?? imageStudio[0];
-  const rest = cards.filter((card) => !isImageStudioCard(card)).sort(compareRest);
+  const rest = shown.filter((card) => !isImageStudioCard(card)).sort(compareRest);
   return pinned ? [pinned, ...rest] : rest;
 }

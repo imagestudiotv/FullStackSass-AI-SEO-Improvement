@@ -21,6 +21,18 @@ export function entityIds(site: string) {
   };
 }
 
+/**
+ * RepGet as a page's author or publisher: the homepage's node by its @id,
+ * with its name and address too. A bare {"@id"} is only resolved on the
+ * homepage, where that node is defined; on any other page a validator sees
+ * an author with no name - a Google rich results validation error on the
+ * success stories' Article (Ahrefs site audit, 2026-11-24).
+ */
+export function organizationRef(site: string): Record<string, string> {
+  const base = site.replace(/\/+$/, "");
+  return { "@type": "Organization", "@id": entityIds(base).organization, name: COMPANY_NAME, url: `${base}/` };
+}
+
 export type Crumb = { name: string; path: string };
 
 /**
