@@ -209,7 +209,8 @@ export function AutopilotTopics({
       </div>
 
       {failed.length > 0 ? (
-        <div className="border-t">
+        // The sidebar's Blog badge counts these until each is tried again or removed (Admin -> Blog links here).
+        <div id="failed-topics" className="scroll-mt-20 border-t">
           <h3 className="px-4 pt-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase sm:px-5">Could not be written</h3>
           <ul className="divide-y">
             {failed.map((topic) => (

@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { adminAuditLog, successStories } from "@/lib/db/schema";
+import { adminAuditLog, blogPosts, successStories } from "@/lib/db/schema";
 import type { SuccessStoryInput } from "@/lib/success-stories/fields";
 import { createTestDb, type TestDb } from "@/test/db";
 
@@ -173,5 +173,38 @@ describe("what the public pages show", () => {
     expect(await deleteSuccessStory(c.id)).toEqual({ ok: true, data: null });
     expect(await getPublishedSuccessStory("gamma")).toBeNull();
     expect((await listStoryCards("en"))[0].id).toBe("image-studio");
+  });
+
+  it("lists a business with a success story once, in every language: its blog posts and their translations stay off the cards (client, 2026-11-26)", async () => {
+    await test.db.delete(blogPosts);
+    let n = 0;
+    const post = async (fields: Partial<typeof blogPosts.$inferInsert>) => {
+      n += 1;
+      const [row] = await test.db
+        .insert(blogPosts)
+        .values({ slug: `story-post-${n}`, title: `Post ${n}`, description: `About ${n}`, category: "Customer stories", author: "RepGet team", bodyHtml: "<p>x</p>", status: "published", publishedAt: new Date(Date.now() - (100 - n) * 1000), ...fields })
+        .returning();
+      return row;
+    };
+    // Image Studio's post and its Spanish translation, which names no business (as on the live site).
+    const is = await post({ businessName: "Image Studio", businessWebsiteUrl: "https://imagestudio.com/", businessLogoUrl: "/is.webp" });
+    const isEs = await post({ locale: "es", translationOf: is.id, discussionId: is.discussionId });
+    // Dumitru Culiuc's founder post, its Spanish translation, and his success story from the admin.
+    const dc = await post({ businessName: "Dumitru Culiuc", businessWebsiteUrl: "https://dumitruculiuc.com/" });
+    await post({ locale: "es", translationOf: dc.id, discussionId: dc.discussionId, author: "Dumitru Culiuc" });
+    const other = await post({ businessName: "Other Co" });
+    const story = await created({ name: "Dumitru Culiuc", websiteUrl: "https://www.dumitruculiuc.com", slug: "dumitru-culiuc", published: true });
+
+    expect((await listStoryCards("en")).map((card) => card.id)).toEqual([`post:${is.id}`, `post:${other.id}`, `story:${story.id}`]);
+    const spanish = await listStoryCards("es");
+    expect(spanish.map((card) => card.id)).toEqual([`post:${isEs.id}`, `story:${story.id}`]);
+    // The translation is shown as its original's business.
+    expect(spanish[0]).toMatchObject({ name: "Image Studio", websiteUrl: "https://imagestudio.com/", logoUrl: "/is.webp", href: `/es/blog/${isEs.slug}` });
+    expect((await otherStoryCards("es")).map((card) => card.id)).toEqual([`story:${story.id}`]);
+
+    // Unpublished, the success story gives the place back to the blog post.
+    await setSuccessStoryPublished(story.id, false);
+    expect((await otherStoryCards("en")).map((card) => card.id)).toEqual([`post:${dc.id}`, `post:${other.id}`]);
+    await test.db.delete(blogPosts);
   });
 });

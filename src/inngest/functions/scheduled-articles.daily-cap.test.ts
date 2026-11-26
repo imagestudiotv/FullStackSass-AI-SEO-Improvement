@@ -298,6 +298,28 @@ describe("deleting an article never reopens the pace", () => {
   });
 });
 
+describe("from Free to the free trial: one a day, not one a week (client, 2026-11-26)", () => {
+  it("brings Free's week-apart topics forward, and writes one a day during the trial", async () => {
+    const { websiteId, orgId } = await paid(30, "2026-11-21T00:00:00Z");
+    // Was on Free: its row stays, and its topics were laid out a week apart.
+    const userId = `user_${randomUUID()}`;
+    await test.db.insert(user).values({ id: userId, name: "Was free", email: `${userId}@example.test`, emailVerified: true, createdAt: new Date(), updatedAt: new Date() });
+    await test.db.insert(freePlanAccounts).values({ organizationId: orgId, websiteId, domain: `${orgId}.example`, userId });
+    await test.client.query("update subscriptions set status = 'trialing', current_period_end = $2 where website_id = $1", [websiteId, "2026-11-24T00:00:00Z"]);
+    await test.db.insert(calendarItems).values(
+      ["2026-11-28", "2026-12-05", "2026-12-12", "2026-12-19"].map((day, i) => ({ websiteId, title: `Topic ${i + 1}`, status: "planned", scheduledFor: new Date(`${day}T09:00:00Z`) })),
+    );
+    for (const day of days("2026-11-21", 3)) {
+      for (const hour of ["06:00", "14:00"]) {
+        await runAt(`${day}T${hour}:00Z`, websiteId);
+        await write(websiteId);
+      }
+    }
+    // Grow's 30 a month pro-rated to the 3-day trial is 3: one each day.
+    expect(await startedOn(websiteId)).toEqual({ "2026-11-21": 1, "2026-11-22": 1, "2026-11-23": 1 });
+  });
+});
+
 describe("paid plans: one a day, or the plan's own share above 30 a month", () => {
   it("starts one a day on a 30 plan, with many runs a day and nothing written ahead", async () => {
     const { websiteId } = await paid(30);

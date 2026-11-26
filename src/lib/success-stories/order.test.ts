@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isImageStudioCard, orderStoryCards, type StoryCard } from "./order";
+import { isImageStudioCard, orderStoryCards, sameBusiness, type StoryCard } from "./order";
 
 /**
  * The customer stories' one order (client, 2026-11-19: "imagestudio website
@@ -58,11 +58,36 @@ describe("orderStoryCards", () => {
     expect(orderStoryCards([card("x")]).map((c) => c.id)).toEqual(["x"]);
   });
 
+  it("shows a business with a success story by that story alone: its blog posts are not cards of their own (client, 2026-11-26)", () => {
+    const story = card("story:dumitru", { name: "Dumitru Culiuc", websiteUrl: "https://dumitruculiuc.com/", sortOrder: 1 });
+    const post = card("post:dumitru", { source: "blog", name: "Dumitru Culiuc", websiteUrl: "https://www.dumitruculiuc.com/about", sortOrder: 0 });
+    const byName = card("post:dumitru-es", { source: "blog", name: " dumitru  CULIUC ", websiteUrl: null, sortOrder: 0 });
+    const other = card("post:other", { source: "blog", name: "Other Co", sortOrder: 0 });
+    expect(orderStoryCards([builtIn, post, byName, other, story]).map((c) => c.id)).toEqual(["image-studio", "post:other", "story:dumitru"]);
+    // Without a success story the blog post stays a card.
+    expect(orderStoryCards([builtIn, post]).map((c) => c.id)).toEqual(["image-studio", "post:dumitru"]);
+    // A namesake with another website is another business: both are shown.
+    const namesake = card("post:namesake", { source: "blog", name: "Dumitru Culiuc", websiteUrl: "https://elsewhere.example", sortOrder: 0 });
+    expect(orderStoryCards([namesake, story]).map((c) => c.id)).toEqual(["post:namesake", "story:dumitru"]);
+    // Two success stories are never hidden by each other.
+    expect(orderStoryCards([story, { ...story, id: "story:twin" }]).map((c) => c.id)).toEqual(["story:dumitru", "story:twin"]);
+  });
+
   it("does not reorder or change the cards it was given", () => {
     const input = [card("b", { sortOrder: 2 }), card("a"), builtIn];
     const copy = structuredClone(input);
     orderStoryCards(input);
     expect(input).toEqual(copy);
+  });
+});
+
+describe("sameBusiness", () => {
+  it("compares websites when both have one, otherwise names", () => {
+    expect(sameBusiness({ name: "A", websiteUrl: "https://www.a.test/x" }, { name: "B", websiteUrl: "http://a.test" })).toBe(true);
+    expect(sameBusiness({ name: "A", websiteUrl: "https://a.test" }, { name: "A", websiteUrl: "https://b.test" })).toBe(false);
+    expect(sameBusiness({ name: "A  Co", websiteUrl: null }, { name: "a co", websiteUrl: "https://b.test" })).toBe(true);
+    expect(sameBusiness({ name: "", websiteUrl: null }, { name: "", websiteUrl: null })).toBe(false);
+    expect(sameBusiness({ name: "A", websiteUrl: "not a url" }, { name: "A", websiteUrl: null })).toBe(true);
   });
 });
 

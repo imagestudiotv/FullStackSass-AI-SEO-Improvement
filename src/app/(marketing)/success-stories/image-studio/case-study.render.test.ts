@@ -148,6 +148,8 @@ describe("the Image Studio case study", () => {
       datePublished: IMAGE_STUDIO.published,
       dateModified: IMAGE_STUDIO.updated,
       about: { "@type": "Organization", name: "Image Studio", url: "https://imagestudio.com" },
+      // Named here, not only by @id: on this page a bare reference is an author without a name.
+      author: { "@type": "Organization", "@id": "https://www.repget.com/#organization", name: "RepGet", url: "https://www.repget.com/" },
     });
     expect(breadcrumbs.itemListElement.map((item: { item: string }) => item.item)).toEqual([
       "https://www.repget.com/it",

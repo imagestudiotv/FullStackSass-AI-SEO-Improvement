@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as schema from "@/lib/db/schema";
@@ -25,9 +26,9 @@ vi.mock("@/lib/partners/server", () => ({ partnerDeps: () => ({ settings: { envi
 import { NextRequest } from "next/server";
 
 import { GET, POST } from "@/app/(site)/admin/badges/route";
-import { getAdminBadges, NEW_SOURCES, WAITING_SOURCES } from "@/lib/admin/badges";
+import { getAdminBadges, getBadgeNotice, NEW_SOURCES, WAITING_SOURCES } from "@/lib/admin/badges";
 import { readSeen, SEEN_COOKIE, writeSeen } from "@/lib/admin/badges-seen";
-import { assembleBadges, badgeNumber, SEEN_PATHS, seenPathOf, type AdminBadges } from "@/lib/admin/badges-shared";
+import { assembleBadges, badgeNumber, noticeCount, SEEN_PATHS, seenPathOf, type AdminBadges } from "@/lib/admin/badges-shared";
 import { listServiceOrders, markServiceOrderDelivered } from "@/lib/admin/service-orders";
 import { getSocialPosting } from "@/lib/admin/social-posting";
 import { ADMIN_NAV_ITEMS } from "@/app/(site)/admin/_ui/nav";
@@ -275,6 +276,46 @@ describe("what waits for somebody", () => {
     expect(after["/admin/partners"].waiting - at("/admin/partners")).toBe(1);
     expect(after["/admin/partners/commissions"].waiting - at("/admin/partners/commissions")).toBe(1);
     expect(after["/admin/partners/payouts"].waiting - at("/admin/partners/payouts")).toBe(2);
+  });
+});
+
+describe("a page's own account of its badge (Daniel, 2026-11-26: 2 on Blog, nothing new on the page)", () => {
+  it("Admin -> Blog lists exactly what its badge counts, each with where it is dealt with", async () => {
+    const base = { postSlug: "p", email: "a@b.example", websiteUrl: "https://b.example", message: "m" };
+    await test.db.insert(schema.blogSponsorships).values({ ...base, status: "paid" });
+    await test.db.insert(schema.blogAutopilotTopics).values({ topic: "could not be written", status: "failed" });
+    // Times from this clock, not the database's default, so the cookie below is surely later.
+    await test.db.delete(schema.blogComments);
+    await loose(() => test.db.insert(schema.blogComments).values({ postId: randomUUID(), discussionId: randomUUID(), userId: "u", body: "new", createdAt: ago(1) }));
+
+    const badge = (await read())["/admin/blog"];
+    const notice = await getBadgeNotice("/admin/blog");
+    expect(notice.reduce((sum, item) => sum + item.count, 0)).toBe(badge.count);
+    expect(notice.map((item) => [item.kind, item.what, item.href])).toEqual([
+      ["waiting", "paid Get Featured requests", "/admin/blog/sponsorships"],
+      ["waiting", "failed autopilot topics", "/admin/blog/autopilot#failed-topics"],
+      ["new", "new comments", "/admin/blog/comments"],
+    ]);
+    expect(noticeCount({ count: 1, what: "failed autopilot topics", one: "failed autopilot topic" })).toBe("1 failed autopilot topic");
+    expect(noticeCount({ count: 2, what: "failed autopilot topics", one: "failed autopilot topic" })).toBe("2 failed autopilot topics");
+
+    // The comments opened: their line goes, as the badge's count does.
+    state.cookie = writeSeen({}, asAdmin.user.id, "/admin/blog/comments");
+    expect((await getBadgeNotice("/admin/blog")).map((item) => item.what)).toEqual(["paid Get Featured requests", "failed autopilot topics"]);
+    // A failed topic removed (or tried again) no longer counts.
+    await test.db.delete(schema.blogAutopilotTopics).where(eq(schema.blogAutopilotTopics.status, "failed"));
+    await test.db.delete(schema.blogSponsorships).where(eq(schema.blogSponsorships.status, "paid"));
+    expect(await getBadgeNotice("/admin/blog")).toEqual([]);
+  });
+
+  it("explains every count of the Blog badge, and nothing for a page without one", async () => {
+    for (const source of [...WAITING_SOURCES, ...NEW_SOURCES].filter((entry) => entry.href === "/admin/blog")) expect(source.handled, source.what).toBeDefined();
+    expect(await getBadgeNotice("/admin/nothing-here")).toEqual([]);
+  });
+
+  it("is for administrators only", async () => {
+    state.session = null;
+    await expect(getBadgeNotice("/admin/blog")).rejects.toThrow();
   });
 });
 

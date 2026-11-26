@@ -1,10 +1,10 @@
 import "server-only";
 
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 
-import { listCustomerStories, type CustomerStory } from "@/lib/blog/engagement";
+import { discussionsOf, listCustomerStories, type CustomerStory } from "@/lib/blog/engagement";
 import { db, isDatabaseConfigured } from "@/lib/db";
-import { successStories } from "@/lib/db/schema";
+import { blogPosts, successStories } from "@/lib/db/schema";
 import { localePath, type Locale } from "@/lib/i18n/config";
 import { CASE_STUDY_COPY, CASE_STUDY_PATH, IMAGE_STUDIO } from "@/lib/marketing/case-study-image-studio";
 
@@ -22,6 +22,8 @@ import { isImageStudioCard, orderStoryCards, type StoryCard } from "./order";
  * - the stories written in Admin -> Success stories (table success_stories),
  *   each with its own page at /success-stories/<slug>.
  * The homepage shows the first three, /discover and /success-stories more.
+ * A business with a story from Admin -> Success stories is listed by that
+ * story only (order.ts; client, 2026-11-26): its blog posts stay in the blog.
  */
 
 /** A published story's page, as /success-stories/<slug> draws it. */
@@ -162,7 +164,65 @@ export function successStoryCard(story: SuccessStoryPage, locale: Locale, sortOr
   };
 }
 
-/** At most this many blog stories are read: the directory and /success-stories show every one, and there are a handful. */
+/** The business a post names, as stored: each field null when blank. */
+type PostBusiness = { name: string | null; websiteUrl: string | null; logoUrl: string | null };
+
+const blank = (value: string | null) => value?.trim() || null;
+
+/**
+ * The business each post is about, its blank fields taken from another
+ * version of the same article (its discussion: the original and its
+ * translations, lib/blog/engagement.ts), the original first. A translation
+ * often leaves the business empty - the Spanish post about Image Studio
+ * showed "RepGet team", its author - so without this it would not be known
+ * as the same business as its original or as that business's success story,
+ * and the same story would be listed twice (client, 2026-11-26).
+ */
+async function discussionBusinesses(postIds: string[]): Promise<Map<string, PostBusiness>> {
+  const result = new Map<string, PostBusiness>();
+  if (postIds.length === 0 || !isDatabaseConfigured()) return result;
+  try {
+    const discussions = await discussionsOf(postIds);
+    const ids = [...new Set(discussions.values())];
+    if (ids.length === 0) return result;
+    const rows = await db
+      .select({
+        id: blogPosts.id,
+        discussionId: blogPosts.discussionId,
+        translationOf: blogPosts.translationOf,
+        name: blogPosts.businessName,
+        websiteUrl: blogPosts.businessWebsiteUrl,
+        logoUrl: blogPosts.businessLogoUrl,
+      })
+      .from(blogPosts)
+      .where(inArray(blogPosts.discussionId, ids))
+      .orderBy(sql`(${blogPosts.translationOf} is null) desc`, asc(blogPosts.createdAt), asc(blogPosts.id));
+    for (const [postId, discussionId] of discussions) {
+      const own = rows.find((row) => row.id === postId);
+      // The post's own fields first, then each other version's, the original first.
+      const versions = [...(own ? [own] : []), ...rows.filter((row) => row.discussionId === discussionId && row.id !== postId)];
+      const first = (field: keyof PostBusiness) => versions.map((row) => blank(row[field])).find(Boolean) ?? null;
+      result.set(postId, { name: first("name"), websiteUrl: first("websiteUrl"), logoUrl: first("logoUrl") });
+    }
+    return result;
+  } catch (error) {
+    if (!isMissingSchema(error)) throw error;
+    return result;
+  }
+}
+
+/** A post's card fields with its article's business (discussionBusinesses) where the post names none. */
+export function withBusiness(story: CustomerStory, business: PostBusiness | undefined): CustomerStory {
+  if (!business) return story;
+  return {
+    ...story,
+    name: business.name ?? story.name,
+    websiteUrl: business.websiteUrl ?? story.websiteUrl,
+    logoUrl: business.logoUrl ?? story.logoUrl,
+  };
+}
+
+/** At most this many blog stories are read:the directory and /success-stories show every one, and there are a handful. */
 const BLOG_STORIES_READ = 100;
 
 /**
@@ -172,9 +232,10 @@ const BLOG_STORIES_READ = 100;
  */
 export async function listStoryCards(locale: Locale): Promise<StoryCard[]> {
   const [posts, stories] = await Promise.all([listCustomerStories(locale, BLOG_STORIES_READ), listPublishedSuccessStories()]);
+  const businesses = await discussionBusinesses(posts.map((post) => post.postId));
   return orderStoryCards([
     imageStudioCard(locale),
-    ...posts.map(blogStoryCard),
+    ...posts.map((post) => blogStoryCard(withBusiness(post, businesses.get(post.postId)))),
     ...stories.map((story, index) => successStoryCard(story, locale, index + 1)),
   ]);
 }

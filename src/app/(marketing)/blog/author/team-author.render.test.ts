@@ -138,6 +138,8 @@ describe("/blog/author/repget-team in English", () => {
     expect(page).toContain(">1 article</p>");
     expect(page).toContain('href="/blog/keyword-cannibalization"');
     expect(page).toContain('"@type":"ProfilePage","url":"https://www.repget.com/blog/author/repget-team"');
+    // Google's required field for a profile page: mainEntity, with a name.
+    expect(page).toContain('"mainEntity":{"@type":"Organization","name":"RepGet team"');
   });
 
   it("with no English post: the message it always had", async () => {

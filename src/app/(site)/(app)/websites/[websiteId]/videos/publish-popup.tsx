@@ -2,7 +2,8 @@
 
 import { Bookmark, Check, ChevronDown, Copy, Download, ExternalLink, Lightbulb, Loader2, Rocket, Send, Sparkles } from "lucide-react";
 import Link from "next/link";
-import { useId, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useId, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { BrandIcon } from "@/components/brand-icons";
@@ -25,7 +26,7 @@ import { cleanTags, parseTags, suggestedTags, tagsLength, YOUTUBE_TAGS_MAX } fro
 
 import { downloadUrl, manualPlatforms, PLATFORM_POST_URLS, platformText, postedOn } from "./logic";
 import { reelFrames } from "./preview";
-import { noteText, opportunitiesHref, platformName, startWith, type IdeaView, type Run, type T, type VideoAccountView, xWords } from "./shared";
+import { errorText, noteText, opportunitiesHref, platformName, startWith, type IdeaView, type Run, type T, type VideoAccountView, xWords } from "./shared";
 
 type Mode = "manual" | "auto" | "save";
 type Texts = Partial<Record<VideoPlatform, { title: string | null; caption: string }>>;
@@ -97,8 +98,19 @@ export function PublishPopup(props: {
   const making = idea.status === "approved" || idea.status === "making";
   const files = Boolean(idea.videoUrl || idea.slideUrls.length > 0);
   const posted = postedOn(idea.destinations, platforms);
-  // A Short's tags: the saved ones, else its hashtags to start from; saved on leaving the field and on closing.
-  const [tags, setTags] = useState(() => idea.youtubeTags ?? suggestedTags(idea.caption));
+  // A Short's tags: the saved ones (never changed here), else a suggestion from the post, the video, the brand and the topics; saved on leaving the field and on closing.
+  const [tags, setTags] = useState(
+    () =>
+      idea.youtubeTags ??
+      suggestedTags({
+        caption: idea.caption,
+        title: idea.title,
+        hook: idea.props?.script?.hook,
+        points: idea.props?.script?.points?.map((point) => point.title),
+        brand: idea.props?.brand?.name,
+        topics: props.settings.priorityTopics,
+      }),
+  );
   const [savedTags, setSavedTags] = useState(tags);
   async function saveTags() {
     const clean = cleanTags(tags);
@@ -106,8 +118,8 @@ export function PublishPopup(props: {
     if (!canEdit || clean === savedTags) return;
     setSavedTags(clean);
     const result = await saveYoutubeTags(websiteId, idea.id, clean).catch(() => null);
-    if (result?.ok) toast.success(t.flow.library.tags.saved);
-    else toast.error(t.errors.generic);
+    if (result?.ok) toast.success(t.flow.library.tags.saved, IN_WINDOW);
+    else toast.error(t.errors.generic, IN_WINDOW);
   }
   function close(reason: CloseReason) {
     void saveTags();
@@ -245,10 +257,79 @@ export function PublishPopup(props: {
 
 type PaneProps = Omit<Parameters<typeof PublishPopup>[0], "onIdeas"> & { making: boolean; files: boolean };
 
-const copyWords = async (p: T["flow"]["popup"], value: string) => {
-  if (await copyTextNow(value)) toast.success(p.copied);
-  else toast.error(p.copyFailed);
-};
+/**
+ * A toast this window still needs (a failure, the tags saved) comes at the
+ * top of the screen: at the bottom right, sonner's place everywhere else, it
+ * sat on the window's foot (Daniel, 2026-11-26: "it's covering the other
+ * buttons and I have to wait it disappear").
+ */
+const IN_WINDOW = { position: "top-center" } as const;
+
+/** How long a button says what it just did. */
+const FLASH_MS = 2000;
+
+/** A button's own "done" for two seconds, in place of a toast; a second click starts the two seconds again. */
+function useFlash(ms = FLASH_MS) {
+  const [message, setMessage] = useState<string | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
+  const flash = useCallback(
+    (text: string) => {
+      if (timer.current) clearTimeout(timer.current);
+      setMessage(text);
+      timer.current = setTimeout(() => setMessage(null), ms);
+    },
+    [ms],
+  );
+  return [message, flash] as const;
+}
+
+/** What a button just did, said politely to a screen reader (always in the page, so the change is announced). */
+function Announce({ message }: { message: string | null }) {
+  return (
+    <span role="status" aria-live="polite" className="sr-only">
+      {message ?? ""}
+    </span>
+  );
+}
+
+/** A Copy button that answers in itself: "Copied" with a tick for two seconds; only a failure is a toast, at the top. */
+function CopyButton(props: {
+  value: () => string;
+  label: string;
+  p: T["flow"]["popup"];
+  variant?: "outline" | "ghost";
+  size?: "xs" | "default";
+  className?: string;
+  disabled?: boolean;
+}) {
+  const { p } = props;
+  const [copied, flash] = useFlash();
+  return (
+    <>
+      <Button
+        type="button"
+        variant={props.variant ?? "ghost"}
+        size={props.size === "xs" ? "xs" : undefined}
+        className={props.className}
+        disabled={props.disabled}
+        onClick={async () => {
+          if (await copyTextNow(props.value())) flash(p.copied);
+          else toast.error(p.copyFailed, IN_WINDOW);
+        }}
+      >
+        {copied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
+        {copied ? p.copied : props.label}
+      </Button>
+      <Announce message={copied} />
+    </>
+  );
+}
 
 /**
  * The window's foot, outside what scrolls: Download, next to the active
@@ -262,6 +343,23 @@ function ActionBar(props: PaneProps & { mode: Mode; active: VideoPlatform; text:
   const done = state?.status === "posted";
   const manual = props.mode === "manual";
   const wide = "h-auto min-h-9 min-w-0 px-2 py-1.5 leading-tight whitespace-normal sm:px-3";
+  // Mark as posted answers in its button too (Daniel, 2026-11-26), not with a toast over the foot; only a refusal is a toast, at the top.
+  const router = useRouter();
+  const [marking, startMarking] = useTransition();
+  const [marked, flashMarked] = useFlash();
+  const [markedFor, setMarkedFor] = useState<{ platform: VideoPlatform; on: boolean } | null>(null);
+  function mark() {
+    const on = !done;
+    const platform = active;
+    startMarking(async () => {
+      const result = await markVideoPosted(props.websiteId, idea.id, platform, on).catch(() => null);
+      if (!result) return void toast.error(t.errors.generic, IN_WINDOW);
+      if (!result.ok) return void toast.error(errorText(t, result, props.priceLabel), IN_WINDOW);
+      setMarkedFor({ platform, on });
+      flashMarked(format(on ? p.marked : p.unmarked, { platform: platformName(platform) }));
+      router.refresh();
+    });
+  }
   return (
     <div role="group" aria-label={t.flow.library.actions.label} className={`shrink-0 border-t bg-popover p-3 sm:flex sm:flex-wrap sm:justify-end sm:gap-2 sm:px-5 ${manual ? "grid grid-cols-2 gap-2" : "grid"}`}>
       {idea.videoUrl ? (
@@ -300,10 +398,7 @@ function ActionBar(props: PaneProps & { mode: Mode; active: VideoPlatform; text:
       )}
       {manual ? (
         <>
-          <Button variant="outline" className={wide} onClick={() => void copyWords(p, text.title ? `${text.title}\n\n${text.caption}` : text.caption)}>
-            <Copy aria-hidden="true" />
-            {p.copyText}
-          </Button>
+          <CopyButton variant="outline" className={wide} p={p} label={p.copyText} value={() => (text.title ? `${text.title}\n\n${text.caption}` : text.caption)} />
           <Button asChild variant="outline" className={wide}>
             <a href={PLATFORM_POST_URLS[active]} target="_blank" rel="noopener noreferrer">
               <ExternalLink aria-hidden="true" />
@@ -311,16 +406,12 @@ function ActionBar(props: PaneProps & { mode: Mode; active: VideoPlatform; text:
             </a>
           </Button>
           {props.canEdit && (!done || state?.manual) ? (
-            <Button
-              variant="outline"
-              className={wide}
-              disabled={props.pending || props.making || !files}
-              onClick={() => props.run(() => markVideoPosted(props.websiteId, idea.id, active, !done), format(done ? p.unmarked : p.marked, { platform: platformName(active) }))}
-            >
-              <Check aria-hidden="true" />
-              {done ? p.unmarkPosted : p.markPosted}
+            <Button variant="outline" className={wide} disabled={props.pending || marking || props.making || !files} onClick={mark}>
+              {marking ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Check aria-hidden="true" />}
+              {marked && markedFor?.platform === active ? (markedFor.on ? p.postedBadge : p.markPosted) : done ? p.unmarkPosted : p.markPosted}
             </Button>
           ) : null}
+          <Announce message={marked} />
         </>
       ) : null}
     </div>
@@ -408,7 +499,6 @@ function ManualPane(
   const done = state?.status === "posted";
   const length = [...text.caption].length;
 
-  const copy = (value: string) => copyWords(p, value);
 
   return (
     <div className="space-y-4">
@@ -453,10 +543,7 @@ function ManualPane(
               <label htmlFor={`${ids}-title`} className="text-xs font-medium text-muted-foreground">
                 {p.titleLabel}
               </label>
-              <Button variant="ghost" size="xs" onClick={() => void copy(text.title ?? "")}>
-                <Copy aria-hidden="true" />
-                {p.copyTitle}
-              </Button>
+              <CopyButton size="xs" p={p} label={p.copyTitle} value={() => text.title ?? ""} />
             </div>
             <Input
               id={`${ids}-title`}
@@ -471,10 +558,7 @@ function ManualPane(
             <label htmlFor={`${ids}-caption`} className="text-xs font-medium text-muted-foreground">
               {p.captionLabel}
             </label>
-            <Button variant="ghost" size="xs" onClick={() => void copy(text.caption)}>
-              <Copy aria-hidden="true" />
-              {p.copyText}
-            </Button>
+            <CopyButton size="xs" p={p} label={p.copyText} value={() => text.caption} />
           </div>
           <Textarea
             id={`${ids}-caption`}
@@ -508,10 +592,7 @@ function TagsField(props: { idea: IdeaView; canEdit: boolean; tags: string; onTa
         <label htmlFor={id} className="text-xs font-medium text-muted-foreground">
           {g.label}
         </label>
-        <Button variant="ghost" size="xs" disabled={!tags.trim()} onClick={() => void copyWords(p, cleanTags(tags))}>
-          <Copy aria-hidden="true" />
-          {g.copy}
-        </Button>
+        <CopyButton size="xs" p={p} label={g.copy} disabled={!tags.trim()} value={() => cleanTags(tags)} />
       </div>
       <Textarea
         id={id}
