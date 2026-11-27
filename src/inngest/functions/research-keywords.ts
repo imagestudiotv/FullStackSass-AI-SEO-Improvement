@@ -186,8 +186,10 @@ export const researchKeywords = inngest.createFunction(
         profile is built from its address and its Search Console searches, and
         saved where empty, instead of ending the run with nothing to plan.
       */
+      let generated = await spend(() => generateSeedKeywords(profile));
       let queries: string[] = [];
-      if (isEmptyProfile(profile)) {
+      const unread = generated.length === 0 && isEmptyProfile(profile);
+      if (unread) {
         // First the site itself again: it may simply not have answered at sign-up.
         try {
           const reread = await spend(() => readSiteProfile(site.url));
@@ -212,7 +214,7 @@ export const researchKeywords = inngest.createFunction(
           );
         }
       }
-      if (isEmptyProfile(profile)) {
+      if (unread && isEmptyProfile(profile)) {
         queries = await topSearchQueries(websiteId);
         try {
           const inferred = await spend(() => profileFromSignals({ url: site.url, domain: site.domain, queries }));
@@ -246,7 +248,7 @@ export const researchKeywords = inngest.createFunction(
         }
       }
 
-      let generated = isEmptyProfile(profile) ? [] : await spend(() => generateSeedKeywords(profile));
+      if (unread && !isEmptyProfile(profile)) generated = await spend(() => generateSeedKeywords(profile));
       if (generated.length === 0 && queries.length > 0) {
         generated = seedsFromQueries(queries, profile.brandName);
         logger.warn({ step: "generate-seeds", websiteId, seedCount: generated.length }, "No seeds from the model - using Search Console searches");
