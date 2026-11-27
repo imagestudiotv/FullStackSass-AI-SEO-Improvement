@@ -23,6 +23,7 @@ import {
   isEmptyProfile,
   mergeProfile,
   profileFromSignals,
+  readSiteProfile,
   saveInferredProfile,
   seedsFromQueries,
   topSearchQueries,
@@ -186,6 +187,31 @@ export const researchKeywords = inngest.createFunction(
         saved where empty, instead of ending the run with nothing to plan.
       */
       let queries: string[] = [];
+      if (isEmptyProfile(profile)) {
+        // First the site itself again: it may simply not have answered at sign-up.
+        try {
+          const reread = await spend(() => readSiteProfile(site.url));
+          if (reread) {
+            const price = PRICING.llm[MODELS.EXTRACTION];
+            await track(organizationId, {
+              kind: "llm",
+              websiteId,
+              provider: "anthropic",
+              model: MODELS.EXTRACTION,
+              costUsd: (reread.textLength / 4 / 1000) * price.inputPer1k + 0.5 * price.outputPer1k,
+              metadata: { purpose: "onboarding_extraction", reread: true },
+            });
+            await saveInferredProfile(websiteId, reread.profile);
+            profile = mergeProfile(profile, reread.profile);
+            logger.warn({ step: "generate-seeds", websiteId, industry: Boolean(profile.industry) }, "Empty profile - the website was read again");
+          }
+        } catch (error) {
+          logger.warn(
+            { step: "generate-seeds", websiteId, reason: error instanceof Error ? error.message.slice(0, 200) : "unknown" },
+            "The website could not be read again",
+          );
+        }
+      }
       if (isEmptyProfile(profile)) {
         queries = await topSearchQueries(websiteId);
         try {

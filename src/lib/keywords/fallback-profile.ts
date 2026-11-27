@@ -2,8 +2,9 @@ import { and, desc, eq, gte, isNotNull, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { gscMetrics, websites } from "@/lib/db/schema";
-import type { PageSnapshot } from "@/lib/websites/crawl";
+import { fetchHomepage, type PageSnapshot } from "@/lib/websites/crawl";
 import { extractProfile, type ExtractedProfile } from "@/lib/websites/extract";
+import { isPublicWebsiteUrl } from "@/lib/websites/url";
 import type { SeedInput, SeedKeyword } from "@/lib/keywords/seeds";
 
 /**
@@ -11,12 +12,16 @@ import type { SeedInput, SeedKeyword } from "@/lib/keywords/seeds";
  *
  * WHY (client, 2026-11-27: "after few hours of registering they get 0
  * article"). Keyword research builds its seeds from the profile the website
- * analysis writes. When the site does not answer (down, firewalled, refusing
- * other countries), the analysis saves nothing, the seeds are empty and every
- * research run ends with no plan - so a Free sign-up with Search Console
- * connected (1,417 real searches imported) got no article at all.
+ * analysis writes, and the analysis reads the site ONCE, at sign-up. A site
+ * that did not answer RepGet's servers at that moment (a firewall or host
+ * blocking automated visitors for a while; the same site loaded fine an hour
+ * later) kept an empty profile for ever: every research run reused it, found
+ * no seeds and ended with no plan, three times, and then stopped - although
+ * the customer had connected Search Console (1,417 real searches).
  *
- * WHAT. When the profile is empty, research asks the profiler for one from
+ * WHAT. When the profile is empty, research first reads the homepage again
+ * (readSiteProfile): usually the site is back, and the profile is the real
+ * one. Only if it still cannot be read does it ask the profiler for one from
  * what IS known: the address (a domain often names the business and the
  * country) and the searches that already bring people to the site (Google
  * Search Console). The fields it fills are saved, only where they are empty,
@@ -81,6 +86,18 @@ export function signalsSnapshot(input: { url: string; domain: string; queries: s
     images: [],
     canonical: null,
   } as unknown as PageSnapshot;
+}
+
+/** The homepage read again and profiled, as the analysis does; null when it still cannot be read. */
+export async function readSiteProfile(url: string): Promise<{ profile: ExtractedProfile; textLength: number } | null> {
+  let snapshot: PageSnapshot;
+  try {
+    snapshot = await fetchHomepage(url, isPublicWebsiteUrl);
+  } catch {
+    return null;
+  }
+  if (!snapshot.text || snapshot.wordCount < 20) return null;
+  return { profile: await extractProfile(snapshot), textLength: snapshot.text.length };
 }
 
 export async function profileFromSignals(input: { url: string; domain: string; queries: string[] }): Promise<ExtractedProfile> {
