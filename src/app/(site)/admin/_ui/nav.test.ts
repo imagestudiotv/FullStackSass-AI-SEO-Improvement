@@ -26,6 +26,7 @@ describe("activeNavItem", () => {
     expect(label("/admin/emails")).toBe("Emails");
     expect(label("/admin/service-orders")).toBe("Service orders");
     expect(label("/admin/social-posting")).toBe("Social posting");
+    expect(label("/admin/free-tools")).toBe("Free tools");
   });
 
   it("lights the affiliate program's sections, on their detail pages too", () => {
@@ -69,6 +70,7 @@ describe("activeNavItem", () => {
         "/admin/email-broadcasts",
         "/admin/service-orders",
         "/admin/social-posting",
+        "/admin/free-tools",
       ]),
     );
   });
