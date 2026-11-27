@@ -20,6 +20,14 @@ import { brandMarks, isBrandSearch } from "@/lib/keywords/brand";
 import { rankKeywords, type SearchIntent } from "@/lib/keywords/score";
 import { generateSeedKeywords } from "@/lib/keywords/seeds";
 import {
+  isEmptyProfile,
+  mergeProfile,
+  profileFromSignals,
+  saveInferredProfile,
+  seedsFromQueries,
+  topSearchQueries,
+} from "@/lib/keywords/fallback-profile";
+import {
   isDataForSeoConfigured,
   keywordIdeas,
   keywordsForSite,
@@ -160,7 +168,7 @@ export const researchKeywords = inngest.createFunction(
     });
 
     const seeds = await step.run("generate-seeds", async () => {
-      const generated = await spend(() => generateSeedKeywords({
+      let profile = {
         brandName: site.brandName,
         industry: site.industry,
         country: site.country,
@@ -170,7 +178,53 @@ export const researchKeywords = inngest.createFunction(
         services: Array.isArray(site.services)
           ? (site.services as string[])
           : [],
-      }));
+      };
+
+      /*
+        A site RepGet could not read (lib/keywords/fallback-profile.ts): the
+        profile is built from its address and its Search Console searches, and
+        saved where empty, instead of ending the run with nothing to plan.
+      */
+      let queries: string[] = [];
+      if (isEmptyProfile(profile)) {
+        queries = await topSearchQueries(websiteId);
+        try {
+          const inferred = await spend(() => profileFromSignals({ url: site.url, domain: site.domain, queries }));
+          const price = PRICING.llm[MODELS.EXTRACTION];
+          await track(organizationId, {
+            kind: "llm",
+            websiteId,
+            provider: "anthropic",
+            model: MODELS.EXTRACTION,
+            costUsd: 1 * price.inputPer1k + 0.5 * price.outputPer1k,
+            metadata: { purpose: "profile_from_signals", queries: queries.length },
+          });
+          await saveInferredProfile(websiteId, inferred);
+          profile = mergeProfile(profile, inferred);
+          logger.warn(
+            {
+              step: "generate-seeds",
+              websiteId,
+              queries: queries.length,
+              industry: Boolean(profile.industry),
+              hasDescription: Boolean(profile.description),
+              services: profile.services.length,
+            },
+            "Empty profile - built from the address and Search Console searches",
+          );
+        } catch (error) {
+          logger.warn(
+            { step: "generate-seeds", websiteId, reason: error instanceof Error ? error.message.slice(0, 200) : "unknown" },
+            "Profile from the address and searches could not be built",
+          );
+        }
+      }
+
+      let generated = isEmptyProfile(profile) ? [] : await spend(() => generateSeedKeywords(profile));
+      if (generated.length === 0 && queries.length > 0) {
+        generated = seedsFromQueries(queries, profile.brandName);
+        logger.warn({ step: "generate-seeds", websiteId, seedCount: generated.length }, "No seeds from the model - using Search Console searches");
+      }
 
       const price = PRICING.llm[MODELS.EXTRACTION];
       await track(organizationId, {
