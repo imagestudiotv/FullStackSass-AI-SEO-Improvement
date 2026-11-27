@@ -2,7 +2,7 @@ import type { Locale } from "@/lib/i18n/config";
 
 /**
  * Words for three homepage sections of the client's approved design
- * (design.html, 2026-11-04): the dark "four growth engines" band, the
+ * (design.html, 2026-11-04): the dark growth engines band, the
  * walkthrough video and the three steps to start.
  *
  * English is the design's text, word for word. The other languages use the
@@ -74,11 +74,11 @@ type Plan = { name: string; tag: string };
 
 const en: StoryCopy = {
   engines: {
-    eyebrow: "One platform. Four growth engines.",
+    eyebrow: "One platform. One connected growth engine.",
     titleStart: "Growth from",
     titleAccent: "every direction.",
     sub: "Search, social, AI and authority working together, not in separate tools.",
-    cardsLabel: "Four interactive product illustrations",
+    cardsLabel: "Interactive product illustrations",
     link: "See how the workflow connects",
     search: {
       title: "SEO that climbs.",
@@ -158,11 +158,11 @@ const en: StoryCopy = {
 
 const es: StoryCopy = {
   engines: {
-    eyebrow: "Una plataforma. Cuatro motores de crecimiento.",
+    eyebrow: "Una plataforma. Un motor de crecimiento conectado.",
     titleStart: "Crecimiento en",
     titleAccent: "todas direcciones.",
     sub: "Búsqueda, redes, IA y autoridad trabajando juntas, no en herramientas separadas.",
-    cardsLabel: "Cuatro ilustraciones interactivas del producto",
+    cardsLabel: "Ilustraciones interactivas del producto",
     link: "Vea cómo se conecta todo",
     search: {
       title: "SEO que sube.",
@@ -242,11 +242,11 @@ const es: StoryCopy = {
 
 const fr: StoryCopy = {
   engines: {
-    eyebrow: "Une plateforme. Quatre moteurs de croissance.",
+    eyebrow: "Une plateforme. Un moteur de croissance connecté.",
     titleStart: "La croissance dans",
     titleAccent: "toutes les directions.",
     sub: "Recherche, réseaux, IA et autorité qui travaillent ensemble, pas dans des outils séparés.",
-    cardsLabel: "Quatre illustrations interactives du produit",
+    cardsLabel: "Illustrations interactives du produit",
     link: "Voir comment tout se connecte",
     search: {
       title: "Un SEO qui progresse.",
@@ -326,11 +326,11 @@ const fr: StoryCopy = {
 
 const it: StoryCopy = {
   engines: {
-    eyebrow: "Una piattaforma. Quattro motori di crescita.",
+    eyebrow: "Una piattaforma. Un unico motore di crescita.",
     titleStart: "Crescita in",
     titleAccent: "ogni direzione.",
     sub: "Ricerca, social, IA e autorevolezza che lavorano insieme, non in strumenti separati.",
-    cardsLabel: "Quattro illustrazioni interattive del prodotto",
+    cardsLabel: "Illustrazioni interattive del prodotto",
     link: "Veda come si collega tutto",
     search: {
       title: "Una SEO che sale.",
@@ -410,11 +410,11 @@ const it: StoryCopy = {
 
 const de: StoryCopy = {
   engines: {
-    eyebrow: "Eine Plattform. Vier Wachstumsmotoren.",
+    eyebrow: "Eine Plattform. Ein vernetzter Wachstumsmotor.",
     titleStart: "Wachstum aus",
     titleAccent: "allen Richtungen.",
     sub: "Suche, Social Media, KI und Autorität arbeiten zusammen statt in getrennten Tools.",
-    cardsLabel: "Vier interaktive Produktillustrationen",
+    cardsLabel: "Interaktive Produktillustrationen",
     link: "So greift alles ineinander",
     search: {
       title: "SEO, das steigt.",

@@ -34,7 +34,6 @@ export type SiteMenuCopy = {
     seo: { kicker: string; checks: [string, string]; bottom: string };
     backlinks: { kicker: string; bottom: string };
     ai: { kicker: string; bottom: string };
-    growth: { kicker: string; bottom: string };
   };
   /** The "demo preview" product window beside each tool's description. */
   windows: {
@@ -43,7 +42,6 @@ export type SiteMenuCopy = {
     seo: { app: string; ring: [string, string]; summary: [string, string]; head: string; rows: [string, string][]; footer: string };
     backlinks: { app: string; head: string; rows: [string, string][]; flowHead: string; flow: [string, string, string]; footer: string };
     ai: { app: string; head: string; quote: string; tags: [string, string]; channels: string; status: string };
-    growth: { app: string; head: string; title: string; range: string; channels: string; rows: [string, string, string]; footer: string };
   };
   /** What hovering or focusing a channel says about it, in the Integrations menu's footer. */
   channels: Record<
@@ -89,7 +87,6 @@ const en: SiteMenuCopy = {
     seo: { kicker: "Site audit", checks: ["On-page", "Technical"], bottom: "Issues prioritized" },
     backlinks: { kicker: "Link opportunities", bottom: "Relevant placements" },
     ai: { kicker: "AI discovery", bottom: "Visibility insights" },
-    growth: { kicker: "Growth insights", bottom: "Connected reporting" },
   },
   windows: {
     content: {
@@ -130,15 +127,6 @@ const en: SiteMenuCopy = {
       tags: ["Brand mentions", "Competitors named"],
       channels: "Assistant checked weekly",
       status: "Monitor",
-    },
-    growth: {
-      app: "Growth Reports",
-      head: "Performance overview",
-      title: "Visibility over time",
-      range: "Last 30 days",
-      channels: "Connected channels",
-      rows: ["Search", "AI discovery", "Social"],
-      footer: "One clear overview",
     },
   },
   channels: {
@@ -181,7 +169,6 @@ const es: SiteMenuCopy = {
     seo: { kicker: "Auditoría del sitio", checks: ["On-page", "Técnico"], bottom: "Problemas priorizados" },
     backlinks: { kicker: "Oportunidades de enlaces", bottom: "Colocaciones relevantes" },
     ai: { kicker: "Descubrimiento en IA", bottom: "Datos de visibilidad" },
-    growth: { kicker: "Datos de crecimiento", bottom: "Informes conectados" },
   },
   windows: {
     content: {
@@ -222,15 +209,6 @@ const es: SiteMenuCopy = {
       tags: ["Menciones de marca", "Competidores nombrados"],
       channels: "Asistente comprobado cada semana",
       status: "Vigilar",
-    },
-    growth: {
-      app: "Informes de crecimiento",
-      head: "Resumen de rendimiento",
-      title: "Visibilidad en el tiempo",
-      range: "Últimos 30 días",
-      channels: "Canales conectados",
-      rows: ["Búsqueda", "Descubrimiento en IA", "Redes"],
-      footer: "Una visión clara",
     },
   },
   channels: {
@@ -273,7 +251,6 @@ const fr: SiteMenuCopy = {
     seo: { kicker: "Audit du site", checks: ["On-page", "Technique"], bottom: "Problèmes priorisés" },
     backlinks: { kicker: "Opportunités de liens", bottom: "Placements pertinents" },
     ai: { kicker: "Découverte par l’IA", bottom: "Indicateurs de visibilité" },
-    growth: { kicker: "Indicateurs de croissance", bottom: "Rapports connectés" },
   },
   windows: {
     content: {
@@ -314,15 +291,6 @@ const fr: SiteMenuCopy = {
       tags: ["Mentions de marque", "Concurrents cités"],
       channels: "Assistant vérifié chaque semaine",
       status: "Suivi",
-    },
-    growth: {
-      app: "Rapports de croissance",
-      head: "Vue d’ensemble",
-      title: "Visibilité dans le temps",
-      range: "30 derniers jours",
-      channels: "Canaux connectés",
-      rows: ["Recherche", "Découverte par l’IA", "Réseaux"],
-      footer: "Une vue d’ensemble claire",
     },
   },
   channels: {
@@ -365,7 +333,6 @@ const it: SiteMenuCopy = {
     seo: { kicker: "Analisi del sito", checks: ["On-page", "Tecnico"], bottom: "Problemi in ordine di priorità" },
     backlinks: { kicker: "Opportunità di link", bottom: "Inserimenti pertinenti" },
     ai: { kicker: "Scoperta nell’IA", bottom: "Dati sulla visibilità" },
-    growth: { kicker: "Dati sulla crescita", bottom: "Report collegati" },
   },
   windows: {
     content: {
@@ -406,15 +373,6 @@ const it: SiteMenuCopy = {
       tags: ["Menzioni del marchio", "Concorrenti nominati"],
       channels: "Assistente controllato ogni settimana",
       status: "Monitorare",
-    },
-    growth: {
-      app: "Report di crescita",
-      head: "Panoramica dei risultati",
-      title: "Visibilità nel tempo",
-      range: "Ultimi 30 giorni",
-      channels: "Canali collegati",
-      rows: ["Ricerca", "Scoperta nell’IA", "Social"],
-      footer: "Una panoramica chiara",
     },
   },
   channels: {
@@ -457,7 +415,6 @@ const de: SiteMenuCopy = {
     seo: { kicker: "Website-Check", checks: ["On-Page", "Technik"], bottom: "Probleme priorisiert" },
     backlinks: { kicker: "Link-Chancen", bottom: "Relevante Platzierungen" },
     ai: { kicker: "KI-Sichtbarkeit", bottom: "Sichtbarkeitsdaten" },
-    growth: { kicker: "Wachstumsdaten", bottom: "Vernetzte Berichte" },
   },
   windows: {
     content: {
@@ -498,15 +455,6 @@ const de: SiteMenuCopy = {
       tags: ["Markenerwähnungen", "Genannte Wettbewerber"],
       channels: "Wöchentlich geprüfter Assistent",
       status: "Beobachten",
-    },
-    growth: {
-      app: "Wachstumsberichte",
-      head: "Leistungsübersicht",
-      title: "Sichtbarkeit im Zeitverlauf",
-      range: "Letzte 30 Tage",
-      channels: "Verbundene Kanäle",
-      rows: ["Suche", "KI-Sichtbarkeit", "Social Media"],
-      footer: "Ein klarer Überblick",
     },
   },
   channels: {

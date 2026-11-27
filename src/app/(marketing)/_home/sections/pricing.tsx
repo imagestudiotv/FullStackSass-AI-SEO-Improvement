@@ -1,7 +1,9 @@
 import Link from "next/link";
 
 import { formatPrice, type PlanRow } from "@/lib/billing-shared";
+import { featuresPageCopy } from "@/lib/i18n/features-page";
 import { pricingCopy, type HomePackageId } from "@/lib/i18n/home/pricing";
+import { PRODUCT_TOOLS } from "@/lib/marketing/product-tools";
 import { signUpForPlan } from "@/lib/plans/features";
 import { freePlanDisplay, isRetiredFromSale, type FreePlanCounter } from "@/lib/plans/free-plan";
 import type { SectionProps } from "../types";
@@ -37,6 +39,7 @@ const c = (names: string) =>
  */
 export function Pricing({ locale, href, plans, freeCounter = null }: SectionProps & { plans: PlanRow[]; freeCounter?: FreePlanCounter | null }) {
   const t = pricingCopy(locale);
+  const { tools } = featuresPageCopy(locale);
   const packages = plans.filter((plan) => plan.interval === "month" && plan.tier in t.packages && !isRetiredFromSale(plan.tier));
   const free = freePlanDisplay(locale, freeCounter);
   const plain = (text: string) => text.replaceAll("**", "");
@@ -51,8 +54,9 @@ export function Pricing({ locale, href, plans, freeCounter = null }: SectionProp
           </h2>
           <p>{t.sub}</p>
           <div className={c("rgp-unified-row")} aria-label={t.includedLabel}>
-            {t.included.map((item) => (
-              <span key={item}>{item}</span>
+            {/* The five tools, named and ordered as everywhere else (lib/marketing/product-tools.ts). */}
+            {PRODUCT_TOOLS.map((tool) => (
+              <span key={tool}>{tools[tool].name}</span>
             ))}
           </div>
         </header>
