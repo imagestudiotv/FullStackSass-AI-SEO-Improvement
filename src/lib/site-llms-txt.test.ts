@@ -52,6 +52,13 @@ describe("buildSiteLlmsTxt", () => {
     expect(file).toContain(`- [Ghost vs WordPress](${SITE}/blog/ghost-vs-wordpress): Which one fits a small business.`);
   });
 
+  it("lists /features first under Product, in the page's own words: five tools and Growth Copilot", () => {
+    const product = lines.slice(lines.indexOf("## Product"), lines.indexOf("## Free tools"));
+    expect(product.find((line) => line.startsWith("- "))).toBe(
+      "- [Features: everything RepGet does](https://www.repget.com/features): Five tools in one place: SEO articles, backlinks, AI visibility, social posts and videos, and website health, with Growth Copilot to run them.",
+    );
+  });
+
   it("leaves out the removed link-exchange pages", () => {
     expect(file).not.toContain("/backlink-exchange");
     expect(file).not.toContain("/publishers");

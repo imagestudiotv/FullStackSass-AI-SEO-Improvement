@@ -286,6 +286,9 @@ describe("the header's mega-menus", () => {
     for (const path of [
       "/de/success-stories/image-studio",
       "/de/audit",
+      // "Alle Funktionen ansehen" and the Social tool (client, 2026-11-27).
+      "/de/features",
+      "/de/features#social",
       "/de/backlinks",
       "/de/rank-on-chatgpt",
       "/de/success-stories",
@@ -300,10 +303,11 @@ describe("the header's mega-menus", () => {
       expect(html).toContain(`>${tool.heading}</a>`);
     }
     expect(html).toContain('role="tab" aria-selected="true"');
-    expect(html.match(/role="tab"/g)).toHaveLength(6);
-    expect(html.match(/role="tabpanel"/g)).toHaveLength(6);
+    // The five tools (lib/marketing/product-tools.ts), no "Growth" tab.
+    expect(html.match(/role="tab"/g)).toHaveLength(5);
+    expect(html.match(/role="tabpanel"/g)).toHaveLength(5);
     // Only the first tool's panel shows; the others are in the markup, hidden.
-    expect(html.match(/role="tabpanel"[^>]*hidden=""/g)).toHaveLength(5);
+    expect(html.match(/role="tabpanel"[^>]*hidden=""/g)).toHaveLength(4);
     for (const link of links) {
       const path = link.replace(/^\/de(?=[/?#]|$)/, "").split(/[?#]/)[0] || "/";
       if (path === "/sign-in" || path === "/sign-up") continue;

@@ -125,6 +125,25 @@ describe("homepage sections", () => {
     for (const locale of LOCALES) expect(sectionIds(renderHome(locale))).toEqual(english);
   });
 
+  it.each(LOCALES)("%s: counts the tools once - five - and never the old six, nine or four", (locale) => {
+    const text = words(renderHome(locale, { testimonials: [REVIEW], contentCount: 1234 }));
+    // The menu said "Six tools", the platform section "9 capabilities", the engines band "Four growth engines" (until 2026-11-27).
+    for (const retired of [
+      /six tools|9 capabilities|four growth engines/i,
+      /seis herramientas|9 capacidades|cuatro motores/i,
+      /six outils|9 fonctionnalités|quatre moteurs/i,
+      /sei strumenti|9 funzionalità|quattro motori/i,
+      /sechs werkzeuge|9 funktionen|vier wachstumsmotoren/i,
+    ]) {
+      expect(text).not.toMatch(retired);
+    }
+    expect(text).not.toContain("Explore the platform");
+    // "Top features", right after Meet, before the engines band.
+    const html = renderHome(locale);
+    expect(html.indexOf('id="home-meet-title"')).toBeLessThan(html.indexOf('id="home-features-heading"'));
+    expect(html.indexOf('id="home-features-heading"')).toBeLessThan(html.indexOf('id="growth-engines"'));
+  });
+
   it("keeps the anchors the header and the hero link to", () => {
     const html = renderHome("en", { testimonials: [REVIEW] });
     // Header "How it works" (/#how-it-works), the hero's watch link, the Social tool (/#features), the reviews.

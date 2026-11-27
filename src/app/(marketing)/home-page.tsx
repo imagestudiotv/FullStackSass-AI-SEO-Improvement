@@ -29,7 +29,8 @@ import type { SectionProps } from "./_home/types";
  * The order and the look are the client's approved design (2026-11-04,
  * RepGet_Full_Homepage_Back_To_Top.html): the promise and the free start, the
  * platforms with a real count of what RepGet has made, "Meet RepGet."
- * (2026-11-24), the top features, the four growth engines, the walkthrough video, the three steps to start,
+ * (2026-11-24), the five tools' "Top features" with their dashboard recordings (2026-11-27), the growth
+ * engines band, the walkthrough video, the three steps to start,
  * the guest Growth Copilot (three free questions), the founder, what customers say (only when there are
  * published reviews), pricing, questions, and the closing call.
  *

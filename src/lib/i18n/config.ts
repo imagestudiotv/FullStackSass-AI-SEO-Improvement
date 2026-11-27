@@ -118,6 +118,8 @@ export const TOOL_SLUGS = [
 export const TRANSLATED_PATHS: ReadonlySet<string> = new Set([
   "/",
   "/pricing",
+  // Everything RepGet does, tool by tool (client, 2026-11-27; lib/marketing/product-tools.ts).
+  "/features",
   "/about",
   "/faq",
   "/contact",

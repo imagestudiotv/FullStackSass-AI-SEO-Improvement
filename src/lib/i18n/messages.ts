@@ -84,6 +84,8 @@ export type Messages = {
     /** /backlinks and /rank-on-chatgpt: English pages, linked from every language. */
     backlinks: string;
     rankOnChatgpt: string;
+    /** /features: the five tools with their dashboard recordings (2026-11-27). */
+    features: string;
     /** The cash Affiliate Program (/partners); the credit referral (/affiliate) is not in the footer. */
     partners: string;
     /** /discover, the customer directory (client, 2026-11-12: "insert this page also on footer"). */
@@ -3398,6 +3400,7 @@ const en: Messages = {
     feedback: "Send feedback",
     backlinks: "Backlinks",
     rankOnChatgpt: "Rank on ChatGPT",
+    features: "Features",
     partners: "Affiliate Program",
     discover: "Customer directory",
     privacy: "Privacy",
@@ -6569,6 +6572,7 @@ const es: Messages = {
     feedback: "Enviar comentarios",
     backlinks: "Backlinks",
     rankOnChatgpt: "Aparecer en ChatGPT",
+    features: "Funciones",
     partners: "Programa de afiliados",
     discover: "Directorio de clientes",
     privacy: "Privacidad",
@@ -9758,6 +9762,7 @@ const fr: Messages = {
     feedback: "Donner votre avis",
     backlinks: "Backlinks",
     rankOnChatgpt: "Apparaître dans ChatGPT",
+    features: "Fonctionnalités",
     partners: "Programme d’affiliation",
     discover: "Annuaire des clients",
     privacy: "Confidentialité",
@@ -12946,6 +12951,7 @@ const it: Messages = {
     feedback: "Invia un feedback",
     backlinks: "Backlink",
     rankOnChatgpt: "Comparire su ChatGPT",
+    features: "Funzioni",
     partners: "Programma di affiliazione",
     discover: "Directory dei clienti",
     privacy: "Privacy",
@@ -16135,6 +16141,7 @@ const de: Messages = {
     feedback: "Feedback senden",
     backlinks: "Backlinks",
     rankOnChatgpt: "In ChatGPT erscheinen",
+    features: "Funktionen",
     partners: "Affiliate-Programm",
     discover: "Kundenverzeichnis",
     privacy: "Datenschutz",

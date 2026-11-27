@@ -20,6 +20,7 @@ import { getMessages } from "@/lib/i18n/messages";
 import { CASE_STUDY_COPY, CASE_STUDY_PATH } from "@/lib/marketing/case-study-image-studio";
 import { partnerCopy } from "@/lib/partners/presentation/copy";
 import { featurePageContent } from "@/lib/marketing/feature-pages";
+import { featuresPageCopy } from "@/lib/i18n/features-page";
 import { docsUi, integrationDocs } from "@/lib/publishing/docs";
 import { HOME_META } from "@/lib/seo/home-metadata";
 import { buildSiteLlmsTxt, PAGE_NOTES } from "@/lib/site-llms-txt";
@@ -79,6 +80,7 @@ function pagesIn(locale: Locale): Meta[] {
     const { page } = featurePageContent(path, locale);
     add(path, page.metaTitle, page.metaDescription);
   }
+  add("/features", featuresPageCopy(locale).metaTitle, featuresPageCopy(locale).metaDescription);
   add("/audit", AUDIT_COPY[locale].metaTitle, AUDIT_COPY[locale].metaDescription);
   add("/website-creation", WEBSITE_CREATION_COPY[locale].metaTitle, WEBSITE_CREATION_COPY[locale].metaDescription);
   add(CASE_STUDY_PATH, CASE_STUDY_COPY[locale].metaTitle, CASE_STUDY_COPY[locale].metaDescription);
