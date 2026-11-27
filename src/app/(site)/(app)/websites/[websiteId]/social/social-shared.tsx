@@ -143,6 +143,7 @@ const TILE: Record<SocialPlatform, string> = {
   threads: "bg-neutral-100 text-neutral-900 dark:bg-white/10 dark:text-neutral-100",
   pinterest: "bg-rose-50 text-[#e60023] dark:bg-rose-500/15 dark:text-rose-400",
   bluesky: "bg-sky-50 text-[#1185fe] dark:bg-sky-500/15 dark:text-sky-400",
+  linkedin: "bg-blue-50 text-[#0a66c2] dark:bg-blue-500/15 dark:text-blue-400",
 };
 const TILE_SIZE = { sm: "size-6 rounded-md", md: "size-8 rounded-lg", lg: "size-9 rounded-lg", xl: "size-10 rounded-xl sm:size-11" } as const;
 const ICON_SIZE = { sm: "size-3.5", md: "size-4", lg: "size-[1.15rem]", xl: "size-5 sm:size-6" } as const;

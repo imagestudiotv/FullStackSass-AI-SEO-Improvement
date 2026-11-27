@@ -110,8 +110,7 @@ Rules that apply to everything:
 - WARM-UP (warmup: true): no links of any kind, no website addresses, and do not name the business, its brand or its products at all. Just be useful.
 - An own post after the warm-up may mention the business once, briefly - it is the business's own account. It may include its slot's link (and only that exact URL) only when the slot has one.
 - Platform styles:
-${platforms.map((platform) => `  - ${STYLE[platform]} (Never more than ${PLATFORMS[platform].maxLength} characters.)`).join("
-")}
+${platforms.map((platform) => `  - ${STYLE[platform]} (Never more than ${PLATFORMS[platform].maxLength} characters.)`).join("\n")}
 
 Return "thread" and "slot" as the numbers given. A reply's title is not used. An own post's title is required for Reddit and Pinterest and null for the others.
 ${dataRule("business_profile")}

@@ -14,7 +14,7 @@ import { OPPORTUNITIES_COPY } from "@/lib/i18n/opportunities";
 import { SOCIAL_CONNECTIONS_COPY } from "@/lib/i18n/social-connections";
 import { findSocialSuggestions, postScheduledNow, skipSocialSuggestion } from "@/lib/social/actions";
 import { CONNECTIONS_ANCHOR, type ConnectNotice } from "@/lib/social/connect-return";
-import { PLATFORMS, SOCIAL_PLATFORMS } from "@/lib/social/platforms";
+import { availablePlatforms, PLATFORMS } from "@/lib/social/platforms";
 import { cn } from "@/lib/utils";
 
 import { AccountsDialog } from "./accounts-dialog";
@@ -104,7 +104,7 @@ export function SocialPanel(props: {
   const editable = (row: SuggestionView) => canEdit && props.platforms.includes(row.platform);
   const accountFor = (name: string) => props.accounts.find((account) => account.platform === name) ?? null;
   const filtered = query.trim() !== "" || platform !== "all";
-  const groups = groupRows(visible, { keepEmpty: tab === "all" && !filtered });
+  const groups = groupRows(visible, { keepEmpty: tab === "all" && !filtered, platforms: availablePlatforms(props.bundle) });
   const find = () => finder.run(() => findSocialSuggestions(websiteId), { success: t.findQueued });
   const findDisabled = finder.pending || !props.analysed || props.todayCount >= props.perDay || props.freeMonth?.draftsLeft === 0;
   const isConnected = (name: string) => props.platforms.includes(name) && accountFor(name) !== null;
@@ -203,7 +203,7 @@ export function SocialPanel(props: {
             <div className="grid grid-cols-2 gap-2 sm:flex">
               <NativeLikeSelect aria-label={t.platformLabel} value={platform} onChange={(event) => setPlatform(event.target.value)} className="sm:w-40">
                 <option value="all">{t.allPlatforms}</option>
-                {SOCIAL_PLATFORMS.map((name) => (
+                {availablePlatforms(props.bundle).map((name) => (
                   <option key={name} value={name}>
                     {PLATFORMS[name].name}
                   </option>

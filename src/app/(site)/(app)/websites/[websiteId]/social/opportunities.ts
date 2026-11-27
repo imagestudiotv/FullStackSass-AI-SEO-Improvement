@@ -141,8 +141,13 @@ export type PlatformGroup = { platform: SocialPlatform; rows: SuggestionView[]; 
  * the platforms' own order, each keeping the rows' order. A platform with
  * nothing is listed only while nothing is filtered out.
  */
-export function groupRows(rows: SuggestionView[], options: { keepEmpty: boolean }): PlatformGroup[] {
+export function groupRows(
+  rows: SuggestionView[],
+  options: { keepEmpty: boolean; platforms?: readonly SocialPlatform[] },
+): PlatformGroup[] {
+  // An empty group only for a platform the page shows (LinkedIn: lib/social/platforms.ts NEEDS_BUNDLE).
   return SOCIAL_PLATFORMS.flatMap((platform) => {
+    if (options.platforms && !options.platforms.includes(platform) && !rows.some((row) => row.platform === platform)) return [];
     const own = rows.filter((row) => row.platform === platform);
     return own.length > 0 || options.keepEmpty ? [{ platform, rows: own, fresh: own.filter(isNew).length }] : [];
   });
