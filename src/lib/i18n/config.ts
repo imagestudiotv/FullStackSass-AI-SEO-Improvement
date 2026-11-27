@@ -134,6 +134,8 @@ export const TRANSLATED_PATHS: ReadonlySet<string> = new Set([
   "/blog/author/repget-team",
   "/backlinks",
   "/rank-on-chatgpt",
+  // The AI Blog Writer product page (lib/i18n/ai-blog-writer.ts, client 2026-11-27).
+  "/ai-blog-writer",
   "/docs/integrations",
   ...INTEGRATION_GUIDE_SLUGS.map((slug) => `/docs/integrations/${slug}`),
   "/tools",
