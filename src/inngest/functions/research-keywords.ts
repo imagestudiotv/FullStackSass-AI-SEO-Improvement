@@ -307,6 +307,18 @@ export const researchKeywords = inngest.createFunction(
       );
     }
 
+    /*
+      The profile as it is now. generate-seeds may have just filled an empty
+      one (lib/keywords/fallback-profile.ts); every step below - the market
+      (country and language), the site's own keywords, the brand to leave out -
+      must use it. Using the one loaded at the start sent an Italian herbalist's
+      seeds to the US English market (2026-11-27: "carmi il dentist").
+    */
+    const profiled = await step.run("reload-profile", async () => {
+      const [row] = await db.select().from(websites).where(eq(websites.id, websiteId)).limit(1);
+      return row ?? site;
+    });
+
     /**
      * Provider metrics. Skipped entirely when unconfigured, so the pipeline
      * still completes with seed keywords and null metrics rather than failing.
@@ -340,13 +352,13 @@ export const researchKeywords = inngest.createFunction(
         used when it can be; see labsMarket for why it sometimes cannot.
       */
       const market = labsMarket(
-        site.country || "United States",
-        site.language || "English",
+        profiled.country || "United States",
+        profiled.language || "English",
       );
       const { location, language } = market;
       if (market.fallback) {
         logger.warn(
-          { step: "fetch-metrics", websiteId, country: site.country, language: site.language, location, marketLanguage: language },
+          { step: "fetch-metrics", websiteId, country: profiled.country, language: profiled.language, location, marketLanguage: language },
           `Keyword market fallback: ${market.fallback}`,
         );
       }
@@ -380,9 +392,9 @@ export const researchKeywords = inngest.createFunction(
           return { metrics: [] as KeywordMetrics[], cached: true, failed: true };
         }),
         // Terms the site already ranks for are usually the cheapest wins.
-        keywordsForSite(site.domain, location, language).catch((error) => {
+        keywordsForSite(profiled.domain, location, language).catch((error) => {
           logger.error(
-            { step: "fetch-metrics", websiteId, provider: "dataforseo", call: "keywordsForSite", domain: site.domain, err: error },
+            { step: "fetch-metrics", websiteId, provider: "dataforseo", call: "keywordsForSite", domain: profiled.domain, err: error },
             "keywordsForSite failed - continuing without its metrics",
           );
           return { metrics: [] as KeywordMetrics[], cached: true };
@@ -477,7 +489,7 @@ export const researchKeywords = inngest.createFunction(
         labelled it (lib/keywords/brand.ts): scored as such, and kept out of
         the plan below.
       */
-      const marks = brandMarks(site);
+      const marks = brandMarks(profiled);
       const ranked = rankKeywords(
         metrics.rows.map((row) => (isBrandSearch(row.term, marks) ? { ...row, intent: "navigational" as const } : row)),
       );
@@ -629,7 +641,7 @@ export const researchKeywords = inngest.createFunction(
         label. They stay in the keyword list; only the automatic plan skips
         them. A term the customer typed in is theirs to plan, so it stays.
       */
-      const marks = brandMarks(site);
+      const marks = brandMarks(profiled);
       const plannable = everything.filter(
         (keyword) => keyword.source === "manual" || (keyword.intent !== "navigational" && !isBrandSearch(keyword.term, marks)),
       );
