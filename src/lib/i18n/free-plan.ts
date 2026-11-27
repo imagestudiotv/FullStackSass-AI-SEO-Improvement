@@ -57,6 +57,10 @@ export type FreePlanCopy = {
     articlesUsed: string;
     postsUsed: string;
     auditUsed: string;
+    /** The Website health button's price on Free: "Check again · free monthly check" (its audit costs no credits). */
+    auditFreeLabel: string;
+    /** Free's monthly check used: when the next one opens, {date} the first of next month. */
+    auditNextFree: string;
     snapshotUsed: string;
     copilotUsed: string;
     termsUsed: string;
@@ -124,6 +128,8 @@ const en: FreePlanCopy = {
     articlesUsed: "You have used the {articles} free articles of this month. Upgrade for more, or wait for next month.",
     postsUsed: "You have used the {posts} free social posts of this month. Upgrade to post more, or wait for next month.",
     auditUsed: "Your free SEO audit of this month has been used. Upgrade for full audits whenever you need them.",
+    auditFreeLabel: "free monthly check",
+    auditNextFree: "Your free check of this month has been used. The next one is available on {date}, or upgrade for full audits whenever you need them.",
     snapshotUsed: "Your free AI visibility snapshot of this month has been used. Upgrade for weekly checks.",
     copilotUsed: "You have used today's {copilot} free Growth Copilot requests. Upgrade, or ask again tomorrow.",
     termsUsed: "Free includes {terms} search terms. Upgrade to research more.",
@@ -186,6 +192,8 @@ const es: FreePlanCopy = {
     articlesUsed: "Ha usado los {articles} artículos gratuitos de este mes. Mejore su plan para escribir más, o espere al mes que viene.",
     postsUsed: "Ha usado las {posts} publicaciones sociales gratuitas de este mes. Mejore su plan para publicar más, o espere al mes que viene.",
     auditUsed: "Ya ha usado la auditoría SEO gratuita de este mes. Mejore su plan para auditorías completas cuando las necesite.",
+    auditFreeLabel: "revisión mensual gratuita",
+    auditNextFree: "Ya ha usado la revisión gratuita de este mes. La próxima estará disponible el {date}, o mejore su plan para auditorías completas cuando las necesite.",
     snapshotUsed: "Ya ha usado la instantánea de visibilidad en IA de este mes. Mejore su plan para comprobaciones semanales.",
     copilotUsed: "Ha usado las {copilot} consultas gratuitas de hoy a Growth Copilot. Mejore su plan o vuelva a preguntar mañana.",
     termsUsed: "Free incluye {terms} términos de búsqueda. Mejore su plan para investigar más.",
@@ -248,6 +256,8 @@ const fr: FreePlanCopy = {
     articlesUsed: "Vous avez utilisé les {articles} articles gratuits de ce mois. Passez à un plan supérieur pour en écrire davantage, ou attendez le mois prochain.",
     postsUsed: "Vous avez utilisé les {posts} publications sociales gratuites de ce mois. Passez à un plan supérieur pour publier davantage, ou attendez le mois prochain.",
     auditUsed: "L'audit SEO gratuit de ce mois a été utilisé. Passez à un plan supérieur pour des audits complets quand vous en avez besoin.",
+    auditFreeLabel: "analyse mensuelle gratuite",
+    auditNextFree: "L'analyse gratuite de ce mois a été utilisée. La prochaine sera disponible le {date}, ou passez à un plan supérieur pour des audits complets quand vous en avez besoin.",
     snapshotUsed: "L'instantané de visibilité IA de ce mois a été utilisé. Passez à un plan supérieur pour des vérifications chaque semaine.",
     copilotUsed: "Vous avez utilisé les {copilot} demandes gratuites du jour à Growth Copilot. Passez à un plan supérieur, ou revenez demain.",
     termsUsed: "Free comprend {terms} termes de recherche. Passez à un plan supérieur pour en rechercher davantage.",
@@ -310,6 +320,8 @@ const it: FreePlanCopy = {
     articlesUsed: "Ha usato i {articles} articoli gratuiti di questo mese. Passi a un piano superiore per scriverne altri, o attenda il mese prossimo.",
     postsUsed: "Ha usato i {posts} post social gratuiti di questo mese. Passi a un piano superiore per pubblicarne altri, o attenda il mese prossimo.",
     auditUsed: "L'audit SEO gratuito di questo mese è stato usato. Passi a un piano superiore per audit completi quando servono.",
+    auditFreeLabel: "controllo mensile gratuito",
+    auditNextFree: "Il controllo gratuito di questo mese è stato usato. Il prossimo sarà disponibile il {date}, oppure passi a un piano superiore per audit completi quando servono.",
     snapshotUsed: "L'istantanea di visibilità IA di questo mese è stata usata. Passi a un piano superiore per controlli settimanali.",
     copilotUsed: "Ha usato le {copilot} richieste gratuite di oggi a Growth Copilot. Passi a un piano superiore, o chieda di nuovo domani.",
     termsUsed: "Free include {terms} termini di ricerca. Passi a un piano superiore per ricercarne altri.",
@@ -372,6 +384,8 @@ const de: FreePlanCopy = {
     articlesUsed: "Sie haben die {articles} kostenlosen Artikel dieses Monats genutzt. Upgraden Sie für mehr, oder warten Sie auf den nächsten Monat.",
     postsUsed: "Sie haben die {posts} kostenlosen Social-Media-Beiträge dieses Monats genutzt. Upgraden Sie, um mehr zu posten, oder warten Sie auf den nächsten Monat.",
     auditUsed: "Ihr kostenloses SEO-Audit dieses Monats wurde genutzt. Upgraden Sie für vollständige Audits, wann immer Sie sie brauchen.",
+    auditFreeLabel: "kostenlose Monatsprüfung",
+    auditNextFree: "Ihre kostenlose Prüfung dieses Monats wurde genutzt. Die nächste ist ab dem {date} verfügbar, oder upgraden Sie für vollständige Audits, wann immer Sie sie brauchen.",
     snapshotUsed: "Ihre kostenlose KI-Sichtbarkeits-Momentaufnahme dieses Monats wurde genutzt. Upgraden Sie für wöchentliche Prüfungen.",
     copilotUsed: "Sie haben die {copilot} kostenlosen Growth-Copilot-Anfragen von heute genutzt. Upgraden Sie, oder fragen Sie morgen wieder.",
     termsUsed: "Free umfasst {terms} Suchbegriffe. Upgraden Sie, um mehr zu recherchieren.",
