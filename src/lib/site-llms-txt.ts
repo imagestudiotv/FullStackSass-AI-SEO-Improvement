@@ -1,4 +1,5 @@
 import { featuresPageCopy } from "@/lib/i18n/features-page";
+import { AI_BLOG_WRITER_LINK_LABEL, AI_BLOG_WRITER_PATH, aiBlogWriterCopy } from "@/lib/i18n/ai-blog-writer";
 import { getMessages } from "@/lib/i18n/messages";
 import { CASE_STUDY_COPY, CASE_STUDY_PATH } from "@/lib/marketing/case-study-image-studio";
 import { DOCS_UI_EN, INTEGRATION_DOCS } from "@/lib/publishing/docs";
@@ -89,6 +90,7 @@ export function buildSiteLlmsTxt(siteUrl: string, posts: LlmsPost[]): string {
       // The five tools and Growth Copilot (lib/marketing/product-tools.ts), in the page's own description.
       { label: FEATURES_EN.metaTitle, path: "/features", note: FEATURES_EN.metaDescription },
       { label: "Pricing", path: "/pricing", note: PAGE_NOTES["/pricing"] },
+      { label: AI_BLOG_WRITER_LINK_LABEL.en, path: AI_BLOG_WRITER_PATH, note: aiBlogWriterCopy("en").metaDescription },
       { label: t.faq.metaTitle, path: "/faq", note: t.faq.metaDescription },
       { label: t.successStories.metaTitle, path: "/success-stories", note: t.successStories.metaDescription },
       { label: CASE_STUDY_COPY.en.metaTitle, path: CASE_STUDY_PATH, note: CASE_STUDY_COPY.en.metaDescription },

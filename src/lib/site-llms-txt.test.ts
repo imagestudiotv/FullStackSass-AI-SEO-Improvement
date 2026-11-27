@@ -3,6 +3,7 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { aiBlogWriterCopy } from "@/lib/i18n/ai-blog-writer";
 import { INTEGRATION_DOCS } from "@/lib/publishing/docs";
 import { TOOLS } from "@/lib/tools/registry";
 
@@ -57,6 +58,10 @@ describe("buildSiteLlmsTxt", () => {
     expect(product.find((line) => line.startsWith("- "))).toBe(
       "- [Features: everything RepGet does](https://www.repget.com/features): Five tools in one place: SEO articles, backlinks, AI visibility, social posts and videos, and website health, with Growth Copilot to run them.",
     );
+  });
+
+  it("lists the AI Blog Writer page with its own meta description", () => {
+    expect(file).toContain(`- [AI Blog Writer](${SITE}/ai-blog-writer): ${aiBlogWriterCopy("en").metaDescription}`);
   });
 
   it("leaves out the removed link-exchange pages", () => {
