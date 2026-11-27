@@ -15,6 +15,7 @@ import {
 } from "@/lib/db/schema";
 import { GOOGLE_KIND } from "@/lib/analytics/connection";
 import { setupProgress, type SetupProgress } from "@/lib/onboarding/progress";
+import { backlinkExchangeOnSql } from "@/lib/backlinks/exchange-switch";
 
 /**
  * The launch checklist — what a customer still has to do to be fully live.
@@ -219,7 +220,7 @@ export const getLaunchState = cache(async function getLaunchState(
         .where(eq(brandVoice.websiteId, websiteId))
         .limit(1),
       db
-        .select({ id: networkSites.id })
+        .select({ id: networkSites.id, accepting: networkSites.acceptingLinks, exchange: backlinkExchangeOnSql(networkSites.websiteId) })
         .from(networkSites)
         .where(eq(networkSites.websiteId, websiteId))
         .limit(1),
@@ -368,8 +369,9 @@ export const getLaunchState = cache(async function getLaunchState(
       description:
         "Host one article for a related business and earn a credit for a link back to you.",
       // Connected too: until the website is, it is not in the network whatever its row says (lib/backlinks/network-settings.ts).
-      done: network.length > 0 && (cms.length > 0 || plugin.length > 0),
-      optional: false,
+      // OPT-IN since 2026-11-27 (lib/backlinks/exchange-switch.ts): done when its switch is on, and optional - never needed to launch.
+      done: Boolean(network[0]?.accepting && network[0]?.exchange) && (cms.length > 0 || plugin.length > 0),
+      optional: true,
       href: `${base}/backlinks`,
       icon: "link",
     },
@@ -407,7 +409,7 @@ export const getLaunchState = cache(async function getLaunchState(
       ? "Everything is running. Nothing more to set up."
       : "Finish the steps above and everything starts running by itself.",
     detail:
-      "Auto-publishing, AI visibility tracking and the Backlink Exchange are running for your site. Nothing more to set up - watch the results on your dashboard.",
+      "Auto-publishing and AI visibility tracking are running for your site. Nothing more to set up - watch the results on your dashboard.",
     done: live,
     optional: false,
     href: "/dashboard",
