@@ -28,6 +28,7 @@ A **secret** grants access and must be rotated if exposed. An **identifier** is 
 | App encryption | `CREDENTIALS_ENCRYPTION_KEY` (encrypts stored CMS credentials) | |
 | Anthropic | `ANTHROPIC_API_KEY` | |
 | OpenAI / images | `OPENAI_API_KEY`, `REPLICATE_API_TOKEN` | `OPENAI_IMAGE_MODEL`, `IMAGE_PROVIDER` |
+| AI visibility (Gemini) | `GOOGLE_AI_API_KEY` (ChatGPT uses `OPENAI_API_KEY`, Claude `ANTHROPIC_API_KEY`) | `GEO_ENGINES`, `GEO_CLAUDE_MODEL`, `GEO_OPENAI_MODEL`, `GEO_GEMINI_MODEL`, `GEO_RUNS_PER_QUESTION`, `GEO_WEEKLY_CHECKS_PER_WEBSITE` |
 | Google OAuth | `GOOGLE_CLIENT_SECRET` | `GOOGLE_CLIENT_ID` |
 | Inngest | `INNGEST_SIGNING_KEY`, `INNGEST_EVENT_KEY` | `INNGEST_DEV` |
 | Resend | `RESEND_API_KEY` | `EMAIL_FROM` |

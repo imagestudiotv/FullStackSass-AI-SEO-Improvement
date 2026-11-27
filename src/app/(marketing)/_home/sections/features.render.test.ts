@@ -80,9 +80,9 @@ describe("top features", () => {
 
   it.each(LOCALES)("%s: claims only what RepGet does", (locale) => {
     const text = words(render(locale));
-    // AI visibility asks Claude only (lib/geo/check.ts); no schema check in the audit (lib/audit/rules.ts).
-    for (const unsupported of ["ChatGPT", "Perplexity", "Gemini", "schema", "Schema"]) expect(text).not.toContain(unsupported);
-    expect(text).toContain("Claude");
+    // AI visibility asks ChatGPT, Gemini and Claude (lib/geo/engines.ts), never Perplexity; no schema check in the audit (lib/audit/rules.ts).
+    for (const unsupported of ["Perplexity", "schema", "Schema"]) expect(text).not.toContain(unsupported);
+    for (const asked of ["ChatGPT", "Gemini", "Claude"]) expect(text).toContain(asked);
     // The previews' figures are samples, and the board says so.
     expect(text).toContain(featuresCopy(locale).technical.scoreLabel);
     expect(text).toContain(featuresCopy(locale).analytics.change);
@@ -114,7 +114,7 @@ describe("top features' words", () => {
   // Names, the brand, and words that are the same in the language ("Mentions · citations · GEO" in French, "↗ 18%" in Italian).
   const SAME = new Set([
     "Reddit · X · Threads",
-    "Claude",
+    "ChatGPT, Gemini, Claude",
     "llms.txt",
     "Growth Copilot",
     "REPGET / STUDIO",

@@ -21,6 +21,8 @@ import { InvalidUrlError, normalizeWebsiteUrl } from "@/lib/websites/url";
 import { verifyDomain } from "@/lib/websites/verify-domain";
 import { DISMISSED_SOURCE } from "@/lib/geo/competitor-sources";
 import { normalizeLanguage } from "@/lib/websites/languages";
+import { queueJobDurably } from "@/lib/jobs/outbox";
+import { GEO_REGENERATE_EVENT } from "@/lib/geo/shared";
 import { pendingInvitationsFor } from "@/lib/websites/pending-invitations";
 
 /**
@@ -301,6 +303,19 @@ export async function updateWebsiteDetails(
   if (Object.keys(patch).length === 1) return { ok: true, data: null };
 
   await db.update(websites).set(patch).where(eq(websites.id, site.id));
+
+  /*
+    A new article language: the AI visibility questions we wrote are in the
+    old one, so they are written again in the new one (lib/geo/regenerate.ts,
+    the customer's own questions kept). Queued, not awaited: it is a model
+    call, and a failure to queue must not fail the profile's save.
+  */
+  if (patch.language !== undefined && patch.language && patch.language !== site.language) {
+    await queueJobDurably({
+      name: GEO_REGENERATE_EVENT,
+      data: { websiteId: site.id, reason: "language" },
+    }).catch((error) => console.error("[websites] could not queue AI visibility questions", error));
+  }
 
   revalidatePath("/websites");
   revalidatePath(`/websites/${site.id}`);

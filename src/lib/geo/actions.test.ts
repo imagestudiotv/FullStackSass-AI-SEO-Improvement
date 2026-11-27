@@ -39,7 +39,7 @@ const inngestMock = vi.hoisted(() => ({
   createFunction: vi.fn((config: unknown, handler: unknown) => ({ config, handler })),
 }));
 vi.mock("@/inngest/client", () => ({ inngest: inngestMock }));
-const geoProvider = vi.hoisted(() => ({ runCheck: vi.fn(), ENGINE: "claude" }));
+const geoProvider = vi.hoisted(() => ({ runCheck: vi.fn() }));
 vi.mock("@/lib/geo/check", () => geoProvider);
 
 const ai = vi.hoisted(() => ({ create: vi.fn() }));
@@ -73,6 +73,11 @@ beforeEach(async () => {
   inngestMock.send.mockResolvedValue({ ids: [] });
   geoProvider.runCheck.mockReset();
   ai.create.mockReset();
+  // One assistant, one answer per question, unless a test says otherwise.
+  vi.stubEnv("OPENAI_API_KEY", "");
+  vi.stubEnv("GOOGLE_AI_API_KEY", "");
+  vi.stubEnv("GEO_RUNS_PER_QUESTION", "1");
+  vi.stubEnv("GEO_ENGINES", "");
   ai.create.mockResolvedValue(REPLY);
 });
 
@@ -214,9 +219,10 @@ describe("runGeoCheck", () => {
       ).rows.map((r) => r.state);
 
     expect((await runGeoCheck(websiteId)).ok).toBe(true);
-    expect(await states()).toEqual(["reserved", "reserved"]);
+    // The hour per website, the hour per workspace, and the week (lib/geo/check-limits.ts).
+    expect(await states()).toEqual(["reserved", "reserved", "reserved"]);
     await giveUpDelivery();
-    expect(await states()).toEqual(["released", "released"]);
+    expect(await states()).toEqual(["released", "released", "released"]);
   });
 });
 
@@ -224,7 +230,7 @@ describe("the check-geo job", () => {
   const job = checkGeo as unknown as { handler: (ctx: unknown) => Promise<{ checked: number }> };
   const step = { run: (_: string, fn: () => unknown) => fn() };
   const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
-  const RESULT = { mentioned: true, position: 1, cited: false, competitors: [], excerpt: "x" };
+  const RESULT = { engine: "claude", model: "claude-sonnet-5", webSearch: true, language: "English", region: null, mentioned: true, position: 1, cited: false, competitors: [], excerpt: "x" };
 
   it("does not pay for a website whose plan ended before the weekly sweep", async () => {
     const { websiteId } = await withPrompt({ status: "canceled" });
@@ -248,7 +254,7 @@ describe("the check-geo job", () => {
       "select state from spend_reservations where website_id = $1",
       [websiteId],
     );
-    expect(rows.map((r) => r.state)).toEqual(["consumed", "consumed"]);
+    expect(rows.map((r) => r.state)).toEqual(["consumed", "consumed", "consumed"]);
   });
 
   /** A website with `count` active questions, created a minute apart (oldest first). */
@@ -279,5 +285,62 @@ describe("the check-geo job", () => {
     const { websiteId } = await withPrompts(8);
     geoProvider.runCheck.mockResolvedValue(RESULT);
     expect((await job.handler({ event: { data: { websiteId } }, step, logger })).checked).toBe(8);
+  });
+});
+
+describe("the check-geo job, several answers per question", () => {
+  const job = checkGeo as unknown as { handler: (ctx: unknown) => Promise<{ checked: number; mentions: number }> };
+  const step = { run: (_: string, fn: () => unknown) => fn(), sendEvent: vi.fn() };
+  const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+  const answer = (engine: string, mentioned: boolean) => ({
+    engine, model: `${engine}-model`, webSearch: true, language: "English", region: null,
+    mentioned, position: mentioned ? 1 : null, cited: false, competitors: ["Rival"], excerpt: null,
+  });
+
+  it("asks every assistant with a key N times and stores the share, with what each answer was asked with", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "sk-test");
+    vi.stubEnv("GEO_RUNS_PER_QUESTION", "3");
+    const { websiteId } = await seedWebsite(test);
+    const [prompt] = await test.db.insert(geoPrompts).values({ websiteId, prompt: "best gift shop in kyiv" }).returning();
+    let n = 0;
+    geoProvider.runCheck.mockImplementation(async (_q: string, _b: string, _d: string, options: { engine: string }) => {
+      n += 1;
+      if (n === 2) throw new Error("rate limited");
+      return answer(options.engine, options.engine === "claude" && n === 1);
+    });
+
+    const outcome = await job.handler({ event: { data: { websiteId } }, step, logger });
+
+    expect(outcome.checked).toBe(1);
+    expect(geoProvider.runCheck).toHaveBeenCalledTimes(6);
+    expect(geoProvider.runCheck.mock.calls.map((call) => call[3].engine)).toEqual(["claude", "claude", "claude", "chatgpt", "chatgpt", "chatgpt"]);
+    const { geoResults } = await import("@/lib/db/schema");
+    const [row] = await test.db.select().from(geoResults).where(eq(geoResults.geoPromptId, prompt.id));
+    // The failed answer is left out, never counted as "not named".
+    expect(row).toMatchObject({ engine: "claude,chatgpt", samples: 5, mentionCount: 1, mentioned: true, competitors: ["Rival"] });
+    expect(row.answers).toHaveLength(5);
+    expect(row.answers?.[0]).toMatchObject({ engine: "claude", model: "claude-model", webSearch: true, language: "English" });
+  });
+
+  it("checks a website at most a few times a week, the weekly sweep included", async () => {
+    const { websiteId } = await seedWebsite(test);
+    await test.db.insert(geoPrompts).values({ websiteId, prompt: "best gift shop in lviv" });
+    geoProvider.runCheck.mockResolvedValue(answer("claude", false));
+    const { weeklyChecks } = await import("@/lib/geo/check-limits");
+    for (let i = 0; i < weeklyChecks(); i++) {
+      expect((await job.handler({ event: { data: { websiteId, scheduled: true } }, step, logger })).checked).toBe(1);
+    }
+    expect((await job.handler({ event: { data: { websiteId, scheduled: true } }, step, logger })).checked).toBe(0);
+    expect((await runGeoCheck(websiteId)).ok).toBe(false);
+  });
+
+  it("sends one run per website from the weekly cron", async () => {
+    const { websiteId } = await seedWebsite(test);
+    await test.db.insert(geoPrompts).values({ websiteId, prompt: "a question for the sweep" });
+    step.sendEvent.mockReset();
+    await job.handler({ event: { data: {} }, step, logger });
+    const events = step.sendEvent.mock.calls[0][1] as { name: string; data: { websiteId: string; scheduled: boolean } }[];
+    expect(events.find((e) => e.data.websiteId === websiteId)).toMatchObject({ name: "geo/check.requested", data: { scheduled: true } });
+    expect(geoProvider.runCheck).not.toHaveBeenCalled();
   });
 });

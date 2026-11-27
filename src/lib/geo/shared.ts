@@ -11,12 +11,19 @@ export type GeoPromptView = {
   prompt: string;
   isSuggested: boolean;
   active: boolean;
+  /** The language a suggested question was written in; null for the customer's own or an older one. */
+  language?: string | null;
   /** Most recent result for this prompt, when it has ever been checked. */
   latest: {
     mentioned: boolean;
     position: number | null;
     excerpt: string | null;
     checkedAt: Date;
+    /** Answers behind it (1 for a check before 2026-11-27) and how many named the business. */
+    samples?: number;
+    mentionCount?: number;
+    /** Mean position over the answers that named it. */
+    averagePosition?: number | null;
   } | null;
 };
 
@@ -24,6 +31,9 @@ export type GeoOverview = {
   score: number;
   mentions: number;
   total: number;
+  /** Answers behind the latest results, and how many named the business. */
+  answers: number;
+  answersNamed: number;
   averagePosition: number | null;
   topCompetitors: { name: string; count: number }[];
   prompts: GeoPromptView[];
@@ -78,3 +88,29 @@ export const MAX_PROMPTS = Math.max(...Object.values(PROMPTS_BY_TIER));
 
 /** Longest question we will store. */
 export const MAX_PROMPT_LENGTH = 300;
+
+/** runGeoCheck's refusal when the website's checks for the week are used (lib/geo/check-limits.ts). */
+export const WEEKLY_CAP_ERROR = "This website's AI visibility checks for this week are used. The next one runs on Monday.";
+/** regenerateGeoPrompts' refusals. */
+export const REGENERATE_LIMIT_ERROR = "Questions can be written again a few times a day. Please try again tomorrow.";
+export const REGENERATE_FAILED_ERROR = "Could not write new questions. Your questions are unchanged. Try again.";
+
+/** The event that writes a website's questions again after its article language changed (inngest/functions/first-visibility-questions.ts). */
+export const GEO_REGENERATE_EVENT = "geo/questions.regenerate";
+
+/**
+ * How this deployment checks, for the method section: built on the server
+ * (ai-visibility/page.tsx) from the settings the job reads, never written
+ * into the copy.
+ */
+export type GeoMethod = {
+  /** The assistants asked, with the model and whether web search is on (lib/geo/engines.ts enginesInUse). */
+  engines: { name: string; model: string; webSearch: boolean }[];
+  /** Times each question is put to each assistant per check. */
+  runs: number;
+  /** The language and market questions are written and asked in (lib/geo/market.ts). */
+  language: string;
+  region: string | null;
+  /** Checks a website may have in seven days, the weekly one included. */
+  weeklyChecks: number;
+};

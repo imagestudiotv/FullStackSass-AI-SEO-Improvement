@@ -63,6 +63,7 @@ const prompt: GeoPromptView = {
   prompt: "Which dentist near Utrecht is best?",
   isSuggested: false,
   active: true,
+  language: null,
   latest: null,
 };
 
@@ -75,6 +76,8 @@ function renderPanel() {
         score: 0,
         mentions: 0,
         total: 0,
+        answers: 0,
+        answersNamed: 0,
         averagePosition: null,
         topCompetitors: [],
         prompts: [prompt],
@@ -93,6 +96,8 @@ function renderPanel() {
       blockedReason: null,
       initialFilter: "all",
       locale: "en",
+      method: { engines: [{ name: "Claude", model: "claude-sonnet-5", webSearch: true }], runs: 3, language: "English", region: "Netherlands", weeklyChecks: 3 },
+      rewrite: 0,
       t: t.geo,
       tCommon: t.common,
       tw: t.workspace,

@@ -94,6 +94,15 @@ export function PerformanceSection({
                   })}
                 </dd>
                 <dd className="mt-2 text-xs text-muted-foreground">{t.namedOfCheckedHelp}</dd>
+                {overview.answers > overview.total ? (
+                  // Several answers per question since 2026-11-27: the share behind the count.
+                  <dd className="mt-1 text-xs text-muted-foreground">
+                    {format(t.answersNamed, {
+                      named: formatNumber(overview.answersNamed, locale),
+                      answers: formatNumber(overview.answers, locale),
+                    })}
+                  </dd>
+                ) : null}
               </Tile>
               <Tile label={t.averagePosition}>
                 {overview.averagePosition !== null ? (

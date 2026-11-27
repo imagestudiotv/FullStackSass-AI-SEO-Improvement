@@ -869,9 +869,9 @@ export function ContentEngine({ t, href }: SectionProps) {
  * measured - Search Console, AI visibility, backlinks, published content -
  * with example data, labelled as such on every card and under the grid.
  */
+// Example data, but only the assistants the check really asks (lib/geo/engines.ts ASKABLE_ENGINE_IDS).
 const AI_ROWS: { name: string; mentioned: boolean }[] = [
   { name: "ChatGPT", mentioned: true },
-  { name: "Perplexity", mentioned: true },
   { name: "Gemini", mentioned: false },
   { name: "Claude", mentioned: true },
 ];

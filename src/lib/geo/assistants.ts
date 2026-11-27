@@ -1,0 +1,278 @@
+import Anthropic from "@anthropic-ai/sdk";
+
+import { anthropic } from "@/lib/ai/client";
+import { engineModel, type CheckedEngineId } from "@/lib/geo/engines";
+import type { Market } from "@/lib/geo/market";
+
+/**
+ * Asking each assistant a customer's question, the way the customer's own
+ * assistant would answer it today: with web search on, from where the
+ * customer is.
+ *
+ * Until 2026-11-27 only Claude was asked, through its API with no tools, so
+ * the answer came from training data alone - not what a person sees in
+ * Claude, ChatGPT or Gemini, all of which search the web for a "where can I
+ * buy..." question. Each engine here turns its provider's web search on:
+ *
+ *  - Claude: Anthropic's server tool web_search (web_search_20250305, the
+ *    version every current model accepts), with the asker's country;
+ *  - ChatGPT: OpenAI's Responses API with its web_search tool and the
+ *    asker's country (plain fetch: the OpenAI key is already used for images
+ *    and no SDK is installed for it);
+ *  - Gemini: Google's Generative Language API with Google Search grounding
+ *    (GOOGLE_AI_API_KEY). Gemini takes no location, so its market comes from
+ *    the question's own language and wording.
+ *
+ * A provider that refuses the search tool (an account without web search
+ * enabled, a model without it) is asked once more without it, and the
+ * answer is recorded with web search OFF - shown as such on the page, never
+ * passed off as a searched answer.
+ *
+ * No system prompt naming the brand: mentioning it would prime the model to
+ * produce it, and the measurement would report our own suggestion back.
+ */
+
+export type AssistantAnswer = {
+  engine: CheckedEngineId;
+  /** The model that answered, as the provider reports it when it does. */
+  model: string;
+  webSearch: boolean;
+  text: string;
+  /** Web pages the answer cited, as the provider listed them. */
+  sources: string[];
+  /** Searches the provider ran (what web search is billed by). */
+  searches: number;
+  usage: { inputTokens: number; outputTokens: number };
+};
+
+type Env = Record<string, string | undefined>;
+export type AskOptions = { fetch?: typeof fetch; env?: Env };
+
+/** An answer takes seconds; a search-heavy one up to a minute or two. */
+const TIMEOUT_MS = 120_000;
+/** Enough for a recommendation answer; a longer one costs more and says no more. */
+const MAX_OUTPUT_TOKENS = 1500;
+/** Searches Claude may run per answer: one or two is what a recommendation needs. */
+const CLAUDE_MAX_SEARCHES = 3;
+
+/** A provider refusing the search tool itself (not a rate limit, not an outage). */
+function refusesSearch(status: number, message: string): boolean {
+  return status === 400 && /web[_ ]?search|google_search|tool|grounding/i.test(message);
+}
+
+const unique = (values: string[]) => [...new Set(values.filter((v) => typeof v === "string" && v.startsWith("http")))].slice(0, 20);
+
+/* ------------------------------------------------------------------------ */
+/* Claude                                                                    */
+/* ------------------------------------------------------------------------ */
+
+async function askClaude(prompt: string, market: Market, env: Env): Promise<AssistantAnswer> {
+  const model = engineModel("claude", env);
+  const tool: Anthropic.WebSearchTool20250305 = {
+    type: "web_search_20250305",
+    name: "web_search",
+    max_uses: CLAUDE_MAX_SEARCHES,
+    ...(market.countryCode ? { user_location: { type: "approximate", country: market.countryCode } } : {}),
+  };
+  const ask = (withSearch: boolean, messages: Anthropic.MessageParam[]) =>
+    anthropic.messages.create(
+      { model, max_tokens: MAX_OUTPUT_TOKENS, messages, ...(withSearch ? { tools: [tool] } : {}) },
+      { timeout: TIMEOUT_MS },
+    );
+
+  const first: Anthropic.MessageParam[] = [{ role: "user", content: prompt }];
+  let webSearch = true;
+  let response: Anthropic.Message;
+  try {
+    response = await ask(true, first);
+  } catch (error) {
+    if (!(error instanceof Anthropic.APIError) || !refusesSearch(error.status ?? 0, error.message)) throw error;
+    webSearch = false;
+    response = await ask(false, first);
+  }
+
+  const usage = { inputTokens: response.usage.input_tokens, outputTokens: response.usage.output_tokens };
+  let searches = response.usage.server_tool_use?.web_search_requests ?? 0;
+  let content = response.content;
+  /*
+    A long server-tool turn can pause; it is continued once, as the API
+    asks, with the paused turn sent back. A second pause is answered with
+    what was written so far.
+  */
+  if (response.stop_reason === "pause_turn") {
+    const more = await ask(webSearch, [...first, { role: "assistant", content: response.content }]);
+    usage.inputTokens += more.usage.input_tokens;
+    usage.outputTokens += more.usage.output_tokens;
+    searches += more.usage.server_tool_use?.web_search_requests ?? 0;
+    content = [...content, ...more.content];
+  }
+
+  const texts = content.filter((block): block is Anthropic.TextBlock => block.type === "text");
+  const sources = texts.flatMap((block) =>
+    (block.citations ?? []).flatMap((citation) => (citation.type === "web_search_result_location" ? [citation.url] : [])),
+  );
+  return {
+    engine: "claude",
+    model: response.model || model,
+    webSearch,
+    text: texts.map((block) => block.text).join("").trim(),
+    sources: unique(sources),
+    searches,
+    usage,
+  };
+}
+
+/* ------------------------------------------------------------------------ */
+/* ChatGPT (OpenAI Responses API)                                            */
+/* ------------------------------------------------------------------------ */
+
+type OpenAiResponse = {
+  model?: string;
+  status?: string;
+  error?: { message?: string } | null;
+  output?: {
+    type?: string;
+    content?: { type?: string; text?: string; annotations?: { type?: string; url?: string }[] }[];
+  }[];
+  usage?: { input_tokens?: number; output_tokens?: number };
+};
+
+async function askChatGpt(prompt: string, market: Market, env: Env, http: typeof fetch): Promise<AssistantAnswer> {
+  const model = engineModel("chatgpt", env);
+  const tool = {
+    type: "web_search",
+    ...(market.countryCode ? { user_location: { type: "approximate", country: market.countryCode } } : {}),
+  };
+  const ask = (withSearch: boolean) =>
+    http("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
+      // store: false - nothing of the customer's question is kept at OpenAI for later.
+      body: JSON.stringify({ model, input: prompt, store: false, max_output_tokens: MAX_OUTPUT_TOKENS * 4, ...(withSearch ? { tools: [tool] } : {}) }),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+
+  let webSearch = true;
+  let response = await ask(true);
+  if (!response.ok) {
+    const message = await response.text().catch(() => "");
+    if (!refusesSearch(response.status, message)) throw new Error(`OpenAI ${response.status}: ${message.slice(0, 200)}`);
+    webSearch = false;
+    response = await ask(false);
+    if (!response.ok) throw new Error(`OpenAI ${response.status}: ${(await response.text().catch(() => "")).slice(0, 200)}`);
+  }
+
+  const body = (await response.json()) as OpenAiResponse;
+  if (body.error?.message) throw new Error(`OpenAI: ${body.error.message.slice(0, 200)}`);
+  const output = body.output ?? [];
+  const parts = output.filter((item) => item.type === "message").flatMap((item) => item.content ?? []).filter((part) => part.type === "output_text");
+  const text = parts.map((part) => part.text ?? "").join("").trim();
+  // An empty answer is not "not mentioned": the caller records nothing for it.
+  if (!text) throw new Error("OpenAI returned no answer");
+  return {
+    engine: "chatgpt",
+    model: body.model || model,
+    webSearch,
+    text,
+    sources: unique(parts.flatMap((part) => (part.annotations ?? []).flatMap((a) => (a.type === "url_citation" && a.url ? [a.url] : [])))),
+    searches: output.filter((item) => item.type === "web_search_call").length,
+    usage: { inputTokens: body.usage?.input_tokens ?? 0, outputTokens: body.usage?.output_tokens ?? 0 },
+  };
+}
+
+/* ------------------------------------------------------------------------ */
+/* Gemini (Generative Language API, Google Search grounding)                 */
+/* ------------------------------------------------------------------------ */
+
+type GeminiResponse = {
+  modelVersion?: string;
+  candidates?: {
+    content?: { parts?: { text?: string; thought?: boolean }[] };
+    groundingMetadata?: { webSearchQueries?: string[]; groundingChunks?: { web?: { uri?: string } }[] };
+  }[];
+  usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number; toolUsePromptTokenCount?: number };
+};
+
+async function askGemini(prompt: string, env: Env, http: typeof fetch): Promise<AssistantAnswer> {
+  const model = engineModel("gemini", env);
+  const ask = (withSearch: boolean) =>
+    http(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+      method: "POST",
+      headers: { "x-goog-api-key": env.GOOGLE_AI_API_KEY ?? "", "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        ...(withSearch ? { tools: [{ google_search: {} }] } : {}),
+      }),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+
+  let webSearch = true;
+  let response = await ask(true);
+  if (!response.ok) {
+    const message = await response.text().catch(() => "");
+    if (!refusesSearch(response.status, message)) throw new Error(`Gemini ${response.status}: ${message.slice(0, 200)}`);
+    webSearch = false;
+    response = await ask(false);
+    if (!response.ok) throw new Error(`Gemini ${response.status}: ${(await response.text().catch(() => "")).slice(0, 200)}`);
+  }
+
+  const body = (await response.json()) as GeminiResponse;
+  const candidate = body.candidates?.[0];
+  const text = (candidate?.content?.parts ?? []).filter((part) => !part.thought).map((part) => part.text ?? "").join("").trim();
+  if (!text) throw new Error("Gemini returned no answer");
+  const grounding = candidate?.groundingMetadata;
+  const usage = body.usageMetadata ?? {};
+  return {
+    engine: "gemini",
+    model: body.modelVersion || model,
+    webSearch,
+    text,
+    sources: unique((grounding?.groundingChunks ?? []).map((chunk) => chunk.web?.uri ?? "")),
+    searches: grounding?.webSearchQueries?.length ?? 0,
+    usage: {
+      inputTokens: (usage.promptTokenCount ?? 0) + (usage.toolUsePromptTokenCount ?? 0),
+      outputTokens: (usage.candidatesTokenCount ?? 0) + (usage.thoughtsTokenCount ?? 0),
+    },
+  };
+}
+
+/** Asks one assistant one question. Throws when no answer came back: nothing is recorded then. */
+export async function askEngine(engine: CheckedEngineId, prompt: string, market: Market, options: AskOptions = {}): Promise<AssistantAnswer> {
+  const env = options.env ?? process.env;
+  const http = options.fetch ?? fetch;
+  if (engine === "claude") return askClaude(prompt, market, env);
+  if (engine === "chatgpt") return askChatGpt(prompt, market, env, http);
+  return askGemini(prompt, env, http);
+}
+
+/* ------------------------------------------------------------------------ */
+/* What an answer cost                                                       */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * List prices per engine for the DEFAULT models, USD (checked 2026-11-27,
+ * to re-check before quoting margins): tokens per million, web search per
+ * search. A model set by environment variable is costed at its engine's
+ * default rates - a rough figure rather than none, flagged in the metadata.
+ *
+ *  - Claude Sonnet 5: $2 / $10 per million tokens; web search $10 per 1,000.
+ *  - GPT-5 mini: $0.25 / $2; web search $10 per 1,000 calls.
+ *  - Gemini Flash: about $0.50 / $3; Google Search grounding $14 per 1,000
+ *    (5,000 a month free on the paid tier, not counted here).
+ */
+export const ENGINE_PRICES: Record<CheckedEngineId, { provider: string; inputPerM: number; outputPerM: number; perSearch: number }> = {
+  claude: { provider: "anthropic", inputPerM: 2, outputPerM: 10, perSearch: 0.01 },
+  chatgpt: { provider: "openai", inputPerM: 0.25, outputPerM: 2, perSearch: 0.01 },
+  gemini: { provider: "google", inputPerM: 0.5, outputPerM: 3, perSearch: 0.014 },
+};
+
+export function answerCostUsd(answer: Pick<AssistantAnswer, "engine" | "searches" | "usage">): number {
+  const price = ENGINE_PRICES[answer.engine];
+  /* Gemini bills a grounded prompt once, however many queries it ran. */
+  const searches = answer.engine === "gemini" ? Math.min(answer.searches, 1) : answer.searches;
+  const cost =
+    (answer.usage.inputTokens / 1_000_000) * price.inputPerM +
+    (answer.usage.outputTokens / 1_000_000) * price.outputPerM +
+    searches * price.perSearch;
+  return Number(cost.toFixed(6));
+}

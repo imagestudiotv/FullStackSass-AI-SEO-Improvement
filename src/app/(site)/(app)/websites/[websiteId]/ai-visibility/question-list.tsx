@@ -142,8 +142,17 @@ export function QuestionList({
   );
 }
 
-function outcomeText(result: ResultSummary | GeoPromptView["latest"], t: GeoText): string {
+/**
+ * What a result says. A check since 2026-11-27 asks each question several
+ * times, so it says how many answers named the business ("Named in 2 of 3
+ * answers"); an older one-answer result keeps its "Named #2".
+ */
+export function outcomeText(result: ResultSummary | GeoPromptView["latest"], t: GeoText): string {
   if (!result) return t.notChecked;
+  const samples = result.samples ?? 1;
+  if (samples > 1) {
+    return format(result.mentioned ? t.namedShare : t.notNamedShare, { named: result.mentionCount ?? 0, total: samples });
+  }
   if (!result.mentioned) return t.notNamed;
   return result.position !== null ? format(t.namedAt, { position: result.position }) : t.named;
 }
@@ -184,7 +193,7 @@ function QuestionRow({
     outcome === "named" ? (
       <StatusBadge status="completed" tone="positive" label={outcomeText(latest, t)} />
     ) : outcome === "notNamed" ? (
-      <StatusBadge status="removed" tone="warning" label={t.notNamed} />
+      <StatusBadge status="removed" tone="warning" label={outcomeText(latest, t)} />
     ) : (
       <StatusBadge status="pending" tone="neutral" label={t.notChecked} />
     );
@@ -297,7 +306,7 @@ function QuestionRow({
             <Item label={t.evidencePosition}>
               {latest.mentioned
                 ? latest.position !== null
-                  ? format(t.evidencePositionValue, { position: latest.position })
+                  ? format(t.evidencePositionValue, { position: formatNumber(latest.averagePosition ?? latest.position, locale) })
                   : t.named
                 : t.evidenceNotRecommended}
             </Item>

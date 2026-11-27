@@ -19,7 +19,7 @@ import { EmptyState } from "@/components/ui/states";
 import { Notice } from "@/components/workspace/notice";
 import { WorkspaceSection } from "@/components/workspace/section";
 import { addGeoPrompt, removeGeoPrompt, runGeoCheck, suggestGeoPrompts } from "@/lib/geo/actions";
-import type { GeoOverview, GeoPromptView } from "@/lib/geo/shared";
+import type { GeoMethod, GeoOverview, GeoPromptView } from "@/lib/geo/shared";
 import type { Locale } from "@/lib/i18n/config";
 import { format, formatNumber, plural } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
@@ -29,6 +29,7 @@ import { MethodSection } from "./ai-visibility/method-section";
 import { PerformanceSection } from "./ai-visibility/performance-section";
 import { AddQuestionForm, NEW_QUESTION_INPUT_ID, SuggestionPicker } from "./ai-visibility/question-editor";
 import { QuestionList } from "./ai-visibility/question-list";
+import { RegenerateQuestions } from "./ai-visibility/regenerate-questions";
 import {
   checkProgress,
   followNewRequest,
@@ -80,6 +81,8 @@ export function GeoPanel({
   blockedReason,
   initialFilter,
   locale,
+  method,
+  rewrite,
   t,
   tCommon,
   tw,
@@ -96,6 +99,10 @@ export function GeoPanel({
   blockedReason: string | null;
   initialFilter: QuestionFilter;
   locale: Locale;
+  /** How this deployment checks: assistants, models, runs, language, market, weekly cap (built on the server). */
+  method: GeoMethod;
+  /** Suggested questions not in the website's article language, offered for regeneration. */
+  rewrite: number;
   /** This screen's copy, already in the reader's language. */
   t: Messages["app"]["geo"];
   /** Shared words used on several screens. */
@@ -479,6 +486,20 @@ export function GeoPanel({
             />
           ) : null}
 
+          {canEdit && tracked > 0 ? (
+            <RegenerateQuestions
+              websiteId={websiteId}
+              rewrite={rewrite}
+              method={method}
+              disabled={mutating || blockedReason !== null}
+              locale={locale}
+              onError={localise}
+              t={t}
+              cancel={tCommon.cancel}
+              close={tw.close}
+            />
+          ) : null}
+
           {canEdit && suggestions.length > 0 ? (
             <SuggestionPicker
               suggestions={suggestions}
@@ -546,7 +567,7 @@ export function GeoPanel({
         </div>
       </WorkspaceSection>
 
-      <MethodSection assistants={details.assistants} t={t} />
+      <MethodSection method={method} assistants={details.assistants} t={t} />
 
       <Dialog
         open={removeTarget !== null}
