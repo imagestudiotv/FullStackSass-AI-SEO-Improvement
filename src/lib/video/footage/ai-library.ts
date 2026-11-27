@@ -283,6 +283,127 @@ export const AI_HOOK_LIBRARY: readonly AiHookClip[] = [
     prompt:
       "A cliff diver stands at the edge of a high white limestone cliff above a deep turquoise sea, arms spread. At about 4 seconds the diver leaps, falling in a clean graceful dive, and enters the water with a small splash far below. Filmed from the side at a distance, the diver small in frame and the face never visible. Photorealistic, vertical 9:16 framing, one smooth continuous shot following the fall, no cuts. Wind and water sound only, no music, no dialogue, no text, no captions, no logos.",
   },
+  // Batch 4, 2026-11-27 (client: "new 10 videos. I suggest few, the others you create" + 4 reference reels): 10 of 12 kept; the rooftop jump dropped (rooftop parkour is a copyable risk, see strategy/hooks.ts UNSAFE).
+  // a giant wall switch flips green and lights a blank burgundy panel
+  {
+    id: "2026-11-27-wall-switch-reveal",
+    type: "anticipation",
+    tags: ["reveal", "switch", "turn it on", "launch", "announcement", "coming soon", "big news"],
+    climaxMs: 4200,
+    durationMs: 8000,
+    costUsd: 0.56,
+    madeOn: "2026-11-27",
+    prompt:
+      "A plain white wall in a bright minimalist room. On the wall, at head height, is a huge flat grey toggle switch shape painted like a phone settings switch, in the off position. A woman with a blonde ponytail in a beige knit sweater and white trousers, seen only from behind, walks into frame, stretches up and pushes the switch to the right with her hand. At about 4 seconds the switch flips and turns bright green, and at the same moment a large blank deep-burgundy rectangular panel lights up on the wall below it with a soft warm glow around its edges, completely empty with no writing. She steps aside out of frame and the glowing blank panel stays in the centre. Photorealistic, vertical 9:16 framing, static camera, one continuous shot, no cuts. Natural sound effects only, no music, no dialogue, no text, no letters, no captions, no logos anywhere.",
+  },
+  // an SUV drives off with the fuel hose still in until the nozzle pops out
+  {
+    id: "2026-11-27-fuel-hose-drive-off",
+    type: "danger",
+    tags: ["mistake", "forgot", "rushing", "oops", "warning", "check first", "too fast"],
+    climaxMs: 5500,
+    durationMs: 8000,
+    costUsd: 0.56,
+    madeOn: "2026-11-27",
+    prompt:
+      "Seen through the windscreen of a car parked behind it at a petrol station on a grey overcast day: a dark grey SUV stands at a blue petrol pump with the fuel nozzle still plugged into its tank and the black hose hanging to the pump. The SUV slowly starts to drive away, the hose straightens and stretches tighter and tighter, and at about 5 seconds the hose pulls tight and the nozzle pops out of the car and drops to the ground while the SUV rolls on. Photorealistic, vertical 9:16 framing with the SUV and the hose centred, the dashboard edge at the bottom of the frame, one continuous shot, no cuts. Natural sound effects only, no music, no dialogue, no text, no number plates, no brand names, no logos.",
+  },
+  // a leaning lamp post falls and just misses a parked red car
+  {
+    id: "2026-11-27-leaning-lamp-post",
+    type: "danger",
+    tags: ["about to fall", "risk", "warning signs", "ignored problem", "close call", "wait for it"],
+    climaxMs: 5100,
+    durationMs: 8000,
+    costUsd: 0.56,
+    madeOn: "2026-11-27",
+    prompt:
+      "Filmed from a third-floor window looking down at a quiet European city street with cream-coloured apartment buildings and bare winter trees. A tall grey street lamp post on the pavement leans dangerously over a small parked red hatchback. It creaks and slowly tips further and further, and at about 5 seconds it falls and crashes onto the pavement right beside the red car, missing it by centimetres, while the car stays untouched. Photorealistic, overcast daylight, vertical 9:16 framing, the lamp post and the red car in the centre, handheld but steady, one continuous shot, no cuts. Natural sound effects only, no music, no dialogue, no text, no number plates, no logos.",
+  },
+  // a giant axe strikes a desert boulder and splits it in two
+  {
+    id: "2026-11-27-giant-axe-boulder",
+    type: "anticipation",
+    tags: ["one strike", "big move", "breakthrough", "split", "impact", "wait for it"],
+    climaxMs: 5200,
+    durationMs: 8000,
+    costUsd: 0.56,
+    madeOn: "2026-11-27",
+    prompt:
+      "In a flat red desert under a clear deep-blue sky, a gigantic axe as tall as a house, with a red and yellow painted handle and a shining steel blade, stands balanced on its edge, slowly tipping towards a huge smooth round sandstone boulder beside it. It tips further and further, and at about 5 seconds it falls and its blade strikes the top of the boulder, splitting it cleanly into two halves that fall apart in a puff of red dust. Photorealistic, low angle looking up, vertical 9:16 framing with the axe and boulder filling the frame, one continuous shot, no cuts. Natural sound effects only, no music, no dialogue, no text, no logos.",
+  },
+  // a red theatre curtain opens on a blank white screen under a spotlight
+  {
+    id: "2026-11-27-curtain-reveal",
+    type: "anticipation",
+    tags: ["reveal", "launch", "big news", "unveil", "spotlight", "announcement", "drumroll"],
+    climaxMs: 4000,
+    durationMs: 8000,
+    costUsd: 0.56,
+    madeOn: "2026-11-27",
+    prompt:
+      "A heavy dark red velvet theatre curtain fills the frame, closed, lit by a single warm spotlight. The curtain trembles, then slowly parts from the middle and sweeps open to both sides, and at about 4 seconds it reveals a bright empty stage with a large blank white rectangular screen standing in the middle under the spotlight, completely empty with no writing. Light dust floats in the beam. Photorealistic, vertical 9:16 framing centred on the opening, static camera with a very slow push-in, one continuous shot, no cuts. Natural sound effects only, no music, no dialogue, no text, no letters, no captions, no logos.",
+  },
+  // a rainbow domino chain runs to the end and rings a brass bell
+  {
+    id: "2026-11-27-domino-chain-run",
+    type: "anticipation",
+    tags: ["domino", "chain reaction", "satisfying", "precision", "one push", "momentum", "compounding"],
+    climaxMs: 6200,
+    durationMs: 8000,
+    costUsd: 0.56,
+    madeOn: "2026-11-27",
+    prompt:
+      "A long winding line of colourful wooden dominoes on a polished wooden floor, filmed from a low angle. In the first second a finger taps the first domino and the dominoes start falling one after another in a fast, clearly visible chain reaction that races along the whole line towards the camera, every single domino toppling, until at about 6 seconds the last domino hits a small brass bell which rings. By the end every domino is lying flat. Photorealistic, vertical 9:16 framing, the camera smoothly tracking alongside the falling wave, one continuous shot, no cuts. Natural sound effects only, no music, no dialogue, no text, no captions, no logos.",
+  },
+  // a waiter nearly drops a tall stack of plates and saves it
+  {
+    id: "2026-11-27-waiter-plate-save",
+    type: "danger",
+    tags: ["close call", "balance", "almost", "save", "steady hands", "wait for it", "nailed it"],
+    climaxMs: 5300,
+    durationMs: 8000,
+    costUsd: 0.56,
+    madeOn: "2026-11-27",
+    prompt:
+      "In a busy bright restaurant, a young waiter in a white shirt and black apron walks between tables carrying a very tall wobbly stack of white plates in both hands, the stack reaching above his head. He stumbles slightly, the tower of plates sways far to one side, then far to the other, and at about 5 seconds, just as it is about to topple, he catches it with a quick smooth move and the whole stack settles perfectly still. He gives a small relieved smile. Photorealistic, vertical 9:16 framing, the waiter and the plate tower centred, medium shot from the front, one continuous shot, no cuts. Natural restaurant sounds only, no music, no dialogue, no text, no captions, no logos.",
+  },
+  // a desk seedling grows into a full leafy tree in seconds
+  {
+    id: "2026-11-27-desk-plant-tree",
+    type: "impossible",
+    tags: ["growth", "grow", "results", "compounding", "from small to big", "organic growth", "time-lapse"],
+    climaxMs: 3500,
+    durationMs: 8000,
+    costUsd: 0.56,
+    madeOn: "2026-11-27",
+    prompt:
+      "A tiny green seedling in a small white pot on a clean wooden office desk next to a closed laptop and a coffee cup, soft morning window light. The seedling starts to grow impossibly fast: its stem thickens and climbs, leaves unfold one after another, and by about 5 seconds it has become a small leafy tree reaching above the frame with its branches spreading across the room, the pot still on the desk. Photorealistic, vertical 9:16 framing, static camera, one continuous shot, no cuts. Natural sound effects only, no music, no dialogue, no text, no captions, no logos, no readable screen.",
+  },
+  // hands tear open a white paper wall onto a blank black panel
+  {
+    id: "2026-11-27-paper-wall-reveal",
+    type: "anticipation",
+    tags: ["reveal", "unveil", "grand opening", "launch", "big news", "behind the scenes", "coming soon"],
+    climaxMs: 4200,
+    durationMs: 10000,
+    costUsd: 0.7,
+    madeOn: "2026-11-27",
+    prompt:
+      "A plain white paper wall fills the whole frame, lit softly. Two hands with dark nail polish push through the paper from the front and tear a small hole, then keep ripping the paper away piece by piece, the hole growing wider with crisp torn white edges. By about 7 seconds the hole is large and shows a clean matte black panel behind the paper, completely empty with no writing, framed by the jagged torn edges. The hands move out of frame and the torn opening with the blank black panel stays centred. Photorealistic, vertical 9:16 framing, static camera, one continuous shot, no cuts. Natural paper tearing sounds only, no music, no dialogue, no text, no letters, no captions, no logos.",
+  },
+  // stick figures: one keeps aiming, the other shoots until he scores
+  {
+    id: "2026-11-27-overthinker-vs-doer",
+    type: "anticipation",
+    tags: ["overthinking", "take action", "just start", "practice", "doer", "consistency", "shoot your shot"],
+    climaxMs: 7000,
+    durationMs: 10000,
+    costUsd: 0.7,
+    madeOn: "2026-11-27",
+    prompt:
+      "Minimal flat 2D animation on a plain black background: two simple white stick figures stand on a thin white ground line at the bottom, both facing a glowing white basketball hoop high in the middle of the frame. The figure on the left holds a ball and keeps adjusting his aim, raising and lowering it, small thought dots floating above his head, but never throws. The figure on the right throws ball after ball: the first misses and bounces away, the second hits the rim, and at about 7 seconds the third swishes through the hoop, which flashes bright red with a soft red glow while the left figure is still aiming. Clean vector style, smooth motion, vertical 9:16 framing, the hoop in the upper third, one continuous shot, no cuts. Simple sound effects only, no music, no dialogue, no text, no letters, no labels, no captions, no logos.",
+  },
 ];
 
 /** The checked POV clips, newest batch last (ids "<day>-pov-<subject>"). */
@@ -509,4 +630,6 @@ export const AI_REJECTED_TAKES: readonly AiRejectedTake[] = [
   { id: "2026-11-26-pov-penguin-victory-dance", madeOn: "2026-11-26", costUsd: 0.7, why: "no visible dance; remade as 2026-11-26-pov-penguin-happy-dance" },
   { id: "2026-11-26-domino-spiral", madeOn: "2026-11-26", costUsd: 0.56, why: "only a few dominoes fell, no chain reaction" },
   { id: "2026-11-26-rooftop-skateboard-gap", madeOn: "2026-11-26", costUsd: 0.56, why: "the skater never jumped the gap, so no danger moment" },
+  { id: "2026-11-27-rooftop-gap-jump", madeOn: "2026-11-27", costUsd: 0.56, why: "the gap between the roofs never showed, so no danger moment; remade as 2026-11-27-rooftop-gap-jump-b" },
+  { id: "2026-11-27-rooftop-gap-jump-b", madeOn: "2026-11-27", costUsd: 0.56, why: "good take, but rooftop parkour is a copyable risk the platforms restrict (UNSAFE words); not used" },
 ];
