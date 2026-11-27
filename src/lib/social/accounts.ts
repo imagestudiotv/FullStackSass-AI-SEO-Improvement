@@ -8,8 +8,8 @@ import { socialAccounts, socialSuggestions, socialTeams, websites } from "@/lib/
 import type { Executor } from "@/lib/db/types";
 import { VIDEO_PLATFORM_SPECS, VIDEO_PLATFORMS } from "@/lib/video/formats";
 
-import { createTeam, teamAccounts, type BundleAccount } from "./bundle";
-import { PLATFORMS, SOCIAL_PLATFORMS, TRIAL_PLATFORMS, WARMUP_DAYS, type SocialPlatform } from "./platforms";
+import { createTeam, isBundleConfigured, teamAccounts, type BundleAccount } from "./bundle";
+import { availablePlatforms, PLATFORMS, SOCIAL_PLATFORMS, TRIAL_PLATFORMS, WARMUP_DAYS, type SocialPlatform } from "./platforms";
 
 /**
  * A website's social accounts: which platforms it may use, connecting one by
@@ -39,10 +39,12 @@ export type SocialAccess = {
  * suggest.ts and publish.ts never hand a post to bundle.social.
  */
 export async function socialAccess(websiteId: string): Promise<SocialAccess> {
+  // LinkedIn only while RepGet can publish to it (platforms.ts NEEDS_BUNDLE).
+  const all = availablePlatforms(isBundleConfigured());
   // The Free plan too: its posts are FREE_PLAN.socialPostsPerMonth a month (publish.ts, actions.ts), its drafts fewer (suggest.ts).
-  if ((await isEntitledToSpend(websiteId, { free: true })).ok) return { level: "paid", platforms: SOCIAL_PLATFORMS };
+  if ((await isEntitledToSpend(websiteId, { free: true })).ok) return { level: "paid", platforms: all };
   if ((await isEntitledToSpend(websiteId, { freeArticles: true })).ok) return { level: "trial", platforms: TRIAL_PLATFORMS };
-  if ((await isEntitledToSpend(websiteId, { internalTesting: true })).ok) return { level: "paid", platforms: SOCIAL_PLATFORMS, manualOnly: true };
+  if ((await isEntitledToSpend(websiteId, { internalTesting: true })).ok) return { level: "paid", platforms: all, manualOnly: true };
   return { level: "none", platforms: [] };
 }
 

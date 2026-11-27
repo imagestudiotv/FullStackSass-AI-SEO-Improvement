@@ -25,6 +25,7 @@ import {
   type SocialPlatform,
   type Thread,
 } from "./platforms";
+import { asksForRecommendations, communityOf, mayMention, mentionHistory, MENTION_WINDOW_DAYS, naturalise, soundsPromotional, type MentionHistory } from "./mention";
 import { checkDraft, isRepeat, linksIn, mayLink, namesBrand, OWN_POSTS_PER_ACCOUNT, postingTime, replyText } from "./rules";
 import { writeDrafts, type BusinessProfile, type PostSlot, type ThreadInput } from "./write";
 
@@ -243,11 +244,26 @@ export async function suggestForWebsite(
     tone: voice?.tone ?? null,
     avoid: voice?.avoid ?? null,
   };
-  const threads: ThreadInput[] = candidates.map((candidate) => ({
+  // Which discussions may name the business at all (lib/social/mention.ts): decided here, in code, before the model writes.
+  const mentions = await replyMentionHistory(websiteId, brand, now);
+  const allowed = new Set<number>();
+  const communities = candidates.map((candidate) => communityOf(candidate.platform, candidate.url));
+  candidates.forEach((candidate, index) => {
+    const history = mentions.get(candidate.platform) ?? { posted: 0, mentions: 0 };
+    const asks = asksForRecommendations(`${candidate.title}
+${candidate.snippet}`);
+    if (!mayMention({ warmup: candidate.warmup, asks, noPromotion: communities[index].noPromotion, history })) return;
+    allowed.add(index);
+    // Held for this one, so two discussions of the same day cannot both take the platform's one in ten.
+    mentions.set(candidate.platform, { ...history, mentions: history.mentions + 1 });
+  });
+  const threads: ThreadInput[] = candidates.map((candidate, index) => ({
     platform: candidate.platform,
     title: candidate.title,
     snippet: candidate.snippet,
     warmup: candidate.warmup,
+    mayMention: allowed.has(index),
+    community: communities[index].name,
   }));
 
   const { drafts, usage } = await write(profile, threads, slots, replyBudget);
@@ -289,6 +305,8 @@ export async function suggestForWebsite(
         !slot.account.pausedAt &&
         // A Pin needs its board; without one it waits for the customer's click.
         (slot.platform !== "pinterest" || slot.account.target) &&
+        // LinkedIn needs its profile or page chosen on bundle.social's page (accounts.ts linkedinTargetOf).
+        (slot.platform !== "linkedin" || slot.account.target) &&
         isBundleConfigured(),
     );
     keep({
@@ -313,8 +331,13 @@ export async function suggestForWebsite(
     if (!thread) continue;
     if (stats[thread.platform]) stats[thread.platform]!.written += 1;
     if (replies >= replyBudget || rows.some((row) => row.threadUrl === thread.url)) continue;
-    // The business is named only in a disclosure saying it is the writer's own (replyText).
-    const body = replyText(draft.body.trim(), draft.disclosure, brand);
+    // The business is named only in a disclosure saying it is the writer's own (replyText), and only
+    // where the discussion was allowed one: any other disclosure is dropped, and a body naming it with it.
+    const disclosure = allowed.has(draft.thread - 1) ? draft.disclosure : null;
+    const answer = naturalise(draft.body);
+    // A person helping does not write calls to action or sales words; a reply that does is not suggested.
+    if (soundsPromotional(answer)) continue;
+    const body = replyText(answer, disclosure, brand);
     if (!body) continue;
     // A reply never carries a link: that is what gets an account banned from a community.
     if (linksIn(body).length > 0) continue;
@@ -337,6 +360,38 @@ export async function suggestForWebsite(
   }
 
   return { ...(await save(websiteId, day, rows, free, now)), discussions: stats };
+}
+
+/**
+ * Per platform, the website's replies of the last MENTION_WINDOW_DAYS: those
+ * posted, and how many named the business. Replies still waiting that name it
+ * count as mentions too, so a week of suggestions cannot add up to more than
+ * the one in ten once they are all posted.
+ */
+async function replyMentionHistory(
+  websiteId: string,
+  brand: { brandName: string | null; domain: string },
+  now: Date,
+): Promise<Map<SocialPlatform, MentionHistory>> {
+  const rows = await db
+    .select({ platform: socialSuggestions.platform, status: socialSuggestions.status, body: socialSuggestions.body, postedAt: socialSuggestions.postedAt })
+    .from(socialSuggestions)
+    .where(
+      and(
+        eq(socialSuggestions.websiteId, websiteId),
+        eq(socialSuggestions.kind, "reply"),
+        inArray(socialSuggestions.status, ["posted", "new", "draft"]),
+        gte(socialSuggestions.createdAt, new Date(now.getTime() - MENTION_WINDOW_DAYS * DAY_MS)),
+      ),
+    );
+  const result = new Map<SocialPlatform, MentionHistory>();
+  for (const platform of SOCIAL_PLATFORMS) {
+    const own = rows.filter((row) => row.platform === platform);
+    const history = mentionHistory(own.filter((row) => row.status === "posted"), brand, now);
+    const waiting = own.filter((row) => row.status !== "posted" && namesBrand(row.body, brand)).length;
+    result.set(platform, { posted: history.posted, mentions: history.mentions + waiting });
+  }
+  return result;
 }
 
 /**

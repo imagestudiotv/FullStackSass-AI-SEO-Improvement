@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, gte, inArray, ne } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { queueJob } from "@/inngest/send";
@@ -16,7 +16,8 @@ import { connectUsername, ensureTeam, inWarmup, removeAccount, socialAccess } fr
 import { disconnectAccount, isBundleConfigured, portalLink } from "./bundle";
 import { cleanUsername, isSocialPlatform, PLATFORMS, type SocialPlatform } from "./platforms";
 import { postTarget, postText, type PostEdit as Edit } from "./post-target";
-import { checkDraft } from "./rules";
+import { asksForRecommendations, communityOf, mayMention, mentionHistory, MENTION_WINDOW_DAYS } from "./mention";
+import { checkDraft, namesBrand } from "./rules";
 
 /**
  * The Social page's actions. Each checks, on the server: an editor of the
@@ -40,6 +41,7 @@ export type SocialError =
   | "too_long"
   | "warmup_link"
   | "warmup_brand"
+  | "mention_not_allowed"
   | "bad_link"
   | "not_enough_credits"
   | "free_posts_used"
@@ -231,7 +233,47 @@ async function checkEdit(
     if (check.reason === "empty") return fail("empty");
     return fail("bad_link");
   }
+  // A reply that names the business, edited in by the customer or not, only where lib/social/mention.ts allows it.
+  if (row.kind === "reply" && site && namesBrand(`${title ?? ""}
+${body}`, site) && !(await replyMayMention(websiteId, row, site, warmup))) {
+    return fail("mention_not_allowed");
+  }
   return { ok: true, data: { body, title } };
+}
+
+/**
+ * Whether this reply may name the business (lib/social/mention.ts): past the
+ * warm-up, in a discussion that asks for recommendations, in a community that
+ * allows it, and within the platform's one reply in ten of the window - this
+ * reply left out of the count it is checked against.
+ */
+async function replyMayMention(
+  websiteId: string,
+  row: typeof socialSuggestions.$inferSelect,
+  brand: { brandName: string | null; domain: string },
+  warmup: boolean,
+): Promise<boolean> {
+  const now = new Date();
+  const posted = await db
+    .select({ body: socialSuggestions.body, postedAt: socialSuggestions.postedAt })
+    .from(socialSuggestions)
+    .where(
+      and(
+        eq(socialSuggestions.websiteId, websiteId),
+        eq(socialSuggestions.platform, row.platform),
+        eq(socialSuggestions.kind, "reply"),
+        eq(socialSuggestions.status, "posted"),
+        ne(socialSuggestions.id, row.id),
+        gte(socialSuggestions.postedAt, new Date(now.getTime() - MENTION_WINDOW_DAYS * 24 * 60 * 60 * 1000)),
+      ),
+    );
+  return mayMention({
+    warmup,
+    asks: asksForRecommendations(`${row.threadTitle ?? ""}
+${row.threadSnippet ?? ""}`),
+    noPromotion: communityOf(row.platform, row.threadUrl).noPromotion,
+    history: mentionHistory(posted, brand, now),
+  });
 }
 
 /**

@@ -138,6 +138,11 @@ export async function publishSuggestion(id: string, now: Date = new Date()): Pro
     await fail(id, !account.target ? "Choose a Pinterest board first" : "This Pin has no picture", now);
     return "failed";
   }
+  if (platform === "linkedin" && !account.target) {
+    // bundle.social asks which profile or page after LinkedIn's login; without one LinkedIn refuses the post.
+    await fail(id, "Choose your LinkedIn profile or page first", now);
+    return "failed";
+  }
   try {
     const data: Record<string, unknown> =
       platform === "reddit"
@@ -151,7 +156,10 @@ export async function publishSuggestion(id: string, now: Date = new Date()): Pro
               uploadIds: row.imageUrl ? [await uploadFromUrl(teamId, row.imageUrl)] : [],
               ...(row.link ? { link: row.link } : {}),
             }
-          : { text: row.body };
+          : platform === "linkedin"
+            ? // A text post (a link in it gets LinkedIn's own preview), public, to the profile or page chosen when connecting.
+              { text: row.body, privacy: "PUBLIC" }
+            : { text: row.body };
     const post = await createPost({ teamId, type, data, title: row.title ?? row.body.slice(0, 80), referenceKey: id, now });
     await db.update(socialSuggestions).set({ bundlePostId: post.id, updatedAt: now }).where(eq(socialSuggestions.id, id));
     return settle(id, row.websiteId, platform, post, now);

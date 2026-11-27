@@ -10,15 +10,33 @@
  *
  * Quora has no API at all, so it is a username and one click for everything.
  * Pinterest has no discussions to answer, so it is own posts (Pins) only.
+ * LinkedIn (Daniel, 2026-11-27: "Can we add LinkedIn too") is own posts only
+ * as well: LinkedIn's API lets an app post for a member or a company page,
+ * but not search or read other people's posts, and scraping them is against
+ * its terms - so there are no LinkedIn conversations to suggest. It is shown
+ * only where RepGet can publish to it (NEEDS_BUNDLE): the same bundle.social
+ * connection the Videos page uses, profile or company page as chosen there.
  *
  * No server imports: the Social page's client component uses these too.
  */
 
-export const SOCIAL_PLATFORMS = ["reddit", "quora", "x", "threads", "pinterest", "bluesky"] as const;
+export const SOCIAL_PLATFORMS = ["reddit", "quora", "x", "threads", "pinterest", "bluesky", "linkedin"] as const;
 export type SocialPlatform = (typeof SOCIAL_PLATFORMS)[number];
 
 export function isSocialPlatform(value: string): value is SocialPlatform {
   return (SOCIAL_PLATFORMS as readonly string[]).includes(value);
+}
+
+/**
+ * Platforms that exist in Social only while bundle.social is set up
+ * (BUNDLE_SOCIAL_API_KEY): without it they are hidden everywhere - the page,
+ * the plan's platforms (lib/social/accounts.ts socialAccess), the daily run.
+ */
+export const NEEDS_BUNDLE: readonly SocialPlatform[] = ["linkedin"];
+
+/** The platforms Social shows and uses, given whether bundle.social is set up. */
+export function availablePlatforms(bundle: boolean): readonly SocialPlatform[] {
+  return bundle ? SOCIAL_PLATFORMS : SOCIAL_PLATFORMS.filter((platform) => !NEEDS_BUNDLE.includes(platform));
 }
 
 /** What a trial may use (client, 2026-10-27: "trials get social media but only Quora"). */
@@ -30,7 +48,7 @@ export const SUGGESTIONS_PER_DAY = 10;
 /** The first days of an account: no links and no product names (client, 2026-10-27: 7). */
 export const WARMUP_DAYS = 7;
 
-export type BundleType = "REDDIT" | "TWITTER" | "THREADS" | "PINTEREST" | "BLUESKY";
+export type BundleType = "REDDIT" | "TWITTER" | "THREADS" | "PINTEREST" | "BLUESKY" | "LINKEDIN";
 
 export type PlatformSpec = {
   name: string;
@@ -62,6 +80,8 @@ export const PLATFORMS: Record<SocialPlatform, PlatformSpec> = {
   threads: { name: "Threads", bundleType: "THREADS", replies: true, ownPosts: true, maxLength: 500, search: "site:threads.com OR site:threads.net" },
   pinterest: { name: "Pinterest", bundleType: "PINTEREST", replies: false, ownPosts: true, maxLength: 800, titleMax: 100 },
   bluesky: { name: "Bluesky", bundleType: "BLUESKY", replies: true, ownPosts: true, maxLength: 300, search: "site:bsky.app" },
+  // A post takes 3,000 characters; no conversations (see the top of this file).
+  linkedin: { name: "LinkedIn", bundleType: "LINKEDIN", replies: false, ownPosts: true, maxLength: 3000 },
 };
 
 /**
@@ -127,6 +147,7 @@ export function threadFromUrl(platform: SocialPlatform, raw: string): Thread | n
       return match ? { platform, url: `https://bsky.app/profile/${match[1]}/post/${match[2]}` } : null;
     }
     case "pinterest":
+    case "linkedin":
       return null;
   }
 }
@@ -177,6 +198,11 @@ export function composeUrl(
       ];
       return `https://www.pinterest.com/pin/create/button/?${params.join("&")}`;
     }
+    case "linkedin": {
+      // LinkedIn's share box with the text in it; a long post opens it empty, its text on the clipboard.
+      const full = `https://www.linkedin.com/feed/?shareActive=true&text=${enc(post.body)}`;
+      return full.length > MAX_COMPOSE_URL ? "https://www.linkedin.com/feed/?shareActive=true" : full;
+    }
     case "quora":
       return "https://www.quora.com/";
   }
@@ -198,6 +224,8 @@ export function profileUrl(platform: SocialPlatform, username: string): string {
       return `https://www.pinterest.com/${name}/`;
     case "bluesky":
       return `https://bsky.app/profile/${name}`;
+    case "linkedin":
+      return `https://www.linkedin.com/in/${name}/`;
   }
 }
 
@@ -207,7 +235,7 @@ export function cleanUsername(platform: SocialPlatform, raw: string): string | n
   try {
     if (/^https?:\/\//i.test(value)) {
       const parts = new URL(value).pathname.split("/").filter(Boolean);
-      value = (parts[0] === "user" || parts[0] === "u" || parts[0] === "profile" ? parts[1] : parts[0]) ?? "";
+      value = (parts[0] === "user" || parts[0] === "u" || parts[0] === "profile" || parts[0] === "in" ? parts[1] : parts[0]) ?? "";
     }
   } catch {
     return null;

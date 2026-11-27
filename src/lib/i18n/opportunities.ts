@@ -43,6 +43,16 @@ export type OpportunitiesCopy = {
   /** Account settings, a paused account. */
   paused: string;
   turnOn: string;
+  /** The review drawer, a reply: when RepGet lets a reply name the business (lib/social/mention.ts). */
+  replyNatural: string;
+  /** A reply's community (a subreddit): its rules, as a link; {community}. */
+  communityRules: string;
+  /** A community known to remove self-promotion: {community}; the row's short form. */
+  communityStrict: string;
+  communityStrictShort: string;
+  /** LinkedIn's group and card: own posts only, no conversations through its API. */
+  linkedinNote: string;
+  linkedinCard: string;
 };
 
 export const OPPORTUNITIES_COPY: Record<Locale, OpportunitiesCopy> = {
@@ -71,6 +81,12 @@ export const OPPORTUNITIES_COPY: Record<Locale, OpportunitiesCopy> = {
     noAccountNote: "{platform} is not connected, so you post this yourself. RepGet does not know the account: it keeps links and product names out, as for a new one.",
     paused: "Automatic posting is paused. Your posts are ready to post by hand.",
     turnOn: "Turn on again",
+    replyNatural: "RepGet keeps replies helpful and free of promotion: your business is named only where a discussion asks for recommendations, the community allows it, and in about 1 reply in 10. Platforms can ban accounts that promote themselves, and that falls on your account.",
+    communityRules: "Read the rules of {community}",
+    communityStrict: "{community} usually removes self-promotion. Post this only as a helpful answer, without your business's name, and read its rules first.",
+    communityStrictShort: "No self-promotion",
+    linkedinNote: "LinkedIn: RepGet writes your own posts and, once the account is connected, publishes them on the profile or company page you chose. LinkedIn does not let apps find or answer other people's posts, so there are no conversations here.",
+    linkedinCard: "Own posts only",
   },
   es: {
     intro:
@@ -97,6 +113,12 @@ export const OPPORTUNITIES_COPY: Record<Locale, OpportunitiesCopy> = {
     noAccountNote: "{platform} no está conectado, así que lo publica usted. RepGet no conoce la cuenta: evita enlaces y nombres de producto, como con una cuenta nueva.",
     paused: "La publicación automática está en pausa. Sus publicaciones están listas para publicarlas a mano.",
     turnOn: "Volver a activar",
+    replyNatural: "RepGet mantiene las respuestas útiles y sin promoción: su negocio solo se menciona cuando una conversación pide recomendaciones, la comunidad lo permite y, como mucho, en 1 de cada 10 respuestas. Las plataformas pueden bloquear las cuentas que se promocionan, y eso recae en su cuenta.",
+    communityRules: "Lea las normas de {community}",
+    communityStrict: "{community} suele eliminar la autopromoción. Publique esto solo como una respuesta útil, sin el nombre de su negocio, y lea antes sus normas.",
+    communityStrictShort: "Sin autopromoción",
+    linkedinNote: "LinkedIn: RepGet escribe sus propias publicaciones y, una vez conectada la cuenta, las publica en el perfil o la página de empresa que haya elegido. LinkedIn no permite a las aplicaciones encontrar ni responder publicaciones de otras personas, así que aquí no hay conversaciones.",
+    linkedinCard: "Solo publicaciones propias",
   },
   fr: {
     intro:
@@ -123,6 +145,12 @@ export const OPPORTUNITIES_COPY: Record<Locale, OpportunitiesCopy> = {
     noAccountNote: "{platform} n'est pas connecté, vous publiez donc vous-même. RepGet ne connaît pas le compte : il évite les liens et les noms de produits, comme pour un nouveau compte.",
     paused: "La publication automatique est en pause. Vos publications sont prêtes à être publiées à la main.",
     turnOn: "Réactiver",
+    replyNatural: "RepGet garde les réponses utiles et sans promotion : votre entreprise n’est citée que lorsqu’une discussion demande des recommandations, que la communauté l’autorise, et au plus dans 1 réponse sur 10. Les plateformes peuvent bannir les comptes qui font leur propre promotion, et c’est votre compte qui en subit les conséquences.",
+    communityRules: "Lire les règles de {community}",
+    communityStrict: "{community} supprime généralement l’autopromotion. Publiez ceci uniquement comme une réponse utile, sans le nom de votre entreprise, et lisez d’abord ses règles.",
+    communityStrictShort: "Pas d’autopromotion",
+    linkedinNote: "LinkedIn : RepGet rédige vos propres publications et, une fois le compte connecté, les publie sur le profil ou la page entreprise choisis. LinkedIn ne permet pas aux applications de trouver les publications d’autres personnes ni d’y répondre : il n’y a donc pas de conversations ici.",
+    linkedinCard: "Vos publications uniquement",
   },
   it: {
     intro:
@@ -149,6 +177,12 @@ export const OPPORTUNITIES_COPY: Record<Locale, OpportunitiesCopy> = {
     noAccountNote: "{platform} non è collegato, quindi pubblica lei. RepGet non conosce l'account: evita link e nomi di prodotti, come per un account nuovo.",
     paused: "La pubblicazione automatica è in pausa. I suoi post sono pronti da pubblicare a mano.",
     turnOn: "Riattiva",
+    replyNatural: "RepGet mantiene le risposte utili e senza promozione: la Sua attività viene nominata solo quando una discussione chiede consigli, la community lo consente e al massimo in 1 risposta su 10. Le piattaforme possono bannare gli account che si promuovono, e le conseguenze ricadono sul Suo account.",
+    communityRules: "Legga le regole di {community}",
+    communityStrict: "{community} di solito rimuove l’autopromozione. La pubblichi solo come risposta utile, senza il nome della Sua attività, e legga prima le regole.",
+    communityStrictShort: "Niente autopromozione",
+    linkedinNote: "LinkedIn: RepGet scrive i Suoi post e, una volta collegato l’account, li pubblica sul profilo o sulla pagina aziendale scelti. LinkedIn non consente alle app di trovare i post di altre persone né di rispondervi, quindi qui non ci sono conversazioni.",
+    linkedinCard: "Solo post propri",
   },
   de: {
     intro:
@@ -175,5 +209,11 @@ export const OPPORTUNITIES_COPY: Record<Locale, OpportunitiesCopy> = {
     noAccountNote: "{platform} ist nicht verbunden, Sie veröffentlichen also selbst. RepGet kennt das Konto nicht und verzichtet wie bei einem neuen Konto auf Links und Produktnamen.",
     paused: "Die automatische Veröffentlichung ist pausiert. Ihre Beiträge können Sie von Hand veröffentlichen.",
     turnOn: "Wieder einschalten",
+    replyNatural: "RepGet hält Antworten hilfreich und frei von Werbung: Ihr Unternehmen wird nur genannt, wenn eine Diskussion nach Empfehlungen fragt, die Community das erlaubt, und höchstens in etwa 1 von 10 Antworten. Plattformen können Konten sperren, die für sich werben, und das trifft Ihr Konto.",
+    communityRules: "Regeln von {community} lesen",
+    communityStrict: "{community} entfernt Eigenwerbung in der Regel. Posten Sie dies nur als hilfreiche Antwort, ohne den Namen Ihres Unternehmens, und lesen Sie vorher die Regeln.",
+    communityStrictShort: "Keine Eigenwerbung",
+    linkedinNote: "LinkedIn: RepGet schreibt Ihre eigenen Beiträge und veröffentlicht sie nach dem Verbinden auf dem gewählten Profil oder der Unternehmensseite. LinkedIn erlaubt Apps nicht, Beiträge anderer zu finden oder zu beantworten, daher gibt es hier keine Unterhaltungen.",
+    linkedinCard: "Nur eigene Beiträge",
   },
 };
