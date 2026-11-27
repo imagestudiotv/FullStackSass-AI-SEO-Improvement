@@ -14,6 +14,11 @@ import { createPostgresTestDb, testPostgresUrl } from "@/test/postgres";
  */
 
 const route = vi.hoisted(() => ({ store: null as unknown as AsyncLocalStorage<unknown>, fallback: null as unknown }));
+// The format is read by a model call (lib/articles/format.ts): none here, a plain guide.
+vi.mock("@/lib/articles/format", async (original) => ({
+  ...(await original<object>()),
+  classifyArticleFormat: async () => ({ format: "guide", minItems: null, basis: "keyword", results: 0 }),
+}));
 vi.mock("@/lib/db", async () => {
   const { AsyncLocalStorage: Als } = await import("node:async_hooks");
   route.store = new Als();

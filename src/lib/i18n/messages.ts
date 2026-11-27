@@ -1629,6 +1629,8 @@ export type Messages = {
       addKeywordsLabel: string;
       addKeywordsButton: string;
       addKeywordsPlaceholder: string;
+      /** The field's example, from the website's own services: {examples}. */
+      addKeywordsExample: string;
       addKeywordsHelp: string;
       keyword: string;
       opportunity: string;
@@ -4952,7 +4954,8 @@ const en: Messages = {
       keywordsHelp: "Ranked by what you can realistically win. A term with fewer searches you can rank for beats a popular one you cannot.",
       addKeywordsLabel: "Add your own keywords",
       addKeywordsButton: "Add",
-      addKeywordsPlaceholder: "wedding videographer tuscany, elopement film italy",
+      addKeywordsPlaceholder: "Terms your customers search for, separated by commas",
+      addKeywordsExample: "For example: {examples}",
       addKeywordsHelp: "Separate with commas or new lines. Terms you add have no search data of their own, but they still shape your topics and content plan.",
       keyword: "Keyword",
       opportunity: "Opportunity",
@@ -8139,7 +8142,8 @@ const es: Messages = {
       keywordsHelp: "Ordenadas por lo que puede ganar de forma realista. Un término con menos búsquedas en el que puede posicionarse vale más que uno popular en el que no.",
       addKeywordsLabel: "Añada sus propias palabras clave",
       addKeywordsButton: "Añadir",
-      addKeywordsPlaceholder: "videografo de bodas toscana, film de fuga italia",
+      addKeywordsPlaceholder: "Términos que buscan sus clientes, separados por comas",
+      addKeywordsExample: "Por ejemplo: {examples}",
       addKeywordsHelp: "Sepárelas con comas o saltos de línea. Los términos que añada no tienen datos de búsqueda propios, pero igualmente dan forma a sus temas y a su plan de contenidos.",
       keyword: "Palabra clave",
       opportunity: "Oportunidad",
@@ -11328,7 +11332,8 @@ const fr: Messages = {
       keywordsHelp: "Classés selon ce que vous pouvez réellement gagner. Un terme moins recherché sur lequel vous pouvez vous positionner vaut mieux qu\u2019un terme populaire hors de portée.",
       addKeywordsLabel: "Ajoutez vos propres mots-clés",
       addKeywordsButton: "Ajouter",
-      addKeywordsPlaceholder: "vidéaste mariage toscane, film d’élopement italie",
+      addKeywordsPlaceholder: "Termes que recherchent vos clients, séparés par des virgules",
+      addKeywordsExample: "Par exemple : {examples}",
       addKeywordsHelp: "Séparez-les par des virgules ou des retours à la ligne. Les termes que vous ajoutez n’ont pas de données de recherche propres, mais ils orientent tout de même vos thèmes et votre plan de contenu.",
       keyword: "Mot-clé",
       opportunity: "Opportunité",
@@ -14515,7 +14520,8 @@ const it: Messages = {
       keywordsHelp: "Ordinate per ciò che può realisticamente ottenere. Un termine con meno ricerche su cui può posizionarsi vale più di uno popolare fuori portata.",
       addKeywordsLabel: "Aggiunga le sue parole chiave",
       addKeywordsButton: "Aggiungi",
-      addKeywordsPlaceholder: "videografo matrimoni toscana, film di fuga italia",
+      addKeywordsPlaceholder: "Termini che cercano i suoi clienti, separati da virgole",
+      addKeywordsExample: "Per esempio: {examples}",
       addKeywordsHelp: "Le separi con virgole o a capo. I termini che aggiunge non hanno dati di ricerca propri, ma orientano comunque i suoi temi e il suo piano editoriale.",
       keyword: "Parola chiave",
       opportunity: "Opportunità",
@@ -17700,7 +17706,8 @@ const de: Messages = {
       keywordsHelp: "Sortiert danach, was Sie realistisch gewinnen können. Ein Begriff mit weniger Suchanfragen, für den Sie ranken können, schlägt einen beliebten, für den Sie es nicht können.",
       addKeywordsLabel: "Eigene Suchbegriffe hinzufügen",
       addKeywordsButton: "Hinzufügen",
-      addKeywordsPlaceholder: "hochzeitsvideograf toskana, elopement film italien",
+      addKeywordsPlaceholder: "Begriffe, nach denen Ihre Kunden suchen, durch Kommas getrennt",
+      addKeywordsExample: "Zum Beispiel: {examples}",
       addKeywordsHelp: "Mit Komma oder Zeilenumbruch trennen. Begriffe, die Sie hinzufügen, haben keine eigenen Suchdaten, prägen aber trotzdem Ihre Themen und Ihren Contentplan.",
       keyword: "Suchbegriff",
       opportunity: "Chance",

@@ -9,6 +9,7 @@ import { ResearchTabs } from "../research-tabs";
 import { requireWebsitePlan } from "@/lib/billing/require-plan";
 import { ResearchStatus } from "@/components/articles/research-status";
 import { researchMode } from "@/lib/articles/research-types";
+import { keywordExamples } from "@/lib/keywords/placeholder";
 
 export const metadata = { title: "Planned articles" };
 
@@ -44,6 +45,7 @@ export default async function WebsiteContentPage({
         articles={articles.map((article) => ({ ...article, title: articleTitleText(article.title, locale) }))}
         researching={researchInFlight(site)}
         monthUsedUp={allowance.usedUp}
+        keywordExamples={keywordExamples(site)}
         t={t.app.research}
         tCalendar={t.app.calendar}
         tCommon={t.app.common}

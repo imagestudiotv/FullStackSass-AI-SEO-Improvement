@@ -1,5 +1,5 @@
 import { withCache } from "@/lib/providers/cache";
-import type { SearchIntent } from "@/lib/keywords/score";
+import { knownDifficulty, type SearchIntent } from "@/lib/keywords/score";
 
 /**
  * DataForSEO client.
@@ -281,7 +281,8 @@ function mapItem(item: LabsKeywordItem, source: string): KeywordMetrics | null {
   return {
     term,
     volume: item.keyword_info?.search_volume ?? null,
-    difficulty: item.keyword_properties?.keyword_difficulty ?? null,
+    // 0 is what Labs answers when it had nothing to measure: unknown, not easy (lib/keywords/score.ts).
+    difficulty: knownDifficulty(item.keyword_properties?.keyword_difficulty),
     cpc: item.keyword_info?.cpc ?? null,
     intent: mapIntent(item.search_intent_info?.main_intent),
     source,

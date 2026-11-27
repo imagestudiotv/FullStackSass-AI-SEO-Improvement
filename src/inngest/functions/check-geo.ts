@@ -5,8 +5,10 @@ import { db } from "@/lib/db";
 import { geoPrompts, geoResults, websites } from "@/lib/db/schema";
 import { maxPromptsFor } from "@/lib/geo/allowance";
 import { ENGINE, runCheck } from "@/lib/geo/check";
+import { syncAiVisibilityCompetitors } from "@/lib/geo/competitors";
 import { isEntitledToSpend } from "@/lib/billing/entitled";
 import { llmCostUsd, track } from "@/lib/usage";
+import { MODELS } from "@/lib/ai/client";
 import {
   paidCall,
   releaseUnspent,
@@ -319,6 +321,40 @@ export const checkGeo = inngest.createFunction(
         checked += 1;
         if (outcome.result.mentioned) mentions += 1;
       }
+
+      /*
+        The rivals the assistant recommended, copied into the Business profile
+        (lib/geo/competitors.ts): it said "Competitors: 0" beside an AI
+        visibility page full of them (review of 2026-11-27). Suggestions only,
+        never over the customer's own; at most one Haiku call, metered, and
+        only for a website entitled to spend. A failure loses nothing measured.
+      */
+      await step.run(`sync-competitors-${target.websiteId}`, async () => {
+        const entitled = await isEntitledToSpend(target.websiteId, websiteId ? { free: true } : {});
+        if (!entitled.ok) return { added: 0 };
+        try {
+          const result = await syncAiVisibilityCompetitors(target.websiteId);
+          if (result.usage) {
+            await track(target.organizationId, {
+              kind: "llm",
+              provider: "anthropic",
+              model: MODELS.EXTRACTION,
+              websiteId: target.websiteId,
+              quantity: result.usage.inputTokens + result.usage.outputTokens,
+              costUsd: llmCostUsd(MODELS.EXTRACTION, result.usage.inputTokens, result.usage.outputTokens) ?? undefined,
+              metadata: { purpose: "geo_competitor_websites", ...result.usage },
+            });
+          }
+          logger.info({ step: `sync-competitors-${target.websiteId}`, websiteId: target.websiteId, added: result.added.length }, "AI visibility competitors copied into the profile");
+          return { added: result.added.length };
+        } catch (error) {
+          logger.warn(
+            { step: `sync-competitors-${target.websiteId}`, websiteId: target.websiteId, reason: error instanceof Error ? error.message.slice(0, 200) : "unknown" },
+            "AI visibility competitors could not be copied into the profile",
+          );
+          return { added: 0 };
+        }
+      });
     }
 
     /**

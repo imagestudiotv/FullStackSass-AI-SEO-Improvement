@@ -16,27 +16,68 @@ export type SearchIntent =
   | "informational"
   | "navigational";
 
+/**
+ * What kind of website the keywords are for (lib/keywords/site-type.ts).
+ *
+ * "business": it sells something - products, a service, bookings.
+ * "publisher": it lives from its readers - a blog, magazine, news or content
+ * site, earning from ads or affiliate links rather than from a sale.
+ */
+export type SiteType = "business" | "publisher";
+
 export type ScoreInput = {
   volume: number | null;
-  /** 0-100, as returned by the provider. Higher means harder to rank. */
+  /**
+   * 0-100, as returned by the provider. Higher means harder to rank. 0 is
+   * read as unknown (knownDifficulty), never as "easy".
+   */
   difficulty: number | null;
   cpc: number | null;
   intent: SearchIntent | null;
 };
 
 /**
- * Intent weighting.
+ * Intent weighting, by site type.
  *
- * Someone searching "dental implants cost" is close to booking; someone
- * searching "what is a molar" is not a customer. Navigational terms are usually
- * a competitor's brand name — real traffic, but not winnable and not ours.
+ * For a business, someone searching "dental implants cost" is close to
+ * booking; someone searching "what is a molar" is not a customer.
+ *
+ * For a publisher it is the other way round: the reader with a question IS
+ * the audience. The business weights buried every informational search on a
+ * Ukrainian greetings site, whose whole plan then leaned on "ready to buy"
+ * terms nobody reads it for (review of 2026-11-27).
+ *
+ * Navigational terms are usually someone else's brand name - real traffic,
+ * but not winnable and not ours - for both.
  */
-const INTENT_WEIGHT: Record<SearchIntent, number> = {
-  transactional: 1.0,
-  commercial: 0.9,
-  informational: 0.45,
-  navigational: 0.15,
+const INTENT_WEIGHT: Record<SiteType, Record<SearchIntent, number>> = {
+  business: {
+    transactional: 1.0,
+    commercial: 0.9,
+    informational: 0.45,
+    navigational: 0.15,
+  },
+  publisher: {
+    informational: 1.0,
+    commercial: 0.85,
+    transactional: 0.6,
+    navigational: 0.15,
+  },
 };
+
+/**
+ * A difficulty the provider actually measured, or null.
+ *
+ * DataForSEO answers 0 where it had nothing to measure from, which in a sparse
+ * market is most keywords (review of 2026-11-27: every keyword "Competition:
+ * Low", the day's article "difficulty 0/100"). A real 0 is vanishingly rare,
+ * so 0 counts as unknown: shown as a dash, and scored like a missing value
+ * rather than as the easiest keyword there is.
+ */
+export function knownDifficulty(value: number | null | undefined): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return null;
+  return Math.min(Math.round(value), 100);
+}
 
 /**
  * Volume, compressed logarithmically.
@@ -58,13 +99,13 @@ function volumeScore(volume: number | null): number {
  * scores 0.36 while difficulty 80 scores 0.04. That is deliberate — the
  * difference between "hard" and "hopeless" should be large, not linear.
  *
- * An unknown difficulty is treated as 50 rather than 0. Assuming a missing
- * value is easy would promote exactly the keywords we know least about.
+ * An unknown difficulty (null, or the provider's 0) is treated as 50. Assuming
+ * a missing value is easy would promote exactly the keywords we know least
+ * about.
  */
 function difficultyScore(difficulty: number | null): number {
-  const value = difficulty ?? 50;
-  const clamped = Math.min(Math.max(value, 0), 100);
-  return Math.pow(1 - clamped / 100, 2);
+  const value = knownDifficulty(difficulty) ?? 50;
+  return Math.pow(1 - value / 100, 2);
 }
 
 /**
@@ -89,15 +130,17 @@ const WEIGHTS = {
   cpc: 0.1,
 } as const;
 
-export function scoreKeyword(input: ScoreInput): number {
+export function scoreKeyword(input: ScoreInput, siteType: SiteType = "business"): number {
   /**
    * Intent is weighted as heavily as difficulty, and volume deliberately less.
-   * A high-volume, low-difficulty encyclopaedia term ("what is a molar") is
-   * easy to rank for and brings traffic that never books an appointment.
-   * Ranking those first would fill the calendar with articles that look
-   * successful in analytics and produce no customers.
+   * For a business, a high-volume, low-difficulty encyclopaedia term ("what is
+   * a molar") is easy to rank for and brings traffic that never books an
+   * appointment. For a publisher that same reader is the point - which is why
+   * the weights depend on the site type.
    */
-  const intent = input.intent ? INTENT_WEIGHT[input.intent] : 0.45;
+  const weights = INTENT_WEIGHT[siteType] ?? INTENT_WEIGHT.business;
+  // Unknown intent: the site's informational weight, neither promoted nor buried.
+  const intent = input.intent ? weights[input.intent] : weights.informational;
 
   const raw =
     difficultyScore(input.difficulty) * WEIGHTS.difficulty +
@@ -115,13 +158,14 @@ export function scoreKeyword(input: ScoreInput): number {
  * schedule one by hand. They are only kept out of automatic planning.
  */
 export function isOutOfReach(input: ScoreInput): boolean {
-  return (input.difficulty ?? 50) >= 70;
+  return (knownDifficulty(input.difficulty) ?? 50) >= 70;
 }
 
 export function rankKeywords<T extends ScoreInput>(
   keywords: T[],
+  siteType: SiteType = "business",
 ): (T & { priorityScore: number })[] {
   return keywords
-    .map((keyword) => ({ ...keyword, priorityScore: scoreKeyword(keyword) }))
+    .map((keyword) => ({ ...keyword, priorityScore: scoreKeyword(keyword, siteType) }))
     .sort((a, b) => b.priorityScore - a.priorityScore);
 }

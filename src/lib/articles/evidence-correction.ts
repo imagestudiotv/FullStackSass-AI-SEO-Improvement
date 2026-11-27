@@ -2,7 +2,7 @@ import { load } from "cheerio";
 import { anthropic } from "@/lib/ai/client";
 import { articleTask, measuredRequest, type MeasureAi } from "@/lib/ai/article-tasks";
 import { dataBlock, dataRule } from "@/lib/ai/untrusted";
-import { cleanDashesHtml, NO_DASH_RULE } from "./dashes";
+import { cleanDashesHtml, dashRuleFor, NO_DASH_RULE } from "./dashes";
 import { countWords, sanitizeHtml, type ArticleBrief } from "./generate";
 import type { ResearchBrief } from "./research-types";
 import { writingEvidence } from "./writing-evidence";
@@ -37,7 +37,7 @@ The evidence cards are selected excerpts. Never replace an unsupported detail wi
 Keep company-wide figures company-wide. A business's style, tenure or differentiator is not proof of outcomes or of competitors' limitations. Omit unnecessary promotional claims.
 Keep each source attribution next to its supported statement, naming the source in plain text (its supplied name or publisher). Never add a link to a source or to any other website, and unwrap any source link into its plain words; keep every other link already in the draft (such as a required partner link) exactly as it is. A source discussing several apps and separately discussing a technique does not prove each app supports that technique. A video tutorial does not establish a required photo workflow.
 Paraphrase in original words; avoid long direct quotations. Retain only allowed article HTML (<h2>, <h3>, <p>, lists, emphasis, links and tables), no Markdown, scripts or wrapper.
-${NO_DASH_RULE}
+${[NO_DASH_RULE, dashRuleFor(brief.language)].filter(Boolean).join("\n")}
 ${dataRule("business_profile")} ${dataRule("website_page")}`,
     messages: [{ role: "user", content:
       dataBlock("business_profile", JSON.stringify({

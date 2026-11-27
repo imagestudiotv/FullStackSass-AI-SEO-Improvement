@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNull, ne, or } from "drizzle-orm";
 import type { Metadata } from "next";
 import { cache } from "react";
 
@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { requireWebsitePlan } from "@/lib/billing/require-plan";
 import { db } from "@/lib/db";
 import { competitors } from "@/lib/db/schema";
+import { DISMISSED_SOURCE } from "@/lib/geo/competitor-sources";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { format } from "@/lib/i18n/format";
 import { requireOrg, requireWebsitePage } from "@/lib/tenant";
@@ -50,7 +51,8 @@ export default async function BusinessSettingsPage({ params }: PageProps<"/websi
   const rows = await db
     .select({ domain: competitors.domain, source: competitors.source })
     .from(competitors)
-    .where(eq(competitors.websiteId, site.id))
+    // Not the suggestions the customer removed: those stay only as markers (lib/geo/competitor-sources.ts).
+    .where(and(eq(competitors.websiteId, site.id), or(isNull(competitors.source), ne(competitors.source, DISMISSED_SOURCE))))
     .orderBy(asc(competitors.createdAt), asc(competitors.domain))
     .limit(COMPETITOR_LIMIT + 1);
 

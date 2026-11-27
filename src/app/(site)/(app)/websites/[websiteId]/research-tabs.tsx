@@ -23,6 +23,7 @@ import { useRefreshWhile } from "@/components/refresh-while";
 import { TablePager } from "@/components/table-pager";
 import { paginate } from "@/lib/pagination";
 import { runOutcome } from "@/lib/keywords/research-state";
+import { knownDifficulty } from "@/lib/keywords/score";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -66,6 +67,8 @@ type ResearchTabsProps = {
    * plan renews - said as that, not as a plan that failed to rebuild.
    */
   monthUsedUp: boolean;
+  /** The add field's example, from the website's own services (lib/keywords/placeholder.ts), or null. */
+  keywordExamples?: string | null;
   /** This screen's copy, already in the reader's language. */
   t: Messages["app"]["research"];
   /** Shared words used on several screens. */
@@ -96,10 +99,15 @@ function difficultyLabel(
   value: number | null,
   t: Messages["app"]["research"],
 ): string {
-  if (value === null) return "-";
-  if (value < 30) return t.difficultyLow;
-  if (value < 50) return t.difficultyMedium;
-  if (value < 70) return t.difficultyHigh;
+  /*
+    Unmeasured is a dash, not "Low": the provider answers 0 where it had no
+    data, and a whole sparse market read "Low" (lib/keywords/score.ts).
+  */
+  const known = knownDifficulty(value);
+  if (known === null) return "-";
+  if (known < 30) return t.difficultyLow;
+  if (known < 50) return t.difficultyMedium;
+  if (known < 70) return t.difficultyHigh;
   return t.difficultyVeryHigh;
 }
 
@@ -110,6 +118,7 @@ export function ResearchTabs({
   articles,
   researching,
   monthUsedUp,
+  keywordExamples,
   t,
   tCalendar,
   tCommon,
@@ -503,7 +512,7 @@ export function ResearchTabs({
               <Input
                 value={newKeywords}
                 onChange={(event) => setNewKeywords(event.target.value)}
-                placeholder={t.addKeywordsPlaceholder}
+                placeholder={keywordExamples ? format(t.addKeywordsExample, { examples: keywordExamples }) : t.addKeywordsPlaceholder}
                 aria-label={t.addKeywordsLabel}
                 disabled={pending}
               />
