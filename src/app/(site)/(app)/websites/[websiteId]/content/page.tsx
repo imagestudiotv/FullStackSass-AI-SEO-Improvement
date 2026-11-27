@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/ui/page-header";
 import { requireWebsitePage } from "@/lib/tenant";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { listArticles } from "@/lib/articles/actions";
@@ -36,6 +37,8 @@ export default async function WebsiteContentPage({
 
   return (
     <>
+      {/* The page's heading first, then the research notice (outside review, 2026-11-27: it opened on the banner, with no heading). */}
+      <PageHeader title={t.app.nav.plannedArticles} />
       <ResearchStatus mode={researchMode(site.id)} locale={locale} />
       <ResearchTabs
         websiteId={site.id}

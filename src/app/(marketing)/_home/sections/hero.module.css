@@ -927,6 +927,35 @@
   }
 }
 
+/*
+ * Room for the address on a phone (outside review, 2026-11-27: the
+ * placeholder read "yourwebsit"). Below 450px the decorative globe goes; below
+ * 400px the button keeps only its arrow, its words still its accessible name
+ * (clipped, not removed), so the field gets the width back in every language.
+ */
+@media (max-width: 450px) {
+  .rgx-input-icon {
+    display: none;
+  }
+  .rgx-form {
+    padding-left: 16px;
+  }
+}
+
+@media (max-width: 400px) {
+  .rgx-primary {
+    padding: 0 6px;
+  }
+  .rgx-primary-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+}
+
 @media (max-width: 390px) {
   .rgx-channel-count {
     font-size: 36px;

@@ -368,7 +368,7 @@ export function HeroForm({
               aria-describedby={error ? errorId : undefined}
             />
             <button type="submit" className={styles["rgx-primary"]} disabled={pending}>
-              <span>{strings.startTrial}</span>
+              <span className={styles["rgx-primary-label"]}>{strings.startTrial}</span>
               <span className={styles["rgx-primary-arr"]} aria-hidden="true">
                 <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8">
                   <path d="M5 10h10m-4-4 4 4-4 4" strokeLinecap="round" strokeLinejoin="round" />

@@ -80,7 +80,7 @@ const en: FaqCopy = {
         {
           question: "Can I approve social posts before publishing?",
           answer:
-            "Yes, the planned social workflow allows you to review content, edit captions and media, and control scheduling or publishing settings.",
+            "Yes. In Social Distribution you review each post, edit its caption and media, and control when and where it is scheduled or published.",
         },
         {
           question: "Can one article become content for several social platforms?",
@@ -173,7 +173,7 @@ const es: FaqCopy = {
         {
           question: "¿Puedo aprobar las publicaciones antes de que se publiquen?",
           answer:
-            "Sí. El flujo de redes sociales previsto le permite revisar el contenido, editar textos e imágenes y controlar la programación o la publicación.",
+            "Sí. En la página Distribución social revisa cada publicación, edita su texto e imágenes y controla cuándo y dónde se programa o se publica.",
         },
         {
           question: "¿Un artículo puede convertirse en contenido para varias redes sociales?",
@@ -266,7 +266,7 @@ const fr: FaqCopy = {
         {
           question: "Puis-je valider les publications avant leur diffusion ?",
           answer:
-            "Oui. Le flux social prévu vous permet de relire les contenus, de modifier les légendes et les visuels, et de contrôler la programmation ou la publication.",
+            "Oui. Sur la page Diffusion sociale, vous relisez chaque publication, modifiez sa légende et ses visuels, et choisissez quand et où elle est programmée ou publiée.",
         },
         {
           question: "Un article peut-il devenir du contenu pour plusieurs réseaux sociaux ?",
@@ -359,7 +359,7 @@ const it: FaqCopy = {
         {
           question: "Posso approvare i post prima della pubblicazione?",
           answer:
-            "Sì. Il flusso social previsto Le permette di rivedere i contenuti, modificare testi e immagini e controllare la programmazione o la pubblicazione.",
+            "Sì. Nella pagina Distribuzione social Lei rivede ogni post, ne modifica testo e immagini e decide quando e dove viene programmato o pubblicato.",
         },
         {
           question: "Un articolo può diventare contenuto per più piattaforme social?",
@@ -452,7 +452,7 @@ const de: FaqCopy = {
         {
           question: "Kann ich Social-Posts vor der Veröffentlichung freigeben?",
           answer:
-            "Ja. Der geplante Social-Workflow ermöglicht es Ihnen, Inhalte zu prüfen, Texte und Medien zu bearbeiten und Planung oder Veröffentlichung zu steuern.",
+            "Ja. Auf der Seite Social-Verbreitung prüfen Sie jeden Beitrag, bearbeiten Text und Medien und legen fest, wann und wo er geplant oder veröffentlicht wird.",
         },
         {
           question: "Kann aus einem Artikel Content für mehrere Social-Media-Plattformen werden?",
