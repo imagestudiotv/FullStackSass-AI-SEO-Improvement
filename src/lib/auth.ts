@@ -249,6 +249,18 @@ function createAuth() {
             }
 
             /*
+              A sign-up that came from a free tool (the tool cookie, set when
+              the tool was used) is counted for that tool, once, for Admin ->
+              Free tools. On demand, like the partner capture; never throws.
+            */
+            try {
+              const { captureToolSignup } = await import("@/lib/tools/tool-tracking");
+              await captureToolSignup(user, context as Parameters<typeof captureToolSignup>[1]);
+            } catch (error) {
+              console.error("[auth] free tool signup capture could not run", error);
+            }
+
+            /*
               The welcome email, and the setup reminder a few hours later
               (inngest/functions/lifecycle-emails.ts). Queued through the
               outbox, not sent here: signing up must not wait on an email

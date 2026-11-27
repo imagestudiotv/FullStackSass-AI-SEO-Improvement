@@ -91,6 +91,9 @@ export type AdminAction =
   | "free_plan.cap_changed"
   /* The bar above the public site's header (lib/admin/site-banner.ts). */
   | "site.banner_saved"
+  /* The free tools' switches and daily AI caps (lib/admin/free-tools.ts). */
+  | "free_tool.switched"
+  | "free_tool.cap_changed"
   /* Earn Credits claims (lib/earn/admin.ts). */
   | "earn.approved"
   | "earn.declined"

@@ -16,6 +16,7 @@ import {
 import { readCache, writeCache } from "@/lib/providers/cache";
 import { fetchHomepage } from "@/lib/websites/crawl";
 import { SNIPPET_LIMITS } from "@/lib/tools/snippet";
+import { recordToolUse, toolServerGate } from "@/lib/tools/tool-tracking";
 import {
   InvalidUrlError,
   isPublicWebsiteUrl,
@@ -94,6 +95,8 @@ export const PUBLIC_LIMITS = {
 };
 
 const CACHE_PROVIDER = "public-meta-description";
+/** This tool in Admin -> Free tools. */
+const TOOL = "meta-description-generator";
 
 function hash(value: string): string {
   return createHash("sha256").update(value).digest("hex").slice(0, 32);
@@ -153,6 +156,11 @@ export async function writeDescriptions(
   );
   if (cached) return { ok: true, result: cached };
 
+  // Admin -> Free tools: switched off, or today's AI cap reached (lib/tools/tool-tracking.ts).
+  const gate = await toolServerGate(TOOL).catch(() => "disabled" as const);
+  if (gate === "disabled") return { ok: false, error: "This tool is temporarily unavailable. Please try again later." };
+  if (gate === "cap") return { ok: false, error: "This tool is busy right now. Please try again in a few minutes." };
+
   /*
     One request per page at a time, under an expiring lease rather than a
     counter in a clock window: the lease lasts leaseSeconds from when it was
@@ -181,7 +189,7 @@ export async function writeDescriptions(
     if (!slot.ok) return { ok: false, error: refusal(slot.rule) };
 
     try {
-      return await writeFromPage(normalized, cacheParams, slot.reservations);
+      return await writeFromPage(normalized, cacheParams, slot.reservations, visitor);
     } finally {
       /*
         Only unspent slots come back: an unreachable page or a provider
@@ -199,6 +207,7 @@ async function writeFromPage(
   normalized: { url: string; domain: string },
   cacheParams: Record<string, unknown>,
   reservations: Reservation[],
+  visitor: string,
 ): Promise<DescriptionOutcome> {
   let page;
   try {
@@ -257,6 +266,13 @@ async function writeFromPage(
         messages: [{ role: "user", content: prompt }],
       }),
     );
+    // One use for Admin -> Free tools, with its cost (never throws).
+    await recordToolUse({
+      tool: TOOL,
+      path: "server",
+      visitor,
+      usage: response.usage ? { model: MODELS.GENERATION, inputTokens: response.usage.input_tokens ?? 0, outputTokens: response.usage.output_tokens ?? 0 } : null,
+    });
     raw = response.content
       .filter((block): block is Anthropic.TextBlock => block.type === "text")
       .map((block) => block.text)
