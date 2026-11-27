@@ -17,6 +17,7 @@ import type { Locale } from "@/lib/i18n/config";
 import { format, plural } from "@/lib/i18n/format";
 import { OPPORTUNITIES_COPY } from "@/lib/i18n/opportunities";
 import { SOCIAL_CONNECTIONS_COPY } from "@/lib/i18n/social-connections";
+import { communityOf } from "@/lib/social/mention";
 import { cn } from "@/lib/utils";
 
 import {
@@ -180,6 +181,7 @@ function Group({
         </button>
       </h3>
       <div id={`${id}-rows`} hidden={!open} className="border-t">
+        {group.platform === "linkedin" ? <p className="px-5 pt-4 text-xs text-muted-foreground">{copy.linkedinNote}</p> : null}
         {total === 0 ? (
           <p className="px-5 py-5 text-sm text-muted-foreground">{copy.platformEmpty}</p>
         ) : (
@@ -222,6 +224,8 @@ function Opportunity({ row, websiteId, editable, pending, onReview, onSkip, pric
   const reply = row.kind === "reply";
   const discussion = discussionUrl(row);
   const where = discussion ? whereOf(row) : null;
+  // A community known to remove self-promotion is marked on the row (lib/social/mention.ts).
+  const community = reply ? communityOf(row.platform, row.threadUrl) : null;
   const text = pasteText(row.title, row.body);
   const open = openAction(row, mine);
   // A suggestion's line is the discussion itself; from a draft on, the customer's own text.
@@ -259,6 +263,12 @@ function Opportunity({ row, websiteId, editable, pending, onReview, onSkip, pric
             )}
             <span aria-hidden="true">•</span>
             <Ago value={latest(row)} locale={locale} />
+            {community?.noPromotion ? (
+              <>
+                <span aria-hidden="true">•</span>
+                <span className="font-medium text-amber-700 dark:text-amber-400">{copy.communityStrictShort}</span>
+              </>
+            ) : null}
             <span
               className={cn(
                 "inline-flex shrink-0 items-center rounded-md px-1.5 py-0.5 text-[0.68rem] font-semibold tracking-wide uppercase",

@@ -8,10 +8,11 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { Input } from "@/components/ui/input";
 import type { Locale } from "@/lib/i18n/config";
 import { format } from "@/lib/i18n/format";
+import { OPPORTUNITIES_COPY } from "@/lib/i18n/opportunities";
 import type { SocialConnectionsCopy } from "@/lib/i18n/social-connections";
 import { connectSocialUsername, disconnectSocial, startSocialConnect } from "@/lib/social/actions";
 import { CONNECTIONS_ANCHOR, type ConnectNotice } from "@/lib/social/connect-return";
-import { PLATFORMS, SOCIAL_PLATFORMS, type SocialPlatform } from "@/lib/social/platforms";
+import { availablePlatforms, PLATFORMS, type SocialPlatform } from "@/lib/social/platforms";
 import { cn } from "@/lib/utils";
 
 import styles from "./connections-panel.module.css";
@@ -38,6 +39,7 @@ const LOGO: Record<SocialPlatform, ReactNode> = {
   x: "𝕏",
   threads: "@",
   pinterest: "p",
+  linkedin: "in",
   bluesky: (
     <svg viewBox="0 0 28 28" fill="currentColor">
       <path d="M14 12.5C11.4 8.7 6.7 4 4.2 4.2.8 4.5 1.4 8.1 1.7 9.4c1.1 4.8 5.2 6.3 9.3 5.6-3.6.8-7.2 2.6-5.4 6 1.6 3 5.1 2 8.1-2.2.3-.4.5-1 .6-1.4.1.4.3 1 .6 1.4 3 4.2 6.5 5.2 8.1 2.2 1.8-3.4-1.8-5.2-5.4-6 4.1.7 8.2-.8 9.3-5.6.3-1.3.9-4.9-2.5-5.2C21.3 4 16.6 8.7 14 12.5Z" />
@@ -98,8 +100,10 @@ export function ConnectionsPanel({
   const locked = (platform: SocialPlatform) => !platforms.includes(platform);
   // As before: an account on a platform the plan no longer includes does not count.
   const isOn = (platform: SocialPlatform) => !locked(platform) && accounts.some((account) => account.platform === platform);
-  const count = SOCIAL_PLATFORMS.filter(isOn).length;
-  const total = SOCIAL_PLATFORMS.length;
+  // LinkedIn only where RepGet can publish to it (lib/social/platforms.ts NEEDS_BUNDLE).
+  const shown = availablePlatforms(bundle);
+  const count = shown.filter(isOn).length;
+  const total = shown.length;
 
   // Back from connecting: say how it went, once, and keep the panel in view for the next one.
   const noticeKind = notice?.kind ?? null;
@@ -168,7 +172,7 @@ export function ConnectionsPanel({
         </div>
 
         <ul className={styles.accounts}>
-          {SOCIAL_PLATFORMS.map((platform) => {
+          {shown.map((platform) => {
             const on = isOn(platform);
             const off = locked(platform);
             const nameId = `${id}-${platform}`;
@@ -190,7 +194,7 @@ export function ConnectionsPanel({
                 </div>
                 <div className={styles.foot}>
                   <span id={`${nameId}-note`} className={styles.note}>
-                    {off ? t.lockedTrial : on ? copy.linked : copy.ready}
+                    {off ? t.lockedTrial : on ? copy.linked : platform === "linkedin" ? OPPORTUNITIES_COPY[locale].linkedinCard : copy.ready}
                   </span>
                   {!canEdit ? null : on ? (
                     <button type="button" className={styles.action} aria-describedby={nameId} disabled={pending} onClick={() => {
@@ -206,7 +210,7 @@ export function ConnectionsPanel({
                       aria-describedby={`${nameId} ${nameId}-note`}
                       disabled={off || pending || opening !== null}
                       // bundle.social signs in on Bluesky's own page, which refuses app passwords.
-                      title={platform === "bluesky" && bundle && !off ? t.blueskyNote : undefined}
+                      title={platform === "bluesky" && bundle && !off ? t.blueskyNote : platform === "linkedin" ? OPPORTUNITIES_COPY[locale].linkedinNote : undefined}
                       onClick={() => connect(platform)}
                     >
                       {opening === platform ? t.connecting : t.connect}

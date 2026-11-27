@@ -202,7 +202,7 @@ describe("the day's suggestions", () => {
     expect(result.created).toBe(0);
   });
 
-  it("name the business in a reply only with a disclosure, added at the end", async () => {
+  it("never name the business in a reply by default: a disclosure on a discussion that did not ask is dropped", async () => {
     const { websiteId } = await site();
     await account(websiteId, "reddit");
     await account(websiteId, "x");
@@ -216,9 +216,91 @@ describe("the day's suggestions", () => {
     });
     await suggestForWebsite(websiteId, { now: NOW, search, write });
     const rows = await test.db.select().from(socialSuggestions).where(eq(socialSuggestions.websiteId, websiteId));
-    expect(rows.map((row) => [row.platform, row.body])).toEqual([
-      ["x", "In my studio we always shoot a test session first.\n\nDisclosure: I run Image Studio."],
+    expect(rows.map((row) => [row.platform, row.body])).toEqual([["x", "In my studio we always shoot a test session first."]]);
+    const [, threads] = vi.mocked(write).mock.calls[0];
+    expect(threads.every((thread) => thread.mayMention === false)).toBe(true);
+  });
+
+  it("name the business, with its disclosure, only where the discussion asks, the community allows it and one reply in ten leaves room", async () => {
+    const { websiteId } = await site();
+    await account(websiteId, "x");
+    const asking = vi.fn<SuggestDeps["search"]>(async (query: string) => ({
+      cached: false,
+      items: query.startsWith("site:x.com")
+        ? [
+            { url: "https://x.com/someone/status/1234567890", title: "Can anyone recommend a wedding photographer in Cork?", description: "Getting married in May.", postedAt: null },
+            { url: "https://x.com/other/status/2234567890", title: "Any photographer recommendations for Galway?", description: "Small wedding.", postedAt: null },
+          ]
+        : [],
+    }));
+    const replies = [
+      { thread: 1, body: "Ask to see two full galleries, not a highlights reel.", disclosure: "Disclosure: I run Image Studio." },
+      { thread: 2, body: "Meet them in person first, the chemistry shows in the photos.", disclosure: "Disclosure: I run Image Studio." },
+    ];
+
+    // Nine plain replies posted on X in the window: the tenth may name the business, once.
+    await test.db.insert(socialSuggestions).values(
+      Array.from({ length: 9 }, (_, i) => ({
+        websiteId,
+        platform: "x",
+        kind: "reply",
+        day: "2026-10-20",
+        status: "posted",
+        body: `plain answer ${i}`,
+        postedAt: new Date(NOW.getTime() - 5 * DAY),
+        createdAt: new Date(NOW.getTime() - 5 * DAY),
+      })),
+    );
+    const write = writer({ posts: [], replies });
+    await suggestForWebsite(websiteId, { now: NOW, search: asking, write });
+    const [, threads] = vi.mocked(write).mock.calls[0];
+    expect(threads.filter((thread) => thread.platform === "x").map((thread) => thread.mayMention)).toEqual([true, false]);
+    const rows = await test.db
+      .select()
+      .from(socialSuggestions)
+      .where(and(eq(socialSuggestions.websiteId, websiteId), eq(socialSuggestions.status, "new"), eq(socialSuggestions.kind, "reply")));
+    expect(rows.map((row) => row.body).sort()).toEqual([
+      "Ask to see two full galleries, not a highlights reel.\n\nDisclosure: I run Image Studio.",
+      "Meet them in person first, the chemistry shows in the photos.",
     ]);
+  });
+
+  it("never name the business where the rate is used up, even when the discussion asks", async () => {
+    const { websiteId } = await site();
+    await account(websiteId, "x");
+    const asking = vi.fn<SuggestDeps["search"]>(async (query: string) => ({
+      cached: false,
+      items: query.startsWith("site:x.com")
+        ? [{ url: "https://x.com/someone/status/1234567890", title: "Which studio would you recommend?", description: "", postedAt: null }]
+        : [],
+    }));
+    // Three replies posted, none named it: too few for a mention.
+    await test.db.insert(socialSuggestions).values(
+      Array.from({ length: 3 }, (_, i) => ({ websiteId, platform: "x", kind: "reply", day: "2026-10-20", status: "posted", body: `plain ${i}`, postedAt: new Date(NOW.getTime() - DAY) })),
+    );
+    const write = writer({ posts: [], replies: [{ thread: 1, body: "Look for full galleries.", disclosure: "Disclosure: I run Image Studio." }] });
+    await suggestForWebsite(websiteId, { now: NOW, search: asking, write });
+    const rows = await test.db
+      .select()
+      .from(socialSuggestions)
+      .where(and(eq(socialSuggestions.websiteId, websiteId), eq(socialSuggestions.status, "new"), eq(socialSuggestions.kind, "reply")));
+    expect(rows.map((row) => row.body)).toEqual(["Look for full galleries."]);
+  });
+
+  it("drop a reply that sells, and write the rest the way people type", async () => {
+    const { websiteId } = await site();
+    await account(websiteId, "reddit");
+    await account(websiteId, "x");
+    const write = writer({
+      posts: [],
+      replies: [
+        { thread: 1, body: "DM me and I'll send our price list." },
+        { thread: 2, body: "Shade works — even at noon — if you face the light." },
+      ],
+    });
+    await suggestForWebsite(websiteId, { now: NOW, search, write });
+    const rows = await test.db.select().from(socialSuggestions).where(eq(socialSuggestions.websiteId, websiteId));
+    expect(rows.filter((row) => row.kind === "reply").map((row) => row.body)).toEqual(["Shade works - even at noon - if you face the light."]);
   });
 
   it("pin each article image once, newest first", async () => {
@@ -397,8 +479,8 @@ describe("the day's suggestions", () => {
     const [, threads, , wanted] = vi.mocked(write).mock.calls[0];
     expect(threads[0].platform).toBe("reddit");
     expect(threads.filter((thread) => thread.platform === "reddit")).toHaveLength(5);
-    // Four own posts (no picture to pin yet), six replies.
-    expect(wanted).toBe(6);
+    // Five own posts (LinkedIn's among them; no picture to pin yet), five replies.
+    expect(wanted).toBe(5);
   });
 
   it("need no connected account: own posts and discussions by hand, written as in a warm-up", async () => {
@@ -418,7 +500,7 @@ describe("the day's suggestions", () => {
     const result = await suggestForWebsite(websiteId, { now: NOW, search: counted, write });
     const [, threads, slots] = vi.mocked(write).mock.calls[0];
     // No image to pin yet, so no Pin.
-    expect(slots.map((slot) => slot.platform)).toEqual(["reddit", "x", "threads", "bluesky"]);
+    expect(slots.map((slot) => slot.platform)).toEqual(["reddit", "x", "threads", "bluesky", "linkedin"]);
     expect(slots.every((slot) => slot.warmup && !slot.link)).toBe(true);
     expect(threads.every((thread) => thread.warmup)).toBe(true);
     const rows = await test.db.select().from(socialSuggestions).where(eq(socialSuggestions.websiteId, websiteId));
@@ -530,6 +612,33 @@ describe("the one-click post", () => {
     expect(spends).toEqual([expect.objectContaining({ action: "social_post", credits: 1, idempotencyKey: `social:${row.id}` })]);
     const [saved] = await test.db.select().from(socialSuggestions).where(eq(socialSuggestions.id, row.id));
     expect(saved).toMatchObject({ status: "posted", body: "Shoot a test session first!" });
+  });
+
+  it("refuses a reply edited to name the business where the discussion did not ask for it", async () => {
+    const { orgId, websiteId } = await site();
+    await account(websiteId, "x");
+    await recordCredit(orgId, { type: "adjustment", amount: 5, note: "test" });
+    const row = await suggestion(websiteId, { threadTitle: "How do I get softer light indoors?" });
+    expect(await postSocialSuggestion(websiteId, row.id, { body: "Image Studio can help, we do this daily." })).toEqual({ ok: false, error: "mention_not_allowed" });
+    const [saved] = await test.db.select().from(socialSuggestions).where(eq(socialSuggestions.id, row.id));
+    expect(saved.status).toBe("new");
+    // Without the name it goes out.
+    expect((await postSocialSuggestion(websiteId, row.id, { body: "Bounce the window light off a white wall." })).ok).toBe(true);
+  });
+
+  it("refuses a business name in a community that removes self-promotion, even when the thread asks", async () => {
+    const { orgId, websiteId } = await site();
+    await account(websiteId, "reddit");
+    await recordCredit(orgId, { type: "adjustment", amount: 5, note: "test" });
+    await test.db.insert(socialSuggestions).values(
+      Array.from({ length: 20 }, (_, i) => ({ websiteId, platform: "reddit", kind: "reply", day: "2026-11-20", status: "posted", body: `plain ${i}`, postedAt: new Date() })),
+    );
+    const row = await suggestion(websiteId, {
+      platform: "reddit",
+      threadUrl: "https://www.reddit.com/r/smallbusiness/comments/abc123/",
+      threadTitle: "Can anyone recommend a photographer for product shots?",
+    });
+    expect(await saveSocialDraft(websiteId, row.id, { body: "Full disclosure, I run Image Studio." })).toEqual({ ok: false, error: "mention_not_allowed" });
   });
 
   it("is refused without the credit, changing nothing", async () => {
@@ -958,6 +1067,49 @@ describe("publishing own posts", () => {
     expect(fallback.status).toBe("new");
   });
 
+  it("publishes a LinkedIn post through bundle.social to the profile or page chosen when connecting", async () => {
+    const { orgId, websiteId } = await site();
+    await test.db.insert(socialAccounts).values({
+      websiteId,
+      platform: "linkedin",
+      username: "Example Ltd",
+      bundleAccountId: "acc_li",
+      target: "organization",
+      warmupEndsAt: new Date(NOW.getTime() - DAY),
+    });
+    await test.db.insert(socialTeams).values({ websiteId, teamId: "team_li" });
+    await recordCredit(orgId, { type: "adjustment", amount: 5, note: "test" });
+    const row = await suggestion(websiteId, { platform: "linkedin", kind: "post", threadUrl: null, status: "scheduled", scheduledFor: NOW, body: "One lesson from 200 weddings." });
+    const fetch = bundleReplies(
+      { id: "post_li", status: "SCHEDULED", error: null, errors: null, externalData: null },
+      { id: "post_li", status: "POSTED", error: null, errors: null, externalData: { LINKEDIN: { id: "urn:li:share:7", permalink: "https://www.linkedin.com/feed/update/urn:li:share:7" } } },
+    );
+    expect(await publishSuggestion(row.id, NOW)).toBe("posting");
+    const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("https://api.bundle.social/api/v1/post/");
+    expect(JSON.parse(String(init.body))).toMatchObject({
+      teamId: "team_li",
+      socialAccountTypes: ["LINKEDIN"],
+      data: { LINKEDIN: { text: "One lesson from 200 weddings.", privacy: "PUBLIC" } },
+    });
+    expect(await checkPublished(row.id, NOW)).toBe("posted");
+    const [saved] = await test.db.select().from(socialSuggestions).where(eq(socialSuggestions.id, row.id));
+    expect(saved).toMatchObject({ status: "posted", postedUrl: "https://www.linkedin.com/feed/update/urn:li:share:7" });
+  });
+
+  it("does not publish to LinkedIn before a profile or page is chosen, and gives the credit back", async () => {
+    const { orgId, websiteId } = await site();
+    await test.db.insert(socialAccounts).values({ websiteId, platform: "linkedin", username: "someone", bundleAccountId: "acc_li", warmupEndsAt: new Date(NOW.getTime() - DAY) });
+    await test.db.insert(socialTeams).values({ websiteId, teamId: "team_li2" });
+    await recordCredit(orgId, { type: "adjustment", amount: 5, note: "test" });
+    const row = await suggestion(websiteId, { platform: "linkedin", kind: "post", threadUrl: null, status: "scheduled", scheduledFor: NOW, body: "A tip." });
+    const fetch = bundleReplies();
+    expect(await publishSuggestion(row.id, NOW)).toBe("failed");
+    expect(fetch).not.toHaveBeenCalled();
+    const ledger = await test.db.select().from(creditLedger).where(eq(creditLedger.organizationId, orgId));
+    expect(ledger.reduce((sum, entry) => sum + entry.amount, 0)).toBe(5);
+  });
+
   it("is not charged without the credit", async () => {
     const { websiteId } = await site();
     await account(websiteId, "x", { bundle: true });
@@ -972,5 +1124,29 @@ describe("publishing own posts", () => {
     const { websiteId, row } = await scheduled();
     expect(await editScheduledPost(websiteId, row.id, { body: "Shade beats golden hour, every time." })).toEqual({ ok: true, data: null });
     expect(await editScheduledPost(websiteId, row.id, { body: "See other.com" })).toEqual({ ok: false, error: "bad_link" });
+  });
+});
+
+describe("LinkedIn in Social", () => {
+  it("gets an own post (never a conversation search) when bundle.social is set up", async () => {
+    const { websiteId } = await site();
+    const counted = spySearch();
+    const write = writer({ posts: [], replies: [] });
+    await suggestForWebsite(websiteId, { now: NOW, search: counted, write });
+    const [, threads, slots] = vi.mocked(write).mock.calls[0];
+    expect(slots.map((slot) => slot.platform)).toContain("linkedin");
+    expect(threads.some((thread) => thread.platform === "linkedin")).toBe(false);
+    expect(counted.mock.calls.some(([query]) => query.includes("linkedin.com"))).toBe(false);
+  });
+
+  it("is hidden and never written for while bundle.social is not set up", async () => {
+    vi.stubEnv("BUNDLE_SOCIAL_API_KEY", "");
+    const { websiteId } = await site();
+    const write = writer({ posts: [], replies: [] });
+    await suggestForWebsite(websiteId, { now: NOW, search, write });
+    const [, , slots] = vi.mocked(write).mock.calls[0];
+    expect(slots.map((slot) => slot.platform)).not.toContain("linkedin");
+    const { socialAccess } = await import("./accounts");
+    expect((await socialAccess(websiteId)).platforms).not.toContain("linkedin");
   });
 });

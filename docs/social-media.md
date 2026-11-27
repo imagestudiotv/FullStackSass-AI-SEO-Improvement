@@ -1,6 +1,6 @@
 # Social media
 
-Client decisions of 2026-10-27. Every day RepGet suggests up to 10 posts and replies for each website, on six platforms, with or without connected accounts (client, 2026-11-24). The customer's **own posts** are published automatically through bundle.social. **Replies** in other people's discussions are always posted by the customer, with one click.
+Client decisions of 2026-10-27. Every day RepGet suggests up to 10 posts and replies for each website, on six platforms (seven with LinkedIn, below), with or without connected accounts (client, 2026-11-24). The customer's **own posts** are published automatically through bundle.social. **Replies** in other people's discussions are always posted by the customer, with one click.
 
 | Platform | Connected by | Own posts | Replies |
 |---|---|---|---|
@@ -10,6 +10,9 @@ Client decisions of 2026-10-27. Every day RepGet suggests up to 10 posts and rep
 | Threads | bundle.social | Automatic | One click: Threads' reply box opens with the text filled in |
 | Pinterest | bundle.social | Automatic Pins on a chosen board, using the website's own article images; the same account and board also take the video Pins (docs/videos.md) | None |
 | Bluesky | bundle.social | Automatic | One click: text copied, post opened |
+| LinkedIn (2026-11-27) | bundle.social, the same connection as Videos | Automatic, to the profile or company page chosen on bundle.social's page; one click (LinkedIn's share box) without an account | None: LinkedIn's API cannot search or read other people's posts, and scraping is against its terms |
+
+- **LinkedIn only exists in Social while `BUNDLE_SOCIAL_API_KEY` is set** (`NEEDS_BUNDLE`, `availablePlatforms` in `lib/social/platforms.ts`): hidden on the page, left out of the plan's platforms and of the daily run otherwise. No LinkedIn developer app is needed: bundle.social's own approved LinkedIn app posts for the member or the page (organisation posting included). A website that connected LinkedIn for Videos already has the account, and its own posts start the next morning (automatic, like X and Pinterest, which are shared the same way); they are not published until a profile or page is chosen (`social_accounts.target`).
 
 - **Without `BUNDLE_SOCIAL_API_KEY`**, every platform is connected by username, and own posts are one-click like replies.
 - **Trials:** since 2026-11-13 a new account's 3-day free trial has every social network its plan includes, with the plan's monthly social-post allowance pro-rated to the trial (`lib/usage.ts`). Before that, trials (the free articles) could use Quora only, with the other five platforms shown but locked.
@@ -36,12 +39,16 @@ The client asked for this explicitly. Every draft is checked in code (`lib/socia
    - An article image is pinned only once (`nextPinImage` in `lib/social/suggest.ts`). Pinterest bans repetitive pins. A website with no unpinned image left gets no Pin until its next article.
 6. **Platform limits:** each platform's length limit is enforced (`PLATFORMS[*].maxLength`).
 7. **Replies stay with the customer:** RepGet never posts a reply itself.
-8. **Honest mentions:** a reply that mentions the business says it is the writer's own (`replyText`).
+8. **Replies do not promote** (Daniel, 2026-11-27: "Generated Reddit replies are promotional... Reddit bans fast"; `lib/social/mention.ts`):
+   - By default a reply never names or links the business. The prompt asks for a specific, human answer (varied openings, no marketing words, no calls to action, no long dashes), and code drops any reply with sales phrases (`soundsPromotional`) and turns long dashes into hyphens (`naturalise`).
+   - A reply may name the business only when the discussion asks for recommendations, tools or services (`asksForRecommendations`), the community is not one known to remove self-promotion (`communityOf`: a list of large subreddits, and names such as r/Ask..., ...help, ...advice), the account is past its warm-up, and at most one reply in ten on that platform names it over 30 days (`mayMention`; waiting suggestions that name it count too). This is decided in code before the model writes (`mayMention` per discussion); a disclosure on any other discussion is dropped.
+   - The same gate applies when the customer edits a reply to name the business: Post and Save draft refuse it (`mention_not_allowed`).
+   - There is no rules text to read (discussions come from Google), so the review drawer links each subreddit's rules page and warns where self-promotion is removed.
+9. **Honest mentions:** a reply that mentions the business says it is the writer's own (`replyText`).
    - Quora asks writers to disclose an affiliation, and Bluesky bans undisclosed commercial content (both checked on 2026-10-28).
    - The model keeps the name out of the reply and writes a separate disclosure sentence in the reply's language, such as "Disclosure: I run Image Studio." RepGet adds it at the end.
    - A reply whose body names the business is dropped, so the rule holds in code in any language.
-   - It applies to what RepGet writes. A customer who edits a reply before posting it by hand is responsible for their own words.
-9. **A refusal pauses automatic posting** for that account (`social_accounts.paused_at`, the reason in `paused_reason`), and its other waiting posts become one-click.
+10. **A refusal pauses automatic posting** for that account (`social_accounts.paused_at`, the reason in `paused_reason`), and its other waiting posts become one-click.
    - **Customers are not shown why** (client, 2026-11-24): the post is simply ready to post by hand (`customerStatus`; the reason and the post's `error` never reach the browser). In the database the post stays `failed` with its `error`, for Admin. Only "not enough credits" and "this month's free posts are used" are shown.
    - **A limit of our posting provider starts again by itself** (`pauseKind` "quota" in `lib/social/pause.ts`: the monthly post limit, the X balance): three days later or on the first of the next UTC month, whichever is sooner, checked by the daily job (`resumeQuotaPauses`). The next own post is the one try; a refusal pauses it again. The platform never saw such a post, so this cannot cause a ban.
    - **A platform's refusal, or any reason not recognised, never starts again by itself.** Account settings shows "Automatic posting is paused" with **Turn on again**, without the provider's words.
