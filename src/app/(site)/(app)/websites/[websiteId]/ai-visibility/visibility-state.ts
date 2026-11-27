@@ -6,7 +6,7 @@ import {
   questionsStillChecking,
   type CheckBaseline,
 } from "@/lib/geo/progress";
-import type { GeoPromptView } from "@/lib/geo/shared";
+import { REGENERATE_FAILED_ERROR, REGENERATE_LIMIT_ERROR, WEEKLY_CAP_ERROR, type GeoPromptView } from "@/lib/geo/shared";
 import { format } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
 import { FREE_ARTICLES_ONLY, FREE_ARTICLES_ONLY_PAYPAL } from "@/lib/plans/features";
@@ -34,6 +34,9 @@ export type ResultSummary = {
   checkedAt: Date;
   mentioned: boolean;
   position: number | null;
+  /** Answers behind it and how many named the business; absent or 1 for a check before 2026-11-27. */
+  samples?: number;
+  mentionCount?: number;
 };
 
 /** The newest stored answer to a question, with everything kept about it. */
@@ -469,6 +472,12 @@ export function localiseGeoError(error: string, t: GeoText, tw: WorkspaceText, l
       return t.errTooShort;
     case "You are already tracking that question":
       return t.errDuplicate;
+    case WEEKLY_CAP_ERROR:
+      return t.errWeeklyCap;
+    case REGENERATE_LIMIT_ERROR:
+      return t.errRegenerateLimit;
+    case REGENERATE_FAILED_ERROR:
+      return t.errRegenerateFailed;
   }
   // The Free plan's refusals (lib/plans/free-plan.ts), in the reader's language when it is known.
   if (locale) return localiseFreePlanMessage(error, locale);

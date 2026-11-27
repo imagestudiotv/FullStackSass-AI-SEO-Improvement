@@ -1,4 +1,6 @@
 import { inngest } from "@/inngest/client";
+import { GEO_REGENERATE_EVENT } from "@/lib/geo/shared";
+import { regenerateQuestions } from "@/lib/geo/regenerate";
 import { askFirstQuestionsIfDue, firstQuestionCandidates, type FirstQuestionsOutcome } from "@/lib/geo/first-questions";
 
 /**
@@ -26,5 +28,30 @@ export const firstVisibilityQuestions = inngest.createFunction(
 
     logger.info({ step: "done", candidates: candidates.length, ...counts }, "First AI visibility questions check complete");
     return { candidates: candidates.length, ...counts };
+  },
+);
+
+/**
+ * Writes a website's AI visibility questions again after its article
+ * language changed (lib/websites/actions.ts queues it; lib/geo/regenerate.ts
+ * does it): the questions we wrote are replaced in the new language, the
+ * customer's own are kept. One model call, in one step, so a retry does not
+ * pay twice for a call that succeeded.
+ */
+export const regenerateVisibilityQuestions = inngest.createFunction(
+  {
+    id: "regenerate-visibility-questions",
+    retries: 1,
+    concurrency: [{ key: "event.data.websiteId", limit: 1 }],
+    // Several saves of the profile in a row: one rewrite, with the last language.
+    debounce: { key: "event.data.websiteId", period: "2m" },
+    triggers: [{ event: GEO_REGENERATE_EVENT }],
+  },
+  async ({ event, step, logger }) => {
+    const websiteId = typeof event.data?.websiteId === "string" ? event.data.websiteId : null;
+    if (!websiteId) return { ok: false, reason: "no_website" };
+    const outcome = await step.run("regenerate", () => regenerateQuestions(websiteId, { reason: "language" }));
+    logger.info({ step: "regenerate", websiteId, ...outcome }, "AI visibility questions written again for a new language");
+    return outcome;
   },
 );

@@ -1727,6 +1727,9 @@ export type Messages = {
       /** {count} is the plan's allowance. */
       errAllowance: string;
       errDuplicate: string;
+      errWeeklyCap: string;
+      errRegenerateLimit: string;
+      errRegenerateFailed: string;
       errAddFirst: string;
       errUnexpected: string;
       /* A check in progress or just ended. */
@@ -1826,6 +1829,11 @@ export type Messages = {
       named: string;
       /** {position}. */
       namedAt: string;
+      /** {named} of {total} answers (several per question since 2026-11-27). */
+      namedShare: string;
+      notNamedShare: string;
+      /** {named}, {answers}: answers behind the latest check. */
+      answersNamed: string;
       /** {date}. */
       checkedOn: string;
       /** {date}. */
@@ -1866,20 +1874,46 @@ export type Messages = {
       methodTitle: string;
       methodHelp: string;
       methodAskTitle: string;
+      /** {runs}: times each question is put to each assistant. */
       methodAskBody: string;
       methodRecordTitle: string;
       methodRecordBody: string;
       methodScoreTitle: string;
-      /** {second}, {third}, {fourth}: points for those positions. */
+      /** {second}, {third}, {fourth}: points for those positions; {runs} answers, {share}: points for first in one of them. */
       methodScoreBody: string;
       methodCompareTitle: string;
       methodCompareBody: string;
       methodScheduleTitle: string;
-      /** {action} is the Check now button's label. */
+      /** {action} is the Check now button's label; {weekly} checks in seven days. */
       methodScheduleBody: string;
       methodAssistantsTitle: string;
       /** {names}. */
       methodAssistantsBody: string;
+      /** {names}: engineList, "Claude (claude-sonnet-5, web search on), ...". */
+      methodEnginesTitle: string;
+      methodEnginesBody: string;
+      /** {name}, {model}, {search}: methodSearchOn or methodSearchOff. */
+      methodEngine: string;
+      methodSearchOn: string;
+      methodSearchOff: string;
+      methodNoEngines: string;
+      methodLanguageTitle: string;
+      /** {language}, {region} (or methodNoRegion). */
+      methodLanguageBody: string;
+      methodNoRegion: string;
+      /* Writing the questions again (ai-visibility/regenerate-questions.tsx). */
+      regenerate: string;
+      regenerateTitle: string;
+      /** {language}, {region}. */
+      regenerateBody: string;
+      regenerateKeep: string;
+      regenerateAll: string;
+      regenerating: string;
+      /** {count} questions written; {action} is the Check now button's label. */
+      regenerated: string;
+      rewriteTitle: string;
+      /** {count}, {language}, {region}. */
+      rewriteNotice: string;
     };
     backlinks: {
       title: string;
@@ -3376,7 +3410,7 @@ const en: Messages = {
       {
         title: "AI Presence",
         detail:
-          "Monitor how often your brand appears across ChatGPT, Claude, Perplexity and AI search.",
+          "Monitor how often ChatGPT, Gemini and Claude name your brand, asked with web search.",
       },
       {
         title: "Traffic Recovery",
@@ -3494,7 +3528,7 @@ const en: Messages = {
       },
       {
         problem: "AI assistants recommend your competitors, and you never find out.",
-        solution: "AI visibility tracking shows whether ChatGPT, Gemini, Perplexity and others mention you.",
+        solution: "AI visibility tracking asks ChatGPT, Gemini and Claude, with web search, whether they name you.",
       },
       {
         problem: "Pages quietly lose rankings, and you only notice when enquiries slow down.",
@@ -3752,7 +3786,7 @@ const en: Messages = {
       },
       {
         label: "AI visibility",
-        body: "Whether Claude names your business when someone asks for what you sell. Asked weekly through its API, on your own questions.",
+        body: "Whether ChatGPT, Gemini and Claude name your business when someone asks for what you sell. Asked weekly through their APIs with web search, on questions in your language.",
       },
       {
         label: "Articles published",
@@ -5049,6 +5083,9 @@ const en: Messages = {
       errTooShort: "Write a question of at least a few words.",
       errAllowance: "Your plan tracks up to {count} questions. Remove one to add another.",
       errDuplicate: "You are already tracking that question.",
+      errWeeklyCap: "This website's AI visibility checks for this week are used. The next one runs on Monday.",
+      errRegenerateLimit: "Questions can be written again a few times a day. Please try again tomorrow.",
+      errRegenerateFailed: "Could not write new questions. Your questions are unchanged. Try again.",
       errAddFirst: "Add a question first.",
       errUnexpected: "Something went wrong. Please try again.",
       statusQueuedTitle: "Check queued",
@@ -5122,6 +5159,9 @@ const en: Messages = {
       noQuestionsViewer: "No questions are tracked yet. An owner or an editor can add them.",
       named: "Named",
       namedAt: "Named #{position}",
+      namedShare: "Named in {named} of {total} answers",
+      notNamedShare: "Not named in {total} answers",
+      answersNamed: "{named} of {answers} answers named you.",
       checkedOn: "Checked {date}",
       fromEarlierCheck: "From an earlier check ({date})",
       checkingNow: "Checking now…",
@@ -5154,17 +5194,35 @@ const en: Messages = {
       methodTitle: "What is measured",
       methodHelp: "How a check works and what each number means.",
       methodAskTitle: "How a check works",
-      methodAskBody: "Each tracked question is put to an AI assistant as a new conversation, without naming your business. The answer is then read to list the businesses it recommends, in order.",
+      methodAskBody: "Each tracked question is put to every assistant listed here as a new conversation, with web search on and without naming your business, {runs} times each, because the same question can get a different answer every time. Each answer is then read to list the businesses it recommends, in order.",
       methodRecordTitle: "What is recorded",
-      methodRecordBody: "Whether your business is among them and at what position, the sentence that names it, the other businesses named, and whether your website address appears. The full answer is not stored.",
+      methodRecordBody: "For each question: in how many answers your business is named and at what position, the sentence that names it, the other businesses named that serve your market (never your own, and not businesses of another country or language), and whether your website address appears. The full answers are not stored.",
       methodScoreTitle: "How the score is worked out",
-      methodScoreBody: "A checked question scores 100 when you are named first, less further down the list (about {second} for second, {third} for third and {fourth} for fourth) and 0 when you are not named. The visibility score is the average over the latest answer to each checked question. Questions never checked are left out.",
+      methodScoreBody: "Each answer scores 100 when you are named first, less further down the list (about {second} for second, {third} for third and {fourth} for fourth) and 0 when you are not named. A question scores the average over all its answers in a check, so being named first in one of {runs} answers gives about {share}. The visibility score is the average over each checked question's latest check. Questions never checked are left out.",
       methodCompareTitle: "Comparisons",
       methodCompareBody: "The change is measured against the previous check, scored from that check's own answers. Answers more than an hour apart belong to different checks. If the two checks covered different questions, part of the change comes from that.",
       methodScheduleTitle: "When checks run",
-      methodScheduleBody: "When an owner or an editor presses {action}, a limited number of times per hour, and automatically once a week. Answers arrive one question at a time over a few minutes.",
+      methodScheduleBody: "Automatically once a week, on Monday, and when an owner or an editor presses {action}: at most {weekly} checks in any seven days, the weekly one included, and a limited number per hour. Answers arrive one question at a time over several minutes.",
       methodAssistantsTitle: "Assistants asked",
       methodAssistantsBody: "The stored answers so far come from: {names}.",
+      methodEnginesTitle: "Assistants and models",
+      methodEnginesBody: "{names}. Each is asked through its API.",
+      methodEngine: "{name} ({model}, web search {search})",
+      methodSearchOn: "on",
+      methodSearchOff: "off",
+      methodNoEngines: "No AI assistant is configured on this deployment, so no check runs.",
+      methodLanguageTitle: "Language and market",
+      methodLanguageBody: "Questions are written and asked in {language}, for {region}: the language of your articles and the market in your business profile. Assistants that accept a location are told the person asking is in that country; the others answer from the language of the question.",
+      methodNoRegion: "no country set",
+      regenerate: "Regenerate questions",
+      regenerateTitle: "Write the questions again?",
+      regenerateBody: "New questions are written in {language} for {region}, from your content plan, with two or three about your kind of business. The questions we suggested are replaced, with their stored answers. The ones you wrote yourself are kept unless you replace all. This does not use your question allowance.",
+      regenerateKeep: "Keep mine, write the rest",
+      regenerateAll: "Replace all",
+      regenerating: "Writing questions…",
+      regenerated: "{count} new questions written. Press {action} to check them.",
+      rewriteTitle: "Questions to update",
+      rewriteNotice: "{count} of the questions we suggested are not in {language}, the language of your articles, or were written before questions followed your content plan. You can write them again for {region}.",
     },
     backlinks: {
       title: "Links from other websites",
@@ -6548,7 +6606,7 @@ const es: Messages = {
       {
         title: "Presencia en IA",
         detail:
-          "Compruebe con qué frecuencia aparece su marca en ChatGPT, Claude, Perplexity y la búsqueda con IA.",
+          "Compruebe con qué frecuencia ChatGPT, Gemini y Claude nombran su marca, consultados con búsqueda web.",
       },
       {
         title: "Recuperación de tráfico",
@@ -6666,7 +6724,7 @@ const es: Messages = {
       },
       {
         problem: "Los asistentes de IA recomiendan a su competencia, y usted nunca se entera.",
-        solution: "El seguimiento de visibilidad en IA muestra si ChatGPT, Gemini, Perplexity y otros le mencionan.",
+        solution: "El seguimiento de visibilidad en IA pregunta a ChatGPT, Gemini y Claude, con búsqueda web, si le nombran.",
       },
       {
         problem: "Las páginas pierden posiciones poco a poco, y solo lo nota cuando bajan las consultas.",
@@ -6939,7 +6997,7 @@ const es: Messages = {
       },
       {
         label: "Visibilidad en IA",
-        body: "Si Claude nombra su negocio cuando alguien pregunta por lo que usted vende. Preguntado cada semana a través de su API, con sus propias preguntas.",
+        body: "Si ChatGPT, Gemini y Claude nombran su negocio cuando alguien pregunta por lo que usted vende. Preguntado cada semana a través de sus API con búsqueda web, con preguntas en su idioma.",
       },
       {
         label: "Artículos publicados",
@@ -8237,6 +8295,9 @@ const es: Messages = {
       errTooShort: "Escriba una pregunta de al menos unas pocas palabras.",
       errAllowance: "Su plan sigue hasta {count} preguntas. Elimine una para añadir otra.",
       errDuplicate: "Ya está siguiendo esa pregunta.",
+      errWeeklyCap: "Ya se han usado las comprobaciones de visibilidad en IA de este sitio para esta semana. La próxima se hace el lunes.",
+      errRegenerateLimit: "Las preguntas se pueden escribir de nuevo unas pocas veces al día. Inténtelo de nuevo mañana.",
+      errRegenerateFailed: "No se pudieron escribir preguntas nuevas. Sus preguntas no han cambiado. Inténtelo de nuevo.",
       errAddFirst: "Añada primero una pregunta.",
       errUnexpected: "Algo ha fallado. Inténtelo de nuevo.",
       statusQueuedTitle: "Comprobación en cola",
@@ -8310,6 +8371,9 @@ const es: Messages = {
       noQuestionsViewer: "Aún no se sigue ninguna pregunta. Un propietario o un editor puede añadirlas.",
       named: "Con mención",
       namedAt: "Mención n.º {position}",
+      namedShare: "Nombrado en {named} de {total} respuestas",
+      notNamedShare: "No nombrado en {total} respuestas",
+      answersNamed: "{named} de {answers} respuestas le nombraron.",
       checkedOn: "Comprobada el {date}",
       fromEarlierCheck: "De una comprobación anterior ({date})",
       checkingNow: "Comprobando…",
@@ -8342,17 +8406,35 @@ const es: Messages = {
       methodTitle: "Qué se mide",
       methodHelp: "Cómo funciona una comprobación y qué significa cada cifra.",
       methodAskTitle: "Cómo funciona una comprobación",
-      methodAskBody: "Cada pregunta seguida se plantea a un asistente de IA en una conversación nueva, sin nombrar su negocio. Después se lee la respuesta para listar, en orden, los negocios que recomienda.",
+      methodAskBody: "Cada pregunta seguida se plantea a cada asistente indicado aquí en una conversación nueva, con la búsqueda web activada y sin nombrar su negocio, {runs} veces cada uno, porque la misma pregunta puede recibir una respuesta distinta cada vez. Después se lee cada respuesta para listar, en orden, los negocios que recomienda.",
       methodRecordTitle: "Qué se guarda",
-      methodRecordBody: "Si su negocio está entre ellos y en qué posición, la frase que lo nombra, los demás negocios nombrados y si aparece la dirección de su sitio web. La respuesta completa no se guarda.",
+      methodRecordBody: "Para cada pregunta: en cuántas respuestas se nombra su negocio y en qué posición, la frase que lo nombra, los demás negocios nombrados que atienden a su mercado (nunca el suyo, ni negocios de otro país o idioma) y si aparece la dirección de su sitio web. Las respuestas completas no se guardan.",
       methodScoreTitle: "Cómo se calcula la puntuación",
-      methodScoreBody: "Una pregunta comprobada vale 100 cuando le nombran en primer lugar, menos cuanto más abajo en la lista (unos {second} en segundo lugar, {third} en tercero y {fourth} en cuarto) y 0 cuando no le nombran. La puntuación de visibilidad es la media de la última respuesta a cada pregunta comprobada. Las preguntas nunca comprobadas no cuentan.",
+      methodScoreBody: "Cada respuesta vale 100 cuando le nombran en primer lugar, menos cuanto más abajo en la lista (unos {second} en segundo lugar, {third} en tercero y {fourth} en cuarto) y 0 cuando no le nombran. Una pregunta vale la media de todas sus respuestas en una comprobación, así que ser nombrado primero en una de {runs} respuestas da unos {share}. La puntuación de visibilidad es la media de la última comprobación de cada pregunta comprobada. Las preguntas nunca comprobadas no cuentan.",
       methodCompareTitle: "Comparaciones",
       methodCompareBody: "El cambio se mide frente a la comprobación anterior, puntuada con sus propias respuestas. Las respuestas separadas por más de una hora pertenecen a comprobaciones distintas. Si las dos comprobaciones cubrieron preguntas diferentes, parte del cambio se debe a eso.",
       methodScheduleTitle: "Cuándo se hacen las comprobaciones",
-      methodScheduleBody: "Cuando un propietario o un editor pulsa {action}, un número limitado de veces por hora, y automáticamente una vez por semana. Las respuestas llegan pregunta a pregunta en unos minutos.",
+      methodScheduleBody: "Automáticamente una vez por semana, el lunes, y cuando un propietario o un editor pulsa {action}: como máximo {weekly} comprobaciones en siete días, la semanal incluida, y un número limitado por hora. Las respuestas llegan pregunta a pregunta en varios minutos.",
       methodAssistantsTitle: "Asistentes consultados",
       methodAssistantsBody: "Las respuestas guardadas hasta ahora proceden de: {names}.",
+      methodEnginesTitle: "Asistentes y modelos",
+      methodEnginesBody: "{names}. Cada uno se consulta a través de su API.",
+      methodEngine: "{name} ({model}, búsqueda web {search})",
+      methodSearchOn: "activada",
+      methodSearchOff: "desactivada",
+      methodNoEngines: "No hay ningún asistente de IA configurado en esta instalación, así que no se hace ninguna comprobación.",
+      methodLanguageTitle: "Idioma y mercado",
+      methodLanguageBody: "Las preguntas se escriben y se plantean en {language}, para {region}: el idioma de sus artículos y el mercado de su perfil de empresa. A los asistentes que admiten una ubicación se les indica que quien pregunta está en ese país; los demás responden según el idioma de la pregunta.",
+      methodNoRegion: "ningún país indicado",
+      regenerate: "Regenerar preguntas",
+      regenerateTitle: "¿Escribir de nuevo las preguntas?",
+      regenerateBody: "Se escriben preguntas nuevas en {language} para {region}, a partir de su plan de contenidos, con dos o tres sobre su tipo de negocio. Las preguntas que sugerimos se sustituyen, junto con sus respuestas guardadas. Las que escribió usted se conservan, salvo que lo sustituya todo. No consume su cupo de preguntas.",
+      regenerateKeep: "Conservar las mías y escribir el resto",
+      regenerateAll: "Sustituir todas",
+      regenerating: "Escribiendo preguntas…",
+      regenerated: "{count} preguntas nuevas escritas. Pulse {action} para comprobarlas.",
+      rewriteTitle: "Preguntas por actualizar",
+      rewriteNotice: "{count} de las preguntas que sugerimos no están en {language}, el idioma de sus artículos, o se escribieron antes de que las preguntas siguieran su plan de contenidos. Puede escribirlas de nuevo para {region}.",
     },
     backlinks: {
       title: "Enlaces desde otros sitios web",
@@ -9737,7 +9819,7 @@ const fr: Messages = {
       {
         title: "Présence IA",
         detail:
-          "Mesurez la fréquence à laquelle votre marque apparaît sur ChatGPT, Claude, Perplexity et la recherche IA.",
+          "Mesurez la fréquence à laquelle ChatGPT, Gemini et Claude citent votre marque, interrogés avec la recherche web.",
       },
       {
         title: "Récupération de trafic",
@@ -9860,7 +9942,7 @@ const fr: Messages = {
       },
       {
         problem: "Les assistants IA recommandent vos concurrents, et vous ne le savez jamais.",
-        solution: "Le suivi de la visibilité dans l’IA montre si ChatGPT, Gemini, Perplexity et d’autres vous mentionnent.",
+        solution: "Le suivi de la visibilité dans l’IA demande à ChatGPT, Gemini et Claude, avec la recherche web, s’ils vous citent.",
       },
       {
         problem: "Vos pages perdent des positions sans bruit, et vous ne le remarquez que lorsque les demandes ralentissent.",
@@ -10128,7 +10210,7 @@ const fr: Messages = {
       },
       {
         label: "Visibilité IA",
-        body: "Si Claude cite votre entreprise quand on demande ce que vous vendez. Posé chaque semaine via son API, sur vos propres questions.",
+        body: "Si ChatGPT, Gemini et Claude citent votre entreprise quand on demande ce que vous vendez. Posé chaque semaine via leurs API avec la recherche web, sur des questions dans votre langue.",
       },
       {
         label: "Articles publiés",
@@ -11427,6 +11509,9 @@ const fr: Messages = {
       errTooShort: "Écrivez une question d’au moins quelques mots.",
       errAllowance: "Votre offre suit jusqu’à {count} questions. Retirez-en une pour en ajouter une autre.",
       errDuplicate: "Vous suivez déjà cette question.",
+      errWeeklyCap: "Les vérifications de visibilité IA de ce site pour cette semaine sont utilisées. La prochaine a lieu lundi.",
+      errRegenerateLimit: "Les questions peuvent être réécrites quelques fois par jour. Réessayez demain.",
+      errRegenerateFailed: "Impossible de rédiger de nouvelles questions. Vos questions sont inchangées. Réessayez.",
       errAddFirst: "Ajoutez d’abord une question.",
       errUnexpected: "Un problème est survenu. Veuillez réessayer.",
       statusQueuedTitle: "Vérification en file d’attente",
@@ -11500,6 +11585,9 @@ const fr: Messages = {
       noQuestionsViewer: "Aucune question n’est encore suivie. Un propriétaire ou un éditeur peut en ajouter.",
       named: "Cité",
       namedAt: "Cité n° {position}",
+      namedShare: "Cité dans {named} réponses sur {total}",
+      notNamedShare: "Non cité dans {total} réponses",
+      answersNamed: "{named} réponses sur {answers} vous ont cité.",
       checkedOn: "Vérifiée le {date}",
       fromEarlierCheck: "D’une vérification antérieure ({date})",
       checkingNow: "Vérification en cours…",
@@ -11532,17 +11620,35 @@ const fr: Messages = {
       methodTitle: "Ce qui est mesuré",
       methodHelp: "Comment fonctionne une vérification et ce que signifie chaque chiffre.",
       methodAskTitle: "Comment fonctionne une vérification",
-      methodAskBody: "Chaque question suivie est posée à un assistant IA dans une nouvelle conversation, sans nommer votre entreprise. La réponse est ensuite lue pour lister, dans l’ordre, les entreprises qu’elle recommande.",
+      methodAskBody: "Chaque question suivie est posée à chaque assistant indiqué ici dans une nouvelle conversation, avec la recherche web activée et sans nommer votre entreprise, {runs} fois chacun, car la même question peut recevoir une réponse différente à chaque fois. Chaque réponse est ensuite lue pour lister, dans l’ordre, les entreprises qu’elle recommande.",
       methodRecordTitle: "Ce qui est enregistré",
-      methodRecordBody: "Si votre entreprise en fait partie et à quelle position, la phrase qui la cite, les autres entreprises citées et si l’adresse de votre site apparaît. La réponse complète n’est pas conservée.",
+      methodRecordBody: "Pour chaque question : dans combien de réponses votre entreprise est citée et à quelle position, la phrase qui la cite, les autres entreprises citées qui servent votre marché (jamais la vôtre, ni des entreprises d’un autre pays ou d’une autre langue) et si l’adresse de votre site apparaît. Les réponses complètes ne sont pas conservées.",
       methodScoreTitle: "Comment le score est calculé",
-      methodScoreBody: "Une question vérifiée vaut 100 quand vous êtes cité en premier, moins plus bas dans la liste (environ {second} en deuxième, {third} en troisième et {fourth} en quatrième position) et 0 quand vous n’êtes pas cité. Le score de visibilité est la moyenne de la dernière réponse à chaque question vérifiée. Les questions jamais vérifiées ne comptent pas.",
+      methodScoreBody: "Chaque réponse vaut 100 quand vous êtes cité en premier, moins plus bas dans la liste (environ {second} en deuxième, {third} en troisième et {fourth} en quatrième position) et 0 quand vous n’êtes pas cité. Une question vaut la moyenne de toutes ses réponses lors d’une vérification : être cité en premier dans une réponse sur {runs} donne environ {share}. Le score de visibilité est la moyenne de la dernière vérification de chaque question vérifiée. Les questions jamais vérifiées ne comptent pas.",
       methodCompareTitle: "Comparaisons",
       methodCompareBody: "L’évolution est mesurée par rapport à la vérification précédente, notée sur ses propres réponses. Des réponses espacées de plus d’une heure appartiennent à des vérifications différentes. Si les deux vérifications portaient sur des questions différentes, une partie de l’évolution vient de là.",
       methodScheduleTitle: "Quand les vérifications ont lieu",
-      methodScheduleBody: "Quand un propriétaire ou un éditeur clique sur {action}, un nombre limité de fois par heure, et automatiquement une fois par semaine. Les réponses arrivent question par question en quelques minutes.",
+      methodScheduleBody: "Automatiquement une fois par semaine, le lundi, et quand un propriétaire ou un éditeur clique sur {action} : au plus {weekly} vérifications sur sept jours, celle de la semaine comprise, et un nombre limité par heure. Les réponses arrivent question par question en plusieurs minutes.",
       methodAssistantsTitle: "Assistants interrogés",
       methodAssistantsBody: "Les réponses enregistrées jusqu’ici proviennent de : {names}.",
+      methodEnginesTitle: "Assistants et modèles",
+      methodEnginesBody: "{names}. Chacun est interrogé via son API.",
+      methodEngine: "{name} ({model}, recherche web {search})",
+      methodSearchOn: "activée",
+      methodSearchOff: "désactivée",
+      methodNoEngines: "Aucun assistant IA n’est configuré sur cette installation : aucune vérification n’a lieu.",
+      methodLanguageTitle: "Langue et marché",
+      methodLanguageBody: "Les questions sont rédigées et posées en {language}, pour {region} : la langue de vos articles et le marché de votre profil d’entreprise. Les assistants qui acceptent une localisation sont informés que la personne se trouve dans ce pays ; les autres répondent selon la langue de la question.",
+      methodNoRegion: "aucun pays indiqué",
+      regenerate: "Régénérer les questions",
+      regenerateTitle: "Réécrire les questions ?",
+      regenerateBody: "De nouvelles questions sont rédigées en {language} pour {region}, à partir de votre plan de contenu, dont deux ou trois sur votre type d’entreprise. Les questions que nous avions suggérées sont remplacées, avec leurs réponses enregistrées. Celles que vous avez écrites sont conservées, sauf si vous remplacez tout. Cela n’utilise pas votre quota de questions.",
+      regenerateKeep: "Garder les miennes, écrire le reste",
+      regenerateAll: "Tout remplacer",
+      regenerating: "Rédaction des questions…",
+      regenerated: "{count} nouvelles questions rédigées. Cliquez sur {action} pour les vérifier.",
+      rewriteTitle: "Questions à mettre à jour",
+      rewriteNotice: "{count} des questions que nous avons suggérées ne sont pas en {language}, la langue de vos articles, ou ont été rédigées avant que les questions suivent votre plan de contenu. Vous pouvez les réécrire pour {region}.",
     },
     backlinks: {
       title: "Liens depuis d\u2019autres sites",
@@ -12926,7 +13032,7 @@ const it: Messages = {
       {
         title: "Presenza IA",
         detail:
-          "Controlli quanto spesso il suo brand compare su ChatGPT, Claude, Perplexity e nella ricerca IA.",
+          "Controlli quanto spesso ChatGPT, Gemini e Claude citano il suo brand, interrogati con la ricerca web.",
       },
       {
         title: "Recupero del traffico",
@@ -13049,7 +13155,7 @@ const it: Messages = {
       },
       {
         problem: "Gli assistenti IA consigliano i suoi concorrenti, e lei non lo scopre mai.",
-        solution: "Il monitoraggio della visibilità nell’IA mostra se ChatGPT, Gemini, Perplexity e altri la citano.",
+        solution: "Il monitoraggio della visibilità nell’IA chiede a ChatGPT, Gemini e Claude, con la ricerca web, se la citano.",
       },
       {
         problem: "Le pagine perdono posizioni senza farsi notare, e se ne accorge solo quando le richieste calano.",
@@ -13318,7 +13424,7 @@ const it: Messages = {
       },
       {
         label: "Visibilità IA",
-        body: "Se Claude nomina la sua azienda quando qualcuno chiede ciò che lei vende. Chiesto ogni settimana tramite la sua API, sulle sue domande.",
+        body: "Se ChatGPT, Gemini e Claude nominano la sua azienda quando qualcuno chiede ciò che lei vende. Chiesto ogni settimana tramite le loro API con la ricerca web, su domande nella sua lingua.",
       },
       {
         label: "Articoli pubblicati",
@@ -14615,6 +14721,9 @@ const it: Messages = {
       errTooShort: "Scriva una domanda di almeno qualche parola.",
       errAllowance: "Il suo piano segue fino a {count} domande. Ne rimuova una per aggiungerne un’altra.",
       errDuplicate: "Sta già seguendo questa domanda.",
+      errWeeklyCap: "I controlli di visibilità AI di questo sito per questa settimana sono esauriti. Il prossimo si esegue lunedì.",
+      errRegenerateLimit: "Le domande si possono riscrivere poche volte al giorno. Riprovi domani.",
+      errRegenerateFailed: "Non è stato possibile scrivere nuove domande. Le sue domande non sono cambiate. Riprovi.",
       errAddFirst: "Aggiunga prima una domanda.",
       errUnexpected: "Qualcosa è andato storto. Riprovi.",
       statusQueuedTitle: "Controllo in coda",
@@ -14688,6 +14797,9 @@ const it: Messages = {
       noQuestionsViewer: "Non è ancora seguita nessuna domanda. Un proprietario o un editor può aggiungerle.",
       named: "Citata",
       namedAt: "Citata n. {position}",
+      namedShare: "Citata in {named} risposte su {total}",
+      notNamedShare: "Non citata in {total} risposte",
+      answersNamed: "{named} risposte su {answers} l’hanno citata.",
       checkedOn: "Controllata il {date}",
       fromEarlierCheck: "Da un controllo precedente ({date})",
       checkingNow: "Controllo in corso…",
@@ -14720,17 +14832,35 @@ const it: Messages = {
       methodTitle: "Cosa viene misurato",
       methodHelp: "Come funziona un controllo e cosa significa ogni numero.",
       methodAskTitle: "Come funziona un controllo",
-      methodAskBody: "Ogni domanda seguita viene posta a un assistente IA in una nuova conversazione, senza nominare la sua attività. La risposta viene poi letta per elencare, in ordine, le attività che consiglia.",
+      methodAskBody: "Ogni domanda seguita viene posta a ciascun assistente indicato qui in una nuova conversazione, con la ricerca web attiva e senza nominare la sua attività, {runs} volte ciascuno, perché la stessa domanda può ricevere ogni volta una risposta diversa. Ogni risposta viene poi letta per elencare, in ordine, le attività che consiglia.",
       methodRecordTitle: "Cosa viene registrato",
-      methodRecordBody: "Se la sua attività è tra queste e in quale posizione, la frase che la cita, le altre attività citate e se compare l’indirizzo del suo sito. La risposta completa non viene conservata.",
+      methodRecordBody: "Per ogni domanda: in quante risposte la sua attività viene citata e in quale posizione, la frase che la cita, le altre attività citate che servono il suo mercato (mai la sua, né attività di un altro paese o lingua) e se compare l’indirizzo del suo sito. Le risposte complete non vengono conservate.",
       methodScoreTitle: "Come si calcola il punteggio",
-      methodScoreBody: "Una domanda controllata vale 100 quando lei è citata per prima, meno più in basso nella lista (circa {second} in seconda, {third} in terza e {fourth} in quarta posizione) e 0 quando non è citata. Il punteggio di visibilità è la media dell’ultima risposta a ogni domanda controllata. Le domande mai controllate non vengono contate.",
+      methodScoreBody: "Ogni risposta vale 100 quando lei è citata per prima, meno più in basso nella lista (circa {second} in seconda, {third} in terza e {fourth} in quarta posizione) e 0 quando non è citata. Una domanda vale la media di tutte le sue risposte in un controllo, quindi essere citata per prima in una risposta su {runs} vale circa {share}. Il punteggio di visibilità è la media dell’ultimo controllo di ogni domanda controllata. Le domande mai controllate non vengono contate.",
       methodCompareTitle: "Confronti",
       methodCompareBody: "La variazione è misurata rispetto al controllo precedente, valutato sulle sue stesse risposte. Le risposte a più di un’ora di distanza appartengono a controlli diversi. Se i due controlli riguardavano domande diverse, parte della variazione dipende da questo.",
       methodScheduleTitle: "Quando avvengono i controlli",
-      methodScheduleBody: "Quando un proprietario o un editor preme {action}, un numero limitato di volte all’ora, e automaticamente una volta alla settimana. Le risposte arrivano una domanda alla volta nel giro di pochi minuti.",
+      methodScheduleBody: "Automaticamente una volta alla settimana, il lunedì, e quando un proprietario o un editor preme {action}: al massimo {weekly} controlli in sette giorni, quello settimanale compreso, e un numero limitato all’ora. Le risposte arrivano una domanda alla volta nel giro di diversi minuti.",
       methodAssistantsTitle: "Assistenti interpellati",
       methodAssistantsBody: "Le risposte registrate finora provengono da: {names}.",
+      methodEnginesTitle: "Assistenti e modelli",
+      methodEnginesBody: "{names}. Ognuno viene interrogato tramite la sua API.",
+      methodEngine: "{name} ({model}, ricerca web {search})",
+      methodSearchOn: "attiva",
+      methodSearchOff: "disattivata",
+      methodNoEngines: "Nessun assistente AI è configurato in questa installazione, quindi non viene eseguito alcun controllo.",
+      methodLanguageTitle: "Lingua e mercato",
+      methodLanguageBody: "Le domande vengono scritte e poste in {language}, per {region}: la lingua dei suoi articoli e il mercato del suo profilo aziendale. Agli assistenti che accettano una posizione viene indicato che chi chiede si trova in quel paese; gli altri rispondono in base alla lingua della domanda.",
+      methodNoRegion: "nessun paese indicato",
+      regenerate: "Rigenera le domande",
+      regenerateTitle: "Riscrivere le domande?",
+      regenerateBody: "Vengono scritte nuove domande in {language} per {region}, a partire dal suo piano dei contenuti, con due o tre sul suo tipo di attività. Le domande che avevamo suggerito vengono sostituite, insieme alle risposte registrate. Quelle scritte da lei restano, a meno che non sostituisca tutto. Non usa la sua quota di domande.",
+      regenerateKeep: "Tieni le mie, scrivi le altre",
+      regenerateAll: "Sostituisci tutte",
+      regenerating: "Scrittura delle domande…",
+      regenerated: "{count} nuove domande scritte. Prema {action} per controllarle.",
+      rewriteTitle: "Domande da aggiornare",
+      rewriteNotice: "{count} delle domande che abbiamo suggerito non sono in {language}, la lingua dei suoi articoli, o sono state scritte prima che le domande seguissero il suo piano dei contenuti. Può riscriverle per {region}.",
     },
     backlinks: {
       title: "Link da altri siti web",
@@ -16116,7 +16246,7 @@ const de: Messages = {
       {
         title: "KI-Präsenz",
         detail:
-          "Sehen Sie, wie oft Ihre Marke in ChatGPT, Claude, Perplexity und der KI-Suche erscheint.",
+          "Sehen Sie, wie oft ChatGPT, Gemini und Claude Ihre Marke nennen, gefragt mit Websuche.",
       },
       {
         title: "Traffic-Rückgewinnung",
@@ -16235,7 +16365,7 @@ const de: Messages = {
       },
       {
         problem: "KI-Assistenten empfehlen Ihre Wettbewerber, und Sie erfahren es nie.",
-        solution: "Das KI-Sichtbarkeits-Tracking zeigt, ob ChatGPT, Gemini, Perplexity und andere Sie erwähnen.",
+        solution: "Das KI-Sichtbarkeits-Tracking fragt ChatGPT, Gemini und Claude mit Websuche, ob sie Sie nennen.",
       },
       {
         problem: "Seiten verlieren unbemerkt an Rankings - und Sie merken es erst, wenn die Anfragen ausbleiben.",
@@ -16503,7 +16633,7 @@ const de: Messages = {
       },
       {
         label: "KI-Sichtbarkeit",
-        body: "Ob Claude Ihr Unternehmen nennt, wenn jemand nach dem fragt, was Sie anbieten. Wöchentlich über die API gefragt, anhand Ihrer eigenen Fragen.",
+        body: "Ob ChatGPT, Gemini und Claude Ihr Unternehmen nennen, wenn jemand nach dem fragt, was Sie anbieten. Wöchentlich über ihre APIs mit Websuche gefragt, mit Fragen in Ihrer Sprache.",
       },
       {
         label: "Veröffentlichte Artikel",
@@ -17801,6 +17931,9 @@ const de: Messages = {
       errTooShort: "Schreiben Sie eine Frage aus mindestens ein paar Wörtern.",
       errAllowance: "Ihr Tarif verfolgt bis zu {count} Fragen. Entfernen Sie eine, um eine andere hinzuzufügen.",
       errDuplicate: "Sie verfolgen diese Frage bereits.",
+      errWeeklyCap: "Die KI-Sichtbarkeitsprüfungen dieser Website für diese Woche sind aufgebraucht. Die nächste läuft am Montag.",
+      errRegenerateLimit: "Fragen können nur wenige Male am Tag neu geschrieben werden. Bitte versuchen Sie es morgen wieder.",
+      errRegenerateFailed: "Es konnten keine neuen Fragen geschrieben werden. Ihre Fragen sind unverändert. Bitte versuchen Sie es erneut.",
       errAddFirst: "Fügen Sie zuerst eine Frage hinzu.",
       errUnexpected: "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
       statusQueuedTitle: "Prüfung in der Warteschlange",
@@ -17874,6 +18007,9 @@ const de: Messages = {
       noQuestionsViewer: "Es werden noch keine Fragen verfolgt. Ein Inhaber oder ein Bearbeiter kann sie hinzufügen.",
       named: "Genannt",
       namedAt: "Genannt auf Nr. {position}",
+      namedShare: "In {named} von {total} Antworten genannt",
+      notNamedShare: "In {total} Antworten nicht genannt",
+      answersNamed: "{named} von {answers} Antworten haben Sie genannt.",
       checkedOn: "Geprüft am {date}",
       fromEarlierCheck: "Aus einer früheren Prüfung ({date})",
       checkingNow: "Wird geprüft…",
@@ -17906,17 +18042,35 @@ const de: Messages = {
       methodTitle: "Was gemessen wird",
       methodHelp: "Wie eine Prüfung abläuft und was jede Zahl bedeutet.",
       methodAskTitle: "So läuft eine Prüfung ab",
-      methodAskBody: "Jede verfolgte Frage wird einem KI-Assistenten in einem neuen Gespräch gestellt, ohne Ihr Unternehmen zu nennen. Danach wird die Antwort ausgewertet und die empfohlenen Unternehmen werden der Reihe nach erfasst.",
+      methodAskBody: "Jede verfolgte Frage wird jedem hier genannten Assistenten in einem neuen Gespräch gestellt, mit eingeschalteter Websuche und ohne Ihr Unternehmen zu nennen, jeweils {runs}-mal, weil dieselbe Frage jedes Mal anders beantwortet werden kann. Danach wird jede Antwort ausgewertet und die empfohlenen Unternehmen werden der Reihe nach erfasst.",
       methodRecordTitle: "Was gespeichert wird",
-      methodRecordBody: "Ob Ihr Unternehmen darunter ist und an welcher Position, der Satz, der es nennt, die anderen genannten Unternehmen und ob Ihre Website-Adresse vorkommt. Die vollständige Antwort wird nicht gespeichert.",
+      methodRecordBody: "Für jede Frage: in wie vielen Antworten Ihr Unternehmen genannt wird und an welcher Position, der Satz, der es nennt, die anderen genannten Unternehmen, die Ihren Markt bedienen (nie Ihr eigenes und keine Unternehmen aus einem anderen Land oder Sprachraum), und ob Ihre Website-Adresse vorkommt. Die vollständigen Antworten werden nicht gespeichert.",
       methodScoreTitle: "So wird der Wert berechnet",
-      methodScoreBody: "Eine geprüfte Frage zählt 100, wenn Sie als Erstes genannt werden, weiter unten in der Liste weniger (etwa {second} auf Platz zwei, {third} auf Platz drei und {fourth} auf Platz vier) und 0, wenn Sie nicht genannt werden. Der Sichtbarkeitswert ist der Durchschnitt über die neueste Antwort auf jede geprüfte Frage. Nie geprüfte Fragen zählen nicht mit.",
+      methodScoreBody: "Eine Antwort zählt 100, wenn Sie als Erstes genannt werden, weiter unten in der Liste weniger (etwa {second} auf Platz zwei, {third} auf Platz drei und {fourth} auf Platz vier) und 0, wenn Sie nicht genannt werden. Eine Frage zählt den Durchschnitt aller ihrer Antworten in einer Prüfung: Als Erstes genannt in einer von {runs} Antworten ergibt etwa {share}. Der Sichtbarkeitswert ist der Durchschnitt über die neueste Prüfung jeder geprüften Frage. Nie geprüfte Fragen zählen nicht mit.",
       methodCompareTitle: "Vergleiche",
       methodCompareBody: "Die Veränderung wird gegenüber der vorigen Prüfung gemessen, bewertet anhand ihrer eigenen Antworten. Antworten, die mehr als eine Stunde auseinanderliegen, gehören zu verschiedenen Prüfungen. Haben die beiden Prüfungen unterschiedliche Fragen abgedeckt, geht ein Teil der Veränderung darauf zurück.",
       methodScheduleTitle: "Wann geprüft wird",
-      methodScheduleBody: "Wenn ein Inhaber oder ein Bearbeiter auf {action} klickt (nur begrenzt oft pro Stunde), und automatisch einmal pro Woche. Die Antworten treffen Frage für Frage innerhalb weniger Minuten ein.",
+      methodScheduleBody: "Automatisch einmal pro Woche, am Montag, und wenn ein Inhaber oder ein Bearbeiter auf {action} klickt: höchstens {weekly} Prüfungen in sieben Tagen, die wöchentliche eingeschlossen, und nur begrenzt oft pro Stunde. Die Antworten treffen Frage für Frage innerhalb mehrerer Minuten ein.",
       methodAssistantsTitle: "Gefragte Assistenten",
       methodAssistantsBody: "Die bisher gespeicherten Antworten stammen von: {names}.",
+      methodEnginesTitle: "Assistenten und Modelle",
+      methodEnginesBody: "{names}. Jeder wird über seine API gefragt.",
+      methodEngine: "{name} ({model}, Websuche {search})",
+      methodSearchOn: "an",
+      methodSearchOff: "aus",
+      methodNoEngines: "Auf dieser Installation ist kein KI-Assistent eingerichtet, daher läuft keine Prüfung.",
+      methodLanguageTitle: "Sprache und Markt",
+      methodLanguageBody: "Die Fragen werden auf {language} geschrieben und gestellt, für {region}: die Sprache Ihrer Artikel und der Markt in Ihrem Unternehmensprofil. Assistenten, die einen Standort annehmen, wird mitgeteilt, dass die fragende Person in diesem Land ist; die anderen antworten nach der Sprache der Frage.",
+      methodNoRegion: "kein Land angegeben",
+      regenerate: "Fragen neu erstellen",
+      regenerateTitle: "Fragen neu schreiben?",
+      regenerateBody: "Neue Fragen werden auf {language} für {region} geschrieben, auf Grundlage Ihres Content-Plans, dazu zwei oder drei zu Ihrer Art von Unternehmen. Die von uns vorgeschlagenen Fragen werden ersetzt, mit ihren gespeicherten Antworten. Ihre selbst geschriebenen bleiben, außer Sie ersetzen alle. Ihr Fragenkontingent wird dabei nicht verbraucht.",
+      regenerateKeep: "Meine behalten, Rest schreiben",
+      regenerateAll: "Alle ersetzen",
+      regenerating: "Fragen werden geschrieben…",
+      regenerated: "{count} neue Fragen geschrieben. Klicken Sie auf {action}, um sie zu prüfen.",
+      rewriteTitle: "Fragen zum Aktualisieren",
+      rewriteNotice: "{count} der von uns vorgeschlagenen Fragen sind nicht auf {language}, der Sprache Ihrer Artikel, oder wurden geschrieben, bevor die Fragen Ihrem Content-Plan folgten. Sie können sie für {region} neu schreiben lassen.",
     },
     backlinks: {
       title: "Links von anderen Websites",

@@ -287,7 +287,7 @@ export const CHATGPT_PAGE: FeaturePage = {
     },
     {
       title: "AI visibility tracking",
-      body: "Add the questions your customers would ask an assistant, 20 on Grow and 50 on Scale (the Free plan takes one snapshot of 5 a month). Each week RepGet asks them to Claude and shows whether your business is named, and where. ChatGPT itself is not queried.",
+      body: "Add the questions your customers would ask an assistant, 20 on Grow and 50 on Scale (the Free plan takes one snapshot of 5 a month), or let RepGet write them in your language from your content plan. Each week RepGet asks them to ChatGPT, Gemini and Claude, with web search on, and shows in how many answers your business is named, and where.",
     },
   ],
   compare: {
@@ -351,7 +351,7 @@ export const CHATGPT_PAGE: FeaturePage = {
     {
       question: "How does the tracking work?",
       answer:
-        "Once a week RepGet asks Claude, through its API and without a live web search, each question you track, the way a customer would, and records which businesses the answer names and in what order. ChatGPT, Gemini and Perplexity are not queried, so this is one assistant's view, not a measure of every AI search. When a check cannot be completed, nothing is recorded, so a failed check never looks like a miss.",
+        "Once a week RepGet asks ChatGPT, Gemini and Claude, through their APIs with web search on, each question you track, several times each, in your language and for your market, the way a customer would, and records which businesses the answers name and in what order. Perplexity and Google's AI results are not checked, so this is three assistants' view, not a measure of every AI search. When a check cannot be completed, nothing is recorded, so a failed check never looks like a miss.",
     },
     {
       question: "How long does it take?",

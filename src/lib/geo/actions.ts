@@ -9,8 +9,13 @@ import { geoPrompts, geoResults } from "@/lib/db/schema";
 import { summarise } from "@/lib/geo/score";
 import { maxPromptsFor } from "@/lib/geo/allowance";
 import { cleanPrompt, suggestQuestions } from "@/lib/geo/suggest";
+import { weeklyCheckRule } from "@/lib/geo/check-limits";
+import { regenerateQuestions } from "@/lib/geo/regenerate";
 import {
   MAX_PROMPT_LENGTH,
+  REGENERATE_FAILED_ERROR,
+  REGENERATE_LIMIT_ERROR,
+  WEEKLY_CAP_ERROR,
   type GeoOverview,
   type GeoPromptView,
 } from "@/lib/geo/shared";
@@ -81,6 +86,21 @@ function rowsBeforeLatestRun<T extends { checkedAt: Date }>(rows: T[]): T[] {
   return previous;
 }
 
+/** A stored row as the score reads it: its share of answers, or one answer for an older row. */
+function scored(r: typeof geoResults.$inferSelect) {
+  return {
+    mentioned: r.mentioned,
+    position: r.position,
+    competitors: r.competitors ?? [],
+    excerpt: r.excerpt,
+    cited: r.cited,
+    samples: r.samples,
+    mentionCount: r.mentionCount,
+    weight: r.weight,
+    averagePosition: r.averagePosition,
+  };
+}
+
 /**
  * Overview for the panel: the score, and every tracked prompt with its most
  * recent result.
@@ -102,6 +122,8 @@ export async function getGeoOverview(websiteId: string): Promise<GeoOverview> {
       score: 0,
       mentions: 0,
       total: 0,
+      answers: 0,
+      answersNamed: 0,
       averagePosition: null,
       topCompetitors: [],
       prompts: [],
@@ -141,12 +163,16 @@ export async function getGeoOverview(websiteId: string): Promise<GeoOverview> {
       prompt: p.prompt,
       isSuggested: p.isSuggested,
       active: p.active,
+      language: p.language,
       latest: latest
         ? {
             mentioned: latest.mentioned,
             position: latest.position,
             excerpt: latest.excerpt,
             checkedAt: latest.checkedAt,
+            samples: latest.samples ?? 1,
+            mentionCount: latest.mentionCount ?? (latest.mentioned ? 1 : 0),
+            averagePosition: latest.averagePosition ?? (latest.mentioned ? latest.position : null),
           }
         : null,
     };
@@ -158,15 +184,7 @@ export async function getGeoOverview(websiteId: string): Promise<GeoOverview> {
    * never asked.
    */
   const checked = [...latestByPrompt.values()];
-  const summary = summarise(
-    checked.map((r) => ({
-      mentioned: r.mentioned,
-      position: r.position,
-      competitors: r.competitors ?? [],
-      excerpt: r.excerpt,
-      cited: r.cited,
-    })),
-  );
+  const summary = summarise(checked.map(scored));
 
   /**
    * The run before this one, scored the same way.
@@ -184,15 +202,7 @@ export async function getGeoOverview(websiteId: string): Promise<GeoOverview> {
   const previousRun = rowsBeforeLatestRun(rows);
   const previousScore =
     previousRun.length > 0
-      ? summarise(
-          previousRun.map((r) => ({
-            mentioned: r.mentioned,
-            position: r.position,
-            competitors: r.competitors ?? [],
-            excerpt: r.excerpt,
-            cited: r.cited,
-          })),
-        ).score
+      ? summarise(previousRun.map(scored)).score
       : null;
 
   return {
@@ -325,6 +335,8 @@ export async function runGeoCheck(
         limit: GEO_CHECKS_PER_WORKSPACE_PER_HOUR,
         window: { seconds: 60 * 60 },
       },
+      // At most a few checks a week, the Monday run included (lib/geo/check-limits.ts).
+      weeklyCheckRule(site.id),
       // Free: its one snapshot this month, so two presses cannot both take it.
       ...(free ? [{ key: `free-plan:geo:${site.id}`, limit: FREE_PLAN.visibilitySnapshotsPerMonth, window: { since: calendarMonth().start } }] : []),
     ],
@@ -337,6 +349,9 @@ export async function runGeoCheck(
     }),
   );
   if (!slot.ok) {
+    if (slot.rule?.key.startsWith("geo-check:week:")) {
+      return { ok: false, error: WEEKLY_CAP_ERROR };
+    }
     return {
       ok: false,
       error:
@@ -407,4 +422,30 @@ export async function suggestGeoPrompts(
         ? "You have asked for suggestions many times this hour. Please try again shortly."
         : "Could not suggest questions. Try again.",
   };
+}
+
+/**
+ * Writes the website's questions again, in its article language and from
+ * its content plan (lib/geo/regenerate.ts). Keeps the questions the customer
+ * typed unless `replaceAll`. Uses no question allowance: what it writes
+ * replaces what was suggested before.
+ */
+export async function regenerateGeoPrompts(
+  websiteId: string,
+  replaceAll = false,
+): Promise<ActionResult<{ added: number; removed: number }>> {
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site } = guard.context;
+
+  if (!isAiConfigured()) {
+    return { ok: false, error: "AI is not configured on this deployment" };
+  }
+  const entitled = await isEntitledToSpend(site.id, { free: true });
+  if (!entitled.ok) return { ok: false, error: entitled.error };
+
+  const outcome = await regenerateQuestions(site.id, { replaceAll: replaceAll === true, reason: "manual" });
+  revalidatePath(`/websites/${site.id}/ai-visibility`);
+  if (outcome.ok) return { ok: true, data: { added: outcome.added, removed: outcome.removed } };
+  return { ok: false, error: outcome.reason === "limited" ? REGENERATE_LIMIT_ERROR : REGENERATE_FAILED_ERROR };
 }
