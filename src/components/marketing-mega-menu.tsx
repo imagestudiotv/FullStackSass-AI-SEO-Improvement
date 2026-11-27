@@ -79,8 +79,12 @@ export type Channel = {
 };
 
 /**
- * The social channels, as the design lists them (twelve, three columns).
- * None has a public page of its own, so each previews its line in the
+ * The social channels RepGet really works with, in the design's order and
+ * three columns: Opportunities' platforms (lib/social/platforms.ts) and the
+ * Videos page's (lib/video/formats.ts). The design also drew Google Business
+ * Profile, which the product does not connect to, so it is not listed (the
+ * pill said "12 platforms"). Each one's footer line says what RepGet does
+ * there. None has a public page of its own, so each previews its line in the
  * menu's footer rather than linking anywhere.
  */
 export const SOCIAL_PLATFORMS: Channel[] = [
@@ -92,7 +96,6 @@ export const SOCIAL_PLATFORMS: Channel[] = [
   { key: "youtube", name: "YouTube", icon: "youtube", tile: "youtube" },
   { key: "threads", name: "Threads", icon: "threads", tile: "threads" },
   { key: "pinterest", name: "Pinterest", icon: "pinterest", tile: "pinterest" },
-  { key: "gbp", name: "Google Business Profile", icon: "gbp", tile: "google-business" },
   { key: "bluesky", name: "Bluesky", icon: "bluesky", tile: "bluesky" },
   { key: "reddit", name: "Reddit", icon: "reddit", tile: "reddit" },
   { key: "quora", name: "Quora", icon: "quora", tile: "quora" },
