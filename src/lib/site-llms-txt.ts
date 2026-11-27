@@ -1,3 +1,4 @@
+import { featuresPageCopy } from "@/lib/i18n/features-page";
 import { getMessages } from "@/lib/i18n/messages";
 import { CASE_STUDY_COPY, CASE_STUDY_PATH } from "@/lib/marketing/case-study-image-studio";
 import { DOCS_UI_EN, INTEGRATION_DOCS } from "@/lib/publishing/docs";
@@ -32,6 +33,8 @@ import { TOOLS } from "@/lib/tools/registry";
 export type LlmsPost = { slug: string; title: string; description: string };
 
 type Link = { label: string; path: string; note?: string | null };
+
+const FEATURES_EN = featuresPageCopy("en");
 
 /** The homepage's title, as a sentence, and its description (lib/seo/home-metadata.ts), as one summary. */
 const SUMMARY = `RepGet is an AI SEO platform for articles, social posts and videos. ${HOME_META.en.description}`;
@@ -83,6 +86,8 @@ export function buildSiteLlmsTxt(siteUrl: string, posts: LlmsPost[]): string {
     "",
     `> ${SUMMARY}`,
     ...section(site, "Product", [
+      // The five tools and Growth Copilot (lib/marketing/product-tools.ts), in the page's own description.
+      { label: FEATURES_EN.metaTitle, path: "/features", note: FEATURES_EN.metaDescription },
       { label: "Pricing", path: "/pricing", note: PAGE_NOTES["/pricing"] },
       { label: t.faq.metaTitle, path: "/faq", note: t.faq.metaDescription },
       { label: t.successStories.metaTitle, path: "/success-stories", note: t.successStories.metaDescription },

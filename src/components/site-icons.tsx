@@ -35,7 +35,7 @@ export const BarsIcon = svg(<path d="M4 7h16M4 12h16M4 17h16" />);
 export const CloseIcon = svg(<path d="M5 5l14 14M19 5 5 19" />);
 
 /* The Features menu (design `rgf-icon-*`), drawn with the `.rgf-svg` stroke. */
-export type FeatureIconName = "content" | "social" | "seo" | "backlinks" | "ai" | "growth" | "arrow";
+export type FeatureIconName = "content" | "social" | "seo" | "backlinks" | "ai" | "arrow";
 const FEATURE_PATHS: Record<FeatureIconName, ReactElement> = {
   content: (
     <>
@@ -59,12 +59,6 @@ const FEATURE_PATHS: Record<FeatureIconName, ReactElement> = {
   ),
   backlinks: <path d="M9.5 14.5 14.5 9.5M9 7.5H7a4.5 4.5 0 0 0 0 9h3m5-9h2a4.5 4.5 0 0 1 0 9h-3" />,
   ai: <path d="m12 2 2.3 7.7L22 12l-7.7 2.3L12 22l-2.3-7.7L2 12l7.7-2.3L12 2Z" />,
-  growth: (
-    <>
-      <path d="m3 17 6-6 4 3 7-8M15 6h5v5" />
-      <path d="M3 21h18" />
-    </>
-  ),
   arrow: <path d="M4.5 12h15m-5.5-5.5 5.5 5.5-5.5 5.5" />,
 };
 

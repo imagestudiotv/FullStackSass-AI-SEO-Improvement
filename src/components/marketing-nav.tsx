@@ -433,6 +433,8 @@ export function MarketingFooterLinks({ chrome }: { chrome: SiteChrome }) {
     {
       title: t.footer.product,
       items: [
+        // Every tool, with the dashboard recordings (client, 2026-11-27).
+        { href: href("/features"), label: t.footer.features },
         { href: href("/website-creation"), label: t.footer.websiteCreation },
         { href: href("/audit"), label: t.footer.freeCheck },
         { href: href("/tools"), label: t.footer.freeTools },

@@ -29,7 +29,9 @@ function weekdays(locale: Locale): string[] {
 }
 
 /**
- * "One platform. Four growth engines." - the dark band of four tilted cards,
+ * "One platform. One connected growth engine." - the dark band of four tilted cards
+ * (search, social, AI, links). Its eyebrow said "Four growth engines" until
+ * 2026-11-27; the product is counted once, as five tools (lib/marketing/product-tools.ts),
  * ported from the client's approved design (design.html, section
  * `rgx-growth-four`, 2026-11-04).
  *

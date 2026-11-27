@@ -3,23 +3,27 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import { LOCALES, localePath, type Locale } from "@/lib/i18n/config";
-import { FEATURE_HIGHLIGHTS, FEATURE_KEYS, featuresCopy } from "@/lib/i18n/home/features";
+import { featuresPageCopy } from "@/lib/i18n/features-page";
+import { featureClip, PRODUCT_TOOLS, TOOL_ANCHORS, TOOL_FEATURES } from "@/lib/marketing/product-tools";
 
 /**
- * The homepage's "Top features" shell (client's design, 2026-11-18) as each
- * language first renders it: the nine capabilities as a tab pattern with every
- * panel in the HTML, the visitor's language only, the trial button to the
- * localized pricing page, no mascot, and only claims RepGet can back.
+ * The homepage's "Top features" (client, 2026-11-27), right after "Meet
+ * RepGet.": the five tools with their recordings, in the visitor's language,
+ * each card to its part of /features, and "See all features" - with nothing
+ * but lazy posters in the first HTML.
  */
 
 vi.mock("next/link", () => ({
   default: ({ href, children, ...rest }: { href: string; children: ReactNode; [key: string]: unknown }) =>
     createElement("a", { href, ...rest }, children),
 }));
+vi.mock("next/image", () => ({
+  default: ({ src, alt, loading, sizes }: { src: string; alt: string; loading?: string; sizes?: string }) =>
+    createElement("img", { src, alt, loading, sizes }),
+}));
 
 import { Features } from "./features";
 
-/** Static markup escapes quotes and apostrophes; compare against the escaped form. */
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/'/g, "&#x27;").replace(/</g, "&lt;");
 
 function render(locale: Locale) {
@@ -27,107 +31,55 @@ function render(locale: Locale) {
   return renderToStaticMarkup(createElement(Features, { locale, href }));
 }
 
-/** The words a reader (or a crawler) gets: no tags, no drawing coordinates. */
-const words = (html: string) => html.replace(/<svg[\s\S]*?<\/svg>/g, " ").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ");
-
-describe("top features", () => {
-  it.each(LOCALES)("%s: nine tabs, every panel in the HTML, the first one shown", (locale) => {
+describe("top features on the homepage", () => {
+  it.each(LOCALES)("%s: the five tools, in order, each with its name, line and poster", (locale) => {
     const html = render(locale);
-    const t = featuresCopy(locale);
+    const t = featuresPageCopy(locale);
     expect(html).toMatch(/^<section id="features"[^>]*aria-labelledby="home-features-heading"/);
     expect(html).toContain(`<h2 id="home-features-heading"`);
-    expect(html).toContain(`>${esc(t.eyebrow)}</h2>`);
-    expect(html.match(/role="tab"/g)).toHaveLength(9);
-    expect(html.match(/aria-selected="true"/g)).toHaveLength(1);
-    expect(html.match(/role="tabpanel"/g)).toHaveLength(9);
-    expect(html.match(/role="tabpanel"[^>]*hidden=""/g)).toHaveLength(8);
-    for (const key of FEATURE_KEYS) {
-      const f = t[key];
-      for (const text of [f.nav, f.navSub, f.headline[0], f.headline[1], f.description, ...f.perks]) expect(html).toContain(esc(text));
+    expect(html).toContain(esc(t.home.title));
+    expect(html.match(/<li /g)).toHaveLength(5);
+    const at = PRODUCT_TOOLS.map((tool) => html.indexOf(`>${esc(t.tools[tool].name)}</a>`));
+    expect(at.every((i) => i > 0)).toBe(true);
+    expect(at).toEqual([...at].sort((a, b) => a - b));
+    for (const tool of PRODUCT_TOOLS) {
+      expect(html).toContain(esc(t.tools[tool].tagline));
+      expect(html).toContain(`src="${featureClip(TOOL_FEATURES[tool][0]).poster}"`);
     }
-    // Every panel says it is an illustration.
-    expect(html.split(esc(t.preview)).length - 1).toBe(9);
   });
 
-  it.each(LOCALES)("%s: starts the free trial on the pricing page in the visitor's language", (locale) => {
-    const pricing = locale === "en" ? "/pricing" : `/${locale}/pricing`;
-    expect(render(locale)).toMatch(new RegExp(`<a[^>]*href="${pricing}"[^>]*>${esc(featuresCopy(locale).cta)}`));
-  });
-
-  it.each(LOCALES)("%s: labels the next button and the four story bullets", (locale) => {
+  it.each(LOCALES)("%s: each card leads to its tool on /features, and See all features to the page", (locale) => {
     const html = render(locale);
-    const t = featuresCopy(locale);
-    expect(html).toContain(`aria-label="${esc(t.next)}"`);
-    FEATURE_HIGHLIGHTS.forEach((index, n) => {
-      const label = t.jump.replace("{n}", String(n + 1)).replace("{label}", t[FEATURE_KEYS[index]].nav);
-      expect(html).toContain(`aria-label="${esc(label)}"`);
-    });
+    const page = locale === "en" ? "/features" : `/${locale}/features`;
+    for (const tool of PRODUCT_TOOLS) expect(html).toContain(`href="${page}#${TOOL_ANCHORS[tool]}"`);
+    expect(html).toMatch(new RegExp(`<a href="${page}"[^>]*>${esc(featuresPageCopy(locale).home.seeAll)}`));
+  });
+
+  it("starts light: lazy posters only, no video until a card is reached", () => {
+    const html = render("en");
+    expect(html).not.toContain("<video");
+    expect(html.match(/<img [^>]*loading="lazy"/g)).toHaveLength(5);
+    // The recordings are labelled pictures for a screen reader.
+    expect(html.match(/role="img"/g)).toHaveLength(5);
+  });
+
+  it("names Growth Copilot as the assistant, not as a sixth tool", () => {
+    const html = render("en");
+    expect(html).toContain(">Growth Copilot</b>");
+    expect(html).not.toContain(`href="/features#${TOOL_ANCHORS.copilot}"`);
   });
 
   it("renders only the visitor's language", () => {
-    const english = featuresCopy("en");
+    const english = featuresPageCopy("en");
     for (const locale of LOCALES.filter((l) => l !== "en")) {
       const html = render(locale);
-      for (const text of [english.social.headline[1], english.ai.description, english.cta]) expect(html).not.toContain(esc(text));
+      for (const text of [english.home.title, english.home.seeAll, english.tools.websiteHealth.tagline]) expect(html).not.toContain(esc(text));
     }
   });
 
-  it("has no mascot any more", () => {
-    const html = render("en");
-    expect(html).not.toContain("mascot");
-    expect(html).not.toContain("<img");
-  });
-
   it.each(LOCALES)("%s: claims only what RepGet does", (locale) => {
-    const text = words(render(locale));
-    // AI visibility asks ChatGPT, Gemini and Claude (lib/geo/engines.ts), never Perplexity; no schema check in the audit (lib/audit/rules.ts).
+    const text = render(locale).replace(/<[^>]*>/g, " ");
+    // AI visibility never asks Perplexity (lib/geo/engines.ts); the audit has no schema check (lib/audit/rules.ts).
     for (const unsupported of ["Perplexity", "schema", "Schema"]) expect(text).not.toContain(unsupported);
-    for (const asked of ["ChatGPT", "Gemini", "Claude"]) expect(text).toContain(asked);
-    // The previews' figures are samples, and the board says so.
-    expect(text).toContain(featuresCopy(locale).technical.scoreLabel);
-    expect(text).toContain(featuresCopy(locale).analytics.change);
-  });
-});
-
-describe("top features' words", () => {
-  /** The copy's shape: keys, and the length of every list. */
-  const shape = (value: unknown): unknown =>
-    Array.isArray(value)
-      ? value.map(shape)
-      : value && typeof value === "object"
-        ? Object.fromEntries(Object.entries(value).map(([k, v]) => [k, shape(v)]))
-        : typeof value;
-
-  it("gives every language the same shape", () => {
-    const english = shape(featuresCopy("en"));
-    for (const locale of LOCALES) expect(shape(featuresCopy(locale))).toEqual(english);
-  });
-
-  /** Every string, with where it sits. */
-  const strings = (value: unknown, at = ""): [string, string][] =>
-    typeof value === "string"
-      ? [[at, value]]
-      : value && typeof value === "object"
-        ? Object.entries(value).flatMap(([k, v]) => strings(v, `${at}.${k}`))
-        : [];
-
-  // Names, the brand, and words that are the same in the language ("Mentions · citations · GEO" in French, "↗ 18%" in Italian).
-  const SAME = new Set([
-    "Reddit · X · Threads",
-    "ChatGPT, Gemini, Claude",
-    "llms.txt",
-    "Growth Copilot",
-    "REPGET / STUDIO",
-    "YouTube Short",
-    "Search Console & Analytics",
-    "Illustration",
-    "Mentions · citations · GEO",
-    "↗ 18%",
-  ]);
-
-  it.each(LOCALES.filter((l) => l !== "en"))("%s: translates every word", (locale) => {
-    const english = new Map(strings(featuresCopy("en")));
-    const untranslated = strings(featuresCopy(locale)).filter(([at, text]) => english.get(at) === text && !SAME.has(text));
-    expect(untranslated).toEqual([]);
   });
 });

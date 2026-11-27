@@ -12,6 +12,7 @@ export const PUBLIC_PAGES: { path: string; priority: number }[] = [
   { path: "/", priority: 1 },
   { path: "/audit", priority: 0.9 },
   { path: "/pricing", priority: 0.8 },
+  { path: "/features", priority: 0.8 },
   { path: "/tools", priority: 0.8 },
   { path: "/blog/author/repget-team", priority: 0.5 },
   { path: "/blog", priority: 0.8 },
