@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import { blogWriterCopy } from "@/lib/i18n/blog-writer";
+import type { Locale } from "@/lib/i18n/config";
 import { TOOL_UNAVAILABLE } from "@/lib/tools/i18n/unavailable";
 
 /**
@@ -60,15 +61,18 @@ describe("the Blog Writer page", () => {
 
 describe("the free tools' on/off gate", () => {
   const page = createElement("p", null, "the tool itself");
+  /** The gate around the tool, its children passed as React passes them (not as a prop). */
+  const gate = (props: { disabled: readonly string[]; locale: Locale }) =>
+    renderToStaticMarkup(createElement(ToolGate as (p: typeof props & { children?: ReactNode }) => ReactNode, props, page));
 
   it("shows the tool while it is on", () => {
     nav.segment = "blog-writer";
-    expect(renderToStaticMarkup(createElement(ToolGate, { disabled: ["robots-checker"], locale: "en", children: page }))).toContain("the tool itself");
+    expect(gate({ disabled: ["robots-checker"], locale: "en" })).toContain("the tool itself");
   });
 
   it("shows a friendly unavailable page, in the visitor's language, while it is off", () => {
     nav.segment = "blog-writer";
-    const markup = html(renderToStaticMarkup(createElement(ToolGate, { disabled: ["blog-writer"], locale: "de", children: page })));
+    const markup = html(gate({ disabled: ["blog-writer"], locale: "de" }));
     expect(markup).not.toContain("the tool itself");
     expect(markup).toContain(TOOL_UNAVAILABLE.de.title);
     expect(markup).toContain('href="/de/tools"');
@@ -76,6 +80,6 @@ describe("the free tools' on/off gate", () => {
 
   it("never hides the tools hub itself", () => {
     nav.segment = null;
-    expect(renderToStaticMarkup(createElement(ToolGate, { disabled: ["blog-writer"], locale: "en", children: page }))).toContain("the tool itself");
+    expect(gate({ disabled: ["blog-writer"], locale: "en" })).toContain("the tool itself");
   });
 });
