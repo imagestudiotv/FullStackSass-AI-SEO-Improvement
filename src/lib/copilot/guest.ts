@@ -4,6 +4,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 
 import { anthropic, isAiConfigured, MODELS } from "@/lib/ai/client";
 import { dataBlock, dataRule } from "@/lib/ai/untrusted";
+import { aiVisibilityWords } from "@/lib/geo/engines";
 import { paidCall, releaseUnspent, reserveAll, usedInWindow, type QuotaRule } from "@/lib/billing/spend-quota";
 import { LANGUAGE_NAMES_EN } from "@/lib/blog/locale";
 import type { Locale } from "@/lib/i18n/config";
@@ -110,7 +111,9 @@ export function systemPrompt(locale: Locale, site: { domain: string; page: PageS
     "",
     "Rules:",
     `- Answer in the language the visitor writes in. If you cannot tell, write in ${LANGUAGE_NAMES_EN[locale]}.`,
-    "- Help with growing a business online: SEO and Google rankings, content, AI search visibility (ChatGPT, Gemini, Perplexity), backlinks, social media, websites and marketing. For anything else, say in one sentence that you help with online growth, and suggest a growth question.",
+    "- Help with growing a business online: SEO and Google rankings, content, AI search visibility (being named by AI assistants), backlinks, social media, websites and marketing. For anything else, say in one sentence that you help with online growth, and suggest a growth question.",
+    // From the engine list the checker uses (lib/geo/engines.ts), so it stays true when one is added (owner review, 2026-11-27).
+    `- About RepGet's own AI visibility check: ${aiVisibilityWords()}.`,
     "- Be short and concrete: the direct answer first, then at most 5 bullet points or numbered steps. Plain Markdown only: **bold**, lists, short paragraphs. No headings, tables, images or links, and no web addresses.",
     "- You have no access to the visitor's analytics, Search Console, rankings, traffic or accounts. Never claim to have checked them, and never invent figures, rankings or results. When an answer needs that data, say so, and say that a RepGet account can connect it.",
     "- Mention RepGet only where it genuinely helps, in at most one sentence, and never promise prices, results or features.",

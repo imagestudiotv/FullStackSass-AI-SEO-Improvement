@@ -38,8 +38,10 @@ import {
   cancelBroadcastNow,
   countBroadcastAudience,
   deleteBroadcastDraft,
+  findBroadcastPeople,
   finishBroadcastImageUpload,
   getBroadcast,
+  getBroadcastPerson,
   getBroadcastsAdmin,
   previewBroadcast,
   saveBroadcastDraft,
@@ -148,6 +150,8 @@ describe("only an administrator", () => {
       () => getBroadcastsAdmin(),
       () => getBroadcast(d.id),
       () => countBroadcastAudience("all"),
+      () => findBroadcastPeople("people"),
+      () => getBroadcastPerson("u_0000"),
       () => previewBroadcast(content()),
       () => saveBroadcastDraft(id, 0, content()),
       () => deleteBroadcastDraft(d.id),
@@ -199,6 +203,64 @@ describe("who it goes to", () => {
     expect(await countOf("inactive")).toBe(2);
     const id = await started({ audience: "inactive" });
     expect((await recipientsOf(id)).map((row) => row.userId).sort()).toEqual([inactive.id, stale.id].sort());
+  });
+});
+
+describe("one person (Admin -> Users -> Send email)", () => {
+  it("finds people by email or name, says who would not be sent it, and loads one by id", async () => {
+    const plain = await person();
+    const out = await person({ tips: false });
+    const unproven = await person({ verified: false });
+    const found = await findBroadcastPeople("people.example");
+    if (!found.ok) throw new Error(found.error);
+    expect(found.data.people.map((p) => p.id)).toEqual([plain.id, out.id, unproven.id]);
+    expect(found.data.people.find((p) => p.id === out.id)).toMatchObject({ optedOut: true, verified: true });
+    expect(found.data.people.find((p) => p.id === unproven.id)).toMatchObject({ optedOut: false, verified: false });
+    // One account by its own address; one character finds nothing.
+    expect(await findBroadcastPeople(plain.email)).toMatchObject({ ok: true, data: { people: [{ id: plain.id }] } });
+    expect(await findBroadcastPeople("u")).toEqual({ ok: true, data: { people: [] } });
+    expect(await getBroadcastPerson(plain.id)).toEqual({ id: plain.id, name: plain.id, email: plain.email, verified: true, optedOut: false });
+    expect(await getBroadcastPerson("no_such_account")).toBeNull();
+  });
+
+  it("sends to the chosen person alone, with the subject and heading as written, without the typed word, and logs it", async () => {
+    const chosen = await person();
+    await person();
+    await person();
+    expect((await countBroadcastAudience("person")).ok).toBe(false);
+    expect(await countBroadcastAudience("person", chosen.id)).toEqual({ ok: true, data: { recipients: 1 } });
+    const d = await draft({ audience: "person", personId: chosen.id, subject: "Just for you", heading: "A note from the team" });
+    expect(await getBroadcast(d.id)).toMatchObject({ content: { audience: "person", personId: chosen.id, heading: "A note from the team" } });
+    expect(await sendBroadcastNow(d.id, d.revision, { recipients: 1, word: "" })).toEqual({ ok: true, data: { recipients: 1 } });
+    expect((await recipientsOf(d.id)).map((row) => row.userId)).toEqual([chosen.id]);
+
+    await batch(d.id);
+    expect(sentTo()).toEqual([chosen.email]);
+    const [options] = mail.send.mock.calls[0];
+    expect(options.subject).toBe("Just for you");
+    expect(options.html).toMatch(/<h1[^>]*>A note from the team<\/h1>/);
+    const [logged] = await test.db.select().from(adminAuditLog).where(eq(adminAuditLog.action, "broadcast.sent"));
+    expect(logged.detail).toMatchObject({ audience: "person", personId: chosen.id, recipients: 1 });
+    expect((await getBroadcastsAdmin()).rows[0]).toMatchObject({ audience: "person", personEmail: chosen.email });
+  });
+
+  it("respects an opt-out and an unverified address, as for everyone", async () => {
+    for (const options of [{ tips: false }, { verified: false }]) {
+      const who = await person(options);
+      const d = await draft({ audience: "person", personId: who.id });
+      const refused = await sendBroadcastNow(d.id, d.revision, { recipients: 1, word: "" });
+      expect(refused.ok === false && refused.error).toMatch(/cannot be emailed/);
+      expect((await broadcastOf(d.id)).status).toBe("draft");
+    }
+    expect(mail.send).not.toHaveBeenCalled();
+  });
+
+  it("sends nothing with nobody chosen, and drops a person from other audiences", async () => {
+    const someone = await person();
+    const d = await draft({ audience: "person" });
+    expect((await sendBroadcastNow(d.id, d.revision, { recipients: 1, word: "" })).ok).toBe(false);
+    const all = await draft({ audience: "all", personId: someone.id });
+    expect((await broadcastOf(all.id)).personId).toBeNull();
   });
 });
 

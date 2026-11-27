@@ -1,6 +1,7 @@
 "use client";
 
-import { MoreHorizontal, Trash2 } from "lucide-react";
+import { Mail, MoreHorizontal, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { useId, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -73,6 +74,13 @@ export function UserActions({
           })}
           <DropdownMenuGroup aria-labelledby={`${menuId}-account`}>
             <DropdownMenuLabel id={`${menuId}-account`}>Account</DropdownMenuLabel>
+            {/* Admin -> Email broadcasts with this person chosen; nothing is sent until it is reviewed there. */}
+            <DropdownMenuItem asChild>
+              <Link href={`/admin/email-broadcasts?to=${encodeURIComponent(userId)}#setup`}>
+                <Mail aria-hidden="true" />
+                Send email
+              </Link>
+            </DropdownMenuItem>
             {/* Reachable when refused, so the reason is heard; choosing it does nothing. */}
             <DropdownMenuItem
               variant="destructive"

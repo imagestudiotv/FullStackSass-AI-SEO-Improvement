@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { getBroadcast, getBroadcastsAdmin, type BroadcastRow } from "@/lib/admin/broadcasts";
+import { getBroadcast, getBroadcastPerson, getBroadcastsAdmin, type BroadcastRow } from "@/lib/admin/broadcasts";
 import { pageFrom } from "@/lib/admin/shared";
 import { AUDIENCE_META, BROADCAST_STATUS, BROADCAST_TEMPLATES, isBroadcastAudience, type BroadcastContent } from "@/lib/broadcasts/shared";
 import { formatDate, formatNumber } from "@/lib/i18n/format";
@@ -36,6 +36,8 @@ export default async function EmailBroadcastsPage({ searchParams }: PageProps<"/
   const one = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
   const editId = one(params.edit);
   const copyId = one(params.copy);
+  // Admin -> Users -> "Send email": a new broadcast to that one person.
+  const toId = one(params.to);
   const [data, opened] = await Promise.all([
     getBroadcastsAdmin(pageFrom(params.page)),
     editId || copyId ? getBroadcast(String(editId ?? copyId)) : Promise.resolve(null),
@@ -44,14 +46,24 @@ export default async function EmailBroadcastsPage({ searchParams }: PageProps<"/
   // Only a draft is edited; anything else is opened as the start of a new one.
   const editing = opened && editId && opened.status === "draft" ? opened : null;
   const first = BROADCAST_TEMPLATES[0];
-  const blank: BroadcastContent = { audience: "all", ...first.content, images: [], ctaUrl: `${siteUrl()}${first.path}` };
+  const blank: BroadcastContent = {
+    audience: toId ? "person" : "all",
+    personId: toId ?? null,
+    heading: "",
+    ...first.content,
+    images: [],
+    ctaUrl: `${siteUrl()}${first.path}`,
+  };
   const content = opened?.content ?? blank;
+  const person = content.audience === "person" && content.personId ? await getBroadcastPerson(content.personId) : null;
+  // An address that names no account opens an ordinary new broadcast, with the person still to choose.
+  const initial: BroadcastContent = content.audience === "person" && !person ? { ...content, personId: null } : content;
 
   return (
     <AdminPage width="default">
       <AdminPageHeader
         title="Email broadcasts"
-        description="Write one email and send it to all registered users, or to one group of them. People who unsubscribed are always left out, and nobody is emailed the same broadcast twice."
+        description="Write one email and send it to all registered users, to one group of them, or to one person. People who unsubscribed are always left out, and nobody is emailed the same broadcast twice."
         actions={
           opened ? (
             <Button variant="outline" asChild>
@@ -75,9 +87,10 @@ export default async function EmailBroadcastsPage({ searchParams }: PageProps<"/
       </div>
 
       <BroadcastComposer
-        key={editing ? `edit-${editing.id}` : opened ? `copy-${opened.id}` : "new"}
+        key={editing ? `edit-${editing.id}` : opened ? `copy-${opened.id}` : person ? `to-${person.id}` : "new"}
         editing={editing ? { id: editing.id, revision: editing.revision } : null}
-        initial={content}
+        initial={initial}
+        initialPerson={person}
         recipients={data.summary.recipients}
         sendingAllowed={data.problem === null}
         imagesEnabled={data.imagesEnabled}
@@ -109,7 +122,10 @@ export default async function EmailBroadcastsPage({ searchParams }: PageProps<"/
                   <TableRow key={row.id}>
                     <TableCell className="max-w-80 whitespace-normal">
                       <span className="block font-medium wrap-anywhere">{row.subject || "No subject"}</span>
-                      <span className="block text-xs text-muted-foreground">{isBroadcastAudience(row.audience) ? AUDIENCE_META[row.audience].label : row.audience}</span>
+                      <span className="block text-xs text-muted-foreground wrap-anywhere">
+                        {isBroadcastAudience(row.audience) ? AUDIENCE_META[row.audience].label : row.audience}
+                        {row.audience === "person" ? `: ${row.personEmail ?? "deleted account"}` : null}
+                      </span>
                       <span className="block text-xs text-muted-foreground wrap-anywhere">by {row.sentBy ?? row.createdBy}</span>
                       <span className="block text-xs text-muted-foreground md:hidden">{whenOf(row)}</span>
                     </TableCell>

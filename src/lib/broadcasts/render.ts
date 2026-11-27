@@ -70,11 +70,13 @@ export type RenderedBroadcast = { subject: string; html: string; text: string };
 
 export function renderBroadcastEmail(content: BroadcastContent, context: { unsubscribeUrl: string | null }): RenderedBroadcast {
   const subject = content.subject || "Untitled email";
+  // Exactly what the administrator wrote: the heading if there is one, else the subject.
+  const heading = content.heading || subject;
   const cta = content.ctaLabel && content.ctaUrl ? { label: content.ctaLabel, url: content.ctaUrl } : null;
 
   const html = emailLayout({
-    heading: subject,
-    preheader: content.previewText || subject,
+    heading,
+    preheader: content.previewText || heading,
     body: [
       styledBody(content.bodyHtml) || emailText("Your message will appear here."),
       cta ? emailButton(cta.url, cta.label) : "",

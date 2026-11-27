@@ -9,10 +9,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { listWebsites, type AdminWebsite } from "@/lib/admin/actions";
+import { getBadgeNotice } from "@/lib/admin/badges";
 import { DATE_RANGES, pageFrom } from "@/lib/admin/shared";
 import { firstArticleStatus } from "@/lib/articles/first-article-status";
 import { listDailyLimits } from "@/lib/publishing/daily-cap";
 
+import { BadgeNotice } from "../_ui/badge-notice";
 import { ExpandableText } from "../_ui/expandable-text";
 import { AdminPage, AdminPageHeader } from "../_ui/page";
 import { AdminStatus, type StatusTone } from "../_ui/status";
@@ -115,6 +117,8 @@ export default async function AdminWebsitesPage({
   const limits = await listDailyLimits();
   const perDayOf = new Map(limits.map((limit) => [limit.websiteId, limit.perDay]));
   const whyOf = await noArticleReasons(rows);
+  // What the sidebar's number counts (owner, 2026-11-27): read with the cookie as it was before this visit cleared "new".
+  const notice = await getBadgeNotice(BASE).catch(() => []);
 
   const listParams = {
     q: search || undefined,
@@ -128,6 +132,8 @@ export default async function AdminWebsitesPage({
         title="Websites"
         description="Every website across all workspaces, with its analysis status and the workspace that owns it. Newest first."
       />
+
+      <BadgeNotice page="Websites" items={notice} note="Failed analyses count until they are fixed; new websites count until you open this page again." />
 
       <AdminToolbar
         searchPlaceholder="Search domain or workspace"

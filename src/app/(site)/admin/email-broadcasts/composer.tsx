@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarClock, ImagePlus, Mail, Save, Send, X } from "lucide-react";
+import { CalendarClock, ImagePlus, Mail, Save, Search, Send, UserRound, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { toast } from "sonner";
@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { NativeLikeSelect } from "@/components/ui/native-like-select";
 import {
   countBroadcastAudience,
+  findBroadcastPeople,
   finishBroadcastImageUpload,
   previewBroadcast,
   saveBroadcastDraft,
@@ -27,10 +28,13 @@ import {
   BROADCAST_IMAGE_TYPES,
   BROADCAST_LIMITS,
   BROADCAST_TEMPLATES,
+  personProblem,
   SEND_WORD,
   type BroadcastAudience,
   type BroadcastContent,
+  type BroadcastPerson,
   type BroadcastTemplateKey,
+  type GroupAudience,
 } from "@/lib/broadcasts/shared";
 import { cn } from "@/lib/utils";
 
@@ -53,6 +57,7 @@ type Review = { mode: "send" | "schedule"; id: string; revision: number; recipie
 export function BroadcastComposer({
   editing,
   initial,
+  initialPerson,
   recipients,
   sendingAllowed,
   imagesEnabled,
@@ -60,8 +65,10 @@ export function BroadcastComposer({
 }: {
   editing: { id: string; revision: number } | null;
   initial: BroadcastContent;
-  /** Who would receive it when the page was loaded, per audience. */
-  recipients: Record<BroadcastAudience, number>;
+  /** The account of a "person" broadcast, when the page opened with one chosen. */
+  initialPerson: BroadcastPerson | null;
+  /** Who would receive it when the page was loaded, per group audience. */
+  recipients: Record<GroupAudience, number>;
   sendingAllowed: boolean;
   imagesEnabled: boolean;
   appUrl: string;
@@ -74,6 +81,7 @@ export function BroadcastComposer({
   // The draft's id is chosen here, so Save pressed twice is one draft.
   const [draft, setDraft] = useState(() => editing ?? { id: crypto.randomUUID() as string, revision: 0 });
   const [content, setContent] = useState<BroadcastContent>(initial);
+  const [person, setPerson] = useState<BroadcastPerson | null>(initialPerson);
   const [savedJson, setSavedJson] = useState(() => JSON.stringify(initial));
   const [template, setTemplate] = useState<BroadcastTemplateKey | null>(null);
   const [scheduleAt, setScheduleAt] = useState("");
@@ -94,7 +102,13 @@ export function BroadcastComposer({
     const typed = dirty && template === null;
     if (typed && !window.confirm("Replace what you wrote with this template?")) return;
     setTemplate(key);
-    setContent((current) => ({ ...current, ...chosen.content, ctaUrl: `${appUrl}${chosen.path}` }));
+    // A subject already written stays: the subject is the administrator's own (owner, 2026-11-27).
+    setContent((current) => ({
+      ...current,
+      ...chosen.content,
+      subject: current.subject.trim() ? current.subject : chosen.content.subject,
+      ctaUrl: `${appUrl}${chosen.path}`,
+    }));
   }
 
   /** Saves when something changed; the draft as it is stored now, or null (already reported). */
@@ -144,7 +158,7 @@ export function BroadcastComposer({
     start(async () => {
       const saved = await save();
       if (!saved) return;
-      const counted = await countBroadcastAudience(content.audience).catch(() => null);
+      const counted = await countBroadcastAudience(content.audience, content.audience === "person" ? content.personId : null).catch(() => null);
       if (!counted?.ok) {
         toast.error(counted?.error ?? NOT_FINISHED);
         return;
@@ -180,6 +194,7 @@ export function BroadcastComposer({
       setContent(initial);
       setSavedJson(JSON.stringify(initial));
       setTemplate(null);
+      setPerson(initialPerson);
       setScheduleAt("");
       router.replace("/admin/email-broadcasts");
       router.refresh();
@@ -212,6 +227,8 @@ export function BroadcastComposer({
 
   const needsWord = (review?.recipients ?? 0) > 1;
   const nobody = review !== null && review.recipients === 0;
+  const toPerson = content.audience === "person";
+  const audienceLabel = toPerson && person ? `${AUDIENCE_META.person.label}: ${person.email}` : AUDIENCE_META[content.audience].label;
 
   return (
     <>
@@ -238,9 +255,23 @@ export function BroadcastComposer({
                 ))}
               </NativeLikeSelect>
               <p id={`${id}-audience-help`} className="text-xs text-muted-foreground">
-                <span className="font-medium text-foreground">{people(recipients[content.audience])} would receive it now.</span>{" "}
-                {AUDIENCE_META[content.audience].definition} Unsubscribed people and unverified addresses are always left out.
+                {toPerson ? null : (
+                  <>
+                    <span className="font-medium text-foreground">{people(recipients[content.audience as GroupAudience])} would receive it now.</span>{" "}
+                  </>
+                )}
+                {AUDIENCE_META[content.audience].definition}
+                {toPerson ? null : " Unsubscribed people and unverified addresses are always left out."}
               </p>
+              {toPerson ? (
+                <PersonPicker
+                  person={person}
+                  onChoose={(chosen) => {
+                    setPerson(chosen);
+                    set("personId", chosen?.id ?? null);
+                  }}
+                />
+              ) : null}
             </div>
             <div className="min-w-0 space-y-1.5">
               <Label htmlFor={`${id}-schedule`}>Schedule time</Label>
@@ -261,7 +292,16 @@ export function BroadcastComposer({
           <div className="grid gap-4 md:grid-cols-2">
             <div className="min-w-0 space-y-1.5">
               <Label htmlFor={`${id}-subject`}>Subject line</Label>
-              <Input id={`${id}-subject`} value={content.subject} maxLength={BROADCAST_LIMITS.subject} onChange={(event) => set("subject", event.target.value)} />
+              <Input
+                id={`${id}-subject`}
+                value={content.subject}
+                maxLength={BROADCAST_LIMITS.subject}
+                onChange={(event) => set("subject", event.target.value)}
+                aria-describedby={`${id}-subject-help`}
+              />
+              <p id={`${id}-subject-help`} className="text-xs text-muted-foreground">
+                What the inbox shows, exactly as you write it.
+              </p>
             </div>
             <div className="min-w-0 space-y-1.5">
               <Label htmlFor={`${id}-preview-text`}>Preview text</Label>
@@ -276,6 +316,23 @@ export function BroadcastComposer({
                 The line after the subject in an inbox.
               </p>
             </div>
+          </div>
+
+          <div className="min-w-0 space-y-1.5">
+            <Label htmlFor={`${id}-heading`}>
+              Heading in the email <span className="font-normal text-muted-foreground">(optional)</span>
+            </Label>
+            <Input
+              id={`${id}-heading`}
+              value={content.heading}
+              maxLength={BROADCAST_LIMITS.heading}
+              placeholder={content.subject || "The subject"}
+              onChange={(event) => set("heading", event.target.value)}
+              aria-describedby={`${id}-heading-help`}
+            />
+            <p id={`${id}-heading-help`} className="text-xs text-muted-foreground">
+              The large title at the top of the email, under the RepGet logo. Leave it empty to use the subject.
+            </p>
           </div>
 
           <fieldset className="min-w-0 space-y-1.5">
@@ -437,14 +494,23 @@ export function BroadcastComposer({
             <div className="space-y-4">
               <AdminFacts
                 items={[
-                  { label: "Audience", value: AUDIENCE_META[content.audience].label },
+                  { label: "Audience", value: audienceLabel },
                   { label: "Recipients", value: <strong>{people(review.recipients)}</strong> },
                   { label: "Subject", value: content.subject || "No subject" },
+                  { label: "Heading", value: content.heading || "Same as the subject" },
                   { label: "Delivery", value: review.at ? new Date(review.at).toLocaleString("en", { dateStyle: "medium", timeStyle: "short" }) : "Send now, about one email a second" },
                   { label: "Pictures", value: String(content.images.length) },
                 ]}
               />
-              {nobody ? <DialogError message="Nobody in this audience can be emailed." /> : null}
+              {nobody ? (
+                <DialogError
+                  message={
+                    toPerson
+                      ? ((person && personProblem(person)) ?? "This person cannot be emailed: they unsubscribed, never verified their address or no longer have an account.")
+                      : "Nobody in this audience can be emailed."
+                  }
+                />
+              ) : null}
               {needsWord ? (
                 <div className="space-y-1.5">
                   <Label htmlFor={`${id}-word`}>
@@ -481,6 +547,108 @@ export function BroadcastComposer({
   );
 }
 
+/**
+ * The "One person" audience: search by email or name, then one account. Says
+ * when the chosen person would not be sent it (unsubscribed or unverified):
+ * the same rules as every broadcast, checked again by the server.
+ */
+function PersonPicker({ person, onChoose }: { person: BroadcastPerson | null; onChoose: (person: BroadcastPerson | null) => void }) {
+  const id = useId();
+  const [query, setQuery] = useState("");
+  const [found, setFound] = useState<{ query: string; people: BroadcastPerson[] } | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
+  const term = query.trim();
+
+  useEffect(() => {
+    if (person || term.length < 2) return;
+    let current = true;
+    const timer = window.setTimeout(() => {
+      findBroadcastPeople(term).then(
+        (result) => {
+          if (!current) return;
+          if (result.ok) {
+            setFound({ query: term, people: result.data.people });
+            setProblem(null);
+          } else setProblem(result.error);
+        },
+        () => {
+          if (current) setProblem("The search could not be loaded.");
+        },
+      );
+    }, 300);
+    return () => {
+      current = false;
+      window.clearTimeout(timer);
+    };
+  }, [person, term]);
+
+  if (person) {
+    const reason = personProblem(person);
+    return (
+      <div className="mt-2 rounded-lg border p-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-start gap-2">
+            <UserRound className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <div className="min-w-0 text-sm">
+              <p className="font-medium wrap-anywhere">{person.name || person.email}</p>
+              <p className="text-muted-foreground wrap-anywhere">{person.email}</p>
+            </div>
+          </div>
+          <Button type="button" size="sm" variant="ghost" onClick={() => onChoose(null)}>
+            Change
+          </Button>
+        </div>
+        <p className={cn("mt-2 text-xs", reason ? "rounded-md bg-warning-soft px-2 py-1.5 font-medium text-warning" : "text-muted-foreground")}>
+          {reason ?? "Only this person will receive it."}
+        </p>
+      </div>
+    );
+  }
+
+  const results = found && found.query === term ? found.people : null;
+  return (
+    <div className="mt-2 space-y-2">
+      <Label htmlFor={`${id}-person`} className="sr-only">
+        Find the person by email or name
+      </Label>
+      <div className="relative">
+        <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+        <Input
+          id={`${id}-person`}
+          type="search"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Find by email or name"
+          autoComplete="off"
+          className="pl-8"
+        />
+      </div>
+      <p aria-live="polite" className="text-xs text-muted-foreground">
+        {problem ?? (term.length < 2 ? "Type at least 2 characters." : results && results.length === 0 ? "No account matches." : null)}
+      </p>
+      {results && results.length > 0 ? (
+        <ul className="max-h-60 divide-y overflow-auto rounded-lg border" aria-label="Matching accounts">
+          {results.map((entry) => (
+            <li key={entry.id}>
+              <button
+                type="button"
+                onClick={() => onChoose(entry)}
+                className="flex w-full flex-col items-start px-3 py-2 text-left text-sm hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
+              >
+                <span className="font-medium wrap-anywhere">{entry.email}</span>
+                <span className="text-xs text-muted-foreground wrap-anywhere">
+                  {entry.name}
+                  {entry.optedOut ? " · unsubscribed, will not be sent" : !entry.verified ? " · not verified, will not be sent" : ""}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
 /** The rendered email in a frame that can run nothing, refreshed shortly after typing stops. */
 function LivePreview({ content }: { content: BroadcastContent }) {
   const [preview, setPreview] = useState<{ subject: string; html: string } | null>(null);
@@ -511,11 +679,17 @@ function LivePreview({ content }: { content: BroadcastContent }) {
 
   return (
     <div className="space-y-3">
-      <p className="text-sm wrap-anywhere">
-        <span className="text-muted-foreground">Subject: </span>
-        <span className="font-medium">{preview?.subject ?? content.subject}</span>
-        {content.previewText ? <span className="text-muted-foreground"> - {content.previewText}</span> : null}
-      </p>
+      {/* Two lines, so the preview text is not read as part of the subject (owner, 2026-11-27). */}
+      <dl className="space-y-1 text-sm">
+        <div className="flex gap-1.5">
+          <dt className="shrink-0 text-muted-foreground">Subject:</dt>
+          <dd className="min-w-0 font-medium wrap-anywhere">{preview?.subject ?? (content.subject || "Untitled email")}</dd>
+        </div>
+        <div className="flex gap-1.5">
+          <dt className="shrink-0 text-muted-foreground">Preview text (inbox only):</dt>
+          <dd className="min-w-0 wrap-anywhere">{content.previewText || <span className="text-muted-foreground">None</span>}</dd>
+        </div>
+      </dl>
       <div aria-live="polite">
         {problem ? <p className="rounded-lg border border-warning/30 bg-warning-soft px-3 py-2 text-sm">{problem}</p> : null}
       </div>

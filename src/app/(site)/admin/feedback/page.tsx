@@ -13,6 +13,7 @@ import { AdminEmpty } from "../_ui/states";
 import { AdminStatus } from "../_ui/status";
 import { Pagination } from "../pagination";
 import { KIND_LABEL, SOURCE_LABEL, STATUS_LABEL } from "./labels";
+import { MarkAllReadButton, MarkReadButton } from "./read-buttons";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Feedback" };
@@ -61,7 +62,8 @@ export default async function FeedbackPage({ searchParams }: { searchParams: Pro
     <AdminPage>
       <AdminPageHeader
         title="Feedback"
-        description="Ideas and problems sent from the dashboard's Feedback button and the Contact page's form. Open one to see it in full, change its status, or reply to the sender by email in their language."
+        description="Ideas and problems sent from the dashboard's Feedback button and the Contact page's form. Open one to see it in full, change its status, or reply to the sender by email in their language. Mark one as read to take it out of New and the menu's count without planning or closing it."
+        actions={<MarkAllReadButton count={counts.new} kind={kind ?? null} kindLabel={kind ? `${KIND_LABEL[kind as keyof typeof KIND_LABEL].toLowerCase()}s` : null} />}
       />
 
       <div className="space-y-3">
@@ -98,10 +100,10 @@ export default async function FeedbackPage({ searchParams }: { searchParams: Pro
           {rows.map((row) => {
             const status = STATUS_LABEL[row.status];
             return (
-              <li key={row.id}>
+              <li key={row.id} className="flex flex-col sm:flex-row sm:items-start">
                 <Link
                   href={`/admin/feedback/${row.id}`}
-                  className="block px-4 py-4 outline-none transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:px-5"
+                  className="block min-w-0 flex-1 px-4 py-4 outline-none transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:px-5"
                 >
                   <div className="flex flex-wrap items-center gap-2 text-xs">
                     <AdminStatus tone={status.tone} label={status.label} />
@@ -127,6 +129,11 @@ export default async function FeedbackPage({ searchParams }: { searchParams: Pro
                     {row.email} · <span className="tabular-nums">{when(row.createdAt)} UTC</span>
                   </p>
                 </Link>
+                {row.status === "new" ? (
+                  <div className="shrink-0 px-4 pb-3 sm:px-3 sm:py-3">
+                    <MarkReadButton id={row.id} sender={row.name ?? row.email} />
+                  </div>
+                ) : null}
               </li>
             );
           })}

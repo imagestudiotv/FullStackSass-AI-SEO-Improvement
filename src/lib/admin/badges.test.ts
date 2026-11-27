@@ -308,8 +308,30 @@ describe("a page's own account of its badge (Daniel, 2026-11-26: 2 on Blog, noth
     expect(await getBadgeNotice("/admin/blog")).toEqual([]);
   });
 
-  it("explains every count of the Blog badge, and nothing for a page without one", async () => {
-    for (const source of [...WAITING_SOURCES, ...NEW_SOURCES].filter((entry) => entry.href === "/admin/blog")) expect(source.handled, source.what).toBeDefined();
+  it("Admin -> Websites says its number is failed analyses plus websites new since the last look (owner, 2026-11-27)", async () => {
+    const { orgId } = await seedWebsite(test);
+    // Times from this clock, not the database's default, so the cookie below is surely later.
+    await test.db.delete(schema.websites);
+    await test.db.insert(schema.websites).values({ organizationId: orgId, url: "https://failed-one.example", domain: "failed-one.example", status: "failed", createdAt: ago(1) });
+    const badge = (await read())["/admin/websites"];
+    const notice = await getBadgeNotice("/admin/websites");
+    expect(notice.reduce((sum, item) => sum + item.count, 0)).toBe(badge.count);
+    expect(notice.map((item) => [item.kind, item.href])).toEqual([
+      ["waiting", "/admin/websites?status=failed"],
+      ["new", "/admin/websites"],
+    ]);
+    // Opened since: only the failed analysis is left, and it says what it is.
+    state.cookie = writeSeen({}, asAdmin.user.id, "/admin/websites", new Date(Date.now() + 1000));
+    const after = await getBadgeNotice("/admin/websites");
+    expect(after).toHaveLength(1);
+    expect(after[0].kind).toBe("waiting");
+    expect(noticeCount(after[0])).toMatch(/^\d+ websites? with a failed analysis$/);
+  });
+
+  it("explains every count of the Blog and Websites badges, and nothing for a page without one", async () => {
+    for (const source of [...WAITING_SOURCES, ...NEW_SOURCES].filter((entry) => entry.href === "/admin/blog" || entry.href === "/admin/websites")) {
+      expect(source.handled, source.what).toBeDefined();
+    }
     expect(await getBadgeNotice("/admin/nothing-here")).toEqual([]);
   });
 

@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { recordAdminAction } from "@/lib/admin/audit";
 import { requireAdmin } from "@/lib/admin/guard";
 import { ADMIN_PAGE_SIZE } from "@/lib/admin/shared";
-import { audienceSummary, countRecipients, type AudienceSummary } from "@/lib/broadcasts/audience";
+import { audienceSummary, countRecipients, findPerson, searchPeople, type AudienceSummary } from "@/lib/broadcasts/audience";
 import { BROADCAST_IMAGE_FOLDER, readBroadcastContent } from "@/lib/broadcasts/content";
 import { BroadcastStateError, broadcastSendingProblem, cancelBroadcast, startBroadcast } from "@/lib/broadcasts/engine";
 import { renderBroadcastEmail } from "@/lib/broadcasts/render";
@@ -17,10 +17,11 @@ import {
   isBroadcastAudience,
   SEND_WORD,
   type BroadcastContent,
+  type BroadcastPerson,
   type BroadcastStatus,
 } from "@/lib/broadcasts/shared";
 import { db } from "@/lib/db";
-import { emailBroadcastRecipients, emailBroadcasts } from "@/lib/db/schema";
+import { emailBroadcastRecipients, emailBroadcasts, user } from "@/lib/db/schema";
 import { unsubscribeUrl } from "@/lib/email/lifecycle";
 import { sendEmail } from "@/lib/email/send";
 import { deleteStoredImage, isImageStorageConfigured, readStoredFile, signedImageUpload, storeArticleImage } from "@/lib/images/storage";
@@ -47,6 +48,8 @@ export type BroadcastRow = {
   id: string;
   subject: string;
   audience: string;
+  /** The address of the one person a "person" broadcast is for; null otherwise, or once that account is gone. */
+  personEmail: string | null;
   status: BroadcastStatus;
   scheduledFor: Date | null;
   startedAt: Date | null;
@@ -90,8 +93,9 @@ export async function getBroadcastsAdmin(requestedPage = 1): Promise<BroadcastsA
       .orderBy(desc(emailBroadcasts.startedAt))
       .limit(1),
     db
-      .select()
+      .select({ broadcast: emailBroadcasts, personEmail: user.email })
       .from(emailBroadcasts)
+      .leftJoin(user, eq(user.id, emailBroadcasts.personId))
       .orderBy(desc(emailBroadcasts.createdAt), desc(emailBroadcasts.id))
       .limit(ADMIN_PAGE_SIZE)
       .offset((page - 1) * ADMIN_PAGE_SIZE),
@@ -100,7 +104,7 @@ export async function getBroadcastsAdmin(requestedPage = 1): Promise<BroadcastsA
     ? await db
         .select({ id: emailBroadcastRecipients.broadcastId, status: emailBroadcastRecipients.status, n: sql<number>`count(*)::int` })
         .from(emailBroadcastRecipients)
-        .where(inArray(emailBroadcastRecipients.broadcastId, rows.map((row) => row.id)))
+        .where(inArray(emailBroadcastRecipients.broadcastId, rows.map((row) => row.broadcast.id)))
         .groupBy(emailBroadcastRecipients.broadcastId, emailBroadcastRecipients.status)
     : [];
   const of = (id: string, ...statuses: string[]) =>
@@ -114,10 +118,11 @@ export async function getBroadcastsAdmin(requestedPage = 1): Promise<BroadcastsA
     total: Number(totals?.total ?? 0),
     page,
     pageSize: ADMIN_PAGE_SIZE,
-    rows: rows.map((row) => ({
+    rows: rows.map(({ broadcast: row, personEmail }) => ({
       id: row.id,
       subject: row.subject,
       audience: row.audience,
+      personEmail,
       status: row.status as BroadcastStatus,
       scheduledFor: row.scheduledFor,
       startedAt: row.startedAt,
@@ -145,7 +150,9 @@ export async function getBroadcast(id: string): Promise<EditableBroadcast | null
     status: row.status as BroadcastStatus,
     content: {
       audience: isBroadcastAudience(row.audience) ? row.audience : "all",
+      personId: row.personId,
       subject: row.subject,
+      heading: row.heading,
       previewText: row.previewText,
       bodyHtml: row.bodyHtml,
       images: row.images,
@@ -155,11 +162,27 @@ export async function getBroadcast(id: string): Promise<EditableBroadcast | null
   };
 }
 
-/** How many people would receive it right now, for the review dialog. */
-export async function countBroadcastAudience(audience: string): Promise<ActionResult<{ recipients: number }>> {
+/** How many people would receive it right now, for the review dialog. `personId` is the one person of a "person" broadcast. */
+export async function countBroadcastAudience(audience: string, personId: string | null = null): Promise<ActionResult<{ recipients: number }>> {
   await requireAdmin();
   if (!isBroadcastAudience(audience)) return { ok: false, error: "Choose who receives it." };
-  return { ok: true, data: { recipients: await countRecipients(audience) } };
+  if (audience === "person" && typeof personId !== "string") return { ok: false, error: "Choose the person to email." };
+  return { ok: true, data: { recipients: await countRecipients(audience, db, new Date(), audience === "person" ? personId : null) } };
+}
+
+/** Accounts matching what was typed (email or name), for the "One person" audience. */
+export async function findBroadcastPeople(query: string): Promise<ActionResult<{ people: BroadcastPerson[] }>> {
+  await requireAdmin();
+  const term = typeof query === "string" ? query.trim().slice(0, 200) : "";
+  if (term.length < 2) return { ok: true, data: { people: [] } };
+  return { ok: true, data: { people: await searchPeople(term) } };
+}
+
+/** One account, for a broadcast opened with it chosen (Admin -> Users -> Send email). Null when there is none. */
+export async function getBroadcastPerson(id: string): Promise<BroadcastPerson | null> {
+  await requireAdmin();
+  if (typeof id !== "string" || !id || id.length > 128) return null;
+  return findPerson(id);
 }
 
 /** The email as it would be sent, for the live preview. Shows a placeholder unsubscribe link: a preview has no reader. */
@@ -177,7 +200,9 @@ export async function previewBroadcast(input: unknown): Promise<ActionResult<{ s
 
 const columns = (content: BroadcastContent) => ({
   audience: content.audience,
+  personId: content.personId,
   subject: content.subject,
+  heading: content.heading,
   previewText: content.previewText,
   bodyHtml: content.bodyHtml,
   images: content.images,
@@ -275,10 +300,15 @@ export async function sendBroadcastTest(input: unknown): Promise<ActionResult<{ 
 /** What the dialog showed and asked for, checked again against now. */
 async function confirmRecipients(
   audience: BroadcastContent["audience"],
+  personId: string | null,
   confirmation: { recipients: number; word: string },
 ): Promise<string | null> {
-  const actual = await countRecipients(audience);
-  if (actual === 0) return "Nobody in this audience can be emailed.";
+  const actual = await countRecipients(audience, db, new Date(), personId);
+  if (actual === 0) {
+    return audience === "person"
+      ? "This person cannot be emailed: they unsubscribed, never verified their address or no longer have an account."
+      : "Nobody in this audience can be emailed.";
+  }
   const shown = Number(confirmation?.recipients);
   // A sign-up between opening the dialog and pressing the button is fine; a different audience is not.
   if (!Number.isFinite(shown) || Math.abs(actual - shown) > Math.max(5, Math.ceil(shown * 0.1))) {
@@ -309,7 +339,7 @@ export async function sendBroadcastNow(
   if (problem) return { ok: false, error: problem };
   const draft = await draftAt(id, revision);
   if (!draft) return { ok: false, error: CHANGED };
-  const refused = await confirmRecipients(draft.audience as BroadcastContent["audience"], confirmation);
+  const refused = await confirmRecipients(draft.audience as BroadcastContent["audience"], draft.personId, confirmation);
   if (refused) return { ok: false, error: refused };
 
   let started: { recipients: number; eventId: string };
@@ -323,7 +353,7 @@ export async function sendBroadcastNow(
           targetType: "broadcast",
           targetId: id,
           summary: `Email broadcast started: "${result.subject}" to ${result.recipients} people (${draft.audience})`,
-          detail: { recipients: result.recipients, audience: draft.audience },
+          detail: { recipients: result.recipients, audience: draft.audience, ...(draft.personId ? { personId: draft.personId } : {}) },
         },
         tx,
       );
@@ -359,7 +389,7 @@ export async function scheduleBroadcast(
   if (!draft) return { ok: false, error: CHANGED };
   const read = readBroadcastContent({ ...draft, ctaLabel: draft.ctaLabel ?? "", ctaUrl: draft.ctaUrl ?? "" }, { complete: true });
   if (!read.ok) return read;
-  const refused = await confirmRecipients(read.content.audience, confirmation);
+  const refused = await confirmRecipients(read.content.audience, read.content.personId, confirmation);
   if (refused) return { ok: false, error: refused };
 
   const done = await db.transaction(async (tx) => {
@@ -376,7 +406,7 @@ export async function scheduleBroadcast(
         targetType: "broadcast",
         targetId: id,
         summary: `Scheduled an email broadcast for ${when.toISOString()}: "${row.subject}" (${draft.audience})`,
-        detail: { at: when.toISOString(), audience: draft.audience },
+        detail: { at: when.toISOString(), audience: draft.audience, ...(draft.personId ? { personId: draft.personId } : {}) },
       },
       tx,
     );

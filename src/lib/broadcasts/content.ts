@@ -67,6 +67,9 @@ export function sanitizeBroadcastHtml(html: string): { html: string; droppedLink
   return { html: clean, droppedLinks };
 }
 
+/** A user id as Better Auth writes them: letters, digits, "-" and "_". */
+const PERSON_ID = /^[A-Za-z0-9_-]{1,128}$/;
+
 const oneLine = (value: unknown) => (typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "");
 
 /** Where a checked picture is stored; an unchecked upload waits elsewhere (lib/admin/broadcasts.ts). */
@@ -90,8 +93,14 @@ export function readBroadcastContent(input: unknown, options: { complete: boolea
   const fail = (error: string): ContentResult => ({ ok: false, error });
 
   if (!isBroadcastAudience(raw.audience)) return fail("Choose who receives it.");
+  // Only "person" names an account; any other audience drops whatever id came with it.
+  const typedPerson = raw.audience === "person" && typeof raw.personId === "string" ? raw.personId.trim() : "";
+  if (typedPerson && !PERSON_ID.test(typedPerson)) return fail("Choose the person again.");
+  const personId = typedPerson || null;
   const subject = oneLine(raw.subject);
   if (subject.length > BROADCAST_LIMITS.subject) return fail(`The subject is longer than ${BROADCAST_LIMITS.subject} characters.`);
+  const heading = oneLine(raw.heading);
+  if (heading.length > BROADCAST_LIMITS.heading) return fail(`The heading is longer than ${BROADCAST_LIMITS.heading} characters.`);
   const previewText = oneLine(raw.previewText);
   if (previewText.length > BROADCAST_LIMITS.previewText) return fail(`The preview text is longer than ${BROADCAST_LIMITS.previewText} characters.`);
 
@@ -118,10 +127,11 @@ export function readBroadcastContent(input: unknown, options: { complete: boolea
   if (ctaUrl === null) return fail("The button URL must be a full https:// address.");
 
   if (options.complete) {
+    if (raw.audience === "person" && !personId) return fail("Choose the person to email.");
     if (!subject) return fail("Write a subject.");
     if (!bodyHtml.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim()) return fail("Write a message.");
     if (Boolean(ctaLabel) !== Boolean(ctaUrl)) return fail("A button needs both a label and a URL - or leave both empty.");
   }
 
-  return { ok: true, content: { audience: raw.audience, subject, previewText, bodyHtml, images, ctaLabel, ctaUrl } };
+  return { ok: true, content: { audience: raw.audience, personId, subject, heading, previewText, bodyHtml, images, ctaLabel, ctaUrl } };
 }

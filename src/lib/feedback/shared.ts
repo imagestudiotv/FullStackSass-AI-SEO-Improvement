@@ -7,8 +7,13 @@
 export const FEEDBACK_KINDS = ["idea", "problem", "other"] as const;
 export type FeedbackKind = (typeof FEEDBACK_KINDS)[number];
 
-/** new -> planned | done | wont_do, set by an administrator. */
-export const FEEDBACK_STATUSES = ["new", "planned", "done", "wont_do"] as const;
+/**
+ * new -> read | planned | done | wont_do, set by an administrator. "read"
+ * (owner, 2026-11-27): looked at, nothing decided - it leaves New and the
+ * sidebar's count without being planned or closed. The column is plain text,
+ * so a new value needs no migration.
+ */
+export const FEEDBACK_STATUSES = ["new", "read", "planned", "done", "wont_do"] as const;
 export type FeedbackStatus = (typeof FEEDBACK_STATUSES)[number];
 
 export const FEEDBACK_LIMITS = {

@@ -154,8 +154,14 @@ export const WAITING_SOURCES: WaitingSource[] = [
       ),
   },
   {
+    // Explained on the page itself (owner, 2026-11-27: "1" on Websites he could not explain).
     href: "/admin/websites",
-    what: "with a failed analysis",
+    what: "websites with a failed analysis",
+    handled: {
+      one: "website with a failed analysis",
+      href: "/admin/websites?status=failed",
+      label: "Show them (Status: Failed) - it stays until the website is analysed again or deleted",
+    },
     count: () => one(db.select({ n: count() }).from(websites).where(eq(websites.status, "failed"))),
   },
   {
@@ -222,7 +228,17 @@ export const WAITING_SOURCES: WaitingSource[] = [
 
 export const NEW_SOURCES: NewSource[] = [
   { href: "/admin/users", what: "new", seen: "/admin/users", count: (since) => one(db.select({ n: count() }).from(user).where(gt(user.createdAt, since))) },
-  { href: "/admin/websites", what: "new", seen: "/admin/websites", count: (since) => one(db.select({ n: count() }).from(websites).where(gt(websites.createdAt, since))) },
+  {
+    href: "/admin/websites",
+    what: "new websites",
+    handled: {
+      one: "new website",
+      href: "/admin/websites",
+      label: "Added since you last opened Websites: at the top of the list (opening the page clears this count)",
+    },
+    seen: "/admin/websites",
+    count: (since) => one(db.select({ n: count() }).from(websites).where(gt(websites.createdAt, since))),
+  },
   {
     href: "/admin/organizations",
     what: "new",
