@@ -6,7 +6,7 @@ import { articles, audits, gscPageMetrics, issues, integrations, integrationKeys
 
 const state = vi.hoisted(() => ({ db: null as unknown }));
 vi.mock("@/lib/db", () => ({ db: new Proxy({}, { get: (_t, p) => Reflect.get(state.db as object, p) }) }));
-import { getNextActions } from "./next-actions";
+import { getNextActions, listNextActions } from "./next-actions";
 let test: TestDb;
 beforeAll(async () => { test = await createTestDb(); state.db = test.db; });
 afterAll(async () => { await test.client.close(); });
@@ -28,6 +28,10 @@ describe("dashboard next steps", () => {
     expect((await getNextActions(a.id, a.orgId, false)).map(x => x.kind)).toEqual(["failed"]);
     // The Tasks page lists these itself, so it leaves them out here.
     expect((await getNextActions(a.id, a.orgId, true, { exclude: ["failed", "publishing", "google"] }))).toEqual([]);
+    // ...and is told it did, so it never says "No outstanding actions" while the dashboard lists three.
+    expect(await listNextActions(a.id, a.orgId, true, { exclude: ["failed", "publishing", "google"] })).toEqual({ actions: [], listedElsewhere: 3 });
+    // Search Console is the optional set-up step: an opportunity, never "Next".
+    expect(actions.find(x => x.kind === "google")!.priority).toBe("opportunity");
   });
   it("recognizes the plugin and a selected Search Console property", async () => {
     const a = await fixture();

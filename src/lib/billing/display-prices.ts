@@ -11,10 +11,10 @@ import { bundleCouponOf, repgetFirstPaymentCents, type OfferPlan } from "@/lib/b
  *    price its coupon was made for: checkout then carries LP40_* on every
  *    payment (lib/billing/checkouts.ts automaticRepgetCoupon). Any other price
  *    shows no discount, because checkout gives none.
- *  - The Grow + Visibility bundle: EUR 129 a month, shown against its EUR 299
- *    list price, which its Stripe price is and its REPGET_GV129_M coupon brings
- *    down to the EUR 129 charged (bundleCouponFor) - REPGET on or off. PayPal
- *    charges the same EUR 129 with no discount line.
+ *  - The Grow + Visibility bundle: EUR 129 a month, shown as just that - no
+ *    struck EUR 299 and no saving (owner, 2026-11-27). Its Stripe price is
+ *    still EUR 299 with the REPGET_GV129_M coupon bringing every payment to
+ *    the EUR 129 charged (bundleCouponFor); PayPal charges EUR 129 outright.
  *  - Anything else: the plan's own price, nothing struck.
  *
  * The win-back offer is not here: it is one account's, for its first payment
@@ -28,12 +28,12 @@ export type PlanDisplayPrice = {
   /** The regular price shown struck through beside it, or null when nothing is taken off. */
   strikeCents: number | null;
   /** Which discount, for the wording around it. */
-  discount: "repget" | "bundle" | null;
+  discount: "repget" | null;
 };
 
 export function planDisplayPrice(plan: OfferPlan, offerOn: boolean): PlanDisplayPrice {
   const bundle = bundleCouponOf(plan);
-  if (bundle) return { chargedCents: plan.priceCents, strikeCents: bundle.listCents, discount: "bundle" };
+  if (bundle) return { chargedCents: plan.priceCents, strikeCents: null, discount: null };
   const launch = offerOn ? repgetFirstPaymentCents(plan) : null;
   if (launch !== null) return { chargedCents: launch, strikeCents: plan.priceCents, discount: "repget" };
   return { chargedCents: plan.priceCents, strikeCents: null, discount: null };

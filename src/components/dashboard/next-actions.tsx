@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, ListChecks } from "lucide-react";
 import type { Locale } from "@/lib/i18n/config";
-import { getNextActions, type NextActionKind } from "@/lib/dashboard/next-actions";
+import { listNextActions, type NextActionKind } from "@/lib/dashboard/next-actions";
 import { articleTitleText } from "@/lib/i18n/article-delivery";
 import { NEXT_ACTIONS_COPY } from "@/lib/i18n/next-actions";
 import { CONTENT_COPY } from "@/lib/i18n/content-improvements";
@@ -14,8 +14,9 @@ export async function NextActions({ websiteId, ownerOrgId, canManage, locale, ex
 }) {
   const t = { ...NEXT_ACTIONS_COPY[locale], ...CONTENT_COPY[locale] };
   let actions;
+  let listedElsewhere = 0;
   try {
-    actions = await getNextActions(websiteId, ownerOrgId, canManage, { exclude });
+    ({ actions, listedElsewhere } = await listNextActions(websiteId, ownerOrgId, canManage, { exclude }));
   } catch (error) {
     console.error("[dashboard] next actions failed", error);
     return <section aria-label={t.title} className="rounded-xl border bg-card p-5 text-sm text-muted-foreground">{t.unavailable}</section>;
@@ -46,7 +47,7 @@ export async function NextActions({ websiteId, ownerOrgId, canManage, locale, ex
             <button className="min-h-9 rounded px-2 text-xs text-muted-foreground hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring">{t.snooze}</button>
           </form>}
         </li>)}
-      </ul> : <p className="mt-3 text-sm text-muted-foreground">{t.empty}</p>}
+      </ul> : <p className="mt-3 text-sm text-muted-foreground">{listedElsewhere > 0 ? t.listedBelow : t.empty}</p>}
       {canManage && <form action={restoreNextActions.bind(null, websiteId)} className="mt-2">
         <button className="min-h-9 rounded px-2 text-xs text-primary hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring">{t.restore}</button>
       </form>}

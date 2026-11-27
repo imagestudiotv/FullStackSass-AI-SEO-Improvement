@@ -38,6 +38,7 @@ import { hasFiles } from "./customer-view";
 import { plainScript, pointTitleMax } from "./editorial-images";
 import { moveMadeClipsOffPendingIdeas, rewriteIdea } from "./ideas";
 import { spendKey } from "./make";
+import { lockTrialFreeVideos, trialFreeVideos } from "./trial-free";
 import { musicTrack } from "./music";
 import { contentHash, reviewAfterEdit } from "./review";
 import { readVideoSettings, resetVideoSettings, saveVideoSettings, validateVideoSettings, videoAccess, type SettingsInput, type VideoSettings } from "./settings";
@@ -426,6 +427,9 @@ export async function approveVideoReview(websiteId: string, id: string): Promise
  * Approves an idea (a swipe to the right): charges its credit, once, and has
  * it made into its video. An edit sent along is saved first. A failed idea
  * can be approved again - its credit was given back when it failed.
+ *
+ * In the free trial the first TRIAL_FREE_VIDEOS are free (lib/video/trial-free.ts):
+ * decided here, on the server, under the website's lock - never by the button.
  */
 export async function approveVideoIdea(websiteId: string, id: string, edit: IdeaEdit = {}, via: MakeVia = "button"): Promise<VideoResult> {
   const checked = await guard(websiteId);
@@ -446,7 +450,12 @@ export async function approveVideoIdea(websiteId: string, id: string, edit: Idea
     if (row.status === "failed" && hasFiles(row)) return fail("already_handled");
     // A retry, or a make after an Undo, is a new charge: the earlier credit was returned.
     const key = row.status === "failed" || row.creditSpendKey ? `${spendKey(id)}:${Date.now()}` : spendKey(id);
-    const spent = await spendCredits(tx, { organizationId: checked.site.organizationId, action: "video_post", key, websiteId });
+    // The free trial's free videos first: no credit charged, so creditSpendKey stays null (how they are counted).
+    await lockTrialFreeVideos(websiteId, tx);
+    const trialFree = await trialFreeVideos(websiteId, tx);
+    const spent = trialFree && trialFree.left > 0
+      ? { ok: true as const, spendId: null }
+      : await spendCredits(tx, { organizationId: checked.site.organizationId, action: "video_post", key, websiteId });
     if (!spent.ok) return { ok: false as const, error: "not_enough_credits" as const, price: spent.price, available: spent.available };
     const now = new Date();
     await tx

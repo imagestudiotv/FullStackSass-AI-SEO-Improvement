@@ -10,6 +10,7 @@ import { siteUrl as canonicalSiteUrl } from "@/lib/site-url";
 import { HOME_META } from "@/lib/seo/home-metadata";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
 import { customerStoriesSection } from "@/lib/success-stories/stories";
+import { repgetOfferEnabled } from "@/lib/billing/repget-offer";
 
 /**
  * Marketing homepage, following the supplied landing design.
@@ -64,10 +65,12 @@ export default async function HomePage() {
    * publish structured data pointing at a developer machine.
    */
   const siteUrl = canonicalSiteUrl();
+  // The REPGET launch price: the pricing cards and the structured data quote what checkout charges.
+  const offer = repgetOfferEnabled();
 
   return (
     <>
-      <OrganizationSchema siteUrl={siteUrl} plans={plans} />
+      <OrganizationSchema siteUrl={siteUrl} plans={plans} offer={offer} />
       <HomePageSections
         locale="en"
         href={href}
@@ -76,6 +79,7 @@ export default async function HomePage() {
         plans={plans}
         customerStories={customerStories}
         freeCounter={freeCounter}
+        offer={offer}
       />
     </>
   );

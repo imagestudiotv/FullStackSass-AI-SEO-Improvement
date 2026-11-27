@@ -4,7 +4,11 @@ import { isEntitledToSpend } from "@/lib/billing/entitled";
 import { requireWebsitePlan } from "@/lib/billing/require-plan";
 import { SUPPORT_EMAIL, hasRealSupportEmail } from "@/lib/config/site";
 import { readCreditSettings } from "@/lib/credits/prices";
-import { plural } from "@/lib/i18n/format";
+import { format, formatDate, plural } from "@/lib/i18n/format";
+import { freePlanCopy } from "@/lib/i18n/free-plan";
+import { calendarMonth } from "@/lib/billing/entitlement-period";
+import { FREE_PLAN } from "@/lib/plans/free-plan";
+import { freePlanAuditsThisMonth, isFreePlanWebsite } from "@/lib/plans/free-plan-server";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { requireWebsitePage } from "@/lib/tenant";
 
@@ -57,7 +61,7 @@ export default async function WebsiteHealthPage({
   // startAudit refuses a site still being onboarded; say so instead of offering the button.
   const siteNotReady = site.status === "pending" || site.status === "crawling";
 
-  const [data, entitlement, { t, locale }, query, credits] = await Promise.all([
+  const [data, entitlement, { t, locale }, query, credits, free] = await Promise.all([
     loadHealthData(site.id),
     // Asked per WEBSITE, as startAudit asks it: an owner can open an unpaid
     // second site because the workspace gate passed, and a check would then
@@ -66,7 +70,20 @@ export default async function WebsiteHealthPage({
     getAppMessages(userId),
     searchParams,
     readCreditSettings(),
+    isFreePlanWebsite(site.id),
   ]);
+
+  /*
+    The Free plan's check costs no credits: it is its "1 limited SEO audit
+    per month" (startAudit charges Free nothing), so its button never says
+    "5 credits". It says it is the free monthly check, or - used - when the
+    next one opens, and is not offered until then.
+  */
+  const freeAuditsLeft = free ? Math.max(0, FREE_PLAN.auditsPerMonth - (await freePlanAuditsThisMonth(site.id))) : 0;
+  const freeCopy = freePlanCopy(locale).app;
+  const nextFreeCheck = free && freeAuditsLeft === 0
+    ? format(freeCopy.auditNextFree, { date: formatDate(calendarMonth().end, locale, { day: "numeric", month: "long", timeZone: "UTC" }) })
+    : null;
 
   const health = t.app.health;
   const blockedReason = !canEdit
@@ -75,7 +92,7 @@ export default async function WebsiteHealthPage({
       ? health.siteNotReady
       : entitlement && !entitlement.ok
         ? localiseStartError(entitlement.error, health, t.app.workspace, locale)
-        : null;
+        : nextFreeCheck;
 
   return (
     <AuditPanel
@@ -91,7 +108,15 @@ export default async function WebsiteHealthPage({
       canEdit={canEdit}
       blockedReason={blockedReason}
       /* What running it again costs (lib/credits/prices.ts); nothing shown while it is free. */
-      rerunCost={credits.prices.audit_rerun > 0 ? plural(t.app.credits.creditsCount, credits.prices.audit_rerun) : null}
+      rerunCost={
+        free
+          ? freeAuditsLeft > 0
+            ? freeCopy.auditFreeLabel
+            : null
+          : credits.prices.audit_rerun > 0
+            ? plural(t.app.credits.creditsCount, credits.prices.audit_rerun)
+            : null
+      }
       supportEmail={hasRealSupportEmail() ? SUPPORT_EMAIL : null}
       initialSeverity={parseSeverityFilter(query.severity)}
       initialQuery={parseQuery(query.q)}

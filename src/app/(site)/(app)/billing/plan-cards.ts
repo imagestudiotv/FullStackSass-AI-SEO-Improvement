@@ -21,8 +21,8 @@ import { formatMoney, planFeatures } from "./billing-view";
  * THE PRICE IS planDisplayPrice's (lib/billing/display-prices.ts), the same
  * function /pricing and the onboarding plan step read, which only shows a
  * discount checkout really gives: REPGET's launch price while
- * REPGET_OFFER_ENABLED=1 (LP40_* coupons) and the Grow + Visibility bundle's
- * EUR 299 -> 129 (REPGET_GV129_M). A yearly plan is quoted per month with the
+ * REPGET_OFFER_ENABLED=1 (LP40_* coupons). The Grow + Visibility bundle shows
+ * its EUR 129 alone, nothing struck (owner, 2026-11-27). A yearly plan is quoted per month with the
  * year's total beside it, as /pricing quotes it.
  *
  * THE TERMS ARE CHECKOUT'S: the TRIAL_DAYS free trial only for a workspace that has
@@ -139,12 +139,8 @@ export function planCardsFor(
       paypalTerms: trial ? chargedTerms : terms,
       price: money(yearly ? perMonthOfYear(shown.chargedCents) : shown.chargedCents),
       strike: shown.strikeCents === null ? null : money(yearly ? perMonthOfYear(shown.strikeCents) : shown.strikeCents),
-      badge:
-        shown.discount === "repget"
-          ? page.card.offerBadge
-          : shown.discount === "bundle" && shown.strikeCents
-            ? format(t.saveBadge, { n: Math.round(((shown.strikeCents - shown.chargedCents) / shown.strikeCents) * 100) })
-            : null,
+      // The bundle shows no saving badge: no struck EUR 299 anywhere (owner, 2026-11-27).
+      badge: shown.discount === "repget" ? page.card.offerBadge : null,
       per: page.card.perMonth,
       caption,
       terms,

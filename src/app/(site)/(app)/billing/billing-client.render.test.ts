@@ -127,15 +127,15 @@ describe("the Grow + Visibility bundle in Billing", () => {
   const BUNDLE = plan("plan_bundle", "Grow + Visibility", "grow_visibility", 12900, 10);
   const none = null as unknown as CurrentSubscription;
 
-  it("is offered in the plan list with its own terms: a direct purchase, EUR 99 against EUR 299, no free trial (2026-11-13)", () => {
+  it("is offered in the plan list with its own terms: a direct purchase at EUR 129, nothing struck and no saving (owner, 2026-11-27), no free trial", () => {
     const plans = [GROW, SCALE, BUNDLE];
     const planCards = planCardsFor(plans, { offerOn: true, trialEligible: true, locale: "en", t });
     const html = render(none, { plans, entitled: false, websiteSubscriptions: [], planCards });
     expect(html).toContain("Scale");
     expect(html).toContain("Grow + Visibility");
     expect(html).toContain("Direct purchase");
-    expect(html).toContain("<del");
-    expect(html).toContain("€299");
+    expect(html).not.toContain("€299");
+    expect(html).not.toContain("57%");
     expect(html).toContain("€129 billed at checkout, then monthly. The 3-day free trial does not apply to this offer.");
     // The free trial is said for the other plans only, with the trial's days (TRIAL_DAYS).
     const trialLine = renderToStaticMarkup(createElement("i", null, format(PLAN_CARDS_COPY.en.trial, { n: TRIAL_DAYS, days: TRIAL_DAYS }))).slice(3, -4);

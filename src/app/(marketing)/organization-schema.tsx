@@ -50,6 +50,8 @@ export function siteSchema(
   siteUrl: string,
   /** listPlans(), as the homepage already loads it for its pricing section. */
   plans: PlanRow[] = [],
+  /** Whether the REPGET launch price is on: the offers then quote the price charged, as the page shows it. */
+  offer = false,
 ): Record<string, unknown> {
   const site = siteUrl.replace(/\/+$/, "");
   const ids = entityIds(site);
@@ -87,22 +89,24 @@ export function siteSchema(
 
   return {
     "@context": "https://schema.org",
-    "@graph": [website, organization, softwareApplication(site, plans)],
+    "@graph": [website, organization, softwareApplication(site, plans, offer)],
   };
 }
 
 export function OrganizationSchema({
   siteUrl,
   plans,
+  offer = false,
 }: {
   siteUrl: string;
   plans: PlanRow[];
+  offer?: boolean;
 }) {
   return (
     <script
       type="application/ld+json"
       // Serialised from our own configuration, never user input.
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(siteSchema(siteUrl, plans)) }}
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(siteSchema(siteUrl, plans, offer)) }}
     />
   );
 }

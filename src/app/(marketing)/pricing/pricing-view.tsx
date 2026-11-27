@@ -6,13 +6,13 @@ import { localePath, type Locale } from "@/lib/i18n/config";
 import { format } from "@/lib/i18n/format";
 import { pricingPageCopy, type PricingTierId } from "@/lib/i18n/pricing-page";
 import type { Testimonial } from "@/lib/marketing/testimonials";
-import { GROW_VISIBILITY_COMPARE_AT_CENTS, GROW_VISIBILITY_TIER, signUpForPlan } from "@/lib/plans/features";
+import { GROW_VISIBILITY_TIER, signUpForPlan } from "@/lib/plans/features";
 import { freePlanCopy } from "@/lib/i18n/free-plan";
 import { FREE_PLAN, freePlanDisplay, freePlanValues, type FreePlanCounter } from "@/lib/plans/free-plan";
 
 import { Reviews } from "../_home/sections/reviews";
 import { PlansBilling } from "./plans-billing";
-import { bundleSavingPercent, cardPrices } from "./prices";
+import { cardPrices } from "./prices";
 import styles from "./pricing.module.css";
 
 /** The design's class names, through the module: c("plan popular"). */
@@ -162,9 +162,8 @@ export function PricingView({
               <div className={c("growth-main")}>
                 <div className={c("lifetime-flag-row")}>
                   <span className={c("lifetime-flag")}>{t.bundle.flag}</span>
-                  <span className={c("lifetime-sale")}>
-                    {format(t.bundle.sale, { pct: bundleSavingPercent(bundle.priceCents, GROW_VISIBILITY_COMPARE_AT_CENTS) })}
-                  </span>
+                  {/* What it includes, never a saving: no struck EUR 299 and no "save 57%" (owner, 2026-11-27). */}
+                  <span className={c("lifetime-sale")}>{t.bundle.includes}</span>
                 </div>
                 <h2 className={c("lifetime-title")} id="growth-offer-title">
                   Grow <span className={c("growth-plus")}>+</span>
@@ -174,12 +173,8 @@ export function PricingView({
                 <p className={c("growth-lede")}>{t.bundle.lede}</p>
                 <div
                   className={c("lifetime-price")}
-                  aria-label={format(t.bundle.priceLabel, {
-                    regular: formatPrice(GROW_VISIBILITY_COMPARE_AT_CENTS, bundle.currency),
-                    price: bundlePrice,
-                  })}
+                  aria-label={format(t.bundle.priceLabel, { price: bundlePrice })}
                 >
-                  <del>{formatPrice(GROW_VISIBILITY_COMPARE_AT_CENTS, bundle.currency)}</del>
                   <strong>{bundlePrice}</strong>
                   <span>{t.bundle.perMonth}</span>
                 </div>

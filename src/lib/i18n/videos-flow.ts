@@ -34,6 +34,8 @@ export type FlowCopy = {
     tags: { viral: string; educational: string; authority: string; promotional: string };
     /** "Approve · {price}" */
     approve: string;
+    /** The {price} of a free trial's free video (lib/video/trial-free.ts): "free (2 of 3 left)". */
+    trialFree: string;
     skipLabel: string;
     /** The toast after Skip, with Undo. */
     skipped: string;
@@ -111,6 +113,7 @@ const en: FlowCopy = {
     filterAll: "All content types",
     tags: { viral: "Viral idea", educational: "Educational idea", authority: "Authority idea", promotional: "Promotional idea" },
     approve: "Approve · {price}",
+    trialFree: "free ({left} of {total} left)",
     skipLabel: "Skip this idea",
     skipped: "Idea skipped",
     showDetails: "Idea details",
@@ -203,6 +206,7 @@ const es: FlowCopy = {
     filterAll: "Todos los tipos de contenido",
     tags: { viral: "Idea viral", educational: "Idea educativa", authority: "Idea de autoridad", promotional: "Idea promocional" },
     approve: "Aprobar · {price}",
+    trialFree: "gratis (quedan {left} de {total})",
     skipLabel: "Omitir esta idea",
     skipped: "Idea omitida",
     showDetails: "Detalles de la idea",
@@ -295,6 +299,7 @@ const fr: FlowCopy = {
     filterAll: "Tous les types de contenu",
     tags: { viral: "Idée virale", educational: "Idée pédagogique", authority: "Idée d’expertise", promotional: "Idée promotionnelle" },
     approve: "Approuver · {price}",
+    trialFree: "gratuit ({left} sur {total} restants)",
     skipLabel: "Ignorer cette idée",
     skipped: "Idée ignorée",
     showDetails: "Détails de l’idée",
@@ -387,6 +392,7 @@ const it: FlowCopy = {
     filterAll: "Tutti i tipi di contenuto",
     tags: { viral: "Idea virale", educational: "Idea educativa", authority: "Idea di autorevolezza", promotional: "Idea promozionale" },
     approve: "Approva · {price}",
+    trialFree: "gratis (ne restano {left} di {total})",
     skipLabel: "Salta questa idea",
     skipped: "Idea saltata",
     showDetails: "Dettagli dell’idea",
@@ -479,6 +485,7 @@ const de: FlowCopy = {
     filterAll: "Alle Inhaltsarten",
     tags: { viral: "Virale Idee", educational: "Lehrreiche Idee", authority: "Expertise-Idee", promotional: "Werbe-Idee" },
     approve: "Genehmigen · {price}",
+    trialFree: "kostenlos (noch {left} von {total})",
     skipLabel: "Diese Idee überspringen",
     skipped: "Idee übersprungen",
     showDetails: "Details zur Idee",

@@ -105,7 +105,9 @@ import { cancelRequest, listGiven, listRequests, requestBacklink } from "@/lib/b
 import { listWebsites } from "@/lib/admin/actions";
 import { approveArticle, placeManagedLink } from "@/lib/backlinks/managed";
 import { workspaceCredits } from "@/lib/reporting/backlinks";
-import { addTarget, moveTarget, getPartnerNetwork, setParticipation, setTargetPriority } from "@/lib/backlinks/network-settings";
+import { addTarget, moveTarget, getPartnerNetwork, setBacklinkExchange, setParticipation, setTargetPriority } from "@/lib/backlinks/network-settings";
+import { findHost } from "@/lib/backlinks/matching";
+import { backlinkExchangeOn } from "@/lib/backlinks/exchange-switch";
 import { applyCheck, recordArticlePublication } from "@/lib/backlinks/placements";
 import { dueArticlesForPlugin } from "@/lib/plugin/due";
 import { publishArticle } from "@/lib/publishing/actions";
@@ -808,6 +810,59 @@ describe("the customer's Partner Network preferences", () => {
         reason: "",
       }),
     ).toMatchObject({ ok: false, error: expect.stringMatching(/not taking part/) });
+  });
+});
+
+describe("the Backlink Exchange: automatic partner links are opt-in (owner, 2026-11-27)", () => {
+  const lookFor = (s: Awaited<ReturnType<typeof scene>>) =>
+    findHost({ requesterWebsiteId: s.beneficiary, requesterOrgId: s.benWs.orgId, niche: null, language: null, country: null });
+
+  it("is OFF for every website until its owner switches it on, and matching skips a host with it off", async () => {
+    const s = await scene();
+    asMember(s.hostWs.userId, s.hostWs.orgId);
+    // No stored choice: off, though the website takes part in the network.
+    expect(await getPartnerNetwork(s.host)).toMatchObject({ participating: true, exchange: false });
+    expect(await backlinkExchangeOn(s.host)).toBe(false);
+    expect((await lookFor(s))?.websiteId).not.toBe(s.host);
+
+    expect(await setBacklinkExchange(s.host, true)).toEqual({ ok: true, data: { exchange: true } });
+    expect(await getPartnerNetwork(s.host)).toMatchObject({ exchange: true });
+    // Now an automatic host (one of those switched on in this test's network).
+    const found = await lookFor(s);
+    expect(found).not.toBeNull();
+
+    expect(await setBacklinkExchange(s.host, false)).toEqual({ ok: true, data: { exchange: false } });
+    expect((await lookFor(s))?.websiteId).not.toBe(s.host);
+  });
+
+  it("needs the website in the network; leaving the network switches it off", async () => {
+    const s = await scene();
+    asMember(s.hostWs.userId, s.hostWs.orgId);
+    await setParticipation(s.host, false);
+    expect(await setBacklinkExchange(s.host, true)).toMatchObject({ ok: false, error: expect.stringMatching(/Network participation first/) });
+    await setParticipation(s.host, true);
+    expect(await setBacklinkExchange(s.host, true)).toMatchObject({ ok: true });
+    await setParticipation(s.host, false);
+    expect(await backlinkExchangeOn(s.host)).toBe(false);
+    // Joining again does not turn automatic links back on by itself.
+    await setParticipation(s.host, true);
+    expect(await getPartnerNetwork(s.host)).toMatchObject({ participating: true, exchange: false });
+  });
+
+  it("does not stop the RepGet team's own placements (Admin -> Partner Network)", async () => {
+    const s = await scene();
+    expect(await backlinkExchangeOn(s.host)).toBe(false);
+    asAdmin();
+    expect(await place(s)).toMatchObject({ ok: true });
+  });
+
+  it("a viewer cannot switch it", async () => {
+    const s = await scene();
+    const viewer = await workspace("viewer");
+    await test.db.insert(websiteMembers).values({ websiteId: s.host, userId: viewer.userId, role: "viewer" });
+    asMember(viewer.userId, viewer.orgId);
+    expect(await setBacklinkExchange(s.host, true)).toMatchObject({ ok: false });
+    expect(await backlinkExchangeOn(s.host)).toBe(false);
   });
 });
 

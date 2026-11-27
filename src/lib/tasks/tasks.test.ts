@@ -12,6 +12,7 @@ vi.mock("@/lib/billing/entitled", () => ({
   }),
 }));
 import { getTasks, ONBOARDING_STEP_TASKS } from "./tasks";
+import { getLaunchState } from "@/lib/onboarding/launch";
 
 let test: TestDb;
 beforeAll(async () => { test = await createTestDb(); state.db = test.db; });
@@ -80,8 +81,15 @@ describe("tasks page", () => {
       { id: "social", connected: 1, available: 6, href: `/websites/${a.id}/social` },
       { id: "video", connected: 1, available: 6, href: `/websites/${a.id}/videos` },
     ]);
-    expect(tasks.total).toBe(tasks.setup.length + 2);
-    expect(tasks.done).toBe(tasks.setup.filter((s) => s.done).length + 2);
+    // The ring is THE set-up count (lib/onboarding/progress.ts): required steps only, the accounts apart -
+    // the very numbers the sidebar and the Setup page show.
+    const required = tasks.setup.filter((s) => !s.optional);
+    expect(tasks.total).toBe(required.length);
+    expect(tasks.done).toBe(required.filter((s) => s.done).length);
+    const launch = await getLaunchState(a.id);
+    expect({ done: tasks.done, total: tasks.total }).toEqual({ done: launch.progress.done, total: launch.progress.total });
+    expect(launch.requiredRemaining).toBe(launch.progress.total - launch.progress.done);
+    expect(tasks.setup.find((s) => s.id === "search-console")!.optional).toBe(true);
   });
 
   it("offers a trial only the channels it may use, and nothing without a plan", async () => {

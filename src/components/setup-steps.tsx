@@ -54,11 +54,19 @@ const ICONS: Record<LaunchStepIcon, typeof Globe> = {
 export function SetupSteps({
   steps,
   t = getMessages("en").app.common,
+  labels,
 }: {
   steps: LaunchStep[];
   /** Shared words, defaulting to English. */
   t?: Messages["app"]["common"];
+  /**
+   * The status words, the Tasks page's (lib/i18n/tasks.ts): an optional step
+   * not taken reads "Optional" on both pages, never "Skipped" on one and
+   * "Optional" on the other.
+   */
+  labels?: { optional: string; toDo: string };
 }) {
+  const words = labels ?? { optional: "Optional", toDo: "To do" };
   /**
    * Which row is open.
    *
@@ -78,9 +86,9 @@ export function SetupSteps({
         const last = index === steps.length - 1;
         const open = openId === step.id;
         /**
-         * An optional step nobody has done reads as "Skipped" rather than
-         * "To do", as the design has it: it is not outstanding work, it is a
-         * choice already made by not making it.
+         * An optional step nobody has done reads as "Optional" rather than
+         * "To do": it is not outstanding work, and it is not counted
+         * (lib/onboarding/progress.ts). The Tasks page says the same.
          */
         const skipped = step.optional && !step.done;
 
@@ -163,10 +171,10 @@ export function SetupSteps({
                   ) : skipped ? (
                     <>
                       <SkipForward className="size-3" aria-hidden="true" />
-                      {t.skipped}
+                      {words.optional}
                     </>
                   ) : (
-                    "To do"
+                    words.toDo
                   )}
                 </span>
 
