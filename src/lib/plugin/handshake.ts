@@ -127,18 +127,18 @@ function publicUrl(value: unknown): URL | null {
  */
 export function parseStart(input: StartInput): { ok: true; value: ParsedStart } | { ok: false; error: string } {
   // Shown to the WordPress admin: said so they can act on it.
-  const toolUseKey = "Connect with a key instead: in RepGet, open Integrations \u2192 WordPress plugin \u2192 Keys (advanced) \u2192 New key, then paste it here under Advanced: use an Integration Key.";
+  const useKey = "Connect with a key instead: in RepGet, open Integrations \u2192 WordPress plugin \u2192 Keys (advanced) \u2192 New key, then paste it here under Advanced: use an Integration Key.";
   const site = publicUrl(input.siteUrl);
   if (!site) {
-    return { ok: false, error: `This site's address is not a public web address, so one-click connect cannot reach it. ${toolUseKey}` };
+    return { ok: false, error: `This site's address is not a public web address, so one-click connect cannot reach it. ${useKey}` };
   }
   const back = publicUrl(input.returnUrl);
   if (!back || !back.pathname.endsWith("/wp-admin/admin.php")) {
-    return { ok: false, error: `This site's admin address is not a public web address ending in /wp-admin/admin.php. ${toolUseKey}` };
+    return { ok: false, error: `This site's admin address is not a public web address ending in /wp-admin/admin.php. ${useKey}` };
   }
   const host = bareHost(site.hostname);
   if (bareHost(back.hostname) !== host) {
-    return { ok: false, error: `This site's admin runs on a different address from the site itself, so one-click connect cannot be used. ${toolUseKey}` };
+    return { ok: false, error: `This site's admin runs on a different address from the site itself, so one-click connect cannot be used. ${useKey}` };
   }
   /*
     And only the RepGet screen itself: admin.php?page=<anything> is any
