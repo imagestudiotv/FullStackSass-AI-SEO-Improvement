@@ -14,6 +14,7 @@ import {
   websites,
 } from "@/lib/db/schema";
 import { GOOGLE_KIND } from "@/lib/analytics/connection";
+import { setupProgress, type SetupProgress } from "@/lib/onboarding/progress";
 
 /**
  * The launch checklist — what a customer still has to do to be fully live.
@@ -100,10 +101,15 @@ export type LaunchStep = {
 
 export type LaunchState = {
   steps: LaunchStep[];
-  /** How many are finished, for the "5/7 done" dial. */
+  /** Every row ticked, the "Launched live" row included. Support's progress baseline only: screens show `progress`. */
   doneCount: number;
-  /** Steps that must be done for the product to run at all. */
+  /** Steps that must be done for the product to run at all: progress.remaining. */
   requiredRemaining: number;
+  /**
+   * THE count every screen shows - sidebar, Setup, the tracker and Tasks
+   * (lib/onboarding/progress.ts): required steps done of required steps.
+   */
+  progress: SetupProgress;
   /** True when nothing required is left. */
   live: boolean;
   /** Keyword research under way, so the layout follows it (ResearchWatcher). */
@@ -390,9 +396,8 @@ export const getLaunchState = cache(async function getLaunchState(
    * source could disagree with them, and a checklist whose last line
    * contradicts the six above it is worse than no last line.
    */
-  const requiredRemaining = steps.filter(
-    (step) => !step.done && !step.optional,
-  ).length;
+  const progress = setupProgress(steps);
+  const requiredRemaining = progress.remaining;
   const live = requiredRemaining === 0;
 
   steps.push({
@@ -414,6 +419,7 @@ export const getLaunchState = cache(async function getLaunchState(
     // Counted after the final row is pushed, so the dial matches the list.
     doneCount: steps.filter((step) => step.done).length,
     requiredRemaining,
+    progress,
     live,
     researching: site[0] ? researchInFlight(site[0]) : false,
   };

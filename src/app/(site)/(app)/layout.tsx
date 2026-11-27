@@ -151,8 +151,9 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
    * and on a shared site, where the steps are for the owner to take.
    */
   const onboardingComplete = ownedLaunch ? ownedLaunch.live : true;
+  // The one count (lib/onboarding/progress.ts): Setup, the tracker and Tasks show the same.
   const setupProgress = ownedLaunch
-    ? { done: ownedLaunch.doneCount, total: ownedLaunch.steps.length }
+    ? { done: ownedLaunch.progress.done, total: ownedLaunch.progress.total }
     : null;
 
   /**

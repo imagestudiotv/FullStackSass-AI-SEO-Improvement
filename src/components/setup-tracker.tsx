@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
 
 import type { LaunchStep } from "@/lib/onboarding/launch";
+import { countedSteps, setupProgress } from "@/lib/onboarding/progress";
 
 /**
  * The floating "Set up · Step 3 of 7" panel, above the chat launcher.
@@ -184,7 +185,8 @@ export function SetupTracker({
   }
 
   const remaining = steps.filter((step) => !step.done && !step.optional);
-  const doneCount = steps.filter((step) => step.done).length;
+  // The one count (lib/onboarding/progress.ts), as the sidebar and Setup show it.
+  const progress = setupProgress(steps);
 
   /**
    * Nothing required left: gone for good, and rightly so.
@@ -212,7 +214,8 @@ export function SetupTracker({
   */
 
   const current = remaining[0];
-  const currentIndex = steps.findIndex((step) => step.id === current.id);
+  // Its place among the counted steps, so "Step n of total" uses the same total as everywhere else.
+  const currentIndex = countedSteps(steps).findIndex((step) => step.id === current.id);
 
   /**
    * HIDDEN COLLAPSES TO AN ICON. It does not disappear.
@@ -273,7 +276,7 @@ export function SetupTracker({
       <div className="overflow-hidden rounded-2xl border bg-card shadow-lg">
         <div className="flex items-center gap-2 border-b px-4 py-3">
           <p className="min-w-0 flex-1 text-sm font-semibold">
-            Set up &middot; Step {currentIndex + 1} of {steps.length}
+            Set up &middot; Step {currentIndex + 1} of {progress.total}
           </p>
           <button
             type="button"
@@ -347,7 +350,7 @@ export function SetupTracker({
 
             <div className="border-t px-4 py-3">
               <p className="text-xs text-muted-foreground">
-                {doneCount} of {steps.length} done. This closes itself when the
+                {progress.done} of {progress.total} done. This closes itself when the
                 required steps are finished.
               </p>
               {/*

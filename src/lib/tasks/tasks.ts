@@ -63,7 +63,11 @@ export type Tasks = {
   setup: SetupTask[];
   /** Empty for a guest, and for a website without a plan. */
   accounts: AccountTask[];
-  /** Over set-up and accounts: the one-off tasks, for the progress ring. */
+  /**
+   * The progress ring: THE set-up count (lib/onboarding/progress.ts), the
+   * sidebar's and the Setup page's - required set-up steps done of required
+   * steps. The accounts are not in it: they show their own "n of m" rows.
+   */
   done: number;
   total: number;
 };
@@ -180,7 +184,6 @@ export async function getTasks(
   if (videoLevel !== "none")
     accountTasks.push({ id: "video", connected: videoConnected, available: videoPlatforms.length, href: `${base}/videos` });
 
-  /* An account task is done with one channel: nobody is asked to be on every network. */
-  const oneOff = [...setup.map((s) => s.done), ...accountTasks.map((a) => a.connected > 0)];
-  return { work, setup, accounts: accountTasks, done: oneOff.filter(Boolean).length, total: oneOff.length };
+  // One count for every screen: the sidebar's "Setup n/total" and the Setup page's dial read the same.
+  return { work, setup, accounts: accountTasks, done: launch.progress.done, total: launch.progress.total };
 }
