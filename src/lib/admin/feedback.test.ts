@@ -22,7 +22,7 @@ const mail = vi.hoisted(() => ({ send: vi.fn() }));
 vi.mock("@/lib/email/send", () => ({ sendEmail: mail.send }));
 
 import { getAttention } from "@/lib/admin/dashboard";
-import { deleteFeedback, getFeedbackAdmin, listFeedbackAdmin, replyToFeedback, setFeedbackStatus } from "@/lib/admin/feedback";
+import { deleteFeedback, getFeedbackAdmin, listFeedbackAdmin, markAllFeedbackRead, replyToFeedback, setFeedbackStatus } from "@/lib/admin/feedback";
 import { GET as screenshot } from "@/app/(site)/admin/feedback/[id]/screenshots/[n]/route";
 
 let test: TestDb;
@@ -67,7 +67,7 @@ describe("the list", () => {
     expect(list.rows.map((row) => row.excerpt)).toEqual(["Newer problem", "Older idea"]);
     expect(list.rows[0]).toMatchObject({ kind: "problem", status: "new", screenshots: 2, replies: 0 });
     expect(list.rows[1]).toMatchObject({ screenshots: 0 });
-    expect(list.counts).toEqual({ new: 2, planned: 0, done: 1, wont_do: 0 });
+    expect(list.counts).toEqual({ new: 2, read: 0, planned: 0, done: 1, wont_do: 0 });
     expect(list.total).toBe(2);
   });
 
@@ -76,7 +76,7 @@ describe("the list", () => {
     await add({ kind: "idea", status: "planned" });
     await add({ kind: "idea" });
     expect((await listFeedbackAdmin({ view: "planned", kind: "problem", page: 1 })).rows).toHaveLength(1);
-    expect((await listFeedbackAdmin({ view: "all", kind: "idea", page: 1 })).counts).toEqual({ new: 1, planned: 1, done: 0, wont_do: 0 });
+    expect((await listFeedbackAdmin({ view: "all", kind: "idea", page: 1 })).counts).toEqual({ new: 1, read: 0, planned: 1, done: 0, wont_do: 0 });
   });
 
   it("shows a short excerpt and keeps a page number past the end on the last page", async () => {
@@ -116,6 +116,37 @@ describe("the status", () => {
     const [log] = await test.db.select().from(adminAuditLog);
     expect(log).toMatchObject({ actorEmail: ADMIN, action: "feedback.status_changed", targetId: id, summary: "Marked feedback from sam@example.com as planned" });
     expect(mail.send).not.toHaveBeenCalled();
+  });
+
+  it("Mark as read takes a message out of New (and the menu's count) without planning or closing it (owner, 2026-11-27)", async () => {
+    const id = await add();
+    await add();
+    expect((await getAttention()).newFeedback).toBe(2);
+    expect(await setFeedbackStatus({ id, status: "read" })).toEqual({ ok: true, data: null });
+    expect((await getAttention()).newFeedback).toBe(1);
+    const list = await listFeedbackAdmin({ view: "read", kind: "", page: 1 });
+    expect(list.rows.map((row) => row.id)).toEqual([id]);
+    expect(list.counts).toMatchObject({ new: 1, read: 1, planned: 0, done: 0 });
+    const [log] = await test.db.select().from(adminAuditLog);
+    expect(log.summary).toBe("Marked feedback from sam@example.com as read");
+    // Still waiting for a decision: not deletable yet.
+    expect((await deleteFeedback({ id })).ok).toBe(false);
+  });
+
+  it("Mark all as read moves every New one (of the type shown) and nothing else, in one log line", async () => {
+    await add();
+    await add({ kind: "problem" });
+    const planned = await add({ status: "planned" });
+    expect(await markAllFeedbackRead({ kind: "problem" })).toEqual({ ok: true, data: { marked: 1 } });
+    expect((await getAttention()).newFeedback).toBe(1);
+    expect(await markAllFeedbackRead()).toEqual({ ok: true, data: { marked: 1 } });
+    expect((await getAttention()).newFeedback).toBe(0);
+    expect((await test.db.select().from(feedback).where(eq(feedback.id, planned)))[0].status).toBe("planned");
+    expect(await markAllFeedbackRead()).toEqual({ ok: true, data: { marked: 0 } });
+    const logs = await test.db.select().from(adminAuditLog);
+    expect(logs.map((row) => row.action)).toEqual(["feedback.marked_all_read", "feedback.marked_all_read"]);
+    state.session = null;
+    await expect(markAllFeedbackRead()).rejects.toThrow();
   });
 
   it("refuses what is not a status, or a message that is gone", async () => {

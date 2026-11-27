@@ -17,7 +17,6 @@ export type EarnBrandKitCopy = {
   download: string;
   /** "{width} x {height} px" */
   size: string;
-  videoLabel: string;
   rules: string;
 };
 
@@ -29,6 +28,7 @@ const en: EarnBrandKitCopy = {
   claimLink: "Claim credits",
   kinds: { logo: "Logo", post: "Feed post", story: "Story", video: "Video" },
   items: {
+    promoMain: { title: "RepGet in one minute", body: "Our main vertical video: SEO articles, social videos, the AI copilot and backlinks in one growth workflow. For Reels, TikTok and Shorts." },
     promoVideo: { title: "RepGet promo video", body: "A short vertical video for Reels, TikTok, Shorts and Stories." },
     postAutopilot: { title: "Post: on autopilot", body: "For Instagram, Facebook and LinkedIn feeds." },
     postOneplace: { title: "Post: all in one place", body: "For Instagram, Facebook and LinkedIn feeds." },
@@ -40,7 +40,6 @@ const en: EarnBrandKitCopy = {
   },
   download: "Download",
   size: "{width} x {height} px",
-  videoLabel: "RepGet promo video",
   rules: "Please don't change the logo's colours or shape, and say in your post if you may receive credits for it.",
 };
 
@@ -52,6 +51,7 @@ const es: EarnBrandKitCopy = {
   claimLink: "Solicitar créditos",
   kinds: { logo: "Logotipo", post: "Publicación", story: "Historia", video: "Vídeo" },
   items: {
+    promoMain: { title: "RepGet en un minuto", body: "Nuestro vídeo vertical principal: artículos SEO, vídeos para redes, el copiloto de IA y backlinks en un solo flujo de crecimiento. Para Reels, TikTok y Shorts." },
     promoVideo: { title: "Vídeo promocional de RepGet", body: "Un vídeo vertical corto para Reels, TikTok, Shorts e Historias." },
     postAutopilot: { title: "Publicación: en piloto automático", body: "Para Instagram, Facebook y LinkedIn." },
     postOneplace: { title: "Publicación: todo en un solo lugar", body: "Para Instagram, Facebook y LinkedIn." },
@@ -63,7 +63,6 @@ const es: EarnBrandKitCopy = {
   },
   download: "Descargar",
   size: "{width} x {height} px",
-  videoLabel: "Vídeo promocional de RepGet",
   rules: "No cambie los colores ni la forma del logotipo, e indique en su publicación si puede recibir créditos por ella.",
 };
 
@@ -75,6 +74,7 @@ const fr: EarnBrandKitCopy = {
   claimLink: "Demander les crédits",
   kinds: { logo: "Logo", post: "Publication", story: "Story", video: "Vidéo" },
   items: {
+    promoMain: { title: "RepGet en une minute", body: "Notre vidéo verticale principale : articles SEO, vidéos pour les réseaux, le copilote IA et les backlinks dans un seul parcours de croissance. Pour Reels, TikTok et Shorts." },
     promoVideo: { title: "Vidéo promotionnelle RepGet", body: "Une courte vidéo verticale pour Reels, TikTok, Shorts et Stories." },
     postAutopilot: { title: "Publication : en pilote automatique", body: "Pour Instagram, Facebook et LinkedIn." },
     postOneplace: { title: "Publication : tout au même endroit", body: "Pour Instagram, Facebook et LinkedIn." },
@@ -86,7 +86,6 @@ const fr: EarnBrandKitCopy = {
   },
   download: "Télécharger",
   size: "{width} x {height} px",
-  videoLabel: "Vidéo promotionnelle RepGet",
   rules: "Ne modifiez pas les couleurs ni la forme du logo, et indiquez dans votre publication si vous pouvez recevoir des crédits pour celle-ci.",
 };
 
@@ -98,6 +97,7 @@ const it: EarnBrandKitCopy = {
   claimLink: "Richiedi i crediti",
   kinds: { logo: "Logo", post: "Post", story: "Storia", video: "Video" },
   items: {
+    promoMain: { title: "RepGet in un minuto", body: "Il nostro video verticale principale: articoli SEO, video per i social, il copilota IA e i backlink in un unico flusso di crescita. Per Reels, TikTok e Shorts." },
     promoVideo: { title: "Video promozionale RepGet", body: "Un breve video verticale per Reels, TikTok, Shorts e Storie." },
     postAutopilot: { title: "Post: in automatico", body: "Per Instagram, Facebook e LinkedIn." },
     postOneplace: { title: "Post: tutto in un unico posto", body: "Per Instagram, Facebook e LinkedIn." },
@@ -109,7 +109,6 @@ const it: EarnBrandKitCopy = {
   },
   download: "Scarica",
   size: "{width} x {height} px",
-  videoLabel: "Video promozionale RepGet",
   rules: "Non modifichi i colori o la forma del logo e indichi nel post se può ricevere crediti per esso.",
 };
 
@@ -121,6 +120,7 @@ const de: EarnBrandKitCopy = {
   claimLink: "Credits anfordern",
   kinds: { logo: "Logo", post: "Beitrag", story: "Story", video: "Video" },
   items: {
+    promoMain: { title: "RepGet in einer Minute", body: "Unser Haupt-Video im Hochformat: SEO-Artikel, Social-Videos, der KI-Copilot und Backlinks in einem Wachstums-Workflow. Für Reels, TikTok und Shorts." },
     promoVideo: { title: "RepGet-Promovideo", body: "Ein kurzes Hochformat-Video für Reels, TikTok, Shorts und Stories." },
     postAutopilot: { title: "Beitrag: auf Autopilot", body: "Für Instagram, Facebook und LinkedIn." },
     postOneplace: { title: "Beitrag: alles an einem Ort", body: "Für Instagram, Facebook und LinkedIn." },
@@ -132,7 +132,6 @@ const de: EarnBrandKitCopy = {
   },
   download: "Herunterladen",
   size: "{width} x {height} px",
-  videoLabel: "RepGet-Promovideo",
   rules: "Bitte ändern Sie weder Farben noch Form des Logos und geben Sie im Beitrag an, wenn Sie dafür Credits erhalten können.",
 };
 

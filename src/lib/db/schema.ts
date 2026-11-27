@@ -4475,9 +4475,17 @@ export const emailBroadcasts = pgTable(
   "email_broadcasts",
   {
     id: pk(),
-    /** BROADCAST_AUDIENCES (lib/broadcasts/shared.ts): all | free | paid | inactive. */
+    /** BROADCAST_AUDIENCES (lib/broadcasts/shared.ts): all | free | paid | inactive | person. */
     audience: text("audience").default("all").notNull(),
+    /**
+     * The one account a "person" broadcast goes to (owner, 2026-11-27: email
+     * one person from Admin -> Users). Null for every other audience, and once
+     * that account is deleted - a draft for a deleted account reaches nobody.
+     */
+    personId: text("person_id").references(() => user.id, { onDelete: "set null" }),
     subject: text("subject").notNull(),
+    /** The large title inside the email; empty means the subject. */
+    heading: text("heading").default("").notNull(),
     /** The grey line after the subject in an inbox list. */
     previewText: text("preview_text").default("").notNull(),
     /** Sanitised HTML: paragraphs, bold, italic, lists and links only (lib/broadcasts/content.ts). */
@@ -4508,7 +4516,7 @@ export const emailBroadcasts = pgTable(
     index("email_broadcasts_status_idx").on(table.status, table.scheduledFor),
     index("email_broadcasts_created_idx").on(table.createdAt),
     check("email_broadcasts_status_check", sql`${table.status} in ('draft', 'scheduled', 'sending', 'sent', 'cancelled')`),
-    check("email_broadcasts_audience_check", sql`${table.audience} in ('all', 'free', 'paid', 'inactive')`),
+    check("email_broadcasts_audience_check", sql`${table.audience} in ('all', 'free', 'paid', 'inactive', 'person')`),
     check("email_broadcasts_scheduled_check", sql`${table.status} <> 'scheduled' or ${table.scheduledFor} is not null`),
   ],
 );

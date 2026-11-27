@@ -9,6 +9,8 @@ import { useState, useSyncExternalStore } from "react";
 import type { LaunchStep } from "@/lib/onboarding/launch";
 import { countedSteps, setupProgress } from "@/lib/onboarding/progress";
 
+import { useBottomClearOfChat } from "./chat-clearance";
+
 /**
  * The floating "Set up · Step 3 of 7" panel, above the chat launcher.
  *
@@ -46,6 +48,9 @@ import { countedSteps, setupProgress } from "@/lib/onboarding/progress";
  * under the new logic too. A new key means those browsers start fresh; the
  * cleanup below removes the stale one so it is not left lying there.
  */
+/** The least distance from the bottom: clear of Crisp's default launcher (14px to 68px) and its hover halo. */
+const LAUNCHER_CLEARANCE = 112;
+
 const STORAGE_KEY = "repget:setup-tracker-hidden";
 
 /** The permanent key this replaced, cleared on sight. */
@@ -151,6 +156,8 @@ export function SetupTracker({
     article's page starts on the badge again, for its Publish button.
   */
   const pathname = usePathname();
+  // Above the chat launcher and any message preview it shows, wherever Crisp puts them (components/chat-clearance.ts).
+  const bottom = useBottomClearOfChat(LAUNCHER_CLEARANCE);
   const [openedHere, setOpenedHere] = useState<string | null>(null);
   const coversPublish = /^\/websites\/[^/]+\/articles\/[^/]+/.test(pathname ?? "") && openedHere !== pathname;
   const dismissed = dismissedBefore || dismissedNow || openedHere === null || coversPublish;
@@ -238,7 +245,7 @@ export function SetupTracker({
    */
   if (dismissed) {
     return (
-      <div data-slot="setup-tracker" className="fixed right-4 bottom-28 z-[999999] hidden sm:block">
+      <div data-slot="setup-tracker" className="fixed right-4 z-[999999] hidden sm:block" style={{ bottom }}>
         <button
           type="button"
           onClick={restore}
@@ -268,11 +275,17 @@ export function SetupTracker({
       here for exactly one reason: the thing being escaped is not ours to
       renumber.
 
-      bottom-28 rather than bottom-24: Crisp's launcher occupies the band 14px
+      At least 112px from the bottom (LAUNCHER_CLEARANCE), and higher when Crisp
+      shows more in the corner (a message preview, a moved launcher): measured,
+      not assumed (components/chat-clearance.ts). 112 rather than 96: Crisp's launcher occupies the band 14px
       to 68px from the bottom, and 96px left only a 28px gap that its hover
       halo still reached into.
     */
-    <div data-slot="setup-tracker" className="fixed right-4 bottom-28 z-[999999] hidden max-h-[calc(100dvh-8rem)] w-80 max-w-[calc(100vw-2rem)] overflow-y-auto overscroll-contain rounded-2xl sm:block">
+    <div
+      data-slot="setup-tracker"
+      className="fixed right-4 z-[999999] hidden w-80 max-w-[calc(100vw-2rem)] overflow-y-auto overscroll-contain rounded-2xl sm:block"
+      style={{ bottom, maxHeight: `calc(100dvh - ${bottom + 16}px)` }}
+    >
       <div className="overflow-hidden rounded-2xl border bg-card shadow-lg">
         <div className="flex items-center gap-2 border-b px-4 py-3">
           <p className="min-w-0 flex-1 text-sm font-semibold">

@@ -27,6 +27,8 @@ export type BrandKitItem = {
 const BASE = "/brand-kit";
 
 export const BRAND_KIT: readonly BrandKitItem[] = [
+  // The owner's main promo (2026-11-27, already posted on RepGet's channels): one minute, compressed for the web (H.264 + AAC, under 8 MB).
+  { id: "promoMain", kind: "video", file: `${BASE}/repget-promo-full.mp4`, preview: `${BASE}/repget-promo-full-cover.jpg`, width: 720, height: 1280 },
   { id: "promoVideo", kind: "video", file: `${BASE}/repget-promo.mp4`, preview: `${BASE}/repget-promo-cover.jpg`, width: 1080, height: 1920 },
   { id: "postAutopilot", kind: "post", file: `${BASE}/repget-post-autopilot.png`, preview: `${BASE}/thumbs/repget-post-autopilot.webp`, width: 1080, height: 1350 },
   { id: "postOneplace", kind: "post", file: `${BASE}/repget-post-one-place.png`, preview: `${BASE}/thumbs/repget-post-one-place.webp`, width: 1080, height: 1350 },

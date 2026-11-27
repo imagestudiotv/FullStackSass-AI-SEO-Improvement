@@ -16,6 +16,7 @@ import { DEFAULT_LOCALE, isLocale } from "@/lib/i18n/config";
 import { db } from "@/lib/db";
 import { socialSuggestions, videoIdeas } from "@/lib/db/schema";
 import { getGeoOverview } from "@/lib/geo/actions";
+import { checkedEngineNames } from "@/lib/geo/engines";
 import { listCalendar } from "@/lib/keywords/actions";
 import { ideaAllowance } from "@/lib/video/batches";
 import { customerStatus } from "@/lib/video/customer-view";
@@ -176,7 +177,8 @@ export const READ_TOOLS: ReadTool[] = [
   },
   {
     name: "get_ai_visibility",
-    description: "AI visibility: how often ChatGPT, Gemini and Perplexity mention the brand for the tracked questions, its score, the competitors they name instead, and each question's latest result.",
+    // The assistants named are the ones the check really asks (lib/geo/engines.ts), not a fixed list.
+    description: `AI visibility: how often the assistants RepGet's check asks (${checkedEngineNames()}) mention the brand for the tracked questions, its score, the competitors named instead, and each question's latest result.`,
     input_schema: noInput,
     page: "ai_visibility",
     run: async (ctx) => {

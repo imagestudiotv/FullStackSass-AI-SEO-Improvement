@@ -9,7 +9,12 @@ import type { GuestCopilotCopy } from "@/lib/i18n/guest-copilot";
 import { GuestCopilotChat, type GuestCopilotChatHandle } from "./guest-copilot-chat";
 import styles from "./guest-copilot.module.css";
 
-/** "Try the **AI** copilot free": the word between ** ** in bold, as in the design. */
+/**
+ * "Try the **AI** copilot free": the word between ** ** in bold, as in the
+ * design. Rendered inside ONE span: the button is a flex row with an 11px gap, and loose
+ * text runs around the <strong> each became a flex item, so the gap showed as
+ * a double space ("Try the  AI  copilot free", outside review, 2026-11-27).
+ */
 function bold(text: string) {
   return text.split("**").map((part, i) => (i % 2 === 1 ? <strong key={i}>{part}</strong> : part));
 }
@@ -76,11 +81,11 @@ export function GuestCopilotCard({
         <div className={styles.buttons}>
           {tryHref ? (
             <Link prefetch={false} href={tryHref} className={`${styles.btn} ${styles["btn-primary"]}`}>
-              {bold(t.tryFree)} <span aria-hidden="true">↗</span>
+              <span>{bold(t.tryFree)}</span> <span aria-hidden="true">↗</span>
             </Link>
           ) : (
             <button type="button" className={`${styles.btn} ${styles["btn-primary"]}`} onClick={() => chat.current?.focus()}>
-              {bold(t.tryFree)} <span aria-hidden="true">↗</span>
+              <span>{bold(t.tryFree)}</span> <span aria-hidden="true">↗</span>
             </button>
           )}
           <Link prefetch={false} href={signUpHref} className={`${styles.btn} ${styles["btn-second"]}`}>

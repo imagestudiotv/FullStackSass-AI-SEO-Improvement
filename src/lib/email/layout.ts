@@ -12,9 +12,12 @@ import { siteUrl } from "@/lib/site-url";
  * the one construction that renders the same everywhere, which is why every
  * transactional email on the internet looks like this.
  *
- * NO EXTERNAL IMAGES. A logo hosted on our domain is blocked by default in
- * most clients, so the header would be an empty box for most readers and a
- * tracking signal for the rest. The wordmark is text.
+ * ONE PICTURE: THE LOGO (owner, 2026-11-27: the logo instead of the word
+ * "RepGet"). It is the site's own file at a fixed public address, so a test
+ * sent from a preview or a laptop shows it too. Clients that hold pictures
+ * back show its alt text, "RepGet", in the same place - the old wordmark -
+ * and the width and height attributes keep the header from jumping when it
+ * loads. Nothing else in an email depends on a picture.
  *
  * NO WEB FONTS either — they are ignored by every major client. The stack
  * below is what is actually installed on the reader's machine.
@@ -22,6 +25,12 @@ import { siteUrl } from "@/lib/site-url";
 
 const FONT =
   "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+
+/**
+ * The logo at the top of every email: public/images/repget-logo.png
+ * (2757 x 690) on the production domain, shown at 140 x 35.
+ */
+export const EMAIL_LOGO = { src: "https://www.repget.com/images/repget-logo.png", width: 140, height: 35 } as const;
 
 /** Escapes text interpolated into an email. Same reasoning as any HTML sink. */
 export function escapeHtml(value: string): string {
@@ -38,7 +47,7 @@ export function escapeHtml(value: string): string {
  *
  * `preheader` is the grey line a client shows after the subject in the inbox
  * list. Left unset, clients scrape the first text they find — usually the
- * wordmark, so every message previews as "RepGet RepGet". It is hidden in the
+ * logo's alt text, so every message previews as "RepGet RepGet". It is hidden in the
  * body itself by the zero-size span below.
  */
 export function emailLayout(options: {
@@ -66,7 +75,7 @@ export function emailLayout(options: {
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:520px;background-color:#ffffff;border-radius:12px;border:1px solid #e4e4e7;">
 <tr>
 <td style="padding:28px 32px 0 32px;">
-<p style="margin:0;font-size:17px;font-weight:700;color:#18181b;letter-spacing:-0.01em;">RepGet</p>
+<img src="${EMAIL_LOGO.src}" alt="RepGet" width="${EMAIL_LOGO.width}" height="${EMAIL_LOGO.height}" style="display:block;width:${EMAIL_LOGO.width}px;height:${EMAIL_LOGO.height}px;border:0;outline:none;text-decoration:none;font-size:17px;font-weight:700;color:#18181b;">
 </td>
 </tr>
 <tr>

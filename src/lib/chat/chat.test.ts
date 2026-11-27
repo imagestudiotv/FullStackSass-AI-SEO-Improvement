@@ -43,7 +43,8 @@ import { parseBlocks, isInternalHref } from "@/components/chat/chat-markdown";
 import { recordCredit } from "@/lib/backlinks/credits";
 import { cancelChatAction, confirmChatAction, deleteChatThread, listChatThreads, loadChatThread, sendChatMessage } from "./actions";
 import { CHAT_FREE_PER_DAY } from "./config";
-import { keepOwnLinks, modelHistory, runAssistant } from "./engine";
+import { keepOwnLinks, modelHistory, runAssistant, systemPrompt } from "./engine";
+import { readTool } from "./tools";
 import { deleteOldThreads } from "./store";
 import type { ChatContext } from "./tools";
 
@@ -167,6 +168,16 @@ describe("answers", () => {
     expect(create).toHaveBeenCalledTimes(8);
     expect(result.text).toBe("Genug.");
     expect(create.mock.calls[0][0].system[0].text).toContain("Always write in German");
+  });
+
+  it("names only the assistants RepGet's AI visibility check really asks (owner review, 2026-11-27)", () => {
+    const ctx: ChatContext = { websiteId: "w", ownerOrgId: "o", userId: "user_1", access: "owner", domain: "x.example", brandName: null, locale: "en", level: "paid" };
+    const prompt = systemPrompt(ctx);
+    expect(prompt).toContain("AI visibility (RepGet's weekly check asks Claude; ChatGPT, Gemini and Perplexity are not checked");
+    expect(prompt).not.toContain("(ChatGPT, Gemini, Perplexity)");
+    const tool = readTool("get_ai_visibility");
+    expect(tool?.description).toContain("how often Claude mentions the brand");
+    expect(tool?.description).not.toMatch(/ChatGPT|Gemini|Perplexity/);
   });
 });
 
