@@ -9,7 +9,7 @@ import { bundleCouponFor, repgetFirstPaymentCents } from "@/lib/billing/repget-o
 import { getMessages } from "@/lib/i18n/messages";
 import { format } from "@/lib/i18n/format";
 import { PLAN_CARDS_COPY } from "@/lib/i18n/plan-cards";
-import { GROW_VISIBILITY_COMPARE_AT_CENTS, TRIAL_DAYS } from "@/lib/plans/features";
+import { TRIAL_DAYS } from "@/lib/plans/features";
 
 import { BUNDLE_STRIPE_COUPONS, catalogRows, REPGET_STRIPE_COUPONS, stripeAmountFor } from "../../../scripts/plan-catalog.mjs";
 import { perMonthOfYear, planDisplayPrice } from "./display-prices";
@@ -73,9 +73,9 @@ describe("the price on every plan screen is the price checkout charges", () => {
         const shown = planDisplayPrice(plan, offerOn);
 
         expect(shown.chargedCents).toBe(charged);
-        // Struck through only when something really is taken off, and then the regular price.
-        if (charged === row.priceCents && row.tier !== "grow_visibility") expect(shown.strikeCents).toBeNull();
-        else expect(shown.strikeCents).toBe(row.tier === "grow_visibility" ? GROW_VISIBILITY_COMPARE_AT_CENTS : row.priceCents);
+        // Struck through only when the launch price is taken off, and then the regular price. The bundle never (owner, 2026-11-27).
+        if (charged === row.priceCents) expect(shown.strikeCents).toBeNull();
+        else expect(shown.strikeCents).toBe(row.priceCents);
         // PayPal's REPGET plans are priced at the launch price, and the bundle's at its row's price: the same figure.
         if (offerOn && repgetFirstPaymentCents(plan) !== null) expect(repgetFirstPaymentCents(plan)).toBe(charged);
 
@@ -100,10 +100,10 @@ describe("the price on every plan screen is the price checkout charges", () => {
     }
   });
 
-  it("the bundle is EUR 129 against EUR 299 whether REPGET is on or not, and never takes the launch price", () => {
+  it("the bundle is EUR 129 with nothing struck (no EUR 299, no saving) whether REPGET is on or not, and never takes the launch price", () => {
     const bundle = { tier: "grow_visibility", interval: "month", currency: "eur", priceCents: 12900 };
-    expect(planDisplayPrice(bundle, true)).toEqual({ chargedCents: 12900, strikeCents: 29900, discount: "bundle" });
-    expect(planDisplayPrice(bundle, false)).toEqual({ chargedCents: 12900, strikeCents: 29900, discount: "bundle" });
+    expect(planDisplayPrice(bundle, true)).toEqual({ chargedCents: 12900, strikeCents: null, discount: null });
+    expect(planDisplayPrice(bundle, false)).toEqual({ chargedCents: 12900, strikeCents: null, discount: null });
   });
 
   it("a price no coupon was made for is shown as it is, offer or not", () => {
@@ -143,7 +143,8 @@ describe("the plan cards' terms", () => {
     const card = planCardsFor([plan], { offerOn: true, trialEligible: true, locale: "en", t })[plan.id];
     expect(card.terms).toEqual(["€129 billed at checkout, then monthly. The 3-day free trial does not apply to this offer."]);
     expect(card.directBadge).toBe("Direct purchase");
-    expect(card.strike).toBe("€299");
+    expect(card.strike).toBeNull();
+    expect(card.badge).toBeNull();
     expect(card.paypalNote).toBeNull();
     expect(card.perks.map((perk) => perk.strong)).toEqual(["Featured on RepGet social channels", "RepGet blog feature", "Email spotlight"]);
   });

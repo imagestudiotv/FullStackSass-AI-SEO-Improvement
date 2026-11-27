@@ -44,6 +44,7 @@ export function HomePageSections({
   plans,
   customerStories = null,
   freeCounter = null,
+  offer = false,
 }: {
   locale: Locale;
   /** Builds locale-aware paths: unchanged on English, prefixed elsewhere. */
@@ -62,6 +63,8 @@ export function HomePageSections({
   customerStories?: { stories: HomeCustomerStory[]; viewAllHref: string } | null;
   /** The Free plan's launch counter (lib/plans/free-plan-server.ts), on its pricing card; null leaves it out. */
   freeCounter?: FreePlanCounter | null;
+  /** Whether the REPGET launch price is on (REPGET_OFFER_ENABLED), so the pricing cards show what /pricing and checkout charge. */
+  offer?: boolean;
 }) {
   const props: SectionProps = { locale, href };
 
@@ -83,7 +86,7 @@ export function HomePageSections({
       ) : null}
       <Founder {...props} />
       <Reviews {...props} testimonials={testimonials} />
-      <Pricing {...props} plans={plans} freeCounter={freeCounter} />
+      <Pricing {...props} plans={plans} freeCounter={freeCounter} offer={offer} />
       <Faq {...props} />
       <FinalCta {...props} />
     </div>

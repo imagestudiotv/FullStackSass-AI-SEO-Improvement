@@ -119,9 +119,6 @@ export function signUpForPlan(tier: string): string {
  */
 export const GROW_VISIBILITY_TIER = "grow_visibility";
 
-/** The bundle's value as the client's page strikes it through ("EUR 299"), beside the price checkout charges. */
-export const GROW_VISIBILITY_COMPARE_AT_CENTS = 29900;
-
 /** Tiers bought outright: no trial, kept out of the standard plan grids and the upgrade ladder. */
 export const DIRECT_PURCHASE_TIERS: readonly string[] = [GROW_VISIBILITY_TIER];
 

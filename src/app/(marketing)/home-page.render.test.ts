@@ -9,6 +9,7 @@ import { heroCopy } from "@/lib/i18n/home/hero";
 import { copilotFounderReviewsCopy } from "@/lib/i18n/home/copilot-founder-reviews";
 import { faqCopy } from "@/lib/i18n/home/faq";
 import { pricingCopy } from "@/lib/i18n/home/pricing";
+import { pricingPageCopy } from "@/lib/i18n/pricing-page";
 import { getMessages } from "@/lib/i18n/messages";
 import type { Testimonial } from "@/lib/marketing/testimonials";
 import { FREE_PLAN, freePlanDisplay } from "@/lib/plans/free-plan";
@@ -70,10 +71,15 @@ const REVIEW: Testimonial = { name: "Fixture Studio", role: "Fixture role", quot
 
 function renderHome(
   locale: Locale,
-  { testimonials = [], contentCount = null, plans = ON_SALE }: { testimonials?: Testimonial[]; contentCount?: number | null; plans?: PlanRow[] } = {},
+  {
+    testimonials = [],
+    contentCount = null,
+    plans = ON_SALE,
+    offer = false,
+  }: { testimonials?: Testimonial[]; contentCount?: number | null; plans?: PlanRow[]; offer?: boolean } = {},
 ) {
   const href = (path: string) => (locale === "en" ? path : localePath(locale, path));
-  return renderToStaticMarkup(createElement(HomePageSections, { locale, href, testimonials, contentCount, plans }));
+  return renderToStaticMarkup(createElement(HomePageSections, { locale, href, testimonials, contentCount, plans, offer }));
 }
 
 /** Where each marker first appears, so the order can be compared. */
@@ -277,6 +283,24 @@ describe("homepage sections", () => {
     expect(html).not.toContain(esc(packages.launch.label));
     expect(card(html, packages.grow.label)).toMatch(/Grow .*€ 149 .* 30 .* 90 /);
     expect(card(html, packages.scale.label)).toMatch(/Scale .*€ 349 .* 60 .* 180 /);
+  });
+
+  it.each(LOCALES)("%s: with the launch price on, shows /pricing's price: the regular one struck, the one charged large", (locale) => {
+    const html = renderHome(locale, { offer: true });
+    const { packages } = pricingCopy(locale);
+    const page = pricingPageCopy(locale).card;
+    const grow = card(html, packages.grow.label);
+    // EUR 149 -> 89, EUR 349 -> 209: planDisplayPrice, the figures /pricing, Billing and checkout use.
+    expect(grow).toMatch(/€ ?149 .*€ ?89 /);
+    expect(grow).toContain(words(esc(page.offerBadge)));
+    expect(card(html, packages.scale.label)).toMatch(/€ ?349 .*€ ?209 /);
+    expect(html).toContain("<del>€149</del>");
+  });
+
+  it("with the launch price off, strikes nothing", () => {
+    const html = renderHome("en", { offer: false });
+    expect(html).not.toContain("<del>");
+    expect(html).not.toContain(pricingPageCopy("en").card.offerBadge);
   });
 
   it("shows what the plans table charges, not a figure of its own", () => {

@@ -9,6 +9,7 @@ import { isLocale, localePath } from "@/lib/i18n/config";
 import { HOME_META } from "@/lib/seo/home-metadata";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
 import { HomePageSections } from "@/app/(marketing)/home-page";
+import { repgetOfferEnabled } from "@/lib/billing/repget-offer";
 
 /**
  * Localised homepage: /es, /fr, /it, /de.
@@ -70,6 +71,7 @@ export default async function LocalisedHomePage({
       plans={plans}
       customerStories={customerStories}
       freeCounter={freeCounter}
+      offer={repgetOfferEnabled()}
     />
   );
 }
