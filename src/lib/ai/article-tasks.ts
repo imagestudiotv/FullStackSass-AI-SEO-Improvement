@@ -1,7 +1,8 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { MODELS } from "./client";
 
-export type ArticleTask = "research_plan" | "source_selection" | "research" | "outline" | "body" | "evidence_check" | "evidence_correction" | "image_scene" | "body_scenes";
+export type ArticleTask = "research_plan" | "source_selection" | "research" | "outline" | "body" | "evidence_check" | "evidence_correction" | "image_scene" | "body_scenes"
+  | "format_classify" | "format_check" | "format_correction";
 export type AiMeasurement = {
   task: ArticleTask;
   model: string;
@@ -32,16 +33,22 @@ export function articleTask(task: ArticleTask, researched = false) {
     evidence_correction: "claude-sonnet-5-5",
     image_scene: MODELS.EXTRACTION,
     body_scenes: MODELS.EXTRACTION,
+    // The article's format from the search results, and whether it was delivered (lib/articles/format.ts): short, structured.
+    format_classify: MODELS.EXTRACTION,
+    format_check: MODELS.EXTRACTION,
+    // A rewrite of the article itself: the writer's own model.
+    format_correction: researched ? "claude-sonnet-5-5" : MODELS.GENERATION,
   };
   return {
     model: process.env[`ARTICLE_MODEL_${task.toUpperCase()}`]?.trim() || defaults[task],
-    maxTokens: task === "research_plan" ? 1000 : task === "outline" || task === "body" || task === "evidence_correction" || task === "evidence_check" ? 16000 : 4000,
+    maxTokens: task === "research_plan" || task === "format_classify" ? 1000 : task === "outline" || task === "body" || task === "evidence_correction" || task === "evidence_check" || task === "format_correction" ? 16000 : 4000,
     promptVersion: `article-${task}-${task === "body" ? "v10" : task === "evidence_check" || task === "outline" ? "v9" : task === "evidence_correction" ? "v7" : task === "research" || task === "research_plan" ? "v4" : task === "source_selection" ? "v2" : "v1"}`,
   };
 }
 
 export function articleModelExperiment(): boolean {
-  return (["research_plan", "source_selection", "research", "outline", "body", "evidence_check", "evidence_correction", "image_scene", "body_scenes"] as const)
+  return (["research_plan", "source_selection", "research", "outline", "body", "evidence_check", "evidence_correction", "image_scene", "body_scenes",
+    "format_classify", "format_check", "format_correction"] as const)
     .some(task => Boolean(process.env[`ARTICLE_MODEL_${task.toUpperCase()}`]?.trim()));
 }
 

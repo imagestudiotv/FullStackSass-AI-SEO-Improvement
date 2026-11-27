@@ -1,5 +1,5 @@
 import { anthropic, isAiConfigured, MODELS } from "@/lib/ai/client";
-import { cleanDashes, NO_DASH_RULE } from "@/lib/articles/dashes";
+import { cleanDashes, dashRuleFor, NO_DASH_RULE } from "@/lib/articles/dashes";
 import { articlesOnDay, DAY_MS } from "@/lib/keywords/cadence";
 import type { KeywordCluster } from "@/lib/keywords/cluster";
 
@@ -67,7 +67,11 @@ Rules:
   rather than "Everything About Teeth Whitening".
 - 50-65 characters where possible, so the title is not truncated in results.
 - No clickbait, no invented statistics, no year numbers unless the keyword has one.
-- Vary the format across the set: how-to, cost guide, comparison, checklist.
+- Fit each title to what the person searching the keyword wants: a
+  collection when it asks for examples, ideas, wishes, quotes or templates
+  ("50 Birthday Wishes for a Colleague"), steps for a "how to", a comparison
+  for "best" or "vs", a cost guide for "price" or "cost". Vary the format
+  across the set only where the keywords allow it.
 - Return one article per supplied keyword, in the order given.
 - Several keywords may belong to the same topic. When they do, each title must
   answer a DIFFERENT question - a cost guide, a how-to and a comparison, not
@@ -240,7 +244,11 @@ export async function planCalendar(
    * scheduleDates), and the titles the site and RepGet already have, which
    * the new ones must not repeat (lib/sites/covered.ts).
    */
-  schedule: ScheduleOptions & { existingTitles?: string[] } = {},
+  schedule: ScheduleOptions & {
+    existingTitles?: string[];
+    /** The website's language: its grammatical dashes stay in the titles (lib/articles/dashes.ts). */
+    language?: string | null;
+  } = {},
 ): Promise<PlannedArticle[]> {
   if (!isAiConfigured()) {
     throw new Error("ANTHROPIC_API_KEY is not set");
@@ -370,6 +378,7 @@ export async function planCalendar(
           content: [
             slots.map((slot) => `${slot.keyword} (topic: ${slot.cluster.name})`).join("\n"),
             existingSection(schedule.existingTitles ?? []),
+            dashRuleFor(schedule.language),
           ]
             .filter(Boolean)
             .join("\n\n"),
@@ -414,7 +423,7 @@ export async function planCalendar(
     byKeyword.set(
       targetKeyword.trim().toLowerCase(),
       // Of the model's titles only: a search term keeps its own hyphens.
-      cleanDashes(title.trim(), { kind: "title" }).slice(0, 200),
+      cleanDashes(title.trim(), { kind: "title", language: schedule.language }).slice(0, 200),
     );
   }
 

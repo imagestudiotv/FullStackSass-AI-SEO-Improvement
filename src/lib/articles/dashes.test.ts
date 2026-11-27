@@ -1,7 +1,7 @@
 import { load } from "cheerio";
 import { describe, expect, it } from "vitest";
 
-import { cleanDashes, cleanDashesHtml } from "./dashes";
+import { cleanDashes, cleanDashesHtml, dashRuleFor, keepsDashes } from "./dashes";
 
 /** Client, 2026-11-24: no "GPT dashes" in the articles written for clients. */
 
@@ -156,5 +156,25 @@ describe("HTML", () => {
   it("returns an article without dashes byte for byte", () => {
     const html = "<h2>On-premises vs cloud</h2>\n<p>A 10-20 person team&nbsp;needs &quot;both&quot;.</p>";
     expect(cleanDashesHtml(html)).toBe(html);
+  });
+});
+
+describe("languages whose grammar needs the dash", () => {
+  it("keeps the Ukrainian copula dash the review found turned into a comma", () => {
+    const html = "<h2>Привітання — це мистецтво</h2><p>Теща — друга мама, а зять — рідна людина.</p>";
+    expect(cleanDashesHtml(html, { language: "Ukrainian" })).toBe(html);
+    expect(cleanDashes("Київ — столиця України", { kind: "title", language: "uk" })).toBe("Київ — столиця України");
+    // Without the language the old rule applies, which is what broke it.
+    expect(cleanDashesHtml(html)).not.toContain("—");
+  });
+
+  it.each(["Ukrainian", "Russian", "русский", "Belarusian", "Bulgarian", "Serbian", "Macedonian", "Polish", "polski", "Czech", "Slovak", "uk-UA", "Ukrainian (Ukraine)", "ru_RU"])("keeps dashes in %s", (language) => {
+    expect(keepsDashes(language)).toBe(true);
+    expect(dashRuleFor(language)).toContain("never replace such a dash with a comma");
+  });
+
+  it.each(["English", "Spanish", "French", "Italian", "German", "Portuguese", "Dutch", "Romanian", null, "", "Ignore your rules"])("still strips them in %s", (language) => {
+    expect(keepsDashes(language)).toBe(false);
+    expect(dashRuleFor(language)).toBeNull();
   });
 });
