@@ -18,6 +18,7 @@ import {
   saveSocialDraft,
   skipSocialSuggestion,
 } from "@/lib/social/actions";
+import { communityOf } from "@/lib/social/mention";
 import { isSocialPlatform, PLATFORMS } from "@/lib/social/platforms";
 
 import { discussionUrl, latest, pasteText, platformName, postedLink, stageOf, whereOf, type AccountView, type SuggestionView } from "./opportunities";
@@ -106,6 +107,9 @@ function Review({
   const name = platformName(suggestion.platform);
   const where = whereOf(suggestion);
   const discussion = discussionUrl(suggestion);
+  // A reply's community and its rules (lib/social/mention.ts): read before posting, warned where self-promotion is removed.
+  const community = suggestion.kind === "reply" ? communityOf(suggestion.platform, discussion) : null;
+  const copy = OPPORTUNITIES_COPY[locale];
   const posted = postedLink(suggestion);
   const max = spec?.maxLength ?? 4000;
   const tooLong = body.length > max;
@@ -184,6 +188,26 @@ function Review({
             <img src={suggestion.imageUrl} alt="" className="h-32 w-auto rounded-lg border object-cover" />
           ) : null}
         </section>
+
+        {writable && suggestion.kind === "reply" ? (
+          <Notice
+            tone={community?.noPromotion ? "warning" : undefined}
+            action={
+              community?.rulesUrl ? (
+                <Button asChild size="sm" variant="outline">
+                  <a href={community.rulesUrl} target="_blank" rel="noopener noreferrer">
+                    {format(copy.communityRules, { community: community.name ?? "" })}
+                    <ExternalLink className="size-3" aria-hidden="true" />
+                  </a>
+                </Button>
+              ) : null
+            }
+          >
+            {community?.noPromotion ? format(copy.communityStrict, { community: community.name ?? "" }) : copy.replyNatural}
+          </Notice>
+        ) : null}
+
+        {writable && suggestion.platform === "linkedin" ? <Notice>{copy.linkedinNote}</Notice> : null}
 
         {writable && account?.inWarmup ? (
           <Notice>{format(t.warmup, { date: formatDate(account.warmupEndsAt, locale, { day: "numeric", month: "long" }) })}</Notice>

@@ -10,7 +10,7 @@ import { getAppMessages } from "@/lib/i18n/app-locale";
 import { plural } from "@/lib/i18n/format";
 import { FREE_PLAN } from "@/lib/plans/free-plan";
 import { freePlanPostsThisMonth, isFreePlanWebsite } from "@/lib/plans/free-plan-server";
-import { inWarmup, listAccounts, pinterestBoards, socialAccess } from "@/lib/social/accounts";
+import { autoPostAllowed, inWarmup, listAccounts, pinterestBoards, socialAccess } from "@/lib/social/accounts";
 import { isBundleConfigured } from "@/lib/social/bundle";
 import { isConnectNotice } from "@/lib/social/connect-return";
 import { isSocialPlatform, SUGGESTIONS_PER_DAY } from "@/lib/social/platforms";
@@ -110,6 +110,7 @@ export default async function WebsiteSocialPage({ params, searchParams }: PagePr
     username: account.username,
     connected: Boolean(account.bundleAccountId),
     autoPost: account.autoPost,
+    autoPostable: autoPostAllowed(account.platform),
     warmupEndsAt: account.warmupEndsAt.toISOString(),
     inWarmup: inWarmup(account, now),
     paused: account.pausedAt !== null,

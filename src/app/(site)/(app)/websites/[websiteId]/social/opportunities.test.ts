@@ -88,7 +88,12 @@ describe("the list", () => {
       ["threads", 0, 0],
       ["pinterest", 0, 0],
       ["bluesky", 1, 0],
+      ["linkedin", 0, 0],
     ]);
+    // A platform the page does not show (LinkedIn without bundle.social) gets no empty group.
+    expect(
+      groupRows(rows, { keepEmpty: true, platforms: ["reddit", "quora", "x", "threads", "pinterest", "bluesky"] }).map((group) => group.platform),
+    ).not.toContain("linkedin");
     expect(groupRows([fresh], { keepEmpty: false }).map((group) => group.platform)).toEqual(["quora"]);
   });
 

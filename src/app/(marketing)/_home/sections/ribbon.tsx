@@ -12,7 +12,7 @@ const c = (names: string) =>
     .map((n) => styles[n] ?? n)
     .join(" ");
 
-/** The design's twelve platforms (`rgx-channel-ribbon`), each with its own small mark. */
+/** The design's channels (`rgx-channel-ribbon`): Google and ChatGPT, then the social platforms, each with its own small mark. */
 const BRANDS: { name: string; mark: ReactNode }[] = [
   { name: "Google", mark: <span className={c("rgx-brand-google")}>G</span> },
   { name: "ChatGPT", mark: <span className={c("rgx-brand-openai")}>✺</span> },

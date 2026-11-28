@@ -2871,6 +2871,8 @@ export type Messages = {
       failed: string;
       failedCredits: string;
       price: string;
+      /** In place of `price` when posting costs no credit (price 0, or the Free plan's monthly posts): never "costs Free". */
+      priceFree: string;
       free: string;
       connectedNotice: string;
       notConnectedNotice: string;
@@ -2944,6 +2946,10 @@ export type Messages = {
         too_long: string;
         warmup_link: string;
         warmup_brand: string;
+        /** A reply naming the business outside lib/social/mention.ts's conditions. */
+        mention_not_allowed: string;
+        /** Sales words or a call to action in a reply or own post (lib/social/mention.ts soundsPromotional). */
+        promotional: string;
         bad_link: string;
         not_enough_credits: string;
         /** A Free website's posts of the month are used (lib/plans/free-plan-server.ts takeFreePlanPost). */
@@ -6038,7 +6044,7 @@ const en: Messages = {
       usernamePlaceholder: "Username",
       save: "Save",
       connectedAs: "Connected as {name}",
-      warmup: "Warm-up until {date}: no links or product names yet, so the account looks like a real person.",
+      warmup: "Warm-up until {date}: no links or product names, so the account looks like a real person. After it, replies still name your business only where a discussion asks for recommendations.",
       warmupBadge: "Warm-up",
       autoPost: "Publish my posts automatically",
       autoPostHelp: "One post a day, at a different time each day.",
@@ -6080,6 +6086,7 @@ const en: Messages = {
       failed: "Not published: {reason}",
       failedCredits: "Not published: not enough credits. Buy credits, then post it with one click.",
       price: "Each post or reply costs {price}.",
+      priceFree: "Posts and replies cost no credits.",
       free: "Free",
       connectedNotice: "{platform} is connected. Your first suggestions are on their way.",
       notConnectedNotice: "{platform} was not connected. Please try again.",
@@ -6144,6 +6151,8 @@ const en: Messages = {
         too_long: "This is too long for the platform.",
         warmup_link: "No links during the warm-up.",
         warmup_brand: "No product or brand names during the warm-up.",
+        mention_not_allowed: "This reply names your business. RepGet allows that only where the discussion asks for recommendations, the community allows it, and in about 1 reply in 10 on this platform. Remove the name to post it.",
+        promotional: "This reads like an advert: it has sales words or a call to action (such as \"sign up\", \"DM me\" or \"discount code\"). Platforms remove posts like this and can ban the account. Write it as a person helping, then post it.",
         bad_link: "Only one link, to your own website.",
         not_enough_credits: "Not enough credits: this costs {price} and you have {available}.",
         free_posts_used: "You have used this month's free social posts. Upgrade to post more, or wait for next month.",
@@ -9226,7 +9235,7 @@ const es: Messages = {
       usernamePlaceholder: "Nombre de usuario",
       save: "Guardar",
       connectedAs: "Conectado como {name}",
-      warmup: "Calentamiento hasta el {date}: todavía sin enlaces ni nombres de productos, para que la cuenta parezca una persona real.",
+      warmup: "Calentamiento hasta el {date}: sin enlaces ni nombres de productos, para que la cuenta parezca una persona real. Después, las respuestas solo mencionan su negocio cuando una conversación pide recomendaciones.",
       warmupBadge: "Calentamiento",
       autoPost: "Publicar mis publicaciones automáticamente",
       autoPostHelp: "Una publicación al día, a una hora distinta cada día.",
@@ -9268,6 +9277,7 @@ const es: Messages = {
       failed: "No publicado: {reason}",
       failedCredits: "No publicado: créditos insuficientes. Compre créditos y publíquelo con un clic.",
       price: "Cada publicación o respuesta cuesta {price}.",
+      priceFree: "Las publicaciones y respuestas no cuestan créditos.",
       free: "Gratis",
       connectedNotice: "{platform} está conectado. Sus primeras sugerencias están en camino.",
       notConnectedNotice: "No se conectó {platform}. Inténtelo de nuevo.",
@@ -9332,6 +9342,8 @@ const es: Messages = {
         too_long: "Es demasiado largo para la plataforma.",
         warmup_link: "Sin enlaces durante el calentamiento.",
         warmup_brand: "Sin nombres de productos ni de marca durante el calentamiento.",
+        mention_not_allowed: "Esta respuesta menciona su negocio. RepGet solo lo permite cuando la conversación pide recomendaciones, la comunidad lo admite y, como mucho, en 1 de cada 10 respuestas en esta plataforma. Quite el nombre para publicarla.",
+        promotional: "Esto parece un anuncio: tiene palabras de venta o una llamada a la acción (como \"escríbeme\", \"prueba gratis\" o \"código de descuento\"). Las plataformas eliminan publicaciones así y pueden bloquear la cuenta. Escríbalo como una persona que ayuda y luego publíquelo.",
         bad_link: "Solo un enlace, a su propio sitio web.",
         not_enough_credits: "Créditos insuficientes: cuesta {price} y tiene {available}.",
         free_posts_used: "Ha usado las publicaciones sociales gratuitas de este mes. Mejore su plan para publicar más, o espere al mes que viene.",
@@ -12414,7 +12426,7 @@ const fr: Messages = {
       usernamePlaceholder: "Nom d’utilisateur",
       save: "Enregistrer",
       connectedAs: "Connecté en tant que {name}",
-      warmup: "Mise en route jusqu’au {date} : pas encore de liens ni de noms de produits, pour que le compte ressemble à une vraie personne.",
+      warmup: "Mise en route jusqu’au {date} : pas de liens ni de noms de produits, pour que le compte ressemble à une vraie personne. Ensuite, les réponses ne citent votre entreprise que lorsqu’une discussion demande des recommandations.",
       warmupBadge: "Mise en route",
       autoPost: "Publier mes publications automatiquement",
       autoPostHelp: "Une publication par jour, à une heure différente chaque jour.",
@@ -12456,6 +12468,7 @@ const fr: Messages = {
       failed: "Non publié : {reason}",
       failedCredits: "Non publié : crédits insuffisants. Achetez des crédits, puis publiez-le en un clic.",
       price: "Chaque publication ou réponse coûte {price}.",
+      priceFree: "Les publications et les réponses ne coûtent aucun crédit.",
       free: "Gratuit",
       connectedNotice: "{platform} est connecté. Vos premières suggestions arrivent.",
       notConnectedNotice: "{platform} n’a pas été connecté. Veuillez réessayer.",
@@ -12520,6 +12533,8 @@ const fr: Messages = {
         too_long: "C’est trop long pour la plateforme.",
         warmup_link: "Pas de liens pendant la mise en route.",
         warmup_brand: "Pas de noms de produits ni de marque pendant la mise en route.",
+        mention_not_allowed: "Cette réponse cite votre entreprise. RepGet ne l’autorise que lorsque la discussion demande des recommandations, que la communauté l’accepte, et au plus dans 1 réponse sur 10 sur cette plateforme. Retirez le nom pour la publier.",
+        promotional: "Cela ressemble à une publicité : il y a des mots commerciaux ou un appel à l’action (comme « contactez-moi », « essai gratuit » ou « code promo »). Les plateformes suppriment ce type de publication et peuvent bannir le compte. Écrivez-le comme une personne qui aide, puis publiez-le.",
         bad_link: "Un seul lien, vers votre propre site.",
         not_enough_credits: "Crédits insuffisants : cela coûte {price} et vous en avez {available}.",
         free_posts_used: "Vous avez utilisé les publications sociales gratuites de ce mois. Passez à un plan supérieur pour publier davantage, ou attendez le mois prochain.",
@@ -15602,7 +15617,7 @@ const it: Messages = {
       usernamePlaceholder: "Nome utente",
       save: "Salva",
       connectedAs: "Collegato come {name}",
-      warmup: "Riscaldamento fino al {date}: ancora niente link né nomi di prodotti, così l’account sembra una persona reale.",
+      warmup: "Riscaldamento fino al {date}: niente link né nomi di prodotti, così l’account sembra una persona reale. Dopo, le risposte nominano la Sua attività solo quando una discussione chiede consigli.",
       warmupBadge: "Riscaldamento",
       autoPost: "Pubblica i miei post automaticamente",
       autoPostHelp: "Un post al giorno, a un orario diverso ogni giorno.",
@@ -15644,6 +15659,7 @@ const it: Messages = {
       failed: "Non pubblicato: {reason}",
       failedCredits: "Non pubblicato: crediti insufficienti. Acquisti crediti, poi lo pubblichi con un clic.",
       price: "Ogni post o risposta costa {price}.",
+      priceFree: "Post e risposte non costano crediti.",
       free: "Gratis",
       connectedNotice: "{platform} è collegato. I primi suggerimenti stanno arrivando.",
       notConnectedNotice: "{platform} non è stato collegato. Riprovi.",
@@ -15708,6 +15724,8 @@ const it: Messages = {
         too_long: "È troppo lungo per la piattaforma.",
         warmup_link: "Niente link durante il riscaldamento.",
         warmup_brand: "Niente nomi di prodotti o del marchio durante il riscaldamento.",
+        mention_not_allowed: "Questa risposta nomina la Sua attività. RepGet lo consente solo quando la discussione chiede consigli, la community lo ammette e al massimo in 1 risposta su 10 su questa piattaforma. Tolga il nome per pubblicarla.",
+        promotional: "Sembra una pubblicità: contiene parole di vendita o un invito all’azione (come \"scrivimi\", \"prova gratuita\" o \"codice sconto\"). Le piattaforme rimuovono post del genere e possono bannare l’account. Lo scriva come una persona che aiuta, poi lo pubblichi.",
         bad_link: "Un solo link, al suo sito.",
         not_enough_credits: "Crediti insufficienti: costa {price} e ne ha {available}.",
         free_posts_used: "Ha usato i post social gratuiti di questo mese. Passi a un piano superiore per pubblicarne altri, o attenda il mese prossimo.",
@@ -18786,7 +18804,7 @@ const de: Messages = {
       usernamePlaceholder: "Benutzername",
       save: "Speichern",
       connectedAs: "Verbunden als {name}",
-      warmup: "Aufwärmphase bis {date}: noch keine Links und keine Produktnamen, damit das Konto wie eine echte Person wirkt.",
+      warmup: "Aufwärmphase bis {date}: keine Links und keine Produktnamen, damit das Konto wie eine echte Person wirkt. Danach nennen Antworten Ihr Unternehmen nur, wenn eine Diskussion nach Empfehlungen fragt.",
       warmupBadge: "Aufwärmphase",
       autoPost: "Meine Beiträge automatisch veröffentlichen",
       autoPostHelp: "Ein Beitrag pro Tag, jeden Tag zu einer anderen Uhrzeit.",
@@ -18828,6 +18846,7 @@ const de: Messages = {
       failed: "Nicht veröffentlicht: {reason}",
       failedCredits: "Nicht veröffentlicht: nicht genug Credits. Kaufen Sie Credits und posten Sie ihn dann mit einem Klick.",
       price: "Jeder Beitrag und jede Antwort kostet {price}.",
+      priceFree: "Beiträge und Antworten kosten keine Credits.",
       free: "Kostenlos",
       connectedNotice: "{platform} ist verbunden. Ihre ersten Vorschläge sind unterwegs.",
       notConnectedNotice: "{platform} wurde nicht verbunden. Bitte versuchen Sie es erneut.",
@@ -18892,6 +18911,8 @@ const de: Messages = {
         too_long: "Das ist zu lang für die Plattform.",
         warmup_link: "Keine Links während der Aufwärmphase.",
         warmup_brand: "Keine Produkt- oder Markennamen während der Aufwärmphase.",
+        mention_not_allowed: "Diese Antwort nennt Ihr Unternehmen. RepGet erlaubt das nur, wenn die Diskussion nach Empfehlungen fragt, die Community es zulässt, und höchstens in etwa 1 von 10 Antworten auf dieser Plattform. Entfernen Sie den Namen, um sie zu posten.",
+        promotional: "Das liest sich wie Werbung: Es enthält Verkaufswörter oder eine Handlungsaufforderung (etwa „schreib mir“, „kostenlos testen“ oder „Rabattcode“). Plattformen entfernen solche Beiträge und können das Konto sperren. Schreiben Sie es wie jemand, der hilft, und posten Sie es dann.",
         bad_link: "Nur ein Link, zu Ihrer eigenen Website.",
         not_enough_credits: "Nicht genug Credits: Das kostet {price}, und Sie haben {available}.",
         free_posts_used: "Sie haben die kostenlosen Social-Media-Beiträge dieses Monats genutzt. Upgraden Sie, um mehr zu posten, oder warten Sie auf den nächsten Monat.",

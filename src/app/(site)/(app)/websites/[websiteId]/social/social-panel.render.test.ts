@@ -68,11 +68,11 @@ function render(over: Partial<Props> = {}, locale: (typeof LOCALES)[number] = "e
     websiteId: "w1",
     canEdit: true,
     level: "paid",
-    platforms: ["reddit", "quora", "x", "threads", "pinterest", "bluesky"],
+    platforms: ["reddit", "quora", "x", "threads", "pinterest", "bluesky", "linkedin"],
     bundle: true,
     accounts: [
-      { platform: "quora", username: "jane", connected: false, autoPost: false, warmupEndsAt: "2026-10-01T00:00:00Z", inWarmup: false, paused: false, target: null },
-      { platform: "x", username: "jane_x", connected: true, autoPost: true, warmupEndsAt: "2026-10-01T00:00:00Z", inWarmup: false, paused: true, target: null },
+      { platform: "quora", username: "jane", connected: false, autoPost: false, autoPostable: true, warmupEndsAt: "2026-10-01T00:00:00Z", inWarmup: false, paused: false, target: null },
+      { platform: "x", username: "jane_x", connected: true, autoPost: true, autoPostable: true, warmupEndsAt: "2026-10-01T00:00:00Z", inWarmup: false, paused: true, target: null },
     ],
     open: [
       row(),
@@ -103,14 +103,18 @@ function card(html: string, name: string): string {
 }
 
 describe("the Social connections panel", () => {
-  it("counts the connected accounts and shows the six platforms, connected or ready to connect", () => {
+  it("counts the connected accounts and shows the seven platforms, connected or ready to connect", () => {
     const html = render();
     expect(html).toContain("Social connections");
     expect(html).toContain("Suggestions work without an account. Connect a channel and RepGet can publish your own posts there.");
-    expect(html).toContain("2 of 6 connected");
-    expect(html).toMatch(/width:33\.33\d*%/);
+    expect(html).toContain("2 of 7 connected");
+    expect(html).toMatch(/width:28\.57\d*%/);
     expect(html).toContain('id="social-connections"');
-    for (const name of ["Reddit", "Quora", "X (Twitter)", "Threads", "Pinterest", "Bluesky"]) card(html, name);
+    for (const name of ["Reddit", "Quora", "X (Twitter)", "Threads", "Pinterest", "Bluesky", "LinkedIn"]) card(html, name);
+    // LinkedIn: own posts only, and why there are no conversations.
+    const linkedin = card(html, "LinkedIn");
+    expect(linkedin).toContain("Own posts only");
+    expect(linkedin).toContain("LinkedIn does not let apps find or answer other people&#x27;s posts");
 
     // Quora by username, X through bundle.social: both linked, both one click from disconnecting.
     for (const name of ["Quora", "X (Twitter)"]) {
@@ -133,7 +137,7 @@ describe("the Social connections panel", () => {
 
   it("shows a trial's other platforms as locked: the lock's words and a Connect that cannot be clicked", () => {
     const html = render({ level: "trial", platforms: ["quora"] });
-    expect(html).toContain("1 of 6 connected");
+    expect(html).toContain("1 of 7 connected");
     const reddit = card(html, "Reddit");
     expect(reddit).toContain("Included once your plan starts.");
     expect(reddit).toMatch(/<button[^>]*disabled=""[^>]*>Connect<\/button>/);
@@ -146,14 +150,14 @@ describe("the Social connections panel", () => {
 
   it("offers no settings before an account is connected", () => {
     const html = render({ accounts: [], open: [], posted: [] });
-    expect(html).toContain("0 of 6 connected");
+    expect(html).toContain("0 of 7 connected");
     expect(html).not.toContain("Account settings");
-    expect(html.match(/>Connect<\/button>/g)).toHaveLength(6);
+    expect(html.match(/>Connect<\/button>/g)).toHaveLength(7);
   });
 
   it("is read-only for a viewer: the states, no Connect or Disconnect", () => {
     const html = render({ canEdit: false });
-    expect(html).toContain("2 of 6 connected");
+    expect(html).toContain("2 of 7 connected");
     expect(card(html, "Quora")).toContain("Account linked");
     expect(html).not.toContain(">Connect</button>");
     expect(html).not.toContain(">Disconnect</button>");
@@ -204,9 +208,9 @@ describe("the Opportunities page", () => {
 
   it("lists every platform in one row: its name, count, connection, new and total, closed at first", () => {
     const html = render();
-    expect(html).toContain("Showing 5 of 5 opportunities across 6 platforms");
+    expect(html).toContain("Showing 5 of 5 opportunities across 7 platforms");
     const groups = [...html.matchAll(/<li[^>]*data-platform="(\w+)"[\s\S]*?<h3><button[^>]*aria-expanded="(\w+)"[^>]*aria-controls="([^"]+)"[^>]*>([\s\S]*?)<\/button><\/h3>/g)];
-    expect(groups.map(([, platform]) => platform)).toEqual(["reddit", "quora", "x", "threads", "pinterest", "bluesky"]);
+    expect(groups.map(([, platform]) => platform)).toEqual(["reddit", "quora", "x", "threads", "pinterest", "bluesky", "linkedin"]);
     expect(groups.every(([, , expanded]) => expanded === "false")).toBe(true);
     const text = (platform: string) => groups.find(([, name]) => name === platform)![4].replace(/<svg[\s\S]*?<\/svg>/g, "").replace(/<[^>]+>/g, "|").replace(/\|+/g, "|");
     expect(text("quora")).toBe("|Quora|3 opportunities · Connected|1 new|3 total|");
@@ -247,6 +251,13 @@ describe("the Opportunities page", () => {
     const html = render({ priceLabel: getMessages("en").app.social.free });
     expect(html).toContain("Open on Quora<svg");
     expect(html).not.toContain("· Free</span>");
+  });
+
+  it.each(LOCALES)("%s: says posts cost no credits where they are free (a trial, the Free plan), never \"costs Free\"", (locale) => {
+    const t = getMessages(locale).app.social;
+    const html = render({ priceLabel: t.free }, locale);
+    expect(html).toContain(t.priceFree.replace(/'/g, "&#x27;"));
+    expect(html).not.toContain(t.price.replace("{price}", t.free));
   });
 
   it("needs no account: a new website is told so, with Find suggestions first and Connect as an option", () => {
@@ -295,7 +306,7 @@ describe("the Free plan's allowance under the list (8 social posts a month, a ha
   it("drops the day's count once the month's drafts are used up, and the finder with it", () => {
     const t = getMessages("en").app.social;
     const html = render({ freeMonth: { posts: 8, postsMax: 8, draftsLeft: 0 }, priceLabel: t.free });
-    expect(html).toContain("8 of 8 posts this month · Each post or reply costs");
+    expect(html).toContain("8 of 8 posts this month · Posts and replies cost no credits.");
     expect(html).not.toContain("4 of 10 today");
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*>(?:(?!<\/button>).)*Find suggestions/);
   });
@@ -304,5 +315,32 @@ describe("the Free plan's allowance under the list (8 social posts a month, a ha
     const html = render();
     expect(html).toContain("4 of 10 today · Each post or reply costs 1 credit.");
     expect(html).not.toContain("this month");
+  });
+});
+
+describe("LinkedIn and natural replies on the page", () => {
+  it("hides LinkedIn everywhere while bundle.social is not set up", () => {
+    const html = render({ bundle: false, platforms: ["reddit", "quora", "x", "threads", "pinterest", "bluesky"] });
+    expect(html).toContain("2 of 6 connected");
+    expect(html).not.toContain("LinkedIn");
+    expect(html).not.toContain('data-platform="linkedin"');
+  });
+
+  it("marks a reply in a community that removes self-promotion", () => {
+    const html = render({
+      open: [row({ platform: "reddit", threadUrl: "https://www.reddit.com/r/smallbusiness/comments/abc123/x/", threadTitle: "Tips?" })],
+      posted: [],
+    });
+    expect(html).toContain("No self-promotion");
+  });
+
+  it.each(LOCALES)("has the new words in %s", (locale) => {
+    const copy = OPPORTUNITIES_COPY[locale];
+    for (const text of [copy.replyNatural, copy.communityRules, copy.communityStrict, copy.communityStrictShort, copy.linkedinNote, copy.linkedinCard]) {
+      expect(text.trim().length).toBeGreaterThan(0);
+    }
+    expect(copy.communityRules).toContain("{community}");
+    expect(copy.communityStrict).toContain("{community}");
+    expect(getMessages(locale).app.social.errors.mention_not_allowed.length).toBeGreaterThan(20);
   });
 });

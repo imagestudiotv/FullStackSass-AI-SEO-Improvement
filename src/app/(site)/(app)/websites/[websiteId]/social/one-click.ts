@@ -1,4 +1,4 @@
-import { copyTextNow } from "@/lib/copy-text";
+import { copyTextWhen } from "@/lib/copy-text";
 import type { SocialResult } from "@/lib/social/actions";
 import { isSocialPlatform } from "@/lib/social/platforms";
 import { postTarget, postText, type PostEdit } from "@/lib/social/post-target";
@@ -6,15 +6,21 @@ import { postTarget, postText, type PostEdit } from "@/lib/social/post-target";
 import type { SuggestionView } from "./opportunities";
 
 /**
- * The one-click post, without React: the click copies the text and opens the
- * platform's own address at once, and RepGet records it behind it.
+ * The one-click post, without React. THE SERVER CHECKS FIRST (2026-11-28):
+ * nothing is copied and no platform page opens before RepGet has checked the
+ * text and recorded the post (lib/social/actions.ts postSocialSuggestion:
+ * the warm-up, a reply naming the business where it may not, promotional
+ * words, the credit). Copied and opened first, a refused reply could still be
+ * pasted on Reddit, Bluesky or Quora.
  *
- * Nothing is waited for before the tab opens (client, 2026-11-24: "Open on
- * Reddit" opened a tab that stayed blank). It used to open an empty tab and
- * send it to the address the server answered with; any answer that came late,
- * or never, left that tab empty. The address is the one the server works out
- * too (lib/social/post-target.ts). When the server then refuses, nothing is
- * charged or moved, RepGet says why, and the opened tab stays open.
+ * So the click opens a blank tab at once (a tab opened after the answer is
+ * blocked as a popup) and asks for the copy (written only when the server
+ * agrees, lib/copy-text.ts copyTextWhen); the answer sends the tab to the
+ * platform, or closes it and the page says why. The address is worked out
+ * here, by the same rule as the server (lib/social/post-target.ts), so it
+ * never waits for the server to send one (client, 2026-11-24: a tab sent to
+ * the answer's address stayed blank when the answer came late). One with no
+ * answer at all is closed after RECORD_WAIT_MS; a later "yes" offers the link.
  */
 
 /** The button is free again after this long without an answer; a later answer is still reported. */
@@ -37,7 +43,8 @@ export type OneClickReport = {
   refused: (result: Refusal | null) => void;
   /** No answer yet: it may or may not have been recorded. */
   slow: () => void;
-  done: (outcome: { url: string; opened: boolean; copied: boolean; filled: boolean }) => void;
+  /** `late`: the answer came after RECORD_WAIT_MS, when the blank tab had been closed (opened is false). */
+  done: (outcome: { url: string; opened: boolean; copied: boolean; filled: boolean; late: boolean }) => void;
 };
 
 /**
@@ -59,6 +66,38 @@ export function openTab(url: string): boolean {
   return true;
 }
 
+/** A blank tab, opened in the click and cut off from this page; sent to the platform later (sendTab). */
+function openBlankTab(): Window | null {
+  const tab = window.open("", "_blank");
+  if (!tab) return null;
+  try {
+    // Before the platform's page is in it: it never reaches back into RepGet.
+    tab.opener = null;
+  } catch {
+    // Already out of this page's reach.
+  }
+  return tab;
+}
+
+function sendTab(tab: Window, url: string): boolean {
+  try {
+    if (tab.closed) return false;
+    // Replaced, so Back does not lead to the blank page.
+    tab.location.replace(url);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function closeTab(tab: Window | null) {
+  try {
+    tab?.close();
+  } catch {
+    // Nothing to close.
+  }
+}
+
 const within = (promise: Promise<boolean>, ms: number) =>
   Promise.race([promise.catch(() => false), new Promise<boolean>((resolve) => setTimeout(() => resolve(false), ms))]);
 
@@ -66,20 +105,35 @@ const within = (promise: Promise<boolean>, ms: number) =>
 export function oneClickPost({ row, text, edit, record }: OneClickPost, report: OneClickReport): void {
   if (!isSocialPlatform(row.platform)) return report.refused(null);
   const platform = row.platform;
-  // The server's own rule: what it would surely refuse does not open a tab first.
+  // The server's own rule: what it would surely refuse opens no tab at all.
   const checked = postText(platform, row.title, edit);
   if (!checked.ok) return report.refused(checked);
   const { url, filled } = postTarget({ platform, threadUrl: row.threadUrl, link: row.link, imageUrl: row.imageUrl }, checked);
   if (!url.startsWith("https://")) return report.refused(null);
 
-  // The copy goes first, while this page still has the focus the new tab is about to take (lib/copy-text.ts).
-  const copying = copyTextNow(text);
-  const opened = openTab(url);
-  const slow = setTimeout(report.slow, RECORD_WAIT_MS);
+  let approve: (ok: boolean) => void = () => {};
+  const approved = new Promise<boolean>((resolve) => (approve = resolve));
+  // Asked for first, while this page still has the focus the new tab is about to take; written only on a yes.
+  const copying = copyTextWhen(text, approved);
+  let tab = openBlankTab();
+  let late = false;
+  const slow = setTimeout(() => {
+    // A tab left blank is worse than none: closed, and a later yes offers the link instead.
+    late = true;
+    closeTab(tab);
+    tab = null;
+    report.slow();
+  }, RECORD_WAIT_MS);
   void (async () => {
     const result = await record().catch(() => null);
     clearTimeout(slow);
-    if (!result?.ok) return report.refused(result);
-    report.done({ url, opened, copied: await within(copying, COPY_WAIT_MS), filled });
+    if (!result?.ok) {
+      approve(false);
+      closeTab(tab);
+      return report.refused(result);
+    }
+    approve(true);
+    const opened = tab ? sendTab(tab, url) : false;
+    report.done({ url, opened, copied: await within(copying, COPY_WAIT_MS), filled, late });
   })();
 }
