@@ -35,7 +35,7 @@ export type SocialAccess = {
  * platform, with `manualOnly`. A trial's Quora has no own posts, so it would
  * test one reply box and call the rest locked; but a paid plan's accounts publish
  * by themselves once connected (social_accounts.auto_post defaults to on), and
- * this site must not. So it is suggestions and one-click posts on all six, and
+ * this site must not. So it is suggestions and one-click posts on every platform, and
  * suggest.ts and publish.ts never hand a post to bundle.social.
  */
 export async function socialAccess(websiteId: string): Promise<SocialAccess> {

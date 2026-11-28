@@ -49,7 +49,8 @@ const LOGO: Record<SocialPlatform, ReactNode> = {
 
 /**
  * Social connections (client's design, 2026-11-11: "all socials in one line
- * with option to click connect"): the six platforms as cards, each connected
+ * with option to click connect"): every platform Social offers as a card
+ * (platforms.ts availablePlatforms: LinkedIn only with bundle.social), each connected
  * or disconnected in one click, with a count and a meter.
  *
  * Connect goes to bundle.social's page and comes back here, at this panel,

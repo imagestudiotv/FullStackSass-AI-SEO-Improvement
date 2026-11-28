@@ -38,7 +38,8 @@ import { atTime, CopyTextButton, priceText, useSocialAction, type T } from "./so
 
 /**
  * The Opportunities page (client, 2026-10-27; redesigned from the client's
- * design, 2026-11-03). The six platforms as cards, each connected or
+ * design, 2026-11-03). Every platform Social offers as a card (platforms.ts
+ * availablePlatforms: LinkedIn only with bundle.social), each connected or
  * disconnected in one click (connections-panel.tsx, client's design
  * 2026-11-11), the connected ones' settings behind the panel's "Account
  * settings"; then every opportunity in one panel, from the first suggestion
