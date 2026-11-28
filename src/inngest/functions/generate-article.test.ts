@@ -10,6 +10,11 @@ import { createTestDb, type TestDb } from "@/test/db";
 import { seedCalendarItem, seedWebsite } from "@/test/fixtures";
 
 const state = vi.hoisted(() => ({ db: null as unknown }));
+// The format is read by a model call (lib/articles/format.ts): none here, a plain guide.
+vi.mock("@/lib/articles/format", async (original) => ({
+  ...(await original<object>()),
+  classifyArticleFormat: async () => ({ format: "guide", minItems: null, basis: "keyword", results: 0 }),
+}));
 vi.mock("@/lib/db", () => ({
   db: new Proxy({}, { get: (_t, p) => Reflect.get(state.db as object, p) }),
 }));

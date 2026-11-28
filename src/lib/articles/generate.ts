@@ -2,7 +2,8 @@ import { anthropic, isAiConfigured } from "@/lib/ai/client";
 import { articleTask, measuredRequest, type MeasureAi } from "@/lib/ai/article-tasks";
 import type { ResearchBrief } from "./research-types";
 import { dataBlock, dataRule } from "@/lib/ai/untrusted";
-import { cleanDashes, cleanDashesHtml, NO_DASH_RULE } from "@/lib/articles/dashes";
+import { cleanDashes, cleanDashesHtml, dashRuleFor, NO_DASH_RULE } from "@/lib/articles/dashes";
+import { formatInstruction, type FormatPlan } from "./format-plan";
 import { sanitizeHtml } from "@/lib/articles/sanitize";
 import { styleHint } from "@/lib/websites/article-options";
 import { isSupportedLanguage } from "@/lib/websites/languages";
@@ -28,6 +29,12 @@ export type ArticleBrief = {
   title: string;
   targetKeyword: string;
   intent: string | null;
+  /**
+   * What the pages ranking for the keyword are - a collection of examples,
+   * steps, a comparison... (lib/articles/format.ts). Absent or null: no
+   * format was read, and the prompts' general rules apply as before.
+   */
+  format?: FormatPlan | null;
   /** Related terms from the keyword cluster, worked in naturally. */
   relatedKeywords: string[];
   brandName: string | null;
@@ -246,6 +253,10 @@ export function briefContext(brief: ArticleBrief): string {
     `Title: ${brief.title}`,
     `Target keyword: ${brief.targetKeyword}`,
     brief.intent ? `Search intent: ${brief.intent}` : null,
+    // The format the search results show readers expect, with what it requires (lib/articles/format-plan.ts).
+    formatInstruction(brief.format),
+    // A language whose grammar needs the dash keeps it (lib/articles/dashes.ts).
+    dashRuleFor(brief.language),
     brief.relatedKeywords.length
       ? `${brief.research?.status === "ready" ? "Optional related terms, only when relevant and supported" : "Related terms to cover"}: ${brief.relatedKeywords.join(", ")}`
       : null,

@@ -7,7 +7,8 @@ import { inngest } from "@/inngest/client";
 import { articleTask, articleModelExperiment, estimatedAiCost, type MeasureAi } from "@/lib/ai/article-tasks";
 import { planResearchSearch, rankResearchSources, collectResearchSources, synthesizeResearch, checkResearchEvidence } from "@/lib/articles/research";
 import { correctResearchDraft, needsEvidenceCorrection } from "@/lib/articles/evidence-correction";
-import { articleSearch } from "@/lib/providers/dataforseo";
+import { articleSearch, isDataForSeoConfigured } from "@/lib/providers/dataforseo";
+import { checkArticleFormat, classifyArticleFormat, correctArticleFormat, formatHoldWarning, formatOutcome, formatSearchMarket, needsFormatCheck, type SerpResult } from "@/lib/articles/format";
 import { researchMode, researchNeedsReview, type ResearchBrief } from "@/lib/articles/research-types";
 import { db } from "@/lib/db";
 import type { Executor } from "@/lib/billing/spend-quota";
@@ -427,7 +428,49 @@ export const generateArticle = inngest.createFunction(
         .where(eq(articles.id, articleId));
       return result;
     });
-    const writingBrief: ArticleBrief = { ...brief.brief, research, intent: brief.brief.intent ?? research?.intent ?? null };
+    /**
+     * The format the reader expects, read from Google's top results for the
+     * keyword (lib/articles/format.ts): "wishes for a son-in-law" ranks
+     * collections of wishes, so the article must be one (review of
+     * 2026-11-27). One search - cached for three days and often already
+     * paid for by research - and one Haiku call, both metered. Anything that
+     * fails leaves the format unknown and the article is written as before.
+     *
+     * Entitlement is checked before each call (beforeSpend), but the article's
+     * reservation is not consumed here: a fraction of a cent spent before the
+     * outline must not cost the customer the article's slot when the outline
+     * then fails - that slot is given back, as before, until the writing
+     * itself has been paid for.
+     */
+    const formatPlan = await step.run("article-format", async () => {
+      const startedAt = Date.now();
+      try {
+        await requireEntitledForSpend(brief.websiteId, { freeArticles: true });
+        const market = isDataForSeoConfigured() ? formatSearchMarket(brief.brief.country, brief.brief.language) : null;
+        let results: SerpResult[] = [];
+        if (market) {
+          try {
+            const found = await paidCall(undefined, () => articleSearch(brief.brief.targetKeyword, market.location, market.language, costUsd =>
+              track(organizationId, {
+                kind: "seo_api", provider: "dataforseo", websiteId: brief.websiteId, costUsd,
+                metadata: { purpose: "article_format_search", articleId, costBasis: costUsd === undefined ? "unknown" : "provider_reported" },
+              })), { beforeSpend: () => requireEntitledForSpend(brief.websiteId, { freeArticles: true }) });
+            results = found.items;
+          } catch {
+            logger.warn({ articleId, step: "article-format" }, "Search results for the format unavailable; judging from the keyword");
+          }
+        }
+        const plan = await paidCall(undefined, () => classifyArticleFormat(brief.brief, results, meter),
+          { beforeSpend: () => requireEntitledForSpend(brief.websiteId, { freeArticles: true }) });
+        logger.info({ step: "article-format", articleId, format: plan.format, minItems: plan.minItems, basis: plan.basis, results: plan.results, durationMs: Date.now() - startedAt }, "Article format chosen");
+        return plan;
+      } catch (error) {
+        if (error instanceof NonRetriableError) throw error;
+        logger.warn({ articleId, step: "article-format", reason: error instanceof Error ? error.message.slice(0, 200) : "unknown" }, "Article format could not be chosen; writing without one");
+        return null;
+      }
+    });
+    const writingBrief: ArticleBrief = { ...brief.brief, research, intent: brief.brief.intent ?? research?.intent ?? null, format: formatPlan };
 
     const outline = await step.run("write-outline", async () => {
       const startedAt = Date.now();
@@ -467,7 +510,7 @@ export const generateArticle = inngest.createFunction(
       return { ...result, modelExperiment };
     });
 
-    const draft = await step.run("write-body", async () => {
+    const firstDraft = await step.run("write-body", async () => {
       const startedAt = Date.now();
       const modelExperiment = articleModelExperiment();
       const result = await paidCall(
@@ -500,6 +543,63 @@ export const generateArticle = inngest.createFunction(
 
       return { ...result, modelExperiment };
     });
+
+    /*
+      Does the draft deliver its format? A Haiku check, then at most ONE
+      correction, each its own memoized paid step - a retry never repeats a
+      finished one, and a "no" never starts a loop. Before the evidence
+      checks, so a researched article's corrected text is the one they check.
+      A failed check or correction keeps the draft as written.
+    */
+    const formatReview = await step.run("check-format", async () => {
+      if (!needsFormatCheck(formatPlan, firstDraft.bodyHtml)) return null;
+      try {
+        return await paidCall(reservations, () => checkArticleFormat(firstDraft.bodyHtml, writingBrief, formatPlan, meter),
+          { beforeSpend: () => requireEntitledForSpend(brief.websiteId, { freeArticles: true }) });
+      } catch (error) {
+        if (error instanceof NonRetriableError) throw error;
+        logger.warn({ articleId, step: "check-format" }, "Format check unavailable; keeping the draft");
+        return null;
+      }
+    });
+    const formatFix = await step.run("correct-format", async () => {
+      if (!formatPlan || !formatReview || formatReview.delivers) return null;
+      const modelExperiment = articleModelExperiment();
+      try {
+        const result = await paidCall(reservations, () => correctArticleFormat(firstDraft.bodyHtml, writingBrief, formatPlan, formatReview, meter),
+          { beforeSpend: () => requireEntitledForSpend(brief.websiteId, { freeArticles: true }) });
+        logger.info({ step: "correct-format", articleId, format: formatPlan.format, problems: formatReview.problems.length, wordsBefore: firstDraft.wordCount, wordsAfter: result.wordCount }, "Draft corrected to its format");
+        return { ...result, modelExperiment };
+      } catch (error) {
+        if (error instanceof NonRetriableError) throw error;
+        logger.warn({ articleId, step: "correct-format", format: formatPlan.format }, "Format correction could not finish; keeping the draft");
+        return null;
+      }
+    });
+    /*
+      The correction is checked once more, by the same Haiku check. There is
+      no second correction: a "no" here holds the article for a person
+      (formatOutcome) instead of starting a loop. Its own memoized step.
+    */
+    const formatRecheck = await step.run("recheck-format", async () => {
+      if (!formatPlan || !formatFix) return null;
+      try {
+        return await paidCall(reservations, () => checkArticleFormat(formatFix.bodyHtml, writingBrief, formatPlan, meter),
+          { beforeSpend: () => requireEntitledForSpend(brief.websiteId, { freeArticles: true }) });
+      } catch (error) {
+        if (error instanceof NonRetriableError) throw error;
+        logger.warn({ articleId, step: "recheck-format" }, "Corrected draft could not be re-checked; holding it for review");
+        return null;
+      }
+    });
+    const formatResult = formatOutcome(formatReview, Boolean(formatFix), formatRecheck);
+    if (formatResult.held && formatPlan) {
+      logger.warn({ articleId, step: "recheck-format", format: formatPlan.format, corrected: Boolean(formatFix),
+        rechecked: Boolean(formatRecheck), problems: formatResult.problems.length }, "Draft still misses its format; held for review");
+    }
+    const draft = formatFix
+      ? { ...firstDraft, bodyHtml: formatFix.bodyHtml, wordCount: formatFix.wordCount, modelExperiment: firstDraft.modelExperiment || formatFix.modelExperiment }
+      : firstDraft;
 
     const checkedResearch = await step.run("check-evidence", async () => {
       if (!research) return null;
@@ -952,7 +1052,16 @@ export const generateArticle = inngest.createFunction(
         2026-11-26; lib/articles/outside-links.ts), so a stored article never
         links one. The evidence check itself is unchanged.
       */
-      const finalResearch = reviewedResearch;
+      /*
+        A draft that still misses its format after the one correction is held
+        like one with evidence warnings (researchReviewRequired): no publishing
+        path sends it, and the two-step flow does not call it checked, until a
+        person approves the saved version. A researched article also carries
+        the reason among its warnings, which its review panel shows.
+      */
+      const finalResearch = reviewedResearch && formatResult.held && formatPlan
+        ? { ...reviewedResearch, warnings: [...reviewedResearch.warnings, formatHoldWarning(formatPlan, formatResult.problems)] }
+        : reviewedResearch;
       /*
         The managed Partner Network's review gate: a website accepting network
         links has every new draft held for the RepGet team, who place links
@@ -968,7 +1077,7 @@ export const generateArticle = inngest.createFunction(
           .set({
             reviewStatus,
             research: finalResearch,
-            researchReviewRequired: researchNeedsReview(finalResearch) || outline.modelExperiment || written.modelExperiment || articleModelExperiment(),
+            researchReviewRequired: formatResult.held || researchNeedsReview(finalResearch) || outline.modelExperiment || written.modelExperiment || articleModelExperiment(),
             researchApprovedHash: null,
             researchApprovedAt: null,
             researchApprovedBy: null,
@@ -1462,6 +1571,9 @@ export async function queueArticleForCalendarItem(
     return requeueArticle({ websiteId, articleId: existing.id, status: "queued" });
   }
 
+  // The title keeps the dashes its language's grammar needs (lib/articles/dashes.ts).
+  const [site] = await db.select({ language: websites.language }).from(websites).where(eq(websites.id, websiteId)).limit(1);
+
   /**
    * A NEW article: one slot of this period's allowance, reserved in the same
    * transaction that creates the row.
@@ -1553,7 +1665,7 @@ export async function queueArticleForCalendarItem(
         websiteId,
         calendarItemId,
         // A topic planned before the titles were written without dashes (lib/articles/dashes.ts).
-        title: cleanDashes(item.title, { kind: "title" }),
+        title: cleanDashes(item.title, { kind: "title", language: site?.language }),
         targetKeyword: item.targetKeyword,
         status: "queued",
       })

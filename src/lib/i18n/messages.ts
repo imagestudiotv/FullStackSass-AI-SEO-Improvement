@@ -1629,6 +1629,8 @@ export type Messages = {
       addKeywordsLabel: string;
       addKeywordsButton: string;
       addKeywordsPlaceholder: string;
+      /** The field's example, from the website's own services: {examples}. */
+      addKeywordsExample: string;
       addKeywordsHelp: string;
       keyword: string;
       opportunity: string;
@@ -1971,6 +1973,9 @@ export type Messages = {
       inviteAccepted: string;
     };
     calendar: {
+      /** A planned topic's metrics on its card: "Difficulty 34 · Volume 900"; an unmeasured difficulty shows as "-". */
+      difficulty: string;
+      volume: string;
       changeTopic: string;
       addInstructions: string;
       removeFromPlan: string;
@@ -2626,6 +2631,11 @@ export type Messages = {
       stepsLeft: string;
     };
     common: {
+      /** A keyword's search intent, wherever it is shown as a badge or label (lib/keywords/intent-label.ts). */
+      intentCommercial: string;
+      intentTransactional: string;
+      intentInformational: string;
+      intentNavigational: string;
       cancel: string;
       done: string;
       edit: string;
@@ -4952,7 +4962,8 @@ const en: Messages = {
       keywordsHelp: "Ranked by what you can realistically win. A term with fewer searches you can rank for beats a popular one you cannot.",
       addKeywordsLabel: "Add your own keywords",
       addKeywordsButton: "Add",
-      addKeywordsPlaceholder: "wedding videographer tuscany, elopement film italy",
+      addKeywordsPlaceholder: "Terms your customers search for, separated by commas",
+      addKeywordsExample: "For example: {examples}",
       addKeywordsHelp: "Separate with commas or new lines. Terms you add have no search data of their own, but they still shape your topics and content plan.",
       keyword: "Keyword",
       opportunity: "Opportunity",
@@ -5235,6 +5246,8 @@ const en: Messages = {
       inviteAccepted: "You now have access to {domain}",
     },
     calendar: {
+      difficulty: "Difficulty",
+      volume: "Volume",
       changeTopic: "Change topic",
       addInstructions: "Add instructions",
       removeFromPlan: "Remove from plan",
@@ -5780,7 +5793,7 @@ const en: Messages = {
       identityTitle: "Business identity",
       identityHelp: "Who you are and what you do.",
       marketTitle: "Market and audience",
-      marketHelp: "Where you sell, who you want to reach, and the language your articles are written in.",
+      marketHelp: "Where your customers or readers are, who you want to reach, and the language your articles are written in.",
       descriptionTitle: "Business description",
       descriptionHelp: "What the business does and what sets it apart, in your own words.",
       competitorsTitle: "Competitors",
@@ -5788,7 +5801,7 @@ const en: Messages = {
       brandNameHint: "The name your customers know you by.",
       industryHint: "What you do, in a few words.",
       marketPlaceholder: "Ireland",
-      countryHint: "The country you mainly sell in, written in English (for example Spain), so keyword research looks at the right country.",
+      countryHint: "The country where most of your customers or readers are, written in English (for example Spain), so keyword research looks at the right country.",
       marketNotEnglish: "Keyword research only recognises country names written in English.",
       marketUseEnglish: "Use {country}",
       articleLanguage: "Article language",
@@ -5853,6 +5866,10 @@ const en: Messages = {
       stepsLeft: "{n} step left before everything runs on its own.|{n} steps left before everything runs on its own.",
     },
     common: {
+      intentCommercial: "Commercial",
+      intentTransactional: "Transactional",
+      intentInformational: "Informational",
+      intentNavigational: "Navigational",
       cancel: "Cancel",
       done: "Done",
       edit: "Edit",
@@ -8139,7 +8156,8 @@ const es: Messages = {
       keywordsHelp: "Ordenadas por lo que puede ganar de forma realista. Un término con menos búsquedas en el que puede posicionarse vale más que uno popular en el que no.",
       addKeywordsLabel: "Añada sus propias palabras clave",
       addKeywordsButton: "Añadir",
-      addKeywordsPlaceholder: "videografo de bodas toscana, film de fuga italia",
+      addKeywordsPlaceholder: "Términos que buscan sus clientes, separados por comas",
+      addKeywordsExample: "Por ejemplo: {examples}",
       addKeywordsHelp: "Sepárelas con comas o saltos de línea. Los términos que añada no tienen datos de búsqueda propios, pero igualmente dan forma a sus temas y a su plan de contenidos.",
       keyword: "Palabra clave",
       opportunity: "Oportunidad",
@@ -8422,6 +8440,8 @@ const es: Messages = {
       inviteAccepted: "Ahora tiene acceso a {domain}",
     },
     calendar: {
+      difficulty: "Dificultad",
+      volume: "Volumen",
       changeTopic: "Cambiar tema",
       addInstructions: "Añadir instrucciones",
       removeFromPlan: "Quitar del plan",
@@ -8967,7 +8987,7 @@ const es: Messages = {
       identityTitle: "Identidad del negocio",
       identityHelp: "Quién es usted y a qué se dedica.",
       marketTitle: "Mercado y público",
-      marketHelp: "Dónde vende, a quién quiere llegar y el idioma en el que se escriben sus artículos.",
+      marketHelp: "Dónde están sus clientes o lectores, a quién quiere llegar y el idioma en el que se escriben sus artículos.",
       descriptionTitle: "Descripción del negocio",
       descriptionHelp: "Qué hace el negocio y qué lo distingue, con sus propias palabras.",
       competitorsTitle: "Competidores",
@@ -8975,7 +8995,7 @@ const es: Messages = {
       brandNameHint: "El nombre por el que le conocen sus clientes.",
       industryHint: "A qué se dedica, en pocas palabras.",
       marketPlaceholder: "Spain",
-      countryHint: "El país en el que vende principalmente, escrito en inglés (por ejemplo, Spain), para que la investigación de palabras clave analice el país correcto.",
+      countryHint: "El país donde están la mayoría de sus clientes o lectores, escrito en inglés (por ejemplo, Spain), para que la investigación de palabras clave analice el país correcto.",
       marketNotEnglish: "La investigación de palabras clave solo reconoce nombres de países escritos en inglés.",
       marketUseEnglish: "Usar {country}",
       articleLanguage: "Idioma de los artículos",
@@ -9041,6 +9061,10 @@ const es: Messages = {
         "Queda {n} paso para que todo funcione solo.|Quedan {n} pasos para que todo funcione solo.",
     },
     common: {
+      intentCommercial: "Comercial",
+      intentTransactional: "Transaccional",
+      intentInformational: "Informativo",
+      intentNavigational: "Navegacional",
       cancel: "Cancelar",
       done: "Hecho",
       edit: "Editar",
@@ -11328,7 +11352,8 @@ const fr: Messages = {
       keywordsHelp: "Classés selon ce que vous pouvez réellement gagner. Un terme moins recherché sur lequel vous pouvez vous positionner vaut mieux qu\u2019un terme populaire hors de portée.",
       addKeywordsLabel: "Ajoutez vos propres mots-clés",
       addKeywordsButton: "Ajouter",
-      addKeywordsPlaceholder: "vidéaste mariage toscane, film d’élopement italie",
+      addKeywordsPlaceholder: "Termes que recherchent vos clients, séparés par des virgules",
+      addKeywordsExample: "Par exemple : {examples}",
       addKeywordsHelp: "Séparez-les par des virgules ou des retours à la ligne. Les termes que vous ajoutez n’ont pas de données de recherche propres, mais ils orientent tout de même vos thèmes et votre plan de contenu.",
       keyword: "Mot-clé",
       opportunity: "Opportunité",
@@ -11611,6 +11636,8 @@ const fr: Messages = {
       inviteAccepted: "Vous avez maintenant accès à {domain}",
     },
     calendar: {
+      difficulty: "Difficulté",
+      volume: "Volume",
       changeTopic: "Changer de sujet",
       addInstructions: "Ajouter des consignes",
       removeFromPlan: "Retirer du plan",
@@ -12156,7 +12183,7 @@ const fr: Messages = {
       identityTitle: "Identité de l’entreprise",
       identityHelp: "Qui vous êtes et ce que vous faites.",
       marketTitle: "Marché et public",
-      marketHelp: "Où vous vendez, qui vous voulez toucher et la langue dans laquelle vos articles sont rédigés.",
+      marketHelp: "Où se trouvent vos clients ou lecteurs, qui vous voulez toucher et la langue dans laquelle vos articles sont rédigés.",
       descriptionTitle: "Description de l’entreprise",
       descriptionHelp: "Ce que fait l’entreprise et ce qui la distingue, avec vos propres mots.",
       competitorsTitle: "Concurrents",
@@ -12164,7 +12191,7 @@ const fr: Messages = {
       brandNameHint: "Le nom sous lequel vos clients vous connaissent.",
       industryHint: "Ce que vous faites, en quelques mots.",
       marketPlaceholder: "France",
-      countryHint: "Le pays où vous vendez principalement, écrit en anglais (par exemple Spain), pour que la recherche de mots-clés cible le bon pays.",
+      countryHint: "Le pays où se trouvent la plupart de vos clients ou lecteurs, écrit en anglais (par exemple Spain), pour que la recherche de mots-clés cible le bon pays.",
       marketNotEnglish: "La recherche de mots-clés ne reconnaît que les noms de pays écrits en anglais.",
       marketUseEnglish: "Utiliser {country}",
       articleLanguage: "Langue des articles",
@@ -12229,6 +12256,10 @@ const fr: Messages = {
       stepsLeft: "{n} étape restante avant que tout fonctionne seul.|{n} étapes restantes avant que tout fonctionne seul.",
     },
     common: {
+      intentCommercial: "Commercial",
+      intentTransactional: "Transactionnel",
+      intentInformational: "Informationnel",
+      intentNavigational: "Navigationnel",
       cancel: "Annuler",
       done: "Terminé",
       edit: "Modifier",
@@ -14515,7 +14546,8 @@ const it: Messages = {
       keywordsHelp: "Ordinate per ciò che può realisticamente ottenere. Un termine con meno ricerche su cui può posizionarsi vale più di uno popolare fuori portata.",
       addKeywordsLabel: "Aggiunga le sue parole chiave",
       addKeywordsButton: "Aggiungi",
-      addKeywordsPlaceholder: "videografo matrimoni toscana, film di fuga italia",
+      addKeywordsPlaceholder: "Termini che cercano i suoi clienti, separati da virgole",
+      addKeywordsExample: "Per esempio: {examples}",
       addKeywordsHelp: "Le separi con virgole o a capo. I termini che aggiunge non hanno dati di ricerca propri, ma orientano comunque i suoi temi e il suo piano editoriale.",
       keyword: "Parola chiave",
       opportunity: "Opportunità",
@@ -14798,6 +14830,8 @@ const it: Messages = {
       inviteAccepted: "Ora ha accesso a {domain}",
     },
     calendar: {
+      difficulty: "Difficoltà",
+      volume: "Volume",
       changeTopic: "Cambia argomento",
       addInstructions: "Aggiungi istruzioni",
       removeFromPlan: "Togli dal piano",
@@ -15343,7 +15377,7 @@ const it: Messages = {
       identityTitle: "Identità dell’attività",
       identityHelp: "Chi è e di cosa si occupa.",
       marketTitle: "Mercato e pubblico",
-      marketHelp: "Dove vende, chi vuole raggiungere e la lingua in cui vengono scritti i suoi articoli.",
+      marketHelp: "Dove si trovano i suoi clienti o lettori, chi vuole raggiungere e la lingua in cui vengono scritti i suoi articoli.",
       descriptionTitle: "Descrizione dell’attività",
       descriptionHelp: "Cosa fa l’attività e cosa la distingue, con parole sue.",
       competitorsTitle: "Concorrenti",
@@ -15351,7 +15385,7 @@ const it: Messages = {
       brandNameHint: "Il nome con cui la conoscono i suoi clienti.",
       industryHint: "Di cosa si occupa, in poche parole.",
       marketPlaceholder: "Italy",
-      countryHint: "Il paese in cui vende principalmente, scritto in inglese (per esempio Spain), così la ricerca delle parole chiave considera il paese giusto.",
+      countryHint: "Il paese in cui si trova la maggior parte dei suoi clienti o lettori, scritto in inglese (per esempio Spain), così la ricerca delle parole chiave considera il paese giusto.",
       marketNotEnglish: "La ricerca delle parole chiave riconosce solo i nomi dei paesi scritti in inglese.",
       marketUseEnglish: "Usa {country}",
       articleLanguage: "Lingua degli articoli",
@@ -15417,6 +15451,10 @@ const it: Messages = {
         "Manca {n} passaggio prima che tutto funzioni da solo.|Mancano {n} passaggi prima che tutto funzioni da solo.",
     },
     common: {
+      intentCommercial: "Commerciale",
+      intentTransactional: "Transazionale",
+      intentInformational: "Informativo",
+      intentNavigational: "Navigazionale",
       cancel: "Annulla",
       done: "Fatto",
       edit: "Modifica",
@@ -17700,7 +17738,8 @@ const de: Messages = {
       keywordsHelp: "Sortiert danach, was Sie realistisch gewinnen können. Ein Begriff mit weniger Suchanfragen, für den Sie ranken können, schlägt einen beliebten, für den Sie es nicht können.",
       addKeywordsLabel: "Eigene Suchbegriffe hinzufügen",
       addKeywordsButton: "Hinzufügen",
-      addKeywordsPlaceholder: "hochzeitsvideograf toskana, elopement film italien",
+      addKeywordsPlaceholder: "Begriffe, nach denen Ihre Kunden suchen, durch Kommas getrennt",
+      addKeywordsExample: "Zum Beispiel: {examples}",
       addKeywordsHelp: "Mit Komma oder Zeilenumbruch trennen. Begriffe, die Sie hinzufügen, haben keine eigenen Suchdaten, prägen aber trotzdem Ihre Themen und Ihren Contentplan.",
       keyword: "Suchbegriff",
       opportunity: "Chance",
@@ -17983,6 +18022,8 @@ const de: Messages = {
       inviteAccepted: "Sie haben jetzt Zugriff auf {domain}",
     },
     calendar: {
+      difficulty: "Schwierigkeit",
+      volume: "Suchvolumen",
       changeTopic: "Thema ändern",
       addInstructions: "Anweisungen hinzufügen",
       removeFromPlan: "Aus dem Plan entfernen",
@@ -18384,7 +18425,7 @@ const de: Messages = {
       intentCommercial: "Kommerziell",
       intentTransactional: "Transaktional",
       intentInformational: "Informativ",
-      intentNavigational: "Navigational",
+      intentNavigational: "Navigation",
       whyThisTopic: "Warum dieses Thema?",
       whyWithVolume: "Es zielt auf „{keyword}“, etwa {volume}-mal im Monat gesucht.",
       whyKeyword: "Es zielt auf „{keyword}“.",
@@ -18528,7 +18569,7 @@ const de: Messages = {
       identityTitle: "Unternehmens­identität",
       identityHelp: "Wer Sie sind und was Sie tun.",
       marketTitle: "Markt und Zielgruppe",
-      marketHelp: "Wo Sie verkaufen, wen Sie erreichen möchten und in welcher Sprache Ihre Artikel geschrieben werden.",
+      marketHelp: "Wo Ihre Kunden oder Leser sind, wen Sie erreichen möchten und in welcher Sprache Ihre Artikel geschrieben werden.",
       descriptionTitle: "Unternehmens­beschreibung",
       descriptionHelp: "Was das Unternehmen tut und was es auszeichnet, in Ihren eigenen Worten.",
       competitorsTitle: "Wettbewerber",
@@ -18536,7 +18577,7 @@ const de: Messages = {
       brandNameHint: "Der Name, unter dem Ihre Kunden Sie kennen.",
       industryHint: "Was Sie tun, in wenigen Worten.",
       marketPlaceholder: "Germany",
-      countryHint: "Das Land, in dem Sie hauptsächlich verkaufen, auf Englisch geschrieben (zum Beispiel Spain), damit die Keyword-Recherche das richtige Land betrachtet.",
+      countryHint: "Das Land, in dem die meisten Ihrer Kunden oder Leser sind, auf Englisch geschrieben (zum Beispiel Spain), damit die Keyword-Recherche das richtige Land betrachtet.",
       marketNotEnglish: "Die Keyword-Recherche erkennt nur Ländernamen, die auf Englisch geschrieben sind.",
       marketUseEnglish: "{country} verwenden",
       articleLanguage: "Artikelsprache",
@@ -18601,6 +18642,10 @@ const de: Messages = {
       stepsLeft: "Noch {n} Schritt, bis alles von selbst läuft.|Noch {n} Schritte, bis alles von selbst läuft.",
     },
     common: {
+      intentCommercial: "Kommerziell",
+      intentTransactional: "Transaktional",
+      intentInformational: "Informativ",
+      intentNavigational: "Navigation",
       cancel: "Abbrechen",
       done: "Fertig",
       edit: "Bearbeiten",

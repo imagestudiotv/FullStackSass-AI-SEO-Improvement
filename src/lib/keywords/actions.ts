@@ -11,6 +11,7 @@ import { requireEditor } from "@/lib/websites/require-editor";
 import { articlesToPlan } from "@/lib/keywords/replan";
 import { startResearchJob } from "@/lib/keywords/research-job";
 import { checkLimit } from "@/lib/usage";
+import { variantOf } from "@/lib/keywords/variants";
 import { UNLIMITED } from "@/lib/usage-shared";
 import type { ActionResult } from "@/lib/websites/actions";
 
@@ -329,7 +330,20 @@ export async function addKeywords(
     };
   }
 
-  const accepted = terms.slice(0, room);
+  /*
+    Another spelling, ending or word order of a keyword the website already
+    has - or of one earlier in this list - is the same search: skipped, and
+    counted as such, rather than stored as a second row (lib/keywords/
+    variants.ts).
+  */
+  const known = (
+    await db.select({ term: keywords.term }).from(keywords).where(eq(keywords.websiteId, site.id))
+  ).map((row) => row.term);
+  const distinct: string[] = [];
+  for (const term of terms) {
+    if (known.includes(term) || !variantOf(term, [...known, ...distinct])) distinct.push(term);
+  }
+  const accepted = distinct.slice(0, room);
 
   /**
    * onConflictDoNothing, not an error.
@@ -339,7 +353,7 @@ export async function addKeywords(
    * not fail and make them work out which two. The count returned below says
    * what actually happened.
    */
-  const inserted = await db
+  const inserted = accepted.length === 0 ? [] : await db
     .insert(keywords)
     .values(
       accepted.map((term) => ({

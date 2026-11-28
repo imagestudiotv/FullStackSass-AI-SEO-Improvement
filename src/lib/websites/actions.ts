@@ -19,6 +19,7 @@ import { requireEditor } from "@/lib/websites/require-editor";
 import { writeSelectedWebsite } from "@/lib/websites/selected";
 import { InvalidUrlError, normalizeWebsiteUrl } from "@/lib/websites/url";
 import { verifyDomain } from "@/lib/websites/verify-domain";
+import { DISMISSED_SOURCE } from "@/lib/geo/competitor-sources";
 import { normalizeLanguage } from "@/lib/websites/languages";
 import { pendingInvitationsFor } from "@/lib/websites/pending-invitations";
 
@@ -516,8 +517,16 @@ export async function addCompetitor(
   await db
     .insert(competitors)
     .values({ websiteId: site.id, domain, source: "manual" })
-    // The unique index makes re-adding a no-op rather than a duplicate.
-    .onConflictDoNothing();
+    /*
+      The unique index makes re-adding a no-op rather than a duplicate - but
+      a suggestion the customer removed earlier (DISMISSED_SOURCE) is theirs
+      again once they add it themselves.
+    */
+    .onConflictDoUpdate({
+      target: [competitors.websiteId, competitors.domain],
+      set: { source: "manual", updatedAt: new Date() },
+      setWhere: eq(competitors.source, DISMISSED_SOURCE),
+    });
 
   revalidatePath(`/websites/${site.id}`);
   return { ok: true, data: null };
@@ -532,11 +541,17 @@ export async function removeCompetitor(
   if (!guard.ok) return { ok: false, error: guard.error };
   const { site } = guard.context;
 
+  /*
+    The customer's own entry goes. A suggestion stays behind as a hidden
+    marker (DISMISSED_SOURCE), so neither re-analysis nor AI visibility
+    (lib/geo/competitors.ts) suggests the same rival again.
+  */
+  const where = and(eq(competitors.websiteId, site.id), eq(competitors.domain, domain));
+  await db.delete(competitors).where(and(where, eq(competitors.source, "manual")));
   await db
-    .delete(competitors)
-    .where(
-      and(eq(competitors.websiteId, site.id), eq(competitors.domain, domain)),
-    );
+    .update(competitors)
+    .set({ source: DISMISSED_SOURCE, updatedAt: new Date() })
+    .where(where);
 
   revalidatePath(`/websites/${site.id}`);
   return { ok: true, data: null };

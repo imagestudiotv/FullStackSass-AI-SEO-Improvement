@@ -25,6 +25,7 @@ import {
   updateCalendarItem,
   type CalendarRow,
 } from "@/lib/keywords/actions";
+import { intentLabel, topicMetrics } from "@/lib/keywords/labels";
 import { cn } from "@/lib/utils";
 
 /**
@@ -391,18 +392,17 @@ export function ContentCalendar({
         )}
 
         {/* Metrics only where they mean something: a written article's
-            difficulty is history, not a decision to make. */}
-        {!article && (item.difficulty !== null || item.volume !== null) ? (
+            difficulty is history, not a decision to make. An unmeasured
+            difficulty is a dash (lib/keywords/labels.ts). */}
+        {!article && topicMetrics(item.difficulty, item.volume, t) ? (
           <p className="mt-1 text-xs text-muted-foreground">
-            {item.difficulty !== null ? `Difficulty ${item.difficulty}` : null}
-            {item.difficulty !== null && item.volume !== null ? " · " : null}
-            {item.volume !== null ? `Volume ${item.volume}` : null}
+            {topicMetrics(item.difficulty, item.volume, t)}
           </p>
         ) : null}
 
         {item.intent ? (
-          <p className="mt-1 truncate text-xs capitalize text-muted-foreground">
-            {item.intent}
+          <p className="mt-1 truncate text-xs text-muted-foreground">
+            {intentLabel(item.intent, tCommon)}
           </p>
         ) : null}
 

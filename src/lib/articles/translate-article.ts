@@ -3,7 +3,7 @@ import "server-only";
 import * as cheerio from "cheerio";
 
 import { MODELS } from "@/lib/ai/client";
-import { cleanDashes, cleanDashesHtml, NO_DASH_RULE } from "@/lib/articles/dashes";
+import { cleanDashes, cleanDashesHtml, dashRuleFor, NO_DASH_RULE } from "@/lib/articles/dashes";
 import { addUsage, askClaude, type CallUsage } from "@/lib/blog/autopilot/model";
 import { bodySlices } from "@/lib/blog/autopilot/translate";
 
@@ -61,7 +61,9 @@ function instructions(from: string, to: string): string {
     `Use the words people searching in ${to} would use for the same thing. Address the reader as the original does, in the form a ${to} business website would use for its readers.`,
     "HTML: keep every tag and attribute exactly as given, in the same order. Translate only the text between tags and the alt and title attributes of pictures. Never change an href, src, id or class. Keep every heading, paragraph, list, list item, table row, picture and link: the same number, in the same places.",
     NO_DASH_RULE,
-  ].join("\n");
+    // Where the target language's grammar needs a dash, it stays (lib/articles/dashes.ts).
+    dashRuleFor(to),
+  ].filter(Boolean).join("\n");
 }
 
 /** A short ASCII address from `text`: lower case, words joined by hyphens, at most 80 characters. */

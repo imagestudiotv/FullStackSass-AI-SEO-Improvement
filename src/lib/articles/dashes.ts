@@ -24,6 +24,69 @@
 export const NO_DASH_RULE =
   "Punctuation: never use an em dash or an en dash, or a hyphen with spaces around it, as punctuation - not in headings, tables, FAQ, titles or descriptions either. Use a comma, a colon, parentheses or a new sentence. Hyphens inside words (on-premises) stay, and a range of numbers takes a plain hyphen (10-20).";
 
+/**
+ * Languages whose grammar needs the dash (review of 2026-11-27: Ukrainian
+ * "X, це Y" where it must be "X — це Y").
+ *
+ * In English, Spanish, French, Italian and German a dash in running text is a
+ * stylistic choice, and the "AI tell" the client asked to remove. In these it
+ * is grammar, and a comma in its place is a mistake a native reader sees at
+ * once:
+ *  - East Slavic (Ukrainian, Russian, Belarusian): the dash between subject
+ *    and predicate when the linking verb is left out ("Київ — столиця
+ *    України", "X — це Y", "X — это Y"), for an omitted word, and before the
+ *    word that sums up a list;
+ *  - Polish, Czech, Slovak: the "myślnik" / "pomlčka" before "to" in a
+ *    definition ("Kot – to zwierzę"), and for an omitted verb;
+ *  - South Slavic (Bulgarian, Serbian, Croatian, Bosnian, Macedonian,
+ *    Slovenian): for the omitted verb and the inserted clause;
+ *  - Baltic (Lithuanian, Latvian) and the Cyrillic-script Central Asian
+ *    languages (Kazakh, Kyrgyz, Tajik, Uzbek) and Mongolian, which take the
+ *    same subject-predicate dash.
+ * Matched by English name, native name or ISO code, as a website's language
+ * may be stored either way.
+ */
+const GRAMMATICAL_DASH = new Set([
+  "ukrainian", "українська", "uk",
+  "russian", "русский", "ru",
+  "belarusian", "беларуская", "be",
+  "bulgarian", "български", "bg",
+  "serbian", "српски", "srpski", "sr",
+  "croatian", "hrvatski", "hr",
+  "bosnian", "bosanski", "bs",
+  "macedonian", "македонски", "mk",
+  "slovenian", "slovene", "slovenščina", "sl",
+  "polish", "polski", "pl",
+  "czech", "čeština", "cs",
+  "slovak", "slovenčina", "sk",
+  "lithuanian", "lietuvių", "lt",
+  "latvian", "latviešu", "lv",
+  "kazakh", "қазақ", "kk",
+  "kyrgyz", "кыргызча", "ky",
+  "tajik", "тоҷикӣ", "tg",
+  "uzbek", "oʻzbek", "o'zbek", "uz",
+  "mongolian", "монгол", "mn",
+]);
+
+/** True for a language whose grammar uses the dash (GRAMMATICAL_DASH): its dashes are kept. */
+export function keepsDashes(language: string | null | undefined): boolean {
+  if (!language) return false;
+  const key = language.normalize("NFC").trim().toLowerCase();
+  // "Ukrainian (Ukraine)", "uk-UA", "ru_RU": the language part.
+  const base = key.split(/[\s(_-]/)[0] ?? key;
+  return GRAMMATICAL_DASH.has(key) || GRAMMATICAL_DASH.has(base);
+}
+
+/**
+ * The instruction that goes with NO_DASH_RULE for a language that needs the
+ * dash, or null. Writing prompts carry NO_DASH_RULE in their fixed system
+ * text, so this follows in the brief and wins for that language.
+ */
+export function dashRuleFor(language: string | null | undefined): string | null {
+  if (!keepsDashes(language)) return null;
+  return `Punctuation in ${language}: the rule against dashes does not apply where ${language} grammar requires a dash. Use the dash (—, with a space on each side) between subject and predicate when the linking verb is left out ("X — це Y", "X — это Y", "X – to Y"), in place of an omitted word, and before a word that sums up a list, exactly as a careful native editor would; never replace such a dash with a comma. Do not use a dash merely as a dramatic pause or instead of a comma or parentheses.`;
+}
+
 type Options = {
   /** "title": a headline, where one dash stands for a colon. */
   kind?: "title" | "text";
@@ -236,6 +299,8 @@ function protect(text: string): { text: string; kept: string[] } {
 
 /** Plain text: a title, a description, a picture's alt text. */
 export function cleanDashes(input: string, options: Options = {}): string {
+  // Grammar, not style, in these languages: left exactly as written (keepsDashes).
+  if (keepsDashes(options.language)) return input;
   const { text, kept } = protect(input.replace(/[\ue000\ue001]/g, ""));
   const cleaned = cleanRun(text, options);
   let i = 0;
@@ -247,6 +312,7 @@ const TOKEN = /<!--[\s\S]*?-->|<(pre|code|kbd|samp|var|script|style|textarea|svg
 
 /** An article's HTML: its text only, block by block, so an aside may begin before a link and end after it. */
 export function cleanDashesHtml(html: string, options: { language?: string | null } = {}): string {
+  if (keepsDashes(options.language)) return html;
   const source = html.replace(/[\ue000\ue001]/g, "");
   let out = "";
   let run = "";
