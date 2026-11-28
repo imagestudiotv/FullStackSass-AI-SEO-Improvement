@@ -9,7 +9,7 @@ import type { Locale } from "@/lib/i18n/config";
  * also social content growth and copilot". So both now name what RepGet does
  * today - SEO articles, social posts and videos, automatic publishing,
  * backlinks and Growth Copilot - in the words the site already uses for them
- * (lib/i18n/home/features.ts, hero.ts), with "AI SEO" kept first: it is what
+ * (lib/i18n/features-page.ts, home/hero.ts), with "AI SEO" kept first: it is what
  * the homepage has targeted since launch.
  *
  * Titles are complete, " | RepGet" included, and used as `absolute` titles:

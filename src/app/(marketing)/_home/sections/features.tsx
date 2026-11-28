@@ -1,169 +1,85 @@
 import Link from "next/link";
-import { Fragment } from "react";
 
-import { withAssistants } from "@/lib/geo/engine-words";
-import { FEATURE_HIGHLIGHTS, FEATURE_KEYS, featuresCopy } from "@/lib/i18n/home/features";
+import { FeatureLoop } from "@/components/marketing/feature-loop";
+import { featuresPageCopy } from "@/lib/i18n/features-page";
+import { featureClip, PRODUCT_TOOLS, TOOL_ANCHORS, TOOL_FEATURES } from "@/lib/marketing/product-tools";
 
-import { FeaturesShell } from "../features-shell";
 import type { SectionProps } from "../types";
-
-import { FEATURE_ICONS, FeatureScene, Icon } from "./features-scenes";
 import styles from "./features.module.css";
-
-/** The design's class names, hyphens and all, mapped to the module's. */
-const c = (names: string) =>
-  names
-    .split(" ")
-    .map((n) => styles[n] ?? n)
-    .join(" ");
 
 const HEADING_ID = "home-features-heading";
 
-const pad = (n: number) => String(n).padStart(2, "0");
+/** The cards' width at each breakpoint (features.module.css), for the posters' srcset. */
+const CLIP_SIZES = "(min-width: 1024px) 600px, (min-width: 640px) 50vw, 100vw";
 
 /**
- * "Top features" (client's design, 2026-11-18, repget_features_premium.html):
- * the dark feature shell - nine capabilities on the left, the chosen one's
- * headline, a drawn product preview, its perks, "Start free trial" and the
- * next-feature button, and on desktop a scroll story through four highlights
- * (features-shell.tsx). It replaced the 2026-11-03 selector and its mascot.
+ * "Top features" (client, 2026-11-27), right after "Meet RepGet.": the five
+ * tools (lib/marketing/product-tools.ts), each with its dashboard recording,
+ * and "See all features" to /features. It replaced the dark "Explore the
+ * platform" shell and its nine drawn capabilities, which counted the product
+ * differently from the menu and the pricing table.
  *
- * Everything is drawn here, on the server, in the visitor's language; the
- * client shell only chooses which panel shows. The wording is the design's
- * except where it claimed more than RepGet does (lib/i18n/home/features.ts).
+ * Light on purpose: the words are server-rendered; each card shows a lazy,
+ * resized poster and its loop loads only when the card is reached, never with
+ * reduced motion (components/marketing/feature-loop.tsx). Nothing here is
+ * fetched before the visitor scrolls to it.
  *
- * The id stays `features`: the header's links and the Social tool point at
- * /#features.
+ * The id stays `features`: links to /#features keep landing here.
  */
 export function Features({ locale, href }: SectionProps) {
-  // {assistants}: the ones this deployment asks, filled in here on the server (lib/geo/engine-words.ts).
-  const t = withAssistants(featuresCopy(locale), locale);
-  const total = pad(FEATURE_KEYS.length);
+  const t = featuresPageCopy(locale);
+  const features = href("/features");
 
   return (
-    <section id="features" className={c("repget-features")} aria-labelledby={HEADING_ID}>
-      <div className={c("repget-features-inner")}>
-        <FeaturesShell
-          headingId={HEADING_ID}
-          navTop={
-            <div className={c("nav-top")}>
-              <h2 id={HEADING_ID} className={c("nav-eyebrow")}>
-                {t.eyebrow}
-              </h2>
-              <span className={c("nav-count")}>{t.count}</span>
-            </div>
-          }
-          navBottom={
-            <div className={c("nav-bottom")}>
-              <span className={c("pulse")}>
-                <Icon name="sparkle" size={17} />
-              </span>
-              <span>
-                <b>{t.engineTitle}</b>
-                {t.engineLine}
-              </span>
-            </div>
-          }
-          tabs={FEATURE_KEYS.map((key) => (
-            <Fragment key={key}>
-              <span className={c("nav-ic")}>
-                <Icon name={FEATURE_ICONS[key]} />
-              </span>
-              <span className={c("nav-txt")}>
-                <strong>{t[key].nav}</strong>
-                <small>{t[key].navSub}</small>
-              </span>
-              <span className={c("nav-arrow")}>
-                <Icon name="arrow" size={15} />
-              </span>
-            </Fragment>
-          ))}
-          panels={FEATURE_KEYS.map((key, i) => {
-            const f = t[key];
+    <section id="features" className={styles.section} aria-labelledby={HEADING_ID}>
+      <div className={styles.inner}>
+        <div className={styles.head}>
+          <p className={styles.eyebrow}>{t.home.eyebrow}</p>
+          <h2 id={HEADING_ID} className={styles.title}>
+            {t.home.title}
+          </h2>
+          <p className={styles.sub}>{t.home.sub}</p>
+        </div>
+
+        <ol className={styles.grid}>
+          {PRODUCT_TOOLS.map((tool, index) => {
+            const words = t.tools[tool];
+            const first = TOOL_FEATURES[tool][0];
+            const clip = featureClip(first);
             return (
-              <Fragment key={key}>
-                <div className={c("main-top")}>
-                  <div className={c("breadcrumb")}>
-                    <i className={c("indicator")} aria-hidden="true" /> <span>{t.workspace}</span>
-                    <span className={c("breadcrumbs-divider")} aria-hidden="true">
-                      /
-                    </span>
-                    <span className={c("current-category")}>{f.category}</span>
-                  </div>
-                  <div className={c("switch-counter")}>
-                    <span>
-                      <b>{pad(i + 1)}</b> / {total}
-                    </span>
-                    <span className={c("line")} aria-hidden="true" />
-                  </div>
+              <li key={tool} className={styles.card}>
+                <FeatureLoop
+                  mp4={clip.mp4}
+                  poster={clip.poster}
+                  label={t.clipLabel.replace("{feature}", t.features[first].title)}
+                  sizes={CLIP_SIZES}
+                  className={styles.clip}
+                />
+                <div className={styles.body}>
+                  <span className={styles.number} aria-hidden="true">
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                  <h3 className={styles.name}>
+                    {/* The whole card is the link (the ::after stretches it). */}
+                    <Link prefetch={false} href={`${features}#${TOOL_ANCHORS[tool]}`} className={styles.link}>
+                      {words.name}
+                    </Link>
+                  </h3>
+                  <p className={styles.tagline}>{words.tagline}</p>
                 </div>
-                <div className={c("intro")}>
-                  <div>
-                    <h3>
-                      {f.headline[0]} <br />
-                      <span className={c("impact")}>{f.headline[1]}</span>
-                    </h3>
-                    <p>{f.description}</p>
-                  </div>
-                  <div className={c("intro-aside")}>
-                    <span className={c("cap-icon")}>
-                      <Icon name={FEATURE_ICONS[key]} size={26} />
-                    </span>
-                    <span>{f.tag}</span>
-                  </div>
-                </div>
-                <div className={c("preview")}>
-                  <div className={c("mock-window")}>
-                    <div className={c("mock-bar")}>
-                      <div className={c("mock-bar-left")}>
-                        <span className={c("mock-dots")} aria-hidden="true">
-                          <i />
-                          <i />
-                          <i />
-                        </span>
-                        <span className={c("mock-app-name")}>
-                          <span className={c("mock-logo")} aria-hidden="true">
-                            ✳
-                          </span>
-                          <span>{f.studio}</span>
-                        </span>
-                      </div>
-                      <span className={c("mock-bar-right")}>
-                        <span className={c("preview-long")}>{t.preview}</span>
-                        <span className={c("preview-short")}>{t.previewShort}</span>
-                      </span>
-                    </div>
-                    <div className={c("mock-body")}>
-                      <FeatureScene feature={key} copy={t} />
-                    </div>
-                  </div>
-                </div>
-              </Fragment>
+              </li>
             );
           })}
-          perks={FEATURE_KEYS.map((key) =>
-            t[key].perks.map((perk) => (
-              <span key={perk} className={c("perk")}>
-                <Icon name="check" size={13} /> {perk}
-              </span>
-            )),
-          )}
-          labels={FEATURE_KEYS.map((key) => t[key].nav)}
-          highlights={FEATURE_HIGHLIGHTS}
-          highlightsLabel={t.highlights}
-          jump={t.jump}
-          scrollNote={
-            <>
-              <Icon name="mouse" size={15} /> {t.scroll}
-            </>
-          }
-          cta={
-            <Link className={c("primary")} href={href("/pricing")}>
-              {t.cta} <span aria-hidden="true">↗</span>
-            </Link>
-          }
-          next={t.next}
-        />
+        </ol>
+
+        <div className={styles.foot}>
+          <p className={styles.copilot}>
+            <b>{t.copilot.name}</b> {t.copilot.tagline}
+          </p>
+          <Link prefetch={false} href={features} className={styles.all}>
+            {t.home.seeAll} <span aria-hidden="true">→</span>
+          </Link>
+        </div>
       </div>
     </section>
   );

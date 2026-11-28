@@ -28,6 +28,8 @@ export type HomeRedesignCopy = {
     footerTitle: string;
     footerBody: string;
     explore: string;
+    /** The Features menu's link to /features (client, 2026-11-27). */
+    allFeatures: string;
   };
 };
 
@@ -37,34 +39,18 @@ const en: HomeRedesignCopy = {
     integrations: "Integrations",
     featuresOverline: "Explore the platform",
     featuresTitle: "Everything you need to grow.",
-    featuresTagline: "Six tools. One connected growth system.",
+    featuresTagline: "Five tools. One Growth Copilot to run them.",
     next: "Next feature",
     open: "Learn more",
     bottom: "From first search to loyal customers. All connected in RepGet.",
     tools: [
       {
-        title: "Content",
+        title: "Articles",
         sub: "Plan & publish",
         kicker: "Content & publishing",
         heading: "Go from idea to published.",
         body: "Build a consistent content engine with topic planning, AI-assisted drafts, review and publishing to your website.",
         steps: ["Plan topics", "Review drafts", "Publish"],
-      },
-      {
-        title: "Social",
-        sub: "Create & distribute",
-        kicker: "Social content",
-        heading: "Create once. Show up everywhere.",
-        body: "Turn your brand ideas into ready-to-post social content, tailor it for each platform and manage your publishing calendar.",
-        steps: ["Create", "Adapt", "Schedule"],
-      },
-      {
-        title: "SEO",
-        sub: "Get discovered",
-        kicker: "Search visibility",
-        heading: "Get found by the right customers.",
-        body: "Understand your website health, uncover search opportunities and see what to improve first.",
-        steps: ["Audit", "Prioritize", "Improve"],
       },
       {
         title: "Backlinks",
@@ -75,7 +61,7 @@ const en: HomeRedesignCopy = {
         steps: ["Discover", "Qualify", "Build"],
       },
       {
-        title: "AI Search",
+        title: "AI Visibility",
         sub: "Earn mentions",
         kicker: "AI search visibility",
         heading: "Be part of the answer.",
@@ -83,12 +69,20 @@ const en: HomeRedesignCopy = {
         steps: ["Monitor", "Understand", "Improve"],
       },
       {
-        title: "Growth",
-        sub: "See what works",
-        kicker: "Reporting & growth",
-        heading: "See what is moving the needle.",
-        body: "Bring search, content and social activity into one clear picture so every next decision is easier.",
-        steps: ["Connect", "Measure", "Grow"],
+        title: "Social",
+        sub: "Create & distribute",
+        kicker: "Social content",
+        heading: "Create once. Show up everywhere.",
+        body: "Turn your brand ideas into ready-to-post social content, tailor it for each platform and manage your publishing calendar.",
+        steps: ["Create", "Adapt", "Schedule"],
+      },
+      {
+        title: "Website Health",
+        sub: "Audit & fix",
+        kicker: "Website health",
+        heading: "Get found by the right customers.",
+        body: "Understand your website health, uncover search opportunities and see what to improve first.",
+        steps: ["Audit", "Prioritize", "Improve"],
       },
     ],
     socialHead: "Social channels",
@@ -100,6 +94,7 @@ const en: HomeRedesignCopy = {
     footerTitle: "Beyond social. Your complete growth engine.",
     footerBody: "Create content, grow in search, build authority and get discovered by AI.",
     explore: "Explore RepGet",
+    allFeatures: "See all features",
   },
 };
 
@@ -109,17 +104,16 @@ const es: HomeRedesignCopy = {
     integrations: "Integraciones",
     featuresOverline: "Explore la plataforma",
     featuresTitle: "Todo lo que necesita para crecer.",
-    featuresTagline: "Seis herramientas. Un sistema de crecimiento conectado.",
+    featuresTagline: "Cinco herramientas. Un Growth Copilot que las dirige.",
     next: "Siguiente función",
     open: "Más información",
     bottom: "De la primera búsqueda a clientes fieles. Todo conectado en RepGet.",
     tools: [
-      { title: "Contenido", sub: "Planificar y publicar", kicker: "Contenido y publicación", heading: "De la idea a la publicación.", body: "Un motor de contenido constante: planificación de temas, borradores con IA, revisión y publicación en su sitio.", steps: ["Planificar", "Revisar", "Publicar"] },
-      { title: "Redes", sub: "Crear y distribuir", kicker: "Contenido social", heading: "Cree una vez. Aparezca en todas partes.", body: "Convierta las ideas de su marca en contenido social listo para publicar, adáptelo a cada red y gestione su calendario de publicación.", steps: ["Crear", "Adaptar", "Programar"] },
-      { title: "SEO", sub: "Hacerse visible", kicker: "Visibilidad en búsquedas", heading: "Que le encuentren los clientes adecuados.", body: "Conozca la salud de su sitio, descubra oportunidades de búsqueda y vea qué mejorar primero.", steps: ["Auditar", "Priorizar", "Mejorar"] },
+      { title: "Artículos", sub: "Planificar y publicar", kicker: "Contenido y publicación", heading: "De la idea a la publicación.", body: "Un motor de contenido constante: planificación de temas, borradores con IA, revisión y publicación en su sitio.", steps: ["Planificar", "Revisar", "Publicar"] },
       { title: "Backlinks", sub: "Ganar autoridad", kicker: "Backlinks y autoridad", heading: "Autoridad que perdura.", body: "Encuentre oportunidades de colocación relevantes, gestione revisiones de calidad y refuerce su sitio con referencias útiles.", steps: ["Descubrir", "Validar", "Construir"] },
-      { title: "Búsqueda con IA", sub: "Ganar menciones", kicker: "Visibilidad en IA", heading: "Forme parte de la respuesta.", body: "Cada semana RepGet hace a {assistants}, con búsqueda web, las preguntas de sus clientes: vea si se nombra su negocio y descubra cómo ser más visible.", steps: ["Vigilar", "Entender", "Mejorar"] },
-      { title: "Crecimiento", sub: "Ver qué funciona", kicker: "Informes y crecimiento", heading: "Vea qué le hace avanzar.", body: "Búsqueda, contenido y redes en una sola imagen clara, para decidir mejor el siguiente paso.", steps: ["Conectar", "Medir", "Crecer"] },
+      { title: "Visibilidad en IA", sub: "Ganar menciones", kicker: "Visibilidad en IA", heading: "Forme parte de la respuesta.", body: "Cada semana RepGet hace a {assistants}, con búsqueda web, las preguntas de sus clientes: vea si se nombra su negocio y descubra cómo ser más visible.", steps: ["Vigilar", "Entender", "Mejorar"] },
+      { title: "Redes", sub: "Crear y distribuir", kicker: "Contenido social", heading: "Cree una vez. Aparezca en todas partes.", body: "Convierta las ideas de su marca en contenido social listo para publicar, adáptelo a cada red y gestione su calendario de publicación.", steps: ["Crear", "Adaptar", "Programar"] },
+      { title: "Salud del sitio", sub: "Auditar y corregir", kicker: "Salud del sitio", heading: "Que le encuentren los clientes adecuados.", body: "Conozca la salud de su sitio, descubra oportunidades de búsqueda y vea qué mejorar primero.", steps: ["Auditar", "Priorizar", "Mejorar"] },
     ],
     socialHead: "Redes sociales",
     socialSub: "Cree una vez. Adaptado a cada red.",
@@ -130,6 +124,7 @@ const es: HomeRedesignCopy = {
     footerTitle: "Más allá de las redes. Su motor de crecimiento completo.",
     footerBody: "Cree contenido, crezca en búsquedas, gane autoridad y aparezca en la IA.",
     explore: "Descubra RepGet",
+    allFeatures: "Ver todas las funciones",
   },
 };
 
@@ -139,17 +134,16 @@ const fr: HomeRedesignCopy = {
     integrations: "Intégrations",
     featuresOverline: "Découvrir la plateforme",
     featuresTitle: "Tout ce qu’il faut pour grandir.",
-    featuresTagline: "Six outils. Un système de croissance connecté.",
+    featuresTagline: "Cinq outils. Un Growth Copilot pour les piloter.",
     next: "Fonctionnalité suivante",
     open: "En savoir plus",
     bottom: "De la première recherche aux clients fidèles. Tout est connecté dans RepGet.",
     tools: [
-      { title: "Contenu", sub: "Planifier et publier", kicker: "Contenu et publication", heading: "De l’idée à la publication.", body: "Un moteur de contenu régulier : planification des sujets, brouillons assistés par l’IA, relecture et publication sur votre site.", steps: ["Planifier", "Relire", "Publier"] },
-      { title: "Réseaux", sub: "Créer et diffuser", kicker: "Contenu social", heading: "Créez une fois. Soyez partout.", body: "Transformez les idées de votre marque en contenu social prêt à publier, adaptez-le à chaque réseau et gérez votre calendrier de publication.", steps: ["Créer", "Adapter", "Programmer"] },
-      { title: "SEO", sub: "Être trouvé", kicker: "Visibilité dans la recherche", heading: "Soyez trouvé par les bons clients.", body: "Comprenez la santé de votre site, découvrez des opportunités et voyez quoi améliorer d’abord.", steps: ["Auditer", "Prioriser", "Améliorer"] },
+      { title: "Articles", sub: "Planifier et publier", kicker: "Contenu et publication", heading: "De l’idée à la publication.", body: "Un moteur de contenu régulier : planification des sujets, brouillons assistés par l’IA, relecture et publication sur votre site.", steps: ["Planifier", "Relire", "Publier"] },
       { title: "Backlinks", sub: "Gagner en autorité", kicker: "Backlinks et autorité", heading: "Une autorité qui dure.", body: "Trouvez des opportunités de placement pertinentes, gérez les contrôles qualité et renforcez votre site avec des références utiles.", steps: ["Découvrir", "Qualifier", "Construire"] },
-      { title: "Recherche IA", sub: "Être cité", kicker: "Visibilité dans l’IA", heading: "Faites partie de la réponse.", body: "Chaque semaine, RepGet pose à {assistants}, avec la recherche web, les questions de vos clients : voyez si votre entreprise est citée, et repérez les occasions d’être plus visible.", steps: ["Suivre", "Comprendre", "Améliorer"] },
-      { title: "Croissance", sub: "Voir ce qui marche", kicker: "Rapports et croissance", heading: "Voyez ce qui fait la différence.", body: "Recherche, contenu et réseaux dans une seule vue claire, pour mieux décider de la suite.", steps: ["Connecter", "Mesurer", "Grandir"] },
+      { title: "Visibilité IA", sub: "Être cité", kicker: "Visibilité dans l’IA", heading: "Faites partie de la réponse.", body: "Chaque semaine, RepGet pose à {assistants}, avec la recherche web, les questions de vos clients : voyez si votre entreprise est citée, et repérez les occasions d’être plus visible.", steps: ["Suivre", "Comprendre", "Améliorer"] },
+      { title: "Réseaux", sub: "Créer et diffuser", kicker: "Contenu social", heading: "Créez une fois. Soyez partout.", body: "Transformez les idées de votre marque en contenu social prêt à publier, adaptez-le à chaque réseau et gérez votre calendrier de publication.", steps: ["Créer", "Adapter", "Programmer"] },
+      { title: "Santé du site", sub: "Auditer et corriger", kicker: "Santé du site", heading: "Soyez trouvé par les bons clients.", body: "Comprenez la santé de votre site, découvrez des opportunités et voyez quoi améliorer d’abord.", steps: ["Auditer", "Prioriser", "Améliorer"] },
     ],
     socialHead: "Réseaux sociaux",
     socialSub: "Créez une fois. Natif sur chaque réseau.",
@@ -160,6 +154,7 @@ const fr: HomeRedesignCopy = {
     footerTitle: "Au-delà des réseaux. Votre moteur de croissance complet.",
     footerBody: "Créez du contenu, progressez dans la recherche, gagnez en autorité et soyez cité par l’IA.",
     explore: "Découvrir RepGet",
+    allFeatures: "Voir toutes les fonctionnalités",
   },
 };
 
@@ -169,17 +164,16 @@ const it: HomeRedesignCopy = {
     integrations: "Integrazioni",
     featuresOverline: "Esplori la piattaforma",
     featuresTitle: "Tutto ciò che serve per crescere.",
-    featuresTagline: "Sei strumenti. Un sistema di crescita collegato.",
+    featuresTagline: "Cinque strumenti. Un Growth Copilot che li guida.",
     next: "Funzione successiva",
     open: "Scopra di più",
     bottom: "Dalla prima ricerca ai clienti fedeli. Tutto collegato in RepGet.",
     tools: [
-      { title: "Contenuti", sub: "Pianificare e pubblicare", kicker: "Contenuti e pubblicazione", heading: "Dall’idea alla pubblicazione.", body: "Un motore di contenuti costante: pianificazione dei temi, bozze con l’IA, revisione e pubblicazione sul Suo sito.", steps: ["Pianificare", "Rivedere", "Pubblicare"] },
-      { title: "Social", sub: "Creare e distribuire", kicker: "Contenuti social", heading: "Crei una volta. Sia ovunque.", body: "Trasformi le idee del Suo marchio in contenuti social pronti da pubblicare, li adatti a ogni piattaforma e gestisca il calendario di pubblicazione.", steps: ["Creare", "Adattare", "Programmare"] },
-      { title: "SEO", sub: "Farsi trovare", kicker: "Visibilità nella ricerca", heading: "Si faccia trovare dai clienti giusti.", body: "Capisca la salute del Suo sito, scopra opportunità di ricerca e veda cosa migliorare prima.", steps: ["Analizzare", "Dare priorità", "Migliorare"] },
+      { title: "Articoli", sub: "Pianificare e pubblicare", kicker: "Contenuti e pubblicazione", heading: "Dall’idea alla pubblicazione.", body: "Un motore di contenuti costante: pianificazione dei temi, bozze con l’IA, revisione e pubblicazione sul Suo sito.", steps: ["Pianificare", "Rivedere", "Pubblicare"] },
       { title: "Backlink", sub: "Costruire autorevolezza", kicker: "Backlink e autorevolezza", heading: "Un’autorevolezza che dura.", body: "Trovi opportunità di inserimento pertinenti, gestisca le verifiche di qualità e rafforzi il sito con riferimenti utili.", steps: ["Scoprire", "Valutare", "Costruire"] },
-      { title: "Ricerca IA", sub: "Ottenere menzioni", kicker: "Visibilità nell’IA", heading: "Entri nella risposta.", body: "Ogni settimana RepGet pone a {assistants}, con la ricerca web, le domande dei Suoi clienti: veda se la Sua attività viene nominata e individui le occasioni per farsi trovare di più.", steps: ["Monitorare", "Capire", "Migliorare"] },
-      { title: "Crescita", sub: "Vedere cosa funziona", kicker: "Report e crescita", heading: "Veda cosa fa la differenza.", body: "Ricerca, contenuti e social in un’unica vista chiara, per decidere meglio il passo successivo.", steps: ["Collegare", "Misurare", "Crescere"] },
+      { title: "Visibilità IA", sub: "Ottenere menzioni", kicker: "Visibilità nell’IA", heading: "Entri nella risposta.", body: "Ogni settimana RepGet pone a {assistants}, con la ricerca web, le domande dei Suoi clienti: veda se la Sua attività viene nominata e individui le occasioni per farsi trovare di più.", steps: ["Monitorare", "Capire", "Migliorare"] },
+      { title: "Social", sub: "Creare e distribuire", kicker: "Contenuti social", heading: "Crei una volta. Sia ovunque.", body: "Trasformi le idee del Suo marchio in contenuti social pronti da pubblicare, li adatti a ogni piattaforma e gestisca il calendario di pubblicazione.", steps: ["Creare", "Adattare", "Programmare"] },
+      { title: "Salute del sito", sub: "Analizzare e correggere", kicker: "Salute del sito", heading: "Si faccia trovare dai clienti giusti.", body: "Capisca la salute del Suo sito, scopra opportunità di ricerca e veda cosa migliorare prima.", steps: ["Analizzare", "Dare priorità", "Migliorare"] },
     ],
     socialHead: "Canali social",
     socialSub: "Crei una volta. Nativo su ogni canale.",
@@ -190,6 +184,7 @@ const it: HomeRedesignCopy = {
     footerTitle: "Oltre i social. Il Suo motore di crescita completo.",
     footerBody: "Crei contenuti, cresca nella ricerca, costruisca autorevolezza e si faccia trovare dall’IA.",
     explore: "Scopra RepGet",
+    allFeatures: "Vedi tutte le funzioni",
   },
 };
 
@@ -199,17 +194,16 @@ const de: HomeRedesignCopy = {
     integrations: "Integrationen",
     featuresOverline: "Die Plattform entdecken",
     featuresTitle: "Alles, was Sie zum Wachsen brauchen.",
-    featuresTagline: "Sechs Werkzeuge. Ein vernetztes Wachstumssystem.",
+    featuresTagline: "Fünf Werkzeuge. Ein Growth Copilot, der sie steuert.",
     next: "Nächste Funktion",
     open: "Mehr erfahren",
     bottom: "Von der ersten Suche bis zum treuen Kunden. Alles vernetzt in RepGet.",
     tools: [
-      { title: "Inhalte", sub: "Planen und veröffentlichen", kicker: "Inhalte und Veröffentlichung", heading: "Von der Idee zur Veröffentlichung.", body: "Ein verlässlicher Inhaltsmotor: Themenplanung, KI-gestützte Entwürfe, Prüfung und Veröffentlichung auf Ihrer Website.", steps: ["Planen", "Prüfen", "Veröffentlichen"] },
-      { title: "Social Media", sub: "Erstellen und verteilen", kicker: "Social-Media-Inhalte", heading: "Einmal erstellen. Überall präsent sein.", body: "Machen Sie aus den Ideen Ihrer Marke fertige Social-Media-Inhalte, passen Sie sie an jede Plattform an und verwalten Sie Ihren Veröffentlichungsplan.", steps: ["Erstellen", "Anpassen", "Planen"] },
-      { title: "SEO", sub: "Gefunden werden", kicker: "Sichtbarkeit in der Suche", heading: "Von den richtigen Kunden gefunden werden.", body: "Verstehen Sie den Zustand Ihrer Website, entdecken Sie Suchchancen und sehen Sie, was Sie zuerst verbessern sollten.", steps: ["Prüfen", "Priorisieren", "Verbessern"] },
+      { title: "Artikel", sub: "Planen und veröffentlichen", kicker: "Inhalte und Veröffentlichung", heading: "Von der Idee zur Veröffentlichung.", body: "Ein verlässlicher Inhaltsmotor: Themenplanung, KI-gestützte Entwürfe, Prüfung und Veröffentlichung auf Ihrer Website.", steps: ["Planen", "Prüfen", "Veröffentlichen"] },
       { title: "Backlinks", sub: "Autorität aufbauen", kicker: "Backlinks und Autorität", heading: "Autorität, die bleibt.", body: "Finden Sie relevante Platzierungsmöglichkeiten, steuern Sie Qualitätsprüfungen und stärken Sie Ihre Website mit nützlichen Verweisen.", steps: ["Entdecken", "Bewerten", "Aufbauen"] },
-      { title: "KI-Suche", sub: "Erwähnt werden", kicker: "Sichtbarkeit in der KI", heading: "Teil der Antwort werden.", body: "Jede Woche stellt RepGet {assistants} mit Websuche die Fragen Ihrer Kunden: Sehen Sie, ob Ihr Unternehmen genannt wird, und erkennen Sie Chancen, leichter gefunden zu werden.", steps: ["Beobachten", "Verstehen", "Verbessern"] },
-      { title: "Wachstum", sub: "Sehen, was wirkt", kicker: "Berichte und Wachstum", heading: "Sehen, was wirklich wirkt.", body: "Suche, Inhalte und Social Media in einem klaren Bild, damit jede nächste Entscheidung leichter fällt.", steps: ["Verbinden", "Messen", "Wachsen"] },
+      { title: "KI-Sichtbarkeit", sub: "Erwähnt werden", kicker: "Sichtbarkeit in der KI", heading: "Teil der Antwort werden.", body: "Jede Woche stellt RepGet {assistants} mit Websuche die Fragen Ihrer Kunden: Sehen Sie, ob Ihr Unternehmen genannt wird, und erkennen Sie Chancen, leichter gefunden zu werden.", steps: ["Beobachten", "Verstehen", "Verbessern"] },
+      { title: "Social Media", sub: "Erstellen und verteilen", kicker: "Social-Media-Inhalte", heading: "Einmal erstellen. Überall präsent sein.", body: "Machen Sie aus den Ideen Ihrer Marke fertige Social-Media-Inhalte, passen Sie sie an jede Plattform an und verwalten Sie Ihren Veröffentlichungsplan.", steps: ["Erstellen", "Anpassen", "Planen"] },
+      { title: "Website-Zustand", sub: "Prüfen und beheben", kicker: "Website-Zustand", heading: "Von den richtigen Kunden gefunden werden.", body: "Verstehen Sie den Zustand Ihrer Website, entdecken Sie Suchchancen und sehen Sie, was Sie zuerst verbessern sollten.", steps: ["Prüfen", "Priorisieren", "Verbessern"] },
     ],
     socialHead: "Social-Media-Kanäle",
     socialSub: "Einmal erstellen. Passend für jeden Kanal.",
@@ -220,6 +214,7 @@ const de: HomeRedesignCopy = {
     footerTitle: "Mehr als Social Media. Ihr kompletter Wachstumsmotor.",
     footerBody: "Inhalte erstellen, in der Suche wachsen, Autorität aufbauen und von der KI gefunden werden.",
     explore: "RepGet entdecken",
+    allFeatures: "Alle Funktionen ansehen",
   },
 };
 

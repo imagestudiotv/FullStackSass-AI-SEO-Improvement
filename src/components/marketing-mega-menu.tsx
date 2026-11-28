@@ -12,7 +12,7 @@ import styles from "./site-header.module.css";
 
 /**
  * What the header's Features and Integrations menus show (client's design,
- * 2026-11-03): the six-tool showcase with its "demo preview" windows, and
+ * 2026-11-03): the five-tool showcase with its "demo preview" windows, and
  * the channels RepGet creates for and the website/data connections.
  *
  * Each is ONE piece of markup that the header places either in its desktop
@@ -41,26 +41,27 @@ export const c = (names: string) =>
     .join(" ");
 
 /**
- * The six tools, in the copy's order, and where each one's heading leads.
+ * The five tools (lib/marketing/product-tools.ts: Articles, Backlinks, AI
+ * Visibility, Social, Website Health - client, 2026-11-27), in the copy's
+ * order, and where each one's heading leads. The "Growth" tab went with the
+ * single count: Growth Copilot runs the five and is not a tool of its own.
  *
- * Only pages that exist. Three tools have a page of their own (/audit,
- * /backlinks, /rank-on-chatgpt). The other three do not yet, so they point at
- * the nearest real page rather than an address made up to fill the menu:
- *  - Content: the Image Studio case study, which walks through exactly that
+ * Only pages that exist. Three tools have a page of their own (/audit for
+ * Website Health, /backlinks, /rank-on-chatgpt). The other two point at the
+ * nearest real page rather than an address made up to fill the menu:
+ *  - Articles: the Image Studio case study, which walks through exactly that
  *    plan-write-publish loop on a real site;
- *  - Social: the homepage's feature selector, the only public page that
- *    shows the social side;
- *  - Growth: success stories, which shows what the product measures.
- * A missing entry falls back rather than throwing, so a seventh translated
- * tool never breaks the header.
+ *  - Social: its part of /features, with the dashboard recordings.
+ * The menu's "See all features" leads to /features itself. A missing entry
+ * falls back rather than throwing, so a sixth translated tool never breaks
+ * the header.
  */
 export const FEATURE_TOOLS: { key: Exclude<FeatureIconName, "arrow">; href: string }[] = [
   { key: "content", href: "/success-stories/image-studio" },
-  { key: "social", href: "/#features" },
-  { key: "seo", href: "/audit" },
   { key: "backlinks", href: "/backlinks" },
   { key: "ai", href: "/rank-on-chatgpt" },
-  { key: "growth", href: "/success-stories" },
+  { key: "social", href: "/features#social" },
+  { key: "seo", href: "/audit" },
 ];
 
 export function featureTool(index: number) {
@@ -131,7 +132,7 @@ export function countLabel(template: string, count: number) {
 /* ------------------------------------------------------------------ */
 
 /**
- * The six tools as tabs (roving tabindex, arrow keys, Home/End), the
+ * The five tools as tabs (roving tabindex, arrow keys, Home/End), the
  * selected one described below with its steps, "Next feature" and an
  * illustrative product window. Hovering a card selects it on a fine pointer,
  * as in the design. The heading is the link to the tool's page.
@@ -269,6 +270,10 @@ export function FeaturesShowcase({
 
         <div className={c("rgf-bottom")}>
           <span>{menu.bottom}</span>
+          {/* /features: every tool with its dashboard recordings (client, 2026-11-27). */}
+          <Link prefetch={false} href={href("/features")} onClick={onNavigate} className={c("rgf-all")}>
+            {menu.allFeatures} →
+          </Link>
           <span>{site.illustrations}</span>
         </div>
       </div>
@@ -379,28 +384,6 @@ function MiniCard({ tool, site, assistants }: { tool: Exclude<FeatureIconName, "
         </>
       );
       break;
-    case "growth":
-      body = (
-        <>
-          {kicker(m.growth.kicker)}
-          <svg aria-hidden="true" className={c("rgf-mini-chart")} preserveAspectRatio="none" viewBox="0 0 160 54">
-            <path
-              d="M0 48L20 41L39 44L57 32L76 35L96 27L114 29L135 14L160 6"
-              fill="none"
-              stroke="#5c86d7"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2.5"
-            />
-            <path d="M0 48L20 41L39 44L57 32L76 35L96 27L114 29L135 14L160 6V54H0Z" fill="#8db2f5" opacity=".15" />
-          </svg>
-          <div className={c("rgf-mini-bottom")}>
-            <span>{m.growth.bottom}</span>
-            <span className={c("rgf-mini-tag")}>↗</span>
-          </div>
-        </>
-      );
-      break;
   }
   return (
     <div className={c("rgf-card-mini")} aria-hidden="true">
@@ -411,7 +394,6 @@ function MiniCard({ tool, site, assistants }: { tool: Exclude<FeatureIconName, "
 
 /** The "demo preview" product window beside each tool's description. */
 function PreviewWindow({ tool, site, assistants }: { tool: Exclude<FeatureIconName, "arrow">; site: SiteMenuCopy; assistants: string[] }) {
-  const gradient = useId();
   const w = site.windows;
   const kicker = (text: string) => <div className={c("rgf-form-kicker")}>{text}</div>;
   let app: string;
@@ -570,50 +552,6 @@ function PreviewWindow({ tool, site, assistants }: { tool: Exclude<FeatureIconNa
                 <em>{w.ai.status}</em>
               </div>
             ))}
-          </div>
-        </>
-      );
-      break;
-    case "growth":
-      app = w.growth.app;
-      content = (
-        <>
-          <div className={c("rgf-growth-graph")}>
-            <div className={c("rgf-graph-title")}>
-              <div>
-                {kicker(w.growth.head)}
-                <strong>{w.growth.title}</strong>
-              </div>
-              <span>{w.growth.range}</span>
-            </div>
-            <svg aria-hidden="true" preserveAspectRatio="none" viewBox="0 0 290 116">
-              <defs>
-                <linearGradient id={gradient} x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0" stopColor="#638ce1" stopOpacity=".27" />
-                  <stop offset="1" stopColor="#638ce1" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              <path d="M0 95H290M0 61H290M0 28H290" stroke="#e9eef8" strokeWidth="1" />
-              <path d="M0 91L30 82L52 86L80 71L108 78L138 59L162 65L186 45L218 50L247 29L290 12V116H0Z" fill={`url(#${gradient})`} />
-              <path
-                d="M0 91L30 82L52 86L80 71L108 78L138 59L162 65L186 45L218 50L247 29L290 12"
-                fill="none"
-                stroke="#4f7fdf"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="3"
-              />
-            </svg>
-          </div>
-          <div className={c("rgf-growth-side")}>
-            {kicker(w.growth.channels)}
-            {(["orange", "purple", "blue"] as const).map((dot, index) => (
-              <div key={dot}>
-                <span className={c(`rgf-channel-dot ${dot}`)} />
-                {w.growth.rows[index]}
-              </div>
-            ))}
-            <div className={c("rgf-queue-footer")}>{w.growth.footer}</div>
           </div>
         </>
       );

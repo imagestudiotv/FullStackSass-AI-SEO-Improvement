@@ -20,9 +20,8 @@ export type PricingCopy = {
   titleLead: string;
   titleAccent: string;
   sub: string;
-  /** aria-label of the row of included capabilities. */
+  /** aria-label of the row of the five tools (lib/marketing/product-tools.ts). */
   includedLabel: string;
-  included: string[];
   /** aria-label of the three cards. */
   gridLabel: string;
   allInOne: string;
@@ -44,8 +43,7 @@ const en: PricingCopy = {
   titleLead: "One platform.",
   titleAccent: "Everything to grow.",
   sub: "SEO articles, backlinks, AI search visibility, and social content creation and distribution. Start free, then get the complete growth workflow, with more capacity as you scale.",
-  includedLabel: "Included capabilities",
-  included: ["SEO & articles", "AI visibility", "Backlinks", "Social publishing", COPILOT],
+  includedLabel: "The five RepGet tools",
   gridLabel: "Complete RepGet packages",
   allInOne: "All-in-one",
   popular: "Most popular",
@@ -104,8 +102,7 @@ const es: PricingCopy = {
   titleLead: "Una plataforma.",
   titleAccent: "Todo para crecer.",
   sub: "Artículos SEO, backlinks, visibilidad en búsquedas con IA y creación y distribución de contenido para redes sociales. Empiece gratis y obtenga después el flujo de crecimiento completo, con más capacidad a medida que crece.",
-  includedLabel: "Funciones incluidas",
-  included: ["SEO y artículos", "Visibilidad en IA", "Backlinks", "Publicación en redes", COPILOT],
+  includedLabel: "Las cinco herramientas de RepGet",
   gridLabel: "Planes completos de RepGet",
   allInOne: "Todo en uno",
   popular: "Más popular",
@@ -164,8 +161,7 @@ const fr: PricingCopy = {
   titleLead: "Une seule plateforme.",
   titleAccent: "Tout pour grandir.",
   sub: "Articles SEO, backlinks, visibilité dans la recherche IA, création et diffusion de contenus sociaux. Commencez gratuitement, puis profitez du parcours de croissance complet, avec plus de capacité à mesure que vous grandissez.",
-  includedLabel: "Fonctionnalités incluses",
-  included: ["SEO et articles", "Visibilité IA", "Backlinks", "Publication sociale", COPILOT],
+  includedLabel: "Les cinq outils de RepGet",
   gridLabel: "Offres RepGet complètes",
   allInOne: "Tout-en-un",
   popular: "Le plus choisi",
@@ -224,8 +220,7 @@ const it: PricingCopy = {
   titleLead: "Un’unica piattaforma.",
   titleAccent: "Tutto per crescere.",
   sub: "Articoli SEO, backlink, visibilità nella ricerca IA e creazione e distribuzione di contenuti social. Inizi gratis, poi ottenga l’intero percorso di crescita, con più capacità man mano che cresce.",
-  includedLabel: "Funzionalità incluse",
-  included: ["SEO e articoli", "Visibilità IA", "Backlink", "Pubblicazione social", COPILOT],
+  includedLabel: "I cinque strumenti di RepGet",
   gridLabel: "Piani RepGet completi",
   allInOne: "Tutto in uno",
   popular: "Il più scelto",
@@ -284,8 +279,7 @@ const de: PricingCopy = {
   titleLead: "Eine Plattform.",
   titleAccent: "Alles für Ihr Wachstum.",
   sub: "SEO-Artikel, Backlinks, Sichtbarkeit in der KI-Suche sowie Erstellung und Verbreitung von Social-Media-Inhalten. Starten Sie kostenlos und erhalten Sie dann den kompletten Wachstums-Workflow, mit mehr Kapazität, während Sie wachsen.",
-  includedLabel: "Enthaltene Funktionen",
-  included: ["SEO & Artikel", "KI-Sichtbarkeit", "Backlinks", "Social Publishing", COPILOT],
+  includedLabel: "Die fünf RepGet-Werkzeuge",
   gridLabel: "Komplette RepGet-Pakete",
   allInOne: "All-in-one",
   popular: "Am beliebtesten",
