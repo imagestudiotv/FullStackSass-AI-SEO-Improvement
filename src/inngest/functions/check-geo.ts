@@ -25,8 +25,9 @@ import {
  * Checks whether AI assistants recommend a customer's business.
  *
  * Since 2026-11-27 every question is put to every assistant this deployment
- * has a key for (Claude, ChatGPT, Gemini - lib/geo/engines.ts), each with
- * web search on, several times (GEO_RUNS_PER_QUESTION, default 3), and the
+ * has a key for and names in GEO_ENGINES (Claude alone when unset;
+ * lib/geo/engines.ts), each with web search on, several times
+ * (GEO_RUNS_PER_QUESTION, default 2; costs in docs/ai-visibility.md), and the
  * share of answers naming the business is stored: one answer is a sample of
  * one. Each answer is two model calls - the assistant's, and Haiku reading
  * the brands out of it - so twenty questions, three assistants and three

@@ -8,7 +8,7 @@ vi.mock("@/lib/ai/client", () => ({
   MODELS: { GENERATION: "claude-sonnet-5", EXTRACTION: "claude-haiku-4-5" },
 }));
 
-import { answerCostUsd, askEngine } from "@/lib/geo/assistants";
+import { answerCostUsd, answerPrice, askEngine } from "@/lib/geo/assistants";
 
 const UA = { language: "Ukrainian", region: "Ukraine", countryCode: "UA" };
 const env = { OPENAI_API_KEY: "sk-test", GOOGLE_AI_API_KEY: "g-test" };
@@ -34,6 +34,8 @@ describe("asking the assistants", () => {
     });
     const answer = await askEngine("claude", "Де купити подарунок?", UA, { env });
     const params = ai.create.mock.calls[0][0];
+    // The cheapest Claude that takes web search, unless GEO_CLAUDE_MODEL says otherwise.
+    expect(params.model).toBe("claude-haiku-5-5");
     expect(params.tools).toEqual([{ type: "web_search_20250305", name: "web_search", max_uses: 3, user_location: { type: "approximate", country: "UA" } }]);
     expect(params.system).toBeUndefined();
     expect(answer).toMatchObject({ engine: "claude", webSearch: true, text: "Try Podarunky.", searches: 2, sources: ["https://podarunky.ua/"] });
@@ -95,8 +97,8 @@ describe("asking the assistants", () => {
     expect(init.headers["x-goog-api-key"]).toBe("g-test");
     expect(JSON.parse(init.body).tools).toEqual([{ google_search: {} }]);
     expect(answer).toMatchObject({ engine: "gemini", model: "gemini-3.7-flash", webSearch: true, text: "Podarunky.", searches: 2, usage: { inputTokens: 20, outputTokens: 150 } });
-    // One grounded prompt is billed once, however many queries it ran.
-    expect(answerCostUsd(answer)).toBeCloseTo(0.014 + (20 * 0.5 + 150 * 3) / 1_000_000, 6);
+    // Gemini 3 and newer bill every search query: two here, at Flash rates.
+    expect(answerCostUsd(answer)).toBeCloseTo(2 * 0.014 + (20 * 0.75 + 150 * 3.75) / 1_000_000, 6);
   });
 
   it("asks Gemini again without grounding when it is refused", async () => {
@@ -107,5 +109,25 @@ describe("asking the assistants", () => {
     const answer = await askEngine("gemini", "q", UA, { env, fetch: http as unknown as typeof fetch });
     expect(JSON.parse(http.mock.calls[1][1].body).tools).toBeUndefined();
     expect(answer.webSearch).toBe(false);
+  });
+});
+
+/** Prices follow the model that answered (option B defaults, 2026-11-28). */
+describe("what an answer costs", () => {
+  const usage = { inputTokens: 20_000, outputTokens: 1_000 };
+
+  it("prices Claude by model: Haiku 5.5 far below Sonnet 5, searches the same", () => {
+    expect(answerCostUsd({ engine: "claude", model: "claude-haiku-5-5", searches: 2, usage })).toBeCloseTo(0.002 + 0.0005 + 0.02, 6);
+    expect(answerCostUsd({ engine: "claude", model: "claude-sonnet-5", searches: 2, usage })).toBeCloseTo(0.04 + 0.01 + 0.02, 6);
+    // A Haiku 5.5 prompt over 100K tokens is on the higher rate card.
+    expect(answerPrice("claude", "claude-haiku-5-5", 150_000)).toMatchObject({ inputPerM: 0.5, outputPerM: 2.5 });
+  });
+
+  it("prices Flash-Lite and nano below their fuller models, and an unknown model high", () => {
+    expect(answerPrice("gemini", "gemini-3.5-flash-lite").inputPerM).toBe(0.3);
+    expect(answerPrice("gemini", "gemini-3.8-flash").inputPerM).toBe(0.75);
+    expect(answerPrice("chatgpt", "gpt-5-nano").inputPerM).toBe(0.05);
+    expect(answerPrice("chatgpt", "gpt-5-mini-2026-08-07").inputPerM).toBe(0.25);
+    expect(answerPrice("claude", "claude-something-new").inputPerM).toBe(2);
   });
 });

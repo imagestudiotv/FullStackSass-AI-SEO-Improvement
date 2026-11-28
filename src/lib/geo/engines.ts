@@ -10,10 +10,12 @@
  * check that never ran, which is worse than not offering it: the customer
  * would go and rewrite pages to fix a number that was never measured.
  *
- * Three are asked since 2026-11-27 (lib/geo/assistants.ts), each with web
- * search on, as a customer's assistant answers today: Claude, ChatGPT and
- * Gemini. Each runs only when its key is set - adding the key is the only
- * thing needed to turn one on. The rest are listed, not asked.
+ * Three can be asked since 2026-11-27 (lib/geo/assistants.ts), each with
+ * web search on, as a customer's assistant answers today: Claude, ChatGPT
+ * and Gemini. One runs only when its key is set AND it is named in
+ * GEO_ENGINES; with GEO_ENGINES unset only Claude is asked (owner review,
+ * 2026-11-28: OPENAI_API_KEY is already set for pictures, so a key alone
+ * must never start a paid engine). The rest are listed, not asked.
  *
  * Pure: no client, no database. The words Copilot uses about AI visibility
  * are built from here (aiVisibilityWords), so they change with this list.
@@ -52,8 +54,14 @@ export const ENGINES: Engine[] = [
     envKey: "ANTHROPIC_API_KEY",
     checked: true,
     modelEnv: "GEO_CLAUDE_MODEL",
-    // lib/ai/client.ts MODELS.GENERATION, written out so this file stays pure.
-    defaultModel: "claude-sonnet-5",
+    /*
+      The cheapest current Claude that takes the web_search_20250305 server
+      tool (Anthropic's web search docs, supported models, checked
+      2026-11-28): Haiku 5.5, $0.10 / $0.50 per million tokens against
+      Sonnet 5's $2 / $10. A search costs the same on both ($10 per 1,000).
+      GEO_CLAUDE_MODEL=claude-sonnet-5 for the fuller model (docs/ai-visibility.md).
+    */
+    defaultModel: "claude-haiku-5-5",
   },
   {
     id: "chatgpt",
@@ -63,6 +71,12 @@ export const ENGINES: Engine[] = [
     envKey: "OPENAI_API_KEY",
     checked: true,
     modelEnv: "GEO_OPENAI_MODEL",
+    /*
+      Already OpenAI's low-cost tier. gpt-5-nano is cheaper per token, but
+      OpenAI's web search guide does not say it takes the tool, and most of
+      an answer's cost is the $10 per 1,000 searches either way
+      (docs/ai-visibility.md).
+    */
     defaultModel: "gpt-5-mini",
   },
   {
@@ -73,8 +87,13 @@ export const ENGINES: Engine[] = [
     envKey: "GOOGLE_AI_API_KEY",
     checked: true,
     modelEnv: "GEO_GEMINI_MODEL",
-    // Google's alias for its current Flash model; the answer records the exact version.
-    defaultModel: "gemini-flash-latest",
+    /*
+      Google's alias for its current Flash-Lite (3.5 Flash-Lite takes Google
+      Search grounding): $0.30 / $2.50 per million tokens against Flash's
+      $0.75 / $3.75. The answer records the exact version.
+      GEO_GEMINI_MODEL=gemini-flash-latest for the fuller model.
+    */
+    defaultModel: "gemini-flash-lite-latest",
   },
   {
     id: "perplexity",
@@ -124,28 +143,32 @@ export type CheckedEngineId = (typeof ASKABLE_ENGINE_IDS)[number];
 
 const engine = (id: string) => ENGINES.find((e) => e.id === id);
 
+/** Asked when GEO_ENGINES is unset or blank: Claude alone. */
+export const DEFAULT_GEO_ENGINES: readonly CheckedEngineId[] = ["claude"];
+
 /**
- * Which engines this deployment actually asks: a client here AND a key set.
+ * Which engines this deployment actually asks: a client here, a key set,
+ * AND named in GEO_ENGINES ("claude,chatgpt,gemini"). With GEO_ENGINES
+ * unset or blank, Claude only.
+ *
+ * A key alone is never enough: OPENAI_API_KEY is already set for pictures,
+ * so ChatGPT would otherwise start being asked - and paid for - the day
+ * this is deployed (review of 2026-11-28). Turning an engine on is a
+ * decision written into GEO_ENGINES.
  *
  * Server-only in practice: it reads environment variables. The UI receives
  * the result as plain data rather than calling this in the browser, where
  * every value would be undefined and every engine would look unavailable.
  */
 export function availableEngineIds(env: Env = process.env): CheckedEngineId[] {
-  /*
-    GEO_ENGINES ("claude,chatgpt") narrows the list without removing a key:
-    OPENAI_API_KEY is already set for pictures, so ChatGPT would otherwise
-    start being asked - and paid for - the moment this is deployed.
-  */
-  const only = (env.GEO_ENGINES ?? "").split(",").map((v) => v.trim().toLowerCase()).filter(Boolean);
-  return ASKABLE_ENGINE_IDS.filter(
-    (id) => Boolean(env[engine(id)?.envKey ?? ""]?.trim()) && (only.length === 0 || only.includes(id)),
-  );
+  const listed = (env.GEO_ENGINES ?? "").split(",").map((v) => v.trim().toLowerCase()).filter(Boolean);
+  const wanted: readonly string[] = listed.length > 0 ? listed : DEFAULT_GEO_ENGINES;
+  return ASKABLE_ENGINE_IDS.filter((id) => wanted.includes(id) && Boolean(env[engine(id)?.envKey ?? ""]?.trim()));
 }
 
 /**
  * The assistants the check really asks on this deployment: a client here, a
- * key set, and not left out by GEO_ENGINES. Read once, when the server
+ * key set, and named in GEO_ENGINES (Claude alone when unset). Read once, when the server
  * starts - environment variables do not change under a running server. The
  * one list Copilot, the method section and the sign-in panel are worded from
  * (owner review, 2026-11-27).
@@ -167,12 +190,12 @@ export function engineName(id: string): string {
   return engine(id)?.name ?? id;
 }
 
-/** How many times each question is put to each assistant in one check. */
-export const DEFAULT_RUNS_PER_QUESTION = 3;
+/** How many times each question is put to each assistant in one check (owner's option B, 2026-11-28). */
+export const DEFAULT_RUNS_PER_QUESTION = 2;
 const MAX_RUNS_PER_QUESTION = 5;
 
 /**
- * GEO_RUNS_PER_QUESTION, 1-5, default 3. One answer is a sample of one: the
+ * GEO_RUNS_PER_QUESTION, 1-5, default 2. One answer is a sample of one: the
  * same question asked twice can name different businesses, so a single
  * answer cannot say whether a business is usually named or was lucky once.
  */

@@ -299,6 +299,7 @@ describe("the check-geo job, several answers per question", () => {
 
   it("asks every assistant with a key N times and stores the share, with what each answer was asked with", async () => {
     vi.stubEnv("OPENAI_API_KEY", "sk-test");
+    vi.stubEnv("GEO_ENGINES", "claude,chatgpt");
     vi.stubEnv("GEO_RUNS_PER_QUESTION", "3");
     const { websiteId } = await seedWebsite(test);
     const [prompt] = await test.db.insert(geoPrompts).values({ websiteId, prompt: "best gift shop in kyiv" }).returning();
@@ -320,6 +321,15 @@ describe("the check-geo job, several answers per question", () => {
     expect(row).toMatchObject({ engine: "claude,chatgpt", samples: 5, mentionCount: 1, mentioned: true, competitors: ["Rival"] });
     expect(row.answers).toHaveLength(5);
     expect(row.answers?.[0]).toMatchObject({ engine: "claude", model: "claude-model", webSearch: true, language: "English" });
+  });
+
+  it("asks Claude alone while GEO_ENGINES is unset, though the OpenAI key is there", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "sk-test");
+    const { websiteId } = await seedWebsite(test);
+    await test.db.insert(geoPrompts).values({ websiteId, prompt: "best gift shop in odesa" });
+    geoProvider.runCheck.mockResolvedValue(answer("claude", false));
+    await job.handler({ event: { data: { websiteId } }, step, logger });
+    expect(geoProvider.runCheck.mock.calls.map((call) => call[3].engine)).toEqual(["claude"]);
   });
 
   it("checks a website at most a few times a week, the weekly sweep included", async () => {

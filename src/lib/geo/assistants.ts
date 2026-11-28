@@ -249,30 +249,48 @@ export async function askEngine(engine: CheckedEngineId, prompt: string, market:
 /* What an answer cost                                                       */
 /* ------------------------------------------------------------------------ */
 
-/**
- * List prices per engine for the DEFAULT models, USD (checked 2026-11-27,
- * to re-check before quoting margins): tokens per million, web search per
- * search. A model set by environment variable is costed at its engine's
- * default rates - a rough figure rather than none, flagged in the metadata.
- *
- *  - Claude Sonnet 5: $2 / $10 per million tokens; web search $10 per 1,000.
- *  - GPT-5 mini: $0.25 / $2; web search $10 per 1,000 calls.
- *  - Gemini Flash: about $0.50 / $3; Google Search grounding $14 per 1,000
- *    (5,000 a month free on the paid tier, not counted here).
- */
-export const ENGINE_PRICES: Record<CheckedEngineId, { provider: string; inputPerM: number; outputPerM: number; perSearch: number }> = {
-  claude: { provider: "anthropic", inputPerM: 2, outputPerM: 10, perSearch: 0.01 },
-  chatgpt: { provider: "openai", inputPerM: 0.25, outputPerM: 2, perSearch: 0.01 },
-  gemini: { provider: "google", inputPerM: 0.5, outputPerM: 3, perSearch: 0.014 },
-};
+export type AnswerPrice = { inputPerM: number; outputPerM: number; perSearch: number };
 
-export function answerCostUsd(answer: Pick<AssistantAnswer, "engine" | "searches" | "usage">): number {
-  const price = ENGINE_PRICES[answer.engine];
-  /* Gemini bills a grounded prompt once, however many queries it ran. */
-  const searches = answer.engine === "gemini" ? Math.min(answer.searches, 1) : answer.searches;
+/**
+ * List prices, USD, checked 2026-11-28 on each provider's pricing page (to
+ * re-check before quoting margins): tokens per million, web search per
+ * search. Chosen by the model that answered (the provider reports it, often
+ * with a version: "gemini-3.5-flash-lite", "gpt-5-mini-2026-08-07"); an
+ * unknown model of an engine is costed at that engine's fuller model, so
+ * the estimate errs high rather than low.
+ *
+ *  - Claude: Haiku 5.5 $0.10 / $0.50 (prompts over 100K tokens $0.50 /
+ *    $2.50), Haiku 4.5 $1 / $5, Sonnet 5 and 5.5 $2 / $10, Opus 5.5 $4 /
+ *    $20. Web search $10 per 1,000, and its results are billed as input.
+ *  - ChatGPT: GPT-5 nano $0.05 / $0.40, GPT-5 mini $0.25 / $2. Web search
+ *    $10 per 1,000 calls, search content billed as input.
+ *  - Gemini: 3.5 Flash-Lite $0.30 / $2.50, Flash $0.75 / $3.75 (Google's
+ *    price until 2026-12-31; $1.50 / $7.50 from 2027-01-01). Gemini 3 and
+ *    newer bill every search query the model runs, $14 per 1,000 after
+ *    5,000 free a month per project (the free ones are not subtracted).
+ */
+export function answerPrice(engine: CheckedEngineId, model: string, inputTokens = 0): AnswerPrice {
+  const m = model.toLowerCase();
+  if (engine === "claude") {
+    const perSearch = 0.01;
+    if (m.includes("haiku-4")) return { inputPerM: 1, outputPerM: 5, perSearch };
+    if (m.includes("haiku")) return inputTokens > 100_000 ? { inputPerM: 0.5, outputPerM: 2.5, perSearch } : { inputPerM: 0.1, outputPerM: 0.5, perSearch };
+    if (m.includes("opus")) return { inputPerM: 4, outputPerM: 20, perSearch };
+    return { inputPerM: 2, outputPerM: 10, perSearch };
+  }
+  if (engine === "chatgpt") {
+    if (m.includes("nano")) return { inputPerM: 0.05, outputPerM: 0.4, perSearch: 0.01 };
+    return { inputPerM: 0.25, outputPerM: 2, perSearch: 0.01 };
+  }
+  if (m.includes("lite")) return { inputPerM: 0.3, outputPerM: 2.5, perSearch: 0.014 };
+  return { inputPerM: 0.75, outputPerM: 3.75, perSearch: 0.014 };
+}
+
+export function answerCostUsd(answer: Pick<AssistantAnswer, "engine" | "model" | "searches" | "usage">): number {
+  const price = answerPrice(answer.engine, answer.model, answer.usage.inputTokens);
   const cost =
     (answer.usage.inputTokens / 1_000_000) * price.inputPerM +
     (answer.usage.outputTokens / 1_000_000) * price.outputPerM +
-    searches * price.perSearch;
+    answer.searches * price.perSearch;
   return Number(cost.toFixed(6));
 }
