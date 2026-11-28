@@ -12,6 +12,7 @@ import { CONTENT_COPY } from "@/lib/i18n/content-improvements";
 import type { Messages } from "@/lib/i18n/messages";
 // The provider's 0 is "not measured", shown as a dash (lib/keywords/score.ts).
 import { knownDifficulty } from "@/lib/keywords/score";
+import { intentLabel } from "@/lib/keywords/labels";
 import { cn } from "@/lib/utils";
 
 type Text = Messages["app"]["reports"];
@@ -224,21 +225,6 @@ export function TodaysArticleCard({ overview, t, locale }: { overview: Dashboard
       ) : null}
     </section>
   );
-}
-
-function intentLabel(intent: string, t: Text): string {
-  switch (intent) {
-    case "commercial":
-      return t.intentCommercial;
-    case "transactional":
-      return t.intentTransactional;
-    case "informational":
-      return t.intentInformational;
-    case "navigational":
-      return t.intentNavigational;
-    default:
-      return intent;
-  }
 }
 
 /* ------------------------------------------------------------------------ */

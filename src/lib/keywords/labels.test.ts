@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { LOCALES } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
-import { topicMetrics } from "./labels";
+import { intentLabel, topicMetrics } from "./labels";
 
 describe("topicMetrics", () => {
   const en = getMessages("en").app.calendar;
@@ -24,5 +24,22 @@ describe("topicMetrics", () => {
       expect(t.difficulty.trim()).not.toBe("");
       expect(t.volume.trim()).not.toBe("");
     }
+  });
+});
+
+describe("intentLabel", () => {
+  it("names every intent in each language", () => {
+    const en = getMessages("en").app.common;
+    for (const locale of LOCALES) {
+      const t = getMessages(locale).app.common;
+      for (const intent of ["commercial", "transactional", "informational", "navigational"]) {
+        const label = intentLabel(intent, t);
+        expect(label).not.toBe("");
+        expect(label).not.toBe(intent);
+        if (locale !== "en" && intent !== "commercial") expect(label).not.toBe(intentLabel(intent, en));
+      }
+    }
+    expect(intentLabel("informational", getMessages("es").app.common)).toBe("Informativo");
+    expect(intentLabel("something_else", en)).toBe("something_else");
   });
 });

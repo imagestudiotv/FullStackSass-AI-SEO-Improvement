@@ -2631,6 +2631,11 @@ export type Messages = {
       stepsLeft: string;
     };
     common: {
+      /** A keyword's search intent, wherever it is shown as a badge or label (lib/keywords/intent-label.ts). */
+      intentCommercial: string;
+      intentTransactional: string;
+      intentInformational: string;
+      intentNavigational: string;
       cancel: string;
       done: string;
       edit: string;
@@ -5861,6 +5866,10 @@ const en: Messages = {
       stepsLeft: "{n} step left before everything runs on its own.|{n} steps left before everything runs on its own.",
     },
     common: {
+      intentCommercial: "Commercial",
+      intentTransactional: "Transactional",
+      intentInformational: "Informational",
+      intentNavigational: "Navigational",
       cancel: "Cancel",
       done: "Done",
       edit: "Edit",
@@ -9052,6 +9061,10 @@ const es: Messages = {
         "Queda {n} paso para que todo funcione solo.|Quedan {n} pasos para que todo funcione solo.",
     },
     common: {
+      intentCommercial: "Comercial",
+      intentTransactional: "Transaccional",
+      intentInformational: "Informativo",
+      intentNavigational: "Navegacional",
       cancel: "Cancelar",
       done: "Hecho",
       edit: "Editar",
@@ -12243,6 +12256,10 @@ const fr: Messages = {
       stepsLeft: "{n} étape restante avant que tout fonctionne seul.|{n} étapes restantes avant que tout fonctionne seul.",
     },
     common: {
+      intentCommercial: "Commercial",
+      intentTransactional: "Transactionnel",
+      intentInformational: "Informationnel",
+      intentNavigational: "Navigationnel",
       cancel: "Annuler",
       done: "Terminé",
       edit: "Modifier",
@@ -15434,6 +15451,10 @@ const it: Messages = {
         "Manca {n} passaggio prima che tutto funzioni da solo.|Mancano {n} passaggi prima che tutto funzioni da solo.",
     },
     common: {
+      intentCommercial: "Commerciale",
+      intentTransactional: "Transazionale",
+      intentInformational: "Informativo",
+      intentNavigational: "Navigazionale",
       cancel: "Annulla",
       done: "Fatto",
       edit: "Modifica",
@@ -18404,7 +18425,7 @@ const de: Messages = {
       intentCommercial: "Kommerziell",
       intentTransactional: "Transaktional",
       intentInformational: "Informativ",
-      intentNavigational: "Navigational",
+      intentNavigational: "Navigation",
       whyThisTopic: "Warum dieses Thema?",
       whyWithVolume: "Es zielt auf „{keyword}“, etwa {volume}-mal im Monat gesucht.",
       whyKeyword: "Es zielt auf „{keyword}“.",
@@ -18621,6 +18642,10 @@ const de: Messages = {
       stepsLeft: "Noch {n} Schritt, bis alles von selbst läuft.|Noch {n} Schritte, bis alles von selbst läuft.",
     },
     common: {
+      intentCommercial: "Kommerziell",
+      intentTransactional: "Transaktional",
+      intentInformational: "Informativ",
+      intentNavigational: "Navigation",
       cancel: "Abbrechen",
       done: "Fertig",
       edit: "Bearbeiten",

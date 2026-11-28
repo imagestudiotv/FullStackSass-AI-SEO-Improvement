@@ -23,3 +23,32 @@ export function topicMetrics(
   if (volume !== null) parts.push(`${t.volume} ${volume}`);
   return parts.join(" · ");
 }
+
+/** The four labels any messages section carrying them provides (app.common, app.reports). */
+export type IntentLabels = {
+  intentCommercial: string;
+  intentTransactional: string;
+  intentInformational: string;
+  intentNavigational: string;
+};
+
+/**
+ * A keyword's search intent in the reader's language. The stored value is an
+ * English code ("informational"), and showing it as stored put English words
+ * on every other locale's keyword table and plan (outside review of
+ * 2026-11-28). An unknown code is shown as stored.
+ */
+export function intentLabel(intent: string, t: IntentLabels): string {
+  switch (intent) {
+    case "commercial":
+      return t.intentCommercial;
+    case "transactional":
+      return t.intentTransactional;
+    case "informational":
+      return t.intentInformational;
+    case "navigational":
+      return t.intentNavigational;
+    default:
+      return intent;
+  }
+}

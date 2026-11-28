@@ -25,7 +25,7 @@ import {
   updateCalendarItem,
   type CalendarRow,
 } from "@/lib/keywords/actions";
-import { topicMetrics } from "@/lib/keywords/labels";
+import { intentLabel, topicMetrics } from "@/lib/keywords/labels";
 import { cn } from "@/lib/utils";
 
 /**
@@ -401,8 +401,8 @@ export function ContentCalendar({
         ) : null}
 
         {item.intent ? (
-          <p className="mt-1 truncate text-xs capitalize text-muted-foreground">
-            {item.intent}
+          <p className="mt-1 truncate text-xs text-muted-foreground">
+            {intentLabel(item.intent, tCommon)}
           </p>
         ) : null}
 
