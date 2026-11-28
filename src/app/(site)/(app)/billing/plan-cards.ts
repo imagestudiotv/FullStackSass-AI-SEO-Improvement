@@ -86,8 +86,14 @@ export function planCardsFor(
      * offer is on - and a plan it does not cover cannot be moved to.
      */
     launchPrice?: boolean;
-    /** The plan the website on screen has now, when switching. */
-    current?: { interval: string | null; status: string } | null;
+    /**
+     * The plan the website on screen has now. `launchPrice`: whether ITS
+     * subscription was started on the launch price. During a PayPal free trial
+     * (not `switching`: another plan is a new checkout) the current plan's card
+     * shows what that subscription converts at, which the offer switch does
+     * not decide.
+     */
+    current?: { planId?: string | null; interval: string | null; status: string; launchPrice?: boolean } | null;
     locale: Locale;
     t: Messages["app"]["billing"];
   },
@@ -99,7 +105,18 @@ export function planCardsFor(
 
   for (const plan of plans) {
     const money = (cents: number) => formatMoney(cents, plan.currency, locale);
-    const shown = planDisplayPrice(plan, context.switching ? Boolean(context.launchPrice) : context.offerOn);
+    /*
+      What each payment will really be (Billing must match the charge, eval
+      2026-11-28):
+       - switching: a plan change keeps the subscription's own launch price or
+         has none (offerForPlanChange), whatever the offer switch says;
+       - the current plan during a PayPal free trial: what that subscription
+         converts at, its own launch price or none;
+       - otherwise a new checkout: the launch price while the offer is on.
+    */
+    const own = context.current?.planId === plan.id && context.current.launchPrice !== undefined;
+    const discounted = context.switching ? Boolean(context.launchPrice) : own ? Boolean(context.current?.launchPrice) : context.offerOn;
+    const shown = planDisplayPrice(plan, discounted);
     const yearly = plan.interval === "year";
     const direct = isDirectPurchaseTier(plan.tier);
     const charged = money(shown.chargedCents);

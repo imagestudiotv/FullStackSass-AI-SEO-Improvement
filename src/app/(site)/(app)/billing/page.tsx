@@ -220,7 +220,16 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
   */
   const entitled = isEntitled(current?.status);
   const switching = entitled && !(current?.provider === "paypal" && current.status === "trialing");
-  const launchPrice = switching && websiteId ? await onLaunchPrice(db, websiteId) : false;
+  // Whether this website's own subscription has the launch price: what it is charged on, whether the offer is on now or not.
+  const ownLaunchPrice = entitled && websiteId ? await onLaunchPrice(db, websiteId) : false;
+  const launchPrice = switching && ownLaunchPrice;
+  /*
+    A subscription started without the launch price is charged the regular
+    price, and so is a plan change, while new checkouts (and /pricing) show the
+    launch price: said beside the cards, so the two do not read as a mistake
+    (eval 2026-11-28: "Billing shows Grow EUR 149, /pricing EUR 89").
+  */
+  const regularPrice = switching && !launchPrice && repgetOfferEnabled();
 
   /*
     The plan cards' prices, terms and benefits (plan-cards.ts): the price
@@ -232,7 +241,9 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
     trialEligible: await isTrialEligible(db, orgId),
     switching,
     launchPrice,
-    current: current ? { interval: current.interval, status: current.status } : null,
+    current: current
+      ? { planId: current.planId, interval: current.interval, status: current.status, ...(entitled ? { launchPrice: ownLaunchPrice } : {}) }
+      : null,
     locale,
     t: t.app.billing,
   });
@@ -276,6 +287,7 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
         paypalAvailable={paypalAvailable}
         offerCopy={switching ? null : screenOffer === "repget" ? OFFER_CODE[locale] : screenOffer === "winback" ? WINBACK_OFFER_CODE[locale] : null}
         launchPriceKept={launchPrice}
+        regularPrice={regularPrice}
         paypalIntervalNote={PAYPAL_PLAN_CHANGE_COPY[locale].intervalSwitch}
         paypalPendingCopy={PAYPAL_PENDING_COPY[locale]}
         checkout={checkout}

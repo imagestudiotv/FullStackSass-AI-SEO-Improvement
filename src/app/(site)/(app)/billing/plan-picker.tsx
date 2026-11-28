@@ -83,6 +83,7 @@ export function PlanPicker({
   websiteId,
   websiteSubscriptions,
   processorNote,
+  priceNote = null,
   offer,
   annualNote,
   selectedTier,
@@ -110,6 +111,8 @@ export function PlanPicker({
   websiteSubscriptions: WebsiteSubscription[];
   /** Why one processor's buttons are missing, already worded; null when nothing is. */
   processorNote: string | null;
+  /** Why the prices here are not the launch prices /pricing shows (billing/page.tsx regularPrice); null when they are. */
+  priceNote?: string | null;
   /** The discount that applies here, already worded; null when none does. */
   offer: { title: string; body: string } | null;
   /** Beside the period switch: what paying yearly saves. */
@@ -402,6 +405,7 @@ export function PlanPicker({
 
       <div className="mt-5 space-y-3">
         {processorNote ? <Notice tone="info">{processorNote}</Notice> : null}
+        {priceNote ? <Notice tone="info">{priceNote}</Notice> : null}
         {offer ? (
           <div
             role="status"

@@ -97,6 +97,15 @@ describe("the REPGET field", () => {
   it("does not show while the offer is off", () => {
     expect(render(none, { entitled: false, websiteSubscriptions: [] })).not.toContain(OFFER_CODE.en.label);
   });
+
+  // eval 2026-11-28: Billing EUR 149 beside /pricing's EUR 89 must not read as a mistake.
+  it.each(LOCALES)("says (%s) why a website started without the launch price sees the regular prices", (locale) => {
+    const onCard = { ...onPayPal("trialing"), provider: "stripe" as const, hasCustomer: true };
+    const words = BILLING_PLANS_COPY[locale].regularPrice;
+    const escaped = renderToStaticMarkup(createElement("i", null, words)).slice(3, -4);
+    expect(render(onCard, { locale, regularPrice: true })).toContain(escaped);
+    expect(render(onCard, { locale })).not.toContain(escaped);
+  });
 });
 
 describe("billing, on the free articles through PayPal", () => {
