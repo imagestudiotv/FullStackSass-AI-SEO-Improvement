@@ -19,7 +19,7 @@ vi.mock("@/lib/ai/client", () => ({
 
 import { askFirstQuestionsIfDue } from "./first-questions";
 import { regenerateQuestions, REGENERATIONS_PER_DAY } from "./regenerate";
-import { categoryQuestionCount, planTopics, questionBrief } from "./suggest";
+import { categoryQuestionCount, planTopics, questionBrief, siteTypeOf } from "./suggest";
 
 const reply = (prompts: string[]) => ({
   content: [{ type: "text", text: JSON.stringify({ prompts }) }],
@@ -90,6 +90,51 @@ describe("the questions' brief", () => {
     const rows = await questions(websiteId);
     expect(rows).toHaveLength(20);
     expect(rows.every((row) => row.language === "Ukrainian" && row.region === "Ukraine")).toBe(true);
+  });
+});
+
+/**
+ * A publisher's readers, not a seller's customers (review of 2026-11-28: the
+ * brief framed every site as a seller - "a potential customer... what one
+ * costs" - so a greetings magazine tracked price questions). The model is mocked.
+ */
+describe("the questions for a publisher", () => {
+  const market = { language: "Ukrainian", region: "Ukraine", countryCode: "UA" };
+  const topics = { clusters: ["Привітання з днем народження"], keywords: [], titles: [] };
+
+  it("asks what a reader would ask, and never about prices", () => {
+    const brief = questionBrief({ domain: "vitannia.ua", market, count: 20, topics, siteType: "publisher" });
+    expect(brief).toContain("questions a reader in Ukraine might ask an AI assistant");
+    expect(brief).toContain("what the readers the plan is written for want to know, read, find or choose");
+    expect(brief).toContain("about this kind of website in Ukraine");
+    expect(brief).toContain("No questions about prices, buying or hiring");
+    expect(brief).not.toMatch(/potential customer|what one costs|asking about price|this business/);
+  });
+
+  it("keeps a business's customers' questions, prices included", () => {
+    const brief = questionBrief({ domain: "acme.ua", market, count: 20, topics, siteType: "business" });
+    expect(brief).toContain("questions a potential customer in Ukraine");
+    expect(brief).toContain("what one costs");
+    expect(questionBrief({ domain: "acme.ua", market, count: 20, topics })).toBe(brief);
+  });
+
+  it("reads the site type from the profile", () => {
+    expect(siteTypeOf({ industry: "Online magazine", description: "Привітання та побажання на кожне свято", services: ["Привітання", "Листівки"] })).toBe("publisher");
+    expect(siteTypeOf({ industry: "Dental clinic", description: "Implants and whitening", services: null })).toBe("business");
+  });
+
+  it("writes a greetings magazine's first questions for its readers, its topics in the profile", async () => {
+    const { websiteId } = await ukrainianSite();
+    await test.db
+      .update(websites)
+      .set({ industry: "Online magazine", description: "Привітання та побажання на кожне свято", services: ["Привітання з днем народження", "Листівки"] })
+      .where(eq(websites.id, websiteId));
+    ai.create.mockResolvedValue(reply(ukrainian(30)));
+    expect(await askFirstQuestionsIfDue(websiteId)).toBe("added");
+    const prompt = ai.create.mock.calls[0][0].messages[0].content as string;
+    expect(prompt).toContain("questions a reader in Ukraine");
+    expect(prompt).toContain("Main services or topics: Привітання з днем народження; Листівки");
+    expect(prompt).not.toMatch(/potential customer|what one costs|asking about price/);
   });
 });
 

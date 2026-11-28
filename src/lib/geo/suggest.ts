@@ -10,6 +10,8 @@ import { db } from "@/lib/db";
 import { calendarItems, clusters, keywords } from "@/lib/db/schema";
 import { asc, eq, sql } from "drizzle-orm";
 import { PRICING, track } from "@/lib/usage";
+import type { SiteType } from "@/lib/keywords/score";
+import { inferSiteType } from "@/lib/keywords/site-type";
 
 /**
  * The one paid call behind every suggested AI-visibility question: "Suggest"
@@ -80,13 +82,35 @@ export function categoryQuestionCount(count: number, hasTopics: boolean): number
   return count >= 8 ? 3 : Math.min(2, Math.max(count - 1, 0));
 }
 
+/** The profile's "Main services" (websites.services, jsonb): the strings in it, nothing else. */
+export function profileServices(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string" && v.trim() !== "").map((v) => v.trim()).slice(0, 12) : [];
+}
+
+/**
+ * Whether the website sells something or lives from its readers, from the
+ * profile (industry, description, services): lib/keywords/site-type.ts, the
+ * same reading the keyword research falls back on. Not stored, so read here
+ * from the profile as it is now.
+ */
+export function siteTypeOf(site: Pick<typeof websites.$inferSelect, "industry" | "description" | "services">): SiteType {
+  return inferSiteType({ industry: site.industry, description: site.description, services: profileServices(site.services) });
+}
+
 /**
  * The instruction for the questions: in the website's language for its
  * market, most about the content plan's topics, two or three about the
- * business's category. Pure, so it can be tested without a model.
+ * website's category. Pure, so it can be tested without a model.
+ *
+ * Worded for what the website is (review of 2026-11-28: every site was
+ * framed as a seller, "a potential customer... what one costs", which made
+ * a Ukrainian greetings magazine track price questions). A business gets
+ * its customers' questions; a publisher gets its readers' - what they would
+ * ask an assistant to find, read or choose - and no price questions.
  */
-export function questionBrief(input: { domain: string; market: Market; count: number; topics: PlanTopics }): string {
+export function questionBrief(input: { domain: string; market: Market; count: number; topics: PlanTopics; siteType?: SiteType }): string {
   const { domain, market, count, topics } = input;
+  const publisher = input.siteType === "publisher";
   const hasTopics = topics.clusters.length + topics.keywords.length + topics.titles.length > 0;
   const category = categoryQuestionCount(count, hasTopics);
   const fromPlan = count - category;
@@ -104,21 +128,31 @@ export function questionBrief(input: { domain: string; market: Market; count: nu
       )
     : "";
   return [
-    `A business has this website: ${domain}`,
+    publisher ? `A website that publishes articles and guides for its readers: ${domain}` : `A business has this website: ${domain}`,
     plan || null,
     "",
-    `Write ${count} questions a potential customer${where} might ask an AI assistant such as ChatGPT when looking for what this business offers.`,
+    publisher
+      ? `Write ${count} questions a reader${where} might ask an AI assistant such as ChatGPT when looking for what this website writes about: questions an assistant answers by pointing to websites or sources worth reading.`
+      : `Write ${count} questions a potential customer${where} might ask an AI assistant such as ChatGPT when looking for what this business offers.`,
     "",
     "Rules:",
     `- Write every question in ${market.language}, the way a native speaker${where} types it to an assistant: natural, not translated from English.`,
     hasTopics
-      ? `- ${fromPlan} of them about the topics in the content plan above, spread across them: what the people the plan is written for want to find, buy, compare or choose.`
+      ? publisher
+        ? `- ${fromPlan} of them about the topics in the content plan above, spread across them: what the readers the plan is written for want to know, read, find or choose.`
+        : `- ${fromPlan} of them about the topics in the content plan above, spread across them: what the people the plan is written for want to find, buy, compare or choose.`
       : null,
-    `- ${category} of them about this kind of business${where}: where to find one, which are best, what one costs.`,
-    "- Never name this business. The question must be one someone asks BEFORE they know it exists.",
+    publisher
+      ? `- ${category} of them about this kind of website${where}: where to read about the subject, which websites are best for it, which ones to trust.`
+      : `- ${category} of them about this kind of business${where}: where to find one, which are best, what one costs.`,
+    publisher
+      ? "- Never name this website. The question must be one someone asks BEFORE they know it exists."
+      : "- Never name this business. The question must be one someone asks BEFORE they know it exists.",
     "- Ask the way a real person types, not like a search query.",
-    `- Be specific to the industry${market.region ? ` and to ${market.region}` : ""}, where it matters.`,
-    "- Vary the intent: some comparing options, some asking about price, some about a specific product, service or occasion.",
+    `- Be specific to the subject${market.region ? ` and to ${market.region}` : ""}, where it matters.`,
+    publisher
+      ? "- Vary the intent: some looking for ideas or examples, some comparing sources, some about a specific topic or occasion. No questions about prices, buying or hiring: a reader is not shopping."
+      : "- Vary the intent: some comparing options, some asking about price, some about a specific product, service or occasion.",
     `- ${dataRule("business_profile")}`,
     hasTopics ? `- ${dataRule("site_data")}` : null,
   ]
@@ -140,6 +174,8 @@ export async function suggestQuestions(input: {
   const { site, count, tracked = [] } = input;
   const market = marketOf(site);
   const topics = input.topics ?? (await planTopics(site.id).catch(() => NO_TOPICS));
+  const services = profileServices(site.services);
+  const siteType = siteTypeOf(site);
   // Billed to the website's owner, not an invited editor's own workspace.
   const ownerOrgId = site.organizationId;
 
@@ -158,6 +194,7 @@ export async function suggestQuestions(input: {
     site.industry && `Industry: ${site.industry}`,
     site.country && `Country: ${site.country}`,
     site.description && `About: ${site.description}`,
+    services.length > 0 && `Main services or topics: ${services.join("; ")}`,
   ]
     .filter(Boolean)
     .join("\n");
@@ -185,7 +222,7 @@ export async function suggestQuestions(input: {
         {
           role: "user",
           content: `${description}
-${questionBrief({ domain: site.domain, market, count, topics })}
+${questionBrief({ domain: site.domain, market, count, topics, siteType })}
 ${avoid}
 
 Reply with JSON only: {"prompts": ["...", "..."]}`,
