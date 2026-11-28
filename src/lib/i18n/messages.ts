@@ -2451,6 +2451,8 @@ export type Messages = {
       websiteHealth: string;
       websiteHealthHelp: string;
       noSeries: string;
+      /** Dashboard chart, Backlinks: no verified link in the period, so the chart is not drawn (outside review, 2026-11-27). */
+      noBacklinksYet: string;
       utcDays: string;
       unitArticles: string;
       unitClicks: string;
@@ -5452,7 +5454,7 @@ const en: Messages = {
       recoverFromArticles: "Recover credits from {count} article|Recover credits from {count} articles",
       buyCredits: "Buy credits",
       creditsHowItWorks: "You earn credits when a partner's link in your article is verified live, and spend them when a link to your site is verified live. While a link is being placed its credits are reserved; if a verified link is later removed, they are returned.",
-      creditsScopeNote: "Credits belong to your workspace and are shared by all its websites.",
+      creditsScopeNote: "Credits belong to your workspace, not to one subscription: each website (one per subscription) spends from the same balance.",
       creditsOwnerOnly: "Credits belong to the workspace that owns this website and are shown to its members only.",
       receivedSectionTitle: "Links to your site",
       receivedFlow: "Placed in partners' articles → verified → credits spent",
@@ -5704,6 +5706,7 @@ const en: Messages = {
       websiteHealth: "Website health",
       websiteHealthHelp: "Your latest technical audit - separate from authority",
       noSeries: "No data for this metric in the period yet.",
+      noBacklinksYet: "No verified links to your site in this period, so there is nothing to chart yet. Links you get through RepGet's backlink exchange appear here once they are checked.",
       utcDays: "Days are UTC calendar days.",
       unitArticles: "articles",
       unitClicks: "clicks",
@@ -6153,7 +6156,7 @@ const en: Messages = {
     },
     credits: {
       title: "Credits",
-      intro: "One credit balance for your whole workspace, shared by all your websites. Spend it on backlinks, services and everything else in RepGet.",
+      intro: "One credit balance for your whole workspace. Each subscription covers one website; if you add more websites, each with its own plan, they all spend from this balance. Use it for backlinks, services and everything else in RepGet.",
       buy: "Buy credits",
       availableHelp: "Credits you can spend now.",
       daily: "Daily credits",
@@ -8639,7 +8642,7 @@ const es: Messages = {
       recoverFromArticles: "Recuperar créditos de {count} artículo|Recuperar créditos de {count} artículos",
       buyCredits: "Comprar créditos",
       creditsHowItWorks: "Ganas créditos cuando se verifica que el enlace de un socio en tu artículo está activo, y los gastas cuando se verifica un enlace a tu sitio. Mientras se coloca un enlace, sus créditos quedan reservados; si después se retira un enlace verificado, se devuelven.",
-      creditsScopeNote: "Los créditos pertenecen a tu espacio de trabajo y los comparten todos sus sitios.",
+      creditsScopeNote: "Los créditos pertenecen a tu espacio de trabajo, no a una suscripción: cada sitio (uno por suscripción) gasta del mismo saldo.",
       creditsOwnerOnly: "Los créditos pertenecen al espacio de trabajo propietario de este sitio y solo los ven sus miembros.",
       receivedSectionTitle: "Enlaces a tu sitio",
       receivedFlow: "Colocados en artículos de socios → verificados → créditos gastados",
@@ -8891,6 +8894,7 @@ const es: Messages = {
       websiteHealth: "Salud del sitio",
       websiteHealthHelp: "Tu última auditoría técnica; distinta de la autoridad",
       noSeries: "Aún no hay datos de esta métrica en el periodo.",
+      noBacklinksYet: "Aún no hay enlaces verificados a tu sitio en este periodo, así que no hay nada que mostrar. Los enlaces que consigas con la red de enlaces de RepGet aparecerán aquí cuando se comprueben.",
       utcDays: "Los días son días naturales en UTC.",
       unitArticles: "artículos",
       unitClicks: "clics",
@@ -9341,7 +9345,7 @@ const es: Messages = {
     },
     credits: {
       title: "Créditos",
-      intro: "Un único saldo de créditos para todo su espacio de trabajo, compartido por todas sus webs. Úselo en backlinks, servicios y todo lo demás en RepGet.",
+      intro: "Un único saldo de créditos para todo su espacio de trabajo. Cada suscripción cubre una web; si añade más webs, cada una con su propio plan, todas gastan de este saldo. Úselo en backlinks, servicios y todo lo demás en RepGet.",
       buy: "Comprar créditos",
       availableHelp: "Créditos que puede gastar ahora.",
       daily: "Créditos diarios",
@@ -11828,7 +11832,7 @@ const fr: Messages = {
       recoverFromArticles: "Récupérer les crédits de {count} article|Récupérer les crédits de {count} articles",
       buyCredits: "Acheter des crédits",
       creditsHowItWorks: "Vous gagnez des crédits quand le lien d'un partenaire dans votre article est vérifié en ligne, et vous en dépensez quand un lien vers votre site est vérifié. Pendant le placement, les crédits sont réservés ; si un lien vérifié est ensuite retiré, ils sont restitués.",
-      creditsScopeNote: "Les crédits appartiennent à votre espace de travail et sont partagés par tous ses sites.",
+      creditsScopeNote: "Les crédits appartiennent à votre espace de travail, pas à un abonnement : chaque site (un par abonnement) puise dans le même solde.",
       creditsOwnerOnly: "Les crédits appartiennent à l'espace de travail propriétaire de ce site et ne sont visibles que par ses membres.",
       receivedSectionTitle: "Liens vers votre site",
       receivedFlow: "Placés dans des articles de partenaires → vérifiés → crédits dépensés",
@@ -12080,6 +12084,7 @@ const fr: Messages = {
       websiteHealth: "Santé du site",
       websiteHealthHelp: "Votre dernier audit technique - distinct de l'autorité",
       noSeries: "Pas encore de données pour cette mesure sur la période.",
+      noBacklinksYet: "Aucun lien vérifié vers votre site sur cette période : il n'y a encore rien à afficher. Les liens obtenus grâce à l'échange de backlinks de RepGet apparaîtront ici une fois vérifiés.",
       utcDays: "Les jours sont des jours calendaires UTC.",
       unitArticles: "articles",
       unitClicks: "clics",
@@ -12529,7 +12534,7 @@ const fr: Messages = {
     },
     credits: {
       title: "Crédits",
-      intro: "Un seul solde de crédits pour tout votre espace de travail, partagé par tous vos sites. Utilisez-le pour les backlinks, les services et tout le reste dans RepGet.",
+      intro: "Un seul solde de crédits pour tout votre espace de travail. Chaque abonnement couvre un site ; si vous ajoutez d'autres sites, chacun avec son propre forfait, ils puisent tous dans ce solde. Utilisez-le pour les backlinks, les services et tout le reste dans RepGet.",
       buy: "Acheter des crédits",
       availableHelp: "Les crédits que vous pouvez dépenser maintenant.",
       daily: "Crédits quotidiens",
@@ -15015,7 +15020,7 @@ const it: Messages = {
       recoverFromArticles: "Recupera i crediti da {count} articolo|Recupera i crediti da {count} articoli",
       buyCredits: "Acquista crediti",
       creditsHowItWorks: "Guadagni crediti quando il link di un partner nel tuo articolo è verificato online e li spendi quando viene verificato un link al tuo sito. Durante l'inserimento i crediti restano riservati; se un link verificato viene poi rimosso, vengono restituiti.",
-      creditsScopeNote: "I crediti appartengono al tuo spazio di lavoro e sono condivisi da tutti i suoi siti.",
+      creditsScopeNote: "I crediti appartengono al tuo spazio di lavoro, non a un abbonamento: ogni sito (uno per abbonamento) usa lo stesso saldo.",
       creditsOwnerOnly: "I crediti appartengono allo spazio di lavoro proprietario di questo sito e sono visibili solo ai suoi membri.",
       receivedSectionTitle: "Link al tuo sito",
       receivedFlow: "Inseriti negli articoli dei partner → verificati → crediti spesi",
@@ -15267,6 +15272,7 @@ const it: Messages = {
       websiteHealth: "Salute del sito",
       websiteHealthHelp: "Il tuo ultimo audit tecnico, distinto dall'autorità",
       noSeries: "Ancora nessun dato per questa metrica nel periodo.",
+      noBacklinksYet: "Ancora nessun link verificato al tuo sito in questo periodo, quindi non c'è nulla da mostrare. I link ottenuti con lo scambio di backlink di RepGet compariranno qui una volta verificati.",
       utcDays: "I giorni sono giorni di calendario UTC.",
       unitArticles: "articoli",
       unitClicks: "clic",
@@ -15717,7 +15723,7 @@ const it: Messages = {
     },
     credits: {
       title: "Crediti",
-      intro: "Un unico saldo di crediti per tutto il Suo spazio di lavoro, condiviso da tutti i Suoi siti. Lo usi per backlink, servizi e tutto il resto in RepGet.",
+      intro: "Un unico saldo di crediti per tutto il Suo spazio di lavoro. Ogni abbonamento copre un sito; se aggiunge altri siti, ciascuno con il proprio piano, tutti usano questo saldo. Lo usi per backlink, servizi e tutto il resto in RepGet.",
       buy: "Acquista crediti",
       availableHelp: "I crediti che può spendere ora.",
       daily: "Crediti giornalieri",
@@ -18200,7 +18206,7 @@ const de: Messages = {
       recoverFromArticles: "Credits aus {count} Artikel zurückholen|Credits aus {count} Artikeln zurückholen",
       buyCredits: "Credits kaufen",
       creditsHowItWorks: "Sie verdienen Credits, wenn der Link eines Partners in Ihrem Artikel als live bestätigt ist, und verbrauchen sie, wenn ein Link zu Ihrer Website bestätigt ist. Während ein Link platziert wird, sind die Credits reserviert; wird ein bestätigter Link später entfernt, werden sie zurückgebucht.",
-      creditsScopeNote: "Credits gehören zu Ihrem Arbeitsbereich und werden von allen seinen Websites geteilt.",
+      creditsScopeNote: "Credits gehören zu Ihrem Arbeitsbereich, nicht zu einem Abonnement: Jede Website (eine pro Abonnement) nutzt dasselbe Guthaben.",
       creditsOwnerOnly: "Credits gehören dem Arbeitsbereich, dem diese Website gehört, und sind nur für dessen Mitglieder sichtbar.",
       receivedSectionTitle: "Links zu Ihrer Website",
       receivedFlow: "In Partnerartikeln platziert → bestätigt → Credits verbraucht",
@@ -18452,6 +18458,7 @@ const de: Messages = {
       websiteHealth: "Website-Gesundheit",
       websiteHealthHelp: "Ihr letztes technisches Audit - getrennt von der Autorität",
       noSeries: "Für diese Kennzahl gibt es im Zeitraum noch keine Daten.",
+      noBacklinksYet: "In diesem Zeitraum gibt es noch keine bestätigten Links zu Ihrer Website, daher ist noch nichts darzustellen. Links aus dem Backlink-Tausch von RepGet erscheinen hier, sobald sie geprüft sind.",
       utcDays: "Tage sind Kalendertage in UTC.",
       unitArticles: "Artikel",
       unitClicks: "Klicks",
@@ -18901,7 +18908,7 @@ const de: Messages = {
     },
     credits: {
       title: "Credits",
-      intro: "Ein Credit-Guthaben für Ihren gesamten Arbeitsbereich, das alle Ihre Websites teilen. Setzen Sie es für Backlinks, Leistungen und alles andere in RepGet ein.",
+      intro: "Ein Credit-Guthaben für Ihren gesamten Arbeitsbereich. Jedes Abonnement gilt für eine Website; fügen Sie weitere Websites mit jeweils eigenem Plan hinzu, nutzen alle dieses Guthaben. Setzen Sie es für Backlinks, Leistungen und alles andere in RepGet ein.",
       buy: "Credits kaufen",
       availableHelp: "Credits, die Sie jetzt ausgeben können.",
       daily: "Tägliche Credits",

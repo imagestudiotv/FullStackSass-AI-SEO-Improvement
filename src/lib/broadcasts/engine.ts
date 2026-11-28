@@ -116,7 +116,7 @@ export async function startBroadcast(
           updatedAt: sql<Date>`${now.toISOString()}::timestamp`.as("updated_at"),
         })
         .from(user)
-        .where(and(mayReceiveSql, audienceSql(checked.content.audience, now))),
+        .where(and(mayReceiveSql, audienceSql(checked.content.audience, now, checked.content.personId))),
     )
     .onConflictDoNothing()
     .returning({ id: emailBroadcastRecipients.id });
@@ -220,7 +220,9 @@ export async function requeueStalledBroadcasts(now: Date = new Date()): Promise<
 function contentOf(row: typeof emailBroadcasts.$inferSelect): BroadcastContent {
   return {
     audience: row.audience as BroadcastContent["audience"],
+    personId: row.personId,
     subject: row.subject,
+    heading: row.heading,
     previewText: row.previewText,
     bodyHtml: row.bodyHtml,
     images: row.images,

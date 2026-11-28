@@ -89,7 +89,15 @@ export function AuthorityCard({ overview, t, locale }: { overview: DashboardOver
               </dd>
             </div>
           </dl>
-          {history ? (
+          {history && history.undated === 0 && !history.points.some((p) => p.active > 0) ? (
+            /* A month of zeros drew an empty flat line (outside review, 2026-11-27): say why, as the Achievements chart does. */
+            <div className="mt-3 flex flex-col items-center gap-2 rounded-lg border border-dashed p-4 text-center">
+              <p className="text-sm text-muted-foreground">{t.noBacklinksYet}</p>
+              <Link href={base} className="text-sm font-medium text-primary hover:underline">
+                {t.openBacklinks}
+              </Link>
+            </div>
+          ) : history ? (
             <div className="mt-3">
               <LineChart
                 points={history.points.map((p) => ({ day: p.day, value: p.active }))}

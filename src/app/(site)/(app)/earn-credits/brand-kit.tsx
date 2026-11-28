@@ -51,7 +51,7 @@ function KitCard({ item, t }: { item: BrandKitItem; t: EarnBrandKitCopy }) {
     <figure className="flex h-full flex-col overflow-hidden rounded-xl border bg-background">
       <div className={cn("relative grid place-items-center overflow-hidden", item.dark ? "bg-neutral-900" : "bg-muted/40", "aspect-[4/5]", item.kind === "logo" && "p-6")}>
         {item.kind === "video" ? (
-          <video src={item.file} poster={item.preview} controls playsInline preload="none" aria-label={t.videoLabel} className="size-full bg-black object-contain" />
+          <video src={item.file} poster={item.preview} controls playsInline preload="none" aria-label={words.title} className="size-full bg-black object-contain" />
         ) : (
           // eslint-disable-next-line @next/next/no-img-element -- a static file shown as it is downloaded
           <img src={item.preview} alt={words.title} loading="lazy" decoding="async" className={cn("max-h-full max-w-full", item.kind === "logo" ? "object-contain" : "size-full object-cover")} />

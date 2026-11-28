@@ -189,7 +189,40 @@ export async function setFeedbackStatus(input: { id: string; status: string }): 
   return { ok: true, data: null };
 }
 
-const STATUS_WORDS: Record<FeedbackStatus, string> = { new: "new", planned: "planned", done: "done", wont_do: "won't do" };
+const STATUS_WORDS: Record<FeedbackStatus, string> = { new: "new", read: "read", planned: "planned", done: "done", wont_do: "won't do" };
+
+/**
+ * Every New message (of one type, when the list is filtered by it) marked
+ * Read at once (owner, 2026-11-27: the badge counted messages he had already
+ * read). Only New ones move: a message planned or closed meanwhile keeps its
+ * status. One line in the admin log, with how many.
+ */
+export async function markAllFeedbackRead(input: { kind?: string | null } = {}): Promise<ActionResult<{ marked: number }>> {
+  const admin = await requireAdmin();
+  const kind = isKind(input.kind) ? input.kind : null;
+  const marked = await db.transaction(async (tx) => {
+    const rows = await tx
+      .update(feedback)
+      .set({ status: "read", updatedAt: new Date() })
+      .where(and(eq(feedback.status, "new"), kind ? eq(feedback.kind, kind) : undefined))
+      .returning({ id: feedback.id });
+    if (rows.length > 0) {
+      await recordAdminAction(
+        {
+          actorEmail: admin.email,
+          action: "feedback.marked_all_read",
+          targetType: "feedback",
+          summary: `Marked ${rows.length} new feedback ${rows.length === 1 ? "message" : "messages"}${kind ? ` (${kind})` : ""} as read`,
+          detail: { count: rows.length, kind },
+        },
+        tx,
+      );
+    }
+    return rows.length;
+  });
+  refresh();
+  return { ok: true, data: { marked } };
+}
 
 /**
  * Deletes a message for good, with its pictures and replies (client,
