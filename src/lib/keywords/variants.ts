@@ -12,12 +12,17 @@
  * keywords merge only when every word of one pairs with a word of the other:
  *  - the same word, or
  *  - the same word with a different ending (a shared start of all but the
- *    last two letters, five letters at least: "мужчині" / "мужчини",
- *    "videographer" / "videography"), or
- *  - a plural made with s/es ("shoe" / "shoes"), or
+ *    last two letters, five letters at least: "мужчині" / "мужчини"), or
+ *  - a plural made with s/es/ies ("shoe" / "shoes", "agency" / "agencies"), or
  *  - one typing slip in a longer word that starts the same ("привітання" /
  *    "привітаня"), never in its first three letters, so "hotels" and "motels"
  *    stay apart.
+ * An ending that makes another word is not an inflection: of two Latin-script
+ * words, when only one ends in a derivational suffix (-er, -or, -ist, -ing,
+ * -ion, -ment, -ry...), they never merge. "design" / "designer", "massage" /
+ * "massager", "videography" / "videographer", "dentist" / "dentistry" are
+ * different searches, often for a different page (outside review of
+ * 2026-11-28).
  * Numbers and short words must match exactly: "2025" is not "2026", "car" is
  * not "cat". With two words or more, at least one must match exactly.
  */
@@ -67,11 +72,46 @@ function withinOneEdit(a: string, b: string): boolean {
 
 const isWord = (token: string) => /^\p{L}[\p{L}']*$/u.test(token);
 
+/**
+ * English derivational suffixes: endings that make a new word (a person, an
+ * activity, a quality, a field) rather than a form of the same one. Checked
+ * on Latin-script words only; a Cyrillic case ending is an inflection.
+ */
+const DERIVATIONAL = [
+  "er", "or", "ist", "ing", "ion", "ism", "ment", "ness", "ity", "ry", "ship", "hood",
+  "ee", "ian", "ive", "able", "ible", "ful", "less", "ous", "ize", "ise", "ology",
+];
+const LATIN = /^[a-z']+$/;
+
+/** The word without an English plural ending: "agencies" -> "agency", "boxes" -> "box", "shoes" -> "shoe". */
+function singular(word: string): string {
+  if (word.length > 4 && word.endsWith("ies")) return `${word.slice(0, -3)}y`;
+  if (word.length > 4 && /(s|x|z|ch|sh)es$/.test(word)) return word.slice(0, -2);
+  if (word.length > 3 && word.endsWith("s") && !word.endsWith("ss")) return word.slice(0, -1);
+  return word;
+}
+
+/**
+ * True when only one of two Latin-script words carries a derivational suffix
+ * ("design" / "designer"): different words, however close their spelling.
+ * Compared without plural endings, so "designer" / "designers" stay one.
+ */
+export function derivedPair(a: string, b: string): boolean {
+  if (!LATIN.test(a) || !LATIN.test(b)) return false;
+  const x = singular(a);
+  const y = singular(b);
+  if (x === y) return false;
+  const ends = (word: string, suffix: string) => word.length - suffix.length >= 3 && word.endsWith(suffix);
+  return DERIVATIONAL.some((suffix) => ends(x, suffix) !== ends(y, suffix));
+}
+
 export function sameWord(a: string, b: string): boolean {
   if (a === b) return true;
   if (!isWord(a) || !isWord(b)) return false;
   const [short, long] = a.length <= b.length ? [a, b] : [b, a];
   if (short.length >= 3 && (long === `${short}s` || long === `${short}es`)) return true;
+  if (short.length >= 3 && short.endsWith("y") && long === `${short.slice(0, -1)}ies`) return true;
+  if (derivedPair(a, b)) return false;
   if (short.length < 5) return false;
   if (commonPrefix(a, b) >= Math.max(5, long.length - 2)) return true;
   return short.length >= 6 && a.slice(0, 3) === b.slice(0, 3) && withinOneEdit(a, b);
