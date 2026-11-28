@@ -78,6 +78,7 @@ vi.mock("@/lib/onboarding/launch", () => ({
     ],
     doneCount: 1,
     requiredRemaining: 1,
+    progress: { done: 1, total: 2, remaining: 1 },
     live: false,
     researching: state.researching.has(websiteId),
   })),

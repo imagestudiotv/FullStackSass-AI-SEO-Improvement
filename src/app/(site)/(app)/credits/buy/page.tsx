@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { PageHeader, PageShell } from "@/components/ui/page-header";
 import { Notice } from "@/components/workspace/notice";
 import { listAddons, listPurchases } from "@/lib/addons/actions";
+import { addonsForMarket } from "@/lib/addons/market";
+import { selectedWebsiteMarket } from "@/lib/addons/market-server";
 import { requireSession } from "@/lib/auth-guard";
 import { creditOverview } from "@/lib/credits/overview";
 import { checkQuoteTopUp } from "@/lib/credits/quote-topup";
@@ -77,7 +79,14 @@ export default async function BuyCreditsPage({ searchParams }: PageProps<"/credi
 
   // The overview first: it grants this month's plan credits, so the balance includes them.
   const overview = await creditOverview(orgId);
-  const [addons, purchases, paypalAvailable] = await Promise.all([listAddons(), listPurchases(), isPayPalAvailable()]);
+  const [allAddons, purchases, paypalAvailable, market] = await Promise.all([
+    listAddons(),
+    listPurchases(),
+    isPayPalAvailable(),
+    selectedWebsiteMarket(orgId),
+  ]);
+  // An add-on for one country only (USA Local Citations) is offered to a website in that market, or with none set (lib/addons/market.ts).
+  const addons = addonsForMarket(allAddons, market);
 
   /*
     "Buy credits" on a quote (lib/credits/quote-topup.ts): the quote and its

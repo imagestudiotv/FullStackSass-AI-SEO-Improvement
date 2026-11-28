@@ -56,9 +56,12 @@ export function RefreshPanel({
   series,
   locale,
   t,
+  searchConsoleConnected = true,
 }: {
   websiteId: string;
   report: TrafficReport;
+  /** False shows "connect Search Console" instead of any verdict. */
+  searchConsoleConnected?: boolean;
   /** Daily clicks across both windows. Empty when Search Console is unlinked. */
   series: TrafficPoint[];
   locale: Locale;
@@ -227,6 +230,34 @@ export function RefreshPanel({
     losingClicks.length === 0 &&
     losingVisibility.length === 0 &&
     watch.length === 0;
+
+  // No Search Console, or nothing imported from it yet: nothing can be judged,
+  // so say what is missing. Never the all-clear "Nothing is losing traffic".
+  if (!searchConsoleConnected || report.dataStatus === "none") {
+    const copy = CONTENT_COPY[locale];
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingDown className="size-4" aria-hidden="true" />
+            {t.losingTraffic}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <EmptyState
+            icon={TrendingDown}
+            title={copy.connectGscTitle}
+            description={copy.connectGscHelp}
+            action={
+              <Button asChild size="sm">
+                <Link href={`/websites/${websiteId}/google`}>{copy.connectGscButton}</Link>
+              </Button>
+            }
+          />
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (report.dataStatus && report.dataStatus !== "ready") {
     const copy = CONTENT_COPY[locale];

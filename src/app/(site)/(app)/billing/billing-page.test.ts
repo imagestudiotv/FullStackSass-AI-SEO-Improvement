@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { isValidElement, type ReactNode } from "react";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -51,7 +52,7 @@ vi.mock("@/lib/i18n/app-locale", async () => {
 vi.mock("@/lib/websites/pending-invitations", () => ({ listPendingInvitations: async () => [] }));
 vi.mock("@/lib/billing", () => ({
   getSubscription: vi.fn(async () => null),
-  isEntitled: (status: string | null | undefined) => status === "active",
+  isEntitled: (status: string | null | undefined) => ["active", "trialing", "past_due"].includes(status ?? ""),
   listPayments: vi.fn(async () => []),
   listPlans: vi.fn(async () => []),
   listWebsiteSubscriptions: vi.fn(async () => []),
@@ -223,6 +224,27 @@ describe("billing page", () => {
     expect(findAll(tree, PaymentsPanel)).toHaveLength(1);
   });
 
+  // eval 2026-11-28: a Ukrainian site was offered "250 USA Local Citations".
+  it.each([
+    ["Ukraine", false],
+    ["United States", true],
+    [null, true],
+  ] as const)("a website whose market is %s is offered the USA-only add-on: %s", async (country, offered) => {
+    const row = { description: null, priceCents: 100, currency: "eur", creditsGranted: 0, creditPrice: 1, purchasable: false };
+    vi.mocked(listAddons).mockResolvedValueOnce([
+      { ...row, id: "a2", slug: "usa_local_citations", name: "Top 250 live USA Local Citations", kind: "service" },
+      { ...row, id: "a4", slug: "audit_fix", name: "We fix the errors for you", kind: "service" },
+    ]);
+    await test.db.update(websites).set({ country }).where(eq(websites.id, sharedSite));
+    signIn("user_owner", OWNER_ORG);
+    try {
+      const links = findOne(await render(), BillingClient).addonLinks as { id: string }[];
+      expect(links.map((link) => link.id)).toEqual(offered ? ["a2", "a4"] : ["a4"]);
+    } finally {
+      await test.db.update(websites).set({ country: null }).where(eq(websites.id, sharedSite));
+    }
+  });
+
   it("guest who owns nothing: no plan picker, no shop, no strip - the owner pays", async () => {
     signIn("user_guest", GUEST_ORG);
     const tree = await render();
@@ -351,13 +373,15 @@ describe("billing page", () => {
       provider,
     });
 
-    async function card(provider: "stripe" | "paypal", offered: boolean) {
-      vi.stubEnv("REPGET_OFFER_ENABLED", "1");
+    const GROW_ROW = { ...SCALE_ROW, id: "plan_grow", name: "Grow", tier: "grow", priceCents: 14900, sortOrder: 1 } as unknown as PlanRow;
+
+    async function card(provider: "stripe" | "paypal", offered: boolean, status = "active", offerOn = true) {
+      vi.stubEnv("REPGET_OFFER_ENABLED", offerOn ? "1" : "0");
       signIn("user_owner", OWNER_ORG);
-      vi.mocked(listPlans).mockResolvedValueOnce([SCALE_ROW]);
-      vi.mocked(listWebsiteSubscriptions).mockResolvedValueOnce([subscribed(provider)]);
+      vi.mocked(listPlans).mockResolvedValueOnce([GROW_ROW, SCALE_ROW]);
+      vi.mocked(listWebsiteSubscriptions).mockResolvedValueOnce([subscribed(provider, status)]);
       const id = provider === "stripe" ? { stripeSubscriptionId: "sub_1" } : { paypalSubscriptionId: "I-1" };
-      await test.db.insert(subscriptions).values({ organizationId: OWNER_ORG, websiteId: sharedSite, provider, status: "active", ...id });
+      await test.db.insert(subscriptions).values({ organizationId: OWNER_ORG, websiteId: sharedSite, provider, status, ...id });
       await test.db.insert(billingCheckouts).values({
         organizationId: OWNER_ORG,
         websiteId: sharedSite,
@@ -368,7 +392,8 @@ describe("billing page", () => {
       });
       try {
         const client = findOne(await render(), BillingClient);
-        return { client, view: (client.planCards as Record<string, { price: string; strike: string | null; terms: string[] }>).plan_scale };
+        const cards = client.planCards as Record<string, { price: string; strike: string | null; terms: string[] }>;
+        return { client, view: cards.plan_scale, current: cards.plan_grow };
       } finally {
         vi.unstubAllEnvs();
         await test.client.exec("delete from billing_checkouts; delete from subscriptions;");
@@ -389,6 +414,45 @@ describe("billing page", () => {
       expect(view.terms).toEqual([]);
       expect(client.launchPriceKept).toBe(false);
       expect(client.offerCopy).toBeNull();
+      // ...and says why, beside the cards, as /pricing shows the launch price.
+      expect(client.regularPrice).toBe(true);
+    });
+
+    it("says nothing about regular prices while the offer is off", async () => {
+      const { client } = await card("stripe", false, "active", false);
+      expect(client.regularPrice).toBe(false);
+    });
+
+    /*
+      The tester's account (eval 2026-11-28): a card free trial on Grow. The
+      trial converts at the price its checkout took - with the launch price
+      EUR 89, without it EUR 149 - and a plan change keeps the same.
+    */
+    it.each([
+      [true, "€89", "€149", false],
+      [false, "€149", null, true],
+    ] as const)("a card free trial with launch price %s: Grow shows %s", async (offered, price, strike, regular) => {
+      const { client, current } = await card("stripe", offered, "trialing");
+      expect(current.price).toBe(price);
+      expect(current.strike).toBe(strike);
+      expect(client.regularPrice).toBe(regular);
+    });
+
+    /*
+      A PayPal free trial: another plan is a new checkout (the offer's price
+      while it is on), but its own plan converts at the price it was started on,
+      whether the offer is on now or not.
+    */
+    it.each([
+      [true, true, "€89", "€209"],
+      [false, true, "€149", "€209"],
+      [true, false, "€89", "€349"],
+      [false, false, "€149", "€349"],
+    ] as const)("a PayPal free trial (launch price %s, offer on %s): Grow %s, Scale %s", async (offered, offerOn, grow, scale) => {
+      const { client, view, current } = await card("paypal", offered, "trialing", offerOn);
+      expect(current.price).toBe(grow);
+      expect(view.price).toBe(scale);
+      expect(client.regularPrice).toBe(false);
     });
   });
 });

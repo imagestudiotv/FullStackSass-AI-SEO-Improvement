@@ -1,5 +1,7 @@
 import type { PlanRow } from "@/lib/billing-shared";
 import { COMPANY_NAME, SUPPORT_EMAIL, hasRealSupportEmail } from "@/lib/config/site";
+import { DEFAULT_LOCALE, localePath, type Locale } from "@/lib/i18n/config";
+import { HOME_META } from "@/lib/seo/home-metadata";
 import { entityIds, softwareApplication } from "@/lib/structured-data";
 
 /**
@@ -18,6 +20,12 @@ import { entityIds, softwareApplication } from "@/lib/structured-data";
  *
  * SOFTWAREAPPLICATION describes the product and the plans the pricing page
  * sells, published by the same Organization (lib/structured-data.ts).
+ *
+ * THE LOCALISED HOMEPAGES (/es, /fr, /it, /de) carry the same graph - the same
+ * entities, by the same @ids, since they are the same site and company - with
+ * the offers pointing at that language's pricing page, plus a WebPage node for
+ * the page itself: its address, title, description and inLanguage. They had no
+ * structured data at all (eval 2026-11-28).
  *
  * All three have stable @ids on the canonical host (client's launch review,
  * 2026-10-03; see lib/structured-data.ts), so other structured data - a blog
@@ -50,6 +58,10 @@ export function siteSchema(
   siteUrl: string,
   /** listPlans(), as the homepage already loads it for its pricing section. */
   plans: PlanRow[] = [],
+  /** Whether the REPGET launch price is on: the offers then quote the price charged, as the page shows it. */
+  offer = false,
+  /** The homepage's language: English is the unprefixed homepage. */
+  locale: Locale = DEFAULT_LOCALE,
 ): Record<string, unknown> {
   const site = siteUrl.replace(/\/+$/, "");
   const ids = entityIds(site);
@@ -85,24 +97,42 @@ export function siteSchema(
     publisher: { "@id": organizationId },
   };
 
-  return {
-    "@context": "https://schema.org",
-    "@graph": [website, organization, softwareApplication(site, plans)],
+  const software = softwareApplication(site, plans, offer, localePath(locale, "/pricing"));
+  if (locale === DEFAULT_LOCALE) {
+    return { "@context": "https://schema.org", "@graph": [website, organization, software] };
+  }
+
+  // This page, in its language: the same title and description as its metadata (lib/seo/home-metadata.ts).
+  const url = `${site}${localePath(locale, "/")}`;
+  const page = {
+    "@type": "WebPage",
+    "@id": `${url}#webpage`,
+    url,
+    name: HOME_META[locale].title,
+    description: HOME_META[locale].description,
+    inLanguage: locale,
+    isPartOf: { "@id": ids.website },
+    about: { "@id": organizationId },
   };
+  return { "@context": "https://schema.org", "@graph": [website, organization, software, page] };
 }
 
 export function OrganizationSchema({
   siteUrl,
   plans,
+  offer = false,
+  locale = DEFAULT_LOCALE,
 }: {
   siteUrl: string;
   plans: PlanRow[];
+  offer?: boolean;
+  locale?: Locale;
 }) {
   return (
     <script
       type="application/ld+json"
       // Serialised from our own configuration, never user input.
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(siteSchema(siteUrl, plans)) }}
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(siteSchema(siteUrl, plans, offer, locale)) }}
     />
   );
 }

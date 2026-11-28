@@ -46,6 +46,7 @@ import { approveVideoIdea, editVideoIdea, requestVideoIdeas, restoreVideoIdea, s
 import { publishVideoIdea } from "./publish-actions";
 import { captionText, cleanScript, formatFor, styleFor, suggestVideoIdeas, type IdeaInput } from "./ideas";
 import { failMaking, finishMaking, spendKey } from "./make";
+import { trialFreeVideos } from "./trial-free";
 import { checkVideoPublished, publishVideo } from "./publish";
 import { IDEAS_PER_DAY, silentTiming, VIDEO_STYLES, type VideoScript } from "./formats";
 import { MUSIC_TRACKS, pickTrack } from "./music";
@@ -277,6 +278,43 @@ describe("approving an idea", () => {
     await restoreVideoIdea(websiteId, row.id);
     expect((await test.db.select().from(videoIdeas).where(eq(videoIdeas.id, row.id)))[0].status).toBe("new");
     expect(await test.db.select().from(creditSpends).where(eq(creditSpends.organizationId, orgId))).toHaveLength(0);
+  });
+});
+
+describe("the free trial's three free videos (owner, 2026-11-27)", () => {
+  it("approves three without credits at a zero balance, then charges as usual", async () => {
+    const { orgId, websiteId } = await site({ trial: true });
+    expect(await trialFreeVideos(websiteId)).toEqual({ used: 0, left: 3, total: 3 });
+    const rows = [await idea(websiteId), await idea(websiteId), await idea(websiteId), await idea(websiteId)];
+    for (const row of rows.slice(0, 3)) expect(await approveVideoIdea(websiteId, row.id)).toEqual({ ok: true, data: null });
+    expect(await trialFreeVideos(websiteId)).toEqual({ used: 3, left: 0, total: 3 });
+    expect(await balance(orgId)).toBe(0);
+    const made = await test.db.select().from(videoIdeas).where(eq(videoIdeas.websiteId, websiteId));
+    expect(made.filter((row) => row.status === "approved").every((row) => row.creditSpendKey === null)).toBe(true);
+    // The fourth is the normal price: refused at a zero balance, charged with a credit.
+    expect(await approveVideoIdea(websiteId, rows[3].id)).toEqual({ ok: false, error: "not_enough_credits", price: 1, available: 0 });
+    await recordCredit(orgId, { type: "adjustment", amount: 1, note: "test" });
+    expect(await approveVideoIdea(websiteId, rows[3].id)).toEqual({ ok: true, data: null });
+    expect(await balance(orgId)).toBe(0);
+    expect(await trialFreeVideos(websiteId)).toMatchObject({ used: 3, left: 0 });
+  });
+
+  it("gives a free video back when it is undone, or when its make fails", async () => {
+    const { websiteId } = await site({ trial: true });
+    const undone = await idea(websiteId, { day: new Date().toISOString().slice(0, 10) });
+    expect(await approveVideoIdea(websiteId, undone.id, {}, "swipe")).toEqual({ ok: true, data: null });
+    expect((await trialFreeVideos(websiteId))!.left).toBe(2);
+    expect(await undoVideoIdea(websiteId, undone.id)).toEqual({ ok: true, data: null });
+    expect((await trialFreeVideos(websiteId))!.left).toBe(3);
+    await test.db.update(videoIdeas).set({ status: "failed" }).where(eq(videoIdeas.id, undone.id));
+    expect((await trialFreeVideos(websiteId))!.left).toBe(3);
+  });
+
+  it("is not for a paid plan: videos cost their credit from the first", async () => {
+    const { websiteId } = await site();
+    expect(await trialFreeVideos(websiteId)).toBeNull();
+    const row = await idea(websiteId);
+    expect(await approveVideoIdea(websiteId, row.id)).toEqual({ ok: false, error: "not_enough_credits", price: 1, available: 0 });
   });
 });
 

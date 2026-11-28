@@ -19,6 +19,8 @@ const state = vi.hoisted(() => ({
   realEmail: true,
   planThrows: false,
   auditPrice: 0,
+  free: false,
+  freeAudits: 0,
   order: [] as string[],
 }));
 
@@ -60,6 +62,11 @@ vi.mock("@/lib/credits/prices", () => ({
   readCreditSettings: async () => ({ dailyFree: 0, prices: { audit_rerun: state.auditPrice }, updatedAt: null, updatedBy: null }),
 }));
 vi.mock("./audit-panel", () => ({ AuditPanel: () => null }));
+// The Free plan and its checks this month (lib/plans/free-plan-server.ts).
+vi.mock("@/lib/plans/free-plan-server", () => ({
+  isFreePlanWebsite: async () => state.free,
+  freePlanAuditsThisMonth: async () => state.freeAudits,
+}));
 
 import { AuditPanel, type AuditPanelProps } from "./audit-panel";
 import WebsiteHealthPage from "./page";
@@ -84,6 +91,8 @@ beforeEach(() => {
   state.realEmail = true;
   state.planThrows = false;
   state.auditPrice = 0;
+  state.free = false;
+  state.freeAudits = 0;
   state.order = [];
 });
 
@@ -141,6 +150,19 @@ describe("Website health page", () => {
     expect((await panelProps()).rerunCost).toBe("5 Credits");
     state.auditPrice = 1;
     expect((await panelProps()).rerunCost).toBe("1 Credit");
+  });
+
+  it("on the Free plan says the check is its free monthly one, never a credit price, and when the next opens once used", async () => {
+    state.free = true;
+    state.auditPrice = 5;
+    const fresh = await panelProps();
+    expect(fresh.rerunCost).toBe("kostenlose Monatsprüfung");
+    expect(fresh.blockedReason).toBeNull();
+    state.freeAudits = 1;
+    const used = await panelProps();
+    expect(used.rerunCost).toBeNull();
+    // The first of next month, in the reader's language.
+    expect(used.blockedReason).toContain("Ihre kostenlose Prüfung dieses Monats wurde genutzt. Die nächste ist ab dem 1. ");
   });
 
   it("offers the quote email only to a real support address", async () => {

@@ -24,7 +24,7 @@ vi.mock("next/image", () => ({
   default: ({ src, alt }: { src: string; alt: string }) => createElement("img", { src, alt }),
 }));
 
-import { bundleSavingPercent, cardPrices } from "./prices";
+import { cardPrices } from "./prices";
 import { PricingView } from "./pricing-view";
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/'/g, "&#x27;").replace(/</g, "&lt;");
@@ -85,11 +85,6 @@ describe("the price display", () => {
       yearly: { regular: "€82.50", price: "€82.50", total: "€990", regularTotal: "€990" },
     });
   });
-
-  it("the bundle saves 57% against EUR 299", () => {
-    expect(bundleSavingPercent(12900, 29900)).toBe(57);
-    expect(bundleSavingPercent(9900, 9900)).toBe(0);
-  });
 });
 
 describe("the pricing page", () => {
@@ -122,10 +117,15 @@ describe("the pricing page", () => {
     expect(html).toContain('href="/sign-up"');
   });
 
-  it("the Grow + Visibility bundle: its price against EUR 299, a direct purchase straight to its own checkout", () => {
+  it("the Grow + Visibility bundle: EUR 129 a month and what it includes, no struck EUR 299 and no saving, a direct purchase straight to its own checkout", () => {
     const html = render();
-    expect(html).toContain("SAVE 57% ON THE FULL BUNDLE");
-    expect(html).toContain("<del>€299</del><strong>€129</strong>");
+    // Owner, 2026-11-27: no crossed-out EUR 299 and no "save 57%" anywhere.
+    expect(html).not.toContain("€299");
+    expect(html).not.toContain("57%");
+    expect(html).not.toContain("ON THE FULL BUNDLE");
+    expect(html).toContain("THE FULL GROW PLAN + FEATURED VISIBILITY");
+    expect(html).toContain("<strong>€129</strong>");
+    expect(html).toContain('aria-label="Grow plus Visibility bundle, €129 per month"');
     expect(html).toContain('href="/sign-up?next=%2Fonboarding%2Fwebsite%3Fplan%3Dgrow_visibility"');
     expect(html).toContain("€129 billed at checkout, then monthly. The 3-day free trial does not apply to this offer.");
     expect(html).toContain("Your first €129 payment is collected at checkout");

@@ -10,7 +10,7 @@ import { readCreditSettings } from "@/lib/credits/prices";
 import { db } from "@/lib/db";
 import { socialAccounts, videoIdeaBatches, videoIdeas, videoMedia } from "@/lib/db/schema";
 import { getAppMessages } from "@/lib/i18n/app-locale";
-import { plural } from "@/lib/i18n/format";
+import { format, plural } from "@/lib/i18n/format";
 import { VIDEOS_COPY } from "@/lib/i18n/videos";
 import { isBundleConfigured } from "@/lib/social/bundle";
 import { pauseKind } from "@/lib/social/pause";
@@ -44,6 +44,7 @@ import { returnedSql, savedVideosWhere, todaysIdeasWhere } from "@/lib/video/lis
 import { productionChoicesOf } from "@/lib/video/cost";
 import { MUSIC_TRACKS, MUSIC_VOLUME, ideaTrack, musicUrl } from "@/lib/video/music";
 import { brandLook, readVideoSettings, videoAccess, type VideoSettings } from "@/lib/video/settings";
+import { trialFreeVideos } from "@/lib/video/trial-free";
 import type { ProductionReelProps } from "@/remotion/props";
 
 import { DAILY_MAX_ATTEMPTS, ideaAllowance } from "@/lib/video/batches";
@@ -261,6 +262,14 @@ export default async function WebsiteVideosPage({ params, searchParams }: PagePr
     }));
 
   const price = credits.prices.video_post;
+  // The free trial's free videos (lib/video/trial-free.ts): the button says what approveVideoIdea will charge.
+  const trialFree = price > 0 ? await trialFreeVideos(site.id).catch(() => null) : null;
+  const priceLabel =
+    trialFree && trialFree.left > 0
+      ? format(VIDEOS_COPY[locale].flow.deck.trialFree, { left: String(trialFree.left), total: String(trialFree.total) })
+      : price > 0
+        ? plural(t.app.credits.creditsCount, price)
+        : t.app.social.free;
   const ideasPrice = credits.prices.video_ideas;
   const tab = typeof query.tab === "string" && ["ideas", "videos", "posted", "settings"].includes(query.tab) ? query.tab : "ideas";
   const notice = typeof query.social === "string" ? query.social : null;
@@ -296,7 +305,7 @@ export default async function WebsiteVideosPage({ params, searchParams }: PagePr
         busy: allowance.busy,
         tooSoon: Boolean(allowance.nextAllowedAt && allowance.nextAllowedAt.getTime() > now.getTime()),
       }}
-      priceLabel={price > 0 ? plural(t.app.credits.creditsCount, price) : t.app.social.free}
+      priceLabel={priceLabel}
       ideasPrice={ideasPrice}
       ideasPriceLabel={ideasPrice > 0 ? plural(t.app.credits.creditsCount, ideasPrice) : t.app.social.free}
       credits={wallet ? { available: wallet.available, label: plural(t.app.credits.creditsCount, wallet.available) } : null}

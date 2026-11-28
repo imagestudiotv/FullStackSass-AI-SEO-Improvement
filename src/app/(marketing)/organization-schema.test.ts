@@ -75,6 +75,33 @@ describe("siteSchema", () => {
     expect(organization).not.toHaveProperty("contactPoint");
   });
 
+  it.each(["es", "fr", "it", "de"] as const)("is on the %s homepage too: the same entities, its pricing page, and the page in its language", async (locale) => {
+    const { siteSchema } = await import("./organization-schema");
+    const { HOME_META } = await import("@/lib/seo/home-metadata");
+    const plans = [
+      { id: "g", name: "Grow", tier: "grow", interval: "month", priceCents: 14900, currency: "eur" },
+    ] as unknown as Parameters<typeof siteSchema>[1];
+    const english = (await build())["@graph"];
+    const graph = (siteSchema("https://www.repget.com", plans, true, locale) as { "@graph": Record<string, unknown>[] })["@graph"];
+    expect(graph.map((node) => node["@type"])).toEqual(["WebSite", "Organization", "SoftwareApplication", "WebPage"]);
+    // The same site and company, by the same @ids.
+    expect(graph[0]).toEqual(english[0]);
+    expect(graph[1]).toEqual(english[1]);
+    expect(graph[2]["@id"]).toBe("https://www.repget.com/#software");
+    const [offer] = graph[2].offers as { url: string; price: number }[];
+    expect(offer).toMatchObject({ url: `https://www.repget.com/${locale}/pricing`, price: 89 });
+    expect(graph[3]).toEqual({
+      "@type": "WebPage",
+      "@id": `https://www.repget.com/${locale}#webpage`,
+      url: `https://www.repget.com/${locale}`,
+      name: HOME_META[locale].title,
+      description: HOME_META[locale].description,
+      inLanguage: locale,
+      isPartOf: { "@id": "https://www.repget.com/#website" },
+      about: { "@id": "https://www.repget.com/#organization" },
+    });
+  });
+
   it("adds the support contact once a real address is configured", async () => {
     vi.stubEnv("NEXT_PUBLIC_SUPPORT_EMAIL", "support@repget.com");
     const organization = (await build())["@graph"][1];

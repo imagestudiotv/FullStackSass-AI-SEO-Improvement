@@ -35,7 +35,8 @@ export type PricingPageCopy = {
   hero: { titleLead: string; titleAccent: string; body: string; pills: [string, string, string] };
   bundle: {
     flag: string;
-    sale: string;
+    /** What the bundle is, beside its flag. No saving and no struck price: the owner's decision (2026-11-27). */
+    includes: string;
     lede: string;
     priceLabel: string;
     perMonth: string;
@@ -135,9 +136,9 @@ const en: PricingPageCopy = {
   },
   bundle: {
     flag: "GROWTH, AMPLIFIED.",
-    sale: "SAVE {pct}% ON THE FULL BUNDLE",
+    includes: "THE FULL GROW PLAN + FEATURED VISIBILITY",
     lede: "The full Grow plan. Plus a bigger stage for your brand.",
-    priceLabel: "Grow plus Visibility bundle price {regular} per month, promotional price {price} per month",
+    priceLabel: "Grow plus Visibility bundle, {price} per month",
     perMonth: "/ month",
     featureKicker: "VISIBILITY INCLUDED",
     featureTitle: "Get featured on *Social channels* & our *Blog.*",
@@ -450,9 +451,9 @@ const es: PricingPageCopy = {
   },
   bundle: {
     flag: "CRECIMIENTO, AMPLIFICADO.",
-    sale: "AHORRE UN {pct} % EN EL PAQUETE COMPLETO",
+    includes: "EL PLAN GROW COMPLETO + VISIBILIDAD DESTACADA",
     lede: "El plan Grow completo. Y un escenario más grande para su marca.",
-    priceLabel: "Precio del paquete Grow más Visibility {regular} al mes, precio promocional {price} al mes",
+    priceLabel: "Paquete Grow más Visibility, {price} al mes",
     perMonth: "/ mes",
     featureKicker: "VISIBILIDAD INCLUIDA",
     featureTitle: "Aparezca en nuestras *redes sociales* y en nuestro *blog.*",
@@ -765,9 +766,9 @@ const fr: PricingPageCopy = {
   },
   bundle: {
     flag: "LA CROISSANCE, AMPLIFIÉE.",
-    sale: "ÉCONOMISEZ {pct} % SUR L'OFFRE COMPLÈTE",
+    includes: "LE PLAN GROW COMPLET + VISIBILITÉ MISE EN AVANT",
     lede: "La formule Grow complète. Et une plus grande scène pour votre marque.",
-    priceLabel: "Prix de l'offre Grow plus Visibility {regular} par mois, prix promotionnel {price} par mois",
+    priceLabel: "Offre Grow plus Visibility, {price} par mois",
     perMonth: "/ mois",
     featureKicker: "VISIBILITÉ INCLUSE",
     featureTitle: "Soyez mis en avant sur nos *réseaux sociaux* et notre *blog.*",
@@ -1080,9 +1081,9 @@ const it: PricingPageCopy = {
   },
   bundle: {
     flag: "CRESCITA, AMPLIFICATA.",
-    sale: "RISPARMI IL {pct}% SUL PACCHETTO COMPLETO",
+    includes: "IL PIANO GROW COMPLETO + VISIBILITÀ IN EVIDENZA",
     lede: "Il piano Grow completo. In più, un palcoscenico più grande per il suo marchio.",
-    priceLabel: "Prezzo del pacchetto Grow più Visibility {regular} al mese, prezzo promozionale {price} al mese",
+    priceLabel: "Pacchetto Grow più Visibility, {price} al mese",
     perMonth: "/ mese",
     featureKicker: "VISIBILITÀ INCLUSA",
     featureTitle: "Compaia sui nostri *canali social* e sul nostro *blog.*",
@@ -1395,9 +1396,9 @@ const de: PricingPageCopy = {
   },
   bundle: {
     flag: "WACHSTUM, VERSTÄRKT.",
-    sale: "SPAREN SIE {pct} % AUF DAS GESAMTPAKET",
+    includes: "DER KOMPLETTE GROW-PLAN + HERVORGEHOBENE SICHTBARKEIT",
     lede: "Der komplette Grow-Tarif. Dazu eine größere Bühne für Ihre Marke.",
-    priceLabel: "Preis des Pakets Grow plus Visibility {regular} pro Monat, Aktionspreis {price} pro Monat",
+    priceLabel: "Paket Grow plus Visibility, {price} pro Monat",
     perMonth: "/ Monat",
     featureKicker: "SICHTBARKEIT INKLUSIVE",
     featureTitle: "Präsentiert auf unseren *Social-Media-Kanälen* & unserem *Blog.*",

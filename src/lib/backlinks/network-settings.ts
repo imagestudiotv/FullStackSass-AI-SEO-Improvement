@@ -7,7 +7,10 @@ import { siteScope } from "@/lib/articles/link-guard";
 import { verifyUrl } from "@/lib/articles/link-verify";
 import { twoStepArticles } from "@/lib/articles/review";
 import { DEFAULT_MONTHLY_CAP } from "@/lib/backlinks/network-defaults";
+import { backlinkExchangeOn, writeBacklinkExchange } from "@/lib/backlinks/exchange-switch";
 import { db } from "@/lib/db";
+import { BACKLINK_EXCHANGE_COPY } from "@/lib/i18n/backlink-exchange";
+import { resolveAppLocale } from "@/lib/i18n/app-locale";
 import { articles, backlinkRequests, backlinkTargets, domainMetrics, networkSites, placements } from "@/lib/db/schema";
 import { AUTHORITY_METRIC } from "@/lib/authority/metric";
 import { effectiveMinSourceRank, minRankCapFor } from "@/lib/backlinks/authority-cap";
@@ -42,6 +45,12 @@ export type PartnerNetwork = {
    */
   connected: boolean;
   participating: boolean;
+  /**
+   * The Backlink Exchange: automatic partner links in this website's
+   * articles, OPT-IN and off by default (lib/backlinks/exchange-switch.ts).
+   * Only while participating; the RepGet team's own placements do not read it.
+   */
+  exchange: boolean;
   monthlyCap: number;
   targets: NetworkTarget[];
   /** Articles of this website still waiting for the RepGet team's review. */
@@ -96,9 +105,11 @@ export async function getPartnerNetwork(websiteId: string): Promise<PartnerNetwo
     );
   const maxMinSourceRank = await minRankCapFor(site.id);
   const connected = await isWebsiteConnected(site.id);
+  const participating = connected && Boolean(row?.acceptingLinks);
   return {
     connected,
-    participating: connected && Boolean(row?.acceptingLinks),
+    participating,
+    exchange: participating && (await backlinkExchangeOn(site.id)),
     monthlyCap: row?.monthlyCap ?? DEFAULT_MONTHLY_CAP,
     targets,
     inReview: review?.n ?? 0,
@@ -201,6 +212,8 @@ export async function setParticipation(
       .values({ websiteId: site.id, acceptingLinks: enabled, monthlyCap: DEFAULT_MONTHLY_CAP })
       .onConflictDoUpdate({ target: networkSites.websiteId, set: { acceptingLinks: enabled, updatedAt: new Date() } });
     if (enabled) return { released: 0, keptInReview: 0 };
+    // Leaving the network switches the Backlink Exchange off too: joining again never turns automatic links back on by itself.
+    await writeBacklinkExchange(site.id, false, `user:${guard.context.userId}`, tx);
 
     /*
       Leaving the network ends the Partner Network's review. It does not end
@@ -240,6 +253,28 @@ export async function setParticipation(
 
   revalidatePath(`/websites/${site.id}/backlinks`);
   return { ok: true, data: result };
+}
+
+/**
+ * The Backlink Exchange switch (lib/backlinks/exchange-switch.ts): automatic
+ * partner links in this website's articles, opt-in. ON needs a connected
+ * website that takes part in the Partner Network; OFF never needs anything.
+ * The RepGet team's own placements are not affected either way.
+ */
+export async function setBacklinkExchange(websiteId: string, enabled: boolean): Promise<ActionResult<{ exchange: boolean }>> {
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site } = guard.context;
+  if (enabled) {
+    // Refusals in the reader's language, as the switch's own words are (partner-network-card.tsx).
+    const words = async () => BACKLINK_EXCHANGE_COPY[await resolveAppLocale(guard.context.userId)];
+    if (!(await isWebsiteConnected(site.id))) return { ok: false, error: (await words()).connectFirst };
+    const [row] = await db.select({ accepting: networkSites.acceptingLinks }).from(networkSites).where(eq(networkSites.websiteId, site.id)).limit(1);
+    if (!row?.accepting) return { ok: false, error: (await words()).participationFirst };
+  }
+  await writeBacklinkExchange(site.id, enabled, `user:${guard.context.userId}`);
+  revalidatePath(`/websites/${site.id}/backlinks`);
+  return { ok: true, data: { exchange: enabled } };
 }
 
 /**

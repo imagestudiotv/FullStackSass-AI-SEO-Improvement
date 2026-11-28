@@ -36,9 +36,3 @@ export function cardPrices(monthly: OfferPlan, annual: OfferPlan | null, offer: 
   }
   return result;
 }
-
-/** The bundle's "SAVE 57%": its price against the value the design strikes through, to the whole percent. */
-export function bundleSavingPercent(priceCents: number, compareAtCents: number): number {
-  if (compareAtCents <= priceCents) return 0;
-  return Math.round(((compareAtCents - priceCents) / compareAtCents) * 100);
-}

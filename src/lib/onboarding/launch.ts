@@ -14,6 +14,8 @@ import {
   websites,
 } from "@/lib/db/schema";
 import { GOOGLE_KIND } from "@/lib/analytics/connection";
+import { setupProgress, type SetupProgress } from "@/lib/onboarding/progress";
+import { backlinkExchangeOnSql } from "@/lib/backlinks/exchange-switch";
 
 /**
  * The launch checklist — what a customer still has to do to be fully live.
@@ -100,10 +102,15 @@ export type LaunchStep = {
 
 export type LaunchState = {
   steps: LaunchStep[];
-  /** How many are finished, for the "5/7 done" dial. */
+  /** Every row ticked, the "Launched live" row included. Support's progress baseline only: screens show `progress`. */
   doneCount: number;
-  /** Steps that must be done for the product to run at all. */
+  /** Steps that must be done for the product to run at all: progress.remaining. */
   requiredRemaining: number;
+  /**
+   * THE count every screen shows - sidebar, Setup, the tracker and Tasks
+   * (lib/onboarding/progress.ts): required steps done of required steps.
+   */
+  progress: SetupProgress;
   /** True when nothing required is left. */
   live: boolean;
   /** Keyword research under way, so the layout follows it (ResearchWatcher). */
@@ -213,7 +220,7 @@ export const getLaunchState = cache(async function getLaunchState(
         .where(eq(brandVoice.websiteId, websiteId))
         .limit(1),
       db
-        .select({ id: networkSites.id })
+        .select({ id: networkSites.id, accepting: networkSites.acceptingLinks, exchange: backlinkExchangeOnSql(networkSites.websiteId) })
         .from(networkSites)
         .where(eq(networkSites.websiteId, websiteId))
         .limit(1),
@@ -362,8 +369,9 @@ export const getLaunchState = cache(async function getLaunchState(
       description:
         "Host one article for a related business and earn a credit for a link back to you.",
       // Connected too: until the website is, it is not in the network whatever its row says (lib/backlinks/network-settings.ts).
-      done: network.length > 0 && (cms.length > 0 || plugin.length > 0),
-      optional: false,
+      // OPT-IN since 2026-11-27 (lib/backlinks/exchange-switch.ts): done when its switch is on, and optional - never needed to launch.
+      done: Boolean(network[0]?.accepting && network[0]?.exchange) && (cms.length > 0 || plugin.length > 0),
+      optional: true,
       href: `${base}/backlinks`,
       icon: "link",
     },
@@ -390,9 +398,8 @@ export const getLaunchState = cache(async function getLaunchState(
    * source could disagree with them, and a checklist whose last line
    * contradicts the six above it is worse than no last line.
    */
-  const requiredRemaining = steps.filter(
-    (step) => !step.done && !step.optional,
-  ).length;
+  const progress = setupProgress(steps);
+  const requiredRemaining = progress.remaining;
   const live = requiredRemaining === 0;
 
   steps.push({
@@ -402,7 +409,7 @@ export const getLaunchState = cache(async function getLaunchState(
       ? "Everything is running. Nothing more to set up."
       : "Finish the steps above and everything starts running by itself.",
     detail:
-      "Auto-publishing, AI visibility tracking and the Backlink Exchange are running for your site. Nothing more to set up - watch the results on your dashboard.",
+      "Auto-publishing and AI visibility tracking are running for your site. Nothing more to set up - watch the results on your dashboard.",
     done: live,
     optional: false,
     href: "/dashboard",
@@ -414,6 +421,7 @@ export const getLaunchState = cache(async function getLaunchState(
     // Counted after the final row is pushed, so the dial matches the list.
     doneCount: steps.filter((step) => step.done).length,
     requiredRemaining,
+    progress,
     live,
     researching: site[0] ? researchInFlight(site[0]) : false,
   };

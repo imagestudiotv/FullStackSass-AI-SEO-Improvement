@@ -8,6 +8,8 @@ import { requireSession } from "@/lib/auth-guard";
 import { plural } from "@/lib/i18n/format";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { getLaunchState } from "@/lib/onboarding/launch";
+import { countedSteps } from "@/lib/onboarding/progress";
+import { TASKS_COPY } from "@/lib/i18n/tasks";
 import { getOnboardingState } from "@/lib/onboarding/steps";
 import { requireOrg } from "@/lib/tenant";
 import { hasOnlySharedWork } from "@/lib/websites/accessible";
@@ -38,7 +40,7 @@ export const dynamic = "force-dynamic";
 export default async function SetupPage({ searchParams }: PageProps<"/setup">) {
   const session = await requireSession();
   const { orgId } = await requireOrg();
-  const { t } = await getAppMessages(session.user.id);
+  const { locale, t } = await getAppMessages(session.user.id);
 
   const params = await searchParams;
   const siteParam = typeof params.site === "string" ? params.site : null;
@@ -87,7 +89,8 @@ export default async function SetupPage({ searchParams }: PageProps<"/setup">) {
   if (!signup.hasPlan) redirect("/onboarding/plan");
 
   const launch = await getLaunchState(site.id);
-  const total = launch.steps.length;
+  // The one count (lib/onboarding/progress.ts): the sidebar, the tracker and Tasks show the same.
+  const { done, total } = launch.progress;
 
   return (
     <div className="mx-auto w-full max-w-3xl">
@@ -133,13 +136,13 @@ export default async function SetupPage({ searchParams }: PageProps<"/setup">) {
                 strokeWidth="7"
                 strokeLinecap="round"
                 strokeDasharray="264"
-                strokeDashoffset={264 - (264 * launch.doneCount) / total}
+                strokeDashoffset={total ? 264 - (264 * done) / total : 0}
                 transform="rotate(-90 48 48)"
               />
             </svg>
             <span className="absolute inset-0 flex flex-col items-center justify-center">
               <span className="text-xl font-semibold tabular-nums">
-                {launch.doneCount}/{total}
+                {done}/{total}
               </span>
               <span className="text-[10px] tracking-wide text-muted-foreground uppercase">
                 {t.app.common.done}
@@ -162,9 +165,9 @@ export default async function SetupPage({ searchParams }: PageProps<"/setup">) {
                   })}
             </p>
 
-            {/* Segmented bar, one block per step, as drawn. */}
+            {/* Segmented bar, one block per counted step, as drawn. */}
             <div className="mt-4 flex gap-1.5">
-              {launch.steps.map((step) => (
+              {countedSteps(launch.steps).map((step) => (
                 <span
                   key={step.id}
                   title={step.title}
@@ -187,7 +190,11 @@ export default async function SetupPage({ searchParams }: PageProps<"/setup">) {
         </div>
       </div>
 
-      <SetupSteps steps={launch.steps} t={t.app.common} />
+      <SetupSteps
+        steps={launch.steps}
+        t={t.app.common}
+        labels={{ optional: TASKS_COPY[locale].optional, toDo: TASKS_COPY[locale].toDo }}
+      />
     </div>
   );
 }

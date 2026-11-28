@@ -1,4 +1,5 @@
 import type { PlanRow } from "@/lib/billing-shared";
+import { planDisplayPrice } from "@/lib/billing/display-prices";
 import { COMPANY_NAME } from "@/lib/config/site";
 
 /**
@@ -70,7 +71,13 @@ export function breadcrumbList(site: string, trail: Crumb[]): Record<string, unk
  * back one, and invented ratings are against Google's rules. Without them
  * Google does not show the software rich result, but still reads the data.
  */
-export function softwareApplication(site: string, plans: PlanRow[]): Record<string, unknown> {
+export function softwareApplication(
+  site: string,
+  plans: PlanRow[],
+  offer = false,
+  /** Where the offers point: the pricing page in the homepage's language ("/es/pricing"). */
+  pricingPath = "/pricing",
+): Record<string, unknown> {
   const base = site.replace(/\/+$/, "");
   const ids = entityIds(base);
   const monthly = plans.filter((plan) => plan.interval === "month");
@@ -87,14 +94,15 @@ export function softwareApplication(site: string, plans: PlanRow[]): Record<stri
 
   if (monthly.length > 0) {
     app.offers = monthly.map((plan) => {
-      const price = plan.priceCents / 100;
+      // The price charged, as the cards show it: the REPGET launch price while it is on (lib/billing/display-prices.ts).
+      const price = planDisplayPrice(plan, offer).chargedCents / 100;
       const priceCurrency = plan.currency.toUpperCase();
       return {
         "@type": "Offer",
         name: plan.name,
         price,
         priceCurrency,
-        url: `${base}/pricing`,
+        url: `${base}${pricingPath}`,
         // "per month", as the page says it.
         priceSpecification: {
           "@type": "UnitPriceSpecification",

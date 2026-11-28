@@ -12,6 +12,7 @@ import { requireWebsitePlan } from "@/lib/billing/require-plan";
 import { format, formatDate, plural } from "@/lib/i18n/format";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { PARTNER_NETWORK_CONNECT } from "@/lib/i18n/partner-network-connect";
+import { BACKLINK_EXCHANGE_COPY } from "@/lib/i18n/backlink-exchange";
 import {
   backlinkIssues,
   backlinkMetrics,
@@ -262,6 +263,7 @@ export default async function BacklinksOverviewPage({
         canEdit={ctx.access !== "viewer"}
         t={t.app.partnerNetwork}
         connectText={PARTNER_NETWORK_CONNECT[locale]}
+        exchangeText={BACKLINK_EXCHANGE_COPY[locale]}
       />
 
       <div className="grid gap-4 lg:grid-cols-2">
