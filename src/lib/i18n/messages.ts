@@ -2948,6 +2948,8 @@ export type Messages = {
         warmup_brand: string;
         /** A reply naming the business outside lib/social/mention.ts's conditions. */
         mention_not_allowed: string;
+        /** Sales words or a call to action in a reply or own post (lib/social/mention.ts soundsPromotional). */
+        promotional: string;
         bad_link: string;
         not_enough_credits: string;
         /** A Free website's posts of the month are used (lib/plans/free-plan-server.ts takeFreePlanPost). */
@@ -6150,6 +6152,7 @@ const en: Messages = {
         warmup_link: "No links during the warm-up.",
         warmup_brand: "No product or brand names during the warm-up.",
         mention_not_allowed: "This reply names your business. RepGet allows that only where the discussion asks for recommendations, the community allows it, and in about 1 reply in 10 on this platform. Remove the name to post it.",
+        promotional: "This reads like an advert: it has sales words or a call to action (such as \"sign up\", \"DM me\" or \"discount code\"). Platforms remove posts like this and can ban the account. Write it as a person helping, then post it.",
         bad_link: "Only one link, to your own website.",
         not_enough_credits: "Not enough credits: this costs {price} and you have {available}.",
         free_posts_used: "You have used this month's free social posts. Upgrade to post more, or wait for next month.",
@@ -9340,6 +9343,7 @@ const es: Messages = {
         warmup_link: "Sin enlaces durante el calentamiento.",
         warmup_brand: "Sin nombres de productos ni de marca durante el calentamiento.",
         mention_not_allowed: "Esta respuesta menciona su negocio. RepGet solo lo permite cuando la conversación pide recomendaciones, la comunidad lo admite y, como mucho, en 1 de cada 10 respuestas en esta plataforma. Quite el nombre para publicarla.",
+        promotional: "Esto parece un anuncio: tiene palabras de venta o una llamada a la acción (como \"escríbeme\", \"prueba gratis\" o \"código de descuento\"). Las plataformas eliminan publicaciones así y pueden bloquear la cuenta. Escríbalo como una persona que ayuda y luego publíquelo.",
         bad_link: "Solo un enlace, a su propio sitio web.",
         not_enough_credits: "Créditos insuficientes: cuesta {price} y tiene {available}.",
         free_posts_used: "Ha usado las publicaciones sociales gratuitas de este mes. Mejore su plan para publicar más, o espere al mes que viene.",
@@ -12530,6 +12534,7 @@ const fr: Messages = {
         warmup_link: "Pas de liens pendant la mise en route.",
         warmup_brand: "Pas de noms de produits ni de marque pendant la mise en route.",
         mention_not_allowed: "Cette réponse cite votre entreprise. RepGet ne l’autorise que lorsque la discussion demande des recommandations, que la communauté l’accepte, et au plus dans 1 réponse sur 10 sur cette plateforme. Retirez le nom pour la publier.",
+        promotional: "Cela ressemble à une publicité : il y a des mots commerciaux ou un appel à l’action (comme « contactez-moi », « essai gratuit » ou « code promo »). Les plateformes suppriment ce type de publication et peuvent bannir le compte. Écrivez-le comme une personne qui aide, puis publiez-le.",
         bad_link: "Un seul lien, vers votre propre site.",
         not_enough_credits: "Crédits insuffisants : cela coûte {price} et vous en avez {available}.",
         free_posts_used: "Vous avez utilisé les publications sociales gratuites de ce mois. Passez à un plan supérieur pour publier davantage, ou attendez le mois prochain.",
@@ -15720,6 +15725,7 @@ const it: Messages = {
         warmup_link: "Niente link durante il riscaldamento.",
         warmup_brand: "Niente nomi di prodotti o del marchio durante il riscaldamento.",
         mention_not_allowed: "Questa risposta nomina la Sua attività. RepGet lo consente solo quando la discussione chiede consigli, la community lo ammette e al massimo in 1 risposta su 10 su questa piattaforma. Tolga il nome per pubblicarla.",
+        promotional: "Sembra una pubblicità: contiene parole di vendita o un invito all’azione (come \"scrivimi\", \"prova gratuita\" o \"codice sconto\"). Le piattaforme rimuovono post del genere e possono bannare l’account. Lo scriva come una persona che aiuta, poi lo pubblichi.",
         bad_link: "Un solo link, al suo sito.",
         not_enough_credits: "Crediti insufficienti: costa {price} e ne ha {available}.",
         free_posts_used: "Ha usato i post social gratuiti di questo mese. Passi a un piano superiore per pubblicarne altri, o attenda il mese prossimo.",
@@ -18906,6 +18912,7 @@ const de: Messages = {
         warmup_link: "Keine Links während der Aufwärmphase.",
         warmup_brand: "Keine Produkt- oder Markennamen während der Aufwärmphase.",
         mention_not_allowed: "Diese Antwort nennt Ihr Unternehmen. RepGet erlaubt das nur, wenn die Diskussion nach Empfehlungen fragt, die Community es zulässt, und höchstens in etwa 1 von 10 Antworten auf dieser Plattform. Entfernen Sie den Namen, um sie zu posten.",
+        promotional: "Das liest sich wie Werbung: Es enthält Verkaufswörter oder eine Handlungsaufforderung (etwa „schreib mir“, „kostenlos testen“ oder „Rabattcode“). Plattformen entfernen solche Beiträge und können das Konto sperren. Schreiben Sie es wie jemand, der hilft, und posten Sie es dann.",
         bad_link: "Nur ein Link, zu Ihrer eigenen Website.",
         not_enough_credits: "Nicht genug Credits: Das kostet {price}, und Sie haben {available}.",
         free_posts_used: "Sie haben die kostenlosen Social-Media-Beiträge dieses Monats genutzt. Upgraden Sie, um mehr zu posten, oder warten Sie auf den nächsten Monat.",

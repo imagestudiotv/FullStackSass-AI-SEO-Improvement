@@ -16,7 +16,7 @@ import { connectUsername, ensureTeam, inWarmup, removeAccount, socialAccess } fr
 import { disconnectAccount, isBundleConfigured, portalLink } from "./bundle";
 import { cleanUsername, isSocialPlatform, PLATFORMS, type SocialPlatform } from "./platforms";
 import { postTarget, postText, type PostEdit as Edit } from "./post-target";
-import { asksForRecommendations, communityOf, mayMention, mentionHistory, MENTION_WINDOW_DAYS } from "./mention";
+import { asksForRecommendations, communityOf, mayMention, mentionHistory, MENTION_WINDOW_DAYS, soundsPromotional } from "./mention";
 import { checkDraft, namesBrand } from "./rules";
 
 /**
@@ -42,6 +42,7 @@ export type SocialError =
   | "warmup_link"
   | "warmup_brand"
   | "mention_not_allowed"
+  | "promotional"
   | "bad_link"
   | "not_enough_credits"
   | "free_posts_used"
@@ -233,6 +234,9 @@ async function checkEdit(
     if (check.reason === "empty") return fail("empty");
     return fail("bad_link");
   }
+  // Sales words or a call to action, in a reply or an own post, edited in or not (lib/social/mention.ts).
+  if (soundsPromotional(`${title ?? ""}
+${body}`)) return fail("promotional");
   // A reply that names the business, edited in by the customer or not, only where lib/social/mention.ts allows it.
   if (row.kind === "reply" && site && namesBrand(`${title ?? ""}
 ${body}`, site) && !(await replyMayMention(websiteId, row, site, warmup))) {

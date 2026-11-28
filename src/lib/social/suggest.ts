@@ -297,6 +297,9 @@ ${candidate.snippet}`);
     const link = slot.platform === "pinterest" ? (slot.link?.url ?? null) : null;
     const body = draft.body.trim();
     if (!checkDraft({ platform: slot.platform, title, body, link }, { ...brand, warmup: slot.warmup }).ok) continue;
+    // An own post with sales words or a call to action is not suggested either (as replies, below).
+    if (soundsPromotional(`${title ?? ""}
+${body}`)) continue;
     // Only a post whose slot offered a link may carry one (LINK_EVERY), even to the website itself.
     if (!slot.link && linksIn(`${title ?? ""} ${body}`).length > 0) continue;
     const auto = Boolean(

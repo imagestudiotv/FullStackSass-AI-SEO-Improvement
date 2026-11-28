@@ -641,6 +641,24 @@ describe("the one-click post", () => {
     expect(await saveSocialDraft(websiteId, row.id, { body: "Full disclosure, I run Image Studio." })).toEqual({ ok: false, error: "mention_not_allowed" });
   });
 
+  it("refuses a reply or own post edited into an advert, and saves no such draft, charging nothing", async () => {
+    const { orgId, websiteId } = await site();
+    await account(websiteId, "x");
+    await recordCredit(orgId, { type: "adjustment", amount: 5, note: "test" });
+    const reply = await suggestion(websiteId);
+    expect(await postSocialSuggestion(websiteId, reply.id, { body: "Happy to help, DM me for a discount code." })).toEqual({ ok: false, error: "promotional" });
+    expect(await saveSocialDraft(websiteId, reply.id, { body: "Sign up for a free trial and see." })).toEqual({ ok: false, error: "promotional" });
+    const post = await suggestion(websiteId, { kind: "post", threadUrl: null, body: "Shade beats golden hour." });
+    expect(await postSocialSuggestion(websiteId, post.id, { body: "Shade beats golden hour. Book a call with us today!" })).toEqual({ ok: false, error: "promotional" });
+    const scheduled = await suggestion(websiteId, { kind: "post", threadUrl: null, status: "scheduled", scheduledFor: NOW, body: "Shade beats golden hour." });
+    expect(await editScheduledPost(websiteId, scheduled.id, { body: "Limited-time offer: shade beats golden hour." })).toEqual({ ok: false, error: "promotional" });
+    expect(await test.db.select().from(creditSpends).where(eq(creditSpends.organizationId, orgId))).toEqual([]);
+    const rows = await test.db.select().from(socialSuggestions).where(eq(socialSuggestions.websiteId, websiteId));
+    expect(rows.map((row) => [row.status, row.body]).sort()).toEqual(
+      [["new", "Shade beats golden hour."], ["new", "Shoot a test session first."], ["scheduled", "Shade beats golden hour."]].sort(),
+    );
+  });
+
   it("is refused without the credit, changing nothing", async () => {
     const { websiteId } = await site();
     await account(websiteId, "x");
@@ -1149,6 +1167,18 @@ describe("LinkedIn in Social", () => {
     drafts: { replies: [], posts: [{ slot: slots.findIndex((slot) => slot.platform === "linkedin") + 1, title: null, body: "One lesson from 200 weddings: shade beats golden hour." }] },
     usage: { inputTokens: 100, outputTokens: 50, model: "claude-sonnet-5" },
   }));
+
+  it("does not suggest an own post that reads like an advert", async () => {
+    vi.stubEnv("SOCIAL_LINKEDIN_AUTOPOST", "1");
+    const { websiteId } = await linkedinSite();
+    const advert: SuggestDeps["write"] = vi.fn(async (_profile, _threads, slots) => ({
+      drafts: { replies: [], posts: [{ slot: slots.findIndex((slot) => slot.platform === "linkedin") + 1, title: null, body: "Shade beats golden hour. Book a consultation with us today." }] },
+      usage: { inputTokens: 100, outputTokens: 50, model: "claude-sonnet-5" },
+    }));
+    const result = await suggestForWebsite(websiteId, { now: NOW, random: () => 0.5, search, write: advert });
+    expect(await test.db.select().from(socialSuggestions).where(and(eq(socialSuggestions.websiteId, websiteId), eq(socialSuggestions.platform, "linkedin")))).toEqual([]);
+    expect(result.scheduled).toEqual([]);
+  });
 
   it("is one click only: an account with auto-post on gets a suggestion to post, never a scheduled post (owner, 2026-11-28)", async () => {
     const { websiteId } = await linkedinSite();
