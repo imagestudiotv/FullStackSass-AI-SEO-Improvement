@@ -88,19 +88,28 @@ export type NamedBusiness = {
  * "BrightSmile Dental Clinic" for one business. Comparing raw strings would
  * report a brand missing when it was named, which is the worst failure mode
  * here: it tells a customer they are invisible when they are not.
+ *
+ * Any script: letters and digits of every alphabet are kept (\p{L}\p{N}).
+ * Until 2026-11-28 only [a-z0-9] were, so a Cyrillic brand normalised to
+ * nothing - never "mentioned", and the customer's own Ukrainian name could be
+ * listed as a rival (review of 2026-11-28). NFKC folds compatibility forms
+ * (full-width letters, ligatures) first; accents are then dropped as before
+ * ("Café" is "cafe"), on both sides of a comparison alike.
  */
-function normalise(value: string): string {
+export function normalise(value: string): string {
   return (
     value
+      .normalize("NFKC")
       .toLowerCase()
-      .normalize("NFKD")
-      .replace(/[̀-ͯ]/g, "")
-      // Legal suffixes and generic trade words carry no identity.
+      .normalize("NFD")
+      .replace(/\p{M}+/gu, "")
+      .normalize("NFC")
+      // Legal forms and generic trade words carry no identity (whole words, in any script).
       .replace(
-        /\b(inc|llc|ltd|limited|bv|b\.v\.|gmbh|nv|plc|co|corp|company|clinic|dental|dentist|agency|studio|group|the)\b/g,
+        /(?<![\p{L}\p{N}])(?:inc|llc|ltd|limited|bv|b\.v\.|gmbh|nv|plc|co|corp|company|clinic|dental|dentist|agency|studio|group|the|тов|ооо|фоп)(?![\p{L}\p{N}])/gu,
         " ",
       )
-      .replace(/[^a-z0-9]+/g, "")
+      .replace(/[^\p{L}\p{N}]+/gu, "")
       .trim()
   );
 }

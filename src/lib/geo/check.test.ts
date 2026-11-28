@@ -9,7 +9,7 @@ vi.mock("@/lib/ai/client", () => ({
 const ask = vi.hoisted(() => ({ askEngine: vi.fn() }));
 vi.mock("@/lib/geo/assistants", async (original) => ({ ...(await original<object>()), askEngine: ask.askEngine }));
 
-import { relevantCompetitors, runCheck, type NamedBusiness } from "@/lib/geo/check";
+import { isSameBrand, normalise, relevantCompetitors, runCheck, type NamedBusiness } from "@/lib/geo/check";
 
 const UA = { language: "Ukrainian", region: "Ukraine", countryCode: "UA" };
 const b = (name: string, domain = "", market: NamedBusiness["market"] = "unknown"): NamedBusiness => ({ name, domain, market });
@@ -37,6 +37,52 @@ describe("the rivals shown as named instead of you", () => {
 
   it("keeps a foreign-domain rival when the asker's country is not known", () => {
     expect(relevantCompetitors([b("Presentes BR", "presentes.com.br")], { brand: "Acme", domain: "acme.com" }, { countryCode: null })).toEqual(["Presentes BR"]);
+  });
+});
+
+/**
+ * Brands in any script (review of 2026-11-28: only [a-z0-9] were kept, so a
+ * Ukrainian brand never matched and the customer's own name could be shown
+ * as a rival). A fictional Ukrainian shop: "Подарункова Скриня".
+ */
+describe("brand names in Cyrillic", () => {
+  it("keeps Cyrillic letters and digits, folded the same way on both sides", () => {
+    expect(normalise("«Подарункова Скриня»")).toBe("подарунковаскриня");
+    expect(normalise("ТОВ «Подарункова Скриня 24»")).toBe("подарунковаскриня24");
+    // Full-width and accented Latin fold as before.
+    expect(normalise("ＡＣＭＥ Café")).toBe("acmecafe");
+  });
+
+  it("matches a Ukrainian brand however the answer writes it", () => {
+    expect(isSameBrand("ПОДАРУНКОВА СКРИНЯ", "Подарункова Скриня")).toBe(true);
+    expect(isSameBrand("Подарункова Скриня (Київ)", "Подарункова Скриня")).toBe(true);
+    expect(isSameBrand("ТОВ Подарункова Скриня", "Подарункова Скриня")).toBe(true);
+    // A different Cyrillic name is not the brand: they used to both normalise to "".
+    expect(isSameBrand("Розетка", "Подарункова Скриня")).toBe(false);
+  });
+
+  it("never lists the customer's own Cyrillic brand as a rival", () => {
+    const named = [b("Подарункова Скриня", "", "local"), b("Розетка", "rozetka.com.ua", "local"), b("подарункова скриня")];
+    expect(relevantCompetitors(named, { brand: "Подарункова Скриня", domain: "skrynia.ua" }, UA)).toEqual(["Розетка"]);
+  });
+
+  it("finds the Cyrillic brand in the answer and quotes the sentence", async () => {
+    ask.askEngine.mockResolvedValue({
+      engine: "claude",
+      model: "claude-haiku-5-5",
+      webSearch: true,
+      text: "Найкращі набори: Розетка. Також «Подарункова Скриня» у Києві збирає подарунки на замовлення.",
+      sources: [],
+      searches: 1,
+      usage: { inputTokens: 1000, outputTokens: 200 },
+    });
+    ai.create.mockResolvedValue({
+      content: [{ type: "text", text: JSON.stringify({ brands: [{ name: "Розетка", domain: "rozetka.com.ua", market: "local" }, { name: "Подарункова Скриня", domain: "", market: "local" }], citedDomain: false }) }],
+      usage: { input_tokens: 300, output_tokens: 50 },
+    });
+    const outcome = await runCheck("Де замовити подарунковий набір?", "Подарункова Скриня", "skrynia.ua", { engine: "claude", market: UA });
+    expect(outcome).toMatchObject({ mentioned: true, position: 2, competitors: ["Розетка"] });
+    expect(outcome.excerpt).toContain("Подарункова Скриня");
   });
 });
 
