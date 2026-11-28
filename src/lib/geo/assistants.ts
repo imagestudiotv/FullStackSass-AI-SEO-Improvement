@@ -55,9 +55,27 @@ const MAX_OUTPUT_TOKENS = 1500;
 /** Searches Claude may run per answer: one or two is what a recommendation needs. */
 const CLAUDE_MAX_SEARCHES = 3;
 
-/** A provider refusing the search tool itself (not a rate limit, not an outage). */
-function refusesSearch(status: number, message: string): boolean {
-  return status === 400 && /web[_ ]?search|google_search|tool|grounding/i.test(message);
+/** The search tool, as each provider names it in an error. */
+const SEARCH_TOOL = String.raw`(?:web[_ ]?search(?:_preview)?|google[_ ]?search|search grounding|grounding)`;
+/** Words that say the tool cannot be used here: switched off for the account, or not offered for the model. */
+const UNAVAILABLE = String.raw`(?:not (?:enabled|supported|available|allowed|permitted)|disabled|unsupported|unavailable)`;
+const SEARCH_UNAVAILABLE = new RegExp(`${SEARCH_TOOL}[^.]{0,80}?${UNAVAILABLE}|${UNAVAILABLE}[^.]{0,40}?${SEARCH_TOOL}`, "i");
+
+/**
+ * A provider refusing the search tool itself: an organisation with web
+ * search switched off (Anthropic: 400 "web search is not enabled"), or a
+ * model that does not take the tool. Only then is the question asked again
+ * without search.
+ *
+ * Any other 400 is thrown (review of 2026-11-28: every 400 that mentioned
+ * "tool" used to be taken as a refusal and quietly downgraded), including
+ * one about the search tool's own settings - a country the provider does
+ * not accept is our mistake to see, not a reason to stop searching.
+ */
+export function refusesSearch(status: number, message: string): boolean {
+  if (status !== 400 && status !== 403) return false;
+  if (/user_location|country|location/i.test(message)) return false;
+  return SEARCH_UNAVAILABLE.test(message);
 }
 
 const unique = (values: string[]) => [...new Set(values.filter((v) => typeof v === "string" && v.startsWith("http")))].slice(0, 20);

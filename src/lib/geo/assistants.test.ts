@@ -8,7 +8,7 @@ vi.mock("@/lib/ai/client", () => ({
   MODELS: { GENERATION: "claude-sonnet-5", EXTRACTION: "claude-haiku-4-5" },
 }));
 
-import { answerCostUsd, answerPrice, askEngine } from "@/lib/geo/assistants";
+import { answerCostUsd, answerPrice, askEngine, refusesSearch } from "@/lib/geo/assistants";
 
 const UA = { language: "Ukrainian", region: "Ukraine", countryCode: "UA" };
 const env = { OPENAI_API_KEY: "sk-test", GOOGLE_AI_API_KEY: "g-test" };
@@ -50,6 +50,12 @@ describe("asking the assistants", () => {
     const answer = await askEngine("claude", "q", UA, { env });
     expect(ai.create.mock.calls[1][0].tools).toBeUndefined();
     expect(answer.webSearch).toBe(false);
+  });
+
+  it("throws any other 400 rather than quietly asking without search", async () => {
+    ai.create.mockRejectedValueOnce(new Anthropic.BadRequestError(400, { type: "error", error: { type: "invalid_request_error", message: "tools.0: Input tag 'web_search_x' found using 'type' does not match any of the expected tags" } }, undefined, new Headers()));
+    await expect(askEngine("claude", "q", UA, { env })).rejects.toThrow(/400/);
+    expect(ai.create).toHaveBeenCalledTimes(1);
   });
 
   it("does not hide an outage as a refusal of web search", async () => {
@@ -129,5 +135,26 @@ describe("what an answer costs", () => {
     expect(answerPrice("chatgpt", "gpt-5-nano").inputPerM).toBe(0.05);
     expect(answerPrice("chatgpt", "gpt-5-mini-2026-08-07").inputPerM).toBe(0.25);
     expect(answerPrice("claude", "claude-something-new").inputPerM).toBe(2);
+  });
+});
+
+/** Only an error clearly saying search is off or not offered counts as a refusal (review of 2026-11-28). */
+describe("a refusal of web search", () => {
+  it("is the tool switched off or not offered for the model", () => {
+    expect(refusesSearch(400, "web search is not enabled for this organization")).toBe(true);
+    expect(refusesSearch(400, '400 {"type":"error","error":{"type":"invalid_request_error","message":"web_search is not enabled for this organization"}}')).toBe(true);
+    expect(refusesSearch(400, "Tool 'web_search' is not supported with gpt-5-nano.")).toBe(true);
+    expect(refusesSearch(400, "Search Grounding is not supported.")).toBe(true);
+    expect(refusesSearch(400, "google_search tool is not supported for this model")).toBe(true);
+    expect(refusesSearch(403, "Web search is disabled for this workspace")).toBe(true);
+  });
+
+  it("is not any other 400 that mentions a tool, nor a bad location, nor an outage", () => {
+    expect(refusesSearch(400, "tools.0.max_uses: Input should be greater than 0")).toBe(false);
+    expect(refusesSearch(400, "Invalid tool definition")).toBe(false);
+    expect(refusesSearch(400, "web_search.user_location.country: 'XX' is not supported")).toBe(false);
+    expect(refusesSearch(400, "max_tokens: 1500 > 1024, which is the maximum allowed")).toBe(false);
+    expect(refusesSearch(429, "web search is not available right now")).toBe(false);
+    expect(refusesSearch(500, "web_search unavailable")).toBe(false);
   });
 });
