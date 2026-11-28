@@ -50,7 +50,9 @@ export type NotificationType =
   /** A WordPress site this workspace published to was connected to another RepGet website. */
   | "plugin.moved"
   /** A network backlink was found marked nofollow/sponsored/ugc on its live page. */
-  | "backlink.nofollow";
+  | "backlink.nofollow"
+  /** Backlink requests that waited too long for an automatic host: closed, their held credits free again (lib/backlinks/stalled.ts). */
+  | "backlink.released";
 
 export type NewNotification = {
   organizationId: string;

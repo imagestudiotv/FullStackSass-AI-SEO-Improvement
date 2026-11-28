@@ -27,6 +27,11 @@ import type { Executor } from "@/lib/db/types";
  * under their existing rules (the website takes part in the network, is
  * connected, relevance, no reciprocal links...).
  *
+ * NOTHING STALLS (lib/backlinks/stalled.ts, daily): an automatic link not yet
+ * written on a host that is OFF goes back to waiting, a waiting request is
+ * matched to a host that is ON, and one that waited more than 14 days is
+ * closed with its held credits released and its workspace told.
+ *
  * STORED WITHOUT A MIGRATION, as the administrators' per-website number
  * settings are (lib/publishing/daily-cap.ts "articles_per_day:<id>"): one
  * credit_settings row `backlink_exchange:<websiteId>`, value 1 for on, 0 for

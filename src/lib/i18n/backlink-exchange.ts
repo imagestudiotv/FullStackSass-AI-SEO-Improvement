@@ -18,6 +18,13 @@ export type BacklinkExchangeCopy = {
   needsParticipation: string;
   turnedOn: string;
   turnedOff: string;
+  /**
+   * The notice when link requests waited {days} days for a partner site with
+   * the exchange on and were closed (lib/backlinks/stalled.ts). The body is
+   * "one|many" by the number of requests {n}; {credits} were held, and are free.
+   */
+  releasedTitle: string;
+  releasedBody: string;
 };
 
 export const BACKLINK_EXCHANGE_COPY: Record<Locale, BacklinkExchangeCopy> = {
@@ -30,6 +37,9 @@ export const BACKLINK_EXCHANGE_COPY: Record<Locale, BacklinkExchangeCopy> = {
     needsParticipation: "Turn on Network participation to use the Backlink Exchange.",
     turnedOn: "Backlink Exchange switched on",
     turnedOff: "Backlink Exchange switched off",
+    releasedTitle: "Credits released for {domain}",
+    releasedBody:
+      "Your link request found no partner site with the Backlink Exchange switched on within {days} days, so we closed it and released the credits it held ({credits}). Nothing was charged. You can still ask the RepGet team for links through the Partner Network.|{n} link requests found no partner site with the Backlink Exchange switched on within {days} days, so we closed them and released the credits they held ({credits}). Nothing was charged. You can still ask the RepGet team for links through the Partner Network.",
   },
   es: {
     title: "Intercambio de backlinks",
@@ -40,6 +50,9 @@ export const BACKLINK_EXCHANGE_COPY: Record<Locale, BacklinkExchangeCopy> = {
     needsParticipation: "Activa la participación en la red para usar el intercambio de backlinks.",
     turnedOn: "Intercambio de backlinks activado",
     turnedOff: "Intercambio de backlinks desactivado",
+    releasedTitle: "Créditos liberados para {domain}",
+    releasedBody:
+      "Tu solicitud de enlace no encontró ningún sitio socio con el intercambio de backlinks activado en {days} días, así que la cerramos y liberamos los créditos que tenía reservados ({credits}). No se ha cobrado nada. Puedes seguir pidiendo enlaces al equipo de RepGet a través de la Red de socios.|{n} solicitudes de enlace no encontraron ningún sitio socio con el intercambio de backlinks activado en {days} días, así que las cerramos y liberamos los créditos que tenían reservados ({credits}). No se ha cobrado nada. Puedes seguir pidiendo enlaces al equipo de RepGet a través de la Red de socios.",
   },
   fr: {
     title: "Échange de backlinks",
@@ -50,6 +63,9 @@ export const BACKLINK_EXCHANGE_COPY: Record<Locale, BacklinkExchangeCopy> = {
     needsParticipation: "Activez la participation au réseau pour utiliser l’échange de backlinks.",
     turnedOn: "Échange de backlinks activé",
     turnedOff: "Échange de backlinks désactivé",
+    releasedTitle: "Crédits libérés pour {domain}",
+    releasedBody:
+      "Votre demande de lien n’a trouvé aucun site partenaire avec l’échange de backlinks activé en {days} jours : nous l’avons donc fermée et avons libéré les crédits qu’elle réservait ({credits}). Rien n’a été facturé. Vous pouvez toujours demander des liens à l’équipe RepGet via le Réseau partenaire.|{n} demandes de lien n’ont trouvé aucun site partenaire avec l’échange de backlinks activé en {days} jours : nous les avons donc fermées et avons libéré les crédits qu’elles réservaient ({credits}). Rien n’a été facturé. Vous pouvez toujours demander des liens à l’équipe RepGet via le Réseau partenaire.",
   },
   it: {
     title: "Scambio di backlink",
@@ -60,6 +76,9 @@ export const BACKLINK_EXCHANGE_COPY: Record<Locale, BacklinkExchangeCopy> = {
     needsParticipation: "Attiva la partecipazione alla rete per usare lo scambio di backlink.",
     turnedOn: "Scambio di backlink attivato",
     turnedOff: "Scambio di backlink disattivato",
+    releasedTitle: "Crediti liberati per {domain}",
+    releasedBody:
+      "La tua richiesta di link non ha trovato nessun sito partner con lo scambio di backlink attivo in {days} giorni, quindi l’abbiamo chiusa e abbiamo liberato i crediti che teneva riservati ({credits}). Non è stato addebitato nulla. Puoi sempre chiedere link al team RepGet tramite la Rete partner.|{n} richieste di link non hanno trovato nessun sito partner con lo scambio di backlink attivo in {days} giorni, quindi le abbiamo chiuse e abbiamo liberato i crediti che tenevano riservati ({credits}). Non è stato addebitato nulla. Puoi sempre chiedere link al team RepGet tramite la Rete partner.",
   },
   de: {
     title: "Backlink-Austausch",
@@ -70,5 +89,8 @@ export const BACKLINK_EXCHANGE_COPY: Record<Locale, BacklinkExchangeCopy> = {
     needsParticipation: "Schalten Sie die Netzwerkteilnahme ein, um den Backlink-Austausch zu nutzen.",
     turnedOn: "Backlink-Austausch eingeschaltet",
     turnedOff: "Backlink-Austausch ausgeschaltet",
+    releasedTitle: "Credits für {domain} freigegeben",
+    releasedBody:
+      "Ihre Linkanfrage hat in {days} Tagen keine Partner-Website mit eingeschaltetem Backlink-Austausch gefunden. Wir haben sie daher geschlossen und die reservierten Credits ({credits}) freigegeben. Es wurde nichts berechnet. Sie können das RepGet-Team weiterhin über das Partnernetzwerk um Links bitten.|{n} Linkanfragen haben in {days} Tagen keine Partner-Website mit eingeschaltetem Backlink-Austausch gefunden. Wir haben sie daher geschlossen und die reservierten Credits ({credits}) freigegeben. Es wurde nichts berechnet. Sie können das RepGet-Team weiterhin über das Partnernetzwerk um Links bitten.",
   },
 };
