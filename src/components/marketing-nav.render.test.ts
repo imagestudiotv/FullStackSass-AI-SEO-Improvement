@@ -98,6 +98,29 @@ describe("the footer's removed pages", () => {
   });
 });
 
+/** The AI Blog Writer page (client, 2026-11-27): in the footer's Product group, in the page's language, before Backlinks. */
+describe("the footer's AI Blog Writer link", () => {
+  it.each([
+    ["/", "/ai-blog-writer", "/backlinks", "AI Blog Writer"],
+    ["/es", "/es/ai-blog-writer", "/es/backlinks", "Redactor de blog con IA"],
+    ["/fr", "/fr/ai-blog-writer", "/fr/backlinks", "Rédacteur de blog IA"],
+    ["/it", "/it/ai-blog-writer", "/it/backlinks", "Redattore di blog con IA"],
+    ["/de", "/de/ai-blog-writer", "/de/backlinks", "KI-Blogautor"],
+  ])("on %s goes to %s", (pathname, page, backlinks, label) => {
+    nav.pathname = pathname;
+    const html = renderToStaticMarkup(createElement(MarketingFooterLinks, { chrome: siteChrome() }));
+    const links = hrefs(html);
+    expect(links.indexOf(backlinks)).toBe(links.indexOf(page) + 1);
+    expect(html).toContain(`>${label}</a>`);
+  });
+
+  it("is the Content tool's page in the header's Features menu", () => {
+    nav.pathname = "/it";
+    const html = renderToStaticMarkup(createElement(MarketingNav, { chrome: siteChrome() }));
+    expect(html).toMatch(new RegExp(`href="/it/ai-blog-writer"[^>]*>${esc(siteChrome().it.menu.tools[0].heading).replace(/[.?*+()[\]]/g, "\\$&")}</a>`));
+  });
+});
+
 /** The customer directory (client, 2026-11-12), right after Success Stories, in the page's language. */
 describe("the footer's customer directory link", () => {
   it.each([
@@ -284,7 +307,7 @@ describe("the header's mega-menus", () => {
     const html = renderToStaticMarkup(createElement(MarketingNav, { chrome }));
     const links = [...html.matchAll(/<a\s[^>]*href="([^"]+)"/g)].map((m) => m[1]);
     for (const path of [
-      "/de/success-stories/image-studio",
+      "/de/ai-blog-writer",
       "/de/audit",
       // "Alle Funktionen ansehen" and the Social tool (client, 2026-11-27).
       "/de/features",

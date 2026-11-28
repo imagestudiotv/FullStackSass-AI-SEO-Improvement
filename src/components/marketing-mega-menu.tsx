@@ -46,18 +46,16 @@ export const c = (names: string) =>
  * order, and where each one's heading leads. The "Growth" tab went with the
  * single count: Growth Copilot runs the five and is not a tool of its own.
  *
- * Only pages that exist. Three tools have a page of their own (/audit for
- * Website Health, /backlinks, /rank-on-chatgpt). The other two point at the
- * nearest real page rather than an address made up to fill the menu:
- *  - Articles: the Image Studio case study, which walks through exactly that
- *    plan-write-publish loop on a real site;
- *  - Social: its part of /features, with the dashboard recordings.
+ * Only pages that exist. Four tools have a page of their own (/ai-blog-writer
+ * for Articles since 2026-11-27, /audit for Website Health, /backlinks,
+ * /rank-on-chatgpt). Social points at its part of /features, with the
+ * dashboard recordings, rather than an address made up to fill the menu.
  * The menu's "See all features" leads to /features itself. A missing entry
  * falls back rather than throwing, so a sixth translated tool never breaks
  * the header.
  */
 export const FEATURE_TOOLS: { key: Exclude<FeatureIconName, "arrow">; href: string }[] = [
-  { key: "content", href: "/success-stories/image-studio" },
+  { key: "content", href: "/ai-blog-writer" },
   { key: "backlinks", href: "/backlinks" },
   { key: "ai", href: "/rank-on-chatgpt" },
   { key: "social", href: "/features#social" },

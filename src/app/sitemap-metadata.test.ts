@@ -210,6 +210,16 @@ describe("every page in the sitemap", () => {
     expect(paths).not.toContain("/it/blog/category/comparisons");
   });
 
+  it("lists the AI Blog Writer page in every language, each naming all five as alternates", () => {
+    const all = { en: "/ai-blog-writer", es: "/es/ai-blog-writer", fr: "/fr/ai-blog-writer", it: "/it/ai-blog-writer", de: "/de/ai-blog-writer", "x-default": "/ai-blog-writer" };
+    for (const pathname of Object.values(all)) {
+      const page = pages.find((entry) => entry.pathname === pathname);
+      expect(page, pathname).toBeDefined();
+      expect(page!.metadata.alternates?.languages, pathname).toEqual(all);
+      expect(page!.metadata.alternates?.canonical, pathname).toBe(pathname);
+    }
+  });
+
   it("a category's pages in two languages name each other, and themselves, as alternates", () => {
     const languagesOf = (pathname: string) => pages.find((page) => page.pathname === pathname)?.metadata.alternates?.languages;
     const both = { en: "/blog/category/guides", it: "/it/blog/category/guides", "x-default": "/blog/category/guides" };

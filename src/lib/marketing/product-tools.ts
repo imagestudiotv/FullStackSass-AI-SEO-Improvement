@@ -79,12 +79,11 @@ export const TOOL_FEATURES: Record<ProductTool | "copilot", readonly FeatureClip
 /**
  * Where each tool's "learn more" leads: a public page that exists in every
  * language (localePath keeps the visitor's), never an address made up for it.
- * Articles has no page of its own; the Image Studio case study walks through
- * its plan-write-publish loop on a real site. Social and Growth Copilot lead
- * to their free tools.
+ * Articles leads to its own page, /ai-blog-writer (since 2026-11-27). Social
+ * and Growth Copilot lead to their free tools.
  */
 export const TOOL_LINKS: Record<ProductTool | "copilot", string> = {
-  articles: "/success-stories/image-studio",
+  articles: "/ai-blog-writer",
   backlinks: "/backlinks",
   aiVisibility: "/rank-on-chatgpt",
   social: "/tools/social-media-post-generator",
