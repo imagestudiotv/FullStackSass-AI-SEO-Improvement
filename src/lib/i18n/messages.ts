@@ -3410,7 +3410,7 @@ const en: Messages = {
       {
         title: "AI Presence",
         detail:
-          "Monitor how often ChatGPT, Gemini and Claude name your brand, asked with web search.",
+          "Monitor how often AI answers name your brand, asked with web search.",
       },
       {
         title: "Traffic Recovery",
@@ -3528,7 +3528,7 @@ const en: Messages = {
       },
       {
         problem: "AI assistants recommend your competitors, and you never find out.",
-        solution: "AI visibility tracking asks ChatGPT, Gemini and Claude, with web search, whether they name you.",
+        solution: "AI visibility tracking checks, with web search, whether AI answers to your customers' questions name you.",
       },
       {
         problem: "Pages quietly lose rankings, and you only notice when enquiries slow down.",
@@ -3786,7 +3786,7 @@ const en: Messages = {
       },
       {
         label: "AI visibility",
-        body: "Whether ChatGPT, Gemini and Claude name your business when someone asks for what you sell. Asked weekly through their APIs with web search, on questions in your language.",
+        body: "Whether AI answers name your business when someone asks for what you sell. Asked weekly through the assistants' APIs with web search, on questions in your language.",
       },
       {
         label: "Articles published",
@@ -6606,7 +6606,7 @@ const es: Messages = {
       {
         title: "Presencia en IA",
         detail:
-          "Compruebe con qué frecuencia ChatGPT, Gemini y Claude nombran su marca, consultados con búsqueda web.",
+          "Compruebe con qué frecuencia las respuestas de IA nombran su marca, consultadas con búsqueda web.",
       },
       {
         title: "Recuperación de tráfico",
@@ -6724,7 +6724,7 @@ const es: Messages = {
       },
       {
         problem: "Los asistentes de IA recomiendan a su competencia, y usted nunca se entera.",
-        solution: "El seguimiento de visibilidad en IA pregunta a ChatGPT, Gemini y Claude, con búsqueda web, si le nombran.",
+        solution: "El seguimiento de visibilidad en IA comprueba, con búsqueda web, si las respuestas de IA a las preguntas de sus clientes le nombran.",
       },
       {
         problem: "Las páginas pierden posiciones poco a poco, y solo lo nota cuando bajan las consultas.",
@@ -6997,7 +6997,7 @@ const es: Messages = {
       },
       {
         label: "Visibilidad en IA",
-        body: "Si ChatGPT, Gemini y Claude nombran su negocio cuando alguien pregunta por lo que usted vende. Preguntado cada semana a través de sus API con búsqueda web, con preguntas en su idioma.",
+        body: "Si las respuestas de IA nombran su negocio cuando alguien pregunta por lo que usted vende. Preguntado cada semana a través de las API de los asistentes con búsqueda web, con preguntas en su idioma.",
       },
       {
         label: "Artículos publicados",
@@ -9819,7 +9819,7 @@ const fr: Messages = {
       {
         title: "Présence IA",
         detail:
-          "Mesurez la fréquence à laquelle ChatGPT, Gemini et Claude citent votre marque, interrogés avec la recherche web.",
+          "Mesurez la fréquence à laquelle les réponses des IA citent votre marque, interrogées avec la recherche web.",
       },
       {
         title: "Récupération de trafic",
@@ -9942,7 +9942,7 @@ const fr: Messages = {
       },
       {
         problem: "Les assistants IA recommandent vos concurrents, et vous ne le savez jamais.",
-        solution: "Le suivi de la visibilité dans l’IA demande à ChatGPT, Gemini et Claude, avec la recherche web, s’ils vous citent.",
+        solution: "Le suivi de la visibilité dans l’IA vérifie, avec la recherche web, si les réponses des IA aux questions de vos clients vous citent.",
       },
       {
         problem: "Vos pages perdent des positions sans bruit, et vous ne le remarquez que lorsque les demandes ralentissent.",
@@ -10210,7 +10210,7 @@ const fr: Messages = {
       },
       {
         label: "Visibilité IA",
-        body: "Si ChatGPT, Gemini et Claude citent votre entreprise quand on demande ce que vous vendez. Posé chaque semaine via leurs API avec la recherche web, sur des questions dans votre langue.",
+        body: "Si les réponses des IA citent votre entreprise quand on demande ce que vous vendez. Posé chaque semaine via les API des assistants avec la recherche web, sur des questions dans votre langue.",
       },
       {
         label: "Articles publiés",
@@ -13032,7 +13032,7 @@ const it: Messages = {
       {
         title: "Presenza IA",
         detail:
-          "Controlli quanto spesso ChatGPT, Gemini e Claude citano il suo brand, interrogati con la ricerca web.",
+          "Controlli quanto spesso le risposte delle IA citano il suo brand, interrogate con la ricerca web.",
       },
       {
         title: "Recupero del traffico",
@@ -13155,7 +13155,7 @@ const it: Messages = {
       },
       {
         problem: "Gli assistenti IA consigliano i suoi concorrenti, e lei non lo scopre mai.",
-        solution: "Il monitoraggio della visibilità nell’IA chiede a ChatGPT, Gemini e Claude, con la ricerca web, se la citano.",
+        solution: "Il monitoraggio della visibilità nell’IA controlla, con la ricerca web, se le risposte delle IA alle domande dei suoi clienti la citano.",
       },
       {
         problem: "Le pagine perdono posizioni senza farsi notare, e se ne accorge solo quando le richieste calano.",
@@ -13424,7 +13424,7 @@ const it: Messages = {
       },
       {
         label: "Visibilità IA",
-        body: "Se ChatGPT, Gemini e Claude nominano la sua azienda quando qualcuno chiede ciò che lei vende. Chiesto ogni settimana tramite le loro API con la ricerca web, su domande nella sua lingua.",
+        body: "Se le risposte delle IA nominano la sua azienda quando qualcuno chiede ciò che lei vende. Chiesto ogni settimana tramite le API degli assistenti con la ricerca web, su domande nella sua lingua.",
       },
       {
         label: "Articoli pubblicati",
@@ -16246,7 +16246,7 @@ const de: Messages = {
       {
         title: "KI-Präsenz",
         detail:
-          "Sehen Sie, wie oft ChatGPT, Gemini und Claude Ihre Marke nennen, gefragt mit Websuche.",
+          "Sehen Sie, wie oft KI-Antworten Ihre Marke nennen, gefragt mit Websuche.",
       },
       {
         title: "Traffic-Rückgewinnung",
@@ -16365,7 +16365,7 @@ const de: Messages = {
       },
       {
         problem: "KI-Assistenten empfehlen Ihre Wettbewerber, und Sie erfahren es nie.",
-        solution: "Das KI-Sichtbarkeits-Tracking fragt ChatGPT, Gemini und Claude mit Websuche, ob sie Sie nennen.",
+        solution: "Das KI-Sichtbarkeits-Tracking prüft mit Websuche, ob KI-Antworten auf die Fragen Ihrer Kunden Sie nennen.",
       },
       {
         problem: "Seiten verlieren unbemerkt an Rankings - und Sie merken es erst, wenn die Anfragen ausbleiben.",
@@ -16633,7 +16633,7 @@ const de: Messages = {
       },
       {
         label: "KI-Sichtbarkeit",
-        body: "Ob ChatGPT, Gemini und Claude Ihr Unternehmen nennen, wenn jemand nach dem fragt, was Sie anbieten. Wöchentlich über ihre APIs mit Websuche gefragt, mit Fragen in Ihrer Sprache.",
+        body: "Ob KI-Antworten Ihr Unternehmen nennen, wenn jemand nach dem fragt, was Sie anbieten. Wöchentlich über die APIs der Assistenten mit Websuche gefragt, mit Fragen in Ihrer Sprache.",
       },
       {
         label: "Veröffentlichte Artikel",

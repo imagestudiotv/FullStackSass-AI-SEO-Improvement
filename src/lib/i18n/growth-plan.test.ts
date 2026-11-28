@@ -38,8 +38,8 @@ describe("growth plan copy", () => {
       const all = leaves(growthPlanCopy(locale) as unknown as Tree)
         .map(([, text]) => text)
         .join(" ");
-      // The check asks ChatGPT, Gemini and Claude (lib/geo/engines.ts), never Perplexity.
-      expect(all).not.toMatch(/Perplexity|Microsoft Copilot/);
+      // Which assistants the check asks depends on the deployment (lib/geo/engines.ts): this copy names none.
+      expect(all).not.toMatch(/ChatGPT|Gemini|Claude|Perplexity|Microsoft Copilot/);
     }
   });
 });

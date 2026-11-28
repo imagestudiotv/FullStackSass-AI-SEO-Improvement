@@ -8,8 +8,9 @@ import type { Locale } from "@/lib/i18n/config";
  * Placeholders in braces are filled by growth-plan-flow.tsx with what was
  * read from the visitor's own site. Every promise matches the product:
  * articles every day, videos and slideshows, replies and posts for Reddit, X
- * and Threads, and the weekly AI visibility check, which asks ChatGPT, Gemini and Claude
- * (lib/geo/check.ts).
+ * and Threads, and the weekly AI visibility check (lib/geo/check.ts). Which
+ * assistants it asks depends on the deployment (lib/geo/engines.ts), and
+ * this flow runs in the browser, so the copy names none.
  */
 export type GrowthPlanCopy = {
   metaTitle: string;
@@ -315,8 +316,8 @@ const en: GrowthPlanCopy = {
     articles: ["A new SEO article every day", "Researched topics for {name}, written for Google and AI answers, published to your website."],
     articlesIn: "A new SEO article every day, in {language}",
     videos: ["Videos and slideshows for your socials", "Made from {name}'s own website, ready to review and post."],
-    aiOpen: ["Show up in AI answers", "AI crawlers can read your site. Every week RepGet checks whether ChatGPT, Gemini and Claude name {name}."],
-    aiBlocked: ["Let AI assistants read your site", "Your robots.txt blocks {owners}. RepGet shows what to change, and every week checks whether ChatGPT, Gemini and Claude name {name}."],
+    aiOpen: ["Show up in AI answers", "AI crawlers can read your site. Every week RepGet checks whether AI answers name {name}."],
+    aiBlocked: ["Let AI assistants read your site", "Your robots.txt blocks {owners}. RepGet shows what to change, and every week checks whether AI answers name {name}."],
     conversations: ["Join the right conversations", "RepGet prepares helpful replies and short posts for Reddit, X and Threads."],
   },
   cta: {
@@ -503,8 +504,8 @@ const es: GrowthPlanCopy = {
     articles: ["Un nuevo artículo SEO cada día", "Temas investigados para {name}, escritos para Google y las respuestas de IA, publicados en su sitio web."],
     articlesIn: "Un nuevo artículo SEO cada día, en {language}",
     videos: ["Vídeos y presentaciones para sus redes", "Creados a partir del propio sitio web de {name}, listos para revisar y publicar."],
-    aiOpen: ["Aparezca en las respuestas de IA", "Los rastreadores de IA pueden leer su sitio. Cada semana RepGet comprueba si ChatGPT, Gemini y Claude nombran a {name}."],
-    aiBlocked: ["Deje que los asistentes de IA lean su sitio", "Su robots.txt bloquea a {owners}. RepGet le indica qué cambiar y cada semana comprueba si ChatGPT, Gemini y Claude nombran a {name}."],
+    aiOpen: ["Aparezca en las respuestas de IA", "Los rastreadores de IA pueden leer su sitio. Cada semana RepGet comprueba si las respuestas de IA nombran a {name}."],
+    aiBlocked: ["Deje que los asistentes de IA lean su sitio", "Su robots.txt bloquea a {owners}. RepGet le indica qué cambiar y cada semana comprueba si las respuestas de IA nombran a {name}."],
     conversations: ["Participe en las conversaciones adecuadas", "RepGet prepara respuestas útiles y publicaciones breves para Reddit, X y Threads."],
   },
   cta: {
@@ -691,8 +692,8 @@ const fr: GrowthPlanCopy = {
     articles: ["Un nouvel article SEO chaque jour", "Des sujets étudiés pour {name}, écrits pour Google et les réponses des IA, publiés sur votre site."],
     articlesIn: "Un nouvel article SEO chaque jour, en {language}",
     videos: ["Des vidéos et diaporamas pour vos réseaux", "Créés à partir du site de {name}, prêts à relire et à publier."],
-    aiOpen: ["Apparaissez dans les réponses des IA", "Les robots d'IA peuvent lire votre site. Chaque semaine, RepGet vérifie si ChatGPT, Gemini et Claude citent {name}."],
-    aiBlocked: ["Laissez les assistants IA lire votre site", "Votre robots.txt bloque {owners}. RepGet vous indique quoi modifier et vérifie chaque semaine si ChatGPT, Gemini et Claude citent {name}."],
+    aiOpen: ["Apparaissez dans les réponses des IA", "Les robots d'IA peuvent lire votre site. Chaque semaine, RepGet vérifie si les réponses des IA citent {name}."],
+    aiBlocked: ["Laissez les assistants IA lire votre site", "Votre robots.txt bloque {owners}. RepGet vous indique quoi modifier et vérifie chaque semaine si les réponses des IA citent {name}."],
     conversations: ["Participez aux bonnes conversations", "RepGet prépare des réponses utiles et des posts courts pour Reddit, X et Threads."],
   },
   cta: {
@@ -879,8 +880,8 @@ const it: GrowthPlanCopy = {
     articles: ["Un nuovo articolo SEO ogni giorno", "Argomenti studiati per {name}, scritti per Google e per le risposte delle IA, pubblicati sul tuo sito."],
     articlesIn: "Un nuovo articolo SEO ogni giorno, in {language}",
     videos: ["Video e slideshow per i tuoi social", "Creati a partire dal sito di {name}, pronti da rivedere e pubblicare."],
-    aiOpen: ["Compari nelle risposte delle IA", "I crawler di IA possono leggere il tuo sito. Ogni settimana RepGet controlla se ChatGPT, Gemini e Claude nominano {name}."],
-    aiBlocked: ["Lascia che gli assistenti IA leggano il tuo sito", "Il tuo robots.txt blocca {owners}. RepGet ti mostra cosa cambiare e ogni settimana controlla se ChatGPT, Gemini e Claude nominano {name}."],
+    aiOpen: ["Compari nelle risposte delle IA", "I crawler di IA possono leggere il tuo sito. Ogni settimana RepGet controlla se le risposte delle IA nominano {name}."],
+    aiBlocked: ["Lascia che gli assistenti IA leggano il tuo sito", "Il tuo robots.txt blocca {owners}. RepGet ti mostra cosa cambiare e ogni settimana controlla se le risposte delle IA nominano {name}."],
     conversations: ["Partecipa alle conversazioni giuste", "RepGet prepara risposte utili e brevi post per Reddit, X e Threads."],
   },
   cta: {
@@ -1067,8 +1068,8 @@ const de: GrowthPlanCopy = {
     articles: ["Jeden Tag ein neuer SEO-Artikel", "Recherchierte Themen für {name}, geschrieben für Google und KI-Antworten, veröffentlicht auf Ihrer Website."],
     articlesIn: "Jeden Tag ein neuer SEO-Artikel, auf {language}",
     videos: ["Videos und Slideshows für Ihre sozialen Kanäle", "Aus der eigenen Website von {name} erstellt, bereit zum Prüfen und Posten."],
-    aiOpen: ["Erscheinen Sie in KI-Antworten", "KI-Crawler können Ihre Website lesen. Jede Woche prüft RepGet, ob ChatGPT, Gemini und Claude {name} nennen."],
-    aiBlocked: ["Lassen Sie KI-Assistenten Ihre Website lesen", "Ihre robots.txt blockiert {owners}. RepGet zeigt, was zu ändern ist, und prüft jede Woche, ob ChatGPT, Gemini und Claude {name} nennen."],
+    aiOpen: ["Erscheinen Sie in KI-Antworten", "KI-Crawler können Ihre Website lesen. Jede Woche prüft RepGet, ob KI-Antworten {name} nennen."],
+    aiBlocked: ["Lassen Sie KI-Assistenten Ihre Website lesen", "Ihre robots.txt blockiert {owners}. RepGet zeigt, was zu ändern ist, und prüft jede Woche, ob KI-Antworten {name} nennen."],
     conversations: ["Beteiligen Sie sich an den richtigen Gesprächen", "RepGet bereitet hilfreiche Antworten und kurze Beiträge für Reddit, X und Threads vor."],
   },
   cta: {

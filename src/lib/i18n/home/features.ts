@@ -7,8 +7,9 @@ import type { Locale } from "@/lib/i18n/config";
  * in every language.
  *
  * The design overclaimed in places; these words say what RepGet does:
- *  - AI visibility asks ChatGPT, Gemini and Claude with web search (lib/geo/engines.ts), weekly
- *    (inngest/functions/check-geo.ts). The other rows are the audit's AI
+ *  - AI visibility asks {assistants} with web search, weekly
+ *    (inngest/functions/check-geo.ts): the names are filled in on the server
+ *    from the assistants this deployment asks (lib/geo/engine-words.ts). The other rows are the audit's AI
  *    crawler check (lib/audit/ai-crawlers.ts) and the free llms.txt tool.
  *  - Replies in other people's discussions are posted by the customer, in
  *    one click (lib/social/platforms.ts); RepGet publishes own posts.
@@ -287,7 +288,7 @@ const en: FeaturesCopy = {
     category: "AI search visibility",
     headline: ["Don’t just rank.", "Become part of the answer."],
     description:
-      "Check every week whether ChatGPT, Gemini and Claude recommend your business for the questions your customers ask, see who they name instead, and make sure AI crawlers can read your site.",
+      "Every week RepGet asks {assistants} the questions your customers ask, with web search on: see whether your business is recommended and who is named instead, and make sure AI crawlers can read your site.",
     studio: "AI Visibility Monitor",
     tag: "Monitor & improve",
     perks: ["Track AI mentions", "See who is named instead", "Check AI crawler access"],
@@ -303,7 +304,7 @@ const en: FeaturesCopy = {
     opsTitle: "Understand your AI presence.",
     opsText: "Track your visibility and spot the gaps, week by week.",
     rows: [
-      ["ChatGPT, Gemini, Claude", "Weekly mention check"],
+      ["{assistants}", "Weekly mention check"],
       ["AI crawlers", "robots.txt access"],
       ["llms.txt", "Free generator"],
     ],
@@ -505,7 +506,7 @@ const es: FeaturesCopy = {
     category: "Visibilidad en búsqueda con IA",
     headline: ["No se limite a posicionarse.", "Forme parte de la respuesta."],
     description:
-      "Compruebe cada semana si ChatGPT, Gemini y Claude recomiendan su negocio para las preguntas de sus clientes, vea a quién nombran en su lugar y asegúrese de que los rastreadores de IA pueden leer su sitio.",
+      "Cada semana RepGet hace a {assistants} las preguntas de sus clientes, con búsqueda web: vea si se recomienda su negocio y a quién se nombra en su lugar, y asegúrese de que los rastreadores de IA pueden leer su sitio.",
     studio: "Monitor de visibilidad en IA",
     tag: "Medir y mejorar",
     perks: ["Siga sus menciones en IA", "Vea a quién se nombra en su lugar", "Acceso de los rastreadores de IA"],
@@ -521,7 +522,7 @@ const es: FeaturesCopy = {
     opsTitle: "Entienda su presencia en la IA.",
     opsText: "Siga su visibilidad y detecte lo que falta, semana a semana.",
     rows: [
-      ["ChatGPT, Gemini, Claude", "Control semanal de menciones"],
+      ["{assistants}", "Control semanal de menciones"],
       ["Rastreadores de IA", "Acceso en robots.txt"],
       ["llms.txt", "Generador gratuito"],
     ],
@@ -723,7 +724,7 @@ const fr: FeaturesCopy = {
     category: "Visibilité dans la recherche IA",
     headline: ["Ne vous contentez pas de vous classer.", "Faites partie de la réponse."],
     description:
-      "Vérifiez chaque semaine si ChatGPT, Gemini et Claude recommandent votre entreprise pour les questions de vos clients, voyez qui ils citent à votre place et assurez-vous que les robots d’IA peuvent lire votre site.",
+      "Chaque semaine, RepGet pose à {assistants} les questions de vos clients, avec la recherche web : voyez si votre entreprise est recommandée et qui est cité à sa place, et assurez-vous que les robots d’IA peuvent lire votre site.",
     studio: "Suivi de la visibilité IA",
     tag: "Suivre et améliorer",
     perks: ["Suivi des mentions IA", "Qui est cité à votre place", "Accès des robots d’IA"],
@@ -739,7 +740,7 @@ const fr: FeaturesCopy = {
     opsTitle: "Comprenez votre présence dans l’IA.",
     opsText: "Suivez votre visibilité et repérez les manques, semaine après semaine.",
     rows: [
-      ["ChatGPT, Gemini, Claude", "Contrôle hebdomadaire des mentions"],
+      ["{assistants}", "Contrôle hebdomadaire des mentions"],
       ["Robots d’IA", "Accès dans robots.txt"],
       ["llms.txt", "Générateur gratuit"],
     ],
@@ -942,7 +943,7 @@ const it: FeaturesCopy = {
     category: "Visibilità nella ricerca IA",
     headline: ["Non si limiti al posizionamento.", "Diventi parte della risposta."],
     description:
-      "Verifichi ogni settimana se ChatGPT, Gemini e Claude consigliano la Sua attività per le domande dei Suoi clienti, veda chi nominano al Suo posto e si assicuri che i crawler IA possano leggere il Suo sito.",
+      "Ogni settimana RepGet pone a {assistants} le domande dei Suoi clienti, con la ricerca web: veda se la Sua attività viene consigliata e chi viene nominato al Suo posto, e si assicuri che i crawler IA possano leggere il Suo sito.",
     studio: "Monitor della visibilità IA",
     tag: "Monitora e migliora",
     perks: ["Monitoraggio delle menzioni IA", "Chi viene nominato al Suo posto", "Accesso dei crawler IA"],
@@ -958,7 +959,7 @@ const it: FeaturesCopy = {
     opsTitle: "Capisca la Sua presenza nell’IA.",
     opsText: "Monitori la Sua visibilità e individui le lacune, settimana dopo settimana.",
     rows: [
-      ["ChatGPT, Gemini, Claude", "Controllo settimanale delle menzioni"],
+      ["{assistants}", "Controllo settimanale delle menzioni"],
       ["Crawler IA", "Accesso in robots.txt"],
       ["llms.txt", "Generatore gratuito"],
     ],
@@ -1160,7 +1161,7 @@ const de: FeaturesCopy = {
     category: "Sichtbarkeit in der KI-Suche",
     headline: ["Nicht nur ranken.", "Teil der Antwort werden."],
     description:
-      "Prüfen Sie jede Woche, ob ChatGPT, Gemini und Claude Ihr Unternehmen bei den Fragen Ihrer Kunden empfehlen, sehen Sie, wen sie stattdessen nennen, und stellen Sie sicher, dass KI-Crawler Ihre Website lesen können.",
+      "Jede Woche stellt RepGet {assistants} die Fragen Ihrer Kunden, mit Websuche: Sehen Sie, ob Ihr Unternehmen empfohlen wird und wer stattdessen genannt wird, und stellen Sie sicher, dass KI-Crawler Ihre Website lesen können.",
     studio: "KI-Sichtbarkeitsmonitor",
     tag: "Beobachten & verbessern",
     perks: ["KI-Erwähnungen verfolgen", "Sehen, wer stattdessen genannt wird", "Zugriff der KI-Crawler prüfen"],
@@ -1176,7 +1177,7 @@ const de: FeaturesCopy = {
     opsTitle: "Verstehen Sie Ihre KI-Präsenz.",
     opsText: "Verfolgen Sie Ihre Sichtbarkeit und erkennen Sie Lücken, Woche für Woche.",
     rows: [
-      ["ChatGPT, Gemini, Claude", "Wöchentliche Erwähnungsprüfung"],
+      ["{assistants}", "Wöchentliche Erwähnungsprüfung"],
       ["KI-Crawler", "Zugriff laut robots.txt"],
       ["llms.txt", "Kostenloser Generator"],
     ],

@@ -2,6 +2,7 @@ import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
+import { withAssistants } from "@/lib/geo/engine-words";
 import { LOCALES, localePath, type Locale } from "@/lib/i18n/config";
 import { FEATURE_HIGHLIGHTS, FEATURE_KEYS, featuresCopy } from "@/lib/i18n/home/features";
 
@@ -33,7 +34,8 @@ const words = (html: string) => html.replace(/<svg[\s\S]*?<\/svg>/g, " ").replac
 describe("top features", () => {
   it.each(LOCALES)("%s: nine tabs, every panel in the HTML, the first one shown", (locale) => {
     const html = render(locale);
-    const t = featuresCopy(locale);
+    // As the server fills it in: the assistants this deployment asks (lib/geo/engine-words.ts).
+    const t = withAssistants(featuresCopy(locale), locale);
     expect(html).toMatch(/^<section id="features"[^>]*aria-labelledby="home-features-heading"/);
     expect(html).toContain(`<h2 id="home-features-heading"`);
     expect(html).toContain(`>${esc(t.eyebrow)}</h2>`);
@@ -80,12 +82,30 @@ describe("top features", () => {
 
   it.each(LOCALES)("%s: claims only what RepGet does", (locale) => {
     const text = words(render(locale));
-    // AI visibility asks ChatGPT, Gemini and Claude (lib/geo/engines.ts), never Perplexity; no schema check in the audit (lib/audit/rules.ts).
-    for (const unsupported of ["Perplexity", "schema", "Schema"]) expect(text).not.toContain(unsupported);
-    for (const asked of ["ChatGPT", "Gemini", "Claude"]) expect(text).toContain(asked);
+    /*
+      AI visibility names the assistants this deployment asks (lib/geo/engine-words.ts): here
+      Claude alone, as with GEO_ENGINES unset. Never Perplexity, never a placeholder left in;
+      no schema check in the audit (lib/audit/rules.ts).
+    */
+    for (const unsupported of ["Perplexity", "ChatGPT", "Gemini", "{assistants}", "schema", "Schema"]) expect(text).not.toContain(unsupported);
+    expect(text).toContain("Claude");
     // The previews' figures are samples, and the board says so.
     expect(text).toContain(featuresCopy(locale).technical.scoreLabel);
     expect(text).toContain(featuresCopy(locale).analytics.change);
+  });
+});
+
+describe("top features with every assistant switched on", () => {
+  it("names the three the deployment asks", () => {
+    vi.stubEnv("OPENAI_API_KEY", "k");
+    vi.stubEnv("GOOGLE_AI_API_KEY", "k");
+    vi.stubEnv("GEO_ENGINES", "claude,chatgpt,gemini");
+    try {
+      const text = words(render("en"));
+      expect(text).toContain("RepGet asks Claude, ChatGPT and Gemini the questions your customers ask");
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });
 
@@ -114,7 +134,7 @@ describe("top features' words", () => {
   // Names, the brand, and words that are the same in the language ("Mentions · citations · GEO" in French, "↗ 18%" in Italian).
   const SAME = new Set([
     "Reddit · X · Threads",
-    "ChatGPT, Gemini, Claude",
+    "{assistants}",
     "llms.txt",
     "Growth Copilot",
     "REPGET / STUDIO",

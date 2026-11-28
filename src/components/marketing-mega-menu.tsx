@@ -67,6 +67,9 @@ export function featureTool(index: number) {
   return FEATURE_TOOLS[index] ?? { key: "content" as const, href: "/" };
 }
 
+/** Each assistant's mark in the AI visibility drawing. */
+const GLYPHS: Record<string, string> = { ChatGPT: "✺", Gemini: "✦", Claude: "✳" };
+
 type ChannelKey = keyof SiteMenuCopy["channels"];
 export type Channel = {
   key: ChannelKey;
@@ -221,7 +224,7 @@ export function FeaturesShowcase({
                   </div>
                   <span className={c("rgf-iconbox")}>{awake ? <FeatureIcon name={key} className={c("rgf-svg")} /> : null}</span>
                 </div>
-                {drawings ? <MiniCard tool={key} site={drawings} /> : null}
+                {drawings ? <MiniCard tool={key} site={drawings} assistants={menu.assistants} /> : null}
               </button>
             );
           })}
@@ -257,7 +260,7 @@ export function FeaturesShowcase({
                   </button>
                 </div>
                 <div className={c("rgf-detail-preview")}>
-                  {drawings ? <PreviewWindow tool={key} site={drawings} /> : null}
+                  {drawings ? <PreviewWindow tool={key} site={drawings} assistants={menu.assistants} /> : null}
                 </div>
               </div>
             );
@@ -274,7 +277,7 @@ export function FeaturesShowcase({
 }
 
 /** The little drawing at the foot of each tool card. */
-function MiniCard({ tool, site }: { tool: Exclude<FeatureIconName, "arrow">; site: SiteMenuCopy }) {
+function MiniCard({ tool, site, assistants }: { tool: Exclude<FeatureIconName, "arrow">; site: SiteMenuCopy; assistants: string[] }) {
   const m = site.mini;
   const kicker = (text: string) => (
     <div className={c("rgf-mini-kicker")}>
@@ -363,10 +366,10 @@ function MiniCard({ tool, site }: { tool: Exclude<FeatureIconName, "arrow">; sit
       body = (
         <>
           {kicker(m.ai.kicker)}
-          {/* The assistants the weekly check asks (lib/geo/engines.ts ASKABLE_ENGINE_IDS). */}
+          {/* The assistants this deployment asks, named by the server (lib/i18n/site-chrome.ts menu.assistants). */}
           <div className={c("rgf-ai-mini-row")}>
             <span className={c("rgf-ai-mark")}>✳</span>
-            <b>ChatGPT · Gemini · Claude</b>
+            <b>{assistants.join(" · ")}</b>
             <i className={c("rgf-ai-signal")} />
           </div>
           <div className={c("rgf-mini-bottom")}>
@@ -407,7 +410,7 @@ function MiniCard({ tool, site }: { tool: Exclude<FeatureIconName, "arrow">; sit
 }
 
 /** The "demo preview" product window beside each tool's description. */
-function PreviewWindow({ tool, site }: { tool: Exclude<FeatureIconName, "arrow">; site: SiteMenuCopy }) {
+function PreviewWindow({ tool, site, assistants }: { tool: Exclude<FeatureIconName, "arrow">; site: SiteMenuCopy; assistants: string[] }) {
   const gradient = useId();
   const w = site.windows;
   const kicker = (text: string) => <div className={c("rgf-form-kicker")}>{text}</div>;
@@ -559,8 +562,8 @@ function PreviewWindow({ tool, site }: { tool: Exclude<FeatureIconName, "arrow">
           </div>
           <div className={c("rgf-ai-results")}>
             {kicker(w.ai.channels)}
-            {/* The assistants the check asks (lib/geo/engines.ts ASKABLE_ENGINE_IDS); Perplexity is not. */}
-            {([["✺", "ChatGPT"], ["✦", "Gemini"], ["✳", "Claude"]] as const).map(([glyph, name]) => (
+            {/* The assistants this deployment asks, named by the server (lib/i18n/site-chrome.ts menu.assistants). */}
+            {assistants.map((name) => [GLYPHS[name] ?? "✳", name] as const).map(([glyph, name]) => (
               <div key={name}>
                 <span>{glyph}</span>
                 <b>{name}</b>

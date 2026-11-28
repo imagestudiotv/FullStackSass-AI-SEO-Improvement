@@ -74,15 +74,19 @@ describe("which assistants a check asks", () => {
   it("words what is checked from the same list, for Copilot", () => {
     const all = { ANTHROPIC_API_KEY: "k", OPENAI_API_KEY: "k", GOOGLE_AI_API_KEY: "k", GEO_ENGINES: "claude,chatgpt,gemini" };
     expect(checkedEngineNames(all)).toBe("Claude, ChatGPT and Gemini");
-    expect(uncheckedEngineNames(all)).toBe("Perplexity");
+    expect(uncheckedEngineNames(all)).toBe("Perplexity and Google AI Overview");
     expect(aiVisibilityWords(all)).toBe(
-      "RepGet's weekly check asks Claude, ChatGPT and Gemini, each with web search; Perplexity is not checked, so never say it is",
+      "RepGet's weekly check asks Claude, ChatGPT and Gemini, each with web search; Perplexity and Google AI Overview are not checked, so never say they are",
     );
+    // One assistant reads as one: no "each".
     const claude = { ANTHROPIC_API_KEY: "k" };
     expect(checkedEngineNames(claude)).toBe("Claude");
     expect(aiVisibilityWords(claude)).toBe(
-      "RepGet's weekly check asks Claude, each with web search; ChatGPT, Gemini and Perplexity are not checked, so never say they are",
+      "RepGet's weekly check asks Claude with web search; ChatGPT, Gemini, Perplexity and Google AI Overview are not checked, so never say they are",
     );
+    // Claude left out names Claude among the ones not checked.
+    expect(uncheckedEngineNames({ OPENAI_API_KEY: "k", GEO_ENGINES: "chatgpt" })).toBe("Claude, Gemini, Perplexity and Google AI Overview");
+    expect(aiVisibilityWords({})).toMatch(/^RepGet's AI visibility check is not running on this deployment; /);
     expect(engineNames(["claude", "chatgpt"])).toBe("Claude and ChatGPT");
     expect(engineNames([])).toBe("");
   });

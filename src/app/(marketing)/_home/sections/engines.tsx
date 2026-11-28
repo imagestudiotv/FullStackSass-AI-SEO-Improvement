@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { assistantNames } from "@/lib/geo/engine-words";
 import type { Locale } from "@/lib/i18n/config";
 import { storyCopy } from "@/lib/i18n/home/story";
 
@@ -122,8 +123,8 @@ export function Engines({ locale }: SectionProps) {
           <Card icon={<SparkIcon />} title={e.ai.title} body={e.ai.body} foot={e.ai.foot}>
             <div className={c("rgx-growth-visual-panel rgx-ai-panel")}>
               <div className={c("rgx-ai-platforms")}>
-                {/* The assistant the weekly check actually asks (lib/geo/check.ts ENGINE). */}
-                {["Claude"].map((name) => (
+                {/* The assistants this deployment asks, read on the server (lib/geo/engine-words.ts). */}
+                {assistantNames().map((name) => (
                   <span key={name} className={c("rgx-ai-pill")}>
                     <i /> {name}
                   </span>

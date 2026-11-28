@@ -1,5 +1,6 @@
 import "server-only";
 
+import { assistantNames, withAssistants } from "@/lib/geo/engine-words";
 import { LOCALES, type Locale } from "@/lib/i18n/config";
 import { homeMenuCopy, type HomeRedesignCopy } from "@/lib/i18n/home-redesign";
 import { siteMenuCopy, type SiteFrameCopy } from "@/lib/i18n/home/site-menu";
@@ -44,7 +45,7 @@ export type SiteChromeA11y = Pick<Messages["app"]["common"], "openMenu" | "chang
 
 export type SiteChrome = Record<
   Locale,
-  Pick<Messages, "nav" | "footer" | "consent"> & { a11y: SiteChromeA11y; menu: HomeRedesignCopy["menu"]; site: SiteFrameCopy }
+  Pick<Messages, "nav" | "footer" | "consent"> & { a11y: SiteChromeA11y; menu: HomeRedesignCopy["menu"] & { assistants: string[] }; site: SiteFrameCopy }
 >;
 
 /** The same, plus the "page not found" copy, for the 404 page. */
@@ -71,7 +72,8 @@ export function siteChrome(): SiteChrome {
           footer: t.footer,
           consent: t.consent,
           a11y: { openMenu, changeLanguage, brandHome, close, darkMode },
-          menu: homeMenuCopy(locale),
+          // {assistants} filled in, and the names for the menu drawings: what this deployment asks (lib/geo/engine-words.ts).
+          menu: { ...withAssistants(homeMenuCopy(locale), locale), assistants: assistantNames() },
           site: siteFrameCopy(locale),
         },
       ];

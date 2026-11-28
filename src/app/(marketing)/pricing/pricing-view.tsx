@@ -3,6 +3,7 @@ import { Fragment, type ReactNode } from "react";
 
 import { formatPrice, type PlanRow } from "@/lib/billing-shared";
 import { localePath, type Locale } from "@/lib/i18n/config";
+import { assistantWords, notCheckedWords } from "@/lib/geo/engine-words";
 import { format } from "@/lib/i18n/format";
 import { pricingPageCopy, type PricingTierId } from "@/lib/i18n/pricing-page";
 import type { Testimonial } from "@/lib/marketing/testimonials";
@@ -111,6 +112,9 @@ export function PricingView({
   freeCounter?: FreePlanCounter | null;
 }) {
   const t = pricingPageCopy(locale);
+  // The assistants the AI visibility check asks on this deployment, for the FAQ (lib/geo/engine-words.ts).
+  const assistants = assistantWords(locale);
+  const notChecked = notCheckedWords(locale);
   const free = freePlanDisplay(locale);
   const href = (path: string) => localePath(locale, path);
   const number = (n: number) => n.toLocaleString(locale === "en" ? "en-IE" : locale);
@@ -469,7 +473,7 @@ export function PricingView({
                           </span>
                         </summary>
                         <p>
-                          {format(item.a, { price: bundlePrice ?? "" })}
+                          {format(item.a, { price: bundlePrice ?? "", assistants, notChecked })}
                           {item.link ? (
                             <>
                               {" "}

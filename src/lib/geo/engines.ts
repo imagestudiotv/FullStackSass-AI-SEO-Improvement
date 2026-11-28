@@ -219,7 +219,7 @@ export function enginesInUse(env: Env = process.env): EngineInUse[] {
 }
 
 /** The best-known assistants, named when saying which ones are NOT asked. */
-const WELL_KNOWN: readonly EngineId[] = ["chatgpt", "gemini", "perplexity"];
+const WELL_KNOWN: readonly EngineId[] = ["claude", "chatgpt", "gemini", "perplexity", "google-ai-overview"];
 
 /** "Claude", "Claude and ChatGPT", "Claude, ChatGPT and Gemini". */
 export function engineNames(ids: readonly string[]): string {
@@ -232,21 +232,33 @@ export function checkedEngineNames(env: Env = process.env): string {
   return engineNames(availableEngineIds(env));
 }
 
-/** The well-known assistants the check does not ask now, in words ("Perplexity"); "" once all are asked. */
-export function uncheckedEngineNames(env: Env = process.env): string {
+/**
+ * The well-known assistants the check does not ask now: any of the three
+ * this deployment leaves out, then Perplexity and Google AI Overview, which
+ * are never asked - so never empty.
+ */
+export function uncheckedEngineIds(env: Env = process.env): EngineId[] {
   const asked: readonly string[] = availableEngineIds(env);
-  return engineNames(WELL_KNOWN.filter((id) => !asked.includes(id)));
+  return WELL_KNOWN.filter((id) => !asked.includes(id));
+}
+
+/** The same in words: "ChatGPT, Gemini, Perplexity and Google AI Overview". */
+export function uncheckedEngineNames(env: Env = process.env): string {
+  return engineNames(uncheckedEngineIds(env));
 }
 
 /**
  * What RepGet's AI visibility check really covers, for Copilot's prompts:
- * "RepGet's weekly check asks Claude, ChatGPT and Gemini, each with web
- * search; Perplexity is not checked, so never say it is". Never a fixed list.
+ * "RepGet's weekly check asks Claude with web search; ChatGPT, Gemini,
+ * Perplexity and Google AI Overview are not checked, so never say they
+ * are". Worded for one assistant or several; never a fixed list.
  */
 export function aiVisibilityWords(env: Env = process.env): string {
-  const asked = checkedEngineNames(env);
-  const unchecked = uncheckedEngineNames(env);
-  const many = unchecked.includes(" and ");
-  const head = asked ? `RepGet's weekly check asks ${asked}, each with web search` : "RepGet's AI visibility check is not running on this deployment";
-  return `${head}${unchecked ? `; ${unchecked} ${many ? "are" : "is"} not checked, so never say ${many ? "they are" : "it is"}` : ""}`;
+  const ids = availableEngineIds(env);
+  const head =
+    ids.length === 0
+      ? "RepGet's AI visibility check is not running on this deployment"
+      : `RepGet's weekly check asks ${engineNames(ids)}${ids.length === 1 ? " with web search" : ", each with web search"}`;
+  // Perplexity and Google AI Overview are never asked, so this is always two or more.
+  return `${head}; ${uncheckedEngineNames(env)} are not checked, so never say they are`;
 }
