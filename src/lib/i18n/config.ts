@@ -113,6 +113,8 @@ export const TOOL_SLUGS = [
   "growth-copilot",
   // The free AI Social Media Post Generator (client, 2026-11-13).
   "social-media-post-generator",
+  // The free AI Blog Writer (owner, 2026-11-27).
+  "blog-writer",
 ] as const;
 
 export const TRANSLATED_PATHS: ReadonlySet<string> = new Set([

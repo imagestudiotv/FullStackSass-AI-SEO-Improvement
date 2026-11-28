@@ -47,6 +47,8 @@ export const ACTION_META: Record<AdminAction, ActionMeta> = {
   "credits.adjusted": { label: "Credits adjusted", icon: Coins },
   "credits.settings_saved": { label: "Credit prices changed", icon: Coins },
   "site.banner_saved": { label: "Site banner changed", icon: Megaphone },
+  "free_tool.switched": { label: "Free tool switched on or off", icon: Gauge },
+  "free_tool.cap_changed": { label: "Free tool daily AI cap changed", icon: Gauge },
   "earn.approved": { label: "Earn Credits claim approved", icon: Coins },
   "earn.declined": { label: "Earn Credits claim declined", icon: Coins },
   "website_project.quoted": { label: "Website project quoted", icon: Globe },

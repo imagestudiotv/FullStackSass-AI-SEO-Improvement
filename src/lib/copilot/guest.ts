@@ -8,6 +8,7 @@ import { paidCall, releaseUnspent, reserveAll, usedInWindow, type QuotaRule } fr
 import { LANGUAGE_NAMES_EN } from "@/lib/blog/locale";
 import type { Locale } from "@/lib/i18n/config";
 import { readCache, writeCache } from "@/lib/providers/cache";
+import { recordFailedCall, recordToolUse, toolServerGate } from "@/lib/tools/tool-tracking";
 import { fetchHomepage, type PageSnapshot } from "@/lib/websites/crawl";
 import { isPublicWebsiteUrl, normalizeWebsiteUrl } from "@/lib/websites/url";
 
@@ -178,6 +179,11 @@ export async function askGuestCopilot(
 
   if (!isAiConfigured()) return { ok: false, reason: "unavailable" };
 
+  // Admin -> Free tools ("AI Growth Copilot"): switched off, or today's AI cap reached (lib/tools/tool-tracking.ts).
+  const gate = await toolServerGate("growth-copilot").catch(() => "disabled" as const);
+  if (gate === "disabled") return { ok: false, reason: "unavailable" };
+  if (gate === "cap") return { ok: false, reason: "busy" };
+
   const slot = await reserveAll(rules(visitor), { operation: "public.guest_copilot", metadata: { visitor } });
   if (!slot.ok) {
     return slot.rule.key === "guest-copilot:global" ? { ok: false, reason: "busy" } : { ok: false, reason: "limit", remaining: 0 };
@@ -185,25 +191,38 @@ export async function askGuestCopilot(
 
   let reply = "";
   let website: string | null = null;
+  let reached = false;
   try {
     const page = site ? await readHomepage(site.url) : null;
     website = page ? site!.domain : null;
     const messages: Anthropic.MessageParam[] = [...cleanHistory(input.history), { role: "user", content: question }];
-    const response = await paidCall(slot.reservations, () =>
-      create({
+    const response = await paidCall(slot.reservations, () => {
+      reached = true;
+      return create({
         model: MODEL,
         max_tokens: MAX_TOKENS,
         system: systemPrompt(input.locale, site ? { domain: site.domain, page } : null),
         messages,
-      }),
-    );
+      });
+    });
     reply = response.content
       .filter((block): block is Anthropic.TextBlock => block.type === "text")
       .map((block) => block.text)
       .join("\n\n")
       .trim();
+    // One use for Admin -> Free tools ("AI Growth Copilot"), with its cost (never throws).
+    await recordToolUse({
+      tool: "growth-copilot",
+      path: "server",
+      visitor,
+      locale: input.locale,
+      usage: response.usage ? { model: MODEL, inputTokens: response.usage.input_tokens ?? 0, outputTokens: response.usage.output_tokens ?? 0 } : null,
+      failed: !reply,
+    });
   } catch (error) {
     console.warn("[guest-copilot] no answer", error);
+    // Sent, then thrown: counted as a failed call, at no known cost (the error has no usage).
+    if (reached) await recordFailedCall({ tool: "growth-copilot", visitor, locale: input.locale });
   } finally {
     /*
       Only a question that never reached the model comes back: a call that

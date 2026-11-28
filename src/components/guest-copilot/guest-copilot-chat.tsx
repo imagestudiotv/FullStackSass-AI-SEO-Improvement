@@ -8,6 +8,7 @@ import type { GuestRefusal, GuestTurn } from "@/lib/copilot/guest";
 import { askGuestCopilotAction, guestCopilotRemainingAction } from "@/lib/copilot/guest-actions";
 import type { Locale } from "@/lib/i18n/config";
 import type { GuestCopilotCopy } from "@/lib/i18n/guest-copilot";
+import { rememberToolUse } from "@/lib/tools/free-tools";
 
 import styles from "./guest-copilot.module.css";
 
@@ -152,6 +153,8 @@ export const GuestCopilotChat = forwardRef<GuestCopilotChatHandle, { copy: Guest
         const result = await askGuestCopilotAction({ question: asking, history, website: website || null, locale });
         if (result.ok) {
           push({ kind: "answer", text: result.reply });
+          // A sign-up from this browser is now counted for the AI Growth Copilot (Admin -> Free tools).
+          rememberToolUse("growth-copilot");
           setHistory((current) => [...current, { role: "user" as const, content: asking }, { role: "assistant" as const, content: result.reply }].slice(-6));
           setRemaining(result.remaining);
         } else {

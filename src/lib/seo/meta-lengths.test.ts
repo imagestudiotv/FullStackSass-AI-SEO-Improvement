@@ -12,6 +12,7 @@ import { SITEMAP_COPY } from "@/app/(marketing)/tools/sitemap-checker/copy";
 import { SNIPPET_COPY } from "@/app/(marketing)/tools/snippet-preview/copy";
 import { LIMITS } from "@/lib/audit/rules";
 import { socialPostGeneratorCopy } from "@/lib/i18n/social-post-generator";
+import { blogWriterCopy } from "@/lib/i18n/blog-writer";
 import { WEBSITE_CREATION_COPY } from "@/lib/marketing/website-creation/copy";
 import { BLOG_CHROME } from "@/lib/blog/locale";
 import { pageSuffix } from "@/lib/blog/pagination";
@@ -46,6 +47,7 @@ const TOOL_DESCRIPTIONS: Record<string, Record<Locale, { metaDescription: string
   "/tools/keyword-density": KEYWORD_DENSITY_COPY,
   "/tools/meta-description-generator": META_DESCRIPTION_COPY,
   "/tools/social-media-post-generator": { en: socialPostGeneratorCopy("en"), es: socialPostGeneratorCopy("es"), fr: socialPostGeneratorCopy("fr"), it: socialPostGeneratorCopy("it"), de: socialPostGeneratorCopy("de") },
+  "/tools/blog-writer": { en: blogWriterCopy("en"), es: blogWriterCopy("es"), fr: blogWriterCopy("fr"), it: blogWriterCopy("it"), de: blogWriterCopy("de") },
 };
 
 function pagesIn(locale: Locale): Meta[] {

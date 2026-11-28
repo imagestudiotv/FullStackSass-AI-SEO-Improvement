@@ -34,6 +34,7 @@ import {
   type FreeSocialStatus,
   type FreeSocialTone,
 } from "./social-posts-shared";
+import { recordFailedCall, recordToolUse, toolServerGate } from "./tool-tracking";
 
 /**
  * The free AI Social Media Post Generator (client, 2026-11-13,
@@ -95,6 +96,8 @@ const MODEL = MODELS.GENERATION;
 const OPERATION = "public.free_social_posts";
 const USAGE_PURPOSE = "free_social_posts";
 const CACHE_PROVIDER = "free-social-posts-page";
+/** This tool in Admin -> Free tools. */
+const TOOL = "social-media-post-generator";
 
 export type FreeSocialRequest = {
   url: string;
@@ -348,6 +351,11 @@ export async function generateFreeSocialPosts(request: FreeSocialRequest, visito
   if (!source) return { ok: false, reason: "invalid_url" };
   if (!isAiConfigured()) return { ok: false, reason: "unavailable" };
 
+  // Admin -> Free tools: switched off, or today's AI cap reached (lib/tools/tool-tracking.ts).
+  const gate = await toolServerGate(TOOL).catch(() => "unavailable" as const);
+  if (gate === "disabled" || gate === "unavailable") return { ok: false, reason: "unavailable" };
+  if (gate === "cap") return { ok: false, reason: "busy" };
+
   const r = rules(visitor);
   let reserved;
   try {
@@ -383,18 +391,22 @@ export async function generateFreeSocialPosts(request: FreeSocialRequest, visito
       await consumeReservation(attempt.id, "paid");
 
       let response: Anthropic.Message;
+      let reached = false;
       try {
-        response = await paidCall([global], () =>
-          create({
+        response = await paidCall([global], () => {
+          reached = true;
+          return create({
             model: MODEL,
             max_tokens: FREE_SOCIAL_LIMITS.maxTokens,
             thinking: { type: "disabled" },
             system: systemPrompt(request, page.finalUrl),
             messages: [{ role: "user", content: pageMessage(page) }],
-          }),
-        );
+          });
+        });
       } catch (error) {
         console.warn("[free-social-posts] no answer", error);
+        // Sent, then thrown: counted as a failed call, at no known cost (the error has no usage).
+        if (reached) await recordFailedCall({ tool: TOOL, visitor, locale: request.locale });
         return { ok: false, reason: "provider_failed" };
       }
 
@@ -413,6 +425,15 @@ export async function generateFreeSocialPosts(request: FreeSocialRequest, visito
         .map((block) => block.text)
         .join("\n");
       const posts = parsePosts(text);
+      // One use for Admin -> Free tools, with its cost; an unusable answer counts its cost only.
+      await recordToolUse({
+        tool: TOOL,
+        path: "server",
+        visitor,
+        locale: request.locale,
+        usage: response.usage ? { model: MODEL, inputTokens: response.usage.input_tokens ?? 0, outputTokens: response.usage.output_tokens ?? 0 } : null,
+        failed: !posts,
+      });
       if (!posts) return { ok: false, reason: "provider_failed" };
 
       await consumeReservation(batch.id, "paid");
