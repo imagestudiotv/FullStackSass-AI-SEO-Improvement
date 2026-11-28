@@ -37,6 +37,8 @@ export type BlogWriterCopy = {
     hint: string;
     copyBrief: string;
     saved: string;
+    /** The browser refuses storage (private mode, blocked): the brief lasts while this tab is open. */
+    savedTab: string;
     copied: string;
     copyFallback: string;
   };
@@ -80,6 +82,7 @@ const EN: BlogWriterCopy = {
     hint: "We use the AI built into your browser when it has one. If not, RepGet writes the opening, and a simple template steps in when neither can. Only the opening is written here.",
     copyBrief: "Copy my brief",
     saved: "Saved on this device",
+    savedTab: "Available in this tab",
     copied: "Copied",
     copyFallback: "Use your device's Copy command.",
   },
@@ -202,6 +205,7 @@ const ES: BlogWriterCopy = {
     hint: "Usamos la IA integrada en su navegador si la tiene. Si no, RepGet escribe la introducción, y una plantilla sencilla la sustituye cuando ninguna de las dos puede. Aquí solo se escribe la introducción.",
     copyBrief: "Copiar mi encargo",
     saved: "Guardado en este dispositivo",
+    savedTab: "Disponible en esta pestaña",
     copied: "Copiado",
     copyFallback: "Use la función Copiar de su dispositivo.",
   },
@@ -324,6 +328,7 @@ const FR: BlogWriterCopy = {
     hint: "Nous utilisons l'IA intégrée à votre navigateur s'il en a une. Sinon, RepGet rédige l'introduction, et un modèle simple prend le relais quand aucune des deux n'est disponible. Seule l'introduction est rédigée ici.",
     copyBrief: "Copier mon brief",
     saved: "Enregistré sur cet appareil",
+    savedTab: "Disponible dans cet onglet",
     copied: "Copié",
     copyFallback: "Utilisez la commande Copier de votre appareil.",
   },
@@ -446,6 +451,7 @@ const IT: BlogWriterCopy = {
     hint: "Usiamo l'AI integrata nel suo browser, se c'è. Altrimenti RepGet scrive l'incipit, e un semplice modello subentra quando nessuna delle due è disponibile. Qui viene scritto solo l'incipit.",
     copyBrief: "Copia il mio brief",
     saved: "Salvato su questo dispositivo",
+    savedTab: "Disponibile in questa scheda",
     copied: "Copiato",
     copyFallback: "Usi il comando Copia del suo dispositivo.",
   },
@@ -568,6 +574,7 @@ const DE: BlogWriterCopy = {
     hint: "Wir nutzen die KI Ihres Browsers, wenn er eine hat. Sonst schreibt RepGet den Anfang, und eine einfache Vorlage springt ein, wenn beides nicht geht. Hier wird nur der Anfang geschrieben.",
     copyBrief: "Mein Briefing kopieren",
     saved: "Auf diesem Gerät gespeichert",
+    savedTab: "In diesem Tab verfügbar",
     copied: "Kopiert",
     copyFallback: "Nutzen Sie die Kopierfunktion Ihres Geräts.",
   },

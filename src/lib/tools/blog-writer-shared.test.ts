@@ -11,6 +11,7 @@ import {
   onDevicePrompt,
   openingText,
   parseOpeningText,
+  saveBrief,
   templateOpening,
   templateTitle,
   wordCount,
@@ -94,5 +95,36 @@ describe("the brief", () => {
     expect(en).toContain('Article brief: {"question":"Whole beans or ground?","format":"Comparison","experience":"Buy what your grinder allows."}');
     expect(onDevicePrompt(brief, "it")).toContain("Write an Italian article title");
     expect(onDevicePrompt(brief, "de")).toContain("Write a German article title");
+  });
+});
+
+describe("the brief kept in the browser", () => {
+  const brief = { topic: "How long for portraits?", format: "guide" as const, notes: "Work back from the aperitivo." };
+
+  it("is on the device when storage works, in the sample's shape", () => {
+    const items = new Map<string, string>();
+    expect(saveBrief(brief, () => ({ setItem: (key: string, value: string) => void items.set(key, value) }))).toBe("device");
+    expect(JSON.parse(items.get("repget:article-brief:v1")!)).toEqual({ version: 1, ...brief });
+  });
+
+  it("is only in this tab when the browser refuses storage, or has none", () => {
+    const refusing = () => ({
+      setItem: () => {
+        throw new DOMException("The quota has been exceeded.", "QuotaExceededError");
+      },
+    });
+    expect(saveBrief(brief, refusing)).toBe("tab");
+    expect(
+      saveBrief(brief, () => {
+        throw new DOMException("The operation is insecure.", "SecurityError");
+      }),
+    ).toBe("tab");
+  });
+
+  it.each(LOCALES)("has both statuses in %s", (locale) => {
+    const form = blogWriterCopy(locale).form;
+    expect(form.saved).toBeTruthy();
+    expect(form.savedTab).toBeTruthy();
+    expect(form.savedTab).not.toBe(form.saved);
   });
 });

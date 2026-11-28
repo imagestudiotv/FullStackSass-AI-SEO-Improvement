@@ -18,9 +18,11 @@ import {
   onDevicePrompt,
   openingText,
   parseOpeningText,
+  saveBrief,
   templateOpening,
   type BlogBrief,
   type BlogOpening,
+  type BriefStorage,
 } from "@/lib/tools/blog-writer-shared";
 import { rememberToolUse, type ToolUsePath } from "@/lib/tools/free-tools";
 import { cn } from "@/lib/utils";
@@ -81,16 +83,6 @@ function readBrief(): BlogBrief | null {
   }
 }
 
-function saveBrief(brief: BlogBrief): boolean {
-  try {
-    localStorage.setItem(BRIEF_STORAGE_KEY, JSON.stringify({ version: 1, ...brief }));
-    return true;
-  } catch {
-    // Storage blocked: the brief stays on this page only.
-    return false;
-  }
-}
-
 function briefText(brief: BlogBrief, copy: BlogWriterCopy): string {
   return [`${copy.form.topicLabel}\n${brief.topic}`, `${copy.form.formatLabel}\n${copy.formats[brief.format]}`, `${copy.form.notesLabel}\n${brief.notes}`].join("\n\n");
 }
@@ -104,7 +96,8 @@ const field =
 export function BlogWriter({ copy, locale, signUpHref }: { copy: BlogWriterCopy; locale: Locale; signUpHref: string }) {
   const id = useId();
   const [brief, setBrief] = useState<BlogBrief>({ topic: "", format: "guide", notes: "" });
-  const [saved, setSaved] = useState(false);
+  // Where the brief is kept: on the device, or - storage refused - only while this tab is open (the sample's two states).
+  const [saved, setSaved] = useState<BriefStorage | null>(null);
   const [result, setResult] = useState<Result | null>(null);
   const [edited, setEdited] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -266,7 +259,7 @@ export function BlogWriter({ copy, locale, signUpHref }: { copy: BlogWriterCopy;
               {copied === "brief" ? copy.form.copied : copy.form.copyBrief}
             </button>
             <span role="status" className="text-xs text-muted-foreground">
-              {saved ? copy.form.saved : ""}
+              {saved === "device" ? copy.form.saved : saved === "tab" ? copy.form.savedTab : ""}
             </span>
           </div>
           {fallback !== null ? (

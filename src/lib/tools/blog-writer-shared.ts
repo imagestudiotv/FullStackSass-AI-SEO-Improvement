@@ -37,6 +37,22 @@ export type BlogBrief = { topic: string; format: BlogFormat; notes: string };
 
 export type BlogOpening = { title: string; opening: string };
 
+/**
+ * Where a brief is kept (the sample's two statuses): "device" when the
+ * browser stored it, "tab" when it refuses storage (private mode, blocked
+ * cookies, a full quota) - then the brief lasts only while this tab is open.
+ */
+export type BriefStorage = "device" | "tab";
+
+export function saveBrief(brief: BlogBrief, storage: () => Pick<Storage, "setItem"> = () => localStorage): BriefStorage {
+  try {
+    storage().setItem(BRIEF_STORAGE_KEY, JSON.stringify({ version: 1, ...brief } satisfies StoredBrief));
+    return "device";
+  } catch {
+    return "tab";
+  }
+}
+
 export type BlogWriterRefusal =
   /** Switched off in Admin -> Free tools. */
   | "disabled"
