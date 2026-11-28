@@ -9,6 +9,8 @@ import { twoStepArticles } from "@/lib/articles/review";
 import { DEFAULT_MONTHLY_CAP } from "@/lib/backlinks/network-defaults";
 import { backlinkExchangeOn, writeBacklinkExchange } from "@/lib/backlinks/exchange-switch";
 import { db } from "@/lib/db";
+import { BACKLINK_EXCHANGE_COPY } from "@/lib/i18n/backlink-exchange";
+import { resolveAppLocale } from "@/lib/i18n/app-locale";
 import { articles, backlinkRequests, backlinkTargets, domainMetrics, networkSites, placements } from "@/lib/db/schema";
 import { AUTHORITY_METRIC } from "@/lib/authority/metric";
 import { effectiveMinSourceRank, minRankCapFor } from "@/lib/backlinks/authority-cap";
@@ -264,10 +266,11 @@ export async function setBacklinkExchange(websiteId: string, enabled: boolean): 
   if (!guard.ok) return { ok: false, error: guard.error };
   const { site } = guard.context;
   if (enabled) {
-    const waiting = await notConnected(site.id);
-    if (waiting) return waiting;
+    // Refusals in the reader's language, as the switch's own words are (partner-network-card.tsx).
+    const words = async () => BACKLINK_EXCHANGE_COPY[await resolveAppLocale(guard.context.userId)];
+    if (!(await isWebsiteConnected(site.id))) return { ok: false, error: (await words()).connectFirst };
     const [row] = await db.select({ accepting: networkSites.acceptingLinks }).from(networkSites).where(eq(networkSites.websiteId, site.id)).limit(1);
-    if (!row?.accepting) return { ok: false, error: "Turn on Network participation first. Then you can switch on the Backlink Exchange." };
+    if (!row?.accepting) return { ok: false, error: (await words()).participationFirst };
   }
   await writeBacklinkExchange(site.id, enabled, `user:${guard.context.userId}`);
   revalidatePath(`/websites/${site.id}/backlinks`);

@@ -108,6 +108,7 @@ import { workspaceCredits } from "@/lib/reporting/backlinks";
 import { addTarget, moveTarget, getPartnerNetwork, setBacklinkExchange, setParticipation, setTargetPriority } from "@/lib/backlinks/network-settings";
 import { findHost } from "@/lib/backlinks/matching";
 import { backlinkExchangeOn } from "@/lib/backlinks/exchange-switch";
+import { BACKLINK_EXCHANGE_COPY } from "@/lib/i18n/backlink-exchange";
 import { applyCheck, recordArticlePublication } from "@/lib/backlinks/placements";
 import { dueArticlesForPlugin } from "@/lib/plugin/due";
 import { publishArticle } from "@/lib/publishing/actions";
@@ -847,6 +848,19 @@ describe("the Backlink Exchange: automatic partner links are opt-in (owner, 2026
     // Joining again does not turn automatic links back on by itself.
     await setParticipation(s.host, true);
     expect(await getPartnerNetwork(s.host)).toMatchObject({ participating: true, exchange: false });
+  });
+
+  it("refuses in the reader's language (eval 2026-11-28: the message was English only)", async () => {
+    const s = await scene();
+    asMember(s.hostWs.userId, s.hostWs.orgId);
+    await setParticipation(s.host, false);
+    for (const locale of ["en", "es", "fr", "it", "de"] as const) {
+      await test.db.update(user).set({ locale }).where(eq(user.id, s.hostWs.userId));
+      expect(await setBacklinkExchange(s.host, true)).toEqual({ ok: false, error: BACKLINK_EXCHANGE_COPY[locale].participationFirst });
+    }
+    expect(new Set(Object.values(BACKLINK_EXCHANGE_COPY).map((copy) => copy.participationFirst)).size).toBe(5);
+    expect(new Set(Object.values(BACKLINK_EXCHANGE_COPY).map((copy) => copy.connectFirst)).size).toBe(5);
+    await test.db.update(user).set({ locale: null }).where(eq(user.id, s.hostWs.userId));
   });
 
   it("does not stop the RepGet team's own placements (Admin -> Partner Network)", async () => {
