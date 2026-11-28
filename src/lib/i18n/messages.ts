@@ -1892,10 +1892,13 @@ export type Messages = {
       /** {names}: engineList, "Claude (claude-sonnet-5, web search on), ...". */
       methodEnginesTitle: string;
       methodEnginesBody: string;
-      /** {name}, {model}, {search}: methodSearchOn or methodSearchOff. */
+      /** {name}, {model}, {search}: methodSearchOn, methodSearchOff or methodSearchPartly, as the latest check stored it. */
       methodEngine: string;
       methodSearchOn: string;
+      /** Web search was off for every answer of the latest check (the provider refused it). */
       methodSearchOff: string;
+      /** Off for some of its answers only. */
+      methodSearchPartly: string;
       methodNoEngines: string;
       methodLanguageTitle: string;
       /** {language}, {region} (or methodNoRegion). */
@@ -5207,9 +5210,10 @@ const en: Messages = {
       methodAssistantsBody: "The stored answers so far come from: {names}.",
       methodEnginesTitle: "Assistants and models",
       methodEnginesBody: "{names}. Each is asked through its API.",
-      methodEngine: "{name} ({model}, web search {search})",
-      methodSearchOn: "on",
-      methodSearchOff: "off",
+      methodEngine: "{name} ({model}, {search})",
+      methodSearchOn: "web search on",
+      methodSearchOff: "web search was not available in this check",
+      methodSearchPartly: "web search was not available for some answers in this check",
       methodNoEngines: "No AI assistant is configured on this deployment, so no check runs.",
       methodLanguageTitle: "Language and market",
       methodLanguageBody: "Questions are written and asked in {language}, for {region}: the language of your articles and the market in your business profile. Assistants that accept a location are told the person asking is in that country; the others answer from the language of the question.",
@@ -8419,9 +8423,10 @@ const es: Messages = {
       methodAssistantsBody: "Las respuestas guardadas hasta ahora proceden de: {names}.",
       methodEnginesTitle: "Asistentes y modelos",
       methodEnginesBody: "{names}. Cada uno se consulta a través de su API.",
-      methodEngine: "{name} ({model}, búsqueda web {search})",
-      methodSearchOn: "activada",
-      methodSearchOff: "desactivada",
+      methodEngine: "{name} ({model}, {search})",
+      methodSearchOn: "búsqueda web activada",
+      methodSearchOff: "la búsqueda web no estuvo disponible en esta comprobación",
+      methodSearchPartly: "la búsqueda web no estuvo disponible para algunas respuestas de esta comprobación",
       methodNoEngines: "No hay ningún asistente de IA configurado en esta instalación, así que no se hace ninguna comprobación.",
       methodLanguageTitle: "Idioma y mercado",
       methodLanguageBody: "Las preguntas se escriben y se plantean en {language}, para {region}: el idioma de sus artículos y el mercado de su perfil de empresa. A los asistentes que admiten una ubicación se les indica que quien pregunta está en ese país; los demás responden según el idioma de la pregunta.",
@@ -11633,9 +11638,10 @@ const fr: Messages = {
       methodAssistantsBody: "Les réponses enregistrées jusqu’ici proviennent de : {names}.",
       methodEnginesTitle: "Assistants et modèles",
       methodEnginesBody: "{names}. Chacun est interrogé via son API.",
-      methodEngine: "{name} ({model}, recherche web {search})",
-      methodSearchOn: "activée",
-      methodSearchOff: "désactivée",
+      methodEngine: "{name} ({model}, {search})",
+      methodSearchOn: "recherche web activée",
+      methodSearchOff: "la recherche web n’était pas disponible lors de cette vérification",
+      methodSearchPartly: "la recherche web n’était pas disponible pour certaines réponses de cette vérification",
       methodNoEngines: "Aucun assistant IA n’est configuré sur cette installation : aucune vérification n’a lieu.",
       methodLanguageTitle: "Langue et marché",
       methodLanguageBody: "Les questions sont rédigées et posées en {language}, pour {region} : la langue de vos articles et le marché de votre profil d’entreprise. Les assistants qui acceptent une localisation sont informés que la personne se trouve dans ce pays ; les autres répondent selon la langue de la question.",
@@ -14845,9 +14851,10 @@ const it: Messages = {
       methodAssistantsBody: "Le risposte registrate finora provengono da: {names}.",
       methodEnginesTitle: "Assistenti e modelli",
       methodEnginesBody: "{names}. Ognuno viene interrogato tramite la sua API.",
-      methodEngine: "{name} ({model}, ricerca web {search})",
-      methodSearchOn: "attiva",
-      methodSearchOff: "disattivata",
+      methodEngine: "{name} ({model}, {search})",
+      methodSearchOn: "ricerca web attiva",
+      methodSearchOff: "la ricerca web non era disponibile in questo controllo",
+      methodSearchPartly: "la ricerca web non era disponibile per alcune risposte di questo controllo",
       methodNoEngines: "Nessun assistente AI è configurato in questa installazione, quindi non viene eseguito alcun controllo.",
       methodLanguageTitle: "Lingua e mercato",
       methodLanguageBody: "Le domande vengono scritte e poste in {language}, per {region}: la lingua dei suoi articoli e il mercato del suo profilo aziendale. Agli assistenti che accettano una posizione viene indicato che chi chiede si trova in quel paese; gli altri rispondono in base alla lingua della domanda.",
@@ -18055,9 +18062,10 @@ const de: Messages = {
       methodAssistantsBody: "Die bisher gespeicherten Antworten stammen von: {names}.",
       methodEnginesTitle: "Assistenten und Modelle",
       methodEnginesBody: "{names}. Jeder wird über seine API gefragt.",
-      methodEngine: "{name} ({model}, Websuche {search})",
-      methodSearchOn: "an",
-      methodSearchOff: "aus",
+      methodEngine: "{name} ({model}, {search})",
+      methodSearchOn: "Websuche an",
+      methodSearchOff: "die Websuche war bei dieser Prüfung nicht verfügbar",
+      methodSearchPartly: "die Websuche war bei dieser Prüfung für einige Antworten nicht verfügbar",
       methodNoEngines: "Auf dieser Installation ist kein KI-Assistent eingerichtet, daher läuft keine Prüfung.",
       methodLanguageTitle: "Sprache und Markt",
       methodLanguageBody: "Die Fragen werden auf {language} geschrieben und gestellt, für {region}: die Sprache Ihrer Artikel und der Markt in Ihrem Unternehmensprofil. Assistenten, die einen Standort annehmen, wird mitgeteilt, dass die fragende Person in diesem Land ist; die anderen antworten nach der Sprache der Frage.",

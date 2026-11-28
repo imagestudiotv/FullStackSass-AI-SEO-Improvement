@@ -52,7 +52,7 @@ vi.mock("@/lib/ai/client", () => ({
 import { deliverJobs, MAX_DELIVERY_ATTEMPTS } from "@/lib/jobs/outbox";
 import { geoPrompts } from "@/lib/db/schema";
 import { checkGeo } from "@/inngest/functions/check-geo";
-import { runGeoCheck, suggestGeoPrompts } from "./actions";
+import { getGeoOverview, runGeoCheck, suggestGeoPrompts } from "./actions";
 
 const REPLY = {
   content: [{ type: "text", text: JSON.stringify({ prompts: ["best dentist near me for implants"] }) }],
@@ -321,6 +321,11 @@ describe("the check-geo job, several answers per question", () => {
     expect(row).toMatchObject({ engine: "claude,chatgpt", samples: 5, mentionCount: 1, mentioned: true, competitors: ["Rival"] });
     expect(row.answers).toHaveLength(5);
     expect(row.answers?.[0]).toMatchObject({ engine: "claude", model: "claude-model", webSearch: true, language: "English" });
+    // The page's method section reads how this check was really asked.
+    expect((await getGeoOverview(websiteId)).lastCheck).toEqual([
+      { engine: "claude", models: ["claude-model"], webSearch: "on" },
+      { engine: "chatgpt", models: ["chatgpt-model"], webSearch: "on" },
+    ]);
   });
 
   it("asks Claude alone while GEO_ENGINES is unset, though the OpenAI key is there", async () => {

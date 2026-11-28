@@ -3,13 +3,13 @@ import { describe, expect, it } from "vitest";
 import { LOCALES } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
 
-import { methodItems } from "./method-section";
+import { engineList, methodItems } from "./method-section";
 import { outcomeText } from "./question-list";
 
 const METHOD = {
   engines: [
-    { name: "Claude", model: "claude-sonnet-5", webSearch: true },
-    { name: "ChatGPT", model: "gpt-5-mini", webSearch: true },
+    { name: "Claude", model: "claude-sonnet-5", webSearch: "on" as const },
+    { name: "ChatGPT", model: "gpt-5-mini", webSearch: "on" as const },
   ],
   runs: 3,
   language: "Ukrainian",
@@ -37,6 +37,23 @@ describe("what the AI visibility page says it measures", () => {
     expect(text).not.toMatch(/\{\w+\}/);
     // No assistant named by the copy itself: only the configured ones appear.
     expect(text).not.toMatch(/Gemini|Perplexity/);
+  });
+
+  it.each(LOCALES)("says when web search was not available in the latest check, in %s", (locale) => {
+    const t = getMessages(locale).app.geo;
+    const engines = [
+      { name: "Claude", model: "claude-haiku-5-5", webSearch: "off" as const },
+      { name: "ChatGPT", model: "gpt-5-mini", webSearch: "partly" as const },
+      // An older check that did not record its model.
+      { name: "Gemini", model: "", webSearch: "on" as const },
+    ];
+    const text = engineList({ ...METHOD, engines }, t);
+    expect(text).toContain(`Claude (claude-haiku-5-5, ${t.methodSearchOff})`);
+    expect(text).toContain(`ChatGPT (gpt-5-mini, ${t.methodSearchPartly})`);
+    expect(text).toContain(`Gemini (${t.methodSearchOn})`);
+    expect(text).not.toMatch(/\{\w+\}/);
+    // "Web search on" is said only of the assistant that had it.
+    expect(text.split(t.methodSearchOn)).toHaveLength(2);
   });
 
   it.each(LOCALES)("says plainly when no assistant is configured, in %s", (locale) => {

@@ -6,7 +6,7 @@ import { requireWebsitePlan } from "@/lib/billing/require-plan";
 import { getGeoOverview } from "@/lib/geo/actions";
 import { maxPromptsFor } from "@/lib/geo/allowance";
 import { weeklyChecks } from "@/lib/geo/check-limits";
-import { enginesInUse, runsPerQuestion } from "@/lib/geo/engines";
+import { engineName, enginesInUse, runsPerQuestion } from "@/lib/geo/engines";
 import { marketOf, questionsToRewrite } from "@/lib/geo/market";
 import type { GeoMethod } from "@/lib/geo/shared";
 import { getAppMessages } from "@/lib/i18n/app-locale";
@@ -75,8 +75,18 @@ export default async function WebsiteAiVisibilityPage({
     2026-11-27: "method undisclosed").
   */
   const market = marketOf(site);
+  /*
+    The assistants as the latest check really asked them, from its stored
+    answers: a provider that refused web search was asked without it, and
+    the page says so rather than "web search on" (review of 2026-11-28).
+    Before the first check, what this deployment will ask.
+  */
+  const lastCheck = overview.lastCheck ?? [];
   const method: GeoMethod = {
-    engines: enginesInUse().map(({ name, model, webSearch }) => ({ name, model, webSearch })),
+    engines:
+      lastCheck.length > 0
+        ? lastCheck.map((e) => ({ name: engineName(e.engine), model: e.models.join(", "), webSearch: e.webSearch }))
+        : enginesInUse().map(({ name, model }) => ({ name, model, webSearch: "on" as const })),
     runs: runsPerQuestion(),
     language: market.language,
     region: market.region,

@@ -11,10 +11,20 @@ type GeoText = Messages["app"]["geo"];
 /** Points a question earns at a position, from the formula the score uses. */
 const points = (position: number) => Math.round(positionWeight(position) * 100);
 
-/** "Claude (claude-sonnet-5, web search on), ChatGPT (gpt-5-mini, web search on)". */
+/**
+ * "Claude (claude-haiku-5-5, web search on), ChatGPT (gpt-5-mini, web search
+ * was not available in this check)": web search as the latest check stored
+ * it for each answer, not as the settings intend. An older check that did
+ * not record its model shows the assistant and web search only.
+ */
 export function engineList(method: GeoMethod, t: GeoText): string {
+  const search = { on: t.methodSearchOn, off: t.methodSearchOff, partly: t.methodSearchPartly } as const;
   return method.engines
-    .map((engine) => format(t.methodEngine, { name: engine.name, model: engine.model, search: engine.webSearch ? t.methodSearchOn : t.methodSearchOff }))
+    .map((engine) =>
+      engine.model
+        ? format(t.methodEngine, { name: engine.name, model: engine.model, search: search[engine.webSearch] })
+        : `${engine.name} (${search[engine.webSearch]})`,
+    )
     .join(", ");
 }
 

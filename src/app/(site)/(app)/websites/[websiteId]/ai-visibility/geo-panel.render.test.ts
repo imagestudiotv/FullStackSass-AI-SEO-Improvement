@@ -112,7 +112,7 @@ function render({
       blockedReason,
       initialFilter: filter,
       locale,
-      method: { engines: [{ name: "Claude", model: "claude-sonnet-5", webSearch: true }], runs: 3, language: "English", region: "Netherlands", weeklyChecks: 3 },
+      method: { engines: [{ name: "Claude", model: "claude-sonnet-5", webSearch: "on" }], runs: 3, language: "English", region: "Netherlands", weeklyChecks: 3 },
       rewrite: 0,
       t: t.geo,
       tCommon: t.common,

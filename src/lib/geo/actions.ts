@@ -7,6 +7,7 @@ import { isAiConfigured } from "@/lib/ai/client";
 import { db } from "@/lib/db";
 import { geoPrompts, geoResults } from "@/lib/db/schema";
 import { summarise } from "@/lib/geo/score";
+import { lastCheckEngines } from "@/lib/geo/last-check";
 import { maxPromptsFor } from "@/lib/geo/allowance";
 import { cleanPrompt, suggestQuestions } from "@/lib/geo/suggest";
 import { weeklyCheckRule } from "@/lib/geo/check-limits";
@@ -129,6 +130,7 @@ export async function getGeoOverview(websiteId: string): Promise<GeoOverview> {
       prompts: [],
       lastCheckedAt: null,
       previousScore: null,
+      lastCheck: [],
     };
   }
 
@@ -210,6 +212,8 @@ export async function getGeoOverview(websiteId: string): Promise<GeoOverview> {
     prompts,
     lastCheckedAt: rows[0]?.checkedAt ?? null,
     previousScore,
+    // How the latest check was really asked: models and web search, per stored answer.
+    lastCheck: lastCheckEngines(rows, RUN_GAP_MS),
   };
 }
 

@@ -47,6 +47,20 @@ export type GeoOverview = {
    * that never happened.
    */
   previousScore: number | null;
+  /** How the latest check was asked, from its stored answers (lib/geo/last-check.ts); empty before the first. */
+  lastCheck?: GeoCheckEngine[];
+};
+
+/** Web search in a check: on for every answer, off for every answer, or off for some. */
+export type GeoSearchUse = "on" | "off" | "partly";
+
+/** One assistant as the latest check really asked it (geo_results.answers). */
+export type GeoCheckEngine = {
+  /** The engine id ("claude", "chatgpt", "gemini"). */
+  engine: string;
+  /** The models that answered, as the provider reported them; empty when not recorded. */
+  models: string[];
+  webSearch: GeoSearchUse;
 };
 
 /**
@@ -104,8 +118,13 @@ export const GEO_REGENERATE_EVENT = "geo/questions.regenerate";
  * into the copy.
  */
 export type GeoMethod = {
-  /** The assistants asked, with the model and whether web search is on (lib/geo/engines.ts enginesInUse). */
-  engines: { name: string; model: string; webSearch: boolean }[];
+  /**
+   * The assistants asked, with the model and web search: as the latest check
+   * stored them (GeoOverview.lastCheck), or before any check, as this
+   * deployment will ask (lib/geo/engines.ts enginesInUse). An empty model
+   * is one an older check did not record.
+   */
+  engines: { name: string; model: string; webSearch: GeoSearchUse }[];
   /** Times each question is put to each assistant per check. */
   runs: number;
   /** The language and market questions are written and asked in (lib/geo/market.ts). */
