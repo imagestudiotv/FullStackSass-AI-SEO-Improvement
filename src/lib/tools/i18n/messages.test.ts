@@ -39,8 +39,8 @@ function messagesIn(source: string): string[] {
 }
 
 const TECHNICAL = /^(og|twitter):|^Viewport$|^<|^meta |^link /;
-/** Not shown to visitors: the generated llms.txt's own heading (the file follows the site, not the page language), a rate-limit key and a cache key. */
-const NOT_MESSAGES = new Set(["Home", "public-meta-description", "public-audit:v5:42"]);
+/** Not shown to visitors: the generated llms.txt's own heading (the file follows the site, not the page language), a rate-limit key, a cache key and a tool's Admin -> Free tools key. */
+const NOT_MESSAGES = new Set(["Home", "public-meta-description", "public-audit:v5:42", "meta-description-generator"]);
 
 describe("the free tools' messages", () => {
   const all = [...new Set(SOURCES.flatMap((file) => messagesIn(readFileSync(path.resolve(__dirname, file), "utf8"))))].filter(
