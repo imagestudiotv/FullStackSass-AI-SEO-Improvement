@@ -47,6 +47,30 @@ describe("foldKeywordVariants", () => {
     expect(await terms(websiteId)).toEqual(["teeth whitening cost", "привітання зятю"].sort());
   });
 
+  it("keeps design and designer apart, and never deletes a typed or targeted row", async () => {
+    const { websiteId } = await seedWebsite(test);
+    await test.db.insert(keywords).values([
+      { websiteId, term: "interior design", volume: 50, source: "dataforseo_ideas" },
+      { websiteId, term: "massage", volume: 30, source: "dataforseo_ideas" },
+      { websiteId, term: "dentist dublin", volume: 10, source: "ai_seed" },
+      { websiteId, term: "для мужчині", volume: 5, source: "manual" },
+    ]);
+    // The topic names it in its own case and punctuation: still the same keyword.
+    await test.db.insert(calendarItems).values({ websiteId, title: "Dentists", targetKeyword: "Dentist, Dublin" });
+
+    const folded = await foldKeywordVariants(websiteId, [
+      row("interior designer", 900),
+      row("massager", 700),
+      row("dublin dentist", 900),
+      row("для мужчини", 900),
+    ]);
+    expect(folded.removed).toEqual([]);
+    // Different words both stay; a variant of the typed or the planned row gives way to it.
+    expect(folded.rows.map((r) => r.term).sort()).toEqual(["interior designer", "massager"]);
+    expect(folded.dropped.sort()).toEqual(["dublin dentist", "для мужчини"].sort());
+    expect(await terms(websiteId)).toEqual(["dentist dublin", "interior design", "massage", "для мужчині"].sort());
+  });
+
   it("refreshes a keyword research finds again under the same term", async () => {
     const { websiteId } = await seedWebsite(test);
     await test.db.insert(keywords).values({ websiteId, term: "wedding films", volume: 50, source: "dataforseo_ideas" });

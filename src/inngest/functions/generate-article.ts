@@ -8,7 +8,7 @@ import { articleTask, articleModelExperiment, estimatedAiCost, type MeasureAi } 
 import { planResearchSearch, rankResearchSources, collectResearchSources, synthesizeResearch, checkResearchEvidence } from "@/lib/articles/research";
 import { correctResearchDraft, needsEvidenceCorrection } from "@/lib/articles/evidence-correction";
 import { articleSearch, isDataForSeoConfigured } from "@/lib/providers/dataforseo";
-import { checkArticleFormat, classifyArticleFormat, correctArticleFormat, formatSearchMarket, needsFormatCheck, type SerpResult } from "@/lib/articles/format";
+import { checkArticleFormat, classifyArticleFormat, correctArticleFormat, formatHoldWarning, formatOutcome, formatSearchMarket, needsFormatCheck, type SerpResult } from "@/lib/articles/format";
 import { researchMode, researchNeedsReview, type ResearchBrief } from "@/lib/articles/research-types";
 import { db } from "@/lib/db";
 import type { Executor } from "@/lib/billing/spend-quota";
@@ -576,6 +576,27 @@ export const generateArticle = inngest.createFunction(
         return null;
       }
     });
+    /*
+      The correction is checked once more, by the same Haiku check. There is
+      no second correction: a "no" here holds the article for a person
+      (formatOutcome) instead of starting a loop. Its own memoized step.
+    */
+    const formatRecheck = await step.run("recheck-format", async () => {
+      if (!formatPlan || !formatFix) return null;
+      try {
+        return await paidCall(reservations, () => checkArticleFormat(formatFix.bodyHtml, writingBrief, formatPlan, meter),
+          { beforeSpend: () => requireEntitledForSpend(brief.websiteId, { freeArticles: true }) });
+      } catch (error) {
+        if (error instanceof NonRetriableError) throw error;
+        logger.warn({ articleId, step: "recheck-format" }, "Corrected draft could not be re-checked; holding it for review");
+        return null;
+      }
+    });
+    const formatResult = formatOutcome(formatReview, Boolean(formatFix), formatRecheck);
+    if (formatResult.held && formatPlan) {
+      logger.warn({ articleId, step: "recheck-format", format: formatPlan.format, corrected: Boolean(formatFix),
+        rechecked: Boolean(formatRecheck), problems: formatResult.problems.length }, "Draft still misses its format; held for review");
+    }
     const draft = formatFix
       ? { ...firstDraft, bodyHtml: formatFix.bodyHtml, wordCount: formatFix.wordCount, modelExperiment: firstDraft.modelExperiment || formatFix.modelExperiment }
       : firstDraft;
@@ -1031,7 +1052,16 @@ export const generateArticle = inngest.createFunction(
         2026-11-26; lib/articles/outside-links.ts), so a stored article never
         links one. The evidence check itself is unchanged.
       */
-      const finalResearch = reviewedResearch;
+      /*
+        A draft that still misses its format after the one correction is held
+        like one with evidence warnings (researchReviewRequired): no publishing
+        path sends it, and the two-step flow does not call it checked, until a
+        person approves the saved version. A researched article also carries
+        the reason among its warnings, which its review panel shows.
+      */
+      const finalResearch = reviewedResearch && formatResult.held && formatPlan
+        ? { ...reviewedResearch, warnings: [...reviewedResearch.warnings, formatHoldWarning(formatPlan, formatResult.problems)] }
+        : reviewedResearch;
       /*
         The managed Partner Network's review gate: a website accepting network
         links has every new draft held for the RepGet team, who place links
@@ -1047,7 +1077,7 @@ export const generateArticle = inngest.createFunction(
           .set({
             reviewStatus,
             research: finalResearch,
-            researchReviewRequired: researchNeedsReview(finalResearch) || outline.modelExperiment || written.modelExperiment || articleModelExperiment(),
+            researchReviewRequired: formatResult.held || researchNeedsReview(finalResearch) || outline.modelExperiment || written.modelExperiment || articleModelExperiment(),
             researchApprovedHash: null,
             researchApprovedAt: null,
             researchApprovedBy: null,

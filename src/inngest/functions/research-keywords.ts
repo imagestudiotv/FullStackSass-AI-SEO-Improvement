@@ -19,9 +19,10 @@ import { clusterKeywords } from "@/lib/keywords/cluster";
 import { brandMarks, isBrandSearch } from "@/lib/keywords/brand";
 import { knownDifficulty, rankKeywords, type SearchIntent } from "@/lib/keywords/score";
 import { generateSeedKeywords } from "@/lib/keywords/seeds";
-import { applyIntents, classifyKeywordIntents, providerIntentsTrustworthy, termsToClassify } from "@/lib/keywords/intent";
+import { applyIntents, classifyKeywordIntents, dropOffTopic, providerIntentsTrustworthy, termsToCheckTopic, termsToClassify } from "@/lib/keywords/intent";
 import { inferSiteType } from "@/lib/keywords/site-type";
-import { foldKeywordVariants } from "@/lib/keywords/dedupe";
+import { foldKeywordVariants, protectedKeywordTerms } from "@/lib/keywords/dedupe";
+import { normalizeTerm } from "@/lib/keywords/variants";
 import {
   isEmptyProfile,
   mergeProfile,
@@ -496,6 +497,14 @@ export const researchKeywords = inngest.createFunction(
      * model's label, and a second opinion on 30 terms is not worth a call.
      * A failure never fails research - the labels it had are kept, minus
      * provider labels that were not trusted.
+     *
+     * The same call marks each provider idea on- or off-topic for this site
+     * (Daniel, 2026-11-27: an interior-design site got articles about irons),
+     * and off-topic ideas are dropped here, before scoring and clustering.
+     * Never dropped, and so never asked about: the seeds made from the
+     * profile, the customer's own keywords and the ones an article or a
+     * planned topic targets. Without a key, or when the call fails, nothing is
+     * filtered - as before.
      */
     const labelled = await step.run("classify-intent", async () => {
       const profile = {
@@ -511,7 +520,12 @@ export const researchKeywords = inngest.createFunction(
       const trusted = providerIntentsTrustworthy(metrics.rows);
       const untrusted = () =>
         trusted ? metrics.rows : metrics.rows.map((row) => (row.source === "ai_seed" ? row : { ...row, intent: null }));
-      const sent = metrics.configured ? termsToClassify(metrics.rows) : [];
+      const forIntent = metrics.configured ? termsToClassify(metrics.rows) : [];
+      // The seeds keep their protection when the provider returned the same term (its row replaced the seed's).
+      const protectedTerms = metrics.configured ? await protectedKeywordTerms(websiteId) : new Set<string>();
+      for (const seed of seeds) protectedTerms.add(normalizeTerm(seed.term));
+      const forTopic = metrics.configured ? termsToCheckTopic(metrics.rows, protectedTerms) : [];
+      const sent = [...new Set([...forIntent, ...forTopic])];
       if (sent.length === 0) {
         logger.info({ step: "classify-intent", websiteId, siteType: fallback, classified: 0, providerLabelsTrusted: trusted }, "Intent kept as labelled");
         return { siteType: fallback, rows: untrusted(), classified: 0 };
@@ -526,9 +540,13 @@ export const researchKeywords = inngest.createFunction(
           model: MODELS.EXTRACTION,
           quantity: result.usage.inputTokens + result.usage.outputTokens,
           costUsd: (result.usage.inputTokens / 1000) * price.inputPer1k + (result.usage.outputTokens / 1000) * price.outputPer1k,
-          metadata: { purpose: "keyword_intent", keywords: sent.length, labelled: result.intents.size },
+          metadata: { purpose: "keyword_intent", keywords: sent.length, labelled: result.intents.size, offTopic: result.offTopic.size },
         });
-        const rows = applyIntents(metrics.rows, result.intents, new Set(sent));
+        // A term sent only for its topic keeps the provider's (trusted) intent.
+        const intentSet = new Set(forIntent);
+        const intents = new Map([...result.intents].filter(([term]) => intentSet.has(term)));
+        const relevant = dropOffTopic(applyIntents(metrics.rows, intents, intentSet), result.offTopic, protectedTerms);
+        const rows = relevant.rows;
         logger.info(
           {
             step: "classify-intent",
@@ -538,6 +556,9 @@ export const researchKeywords = inngest.createFunction(
             sent: sent.length,
             classified: result.intents.size,
             providerLabelsTrusted: trusted,
+            topicChecked: forTopic.length,
+            offTopicDropped: relevant.dropped.length,
+            offTopicExamples: relevant.dropped.slice(0, 5),
             intents: Object.fromEntries(
               ["informational", "commercial", "transactional", "navigational"].map((intent) => [intent, rows.filter((row) => row.intent === intent).length]),
             ),

@@ -24,6 +24,7 @@ import { TablePager } from "@/components/table-pager";
 import { paginate } from "@/lib/pagination";
 import { runOutcome } from "@/lib/keywords/research-state";
 import { knownDifficulty } from "@/lib/keywords/score";
+import { intentLabel } from "@/lib/keywords/labels";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -612,7 +613,7 @@ export function ResearchTabs({
                             }
                             className="hidden lg:inline-flex"
                           >
-                            {keyword.intent}
+                            {intentLabel(keyword.intent, tCommon)}
                           </Badge>
                         ) : null}
                       </div>

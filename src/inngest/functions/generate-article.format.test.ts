@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { articles, usageEvents, websites } from "@/lib/db/schema";
 import { createTestDb, type TestDb } from "@/test/db";
 import { seedCalendarItem, seedWebsite } from "@/test/fixtures";
+import { releaseCheckFor } from "@/lib/articles/review";
 
 /*
   The article's format (lib/articles/format.ts) inside the real job: read
@@ -79,16 +80,45 @@ describe("the article's format", () => {
     expect(spend.some((row) => (row.metadata as { purpose?: string } | null)?.purpose === "article_format_search")).toBe(true);
   });
 
-  it("corrects a draft that misses its format exactly once, and saves the correction", async () => {
+  it("corrects a draft that misses its format exactly once, re-checks the correction, and saves it", async () => {
+    calls.check
+      .mockResolvedValueOnce({ delivers: false, items: 0, problems: ["No wishes, only advice"] })
+      .mockResolvedValueOnce({ delivers: true, items: 22, problems: [] });
     const f = await setup();
     await f.run();
     await f.run();
     const [article] = await test.db.select().from(articles).where(eq(articles.id, f.articleId));
     expect(article.bodyHtml).toContain("Зятю, будь щасливий!");
     expect(article.wordCount).toBe(6);
-    expect(calls.check).toHaveBeenCalledTimes(1);
+    expect(calls.check).toHaveBeenCalledTimes(2);
+    expect(calls.check.mock.calls[1][0]).toContain("Зятю, будь щасливий!");
     expect(calls.correct).toHaveBeenCalledTimes(1);
     expect(calls.correct.mock.calls[0][3]).toMatchObject({ problems: ["No wishes, only advice"] });
+    expect(article.researchReviewRequired).toBe(false);
+  });
+
+  it("holds the article for review when the corrected draft still misses its format, with no second correction", async () => {
+    const f = await setup();
+    await f.run();
+    await f.run();
+    const [article] = await test.db.select().from(articles).where(eq(articles.id, f.articleId));
+    expect(article.bodyHtml).toContain("Зятю, будь щасливий!");
+    expect(article.status).toBe("draft");
+    expect(article.researchReviewRequired).toBe(true);
+    expect(article.researchApprovedHash).toBeNull();
+    expect(releaseCheckFor(article)).toEqual({ ok: false, reason: "pending_review" });
+    expect(calls.check).toHaveBeenCalledTimes(2);
+    expect(calls.correct).toHaveBeenCalledTimes(1);
+  });
+
+  it("holds the article when the corrected draft cannot be re-checked", async () => {
+    calls.check
+      .mockResolvedValueOnce({ delivers: false, items: 0, problems: ["No wishes, only advice"] })
+      .mockRejectedValueOnce(new Error("Model down"));
+    const f = await setup();
+    await f.run();
+    const [article] = await test.db.select().from(articles).where(eq(articles.id, f.articleId));
+    expect(article.researchReviewRequired).toBe(true);
   });
 
   it("leaves a draft that delivers its format alone", async () => {
@@ -98,6 +128,8 @@ describe("the article's format", () => {
     const [article] = await test.db.select().from(articles).where(eq(articles.id, f.articleId));
     expect(article.bodyHtml).toContain("Порада без привітань.");
     expect(calls.correct).not.toHaveBeenCalled();
+    expect(calls.check).toHaveBeenCalledTimes(1);
+    expect(article.researchReviewRequired).toBe(false);
   });
 
   it("writes the article as before when the format cannot be read, or the check or correction fails", async () => {
@@ -116,6 +148,10 @@ describe("the article's format", () => {
     const [kept] = await test.db.select().from(articles).where(eq(articles.id, g.articleId));
     expect(kept.bodyHtml).toContain("Порада без привітань.");
     expect(calls.correct).toHaveBeenCalledTimes(1);
+    // The draft is known to miss its format and was never fixed: held, not passed.
+    expect(kept.researchReviewRequired).toBe(true);
+    // Nothing known about the format: written and released as before.
+    expect(article.researchReviewRequired).toBe(false);
   });
 
   it("does not check a plain guide", async () => {

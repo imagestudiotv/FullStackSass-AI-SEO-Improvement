@@ -1,14 +1,18 @@
 import { describe, expect, it } from "vitest";
 
-import { areVariants, mergeVariants, normalizeTerm, sameWord, variantOf } from "./variants";
+import { areVariants, derivedPair, mergeVariants, normalizeTerm, sameWord, variantOf } from "./variants";
 
 describe("areVariants", () => {
   it.each([
     // The review's case: one letter of inflection.
     ["привітання для мужчині", "привітання для мужчини"],
     ["dentist dublin", "dublin dentist"],
-    ["wedding videographer tuscany", "wedding videography tuscany"],
     ["running shoe", "running shoes"],
+    ["interior designer", "interior designers"],
+    ["marketing agency", "marketing agencies"],
+    ["wedding photographer rome", "wedding photograher rome"],
+    ["weding venue", "wedding venue"],
+    ["для мужчині", "для мужчини"],
     ["привітання зятю", "привітаня зятю"],
     ["Привітання — зятю!", "привітання зятю"],
     ["з днем народження, мамо", "з днем народження мамо"],
@@ -24,6 +28,16 @@ describe("areVariants", () => {
     ["wedding dress", "wedding dress cost"],
     ["birthday wishes", "anniversary wishes"],
     ["what is seo", "what is sem"],
+    // Derivational endings make another word, not another form (outside review of 2026-11-28).
+    ["interior design", "interior designer"],
+    ["massage chair", "massager chair"],
+    ["wedding videographer tuscany", "wedding videography tuscany"],
+    ["construct kit", "constructor kit"],
+    ["painted wall", "painter wall"],
+    ["dentist dublin", "dentistry dublin"],
+    ["guitar", "guitarist"],
+    ["design", "designing"],
+    ["decorate home", "decoration home"],
   ])("%s != %s", (a, b) => {
     expect(areVariants(a, b)).toBe(false);
   });
@@ -31,6 +45,17 @@ describe("areVariants", () => {
   it("needs one word in common when there are several", () => {
     expect(sameWord("мужчині", "мужчини")).toBe(true);
     expect(areVariants("мужчині красиві", "мужчини красива")).toBe(false);
+  });
+
+  it("tells a derivational suffix from an inflection, in Latin script only", () => {
+    expect(derivedPair("design", "designer")).toBe(true);
+    expect(derivedPair("massage", "massager")).toBe(true);
+    expect(derivedPair("designer", "designers")).toBe(false);
+    expect(derivedPair("photographer", "photograher")).toBe(false);
+    expect(derivedPair("мужчині", "мужчини")).toBe(false);
+    expect(sameWord("design", "designer")).toBe(false);
+    expect(sameWord("massages", "massagers")).toBe(false);
+    expect(sameWord("agency", "agencies")).toBe(true);
   });
 
   it("normalises apostrophes, punctuation and case", () => {
@@ -81,5 +106,7 @@ describe("variantOf", () => {
     expect(variantOf("для мужчині", ["для жінки", "для мужчини"])).toBe("для мужчини");
     expect(variantOf("для мужчини", ["для мужчини"])).toBeNull();
     expect(variantOf("для дітей", ["для мужчини"])).toBeNull();
+    expect(variantOf("interior designer", ["interior design"])).toBeNull();
+    expect(variantOf("massager", ["massage"])).toBeNull();
   });
 });

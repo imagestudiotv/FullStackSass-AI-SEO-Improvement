@@ -119,3 +119,33 @@ export function parseFormatReview(text: string, plan: FormatPlan): FormatReview 
   return { delivers: parsed.delivers === true && !short, items, problems };
 }
 
+
+/**
+ * Whether the saved text delivers its format, from the check, the single
+ * correction and the check of that correction (outside review of
+ * 2026-11-28: a correction that was never re-checked still shipped as
+ * "Ready"). Held means the article waits for a person (the existing
+ * research review hold), never that it is rewritten again.
+ *
+ * - No first verdict (no format, a plain guide, or the check unavailable):
+ *   nothing is known, so nothing is held - the article is written as before.
+ * - The first check passed: nothing to hold.
+ * - The first check failed: held unless the corrected text was checked and
+ *   passed. A correction that could not finish, or a re-check that could not
+ *   run, leaves the last known verdict - a miss - standing.
+ */
+export function formatOutcome(
+  first: FormatReview | null,
+  corrected: boolean,
+  recheck: FormatReview | null,
+): { held: boolean; problems: string[] } {
+  if (!first || first.delivers) return { held: false, problems: [] };
+  if (corrected && recheck?.delivers) return { held: false, problems: [] };
+  const problems = corrected && recheck ? recheck.problems : first.problems;
+  return { held: true, problems: problems.length ? problems : ["The format check did not pass."] };
+}
+
+/** The hold's reason, as a warning the article's review panel shows (English, like the evidence checks' own). */
+export function formatHoldWarning(plan: FormatPlan, problems: string[]): string {
+  return `The article does not deliver its format (${plan.format.replace("_", " ")}) after one automatic correction: ${problems.join(" ")} Review before publishing.`;
+}
