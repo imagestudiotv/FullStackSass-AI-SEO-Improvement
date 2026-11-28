@@ -16,7 +16,7 @@ import {
   type BlogBrief,
   type BlogWriterOutcome,
 } from "./blog-writer-shared";
-import { recordToolUse, startOfUtcDay, toolServerGate } from "./tool-tracking";
+import { recordFailedCall, recordToolUse, startOfUtcDay, toolServerGate } from "./tool-tracking";
 
 /**
  * The free AI Blog Writer's server path (owner, 2026-11-27): when the
@@ -35,7 +35,8 @@ import { recordToolUse, startOfUtcDay, toolServerGate } from "./tool-tracking";
  * Any refusal is answered in the page by the template, for free.
  *
  * Every call is recorded with its tokens and cost (recordToolUse), which is
- * what the cap and the admin page add up. The brief goes to the model as
+ * what the cap and the admin page add up; one that throws is recorded as a
+ * failed call at no known cost (recordFailedCall). The brief goes to the model as
  * material, never as instructions (lib/ai/untrusted.ts).
  */
 export const BLOG_WRITER_LIMITS = {
@@ -112,17 +113,21 @@ export async function writeBlogOpening(brief: BlogBrief, locale: Locale, visitor
 
   try {
     let response: Anthropic.Message;
+    let reached = false;
     try {
-      response = await paidCall(reserved.reservations, () =>
-        create({
+      response = await paidCall(reserved.reservations, () => {
+        reached = true;
+        return create({
           model: BLOG_WRITER_MODEL,
           max_tokens: BLOG_WRITER_LIMITS.maxTokens,
           system: blogWriterSystemPrompt(brief.format, locale),
           messages: [{ role: "user", content: blogWriterMessage(brief) }],
-        }),
-      );
+        });
+      });
     } catch (error) {
       console.warn("[blog-writer] no answer", error);
+      // Sent, then thrown: counted as a failed call, at no known cost (the error has no usage).
+      if (reached) await recordFailedCall({ tool: "blog-writer", visitor, locale });
       return { ok: false, reason: "failed" };
     }
 

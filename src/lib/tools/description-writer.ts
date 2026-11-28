@@ -16,7 +16,7 @@ import {
 import { readCache, writeCache } from "@/lib/providers/cache";
 import { fetchHomepage } from "@/lib/websites/crawl";
 import { SNIPPET_LIMITS } from "@/lib/tools/snippet";
-import { recordToolUse, toolServerGate } from "@/lib/tools/tool-tracking";
+import { recordFailedCall, recordToolUse, toolServerGate } from "@/lib/tools/tool-tracking";
 import {
   InvalidUrlError,
   isPublicWebsiteUrl,
@@ -251,9 +251,11 @@ async function writeFromPage(
   ].join("\n");
 
   let raw: string;
+  let reached = false;
   try {
-    const response = await paidCall(reservations, () =>
-      anthropic.messages.create({
+    const response = await paidCall(reservations, () => {
+      reached = true;
+      return anthropic.messages.create({
         model: MODELS.GENERATION,
         /*
           Room for the thinking as well as the answer: Sonnet 5 thinks before
@@ -264,8 +266,8 @@ async function writeFromPage(
         */
         max_tokens: 4096,
         messages: [{ role: "user", content: prompt }],
-      }),
-    );
+      });
+    });
     // One use for Admin -> Free tools, with its cost (never throws).
     await recordToolUse({
       tool: TOOL,
@@ -279,6 +281,8 @@ async function writeFromPage(
       .join("\n");
   } catch {
     // paidCall has recorded a timeout as spent; a refusal stays unspent.
+    // Sent, then thrown: counted as a failed call, at no known cost (the error has no usage).
+    if (reached) await recordFailedCall({ tool: TOOL, visitor });
     return { ok: false, error: WRITE_FAILED };
   }
 

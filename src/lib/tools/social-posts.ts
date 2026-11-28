@@ -34,7 +34,7 @@ import {
   type FreeSocialStatus,
   type FreeSocialTone,
 } from "./social-posts-shared";
-import { recordToolUse, toolServerGate } from "./tool-tracking";
+import { recordFailedCall, recordToolUse, toolServerGate } from "./tool-tracking";
 
 /**
  * The free AI Social Media Post Generator (client, 2026-11-13,
@@ -391,18 +391,22 @@ export async function generateFreeSocialPosts(request: FreeSocialRequest, visito
       await consumeReservation(attempt.id, "paid");
 
       let response: Anthropic.Message;
+      let reached = false;
       try {
-        response = await paidCall([global], () =>
-          create({
+        response = await paidCall([global], () => {
+          reached = true;
+          return create({
             model: MODEL,
             max_tokens: FREE_SOCIAL_LIMITS.maxTokens,
             thinking: { type: "disabled" },
             system: systemPrompt(request, page.finalUrl),
             messages: [{ role: "user", content: pageMessage(page) }],
-          }),
-        );
+          });
+        });
       } catch (error) {
         console.warn("[free-social-posts] no answer", error);
+        // Sent, then thrown: counted as a failed call, at no known cost (the error has no usage).
+        if (reached) await recordFailedCall({ tool: TOOL, visitor, locale: request.locale });
         return { ok: false, reason: "provider_failed" };
       }
 

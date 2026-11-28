@@ -113,7 +113,7 @@ export default async function FreeToolsPage({ searchParams }: PageProps<"/admin/
                     </a>
                     <span className="block text-xs whitespace-normal text-muted-foreground">{TRACKING[row.tool]}</span>
                     {row.failedCalls ? (
-                      <span className="block text-xs text-warning">{count(row.failedCalls)} paid call(s) with no usable answer</span>
+                      <span className="block text-xs text-warning">{count(row.failedCalls)} failed paid call(s): no usable answer, or no answer at all (cost unknown, not added)</span>
                     ) : null}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">{count(row.totalUses)}</TableCell>

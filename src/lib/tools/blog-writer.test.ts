@@ -110,6 +110,20 @@ describe("the server opening", () => {
     expect(use.metadata).toMatchObject({ failed: true, usage: { costUsd: 0.0014 } });
   });
 
+  it("records a call that reached the model and threw as a failed call, at no known cost, not as a use", async () => {
+    const create = vi.fn<(body: Anthropic.MessageCreateParamsNonStreaming) => Promise<Anthropic.Message>>(async () => {
+      throw new Error("Request timed out.");
+    });
+    expect(await writeBlogOpening(brief, "de", "visitor-t", create)).toEqual({ ok: false, reason: "failed" });
+    expect(create).toHaveBeenCalledTimes(1);
+    const [use] = await uses();
+    expect(use).toMatchObject({ state: "consumed", spendOutcome: null });
+    expect(use.metadata).toEqual({ tool: "blog-writer", path: "server", locale: "de", visitor: "visitor-t", failed: true });
+    const { toolReport } = await import("./tool-tracking");
+    const blog = (await toolReport(new Date(Date.now() - 86_400_000))).find((row) => row.tool === "blog-writer")!;
+    expect(blog).toMatchObject({ totalUses: 0, failedCalls: 1, costUsd: 0 });
+  });
+
   it("is unavailable without an AI key, before anything is reserved", async () => {
     vi.stubEnv("ANTHROPIC_API_KEY", "");
     const create = answer();

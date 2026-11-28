@@ -32,7 +32,9 @@ import {
  *               metadata { tool, path, locale, visitor, usage?, failed? }.
  *               `visitor` is visitorKey() - a hash, never the address - and
  *               `usage` the model call's tokens and USD cost, priced like
- *               every other call (lib/usage.ts PRICING). One key per tool, so
+ *               every other call (lib/usage.ts PRICING); `failed` a paid
+ *               call with no usable answer, or one that threw (no `usage`:
+ *               the SDK's error has none, recordFailedCall). One key per tool, so
  *               the existing (key, counted_at) index answers "today" and
  *               "the last 90 days" directly;
  *  - a sign-up: key "free-tool:signup:<slug>", operation
@@ -200,6 +202,17 @@ export async function recordToolUse(event: {
 }
 
 /**
+ * A paid call that reached the model and threw (a timeout, an overload, a
+ * 5xx): recorded as a failed call so the admin page counts it. The SDK's
+ * error carries no usage, so its cost is not known and is recorded as 0 -
+ * what it may have cost is bounded by the tool's own limits, and the spend
+ * reservation (paidCall) still counts it against them. Never throws.
+ */
+export async function recordFailedCall(event: { tool: FreeToolSlug; visitor: string; locale?: Locale | null; now?: Date }): Promise<void> {
+  await recordToolUse({ ...event, path: "server", usage: null, failed: true });
+}
+
+/**
  * A use the BROWSER reports (its own AI, or the template): recorded only
  * within REPORTED_USES_PER_VISITOR_PER_DAY, so the endpoint cannot be used
  * to fill the ledger.
@@ -285,7 +298,7 @@ export type ToolReportRow = {
   totalUses: number;
   visitors: number;
   costUsd: number;
-  /** Paid calls whose answer could not be used. */
+  /** Paid calls whose answer could not be used, and calls that threw (their cost unknown, counted as 0: recordFailedCall). */
   failedCalls: number;
   signups: number;
   /** Null without sign-ups. */
