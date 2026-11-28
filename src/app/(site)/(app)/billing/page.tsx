@@ -11,6 +11,8 @@ import { SettingsNav } from "@/components/settings-nav";
 import { PageHeader, PageShell } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/states";
 import { listAddons, listPurchases } from "@/lib/addons/actions";
+import { addonsForMarket } from "@/lib/addons/market";
+import { websiteMarket } from "@/lib/addons/market-server";
 import { requireSession } from "@/lib/auth-guard";
 import {
   getSubscription,
@@ -210,6 +212,8 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
   // The discount checkout applies by itself, said on screen: REPGET, else the win-back offer (lib/billing/winback-offer.ts).
   const screenOffer = await planScreenOffer(db, orgId);
   const freeHere = websiteId ? await isFreePlanWebsite(websiteId) : false;
+  // An add-on for one country only (USA Local Citations) is offered to a website in that market, or with none set (lib/addons/market.ts).
+  const market = await websiteMarket(websiteId);
   const freeWords = freePlanCopy(locale).app;
 
   /*
@@ -300,7 +304,7 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
         tCommon={t.app.common}
         planCards={planCards}
         selectedPlan={selectedPlanOf(params, plans)}
-        addonLinks={addons
+        addonLinks={addonsForMarket(addons, market)
           .filter((addon) => addon.kind !== "credits")
           .map((addon) => {
             // These two are named in the reader's language, and have their own screen.

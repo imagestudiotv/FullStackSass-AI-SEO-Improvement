@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { isValidElement, type ReactNode } from "react";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -221,6 +222,27 @@ describe("billing page", () => {
       { id: "a3", name: "New website", href: expect.stringMatching(/^\/website-projects/) },
     ]);
     expect(findAll(tree, PaymentsPanel)).toHaveLength(1);
+  });
+
+  // eval 2026-11-28: a Ukrainian site was offered "250 USA Local Citations".
+  it.each([
+    ["Ukraine", false],
+    ["United States", true],
+    [null, true],
+  ] as const)("a website whose market is %s is offered the USA-only add-on: %s", async (country, offered) => {
+    const row = { description: null, priceCents: 100, currency: "eur", creditsGranted: 0, creditPrice: 1, purchasable: false };
+    vi.mocked(listAddons).mockResolvedValueOnce([
+      { ...row, id: "a2", slug: "usa_local_citations", name: "Top 250 live USA Local Citations", kind: "service" },
+      { ...row, id: "a4", slug: "audit_fix", name: "We fix the errors for you", kind: "service" },
+    ]);
+    await test.db.update(websites).set({ country }).where(eq(websites.id, sharedSite));
+    signIn("user_owner", OWNER_ORG);
+    try {
+      const links = findOne(await render(), BillingClient).addonLinks as { id: string }[];
+      expect(links.map((link) => link.id)).toEqual(offered ? ["a2", "a4"] : ["a4"]);
+    } finally {
+      await test.db.update(websites).set({ country: null }).where(eq(websites.id, sharedSite));
+    }
   });
 
   it("guest who owns nothing: no plan picker, no shop, no strip - the owner pays", async () => {
