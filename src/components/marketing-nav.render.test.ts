@@ -241,7 +241,7 @@ describe("the header's screen-reader labels", () => {
  */
 describe("the header's mega-menus", () => {
   const chrome = siteChrome();
-  const social = ["Instagram", "Facebook", "TikTok", "LinkedIn", "X (Twitter)", "YouTube", "Threads", "Pinterest", "Google Business Profile", "Bluesky", "Reddit", "Quora"];
+  const social = ["Instagram", "Facebook", "TikTok", "LinkedIn", "X (Twitter)", "YouTube", "Threads", "Pinterest", "Bluesky", "Reddit", "Quora"];
   const connections = ["WordPress", "Shopify", "Webflow", "Wix", "Ghost", "Webhooks", "Search Console", "Analytics"];
 
   it.each(LOCALES.map((locale) => [locale === "en" ? "/" : `/${locale}`, locale] as const))(
@@ -266,11 +266,12 @@ describe("the header's mega-menus", () => {
     expect(hrefs(html)).toEqual(expect.arrayContaining(["/sign-in", "/sign-up", "/success-stories", "/pricing", "/blog", "/contact"]));
   });
 
-  it("the Integrations menu lists the design's twelve channels and eight connections, with their counts", () => {
+  it("the Integrations menu lists the eleven channels RepGet works with (no Google Business Profile) and eight connections, with their counts", () => {
     nav.pathname = "/";
     const html = renderToStaticMarkup(createElement(MarketingNav, { chrome }));
     for (const name of [...social, ...connections]) expect(html, name).toContain(`>${name}</span>`);
-    expect(html).toContain(">12 platforms<");
+    expect(html).toContain(">11 platforms<");
+    expect(html).not.toContain("Google Business Profile");
     expect(html).toContain(">8 connections<");
     // Its footer starts with the general line; an entry replaces it when hovered or focused.
     expect(html).toContain(`>${chrome.en.menu.footerTitle}</p>`);

@@ -1,21 +1,26 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * The one-click post's click (client, 2026-11-24: a tab that stayed blank):
- * the platform's own https address is opened in the click, before any answer
- * from the server, and never an empty page. That the server works out the
- * same address is in lib/social/social.test.ts.
+ * The one-click post's click. The server checks first (2026-11-28): the
+ * click opens a blank tab and asks for the copy, and only the server's yes
+ * sends the tab to the platform and writes the text; a refusal closes the tab
+ * and copies nothing. The address is worked out in the page, never waited
+ * for (client, 2026-11-24: a tab that stayed blank). That the server works
+ * out the same address is in lib/social/social.test.ts.
  */
 
-const copyTextNow = vi.hoisted(() => vi.fn());
-vi.mock("@/lib/copy-text", () => ({ copyTextNow }));
+const copyTextWhen = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/copy-text", () => ({ copyTextWhen }));
 
 import { COPY_WAIT_MS, oneClickPost, RECORD_WAIT_MS, type OneClickPost } from "./one-click";
 
 const THREAD = "https://www.reddit.com/r/SaaS/comments/abc123/";
 const calls: string[] = [];
 const open = vi.fn();
-let tab: { opener: unknown } | null;
+type FakeTab = { opener: unknown; closed: boolean; close: ReturnType<typeof vi.fn>; location: { replace: ReturnType<typeof vi.fn> } };
+let tab: FakeTab | null;
+/** What the click told the clipboard: write the text (true) or not (false). */
+let approval: Promise<boolean> | null;
 
 const base: OneClickPost["row"] = { platform: "reddit", threadUrl: THREAD, title: null, link: null, imageUrl: null };
 
@@ -38,17 +43,31 @@ function click(over: Partial<Omit<OneClickPost, "row">> & { row?: Partial<OneCli
 }
 
 const settle = () => vi.advanceTimersByTimeAsync(0);
+function fakeTab(): FakeTab {
+  const made: FakeTab = {
+    opener: "this page",
+    closed: false,
+    close: vi.fn(() => {
+      made.closed = true;
+      calls.push("close");
+    }),
+    location: { replace: vi.fn((url: string) => calls.push(`navigate ${url}`)) },
+  };
+  return made;
+}
 
 beforeEach(() => {
   vi.useFakeTimers();
   calls.length = 0;
-  tab = { opener: "this page" };
-  copyTextNow.mockReset().mockImplementation(() => {
-    calls.push("copy");
-    return Promise.resolve(true);
+  approval = null;
+  tab = fakeTab();
+  copyTextWhen.mockReset().mockImplementation((_text: string, approved: Promise<boolean>) => {
+    calls.push("copy asked");
+    approval = approved;
+    return approved;
   });
   open.mockReset().mockImplementation(() => {
-    calls.push("open");
+    calls.push("open blank");
     return tab;
   });
   vi.stubGlobal("window", { open });
@@ -59,12 +78,14 @@ afterEach(() => {
 });
 
 describe("the click", () => {
-  it("copies, opens the discussion and records, in that order and before any answer", () => {
+  it("asks for the copy, opens a blank tab and asks the server, before anything reaches the platform", () => {
     const { done, refused } = click({ record: () => new Promise(() => {}) });
-    expect(calls).toEqual(["copy", "open", "record"]);
-    expect(open.mock.calls).toEqual([[THREAD, "_blank"]]);
-    // The opened page cannot reach back into RepGet.
+    expect(calls).toEqual(["copy asked", "open blank", "record"]);
+    expect(open.mock.calls).toEqual([["", "_blank"]]);
+    expect(copyTextWhen).toHaveBeenCalledWith("My reply", expect.any(Promise));
+    // The tab cannot reach back into RepGet, and is not on the platform yet.
     expect(tab?.opener).toBeNull();
+    expect(tab?.location.replace).not.toHaveBeenCalled();
     expect(done).not.toHaveBeenCalled();
     expect(refused).not.toHaveBeenCalled();
   });
@@ -81,14 +102,16 @@ describe("the click", () => {
     // A stored address that is not a discussion on the platform is never opened.
     ["reddit", { threadUrl: "javascript:alert(1)", title: null }, "https://www.reddit.com/submit?type=TEXT&title=&text=My%20reply"],
     ["reddit", { threadUrl: "http://evil.example/r/a/comments/abc123/", title: null }, "https://www.reddit.com/submit?type=TEXT&title=&text=My%20reply"],
-  ])("opens %s's own page: %j", (platform, over, url) => {
+  ])("sends the tab to %s's own page once the server agrees: %j", async (platform, over, url) => {
     click({ row: { platform, ...over } });
-    expect(open.mock.calls).toEqual([[url, "_blank"]]);
+    await settle();
+    expect(tab?.location.replace.mock.calls).toEqual([[url]]);
   });
 
-  it("opens the edited text, trimmed as the server trims it", () => {
+  it("sends the edited text, trimmed as the server trims it", async () => {
     click({ row: { platform: "x", threadUrl: null }, edit: { body: "  Edited text \n" } });
-    expect(open).toHaveBeenCalledWith("https://x.com/intent/post?text=Edited%20text", "_blank");
+    await settle();
+    expect(tab?.location.replace).toHaveBeenCalledWith("https://x.com/intent/post?text=Edited%20text");
   });
 
   it.each([
@@ -99,16 +122,18 @@ describe("the click", () => {
     const { refused, record } = click({ edit, row: { platform, threadUrl: null } });
     expect(refused).toHaveBeenCalledWith({ ok: false, error });
     expect(open).not.toHaveBeenCalled();
-    expect(copyTextNow).not.toHaveBeenCalled();
+    expect(copyTextWhen).not.toHaveBeenCalled();
     expect(record).not.toHaveBeenCalled();
   });
 });
 
 describe("the answer", () => {
-  it("is reported with what really happened", async () => {
+  it("yes: the text is written, the tab goes to the discussion, and it is reported as it happened", async () => {
     const { done } = click();
     await settle();
-    expect(done).toHaveBeenCalledWith({ url: THREAD, opened: true, copied: true, filled: false });
+    expect(await approval).toBe(true);
+    expect(calls).toEqual(["copy asked", "open blank", "record", `navigate ${THREAD}`]);
+    expect(done).toHaveBeenCalledWith({ url: THREAD, opened: true, copied: true, filled: false, late: false });
     expect(open).toHaveBeenCalledTimes(1);
   });
 
@@ -116,36 +141,47 @@ describe("the answer", () => {
     tab = null;
     const { done } = click();
     await settle();
-    expect(done).toHaveBeenCalledWith({ url: THREAD, opened: false, copied: true, filled: false });
+    expect(done).toHaveBeenCalledWith({ url: THREAD, opened: false, copied: true, filled: false, late: false });
   });
 
-  it("refused: the reason, and no second tab", async () => {
-    const refusal = { ok: false as const, error: "not_enough_credits" as const, price: 1, available: 0 };
+  it.each([
+    ["a reply naming the business where it may not", { ok: false as const, error: "mention_not_allowed" as const }],
+    ["a warm-up link", { ok: false as const, error: "warmup_link" as const }],
+    ["no credits", { ok: false as const, error: "not_enough_credits" as const, price: 1, available: 0 }],
+  ])("no (%s): nothing copied, the tab closed and never sent to the platform, and the reason", async (_case, refusal) => {
     const { refused, done } = click({ record: async () => refusal });
     await settle();
     expect(refused.mock.calls).toEqual([[refusal]]);
+    expect(await approval).toBe(false);
+    expect(tab?.close).toHaveBeenCalledTimes(1);
+    expect(tab?.location.replace).not.toHaveBeenCalled();
     expect(done).not.toHaveBeenCalled();
     expect(open).toHaveBeenCalledTimes(1);
   });
 
-  it("failed: reported without a reason", async () => {
+  it("failed: reported without a reason, nothing copied, the tab closed", async () => {
     const { refused } = click({ record: async () => Promise.reject(new Error("offline")) });
     await settle();
     expect(refused.mock.calls).toEqual([[null]]);
+    expect(await approval).toBe(false);
+    expect(tab?.close).toHaveBeenCalledTimes(1);
   });
 
-  it("missing: the button is given back, and a later answer still counts", async () => {
+  it("missing: the button is given back and the blank tab closed; a later yes still counts and offers the link", async () => {
     let answer: (value: { ok: true; data: null }) => void = () => {};
+    const opened = tab!;
     const { slow, done } = click({ record: () => new Promise((resolve) => (answer = resolve)) });
     await vi.advanceTimersByTimeAsync(RECORD_WAIT_MS);
     expect(slow).toHaveBeenCalledTimes(1);
+    expect(opened.close).toHaveBeenCalledTimes(1);
     answer({ ok: true, data: null });
     await settle();
-    expect(done).toHaveBeenCalledTimes(1);
+    expect(opened.location.replace).not.toHaveBeenCalled();
+    expect(done).toHaveBeenCalledWith({ url: THREAD, opened: false, copied: true, filled: false, late: true });
   });
 
   it("never waits for a clipboard that does not answer", async () => {
-    copyTextNow.mockReturnValue(new Promise(() => {}));
+    copyTextWhen.mockReturnValue(new Promise(() => {}));
     const { done, slow, record } = click();
     expect(record).toHaveBeenCalledTimes(1);
     await vi.advanceTimersByTimeAsync(COPY_WAIT_MS);

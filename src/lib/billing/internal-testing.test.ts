@@ -64,6 +64,7 @@ import { listChatThreads } from "@/lib/chat/actions";
 import { runGeoCheck } from "@/lib/geo/actions";
 import { socialAccess } from "@/lib/social/accounts";
 import { connectSocialUsername, findSocialSuggestions, postSocialSuggestion, startSocialConnect } from "@/lib/social/actions";
+import { availablePlatforms } from "@/lib/social/platforms";
 import { publishSuggestion } from "@/lib/social/publish";
 import { suggestForWebsite } from "@/lib/social/suggest";
 import { checkLimit } from "@/lib/usage";
@@ -142,12 +143,17 @@ describe("a listed website with no subscription", () => {
     expect(crawler.crawlSite).toHaveBeenCalledTimes(1);
   });
 
-  it("uses the social tools on all six platforms", async () => {
+  it.each([
+    ["without bundle.social: every platform but LinkedIn", "", false],
+    ["with bundle.social: LinkedIn too", "test-key", true],
+  ] as const)("uses the social tools on every platform Social offers, %s", async (_case, key, bundle) => {
+    vi.stubEnv("BUNDLE_SOCIAL_API_KEY", key);
     const { listed } = await workspace();
     list(listed.id);
     const access = await socialAccess(listed.id);
     expect(access).toMatchObject({ level: "paid", manualOnly: true });
-    expect(access.platforms).toHaveLength(6);
+    expect(access.platforms).toEqual(availablePlatforms(bundle));
+    expect(access.platforms.includes("linkedin")).toBe(bundle);
     expect(await connectSocialUsername(listed.id, "quora", "repget")).toEqual({ ok: true, data: null });
     expect(await findSocialSuggestions(listed.id)).toEqual({ ok: true, data: null });
   });

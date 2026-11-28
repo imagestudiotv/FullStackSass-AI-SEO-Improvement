@@ -25,6 +25,11 @@ import { platformName, type Stage, type SuggestionView } from "./opportunities";
 export type T = Messages["app"]["social"];
 export type Refusal = Extract<SocialResult<unknown>, { ok: false }>;
 
+/** What a post costs, as a sentence: "costs 1 credit", or that it costs none (never "costs Free"). */
+export function priceText(t: Pick<T, "price" | "priceFree" | "free">, priceLabel: string): string {
+  return priceLabel === t.free ? t.priceFree : format(t.price, { price: priceLabel });
+}
+
 export function errorText(t: T, result: Refusal, price: string): string {
   const key: SocialError = result.error;
   if (key === "not_enough_credits") {
@@ -63,10 +68,10 @@ export function useSocialAction(t: T, priceLabel: string) {
 }
 
 /**
- * The one-click post, from a row or from the review drawer: copies the text,
- * opens the discussion or the platform's page for a new post at once
- * (one-click.ts), and records it behind it (its credit is charged once,
- * lib/social/actions.ts postSocialSuggestion).
+ * The one-click post, from a row or from the review drawer: RepGet checks
+ * and records it first (its credit is charged once, lib/social/actions.ts
+ * postSocialSuggestion), then the text is copied and the tab opened in the
+ * click is sent to the discussion or the platform's page (one-click.ts).
  *
  * Waiting for the record is a plain state, not a transition: React holds every
  * transition of the page for an action that has not answered, and one that
@@ -115,13 +120,14 @@ export function useOneClickPost(websiteId: string, t: T, copy: OpportunitiesCopy
           release();
           toast.message(copy.recordSlow);
         },
-        done({ url, opened, copied, filled }) {
+        done({ url, opened, copied, filled, late }) {
+          const openAction = { label: format(copy.openOn, { platform: name }), onClick: () => void openTab(url) };
+          // Confirmed after its blank tab was closed (one-click.ts): the link, and whether the text is copied.
+          if (late && !opened) toast.message(format(copied ? t.copied : t.copyFailed, { platform: name }), { action: openAction });
           // Quora and replies on Reddit and Bluesky only have the clipboard: never say "copied" when it is not.
-          if (!copied && (!opened || !filled)) toast.error(format(t.copyFailed, { platform: name }));
+          else if (!copied && (!opened || !filled)) toast.error(format(t.copyFailed, { platform: name }));
           else if (!opened) {
-            toast.message(format(t.popupBlocked, { platform: name }), {
-              action: { label: format(copy.openOn, { platform: name }), onClick: () => void openTab(url) },
-            });
+            toast.message(format(t.popupBlocked, { platform: name }), { action: openAction });
           } else if (copied) toast.success(format(t.copied, { platform: name }));
           // The drawer this came from, unless another suggestion has been opened in it since.
           if (mounted.current) onDone?.();
@@ -143,6 +149,7 @@ const TILE: Record<SocialPlatform, string> = {
   threads: "bg-neutral-100 text-neutral-900 dark:bg-white/10 dark:text-neutral-100",
   pinterest: "bg-rose-50 text-[#e60023] dark:bg-rose-500/15 dark:text-rose-400",
   bluesky: "bg-sky-50 text-[#1185fe] dark:bg-sky-500/15 dark:text-sky-400",
+  linkedin: "bg-blue-50 text-[#0a66c2] dark:bg-blue-500/15 dark:text-blue-400",
 };
 const TILE_SIZE = { sm: "size-6 rounded-md", md: "size-8 rounded-lg", lg: "size-9 rounded-lg", xl: "size-10 rounded-xl sm:size-11" } as const;
 const ICON_SIZE = { sm: "size-3.5", md: "size-4", lg: "size-[1.15rem]", xl: "size-5 sm:size-6" } as const;

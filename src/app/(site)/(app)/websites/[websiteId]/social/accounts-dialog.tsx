@@ -16,7 +16,7 @@ import { setPinterestBoard, setSocialAutoPost, type SocialResult } from "@/lib/s
 import { PLATFORMS, profileUrl, SOCIAL_PLATFORMS, type SocialPlatform } from "@/lib/social/platforms";
 
 import type { AccountView } from "./opportunities";
-import { PlatformTile, type T } from "./social-shared";
+import { PlatformTile, priceText, type T } from "./social-shared";
 
 type Run = (action: () => Promise<SocialResult<unknown>>, options?: { success?: string }) => void;
 
@@ -66,7 +66,7 @@ export function AccountsDialog({
           ))}
         </ul>
         <DialogFooter className="sm:items-center sm:justify-between">
-          <p className="text-xs text-muted-foreground">{format(t.price, { price: props.priceLabel })}</p>
+          <p className="text-xs text-muted-foreground">{priceText(t, props.priceLabel)}</p>
           <DialogClose asChild>
             <Button>{t.done}</Button>
           </DialogClose>
@@ -129,7 +129,7 @@ function AccountRow({
             {format(t.warmup, { date: formatDate(account.warmupEndsAt, locale, { day: "numeric", month: "long" }) })}
           </p>
         ) : null}
-        {account.connected && spec.ownPosts && !manualOnly ? (
+        {account.connected && spec.ownPosts && account.autoPostable && !manualOnly ? (
           <div className="flex items-start justify-between gap-3">
             <div>
               <p id={`${id}-auto`} className="font-medium">
@@ -147,7 +147,7 @@ function AccountRow({
         ) : (
           <p className="text-xs text-muted-foreground">{t.oneClick}</p>
         )}
-        {account.paused && account.connected && !manualOnly ? (
+        {account.paused && account.connected && account.autoPostable && !manualOnly ? (
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="min-w-0 flex-1 text-xs text-muted-foreground">{words.paused}</p>
             {canEdit ? (

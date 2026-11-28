@@ -14,7 +14,7 @@ import { OPPORTUNITIES_COPY } from "@/lib/i18n/opportunities";
 import { SOCIAL_CONNECTIONS_COPY } from "@/lib/i18n/social-connections";
 import { findSocialSuggestions, postScheduledNow, skipSocialSuggestion } from "@/lib/social/actions";
 import { CONNECTIONS_ANCHOR, type ConnectNotice } from "@/lib/social/connect-return";
-import { PLATFORMS, SOCIAL_PLATFORMS } from "@/lib/social/platforms";
+import { availablePlatforms, PLATFORMS } from "@/lib/social/platforms";
 import { cn } from "@/lib/utils";
 
 import { AccountsDialog } from "./accounts-dialog";
@@ -34,11 +34,12 @@ import {
 } from "./opportunities";
 import { PlatformGroups } from "./platform-groups";
 import { headline, ReviewSheet } from "./review-sheet";
-import { atTime, CopyTextButton, useSocialAction, type T } from "./social-shared";
+import { atTime, CopyTextButton, priceText, useSocialAction, type T } from "./social-shared";
 
 /**
  * The Opportunities page (client, 2026-10-27; redesigned from the client's
- * design, 2026-11-03). The six platforms as cards, each connected or
+ * design, 2026-11-03). Every platform Social offers as a card (platforms.ts
+ * availablePlatforms: LinkedIn only with bundle.social), each connected or
  * disconnected in one click (connections-panel.tsx, client's design
  * 2026-11-11), the connected ones' settings behind the panel's "Account
  * settings"; then every opportunity in one panel, from the first suggestion
@@ -104,7 +105,7 @@ export function SocialPanel(props: {
   const editable = (row: SuggestionView) => canEdit && props.platforms.includes(row.platform);
   const accountFor = (name: string) => props.accounts.find((account) => account.platform === name) ?? null;
   const filtered = query.trim() !== "" || platform !== "all";
-  const groups = groupRows(visible, { keepEmpty: tab === "all" && !filtered });
+  const groups = groupRows(visible, { keepEmpty: tab === "all" && !filtered, platforms: availablePlatforms(props.bundle) });
   const find = () => finder.run(() => findSocialSuggestions(websiteId), { success: t.findQueued });
   const findDisabled = finder.pending || !props.analysed || props.todayCount >= props.perDay || props.freeMonth?.draftsLeft === 0;
   const isConnected = (name: string) => props.platforms.includes(name) && accountFor(name) !== null;
@@ -203,7 +204,7 @@ export function SocialPanel(props: {
             <div className="grid grid-cols-2 gap-2 sm:flex">
               <NativeLikeSelect aria-label={t.platformLabel} value={platform} onChange={(event) => setPlatform(event.target.value)} className="sm:w-40">
                 <option value="all">{t.allPlatforms}</option>
-                {SOCIAL_PLATFORMS.map((name) => (
+                {availablePlatforms(props.bundle).map((name) => (
                   <option key={name} value={name}>
                     {PLATFORMS[name].name}
                   </option>
@@ -328,10 +329,10 @@ export function SocialPanel(props: {
  */
 function usageLine(
   props: { todayCount: number; perDay: number; freeMonth?: { posts: number; postsMax: number; draftsLeft: number } | null; priceLabel: string },
-  t: Pick<T, "todayCount" | "freeMonthPosts" | "price">,
+  t: Pick<T, "todayCount" | "freeMonthPosts" | "price" | "priceFree" | "free">,
 ): string {
   const today = format(t.todayCount, { count: String(props.todayCount), max: String(props.perDay) });
-  const price = format(t.price, { price: props.priceLabel });
+  const price = priceText(t, props.priceLabel);
   if (!props.freeMonth) return `${today} · ${price}`;
   const month = format(t.freeMonthPosts, { count: String(Math.min(props.freeMonth.posts, props.freeMonth.postsMax)), max: String(props.freeMonth.postsMax) });
   return props.freeMonth.draftsLeft > 0 ? `${month} · ${today} · ${price}` : `${month} · ${price}`;
