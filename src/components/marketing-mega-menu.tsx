@@ -43,11 +43,10 @@ export const c = (names: string) =>
 /**
  * The six tools, in the copy's order, and where each one's heading leads.
  *
- * Only pages that exist. Three tools have a page of their own (/audit,
- * /backlinks, /rank-on-chatgpt). The other three do not yet, so they point at
- * the nearest real page rather than an address made up to fill the menu:
- *  - Content: the Image Studio case study, which walks through exactly that
- *    plan-write-publish loop on a real site;
+ * Only pages that exist. Four tools have a page of their own (/ai-blog-writer
+ * for Content since 2026-11-27, /audit, /backlinks, /rank-on-chatgpt). The
+ * other two do not yet, so they point at the nearest real page rather than an
+ * address made up to fill the menu:
  *  - Social: the homepage's feature selector, the only public page that
  *    shows the social side;
  *  - Growth: success stories, which shows what the product measures.
@@ -55,7 +54,7 @@ export const c = (names: string) =>
  * tool never breaks the header.
  */
 export const FEATURE_TOOLS: { key: Exclude<FeatureIconName, "arrow">; href: string }[] = [
-  { key: "content", href: "/success-stories/image-studio" },
+  { key: "content", href: "/ai-blog-writer" },
   { key: "social", href: "/#features" },
   { key: "seo", href: "/audit" },
   { key: "backlinks", href: "/backlinks" },

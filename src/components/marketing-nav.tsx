@@ -437,7 +437,8 @@ export function MarketingFooterLinks({ chrome }: { chrome: SiteChrome }) {
         { href: href("/audit"), label: t.footer.freeCheck },
         { href: href("/tools"), label: t.footer.freeTools },
         { href: href("/pricing"), label: t.footer.pricing },
-        // English-only pages for now: href() leaves them on their own path.
+        // The product pages, each in the visitor's language.
+        { href: href("/ai-blog-writer"), label: t.footer.aiBlogWriter },
         { href: href("/backlinks"), label: t.footer.backlinks },
         { href: href("/rank-on-chatgpt"), label: t.footer.rankOnChatgpt },
         /*

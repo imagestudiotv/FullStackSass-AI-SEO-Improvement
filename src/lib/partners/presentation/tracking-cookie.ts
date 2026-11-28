@@ -65,6 +65,7 @@ const LANDING_PATHS = [
   "/audit",
   "/sign-up",
   "/about",
+  "/ai-blog-writer",
   "/backlinks",
   "/rank-on-chatgpt",
   "/success-stories",

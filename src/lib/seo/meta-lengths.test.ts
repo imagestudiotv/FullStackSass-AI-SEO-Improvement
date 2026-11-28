@@ -15,6 +15,7 @@ import { socialPostGeneratorCopy } from "@/lib/i18n/social-post-generator";
 import { WEBSITE_CREATION_COPY } from "@/lib/marketing/website-creation/copy";
 import { BLOG_CHROME } from "@/lib/blog/locale";
 import { pageSuffix } from "@/lib/blog/pagination";
+import { AI_BLOG_WRITER_PATH, aiBlogWriterCopy } from "@/lib/i18n/ai-blog-writer";
 import { LOCALES, type Locale } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
 import { CASE_STUDY_COPY, CASE_STUDY_PATH } from "@/lib/marketing/case-study-image-studio";
@@ -79,6 +80,7 @@ function pagesIn(locale: Locale): Meta[] {
     const { page } = featurePageContent(path, locale);
     add(path, page.metaTitle, page.metaDescription);
   }
+  add(AI_BLOG_WRITER_PATH, aiBlogWriterCopy(locale).metaTitle, aiBlogWriterCopy(locale).metaDescription);
   add("/audit", AUDIT_COPY[locale].metaTitle, AUDIT_COPY[locale].metaDescription);
   add("/website-creation", WEBSITE_CREATION_COPY[locale].metaTitle, WEBSITE_CREATION_COPY[locale].metaDescription);
   add(CASE_STUDY_PATH, CASE_STUDY_COPY[locale].metaTitle, CASE_STUDY_COPY[locale].metaDescription);
