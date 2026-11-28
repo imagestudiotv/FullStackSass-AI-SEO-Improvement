@@ -3383,7 +3383,7 @@ const en: Messages = {
     ],
   },
   footer: {
-    tagline: "SEO results for small businesses, without the agency.",
+    tagline: "SEO and AI visibility on autopilot, for businesses and publishers.",
     product: "Product",
     company: "Company",
     legal: "Legal",
@@ -6554,7 +6554,7 @@ const es: Messages = {
     ],
   },
   footer: {
-    tagline: "Resultados SEO para pequeñas empresas, sin agencia.",
+    tagline: "SEO y visibilidad en IA en piloto automático, para empresas y editores.",
     product: "Producto",
     company: "Empresa",
     legal: "Legal",
@@ -9743,7 +9743,7 @@ const fr: Messages = {
     ],
   },
   footer: {
-    tagline: "Des résultats SEO pour les petites entreprises, sans agence.",
+    tagline: "SEO et visibilité dans l’IA en pilote automatique, pour les entreprises et les éditeurs.",
     product: "Produit",
     company: "Entreprise",
     legal: "Mentions légales",
@@ -12931,7 +12931,7 @@ const it: Messages = {
     ],
   },
   footer: {
-    tagline: "Risultati SEO per le piccole imprese, senza agenzia.",
+    tagline: "SEO e visibilità nell’IA con il pilota automatico, per aziende ed editori.",
     product: "Prodotto",
     company: "Azienda",
     legal: "Note legali",
@@ -16120,7 +16120,7 @@ const de: Messages = {
     ],
   },
   footer: {
-    tagline: "SEO-Ergebnisse für kleine Unternehmen, ohne Agentur.",
+    tagline: "SEO und KI-Sichtbarkeit auf Autopilot, für Unternehmen und Publisher.",
     product: "Produkt",
     company: "Unternehmen",
     legal: "Rechtliches",
