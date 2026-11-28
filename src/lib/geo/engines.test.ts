@@ -1,5 +1,20 @@
 import { describe, expect, it, vi } from "vitest";
 
+/*
+  Which assistants the AI visibility check asks depends on the deployment's
+  keys (lib/geo/engines.ts; with ChatGPT and Gemini, once their keys are set).
+  Pinned to Claude alone, before anything is imported, so these words are the
+  same on every machine and after the engine list is built from the keys.
+*/
+const ONLY_CLAUDE = vi.hoisted(() => {
+  const env = { ANTHROPIC_API_KEY: "test-key-not-real", OPENAI_API_KEY: "", GOOGLE_AI_API_KEY: "", GEO_ENGINES: "" };
+  for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value);
+  return env;
+});
+const pinEngines = () => {
+  for (const [key, value] of Object.entries(ONLY_CLAUDE)) vi.stubEnv(key, value);
+};
+
 vi.mock("@/lib/ai/client", () => ({ anthropic: {}, isAiConfigured: () => true, MODELS: { GENERATION: "m", EXTRACTION: "m" } }));
 
 import { ENGINE } from "@/lib/geo/check";
@@ -16,6 +31,7 @@ describe("the assistants the AI visibility check asks", () => {
   });
 
   it("are named in plain words, with the well-known ones it does not ask", () => {
+    pinEngines();
     expect(checkedEngineNames()).toBe("Claude");
     expect(uncheckedEngineNames()).toBe("ChatGPT, Gemini and Perplexity");
     expect(engineNames(["claude", "chatgpt"])).toBe("Claude and ChatGPT");

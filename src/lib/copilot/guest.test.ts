@@ -6,6 +6,21 @@ import { createTestDb, type TestDb } from "@/test/db";
 
 /** The guest Growth Copilot (client, 2026-11-11): three free answers a day, without an account. */
 
+/*
+  Which assistants the AI visibility check asks depends on the deployment's
+  keys (lib/geo/engines.ts; with ChatGPT and Gemini, once their keys are set).
+  Pinned to Claude alone, before anything is imported, so these words are the
+  same on every machine and after the engine list is built from the keys.
+*/
+const ONLY_CLAUDE = vi.hoisted(() => {
+  const env = { ANTHROPIC_API_KEY: "test-key-not-real", OPENAI_API_KEY: "", GOOGLE_AI_API_KEY: "", GEO_ENGINES: "" };
+  for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value);
+  return env;
+});
+const pinEngines = () => {
+  for (const [key, value] of Object.entries(ONLY_CLAUDE)) vi.stubEnv(key, value);
+};
+
 const state = vi.hoisted(() => ({ db: null as unknown }));
 vi.mock("@/lib/db", () => ({
   db: new Proxy({}, { get: (_t, p) => Reflect.get(state.db as object, p) }),
@@ -125,6 +140,7 @@ describe("the conversation the model is given", () => {
   });
 
   it("names only the assistants RepGet's AI visibility check really asks (owner review, 2026-11-27)", () => {
+    pinEngines();
     const prompt = systemPrompt("en", null);
     expect(prompt).toContain("RepGet's weekly check asks Claude; ChatGPT, Gemini and Perplexity are not checked");
     expect(prompt).not.toContain("(ChatGPT, Gemini, Perplexity)");

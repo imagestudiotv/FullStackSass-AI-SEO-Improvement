@@ -12,6 +12,21 @@ import { seedWebsite } from "@/test/fixtures";
  * once, each person's chats their own, and old chats deleted.
  */
 
+/*
+  Which assistants the AI visibility check asks depends on the deployment's
+  keys (lib/geo/engines.ts; with ChatGPT and Gemini, once their keys are set).
+  Pinned to Claude alone, before anything is imported, so these words are the
+  same on every machine and after the engine list is built from the keys.
+*/
+const ONLY_CLAUDE = vi.hoisted(() => {
+  const env = { ANTHROPIC_API_KEY: "test-key-not-real", OPENAI_API_KEY: "", GOOGLE_AI_API_KEY: "", GEO_ENGINES: "" };
+  for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value);
+  return env;
+});
+const pinEngines = () => {
+  for (const [key, value] of Object.entries(ONLY_CLAUDE)) vi.stubEnv(key, value);
+};
+
 const state = vi.hoisted(() => ({ db: null as unknown, access: "owner", userId: "user_1" }));
 vi.mock("@/lib/db", () => ({
   db: new Proxy({}, { get: (_t, p) => Reflect.get(state.db as object, p) }),
@@ -41,6 +56,7 @@ vi.mock("@/lib/ai/client", () => ({
 
 import { parseBlocks, isInternalHref } from "@/components/chat/chat-markdown";
 import { recordCredit } from "@/lib/backlinks/credits";
+import { aiVisibilityWords } from "@/lib/geo/engines";
 import { cancelChatAction, confirmChatAction, deleteChatThread, listChatThreads, loadChatThread, sendChatMessage } from "./actions";
 import { CHAT_FREE_PER_DAY } from "./config";
 import { keepOwnLinks, modelHistory, runAssistant, systemPrompt } from "./engine";
@@ -171,13 +187,16 @@ describe("answers", () => {
   });
 
   it("names only the assistants RepGet's AI visibility check really asks (owner review, 2026-11-27)", () => {
+    pinEngines();
     const ctx: ChatContext = { websiteId: "w", ownerOrgId: "o", userId: "user_1", access: "owner", domain: "x.example", brandName: null, locale: "en", level: "paid" };
     const prompt = systemPrompt(ctx);
     expect(prompt).toContain("AI visibility (RepGet's weekly check asks Claude; ChatGPT, Gemini and Perplexity are not checked");
     expect(prompt).not.toContain("(ChatGPT, Gemini, Perplexity)");
     const tool = readTool("get_ai_visibility");
-    expect(tool?.description).toContain("how often Claude mentions the brand");
-    expect(tool?.description).not.toMatch(/ChatGPT|Gemini|Perplexity/);
+    // In the check's own words, so it stays true when more assistants are asked (eval 2026-11-28).
+    expect(tool?.description).toContain(`(${aiVisibilityWords()})`);
+    expect(tool?.description).not.toContain("the only assistant");
+    expect(tool?.description).not.toMatch(/how often (ChatGPT|Gemini|Perplexity)/);
   });
 });
 

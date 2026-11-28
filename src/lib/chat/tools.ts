@@ -16,7 +16,7 @@ import { DEFAULT_LOCALE, isLocale } from "@/lib/i18n/config";
 import { db } from "@/lib/db";
 import { socialSuggestions, videoIdeas } from "@/lib/db/schema";
 import { getGeoOverview } from "@/lib/geo/actions";
-import { checkedEngineNames } from "@/lib/geo/engines";
+import { aiVisibilityWords } from "@/lib/geo/engines";
 import { listCalendar } from "@/lib/keywords/actions";
 import { ideaAllowance } from "@/lib/video/batches";
 import { customerStatus } from "@/lib/video/customer-view";
@@ -177,8 +177,13 @@ export const READ_TOOLS: ReadTool[] = [
   },
   {
     name: "get_ai_visibility",
-    // The assistants named are the ones the check really asks (lib/geo/engines.ts), not a fixed list.
-    description: `AI visibility: how often ${checkedEngineNames()} mentions the brand for the tracked questions (the only assistant RepGet's check asks), its score, the competitors named instead, and each question's latest result.`,
+    /*
+      The assistants are the ones the check really asks (lib/geo/engines.ts),
+      in its own words: true with Claude alone, with ChatGPT and Gemini added
+      once their keys are set, and with none ("not running"). Never "the only
+      assistant", which stops being true the day a second one is asked.
+    */
+    description: `AI visibility: how often the AI assistants RepGet's check asks mention the brand for the tracked questions (${aiVisibilityWords()}), its score, the competitors named instead, and each question's latest result.`,
     input_schema: noInput,
     page: "ai_visibility",
     run: async (ctx) => {
