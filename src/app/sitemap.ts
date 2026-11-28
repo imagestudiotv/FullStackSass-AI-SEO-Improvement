@@ -1,10 +1,10 @@
 import type { MetadataRoute } from "next";
 
 import { blogPath, categoryPath } from "@/lib/blog/locale";
-import { listPosts } from "@/lib/blog/posts";
+import { listSitemapPosts } from "@/lib/blog/posts";
 import { discoverPath } from "@/lib/discover/paths";
 import { discoverSitemapProfiles } from "@/lib/discover/profiles";
-import { localePath, PREFIXED_LOCALES, TRANSLATED_PATHS } from "@/lib/i18n/config";
+import { DEFAULT_LOCALE, localePath, PREFIXED_LOCALES, TRANSLATED_PATHS } from "@/lib/i18n/config";
 import { INTEGRATION_DOC_PAGES, PUBLIC_PAGES, TOOL_PAGES } from "@/lib/seo/public-pages";
 import { siteUrl as canonicalSiteUrl } from "@/lib/site-url";
 import { successStoryPath } from "@/lib/success-stories/fields";
@@ -25,12 +25,27 @@ function baseUrl(): string {
   return canonicalSiteUrl();
 }
 
-/** Reads the published blog posts, so it is built per request like the blog. */
-export const dynamic = "force-dynamic";
+/**
+ * Built ahead and refreshed in the background at most hourly (live,
+ * 2026-11-28: 3.4-6.5 s a request when it was rendered for every crawl), as
+ * the homepage is. A post published in Admin -> Blog is listed within the
+ * hour. A refresh whose database read fails keeps the last good sitemap
+ * (lib/blog/posts.ts listSitemapPosts); a build without a database lists no
+ * posts, profiles or stories until the first refresh.
+ */
+export const revalidate = 3600;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = baseUrl();
   const now = new Date();
+
+  /**
+   * Every read, together: the posts of every language in one query of the
+   * columns listed here (it used to be one full read per language, bodies
+   * included, one after the other), the directory's profiles and the
+   * success stories.
+   */
+  const [everyPost, profileRows, storyRows] = await Promise.all([listSitemapPosts(), discoverSitemapProfiles(), listPublishedSuccessStories()]);
 
   /** The public pages, from the list the language-prefix redirect also reads (lib/seo/public-pages.ts). */
   const pages: MetadataRoute.Sitemap = PUBLIC_PAGES.map((page) => ({
@@ -58,7 +73,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.5,
   }));
 
-  const published = await listPosts();
+  const published = everyPost.filter((post) => post.locale === DEFAULT_LOCALE);
 
   const posts: MetadataRoute.Sitemap = published.map((post) => ({
     url: `${base}/blog/${post.slug}`,
@@ -103,7 +118,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   );
 
   /** Posts in other languages (lib/blog/locale.ts); their blog pages are in `translated` above. */
-  const otherLanguages = await Promise.all(PREFIXED_LOCALES.map(async (locale) => ({ locale, posts: await listPosts(locale) })));
+  const otherLanguages = PREFIXED_LOCALES.map((locale) => ({ locale, posts: everyPost.filter((post) => post.locale === locale) }));
   const translatedPosts: MetadataRoute.Sitemap = otherLanguages.flatMap(({ locale, posts: list }) => [
     ...list.map((post) => ({
       url: `${base}${blogPath(locale, post.slug)}`,
@@ -137,7 +152,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
    * each language they are published in - not the pages that only show the
    * English profile, which name it as their canonical.
    */
-  const profiles: MetadataRoute.Sitemap = (await discoverSitemapProfiles()).map((profile) => ({
+  const profiles: MetadataRoute.Sitemap = profileRows.map((profile) => ({
     url: `${base}${discoverPath(profile.locale, profile.slug)}`,
     lastModified: profile.updatedAt,
     priority: 0.5,
@@ -149,7 +164,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
    * language, and the other languages' pages name the English one as their
    * canonical. Drafts have no public page.
    */
-  const stories: MetadataRoute.Sitemap = (await listPublishedSuccessStories()).map((story) => ({
+  const stories: MetadataRoute.Sitemap = storyRows.map((story) => ({
     url: `${base}${successStoryPath("en", story.slug)}`,
     lastModified: story.updatedAt,
     priority: 0.6,

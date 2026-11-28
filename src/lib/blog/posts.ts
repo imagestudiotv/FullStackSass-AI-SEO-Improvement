@@ -1,11 +1,11 @@
 import "server-only";
 
-import { and, desc, eq, or, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, inArray, or, sql, type SQL } from "drizzle-orm";
 
 import { BLOG_PAGE_SIZE } from "@/lib/blog/pagination";
 import { blogLocale, blogPath } from "@/lib/blog/locale";
 import { blogSlug, categoryText, readingMinutes, type BlogCategoryTranslations, type BlogPost } from "@/lib/blog/shared";
-import { db } from "@/lib/db";
+import { db, isDatabaseConfigured } from "@/lib/db";
 import { blogCategories, blogPosts } from "@/lib/db/schema";
 import { DEFAULT_LOCALE, LOCALES, type Locale } from "@/lib/i18n/config";
 
@@ -156,6 +156,53 @@ function toPublished({ post, categorySlug, categoryTranslations }: PublishedRow)
 export async function listPosts(locale: Locale = DEFAULT_LOCALE): Promise<BlogPost[]> {
   const rows = await publishedPosts(eq(blogPosts.locale, locale)).orderBy(desc(blogPosts.publishedAt), desc(blogPosts.id));
   return rows.flatMap(toPublished);
+}
+
+/** A published post as the sitemap lists it: its address and its dates, as listPosts gives them. */
+export type SitemapPost = { locale: Locale; slug: string; categorySlug: string; publishedAt: string; updatedAt?: string };
+
+/**
+ * Every published post in every language, for the sitemap (app/sitemap.ts),
+ * newest first like listPosts: ONE read of the few columns it needs. The
+ * sitemap used to call listPosts once per language, each reading every
+ * post's whole row - its HTML body included - and counting its reading time,
+ * all thrown away (live, 2026-11-28: 3.4-6.5 s a request). The fields are
+ * worked out as toBlogPost works them out, so the addresses and dates are
+ * the same (app/sitemap.test.ts compares the two).
+ *
+ * No database configured (CI, a fresh clone building the prebuilt sitemap):
+ * none, as listPlansForPrebuiltPage does. A database that fails throws, so a
+ * refresh keeps the last good sitemap instead of one without posts.
+ */
+export async function listSitemapPosts(): Promise<SitemapPost[]> {
+  if (!isDatabaseConfigured()) return [];
+  const rows = await db
+    .select({
+      slug: blogPosts.slug,
+      locale: blogPosts.locale,
+      category: blogPosts.category,
+      publishedAt: blogPosts.publishedAt,
+      revisedAt: blogPosts.revisedAt,
+      categorySlug: blogCategories.slug,
+    })
+    .from(blogPosts)
+    .leftJoin(blogCategories, eq(blogCategories.name, blogPosts.category))
+    .where(and(published, inArray(blogPosts.locale, [...LOCALES])))
+    .orderBy(desc(blogPosts.publishedAt), desc(blogPosts.id));
+  return rows.flatMap((row) =>
+    row.publishedAt
+      ? [
+          {
+            locale: blogLocale(row.locale),
+            slug: row.slug,
+            categorySlug: row.categorySlug ?? blogSlug(row.category),
+            publishedAt: day(row.publishedAt),
+            // Only a revision on a later day reads as an update (toBlogPost).
+            updatedAt: row.revisedAt && day(row.revisedAt) > day(row.publishedAt) ? day(row.revisedAt) : undefined,
+          },
+        ]
+      : [],
+  );
 }
 
 /** One published post by slug, in a language (English unless asked), or null. */

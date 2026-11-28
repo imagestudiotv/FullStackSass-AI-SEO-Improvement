@@ -81,6 +81,8 @@ const inLanguage = (locale = "en") => (POSTS as MockPost[]).filter((post) => (po
 // Blog pages read the database; these stand in for published posts.
 vi.mock("@/lib/blog/posts", () => ({
   listPosts: async (locale = "en") => inLanguage(locale),
+  listSitemapPosts: async () =>
+    (POSTS as MockPost[]).map((post) => ({ locale: post.locale ?? "en", slug: post.slug, categorySlug: post.categorySlug, publishedAt: post.publishedAt, updatedAt: post.updatedAt })),
   publishedLocales: async () => ["it"],
   postVersions: async () => [],
   listPostPage: async (_page: number, filter: { locale?: string; category?: string } = {}) => {
