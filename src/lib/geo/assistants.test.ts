@@ -8,7 +8,7 @@ vi.mock("@/lib/ai/client", () => ({
   MODELS: { GENERATION: "claude-sonnet-5", EXTRACTION: "claude-haiku-4-5" },
 }));
 
-import { answerCostUsd, answerPrice, askEngine, refusesSearch } from "@/lib/geo/assistants";
+import { answerCostUsd, answerPrice, askEngine, geminiLocation, refusesSearch } from "@/lib/geo/assistants";
 
 const UA = { language: "Ukrainian", region: "Ukraine", countryCode: "UA" };
 const env = { OPENAI_API_KEY: "sk-test", GOOGLE_AI_API_KEY: "g-test" };
@@ -101,10 +101,22 @@ describe("asking the assistants", () => {
     const [url, init] = http.mock.calls[0];
     expect(url).toBe("https://generativelanguage.googleapis.com/v1beta/models/gemini-x:generateContent");
     expect(init.headers["x-goog-api-key"]).toBe("g-test");
-    expect(JSON.parse(init.body).tools).toEqual([{ google_search: {} }]);
+    const body = JSON.parse(init.body);
+    expect(body.tools).toEqual([{ google_search: {} }]);
+    // The asker's country, as a location only: Gemini's grounding takes no location setting.
+    expect(body.systemInstruction).toEqual({ parts: [{ text: "The user's approximate location: Ukraine (UA)." }] });
+    expect(JSON.stringify(body.systemInstruction)).not.toMatch(/Podarunky|brand/i);
     expect(answer).toMatchObject({ engine: "gemini", model: "gemini-3.7-flash", webSearch: true, text: "Podarunky.", searches: 2, usage: { inputTokens: 20, outputTokens: 150 } });
     // Gemini 3 and newer bill every search query: two here, at Flash rates.
     expect(answerCostUsd(answer)).toBeCloseTo(2 * 0.014 + (20 * 0.75 + 150 * 3.75) / 1_000_000, 6);
+  });
+
+  it("sends Gemini no location when the market is not known", async () => {
+    expect(geminiLocation({ language: "English", region: null, countryCode: null })).toBeNull();
+    expect(geminiLocation({ language: "German", region: "Germany", countryCode: null })).toBe("The user's approximate location: Germany.");
+    const http = vi.fn().mockResolvedValue(json({ candidates: [{ content: { parts: [{ text: "An answer." }] } }] }));
+    await askEngine("gemini", "q", { language: "English", region: null, countryCode: null }, { env, fetch: http as unknown as typeof fetch });
+    expect(JSON.parse(http.mock.calls[0][1].body).systemInstruction).toBeUndefined();
   });
 
   it("asks Gemini again without grounding when it is refused", async () => {

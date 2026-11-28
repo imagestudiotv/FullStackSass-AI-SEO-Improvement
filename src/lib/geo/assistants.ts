@@ -20,8 +20,10 @@ import type { Market } from "@/lib/geo/market";
  *    asker's country (plain fetch: the OpenAI key is already used for images
  *    and no SDK is installed for it);
  *  - Gemini: Google's Generative Language API with Google Search grounding
- *    (GOOGLE_AI_API_KEY). Gemini takes no location, so its market comes from
- *    the question's own language and wording.
+ *    (GOOGLE_AI_API_KEY). Its search grounding takes no location setting
+ *    (Google's grounding docs, checked 2026-11-28), so the asker's country
+ *    goes in a one-line system instruction, as the Gemini app knows where its
+ *    user is: a location, never the brand.
  *
  * A provider that refuses the search tool (an account without web search
  * enabled, a model without it) is asked once more without it, and the
@@ -211,13 +213,22 @@ type GeminiResponse = {
   usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number; toolUsePromptTokenCount?: number };
 };
 
-async function askGemini(prompt: string, env: Env, http: typeof fetch): Promise<AssistantAnswer> {
+/** Where the asker is, for Gemini: "The user's approximate location: Ukraine (UA)." Null when not known. */
+export function geminiLocation(market: Market): string | null {
+  if (!market.region && !market.countryCode) return null;
+  const where = market.region && market.countryCode ? `${market.region} (${market.countryCode})` : (market.region ?? market.countryCode);
+  return `The user's approximate location: ${where}.`;
+}
+
+async function askGemini(prompt: string, market: Market, env: Env, http: typeof fetch): Promise<AssistantAnswer> {
   const model = engineModel("gemini", env);
+  const location = geminiLocation(market);
   const ask = (withSearch: boolean) =>
     http(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
       method: "POST",
       headers: { "x-goog-api-key": env.GOOGLE_AI_API_KEY ?? "", "Content-Type": "application/json" },
       body: JSON.stringify({
+        ...(location ? { systemInstruction: { parts: [{ text: location }] } } : {}),
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         ...(withSearch ? { tools: [{ google_search: {} }] } : {}),
       }),
@@ -260,7 +271,7 @@ export async function askEngine(engine: CheckedEngineId, prompt: string, market:
   const http = options.fetch ?? fetch;
   if (engine === "claude") return askClaude(prompt, market, env);
   if (engine === "chatgpt") return askChatGpt(prompt, market, env, http);
-  return askGemini(prompt, env, http);
+  return askGemini(prompt, market, env, http);
 }
 
 /* ------------------------------------------------------------------------ */
