@@ -1,5 +1,6 @@
 import { anthropic, isAiConfigured, MODELS } from "@/lib/ai/client";
 import { dataBlock, dataRule } from "@/lib/ai/untrusted";
+import { variantOf } from "./variants";
 
 /**
  * Turns a website profile into seed keywords.
@@ -53,18 +54,33 @@ const SCHEMA = {
   additionalProperties: false,
 } as const;
 
-const SYSTEM = `You produce seed keywords for SEO research from a business profile.
+/*
+  No "weighted toward people ready to buy" any more (review of 2026-11-27): on
+  a content site that steered every seed - and every label - to
+  "transactional", and the plan away from what its readers search for. The
+  mix now follows the site, and each label says what the searcher wants.
+*/
+const SYSTEM = `You produce seed keywords for SEO research from a website profile.
 
 Rules:
-- Write phrases real customers type, not marketing language or internal jargon.
+- Write phrases real people type, not marketing language or internal jargon.
 - Include the location when the business serves a local market ("dentist dublin").
-- Cover the full funnel, weighted toward people ready to buy:
-  * transactional: ready to act ("book dentist dublin", "buy X online")
+- Fit the mix to the site:
+  * a business that sells products or services: the whole funnel, from the
+    questions its customers research to the searches of people ready to buy;
+  * a blog, magazine, news or content site that lives from its readers: mostly
+    the questions, ideas and things to read or use that its readers search
+    for, with commercial terms only where the site reviews or compares.
+- Label each phrase with what the PERSON SEARCHING wants, never with what would
+  suit the site:
+  * transactional: about to act ("book dentist dublin", "buy X online")
   * commercial: comparing before buying ("best X", "X cost", "X vs Y")
-  * informational: researching a problem ("why does X hurt")
+  * informational: wants to know or to get something to read or use ("why
+    does X hurt", "birthday wishes for a colleague", "X ideas", "how to X")
   * navigational: a specific brand by name
 - Do NOT include the business's own brand name; it already ranks for that.
-- No duplicates, and no near-duplicates that differ only by word order.
+- No duplicates, and no near-duplicates that differ only by word order, a word's
+  ending or its spelling: one form of each search, the one people type most.
 - Return 25-40 keywords in the site's own language.
 - ${dataRule("business_profile")}`;
 
@@ -153,6 +169,8 @@ export async function generateSeedKeywords(
 
     const normalized = term.trim().toLowerCase().replace(/\s+/g, " ");
     if (!normalized || normalized.length > 120 || seen.has(normalized)) continue;
+    // Another ending or spelling of a seed already kept (lib/keywords/variants.ts).
+    if (variantOf(normalized, [...seen])) continue;
     seen.add(normalized);
 
     result.push({

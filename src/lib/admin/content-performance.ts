@@ -17,6 +17,9 @@ export const CONTENT_TASKS = {
   evidence_correction: "Evidence correction",
   image_scene: "Cover image description",
   body_scenes: "Article image descriptions",
+  format_classify: "Article format from search results",
+  format_check: "Article format check",
+  format_correction: "Article format correction",
 } satisfies Record<ArticleTask, string>;
 
 export type ContentTaskUsage = {

@@ -6,6 +6,11 @@ import { seedCalendarItem, seedWebsite } from "@/test/fixtures";
 import type { ResearchBrief } from "@/lib/articles/research-types";
 
 const state = vi.hoisted(() => ({ db: null as unknown }));
+// The format is read by a model call (lib/articles/format.ts): none here, a plain guide.
+vi.mock("@/lib/articles/format", async (original) => ({
+  ...(await original<object>()),
+  classifyArticleFormat: async () => ({ format: "guide", minItems: null, basis: "keyword", results: 0 }),
+}));
 vi.mock("@/lib/db", () => ({ db: new Proxy({}, { get: (_t, p) => Reflect.get(state.db as object, p) }) }));
 const queue = vi.hoisted(() => ({ send: vi.fn(), createFunction: vi.fn((config: unknown, handler: unknown) => ({ config, handler })) }));
 vi.mock("@/inngest/client", () => ({ inngest: queue }));

@@ -10,6 +10,9 @@ import type { Locale } from "@/lib/i18n/config";
 import { ARTICLE_DELIVERY, articleTitleText } from "@/lib/i18n/article-delivery";
 import { CONTENT_COPY } from "@/lib/i18n/content-improvements";
 import type { Messages } from "@/lib/i18n/messages";
+// The provider's 0 is "not measured", shown as a dash (lib/keywords/score.ts).
+import { knownDifficulty } from "@/lib/keywords/score";
+import { intentLabel } from "@/lib/keywords/labels";
 import { cn } from "@/lib/utils";
 
 type Text = Messages["app"]["reports"];
@@ -205,7 +208,7 @@ export function TodaysArticleCard({ overview, t, locale }: { overview: Dashboard
         </div>
         <div>
           <dt className="text-xs text-muted-foreground">{t.difficulty}</dt>
-          <dd className="mt-1 font-semibold tabular-nums">{article.difficulty !== null ? `${article.difficulty}/100` : "-"}</dd>
+          <dd className="mt-1 font-semibold tabular-nums">{knownDifficulty(article.difficulty) !== null ? `${knownDifficulty(article.difficulty)}/100` : "-"}</dd>
         </div>
         <div>
           <dt className="text-xs text-muted-foreground">{t.articleType}</dt>
@@ -222,21 +225,6 @@ export function TodaysArticleCard({ overview, t, locale }: { overview: Dashboard
       ) : null}
     </section>
   );
-}
-
-function intentLabel(intent: string, t: Text): string {
-  switch (intent) {
-    case "commercial":
-      return t.intentCommercial;
-    case "transactional":
-      return t.intentTransactional;
-    case "informational":
-      return t.intentInformational;
-    case "navigational":
-      return t.intentNavigational;
-    default:
-      return intent;
-  }
 }
 
 /* ------------------------------------------------------------------------ */

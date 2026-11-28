@@ -17,8 +17,12 @@ import { planCalendar } from "@/lib/keywords/calendar";
 import { articlesToPlan, keptDates, planSchedule, replaceUnstartedPlan } from "@/lib/keywords/replan";
 import { clusterKeywords } from "@/lib/keywords/cluster";
 import { brandMarks, isBrandSearch } from "@/lib/keywords/brand";
-import { rankKeywords, type SearchIntent } from "@/lib/keywords/score";
+import { knownDifficulty, rankKeywords, type SearchIntent } from "@/lib/keywords/score";
 import { generateSeedKeywords } from "@/lib/keywords/seeds";
+import { applyIntents, classifyKeywordIntents, dropOffTopic, providerIntentsTrustworthy, termsToCheckTopic, termsToClassify } from "@/lib/keywords/intent";
+import { inferSiteType } from "@/lib/keywords/site-type";
+import { foldKeywordVariants, protectedKeywordTerms } from "@/lib/keywords/dedupe";
+import { normalizeTerm } from "@/lib/keywords/variants";
 import {
   isEmptyProfile,
   mergeProfile,
@@ -482,6 +486,95 @@ export const researchKeywords = inngest.createFunction(
       return { configured: true, rows };
     });
 
+    /**
+     * Intent, as the searcher means it, and the kind of site (lib/keywords/
+     * intent.ts): one Haiku call over the keywords whose label is not a
+     * provider's measurement - the seeds, the rows the provider left blank,
+     * and every row when the provider's labels are all the same (2026-11-27:
+     * 257 of 257 "transactional" on a Ukrainian publisher).
+     *
+     * Only when the provider answered: seed-only rows already carry the seed
+     * model's label, and a second opinion on 30 terms is not worth a call.
+     * A failure never fails research - the labels it had are kept, minus
+     * provider labels that were not trusted.
+     *
+     * The same call marks each provider idea on- or off-topic for this site
+     * (Daniel, 2026-11-27: an interior-design site got articles about irons),
+     * and off-topic ideas are dropped here, before scoring and clustering.
+     * Never dropped, and so never asked about: the seeds made from the
+     * profile, the customer's own keywords and the ones an article or a
+     * planned topic targets. Without a key, or when the call fails, nothing is
+     * filtered - as before.
+     */
+    const labelled = await step.run("classify-intent", async () => {
+      const profile = {
+        brandName: profiled.brandName,
+        industry: profiled.industry,
+        country: profiled.country,
+        language: profiled.language,
+        description: profiled.description,
+        targetAudience: profiled.targetAudience,
+        services: Array.isArray(profiled.services) ? (profiled.services as string[]) : [],
+      };
+      const fallback = inferSiteType(profile);
+      const trusted = providerIntentsTrustworthy(metrics.rows);
+      const untrusted = () =>
+        trusted ? metrics.rows : metrics.rows.map((row) => (row.source === "ai_seed" ? row : { ...row, intent: null }));
+      const forIntent = metrics.configured ? termsToClassify(metrics.rows) : [];
+      // The seeds keep their protection when the provider returned the same term (its row replaced the seed's).
+      const protectedTerms = metrics.configured ? await protectedKeywordTerms(websiteId) : new Set<string>();
+      for (const seed of seeds) protectedTerms.add(normalizeTerm(seed.term));
+      const forTopic = metrics.configured ? termsToCheckTopic(metrics.rows, protectedTerms) : [];
+      const sent = [...new Set([...forIntent, ...forTopic])];
+      if (sent.length === 0) {
+        logger.info({ step: "classify-intent", websiteId, siteType: fallback, classified: 0, providerLabelsTrusted: trusted }, "Intent kept as labelled");
+        return { siteType: fallback, rows: untrusted(), classified: 0 };
+      }
+      try {
+        const result = await spend(() => classifyKeywordIntents(profile, sent));
+        const price = PRICING.llm[MODELS.EXTRACTION];
+        await track(organizationId, {
+          kind: "llm",
+          websiteId,
+          provider: "anthropic",
+          model: MODELS.EXTRACTION,
+          quantity: result.usage.inputTokens + result.usage.outputTokens,
+          costUsd: (result.usage.inputTokens / 1000) * price.inputPer1k + (result.usage.outputTokens / 1000) * price.outputPer1k,
+          metadata: { purpose: "keyword_intent", keywords: sent.length, labelled: result.intents.size, offTopic: result.offTopic.size },
+        });
+        // A term sent only for its topic keeps the provider's (trusted) intent.
+        const intentSet = new Set(forIntent);
+        const intents = new Map([...result.intents].filter(([term]) => intentSet.has(term)));
+        const relevant = dropOffTopic(applyIntents(metrics.rows, intents, intentSet), result.offTopic, protectedTerms);
+        const rows = relevant.rows;
+        logger.info(
+          {
+            step: "classify-intent",
+            websiteId,
+            siteType: result.siteType,
+            inferredSiteType: fallback,
+            sent: sent.length,
+            classified: result.intents.size,
+            providerLabelsTrusted: trusted,
+            topicChecked: forTopic.length,
+            offTopicDropped: relevant.dropped.length,
+            offTopicExamples: relevant.dropped.slice(0, 5),
+            intents: Object.fromEntries(
+              ["informational", "commercial", "transactional", "navigational"].map((intent) => [intent, rows.filter((row) => row.intent === intent).length]),
+            ),
+          },
+          "Keyword intent classified",
+        );
+        return { siteType: result.siteType, rows, classified: result.intents.size };
+      } catch (error) {
+        logger.warn(
+          { step: "classify-intent", websiteId, reason: error instanceof Error ? error.message.slice(0, 200) : "unknown", providerLabelsTrusted: trusted },
+          "Intent could not be classified - keeping the labels research had",
+        );
+        return { siteType: fallback, rows: untrusted(), classified: 0 };
+      }
+    });
+
     const stored = await step.run("score-and-store", async () => {
       /*
         A search that names the website - its own name or a namesake's,
@@ -490,9 +583,24 @@ export const researchKeywords = inngest.createFunction(
         the plan below.
       */
       const marks = brandMarks(profiled);
-      const ranked = rankKeywords(
-        metrics.rows.map((row) => (isBrandSearch(row.term, marks) ? { ...row, intent: "navigational" as const } : row)),
+      /*
+        One row per search, not per spelling (lib/keywords/dedupe.ts): an
+        inflection, typo or reordering of a keyword - found now or stored by an
+        earlier run - folds into the most searched form. Before the allowance
+        is counted, so a removed duplicate frees its place.
+      */
+      const folded = await foldKeywordVariants(
+        websiteId,
+        labelled.rows.map((row) => (isBrandSearch(row.term, marks) ? { ...row, intent: "navigational" as const } : row)),
       );
+      if (folded.removed.length + folded.dropped.length > 0) {
+        logger.info(
+          { step: "score-and-store", websiteId, removed: folded.removed.length, dropped: folded.dropped.length, examples: [...folded.removed, ...folded.dropped].slice(0, 5) },
+          "Keyword variants folded into one form",
+        );
+      }
+      // For a publisher, informational searches are the audience, not a penalty (lib/keywords/score.ts).
+      const ranked = rankKeywords(folded.rows, labelled.siteType);
 
       const limit = await checkLimit(websiteId, "keywords");
 
@@ -560,7 +668,8 @@ export const researchKeywords = inngest.createFunction(
               websiteId,
               term: keyword.term,
               volume: keyword.volume,
-              difficulty: keyword.difficulty,
+              // The provider's "nothing measured" 0 is stored as unknown (lib/keywords/score.ts).
+              difficulty: knownDifficulty(keyword.difficulty),
               cpc: keyword.cpc === null ? null : keyword.cpc.toFixed(2),
               intent: keyword.intent,
               priorityScore: keyword.priorityScore,
@@ -597,6 +706,7 @@ export const researchKeywords = inngest.createFunction(
           truncatedByPlan: ranked.length > selected.length,
           planLimit: limit.limit === UNLIMITED ? "unlimited" : limit.limit,
           planUsed: limit.used,
+          siteType: labelled.siteType,
         },
         "Keywords scored and stored",
       );
@@ -816,6 +926,8 @@ export const researchKeywords = inngest.createFunction(
           occupied,
           ...layout,
           existingTitles: [...covered.siteTitles, ...covered.writtenTitles],
+          // Titles keep the dashes this language's grammar needs (lib/articles/dashes.ts).
+          language: profiled.language,
         }),
       );
 
