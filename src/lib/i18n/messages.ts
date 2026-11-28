@@ -1973,6 +1973,9 @@ export type Messages = {
       inviteAccepted: string;
     };
     calendar: {
+      /** A planned topic's metrics on its card: "Difficulty 34 · Volume 900"; an unmeasured difficulty shows as "-". */
+      difficulty: string;
+      volume: string;
       changeTopic: string;
       addInstructions: string;
       removeFromPlan: string;
@@ -5238,6 +5241,8 @@ const en: Messages = {
       inviteAccepted: "You now have access to {domain}",
     },
     calendar: {
+      difficulty: "Difficulty",
+      volume: "Volume",
       changeTopic: "Change topic",
       addInstructions: "Add instructions",
       removeFromPlan: "Remove from plan",
@@ -8426,6 +8431,8 @@ const es: Messages = {
       inviteAccepted: "Ahora tiene acceso a {domain}",
     },
     calendar: {
+      difficulty: "Dificultad",
+      volume: "Volumen",
       changeTopic: "Cambiar tema",
       addInstructions: "Añadir instrucciones",
       removeFromPlan: "Quitar del plan",
@@ -11616,6 +11623,8 @@ const fr: Messages = {
       inviteAccepted: "Vous avez maintenant accès à {domain}",
     },
     calendar: {
+      difficulty: "Difficulté",
+      volume: "Volume",
       changeTopic: "Changer de sujet",
       addInstructions: "Ajouter des consignes",
       removeFromPlan: "Retirer du plan",
@@ -14804,6 +14813,8 @@ const it: Messages = {
       inviteAccepted: "Ora ha accesso a {domain}",
     },
     calendar: {
+      difficulty: "Difficoltà",
+      volume: "Volume",
       changeTopic: "Cambia argomento",
       addInstructions: "Aggiungi istruzioni",
       removeFromPlan: "Togli dal piano",
@@ -17990,6 +18001,8 @@ const de: Messages = {
       inviteAccepted: "Sie haben jetzt Zugriff auf {domain}",
     },
     calendar: {
+      difficulty: "Schwierigkeit",
+      volume: "Suchvolumen",
       changeTopic: "Thema ändern",
       addInstructions: "Anweisungen hinzufügen",
       removeFromPlan: "Aus dem Plan entfernen",
