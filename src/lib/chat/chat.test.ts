@@ -190,7 +190,9 @@ describe("answers", () => {
     pinEngines();
     const ctx: ChatContext = { websiteId: "w", ownerOrgId: "o", userId: "user_1", access: "owner", domain: "x.example", brandName: null, locale: "en", level: "paid" };
     const prompt = systemPrompt(ctx);
-    expect(prompt).toContain("AI visibility (RepGet's weekly check asks Claude; ChatGPT, Gemini and Perplexity are not checked");
+    // In #182's words (lib/geo/engines.ts): Claude alone here, with web search; the rest named as not checked.
+    expect(prompt).toContain(`AI visibility (${aiVisibilityWords()})`);
+    expect(aiVisibilityWords()).toMatch(/^RepGet's weekly check asks Claude with web search; ChatGPT, Gemini, Perplexity and Google AI Overview are not checked/);
     expect(prompt).not.toContain("(ChatGPT, Gemini, Perplexity)");
     const tool = readTool("get_ai_visibility");
     // In the check's own words, so it stays true when more assistants are asked (eval 2026-11-28).

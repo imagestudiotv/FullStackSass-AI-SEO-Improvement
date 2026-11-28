@@ -42,6 +42,7 @@ const page = vi.hoisted(() => ({
 vi.mock("@/lib/websites/crawl", () => page);
 
 import { askGuestCopilot, cleanHistory, GUEST_LIMITS, systemPrompt } from "@/lib/copilot/guest";
+import { aiVisibilityWords } from "@/lib/geo/engines";
 
 let test: TestDb;
 
@@ -142,7 +143,9 @@ describe("the conversation the model is given", () => {
   it("names only the assistants RepGet's AI visibility check really asks (owner review, 2026-11-27)", () => {
     pinEngines();
     const prompt = systemPrompt("en", null);
-    expect(prompt).toContain("RepGet's weekly check asks Claude; ChatGPT, Gemini and Perplexity are not checked");
+    // In #182's words (lib/geo/engines.ts): Claude alone here, with web search; the rest named as not checked.
+    expect(prompt).toContain(aiVisibilityWords());
+    expect(aiVisibilityWords()).toMatch(/^RepGet's weekly check asks Claude with web search; ChatGPT, Gemini, Perplexity and Google AI Overview are not checked/);
     expect(prompt).not.toContain("(ChatGPT, Gemini, Perplexity)");
   });
 });
