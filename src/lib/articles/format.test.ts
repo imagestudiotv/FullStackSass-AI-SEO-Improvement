@@ -14,7 +14,9 @@ import {
   checkArticleFormat,
   classifyArticleFormat,
   correctArticleFormat,
+  formatHoldWarning,
   formatInstruction,
+  formatOutcome,
   formatSearchMarket,
   MIN_EXAMPLES,
   needsFormatCheck,
@@ -98,6 +100,29 @@ describe("parseFormatReview", () => {
     expect(parseFormatReview(JSON.stringify({ delivers: true, items: 24, problems: [] }), examples).delivers).toBe(true);
     expect(parseFormatReview(JSON.stringify({ delivers: false, items: 0, problems: ["No steps"] }), { ...examples, format: "how_to", minItems: null }))
       .toEqual({ delivers: false, items: null, problems: ["No steps"] });
+  });
+});
+
+describe("formatOutcome", () => {
+  const miss = { delivers: false, items: 3, problems: ["Only 3 examples"] };
+  const pass = { delivers: true, items: 22, problems: [] };
+  it("holds nothing when the format was never judged or passed the first check", () => {
+    expect(formatOutcome(null, false, null)).toEqual({ held: false, problems: [] });
+    expect(formatOutcome(pass, false, null)).toEqual({ held: false, problems: [] });
+  });
+  it("releases a correction only when its re-check passed", () => {
+    expect(formatOutcome(miss, true, pass)).toEqual({ held: false, problems: [] });
+    expect(formatOutcome(miss, true, { delivers: false, items: 9, problems: ["Only 9 examples"] }))
+      .toEqual({ held: true, problems: ["Only 9 examples"] });
+  });
+  it("keeps a known miss standing when the correction or its re-check could not run", () => {
+    expect(formatOutcome(miss, false, null)).toEqual({ held: true, problems: ["Only 3 examples"] });
+    expect(formatOutcome(miss, true, null)).toEqual({ held: true, problems: ["Only 3 examples"] });
+    expect(formatOutcome({ delivers: false, items: null, problems: [] }, false, null).problems).toEqual(["The format check did not pass."]);
+  });
+  it("words the hold for the review panel", () => {
+    expect(formatHoldWarning({ ...examples, format: "how_to" }, ["No steps."])).toBe(
+      "The article does not deliver its format (how to) after one automatic correction: No steps. Review before publishing.");
   });
 });
 
