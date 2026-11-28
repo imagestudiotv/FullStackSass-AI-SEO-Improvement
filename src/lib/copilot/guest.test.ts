@@ -126,7 +126,7 @@ describe("the conversation the model is given", () => {
 
   it("names only the assistants RepGet's AI visibility check really asks (owner review, 2026-11-27)", () => {
     const prompt = systemPrompt("en", null);
-    expect(prompt).toContain("RepGet's weekly check asks Claude; ChatGPT, Gemini and Perplexity are not checked");
+    expect(prompt).toContain("RepGet's weekly check asks Claude, each with web search; ChatGPT, Gemini and Perplexity are not checked");
     expect(prompt).not.toContain("(ChatGPT, Gemini, Perplexity)");
   });
 });
