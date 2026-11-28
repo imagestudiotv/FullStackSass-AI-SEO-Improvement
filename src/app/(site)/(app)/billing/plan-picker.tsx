@@ -199,9 +199,12 @@ export function PlanPicker({
         aria-labelledby={headingId}
         className={cn(
           "relative flex min-w-0 scroll-mt-24 flex-col rounded-2xl p-5 xl:p-6",
-          featured
-            ? "border-2 border-primary bg-linear-to-b from-primary/8 to-card to-30% shadow-lg max-lg:order-first lg:-my-2"
-            : "border bg-card",
+          /*
+            Marked, not set apart: the bundle keeps its place in the one grid,
+            the same height as its row and in the same order on a phone (eval
+            2026-11-28: "three visible plans plus a hidden fourth plan").
+          */
+          featured ? "border-2 border-primary bg-linear-to-b from-primary/8 to-card to-30% shadow-lg" : "border bg-card",
           selected && "ring-3 ring-primary/40",
         )}
       >
@@ -331,11 +334,23 @@ export function PlanPicker({
   function planGrid(period: "month" | "year") {
     const list = plansFor(period);
     if (list.length === 0) return <p className="text-sm text-muted-foreground">{tCommon.noPlans}</p>;
+    /*
+      ONE even grid, a column per plan: four plans (a fourth tier, or the
+      bundle beside three tiers) sit two by two and then in one row, never
+      three in a row with the fourth alone underneath (four columns only on the widest screens, where a card keeps its width).
+    */
     return (
       <div
+        data-plan-count={list.length}
         className={cn(
-          "mx-auto grid max-w-xl items-stretch gap-6 pt-4 lg:max-w-none lg:gap-4 xl:gap-5",
-          list.length >= 3 ? "lg:grid-cols-3" : list.length === 2 ? "lg:grid-cols-2" : "",
+          "mx-auto grid max-w-xl items-stretch gap-6 pt-4",
+          list.length >= 4
+            ? "md:max-w-none md:grid-cols-2 md:gap-4 xl:gap-5 2xl:grid-cols-4"
+            : list.length === 3
+              ? "lg:max-w-none lg:grid-cols-3 lg:gap-4 xl:gap-5"
+              : list.length === 2
+                ? "lg:max-w-none lg:grid-cols-2 lg:gap-4 xl:gap-5"
+                : "",
         )}
       >
         {list.map(planCard)}

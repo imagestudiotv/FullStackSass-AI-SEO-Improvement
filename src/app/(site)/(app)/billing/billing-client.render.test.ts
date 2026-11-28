@@ -199,6 +199,28 @@ describe("the Grow + Visibility bundle in Billing", () => {
     }
   });
 
+  // eval 2026-11-28: "three visible plans plus a hidden fourth plan" - one even grid, the bundle marked but in its place.
+  it("is one card of one even grid, whatever the number of plans", () => {
+    const none = null as unknown as CurrentSubscription;
+    const LAUNCH = plan("plan_launch", "Launch", "launch", 9900, 0);
+    const grid = (plans: PlanRow[]) => {
+      const html = render(none, { plans, entitled: false, websiteSubscriptions: [] });
+      const tag = html.match(/<div data-plan-count="([0-9]+)" class="([^"]*)"/);
+      return { html, count: Number(tag?.[1]), classes: tag?.[2] ?? "" };
+    };
+    const three = grid([GROW, SCALE, BUNDLE]);
+    expect(three.count).toBe(3);
+    expect(three.classes).toContain("lg:grid-cols-3");
+    const four = grid([LAUNCH, GROW, SCALE, BUNDLE]);
+    expect(four.count).toBe(4);
+    expect(four.classes).toContain("md:grid-cols-2");
+    expect(four.classes).toContain("2xl:grid-cols-4");
+    expect(four.classes).not.toContain("grid-cols-3");
+    // All four are cards of that grid, and the bundle is neither lifted out of its row nor moved first.
+    expect(four.html.split("<article").length - 1).toBe(4);
+    expect(four.html).not.toMatch(/order-first|-my-2/);
+  });
+
   it("is not a rung of the upgrade ladder", () => {
     const onScale = { ...onPayPal("active"), planId: SCALE.id, planName: SCALE.name, tier: SCALE.tier };
     expect(render(onScale, { plans: [GROW, SCALE, BUNDLE] })).not.toContain(format(t.upgradeLink, { plan: BUNDLE.name }));
