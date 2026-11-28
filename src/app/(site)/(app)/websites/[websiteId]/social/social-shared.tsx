@@ -68,10 +68,10 @@ export function useSocialAction(t: T, priceLabel: string) {
 }
 
 /**
- * The one-click post, from a row or from the review drawer: copies the text,
- * opens the discussion or the platform's page for a new post at once
- * (one-click.ts), and records it behind it (its credit is charged once,
- * lib/social/actions.ts postSocialSuggestion).
+ * The one-click post, from a row or from the review drawer: RepGet checks
+ * and records it first (its credit is charged once, lib/social/actions.ts
+ * postSocialSuggestion), then the text is copied and the tab opened in the
+ * click is sent to the discussion or the platform's page (one-click.ts).
  *
  * Waiting for the record is a plain state, not a transition: React holds every
  * transition of the page for an action that has not answered, and one that
@@ -120,13 +120,14 @@ export function useOneClickPost(websiteId: string, t: T, copy: OpportunitiesCopy
           release();
           toast.message(copy.recordSlow);
         },
-        done({ url, opened, copied, filled }) {
+        done({ url, opened, copied, filled, late }) {
+          const openAction = { label: format(copy.openOn, { platform: name }), onClick: () => void openTab(url) };
+          // Confirmed after its blank tab was closed (one-click.ts): the link, and whether the text is copied.
+          if (late && !opened) toast.message(format(copied ? t.copied : t.copyFailed, { platform: name }), { action: openAction });
           // Quora and replies on Reddit and Bluesky only have the clipboard: never say "copied" when it is not.
-          if (!copied && (!opened || !filled)) toast.error(format(t.copyFailed, { platform: name }));
+          else if (!copied && (!opened || !filled)) toast.error(format(t.copyFailed, { platform: name }));
           else if (!opened) {
-            toast.message(format(t.popupBlocked, { platform: name }), {
-              action: { label: format(copy.openOn, { platform: name }), onClick: () => void openTab(url) },
-            });
+            toast.message(format(t.popupBlocked, { platform: name }), { action: openAction });
           } else if (copied) toast.success(format(t.copied, { platform: name }));
           // The drawer this came from, unless another suggestion has been opened in it since.
           if (mounted.current) onDone?.();

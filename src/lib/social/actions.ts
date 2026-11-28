@@ -281,9 +281,10 @@ ${row.threadSnippet ?? ""}`),
  * suggestion is free; on the Free plan it takes one of the month's posts
  * instead, lib/plans/free-plan-server.ts takeFreePlanPost) and returns where
  * to post it, and whether that page has the text filled in (X, Threads) or the customer pastes it (Quora, and
- * replies on Reddit and Bluesky). The page has already copied the text and
- * opened that same address in the click (post-target.ts): a refusal here
- * charges nothing and moves nothing, and that tab stays open.
+ * replies on Reddit and Bluesky). The page waits for this answer before it
+ * copies the text or sends the tab opened in the click to that same address
+ * (one-click.ts, post-target.ts): a refusal here charges, copies and moves
+ * nothing, and the tab is closed.
  */
 export async function postSocialSuggestion(
   websiteId: string,

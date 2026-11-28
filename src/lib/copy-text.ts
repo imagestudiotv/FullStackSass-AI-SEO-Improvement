@@ -43,3 +43,32 @@ function copyBySelection(text: string): boolean {
   focused?.focus({ preventScroll: true });
   return copied;
 }
+
+/**
+ * Copies text only once `approved` says yes, for a click whose copy must wait
+ * for the server (the Social page's one-click post: nothing reaches the
+ * clipboard before lib/social/actions.ts has checked the text).
+ *
+ * The copy is asked for in the click itself, with the text still to come
+ * (a ClipboardItem holding a promise): the browser checks the focus and the
+ * click when the copy is asked for, before the new tab takes them, and writes
+ * the text when the promise gives it. A refusal gives nothing, and nothing is
+ * written. A browser without it copies by selection once approved, which can
+ * fail once the new tab has the focus: the page then says to use Copy.
+ */
+export function copyTextWhen(text: string, approved: Promise<boolean>): Promise<boolean> {
+  if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
+    const blob = approved.then((ok) => (ok ? new Blob([text], { type: "text/plain" }) : Promise.reject(new Error("not approved"))));
+    // Handled here too: a refusal must not surface as an unhandled rejection.
+    blob.catch(() => {});
+    try {
+      return navigator.clipboard.write([new ClipboardItem({ "text/plain": blob })]).then(
+        () => true,
+        () => false,
+      );
+    } catch {
+      // A ClipboardItem that does not take a promise: the copy below.
+    }
+  }
+  return approved.then((ok) => (ok ? copyTextNow(text) : false));
+}
