@@ -7,7 +7,8 @@ import { recordAdminAction } from "@/lib/admin/audit";
 import { requireAdmin } from "@/lib/admin/guard";
 import { db } from "@/lib/db";
 import { creditSettings } from "@/lib/db/schema";
-import { isFreeToolSlug } from "@/lib/tools/free-tools";
+import { LOCALES, localePath } from "@/lib/i18n/config";
+import { FREE_TOOL_SLUGS, isFreeToolSlug } from "@/lib/tools/free-tools";
 import {
   capSettingKey,
   enabledSettingKey,
@@ -43,11 +44,21 @@ export async function getFreeToolsAdmin(days: FreeToolPeriod): Promise<FreeTools
   return { days, since, rows: rows.map((row) => ({ ...row, setting: settings[row.tool] })) };
 }
 
-/** Rebuilds the cached tool pages, so a switch shows at once. */
+/**
+ * Rebuilds the cached tool pages, so a switch shows at once. The layouts sit
+ * inside route groups ((marketing), (localized)), which a revalidatePath("/tools",
+ * "layout") does not match: a local production build kept serving the cached
+ * tool after it was switched off. Every tool page and hub is named by its
+ * address too, in every language.
+ */
 function refreshToolPages() {
   revalidatePath("/admin/free-tools");
   revalidatePath("/tools", "layout");
   revalidatePath("/[locale]/tools", "layout");
+  for (const locale of LOCALES) {
+    revalidatePath(localePath(locale, "/tools"));
+    for (const tool of FREE_TOOL_SLUGS) revalidatePath(localePath(locale, `/tools/${tool}`));
+  }
 }
 
 async function upsertSetting(key: string, value: number, email: string) {
