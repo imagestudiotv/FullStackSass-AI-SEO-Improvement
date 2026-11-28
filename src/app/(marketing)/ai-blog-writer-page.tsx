@@ -109,7 +109,13 @@ export function faqItems(t: AiBlogWriterCopy, locale: Locale, paid: TeaserPlan[]
 const VALUE_ICONS: LucideIcon[] = [FileText, Sparkles, ListChecks];
 /** Backlinks, AI Visibility, Social, Website Health: the copy's order. */
 const TOOL_ICONS: LucideIcon[] = [Link2, Radar, Share2, HeartPulse];
-const TOOL_PATHS = ["/backlinks", "/rank-on-chatgpt", "/#features", "/audit"];
+/**
+ * Where each leads. Social has no page of its own: its section on /features
+ * (PR #181, product-tools.ts TOOL_ANCHORS.social). /features and
+ * /tools/blog-writer (PR #178) join TRANSLATED_PATHS with their PRs, so
+ * localePath keeps the visitor's language once they are merged.
+ */
+const TOOL_PATHS = ["/backlinks", "/rank-on-chatgpt", "/features#social", "/audit"];
 
 export function AiBlogWriterPageContent({ locale = "en", plans, offer }: { locale?: Locale; plans: PlanRow[]; offer: boolean }) {
   const t = aiBlogWriterCopy(locale);

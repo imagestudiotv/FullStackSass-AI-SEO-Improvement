@@ -71,9 +71,13 @@ describe.each(["en", "it"] as const)("the %s page", (locale) => {
 
   it("starts free at sign-up, and links the free blog writer, pricing and the real pages it names", () => {
     expect(html).toContain(`href="/sign-up"`);
-    for (const path of ["/tools/blog-writer", "/pricing", "/backlinks", "/rank-on-chatgpt", "/audit", "/contact", "/success-stories/image-studio"]) {
+    for (const path of ["/tools/blog-writer", "/pricing", "/backlinks", "/rank-on-chatgpt", "/features#social", "/audit", "/contact", "/success-stories/image-studio"]) {
       expect(html, path).toContain(`href="${href(path)}"`);
     }
+  });
+
+  it("never links the homepage's old feature selector", () => {
+    expect(html).not.toContain("/#features");
   });
 
   it("names the five tools and Growth Copilot, and no AI engine", () => {
