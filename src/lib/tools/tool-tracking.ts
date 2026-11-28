@@ -298,6 +298,11 @@ export type ToolReportRow = {
  * Per tool, from `since`: uses by path, distinct visitors, AI cost, sign-ups
  * and cost per sign-up. Two grouped reads over the ledger's (key,
  * counted_at) index.
+ *
+ * counted_at is a timestamp without time zone holding UTC (the rows are
+ * written with explicit instants). Today's midnight is therefore an instant
+ * (timestamptz) turned into UTC wall-clock time, so the comparison never
+ * depends on the database session's time zone.
  */
 export async function toolReport(since: Date, now: Date = new Date()): Promise<ToolReportRow[]> {
   const today = startOfUtcDay(now);
@@ -309,7 +314,7 @@ export async function toolReport(since: Date, now: Date = new Date()): Promise<T
       uses: sql<number>`count(*) filter (where coalesce(${spendReservations.metadata}->>'failed', 'false') <> 'true')`.mapWith(Number),
       failed: sql<number>`count(*) filter (where ${spendReservations.metadata}->>'failed' = 'true')`.mapWith(Number),
       usd: sql<string | null>`coalesce(sum((${spendReservations.metadata}->'usage'->>'costUsd')::numeric), 0)`,
-      todayUsd: sql<string | null>`coalesce(sum((${spendReservations.metadata}->'usage'->>'costUsd')::numeric) filter (where ${spendReservations.countedAt} >= ${today.toISOString()}::timestamp), 0)`,
+      todayUsd: sql<string | null>`coalesce(sum((${spendReservations.metadata}->'usage'->>'costUsd')::numeric) filter (where ${spendReservations.countedAt} >= (${today.toISOString()}::timestamptz at time zone 'UTC')), 0)`,
     })
     .from(spendReservations)
     .where(and(inArray(spendReservations.key, keys), gte(spendReservations.countedAt, since)))

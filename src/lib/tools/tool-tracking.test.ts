@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { creditSettings, spendReservations } from "@/lib/db/schema";
@@ -76,6 +77,22 @@ describe("the report", () => {
     expect(rows.find((row) => row.tool === "snippet-preview")).toMatchObject({ totalUses: 0, visitors: 0 });
 
     expect((await toolReport(daysAgo(30), NOW)).find((row) => row.tool === "blog-writer")!.totalUses).toBe(5);
+  });
+
+  it.each(["Pacific/Kiritimati", "America/Los_Angeles", "UTC"])("counts today from midnight UTC whatever the database session's time zone (%s)", async (zone) => {
+    await test.db.execute(sql.raw(`set time zone '${zone}'`));
+    try {
+      // Just after and just before midnight UTC: only the first is today's spend.
+      await recordToolUse({ tool: "blog-writer", path: "server", visitor: "v1", usage: haiku(1000, 1000), now: new Date("2026-11-27T00:30:00Z") });
+      await recordToolUse({ tool: "blog-writer", path: "server", visitor: "v2", usage: haiku(1000, 0), now: new Date("2026-11-26T23:30:00Z") });
+      const blog = (await toolReport(daysAgo(7), NOW)).find((row) => row.tool === "blog-writer")!;
+      expect(blog.costUsd).toBeCloseTo(0.007, 6);
+      expect(blog.todayUsd).toBeCloseTo(0.006, 6);
+      // The cap's own reading agrees.
+      expect(await toolSpendUsd("blog-writer", new Date("2026-11-27T00:00:00Z"))).toBeCloseTo(0.006, 6);
+    } finally {
+      await test.db.execute(sql.raw("set time zone 'UTC'"));
+    }
   });
 
   it("stores the visitor's hash and the cost, never an address", async () => {
