@@ -27,10 +27,12 @@ const FONT =
   "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 
 /**
- * The logo at the top of every email: public/images/repget-logo.png
- * (2757 x 690) on the production domain, shown at 140 x 35.
+ * The logo at the top of every email: public/images/repget-logo-email.png,
+ * a 280 x 70 copy of repget-logo.png (2757 x 690, 190 KB) of about 4 KB -
+ * twice the shown size, for sharp high-density screens - made with sharp, on
+ * the production domain, shown at 140 x 35. It loads on every email open.
  */
-export const EMAIL_LOGO = { src: "https://www.repget.com/images/repget-logo.png", width: 140, height: 35 } as const;
+export const EMAIL_LOGO = { src: "https://www.repget.com/images/repget-logo-email.png", width: 140, height: 35 } as const;
 
 /** Escapes text interpolated into an email. Same reasoning as any HTML sink. */
 export function escapeHtml(value: string): string {

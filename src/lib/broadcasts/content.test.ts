@@ -163,7 +163,7 @@ describe("the email", () => {
 
   it("opens with the RepGet logo, not the word, with its alt text and size", () => {
     const { html } = render();
-    expect(html).toContain('<img src="https://www.repget.com/images/repget-logo.png" alt="RepGet" width="140" height="35"');
+    expect(html).toContain('<img src="https://www.repget.com/images/repget-logo-email.png" alt="RepGet" width="140" height="35"');
     expect(html).not.toMatch(/<p[^>]*>RepGet<\/p>/);
   });
 
