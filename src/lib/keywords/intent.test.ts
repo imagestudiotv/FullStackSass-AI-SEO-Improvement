@@ -7,7 +7,7 @@ vi.mock("@/lib/ai/client", () => ({
   MODELS: { EXTRACTION: "claude-haiku-4-5" },
 }));
 
-import { applyIntents, classifyKeywordIntents, INTENT_BATCH, providerIntentsTrustworthy, termsToClassify } from "./intent";
+import { applyIntents, classifyKeywordIntents, dropOffTopic, INTENT_BATCH, providerIntentsTrustworthy, termsToCheckTopic, termsToClassify } from "./intent";
 
 const profile = {
   brandName: "Infomind",
@@ -99,5 +99,65 @@ describe("classifyKeywordIntents", () => {
   it("names a truncated answer instead of mislabelling", async () => {
     ai.create.mockResolvedValueOnce({ ...answer({}), stop_reason: "max_tokens" });
     await expect(classifyKeywordIntents(profile, ["a"])).rejects.toThrow("ran out of room");
+  });
+});
+
+/*
+  Daniel, 2026-11-27: an interior-design site got articles about "iron". The
+  model is mocked; what is tested is how its marks are read and applied.
+*/
+describe("keyword topic", () => {
+  const studio = {
+    brandName: "Studio North",
+    industry: "Interior design",
+    country: "United Kingdom",
+    language: "English",
+    description: "Interior design studio for homes and offices",
+    targetAudience: "Homeowners renovating",
+    services: ["Interior design", "Bespoke metalwork railings"],
+  };
+
+  it("asks for a topic mark on every keyword, with the site's profile", async () => {
+    ai.create.mockResolvedValueOnce(answer({
+      siteType: "business",
+      keywords: [{ n: 1, t: "t", o: false }, { n: 2, t: "c", o: true }, { n: 3, t: "i" }],
+    }));
+    const result = await classifyKeywordIntents(studio, ["steam iron price", "wrought iron railing design", "living room ideas"]);
+    expect([...result.offTopic]).toEqual(["steam iron price"]);
+    // An unmarked keyword is on topic.
+    expect(result.offTopic.has("living room ideas")).toBe(false);
+    const request = ai.create.mock.calls[0][0];
+    expect(request.output_config.format.schema.properties.keywords.items.required).toEqual(["n", "t", "o"]);
+    expect(request.system).toContain('"steam iron price" is about clothes irons');
+    expect(request.messages[0].content).toContain("Offers: Interior design, Bespoke metalwork railings");
+    expect(request.messages[0].content).toContain("Audience: Homeowners renovating");
+  });
+
+  it("asks only about unprotected provider ideas", () => {
+    const rows = [
+      { term: "interior design studio", source: "ai_seed" },
+      { term: "steam iron price", source: "dataforseo_ideas" },
+      { term: "Iron bed frame", source: "dataforseo_ideas" },
+      { term: "studio north reviews", source: "dataforseo_ranked" },
+    ];
+    expect(termsToCheckTopic(rows, new Set(["iron bed frame"]))).toEqual(["steam iron price"]);
+  });
+
+  it("drops off-topic provider ideas and nothing else", () => {
+    const rows = [
+      { term: "steam iron price", source: "dataforseo_ideas" },
+      { term: "wrought iron railing design", source: "dataforseo_ideas" },
+      { term: "iron decor ideas", source: "dataforseo_ideas" },
+      { term: "interior design studio", source: "ai_seed" },
+      { term: "iron bed frame", source: "dataforseo_ideas" },
+      { term: "studio north iron", source: "dataforseo_ranked" },
+    ];
+    const marked = new Set(["steam iron price", "iron decor ideas", "interior design studio", "iron bed frame", "studio north iron"]);
+    // "iron decor ideas" was a seed the provider returned too; "iron bed frame" the customer typed.
+    const { rows: kept, dropped } = dropOffTopic(rows, marked, new Set(["iron decor ideas", "iron bed frame"]));
+    expect(dropped).toEqual(["steam iron price"]);
+    expect(kept.map((row) => row.term)).toEqual([
+      "wrought iron railing design", "iron decor ideas", "interior design studio", "iron bed frame", "studio north iron",
+    ]);
   });
 });

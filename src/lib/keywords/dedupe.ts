@@ -4,6 +4,36 @@ import { db } from "@/lib/db";
 import { articles, calendarItems, keywords } from "@/lib/db/schema";
 import { mergeVariants, normalizeTerm } from "./variants";
 
+/** The keywords an article or a planned topic targets, normalised (lib/keywords/variants.ts). */
+async function targetedTerms(websiteId: string): Promise<Set<string>> {
+  return new Set(
+    [
+      ...(await db
+        .select({ term: calendarItems.targetKeyword })
+        .from(calendarItems)
+        .where(and(eq(calendarItems.websiteId, websiteId), isNotNull(calendarItems.targetKeyword)))),
+      ...(await db
+        .select({ term: articles.targetKeyword })
+        .from(articles)
+        .where(and(eq(articles.websiteId, websiteId), isNotNull(articles.targetKeyword)))),
+    ].map((row) => normalizeTerm(row.term!)),
+  );
+}
+
+/**
+ * The terms a research run must never drop or delete, normalised: the ones
+ * the customer typed, and the ones an article or a planned topic targets.
+ */
+export async function protectedKeywordTerms(websiteId: string): Promise<Set<string>> {
+  const manual = await db
+    .select({ term: keywords.term })
+    .from(keywords)
+    .where(and(eq(keywords.websiteId, websiteId), eq(keywords.source, "manual")));
+  const terms = await targetedTerms(websiteId);
+  for (const row of manual) terms.add(normalizeTerm(row.term));
+  return terms;
+}
+
 /**
  * The research run's keywords with every variant folded away - of each other
  * and of what the website already has (lib/keywords/variants.ts).
@@ -29,18 +59,7 @@ export async function foldKeywordVariants<T extends { term: string; volume: numb
     .from(keywords)
     .where(eq(keywords.websiteId, websiteId));
 
-  const targeted = new Set(
-    [
-      ...(await db
-        .select({ term: calendarItems.targetKeyword })
-        .from(calendarItems)
-        .where(and(eq(calendarItems.websiteId, websiteId), isNotNull(calendarItems.targetKeyword)))),
-      ...(await db
-        .select({ term: articles.targetKeyword })
-        .from(articles)
-        .where(and(eq(articles.websiteId, websiteId), isNotNull(articles.targetKeyword)))),
-    ].map((row) => normalizeTerm(row.term!)),
-  );
+  const targeted = await targetedTerms(websiteId);
   // Compared as the variant check compares terms: "Dentist Dublin!" on a topic still targets "dentist dublin".
   const isTargeted = (term: string) => targeted.has(normalizeTerm(term));
 

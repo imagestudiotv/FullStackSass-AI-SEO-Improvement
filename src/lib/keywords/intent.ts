@@ -3,6 +3,7 @@ import { dataBlock, dataRule } from "@/lib/ai/untrusted";
 import type { KeywordMetrics } from "@/lib/providers/dataforseo";
 import type { SearchIntent, SiteType } from "./score";
 import type { SeedInput } from "./seeds";
+import { normalizeTerm } from "./variants";
 
 /**
  * Search intent, labelled for what the searcher wants - not for what would
@@ -19,6 +20,13 @@ import type { SeedInput } from "./seeds";
  * missing or degenerate. The same call says whether the site is a business or
  * a publisher (lib/keywords/score.ts SiteType), which decides how much each
  * intent is worth.
+ *
+ * And whether each keyword is about this site at all. The provider expands
+ * seeds by shared words, so an interior-design studio got "steam iron price"
+ * next to "wrought iron railing design", and then articles about irons
+ * (Daniel, 2026-11-27). The same call marks each keyword on- or off-topic;
+ * the research job drops off-topic provider ideas before scoring
+ * (dropOffTopic), never the seeds or the customer's own keywords.
  */
 
 const CODE: Record<string, SearchIntent> = {
@@ -41,11 +49,15 @@ Intent codes, by what the PERSON SEARCHING wants. Never by what would suit the w
 - "n" navigational: looking for one specific brand, website or place by name.
 Most searches are informational. Label a keyword transactional only when its own words show the searcher is about to buy, book or order.
 
+Topic ("o"), for every keyword: true when the person searching could be a reader or customer of THIS site - the search is about its services, products, subjects or audience. false when it only shares a word with them but means something else (for an interior design studio, "steam iron price" is about clothes irons, while "wrought iron railing design" is on topic), or is about an unrelated subject. When unsure, true.
+
 Return every keyword by its number, exactly once. ${dataRule("business_profile")} ${dataRule("site_data")}`;
 
 export type IntentClassification = {
   siteType: SiteType;
   intents: Map<string, SearchIntent>;
+  /** The terms the model marked as not about this site. A term it left unmarked is on topic. */
+  offTopic: Set<string>;
   usage: { inputTokens: number; outputTokens: number };
 };
 
@@ -64,8 +76,9 @@ function schema() {
           properties: {
             n: { type: "integer", description: "The keyword's number." },
             t: { type: "string", enum: ["i", "c", "t", "n"] },
+            o: { type: "boolean", description: "Whether the search is about this site's subject." },
           },
-          required: ["n", "t"],
+          required: ["n", "t", "o"],
           additionalProperties: false,
         },
       },
@@ -81,6 +94,7 @@ function profileFacts(profile: SeedInput): string {
     profile.industry ? `Industry: ${profile.industry}` : null,
     profile.description ? `About: ${profile.description}` : null,
     profile.services.length ? `Offers: ${profile.services.slice(0, 12).join(", ")}` : null,
+    profile.targetAudience ? `Audience: ${profile.targetAudience}` : null,
     profile.language ? `Language: ${profile.language}` : null,
     profile.country ? `Market: ${profile.country}` : null,
   ]
@@ -93,8 +107,8 @@ async function classifyBatch(profile: SeedInput, terms: string[]) {
   const list = terms.map((term, index) => `${index + 1}. ${term}`).join("\n");
   const response = await anthropic.messages.create({
     model: MODELS.EXTRACTION,
-    // About a dozen tokens a keyword, with room for the wrapper.
-    max_tokens: Math.min(16000, 600 + terms.length * 20),
+    // About sixteen tokens a keyword, with room for the wrapper.
+    max_tokens: Math.min(16000, 600 + terms.length * 26),
     system: SYSTEM,
     output_config: { format: { type: "json_schema", schema: schema() } },
     messages: [
@@ -117,31 +131,36 @@ async function classifyBatch(profile: SeedInput, terms: string[]) {
   if (!block || block.type !== "text") throw new Error("No content returned from intent classification");
   const parsed = JSON.parse(block.text) as { siteType?: unknown; keywords?: unknown };
   const intents = new Map<string, SearchIntent>();
+  const offTopic = new Set<string>();
   for (const item of Array.isArray(parsed.keywords) ? parsed.keywords : []) {
     if (typeof item !== "object" || item === null) continue;
-    const { n, t } = item as { n?: unknown; t?: unknown };
+    const { n, t, o } = item as { n?: unknown; t?: unknown; o?: unknown };
     const term = typeof n === "number" ? terms[n - 1] : undefined;
     const intent = typeof t === "string" ? CODE[t] : undefined;
     if (term && intent && !intents.has(term)) intents.set(term, intent);
+    // Only an explicit false: a missing or malformed mark keeps the keyword.
+    if (term && o === false) offTopic.add(term);
   }
   const siteType: SiteType | null = parsed.siteType === "publisher" ? "publisher" : parsed.siteType === "business" ? "business" : null;
-  return { siteType, intents, usage };
+  return { siteType, intents, offTopic, usage };
 }
 
 export async function classifyKeywordIntents(profile: SeedInput, terms: string[]): Promise<IntentClassification> {
   if (!isAiConfigured()) throw new Error("ANTHROPIC_API_KEY is not set");
   const unique = [...new Set(terms)];
   const intents = new Map<string, SearchIntent>();
+  const offTopic = new Set<string>();
   const usage = { inputTokens: 0, outputTokens: 0 };
   const votes: SiteType[] = [];
   for (let start = 0; start < unique.length; start += INTENT_BATCH) {
     const batch = await classifyBatch(profile, unique.slice(start, start + INTENT_BATCH));
     for (const [term, intent] of batch.intents) intents.set(term, intent);
+    for (const term of batch.offTopic) offTopic.add(term);
     usage.inputTokens += batch.usage.inputTokens;
     usage.outputTokens += batch.usage.outputTokens;
     if (batch.siteType) votes.push(batch.siteType);
   }
-  return { siteType: votes[0] ?? "business", intents, usage };
+  return { siteType: votes[0] ?? "business", intents, offTopic, usage };
 }
 
 /**
@@ -187,4 +206,39 @@ export function applyIntents<T extends Pick<KeywordMetrics, "term" | "intent" | 
     if (sent.has(row.term) && row.source !== "ai_seed") return { ...row, intent: null };
     return row;
   });
+}
+
+/** Where a keyword came from that the relevance check may drop: the provider's expansion of the seeds. */
+export const PROVIDER_IDEAS = "dataforseo_ideas";
+
+/**
+ * The provider ideas worth a relevance mark: every one not protected. The
+ * seeds (made from the profile), the customer's own keywords and the ones an
+ * article or a planned topic targets are never dropped, so never asked about.
+ * `protectedTerms` holds normalised terms (lib/keywords/variants.ts).
+ */
+export function termsToCheckTopic(
+  rows: Pick<KeywordMetrics, "term" | "source">[],
+  protectedTerms: Set<string>,
+): string[] {
+  return rows.filter((row) => row.source === PROVIDER_IDEAS && !protectedTerms.has(normalizeTerm(row.term))).map((row) => row.term);
+}
+
+/**
+ * The rows without the provider ideas the model marked off-topic. Only
+ * provider ideas go: a seed, a term the site already ranks for, and every
+ * protected term stay whatever the mark says.
+ */
+export function dropOffTopic<T extends Pick<KeywordMetrics, "term" | "source">>(
+  rows: T[],
+  offTopic: Set<string>,
+  protectedTerms: Set<string>,
+): { rows: T[]; dropped: string[] } {
+  const dropped: string[] = [];
+  const kept = rows.filter((row) => {
+    const drop = row.source === PROVIDER_IDEAS && offTopic.has(row.term) && !protectedTerms.has(normalizeTerm(row.term));
+    if (drop) dropped.push(row.term);
+    return !drop;
+  });
+  return { rows: kept, dropped };
 }

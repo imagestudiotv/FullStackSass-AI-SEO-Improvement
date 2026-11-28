@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { keywords, usageEvents, websites } from "@/lib/db/schema";
+import { calendarItems, keywords, usageEvents, websites } from "@/lib/db/schema";
 import { createTestDb, type TestDb } from "@/test/db";
 import { seedWebsite } from "@/test/fixtures";
 
@@ -23,9 +23,8 @@ vi.mock("@/lib/providers/dataforseo", () => ({
   keywordIdeas: provider.ideas,
   keywordsForSite: provider.site,
 }));
-vi.mock("@/lib/keywords/seeds", () => ({
-  generateSeedKeywords: vi.fn(async () => [{ term: "привітання зятю", intent: "transactional" }]),
-}));
+const seeds = vi.hoisted(() => ({ generate: vi.fn() }));
+vi.mock("@/lib/keywords/seeds", () => ({ generateSeedKeywords: seeds.generate }));
 const classify = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/keywords/intent", async (original) => ({ ...(await original<object>()), classifyKeywordIntents: classify }));
 vi.mock("@/lib/keywords/cluster", () => ({ clusterKeywords: vi.fn(async () => []) }));
@@ -43,6 +42,7 @@ const metrics = (term: string, volume: number, difficulty: number | null = 0) =>
 
 beforeEach(() => {
   classify.mockReset();
+  seeds.generate.mockResolvedValue([{ term: "привітання зятю", intent: "transactional" }]);
   calendar.planCalendar.mockClear();
   provider.ideas.mockResolvedValue({
     cached: false,
@@ -80,6 +80,7 @@ describe("keyword research intent, difficulty and variants", () => {
     classify.mockImplementation(async (_profile: unknown, terms: string[]) => ({
       siteType: "publisher",
       intents: new Map(terms.map((term) => [term, term.startsWith("купити") ? "transactional" : "informational"])),
+      offTopic: new Set(),
       usage: { inputTokens: 900, outputTokens: 300 },
     }));
     await run(websiteId, orgId);
@@ -111,5 +112,95 @@ describe("keyword research intent, difficulty and variants", () => {
     const rows = await stored(websiteId);
     expect(rows.filter((row) => row.intent === "transactional").map((row) => row.term)).toEqual(["привітання зятю"]);
     expect(rows.find((row) => row.term === "купити листівку")?.intent).toBeNull();
+  });
+});
+
+/*
+  Daniel, 2026-11-27: an interior-design site got articles about "iron". The
+  provider expands seeds by shared words; the classifier marks what is not
+  about the site, and those provider ideas never reach scoring or the plan.
+*/
+describe("keyword research relevance", () => {
+  const idea = (term: string, volume: number, intent: "informational" | "commercial" | "transactional" = "commercial") => ({
+    term, volume, difficulty: 20, cpc: null, intent, source: "dataforseo_ideas",
+  });
+
+  beforeEach(() => {
+    seeds.generate.mockResolvedValue([
+      { term: "interior design studio", intent: "commercial" },
+      { term: "iron decor ideas", intent: "informational" },
+    ]);
+    provider.ideas.mockResolvedValue({
+      cached: false,
+      metrics: [
+        idea("steam iron price", 9000, "transactional"),
+        idea("best steam iron", 6000),
+        idea("wrought iron railing design", 400),
+        idea("living room design ideas", 3000, "informational"),
+        idea("iron bed frame", 800),
+        idea("iron decor ideas", 200, "informational"),
+      ],
+    });
+    provider.site.mockResolvedValue({ cached: true, metrics: [] });
+  });
+
+  async function studio() {
+    const f = await seedWebsite(test, { articleLimit: 30 });
+    await test.db.update(websites).set({
+      industry: "Interior design", description: "Interior design studio for homes and offices", country: "United Kingdom", language: "English",
+      services: ["Interior design", "Bespoke metalwork railings", "Home staging"],
+    }).where(eq(websites.id, f.websiteId));
+    return f;
+  }
+
+  const offTopicModel = (marked: string[]) => async (_profile: unknown, terms: string[]) => ({
+    siteType: "business",
+    intents: new Map(terms.map((term) => [term, "informational"])),
+    offTopic: new Set(terms.filter((term) => marked.includes(term))),
+    usage: { inputTokens: 900, outputTokens: 300 },
+  });
+
+  it("drops off-topic provider ideas before scoring, and keeps the on-topic ones", async () => {
+    const { websiteId, orgId } = await studio();
+    classify.mockImplementation(offTopicModel(["steam iron price", "best steam iron"]));
+    await run(websiteId, orgId);
+
+    // The profile reaches the model, and every unprotected provider idea is asked about.
+    expect(classify.mock.calls[0][0]).toMatchObject({ industry: "Interior design", services: expect.arrayContaining(["Bespoke metalwork railings"]) });
+    expect(classify.mock.calls[0][1]).toEqual(expect.arrayContaining(["steam iron price", "wrought iron railing design", "living room design ideas"]));
+    const rows = await stored(websiteId);
+    const terms = rows.map((row) => row.term);
+    expect(terms).not.toContain("steam iron price");
+    expect(terms).not.toContain("best steam iron");
+    expect(terms).toEqual(expect.arrayContaining(["wrought iron railing design", "living room design ideas", "interior design studio"]));
+    // A term sent only for its topic keeps the provider's healthy label.
+    expect(rows.find((row) => row.term === "wrought iron railing design")?.intent).toBe("commercial");
+    const spend = await test.db.select().from(usageEvents).where(eq(usageEvents.websiteId, websiteId));
+    expect(spend.find((event) => (event.metadata as { purpose?: string } | null)?.purpose === "keyword_intent")?.metadata)
+      .toMatchObject({ offTopic: 2 });
+  });
+
+  it("never drops the seeds, the customer's own keywords or a planned topic's, whatever the model says", async () => {
+    const { websiteId, orgId } = await studio();
+    await test.db.insert(keywords).values({ websiteId, term: "iron bed frame", source: "manual" });
+    await test.db.insert(calendarItems).values({ websiteId, title: "Living rooms", targetKeyword: "Living room design ideas" });
+    classify.mockImplementation(offTopicModel(["steam iron price", "iron bed frame", "iron decor ideas", "living room design ideas", "interior design studio"]));
+    await run(websiteId, orgId);
+
+    const sent: string[] = classify.mock.calls[0][1];
+    // Protected provider ideas are not asked about their topic (the seeds still go, for their intent).
+    expect(sent).not.toContain("iron bed frame");
+    expect(sent).not.toContain("living room design ideas");
+    const terms = (await stored(websiteId)).map((row) => row.term);
+    expect(terms).not.toContain("steam iron price");
+    expect(terms).toEqual(expect.arrayContaining(["iron bed frame", "iron decor ideas", "living room design ideas", "interior design studio"]));
+  });
+
+  it("filters nothing when the model call fails", async () => {
+    const { websiteId, orgId } = await studio();
+    classify.mockRejectedValue(new Error("ANTHROPIC_API_KEY is not set"));
+    await run(websiteId, orgId);
+    const terms = (await stored(websiteId)).map((row) => row.term);
+    expect(terms).toEqual(expect.arrayContaining(["steam iron price", "best steam iron", "wrought iron railing design"]));
   });
 });
