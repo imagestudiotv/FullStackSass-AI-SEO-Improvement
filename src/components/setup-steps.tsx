@@ -21,6 +21,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import type { LaunchStep, LaunchStepIcon } from "@/lib/onboarding/launch";
+import { LAUNCHED_STEP_ID } from "@/lib/onboarding/progress";
 
 /**
  * The launch checklist rows, following the client's screenshot.
@@ -91,6 +92,13 @@ export function SetupSteps({
          * (lib/onboarding/progress.ts). The Tasks page says the same.
          */
         const skipped = step.optional && !step.done;
+        /**
+         * The closing "Launched live" row is the end state, not a step: it is
+         * not counted (lib/onboarding/progress.ts), so until everything above
+         * is done it carries no "To do" chip and no number - "n steps left"
+         * then matches the "To do" chips exactly (eval 2026-11-28).
+         */
+        const goal = step.id === LAUNCHED_STEP_ID && !step.done;
 
         return (
           <li key={step.id} className="flex gap-3">
@@ -102,11 +110,15 @@ export function SetupSteps({
                     ? "bg-emerald-500 text-white"
                     : skipped
                       ? "border border-muted-foreground/30 bg-card text-muted-foreground"
-                      : "border-2 border-muted bg-card text-muted-foreground"
+                      : goal
+                        ? "border border-dashed border-muted-foreground/30 bg-card text-muted-foreground"
+                        : "border-2 border-muted bg-card text-muted-foreground"
                 }`}
               >
                 {step.done ? (
                   <Check className="size-4" aria-hidden="true" />
+                ) : goal ? (
+                  <Rocket className="size-3.5" aria-hidden="true" />
                 ) : skipped ? (
                   <SkipForward className="size-3.5" aria-hidden="true" />
                 ) : (
@@ -154,7 +166,9 @@ export function SetupSteps({
                   {step.title}
                 </Link>
 
+                {goal ? null : (
                 <span
+                  data-status={step.done ? "done" : skipped ? "optional" : "todo"}
                   className={`flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${
                     step.done
                       ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
@@ -177,6 +191,7 @@ export function SetupSteps({
                     words.toDo
                   )}
                 </span>
+                )}
 
                 <button
                   type="button"
