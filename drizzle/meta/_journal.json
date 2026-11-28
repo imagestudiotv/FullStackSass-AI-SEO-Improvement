@@ -694,6 +694,13 @@
       "when": 1795802297579,
       "tag": "0098_eval_admin_broadcast_person",
       "breakpoints": true
+    },
+    {
+      "idx": 99,
+      "version": "7",
+      "when": 1795822851057,
+      "tag": "0099_eval_geo_ai_visibility",
+      "breakpoints": true
     }
   ]
 }
