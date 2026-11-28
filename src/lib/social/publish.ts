@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 import { socialAccounts, socialSuggestions, socialTeams, websites } from "@/lib/db/schema";
 import { isFreePlanWebsite, takeFreePlanPost } from "@/lib/plans/free-plan-server";
 
-import { socialAccess } from "./accounts";
+import { autoPostAllowed, socialAccess } from "./accounts";
 import { BundleError, createPost, getPost, isBundleConfigured, uploadFromUrl, type BundlePost } from "./bundle";
 import { PLATFORMS, type SocialPlatform } from "./platforms";
 
@@ -94,6 +94,8 @@ export async function publishSuggestion(id: string, now: Date = new Date()): Pro
       !isBundleConfigured() ||
       !account?.bundleAccountId ||
       !account.autoPost ||
+      // A LinkedIn post scheduled while SOCIAL_LINKEDIN_AUTOPOST was on, once it is off (accounts.ts).
+      !autoPostAllowed(platform) ||
       account.pausedAt ||
       !team ||
       !access.platforms.includes(platform)

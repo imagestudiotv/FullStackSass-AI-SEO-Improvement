@@ -71,8 +71,8 @@ function render(over: Partial<Props> = {}, locale: (typeof LOCALES)[number] = "e
     platforms: ["reddit", "quora", "x", "threads", "pinterest", "bluesky", "linkedin"],
     bundle: true,
     accounts: [
-      { platform: "quora", username: "jane", connected: false, autoPost: false, warmupEndsAt: "2026-10-01T00:00:00Z", inWarmup: false, paused: false, target: null },
-      { platform: "x", username: "jane_x", connected: true, autoPost: true, warmupEndsAt: "2026-10-01T00:00:00Z", inWarmup: false, paused: true, target: null },
+      { platform: "quora", username: "jane", connected: false, autoPost: false, autoPostable: true, warmupEndsAt: "2026-10-01T00:00:00Z", inWarmup: false, paused: false, target: null },
+      { platform: "x", username: "jane_x", connected: true, autoPost: true, autoPostable: true, warmupEndsAt: "2026-10-01T00:00:00Z", inWarmup: false, paused: true, target: null },
     ],
     open: [
       row(),

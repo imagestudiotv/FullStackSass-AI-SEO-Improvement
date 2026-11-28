@@ -48,6 +48,23 @@ export async function socialAccess(websiteId: string): Promise<SocialAccess> {
   return { level: "none", platforms: [] };
 }
 
+/**
+ * Whether RepGet may publish a platform's own posts by itself, on an account
+ * that allows it (social_accounts.auto_post, which defaults to on).
+ *
+ * LINKEDIN IS ONE CLICK ONLY (owner, 2026-11-28): a website that connected
+ * LinkedIn for Videos already has the account, with auto_post on, and would
+ * otherwise start getting a public LinkedIn post every morning, at a credit
+ * each, without having asked for it. Its own posts are written as one-click
+ * suggestions instead - the customer posts each with one press - unless
+ * SOCIAL_LINKEDIN_AUTOPOST=1 is set deliberately. No data is changed: turning
+ * the variable on later uses each account's own switch.
+ */
+export function autoPostAllowed(platform: string): boolean {
+  if (platform === "linkedin") return process.env.SOCIAL_LINKEDIN_AUTOPOST === "1";
+  return true;
+}
+
 export type SocialAccount = typeof socialAccounts.$inferSelect;
 
 export async function listAccounts(websiteId: string, executor: Executor = db): Promise<SocialAccount[]> {

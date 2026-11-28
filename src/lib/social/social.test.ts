@@ -1067,7 +1067,8 @@ describe("publishing own posts", () => {
     expect(fallback.status).toBe("new");
   });
 
-  it("publishes a LinkedIn post through bundle.social to the profile or page chosen when connecting", async () => {
+  it("publishes a LinkedIn post through bundle.social to the profile or page chosen when connecting (opted in)", async () => {
+    vi.stubEnv("SOCIAL_LINKEDIN_AUTOPOST", "1");
     const { orgId, websiteId } = await site();
     await test.db.insert(socialAccounts).values({
       websiteId,
@@ -1098,6 +1099,7 @@ describe("publishing own posts", () => {
   });
 
   it("does not publish to LinkedIn before a profile or page is chosen, and gives the credit back", async () => {
+    vi.stubEnv("SOCIAL_LINKEDIN_AUTOPOST", "1");
     const { orgId, websiteId } = await site();
     await test.db.insert(socialAccounts).values({ websiteId, platform: "linkedin", username: "someone", bundleAccountId: "acc_li", warmupEndsAt: new Date(NOW.getTime() - DAY) });
     await test.db.insert(socialTeams).values({ websiteId, teamId: "team_li2" });
@@ -1128,6 +1130,60 @@ describe("publishing own posts", () => {
 });
 
 describe("LinkedIn in Social", () => {
+  /** A website that connected LinkedIn for Videos: through bundle.social, auto_post on (the default), a page chosen. */
+  async function linkedinSite() {
+    const seeded = await site();
+    await test.db.insert(socialAccounts).values({
+      websiteId: seeded.websiteId,
+      platform: "linkedin",
+      username: "Example Ltd",
+      bundleAccountId: "acc_li",
+      target: "organization",
+      warmupEndsAt: new Date(NOW.getTime() - DAY),
+    });
+    await test.db.insert(socialTeams).values({ websiteId: seeded.websiteId, teamId: `team_${seeded.websiteId}` });
+    return seeded;
+  }
+  /** The model writes one own post, for the LinkedIn slot. */
+  const linkedinWriter: SuggestDeps["write"] = vi.fn(async (_profile, _threads, slots) => ({
+    drafts: { replies: [], posts: [{ slot: slots.findIndex((slot) => slot.platform === "linkedin") + 1, title: null, body: "One lesson from 200 weddings: shade beats golden hour." }] },
+    usage: { inputTokens: 100, outputTokens: 50, model: "claude-sonnet-5" },
+  }));
+
+  it("is one click only: an account with auto-post on gets a suggestion to post, never a scheduled post (owner, 2026-11-28)", async () => {
+    const { websiteId } = await linkedinSite();
+    const [linkedin] = await test.db.select().from(socialAccounts).where(and(eq(socialAccounts.websiteId, websiteId), eq(socialAccounts.platform, "linkedin")));
+    expect(linkedin.autoPost).toBe(true);
+
+    const result = await suggestForWebsite(websiteId, { now: NOW, random: () => 0.5, search, write: linkedinWriter });
+    const rows = await test.db.select().from(socialSuggestions).where(and(eq(socialSuggestions.websiteId, websiteId), eq(socialSuggestions.platform, "linkedin")));
+    expect(rows).toEqual([expect.objectContaining({ kind: "post", status: "new", scheduledFor: null })]);
+    expect(result.scheduled).toEqual([]);
+  });
+
+  it("is scheduled only when SOCIAL_LINKEDIN_AUTOPOST=1 is set deliberately", async () => {
+    vi.stubEnv("SOCIAL_LINKEDIN_AUTOPOST", "1");
+    const { websiteId } = await linkedinSite();
+    const result = await suggestForWebsite(websiteId, { now: NOW, random: () => 0.5, search, write: linkedinWriter });
+    const [row] = await test.db.select().from(socialSuggestions).where(and(eq(socialSuggestions.websiteId, websiteId), eq(socialSuggestions.platform, "linkedin")));
+    expect(row.status).toBe("scheduled");
+    expect(result.scheduled).toEqual([{ id: row.id, at: row.scheduledFor }]);
+  });
+
+  it("is never published by RepGet without the opt-in: a post scheduled before goes back to one click, uncharged", async () => {
+    const { orgId, websiteId } = await linkedinSite();
+    await recordCredit(orgId, { type: "adjustment", amount: 5, note: "test" });
+    const row = await suggestion(websiteId, { platform: "linkedin", kind: "post", threadUrl: null, status: "scheduled", scheduledFor: NOW, body: "A tip." });
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    expect(await publishSuggestion(row.id, NOW)).toBe("skipped");
+    expect(fetch).not.toHaveBeenCalled();
+    const [saved] = await test.db.select().from(socialSuggestions).where(eq(socialSuggestions.id, row.id));
+    expect(saved).toMatchObject({ status: "new", scheduledFor: null });
+    const ledger = await test.db.select().from(creditLedger).where(eq(creditLedger.organizationId, orgId));
+    expect(ledger.reduce((sum, entry) => sum + entry.amount, 0)).toBe(5);
+  });
+
   it("gets an own post (never a conversation search) when bundle.social is set up", async () => {
     const { websiteId } = await site();
     const counted = spySearch();

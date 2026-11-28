@@ -85,7 +85,7 @@ export const OPPORTUNITIES_COPY: Record<Locale, OpportunitiesCopy> = {
     communityRules: "Read the rules of {community}",
     communityStrict: "{community} usually removes self-promotion. Post this only as a helpful answer, without your business's name, and read its rules first.",
     communityStrictShort: "No self-promotion",
-    linkedinNote: "LinkedIn: RepGet writes your own posts and, once the account is connected, publishes them on the profile or company page you chose. LinkedIn does not let apps find or answer other people's posts, so there are no conversations here.",
+    linkedinNote: "LinkedIn: RepGet writes your own posts, and you publish each one with one click, on your profile or company page. LinkedIn does not let apps find or answer other people's posts, so there are no conversations here.",
     linkedinCard: "Own posts only",
   },
   es: {
@@ -117,7 +117,7 @@ export const OPPORTUNITIES_COPY: Record<Locale, OpportunitiesCopy> = {
     communityRules: "Lea las normas de {community}",
     communityStrict: "{community} suele eliminar la autopromoción. Publique esto solo como una respuesta útil, sin el nombre de su negocio, y lea antes sus normas.",
     communityStrictShort: "Sin autopromoción",
-    linkedinNote: "LinkedIn: RepGet escribe sus propias publicaciones y, una vez conectada la cuenta, las publica en el perfil o la página de empresa que haya elegido. LinkedIn no permite a las aplicaciones encontrar ni responder publicaciones de otras personas, así que aquí no hay conversaciones.",
+    linkedinNote: "LinkedIn: RepGet escribe sus propias publicaciones, y usted publica cada una con un clic, en su perfil o en la página de su empresa. LinkedIn no permite a las aplicaciones encontrar ni responder publicaciones de otras personas, así que aquí no hay conversaciones.",
     linkedinCard: "Solo publicaciones propias",
   },
   fr: {
@@ -149,7 +149,7 @@ export const OPPORTUNITIES_COPY: Record<Locale, OpportunitiesCopy> = {
     communityRules: "Lire les règles de {community}",
     communityStrict: "{community} supprime généralement l’autopromotion. Publiez ceci uniquement comme une réponse utile, sans le nom de votre entreprise, et lisez d’abord ses règles.",
     communityStrictShort: "Pas d’autopromotion",
-    linkedinNote: "LinkedIn : RepGet rédige vos propres publications et, une fois le compte connecté, les publie sur le profil ou la page entreprise choisis. LinkedIn ne permet pas aux applications de trouver les publications d’autres personnes ni d’y répondre : il n’y a donc pas de conversations ici.",
+    linkedinNote: "LinkedIn : RepGet rédige vos propres publications, et vous publiez chacune en un clic, sur votre profil ou la page de votre entreprise. LinkedIn ne permet pas aux applications de trouver les publications d’autres personnes ni d’y répondre : il n’y a donc pas de conversations ici.",
     linkedinCard: "Vos publications uniquement",
   },
   it: {
@@ -181,7 +181,7 @@ export const OPPORTUNITIES_COPY: Record<Locale, OpportunitiesCopy> = {
     communityRules: "Legga le regole di {community}",
     communityStrict: "{community} di solito rimuove l’autopromozione. La pubblichi solo come risposta utile, senza il nome della Sua attività, e legga prima le regole.",
     communityStrictShort: "Niente autopromozione",
-    linkedinNote: "LinkedIn: RepGet scrive i Suoi post e, una volta collegato l’account, li pubblica sul profilo o sulla pagina aziendale scelti. LinkedIn non consente alle app di trovare i post di altre persone né di rispondervi, quindi qui non ci sono conversazioni.",
+    linkedinNote: "LinkedIn: RepGet scrive i Suoi post, e Lei pubblica ciascuno con un clic, sul Suo profilo o sulla pagina della Sua azienda. LinkedIn non consente alle app di trovare i post di altre persone né di rispondervi, quindi qui non ci sono conversazioni.",
     linkedinCard: "Solo post propri",
   },
   de: {
@@ -213,7 +213,7 @@ export const OPPORTUNITIES_COPY: Record<Locale, OpportunitiesCopy> = {
     communityRules: "Regeln von {community} lesen",
     communityStrict: "{community} entfernt Eigenwerbung in der Regel. Posten Sie dies nur als hilfreiche Antwort, ohne den Namen Ihres Unternehmens, und lesen Sie vorher die Regeln.",
     communityStrictShort: "Keine Eigenwerbung",
-    linkedinNote: "LinkedIn: RepGet schreibt Ihre eigenen Beiträge und veröffentlicht sie nach dem Verbinden auf dem gewählten Profil oder der Unternehmensseite. LinkedIn erlaubt Apps nicht, Beiträge anderer zu finden oder zu beantworten, daher gibt es hier keine Unterhaltungen.",
+    linkedinNote: "LinkedIn: RepGet schreibt Ihre eigenen Beiträge, und Sie veröffentlichen jeden mit einem Klick, auf Ihrem Profil oder Ihrer Unternehmensseite. LinkedIn erlaubt Apps nicht, Beiträge anderer zu finden oder zu beantworten, daher gibt es hier keine Unterhaltungen.",
     linkedinCard: "Nur eigene Beiträge",
   },
 };

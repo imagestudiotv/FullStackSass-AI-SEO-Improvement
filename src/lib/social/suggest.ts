@@ -14,7 +14,7 @@ import { isFreePlanWebsite } from "@/lib/plans/free-plan-server";
 import { labsMarket } from "@/lib/providers/dataforseo-markets";
 import { PRICING, track } from "@/lib/usage";
 
-import { inWarmup, listAccounts, socialAccess, type SocialAccount } from "./accounts";
+import { autoPostAllowed, inWarmup, listAccounts, socialAccess, type SocialAccount } from "./accounts";
 import { isBundleConfigured } from "./bundle";
 import {
   PLATFORMS,
@@ -50,8 +50,9 @@ import { writeDrafts, type BusinessProfile, type PostSlot, type ThreadInput } fr
  *
  * Own posts on an account connected through bundle.social are "scheduled":
  * RepGet publishes them later that day (lib/social/publish.ts) unless the
- * customer edits or skips them first. Everything else waits for the
- * customer's one click.
+ * customer edits or skips them first - except LinkedIn's, which are one click
+ * unless SOCIAL_LINKEDIN_AUTOPOST=1 (accounts.ts autoPostAllowed). Everything
+ * else waits for the customer's one click.
  */
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -302,6 +303,8 @@ ${candidate.snippet}`);
       !access.manualOnly &&
         slot.account?.bundleAccountId &&
         slot.account.autoPost &&
+        // LinkedIn: one click only unless deliberately turned on (accounts.ts autoPostAllowed).
+        autoPostAllowed(slot.platform) &&
         !slot.account.pausedAt &&
         // A Pin needs its board; without one it waits for the customer's click.
         (slot.platform !== "pinterest" || slot.account.target) &&

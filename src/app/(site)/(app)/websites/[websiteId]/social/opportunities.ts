@@ -12,6 +12,8 @@ export type AccountView = {
   /** Connected through bundle.social: RepGet can publish own posts. */
   connected: boolean;
   autoPost: boolean;
+  /** RepGet may publish this platform by itself at all: LinkedIn only with SOCIAL_LINKEDIN_AUTOPOST=1 (lib/social/accounts.ts autoPostAllowed). */
+  autoPostable: boolean;
   warmupEndsAt: string;
   /** Still in the warm-up (decided on the server, as the rules are). */
   inWarmup: boolean;
