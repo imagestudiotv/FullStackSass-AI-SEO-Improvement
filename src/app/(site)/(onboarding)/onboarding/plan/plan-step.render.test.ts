@@ -212,8 +212,9 @@ describe("a direct purchase on the plan step (Grow + Visibility)", () => {
     expect(html).not.toContain(OFFER_CODE.en.label);
     expect(html).not.toContain(markup(t.paypalNoTrial));
     expect(paypalButton(html)).not.toMatch(/disabled=""/);
-    // Its list value struck through, as /pricing shows it; the charge stays EUR 129.
-    expect(html).toMatch(/<del[^>]*>€299<\/del>/);
+    // No EUR 299 compare-at any more, as on /pricing: the charge, EUR 129, is the only price.
+    expect(html).not.toContain("299");
+    expect(html).not.toMatch(/<del[^>]*>€/);
     // The same card styling as the trial plans.
     expect(html).toMatch(/rounded-\[19px\] border-\[1\.5px\] border-primary/);
   });
