@@ -190,9 +190,13 @@ describe("what waits for somebody", () => {
         ]),
       ),
     ).toMatchObject({ waiting: 1 });
+    // A new website whose analysis failed counts once, as failed - not also as new (eval 2026-11-28).
     expect(
       await change("/admin/websites", () => test.db.insert(schema.websites).values({ organizationId: orgId, url: "https://f.example", domain: "f.example", status: "failed" })),
-    ).toMatchObject({ waiting: 1, fresh: 1 });
+    ).toMatchObject({ waiting: 1, fresh: 0 });
+    expect(
+      await change("/admin/websites", () => test.db.insert(schema.websites).values({ organizationId: orgId, url: "https://n.example", domain: "n.example", status: "ready" })),
+    ).toMatchObject({ waiting: 0, fresh: 1 });
   });
 
   it("the blog: paid Get Featured requests, failed autopilot topics and new comments", async () => {
@@ -312,13 +316,18 @@ describe("a page's own account of its badge (Daniel, 2026-11-26: 2 on Blog, noth
     const { orgId } = await seedWebsite(test);
     // Times from this clock, not the database's default, so the cookie below is surely later.
     await test.db.delete(schema.websites);
-    await test.db.insert(schema.websites).values({ organizationId: orgId, url: "https://failed-one.example", domain: "failed-one.example", status: "failed", createdAt: ago(1) });
+    await test.db.insert(schema.websites).values([
+      { organizationId: orgId, url: "https://failed-one.example", domain: "failed-one.example", status: "failed", createdAt: ago(1) },
+      { organizationId: orgId, url: "https://new-one.example", domain: "new-one.example", status: "ready", createdAt: ago(1) },
+    ]);
     const badge = (await read())["/admin/websites"];
     const notice = await getBadgeNotice("/admin/websites");
+    // Two websites, a badge of 2: the failed one once, the new one once.
+    expect(badge.count).toBe(2);
     expect(notice.reduce((sum, item) => sum + item.count, 0)).toBe(badge.count);
-    expect(notice.map((item) => [item.kind, item.href])).toEqual([
-      ["waiting", "/admin/websites?status=failed"],
-      ["new", "/admin/websites"],
+    expect(notice.map((item) => [item.kind, item.href, item.count])).toEqual([
+      ["waiting", "/admin/websites?status=failed", 1],
+      ["new", "/admin/websites", 1],
     ]);
     // Opened since: only the failed analysis is left, and it says what it is.
     state.cookie = writeSeen({}, asAdmin.user.id, "/admin/websites", new Date(Date.now() + 1000));

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, count, eq, gt, gte, inArray, isNotNull, isNull, lte, or } from "drizzle-orm";
+import { and, count, eq, gt, gte, inArray, isNotNull, isNull, lte, ne, or } from "drizzle-orm";
 import { cookies } from "next/headers";
 
 import { requireAdmin } from "@/lib/admin/guard";
@@ -237,7 +237,12 @@ export const NEW_SOURCES: NewSource[] = [
       label: "Added since you last opened Websites: at the top of the list (opening the page clears this count)",
     },
     seen: "/admin/websites",
-    count: (since) => one(db.select({ n: count() }).from(websites).where(gt(websites.createdAt, since))),
+    /*
+      Not one whose analysis failed: it is already counted above, under
+      "websites with a failed analysis", and a new website that failed was
+      counted twice - a "2" for one website (eval 2026-11-28).
+    */
+    count: (since) => one(db.select({ n: count() }).from(websites).where(and(gt(websites.createdAt, since), ne(websites.status, "failed")))),
   },
   {
     href: "/admin/organizations",
