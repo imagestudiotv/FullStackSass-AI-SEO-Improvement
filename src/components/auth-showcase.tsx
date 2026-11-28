@@ -3,6 +3,8 @@
 import { ChevronDown, Quote, Star } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { CHECKED_ENGINE_IDS, checkedEngineNames, uncheckedEngineNames } from "@/lib/geo/engines";
+
 /**
  * The right-hand panel on the sign-in and sign-up screens.
  *
@@ -69,7 +71,10 @@ const GROUPS: { lead: Panel; supporting: [Panel, Panel] }[] = [
   {
     lead: {
       headline: "See whether an AI assistant names you",
-      body: "Each week we ask Claude the questions your customers would ask an AI assistant, and record whether your business comes up in the answer. One assistant's view, asked through its API - ChatGPT, Gemini and Perplexity are not checked.",
+      // The assistants from the list the check really asks (lib/geo/engines.ts), so this stays true when one is added.
+      body: `Each week we ask ${checkedEngineNames()} the questions your customers would ask an AI assistant, and record whether your business comes up in the answer. ${
+        CHECKED_ENGINE_IDS.length === 1 ? "One assistant's view, asked through its API" : "Their views, asked through their APIs"
+      }${uncheckedEngineNames() ? ` - ${uncheckedEngineNames()} are not checked` : ""}.`,
     },
     supporting: [
       {

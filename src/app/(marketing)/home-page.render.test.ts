@@ -256,7 +256,7 @@ describe("homepage sections", () => {
     const t = guestCopilotCopy(locale);
     const section = html.slice(html.indexOf('id="repget-copilot-connect"'), html.indexOf('id="repget-founder"'));
     expect(section).toContain(esc(t.section.titleAccent));
-    expect(section).toMatch(new RegExp(`<a[^>]*href="${localePath(locale, "/tools/growth-copilot")}"[^>]*>${esc(t.section.tryFree).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")}`));
+    expect(section).toMatch(new RegExp(`<a[^>]*href="${localePath(locale, "/tools/growth-copilot")}"[^>]*><span>${esc(t.section.tryFree).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")}`));
     expect(section).toMatch(new RegExp(`<a[^>]*href="/sign-up"[^>]*>${esc(t.section.unlock)}`));
     expect(section).toContain(`aria-label="${esc(t.chat.label)}"`);
     expect(section).toContain(`aria-label="${esc(t.chat.inputLabel)}"`);

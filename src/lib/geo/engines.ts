@@ -102,3 +102,42 @@ export function availableEngineIds(): EngineId[] {
     (engine) => engine.id,
   );
 }
+
+/**
+ * The assistants the weekly AI visibility check really asks (lib/geo/check.ts
+ * takes its ENGINE from here). Copilot's words about AI visibility are built
+ * from this list (owner review, 2026-11-27: Copilot said "ChatGPT, Gemini and
+ * Perplexity" while only Claude is asked), so they change with it. Add an
+ * engine here only once check.ts asks it.
+ */
+export const CHECKED_ENGINE_IDS = ["claude"] as const satisfies readonly EngineId[];
+
+/** The best-known assistants, named when saying which ones are NOT asked. */
+const WELL_KNOWN: readonly EngineId[] = ["chatgpt", "gemini", "perplexity"];
+
+/** "Claude", "Claude and ChatGPT", "Claude, ChatGPT and Gemini". */
+export function engineNames(ids: readonly EngineId[]): string {
+  const names = ids.map((id) => ENGINES.find((engine) => engine.id === id)?.name ?? id);
+  return names.length <= 1 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
+/** The assistants the check asks, in words: "Claude". */
+export function checkedEngineNames(): string {
+  return engineNames(CHECKED_ENGINE_IDS);
+}
+
+/** The well-known assistants the check does not ask, in words ("ChatGPT, Gemini and Perplexity"); "" once all are asked. */
+export function uncheckedEngineNames(): string {
+  return engineNames(WELL_KNOWN.filter((id) => !(CHECKED_ENGINE_IDS as readonly EngineId[]).includes(id)));
+}
+
+/**
+ * What RepGet's AI visibility check really covers, for Copilot's prompts,
+ * from CHECKED_ENGINE_IDS: "RepGet's weekly check asks Claude;
+ * ChatGPT, Gemini and Perplexity are not checked". Never a fixed list of
+ * assistants (owner review, 2026-11-27).
+ */
+export function aiVisibilityWords(): string {
+  const unchecked = uncheckedEngineNames();
+  return `RepGet's weekly check asks ${checkedEngineNames()}${unchecked ? `; ${unchecked} are not checked, so never say they are` : ""}`;
+}

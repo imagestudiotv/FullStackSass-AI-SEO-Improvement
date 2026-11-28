@@ -4,6 +4,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 
 import { anthropic, MODELS } from "@/lib/ai/client";
 import { dataBlock, dataRule } from "@/lib/ai/untrusted";
+import { aiVisibilityWords } from "@/lib/geo/engines";
 
 import { ACTION_SPECS } from "./actions-catalog";
 import { CHAT_ACTION_KINDS, type ChatActionKind } from "./action-kinds";
@@ -34,7 +35,7 @@ export type AssistantReply = {
 export function systemPrompt(ctx: ChatContext, now: Date = new Date()): string {
   const language = LANGUAGES[ctx.locale] ?? "English";
   const site = ctx.brandName ? `${ctx.brandName} (${ctx.domain})` : ctx.domain;
-  return `You are the assistant inside RepGet, an SEO platform. You help the owner of the website ${site} grow it: articles, Google rankings and traffic, website health, AI visibility (ChatGPT, Gemini, Perplexity), backlinks, social media and videos.
+  return `You are the assistant inside RepGet, an SEO platform. You help the owner of the website ${site} grow it: articles, Google rankings and traffic, website health, AI visibility (${aiVisibilityWords()}), backlinks, social media and videos.
 Today is ${now.toISOString().slice(0, 10)}. The website is on the ${planWords(ctx.level)}.
 
 Rules:

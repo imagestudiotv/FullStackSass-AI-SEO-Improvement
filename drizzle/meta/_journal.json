@@ -687,6 +687,13 @@
       "when": 1795495823991,
       "tag": "0097_nov24_email_broadcasts",
       "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "7",
+      "when": 1795802297579,
+      "tag": "0098_eval_admin_broadcast_person",
+      "breakpoints": true
     }
   ]
 }

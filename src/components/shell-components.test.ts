@@ -22,8 +22,8 @@ vi.mock("next/navigation", () => ({
 
 /** A bare anchor: the assertions are about where links go, not prefetching. */
 vi.mock("next/link", () => ({
-  default: ({ href, children, "aria-current": current }: { href: string; children: ReactNode; "aria-current"?: string }) =>
-    createElement("a", { href, "aria-current": current }, children),
+  default: ({ href, children, "aria-current": current, title }: { href: string; children: ReactNode; "aria-current"?: string; title?: string }) =>
+    createElement("a", { href, "aria-current": current, title }, children),
 }));
 
 /* Server actions the client components import; never called while rendering. */
@@ -149,9 +149,18 @@ describe("SidebarNav", () => {
     expect(html).toMatch(/<a href="\/dashboard" aria-current="page"/);
     expect(html).toMatch(/<button[^>]*aria-expanded="true"[^>]*aria-controls="sidebar-group-home"[^>]*aria-label="Home"/);
     state.pathname = "/tasks";
-    expect(render()).toContain('<a href="/dashboard">');
+    expect(render()).toContain('<a href="/dashboard" title="Home">');
     // Only Home: the other groups' headings still just open and close.
     expect(html.match(/aria-controls="sidebar-group-social"/g)).toHaveLength(1);
+  });
+
+  it("never cuts a label short: long ones wrap, and every row names itself in full on hover (outside review, 2026-11-27)", () => {
+    const html = render();
+    expect(html).not.toContain("truncate");
+    for (const label of ["Social Distribution", "Google Search &amp; Analytics"]) {
+      expect(html).toContain(`title="${label}"`);
+      expect(html).toMatch(new RegExp(`<span class="[^"]*line-clamp-2[^"]*">${label}</span>`));
+    }
   });
 
   it("opens the dashboard of the selected website when a bare one would show another", () => {

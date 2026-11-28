@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 
 import { anthropic, MODELS } from "@/lib/ai/client";
+import { CHECKED_ENGINE_IDS } from "@/lib/geo/engines";
 
 /**
  * Measuring whether an AI assistant recommends a business.
@@ -22,8 +23,12 @@ import { anthropic, MODELS } from "@/lib/ai/client";
  *     Writing a failure as a miss would invent a decline that never happened.
  */
 
-/** Which assistant produced an answer. Stored in geo_results.engine. */
-export const ENGINE = "claude";
+/**
+ * Which assistant produced an answer. Stored in geo_results.engine. From the
+ * list Copilot's wording is built from (lib/geo/engines.ts), so the two never
+ * disagree.
+ */
+export const ENGINE = CHECKED_ENGINE_IDS[0];
 
 /**
  * Told the tokens of each model call, so the job can record what a check

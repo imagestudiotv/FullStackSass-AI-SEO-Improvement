@@ -95,6 +95,8 @@ export function AchievementsSection({
     sessions: t.unitSessions,
   };
   const chartable = unit !== null && series.some((p) => p.value !== null);
+  // A month of zeros drew an empty flat line (outside review, 2026-11-27): say why, and where links come from, instead.
+  const noBacklinks = metric === "backlinks" && !series.some((p) => (p.value ?? 0) > 0);
 
   return (
     <section aria-labelledby="achievements-title" className="rounded-xl border bg-card p-5">
@@ -191,7 +193,17 @@ export function AchievementsSection({
 
       {view === "chart" ? (
         <div className="mt-5">
-          {chartable ? (
+          {noBacklinks ? (
+            <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed p-6 text-center">
+              <p className="max-w-xl text-sm text-muted-foreground">{t.noBacklinksYet}</p>
+              <Link
+                href={`/websites/${websiteId}/backlinks`}
+                className="inline-flex h-9 items-center rounded-md border px-3 text-sm font-medium transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              >
+                {t.openBacklinks}
+              </Link>
+            </div>
+          ) : chartable ? (
             <LineChart
               points={series}
               label={seriesLabel[metric]}

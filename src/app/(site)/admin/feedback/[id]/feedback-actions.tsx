@@ -142,7 +142,8 @@ export function FeedbackActions({
             className="w-fit min-w-44 data-[size=default]:h-9"
           >
             <option value="">(keep {STATUS_LABEL[status].label})</option>
-            {FEEDBACK_STATUSES.filter((option) => option !== status && option !== "new").map((option) => (
+            {/* New and Read say nothing to the sender, so a reply does not offer them. */}
+            {FEEDBACK_STATUSES.filter((option) => option !== status && option !== "new" && option !== "read").map((option) => (
               <option key={option} value={option}>
                 {STATUS_LABEL[option].label}
               </option>

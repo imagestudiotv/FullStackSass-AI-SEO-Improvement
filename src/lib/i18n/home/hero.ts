@@ -35,6 +35,11 @@ export type HeroCopy = {
     moreWays: string;
     noWebsite: string;
     buildOne: string;
+    /**
+     * Promises the product keeps. The third was "Results in seconds" while an
+     * article can wait for the RepGet team's check (outside review,
+     * 2026-11-27); what does take minutes is the site analysis after sign-up.
+     */
     benefits: [string, string, string];
     joinGoogle: string;
     seeHow: string;
@@ -70,7 +75,7 @@ const en: HeroCopy = {
     moreWays: "More ways to get started",
     noWebsite: "Don't have a website?",
     buildOne: "We'll build one for you",
-    benefits: ["Private and secure", "Real human support", "Results in seconds"],
+    benefits: ["Private and secure", "Real human support", "Site analysis in minutes"],
     joinGoogle: "Join with Google",
     seeHow: "See how it works",
   },
@@ -102,7 +107,7 @@ const es: HeroCopy = {
     moreWays: "Otras formas de empezar",
     noWebsite: "¿No tiene sitio web?",
     buildOne: "Le creamos uno",
-    benefits: ["Privado y seguro", "Soporte humano real", "Resultados en segundos"],
+    benefits: ["Privado y seguro", "Soporte humano real", "Análisis del sitio en minutos"],
     joinGoogle: "Entrar con Google",
     seeHow: "Vea cómo funciona",
   },
@@ -134,7 +139,7 @@ const fr: HeroCopy = {
     moreWays: "Autres façons de commencer",
     noWebsite: "Pas encore de site ?",
     buildOne: "Nous vous en créons un",
-    benefits: ["Privé et sécurisé", "Une vraie assistance humaine", "Résultats en quelques secondes"],
+    benefits: ["Privé et sécurisé", "Une vraie assistance humaine", "Analyse du site en quelques minutes"],
     joinGoogle: "Continuer avec Google",
     seeHow: "Voir comment ça marche",
   },
@@ -166,7 +171,7 @@ const it: HeroCopy = {
     moreWays: "Altri modi per iniziare",
     noWebsite: "Non ha un sito web?",
     buildOne: "Glielo creiamo noi",
-    benefits: ["Privato e sicuro", "Assistenza umana reale", "Risultati in pochi secondi"],
+    benefits: ["Privato e sicuro", "Assistenza umana reale", "Analisi del sito in pochi minuti"],
     joinGoogle: "Entri con Google",
     seeHow: "Scopra come funziona",
   },
@@ -198,7 +203,7 @@ const de: HeroCopy = {
     moreWays: "Weitere Möglichkeiten zum Start",
     noWebsite: "Keine Website?",
     buildOne: "Wir erstellen Ihnen eine",
-    benefits: ["Privat und sicher", "Echter persönlicher Support", "Ergebnisse in Sekunden"],
+    benefits: ["Privat und sicher", "Echter persönlicher Support", "Website-Analyse in wenigen Minuten"],
     joinGoogle: "Mit Google anmelden",
     seeHow: "So funktioniert es",
   },

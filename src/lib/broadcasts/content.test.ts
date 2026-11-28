@@ -10,7 +10,9 @@ const STORED = "https://store.example/storage/v1/object/public/article-images/br
 
 const content = (over: Partial<BroadcastContent> = {}): BroadcastContent => ({
   audience: "all",
+  personId: null,
   subject: "News",
+  heading: "",
   previewText: "Preview",
   bodyHtml: "<p>Hello</p>",
   images: [],
@@ -101,11 +103,30 @@ describe("checking what was typed", () => {
     expect(readBroadcastContent({ ...content(), audience: "admins" }, { complete: false }).ok).toBe(false);
   });
 
-  it("every template passes as it is", () => {
+  it("every template passes once it has a subject; the announcement brings none of its own", () => {
+    expect(BROADCAST_TEMPLATES.find((template) => template.key === "announcement")?.content.subject).toBe("");
+    expect(JSON.stringify(BROADCAST_TEMPLATES)).not.toContain("RepGet update for all users");
     for (const template of BROADCAST_TEMPLATES) {
-      const read = readBroadcastContent(content({ ...template.content, ctaUrl: `https://www.repget.com${template.path}` }), { complete: true });
+      const subject = template.content.subject || "Typed by the administrator";
+      const read = readBroadcastContent(content({ ...template.content, subject, ctaUrl: `https://www.repget.com${template.path}` }), { complete: true });
       expect(read).toMatchObject({ ok: true, content: { bodyHtml: template.content.bodyHtml.replace(/<br>/g, "<br />") } });
     }
+  });
+});
+
+describe("one person", () => {
+  it("needs the chosen account to be sent, not to be saved", () => {
+    expect(readBroadcastContent(content({ audience: "person" }), { complete: false })).toMatchObject({ ok: true, content: { personId: null } });
+    expect(readBroadcastContent(content({ audience: "person" }), { complete: true })).toEqual({ ok: false, error: "Choose the person to email." });
+    expect(readBroadcastContent(content({ audience: "person", personId: "u_0001" }), { complete: true })).toMatchObject({
+      ok: true,
+      content: { audience: "person", personId: "u_0001" },
+    });
+  });
+
+  it("keeps an account only for the person audience, and only a real-looking id", () => {
+    expect(readBroadcastContent(content({ audience: "all", personId: "u_0001" }), { complete: true })).toMatchObject({ ok: true, content: { personId: null } });
+    expect(readBroadcastContent(content({ audience: "person", personId: "x' or 1=1" }), { complete: false }).ok).toBe(false);
   });
 });
 
@@ -127,6 +148,23 @@ describe("the email", () => {
     expect(email.html).toContain("A &lt;b&gt;&quot;bold&quot;&lt;/b&gt; &amp; co");
     expect(email.html).toContain('href="https://a.example/?a=1&amp;b=2"');
     expect(email.html).toContain("&lt;i&gt;Go&lt;/i&gt;");
+  });
+
+  it("uses the subject as written, and the heading in its place when there is one", () => {
+    const plain = render({ subject: "Big news for you" });
+    expect(plain.subject).toBe("Big news for you");
+    expect(plain.html).toMatch(/<h1[^>]*>Big news for you<\/h1>/);
+    const headed = render({ subject: "Big news for you", heading: "Something new inside RepGet" });
+    expect(headed.subject).toBe("Big news for you");
+    expect(headed.html).toMatch(/<h1[^>]*>Something new inside RepGet<\/h1>/);
+    expect(headed.html).not.toMatch(/<h1[^>]*>Big news for you/);
+    expect(readBroadcastContent(content({ heading: "  Two\n lines " }), { complete: true })).toMatchObject({ ok: true, content: { heading: "Two lines" } });
+  });
+
+  it("opens with the RepGet logo, not the word, with its alt text and size", () => {
+    const { html } = render();
+    expect(html).toContain('<img src="https://www.repget.com/images/repget-logo-email.png" alt="RepGet" width="140" height="35"');
+    expect(html).not.toMatch(/<p[^>]*>RepGet<\/p>/);
   });
 
   it("sanitises again whatever is stored", () => {

@@ -5,6 +5,7 @@ import type { StatusTone } from "../_ui/status";
 /** How Admin -> Feedback names a message's status and kind. */
 export const STATUS_LABEL: Record<FeedbackStatus, { label: string; tone: StatusTone }> = {
   new: { label: "New", tone: "info" },
+  read: { label: "Read", tone: "neutral" },
   planned: { label: "Planned", tone: "pending" },
   done: { label: "Done", tone: "success" },
   wont_do: { label: "Won't do", tone: "neutral" },

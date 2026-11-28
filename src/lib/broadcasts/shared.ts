@@ -3,8 +3,12 @@
  * share. Plain data only - no database, no Node - so the browser can import it.
  */
 
-export const BROADCAST_AUDIENCES = ["all", "free", "paid", "inactive"] as const;
+export const BROADCAST_AUDIENCES = ["all", "free", "paid", "inactive", "person"] as const;
 export type BroadcastAudience = (typeof BROADCAST_AUDIENCES)[number];
+
+/** The audiences that are a group of people, counted on the page in advance. "person" is one chosen account. */
+export const GROUP_AUDIENCES = ["all", "free", "paid", "inactive"] as const satisfies readonly BroadcastAudience[];
+export type GroupAudience = (typeof GROUP_AUDIENCES)[number];
 
 export function isBroadcastAudience(value: unknown): value is BroadcastAudience {
   return typeof value === "string" && (BROADCAST_AUDIENCES as readonly string[]).includes(value);
@@ -31,7 +35,21 @@ export const AUDIENCE_META: Record<BroadcastAudience, { label: string; definitio
     label: "Inactive users only",
     definition: `People who joined more than ${INACTIVE_DAYS} days ago and have not used a session in the last ${INACTIVE_DAYS} days. RepGet keeps no record of a session after sign-out, so someone who signed out since counts as inactive.`,
   },
+  person: {
+    label: "One person",
+    definition: "Only the account you choose below (owner, 2026-11-27). The same rules as for everyone: not sent if they unsubscribed or never verified their address.",
+  },
 };
+
+/** The account chosen for the "person" audience, as the page shows it. */
+export type BroadcastPerson = { id: string; name: string; email: string; verified: boolean; optedOut: boolean };
+
+/** Why this person would not be sent a broadcast, in the administrator's words; null when they would. */
+export function personProblem(person: Pick<BroadcastPerson, "verified" | "optedOut">): string | null {
+  if (person.optedOut) return "They unsubscribed from tips and reports, so this email will not be sent to them.";
+  if (!person.verified) return "Their email address is not verified, so this email will not be sent to them.";
+  return null;
+}
 
 export type BroadcastStatus = "draft" | "scheduled" | "sending" | "sent" | "cancelled";
 
@@ -47,7 +65,11 @@ export type BroadcastImage = { url: string; alt: string };
 
 export type BroadcastContent = {
   audience: BroadcastAudience;
+  /** The account it goes to when the audience is "person"; null otherwise. */
+  personId: string | null;
   subject: string;
+  /** The large title inside the email; empty means the subject (owner, 2026-11-27). */
+  heading: string;
   previewText: string;
   bodyHtml: string;
   images: BroadcastImage[];
@@ -57,6 +79,7 @@ export type BroadcastContent = {
 
 export const BROADCAST_LIMITS = {
   subject: 150,
+  heading: 150,
   previewText: 200,
   /** HTML, formatting included. */
   bodyHtml: 30_000,
@@ -90,7 +113,8 @@ export const BROADCAST_TEMPLATES: {
     label: "Announcement",
     path: "/dashboard",
     content: {
-      subject: "RepGet update for all users",
+      // No subject: the administrator writes it (owner, 2026-11-27 - "RepGet update for all users" went out as typed).
+      subject: "",
       previewText: "A quick update from RepGet you should not miss.",
       bodyHtml:
         "<p>Hello from RepGet,</p><p>We wanted to share an important update with all our users. Thank you for being part of the platform.</p><p>Inside your dashboard you can now discover new improvements, better workflows, and stronger growth support.</p><p>Thank you,<br>The RepGet team</p>",

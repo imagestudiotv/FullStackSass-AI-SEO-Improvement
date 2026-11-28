@@ -222,6 +222,13 @@ export function SidebarNav({
     if (open[id] !== true) toggle(id, false);
   }
 
+  /*
+    A label wraps onto a second line rather than being cut ("Social
+    Distributi...", "Google Search & ..." - outside review, 2026-11-27), and
+    the row's title gives the full name on hover should even two lines not do.
+  */
+  const labelClass = "min-w-0 flex-1 line-clamp-2 leading-snug wrap-break-word";
+
   const linkClass = (active: boolean, child: boolean) =>
     cn(
       "flex items-center gap-3 rounded-md px-3 text-sm transition-colors",
@@ -237,9 +244,9 @@ export function SidebarNav({
     const active = isActive(item);
     const Icon = item.icon;
     return (
-      <Link key={item.title} href={href} onClick={onNavigate} aria-current={active ? "page" : undefined} className={linkClass(active, child)}>
+      <Link key={item.title} href={href} onClick={onNavigate} aria-current={active ? "page" : undefined} title={t[item.title]} className={linkClass(active, child)}>
         <Icon className={cn("shrink-0", child ? "size-3.5" : "size-4", active && "text-primary")} aria-hidden="true" />
-        <span className="min-w-0 flex-1 truncate">{t[item.title]}</span>
+        <span className={labelClass}>{t[item.title]}</span>
         {/* Progress beside "Set up", only while there is progress to report. */}
         {item.href === "/setup" && setupProgress ? (
           <span className="shrink-0 rounded-full bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary tabular-nums">
@@ -286,10 +293,11 @@ export function SidebarNav({
                     onNavigate?.();
                   }}
                   aria-current={headingActive ? "page" : undefined}
+                  title={t[entry.title]}
                   className="flex min-w-0 flex-1 items-center gap-3 rounded-md px-3 py-2 font-semibold"
                 >
                   <Icon className={cn("size-4 shrink-0", headingActive && "text-primary")} aria-hidden="true" />
-                  <span className="min-w-0 flex-1 truncate">{t[entry.title]}</span>
+                  <span className={labelClass}>{t[entry.title]}</span>
                 </Link>
                 {/* The same name as the link; a reader hears it as expanded or collapsed. */}
                 <button
@@ -309,10 +317,11 @@ export function SidebarNav({
                 onClick={() => toggle(entry.id, isOpen)}
                 aria-expanded={isOpen}
                 aria-controls={listId}
+                title={t[entry.title]}
                 className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm font-semibold text-foreground transition-colors hover:bg-accent/60"
               >
                 <Icon className="size-4 shrink-0" aria-hidden="true" />
-                <span className="min-w-0 flex-1 truncate">{t[entry.title]}</span>
+                <span className={labelClass}>{t[entry.title]}</span>
                 <ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition-transform", !isOpen && "-rotate-90")} aria-hidden="true" />
               </button>
             )}

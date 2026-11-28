@@ -1,12 +1,14 @@
 import "server-only";
 
-import { and, eq, sql, type SQL } from "drizzle-orm";
+import { and, asc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
+
+import { containsPattern } from "@/lib/admin/shared";
 
 import { db } from "@/lib/db";
 import { agencyWorkspaces, emailPreferences, member, session, subscriptions, user } from "@/lib/db/schema";
 import type { Executor } from "@/lib/db/types";
 
-import { INACTIVE_DAYS, type BroadcastAudience } from "./shared";
+import { INACTIVE_DAYS, type BroadcastAudience, type BroadcastPerson, type GroupAudience } from "./shared";
 
 /**
  * Who a broadcast goes to. ONE definition for the count on the page, the list
@@ -50,8 +52,11 @@ function inactiveSql(now: Date): SQL {
   ))`;
 }
 
-export function audienceSql(audience: BroadcastAudience, now: Date = new Date()): SQL {
+/** `personId` is the chosen account of a "person" broadcast; without one, it reaches nobody. */
+export function audienceSql(audience: BroadcastAudience, now: Date = new Date(), personId: string | null = null): SQL {
   switch (audience) {
+    case "person":
+      return personId ? sql`"user"."id" = ${personId}` : sql`false`;
     case "all":
       return sql`true`;
     case "free":
@@ -70,11 +75,16 @@ const optedOutSql: SQL = sql`exists (
 /** May be emailed a broadcast at all. */
 export const mayReceiveSql: SQL = sql`("user"."email_verified" and not ${optedOutSql})`;
 
-export async function countRecipients(audience: BroadcastAudience, executor: Executor = db, now: Date = new Date()): Promise<number> {
+export async function countRecipients(
+  audience: BroadcastAudience,
+  executor: Executor = db,
+  now: Date = new Date(),
+  personId: string | null = null,
+): Promise<number> {
   const [row] = await executor
     .select({ n: sql<number>`count(*)::int` })
     .from(user)
-    .where(and(mayReceiveSql, audienceSql(audience, now)));
+    .where(and(mayReceiveSql, audienceSql(audience, now, personId)));
   return Number(row?.n ?? 0);
 }
 
@@ -83,8 +93,8 @@ export type AudienceSummary = {
   suppressed: number;
   optedOut: number;
   unverified: number;
-  /** Who would receive it now, per audience. */
-  recipients: Record<BroadcastAudience, number>;
+  /** Who would receive it now, per group audience. */
+  recipients: Record<GroupAudience, number>;
 };
 
 /** The page's figures, in one query over the user table. */
@@ -124,4 +134,39 @@ export async function checkRecipient(userId: string, executor: Executor = db): P
   if (row.tips === false) return { ok: false, reason: "unsubscribed" };
   if (!row.verified) return { ok: false, reason: "email not verified" };
   return { ok: true, email: row.email };
+}
+
+/** An account as the "One person" audience shows it: who they are and whether a broadcast would reach them. */
+const personColumns = {
+  id: user.id,
+  name: user.name,
+  email: user.email,
+  verified: user.emailVerified,
+  optedOut: sql<boolean>`coalesce(${emailPreferences.tips} = false, false)`,
+};
+
+const toPerson = (row: { id: string; name: string; email: string; verified: boolean; optedOut: boolean | null }): BroadcastPerson => ({
+  id: row.id,
+  name: row.name,
+  email: row.email,
+  verified: Boolean(row.verified),
+  optedOut: Boolean(row.optedOut),
+});
+
+export async function findPerson(id: string, executor: Executor = db): Promise<BroadcastPerson | null> {
+  const [row] = await executor.select(personColumns).from(user).leftJoin(emailPreferences, eq(emailPreferences.userId, user.id)).where(eq(user.id, id)).limit(1);
+  return row ? toPerson(row) : null;
+}
+
+/** Accounts whose email or name contains `term`, for picking the one person. */
+export async function searchPeople(term: string, limit = 8, executor: Executor = db): Promise<BroadcastPerson[]> {
+  const pattern = containsPattern(term);
+  const rows = await executor
+    .select(personColumns)
+    .from(user)
+    .leftJoin(emailPreferences, eq(emailPreferences.userId, user.id))
+    .where(or(ilike(user.email, pattern), ilike(user.name, pattern)))
+    .orderBy(asc(user.email))
+    .limit(limit);
+  return rows.map(toPerson);
 }
