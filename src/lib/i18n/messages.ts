@@ -121,12 +121,6 @@ export type Messages = {
     subtitle: string;
     checkFree: string;
     getStarted: string;
-    /**
-     * The three reassurances under the hero buttons, shown with a dot between
-     * them. A list rather than one sentence so a phone can wrap between items
-     * instead of leaving a dot at the start of a line.
-     */
-    heroAssurances: string[];
     /** "Free with your audit" band. */
     auditBand: string;
     auditItems: { title: string; body: string }[];
@@ -220,15 +214,6 @@ export type Messages = {
       scheduled: string;
     };
     /**
-     * The cards floating either side of the headline.
-     *
-     * Separate from `tracked`, which feeds the "what you see" section further
-     * down the page. They started as the same four, but the hero now shows six
-     * and growing `tracked` would have silently added two cards to a section
-     * that is not about them.
-     */
-    heroCards: { label: string; detail: string }[];
-    /**
      * The headline, split so the second half can be coloured.
      *
      * Two keys rather than one string with markup in it, and rather than
@@ -239,14 +224,6 @@ export type Messages = {
      */
     titleLead: string;
     titleAccent: string;
-    /**
-     * The headline's second line as it is shown: {engine} is replaced, in
-     * turn, by each AI assistant (Hero in app/(marketing)/home-sections.tsx).
-     * It must END with {engine} plus at most punctuation, so the changing
-     * word never leaves a gap before the rest of the line. titleAccent stays
-     * the sentence screen readers and search engines read.
-     */
-    titleAccentTemplate: string;
     /** The four columns under the product shot. */
     pillars: { title: string; body: string }[];
     /** Heading over the dashboard preview. */
@@ -3464,7 +3441,6 @@ const en: Messages = {
       "RepGet publishes SEO content, earns quality backlinks, and builds the authority that gets your business discovered.",
     checkFree: "Check my website for free",
     getStarted: "Get Started",
-    heroAssurances: ["Free website check", "No credit card required", "Results in minutes"],
     auditBand: "Free with your audit",
     auditItems: [
       {
@@ -3658,15 +3634,6 @@ const en: Messages = {
       "An example dashboard. Your own figures start at zero and grow from there.",
     titleLead: "Rank on Google.",
     titleAccent: "Show up in AI answers.",
-    titleAccentTemplate: "Get recommended by {engine}.",
-    heroCards: [
-      { label: "Rankings and clicks", detail: "From Search Console" },
-      { label: "AI visibility", detail: "Whether assistants name you" },
-      { label: "Traffic growth", detail: "Reach more customers" },
-      { label: "Visible in AI answers", detail: "Show up where it matters" },
-      { label: "Quality backlinks", detail: "Get cited by real websites" },
-      { label: "Keyword tracking", detail: "See what is working" },
-    ],
     joinGoogle: "Join with Google",
     seeHow: "See how it works",
     videoTitle: "See RepGet in two minutes",
@@ -6662,7 +6629,6 @@ const es: Messages = {
       "RepGet publica contenido SEO, consigue enlaces de calidad y construye la autoridad que hace que descubran su negocio.",
     checkFree: "Analizar mi web gratis",
     getStarted: "Empezar",
-    heroAssurances: ["Análisis web gratuito", "Sin tarjeta de crédito", "Resultados en minutos"],
     auditBand: "Gratis con su análisis",
     auditItems: [
       {
@@ -6867,18 +6833,6 @@ const es: Messages = {
       "Un panel de ejemplo. Sus cifras empiezan en cero y crecen desde ahí.",
     titleLead: "Posiciónese en Google.",
     titleAccent: "Aparezca en las respuestas de IA.",
-    titleAccentTemplate: "Sea recomendado por {engine}.",
-    heroCards: [
-      { label: "Posiciones y clics", detail: "Desde Search Console" },
-      { label: "Visibilidad en IA", detail: "Si los asistentes le nombran" },
-      { label: "Crecimiento de tráfico", detail: "Llegue a más clientes" },
-      {
-        label: "Presente en respuestas de IA",
-        detail: "Apareciendo donde importa",
-      },
-      { label: "Enlaces de calidad", detail: "Citado por webs reales" },
-      { label: "Seguimiento de palabras clave", detail: "Vea qué funciona" },
-    ],
     joinGoogle: "Entrar con Google",
     seeHow: "Vea cómo funciona",
     videoTitle: "Vea RepGet en dos minutos",
@@ -9878,11 +9832,6 @@ const fr: Messages = {
       "RepGet publie du contenu SEO, obtient des backlinks de qualité et construit l'autorité qui fait découvrir votre entreprise.",
     checkFree: "Analyser mon site gratuitement",
     getStarted: "Commencer",
-    heroAssurances: [
-      "Analyse gratuite de votre site",
-      "Sans carte bancaire",
-      "Résultats en quelques minutes",
-    ],
     auditBand: "Offert avec votre analyse",
     auditItems: [
       {
@@ -10083,18 +10032,6 @@ const fr: Messages = {
       "Un tableau de bord d'exemple. Vos propres chiffres partent de zéro.",
     titleLead: "Positionnez-vous sur Google.",
     titleAccent: "Apparaissez dans les réponses IA.",
-    titleAccentTemplate: "Soyez recommandé par {engine}.",
-    heroCards: [
-      { label: "Positions et clics", detail: "Depuis Search Console" },
-      { label: "Visibilité IA", detail: "Si les assistants vous citent" },
-      { label: "Croissance du trafic", detail: "Touchez plus de clients" },
-      {
-        label: "Visible dans les réponses IA",
-        detail: "Présent là où ça compte",
-      },
-      { label: "Backlinks de qualité", detail: "Cité par de vrais sites" },
-      { label: "Suivi des mots-clés", detail: "Voyez ce qui fonctionne" },
-    ],
     joinGoogle: "Rejoindre avec Google",
     seeHow: "Voir comment ça marche",
     videoTitle: "Découvrez RepGet en deux minutes",
@@ -13093,11 +13030,6 @@ const it: Messages = {
       "RepGet pubblica contenuti SEO, ottiene backlink di qualità e costruisce l'autorevolezza che fa scoprire la sua azienda.",
     checkFree: "Controlla il mio sito gratis",
     getStarted: "Inizia",
-    heroAssurances: [
-      "Analisi gratuita del sito",
-      "Nessuna carta di credito",
-      "Risultati in pochi minuti",
-    ],
     auditBand: "Incluso con la sua analisi",
     auditItems: [
       {
@@ -13302,15 +13234,6 @@ const it: Messages = {
       "Una dashboard di esempio. I suoi numeri partono da zero e crescono da lì.",
     titleLead: "Si posizioni su Google.",
     titleAccent: "Compaia nelle risposte IA.",
-    titleAccentTemplate: "Si faccia consigliare da {engine}.",
-    heroCards: [
-      { label: "Posizioni e clic", detail: "Da Search Console" },
-      { label: "Visibilità IA", detail: "Se gli assistenti la nominano" },
-      { label: "Crescita del traffico", detail: "Raggiunga più clienti" },
-      { label: "Presente nelle risposte IA", detail: "Dove conta davvero" },
-      { label: "Backlink di qualità", detail: "Citato da siti veri" },
-      { label: "Monitoraggio parole chiave", detail: "Veda cosa funziona" },
-    ],
     joinGoogle: "Entra con Google",
     seeHow: "Guarda come funziona",
     videoTitle: "RepGet in due minuti",
@@ -16309,7 +16232,6 @@ const de: Messages = {
       "RepGet veröffentlicht SEO-Inhalte, gewinnt hochwertige Backlinks und baut die Autorität auf, durch die Ihr Unternehmen gefunden wird.",
     checkFree: "Website kostenlos prüfen",
     getStarted: "Loslegen",
-    heroAssurances: ["Kostenloser Website-Check", "Keine Kreditkarte nötig", "Ergebnisse in Minuten"],
     auditBand: "Kostenlos zu Ihrer Analyse",
     auditItems: [
       {
@@ -16511,15 +16433,6 @@ const de: Messages = {
       "Ein Beispiel-Dashboard. Ihre eigenen Zahlen starten bei null.",
     titleLead: "Bei Google ranken.",
     titleAccent: "In KI-Antworten erscheinen.",
-    titleAccentTemplate: "Empfohlen von {engine}.",
-    heroCards: [
-      { label: "Positionen und Klicks", detail: "Aus der Search Console" },
-      { label: "KI-Sichtbarkeit", detail: "Ob Assistenten Sie nennen" },
-      { label: "Traffic-Wachstum", detail: "Mehr Kunden erreichen" },
-      { label: "Sichtbar in KI-Antworten", detail: "Dort, wo es zählt" },
-      { label: "Hochwertige Backlinks", detail: "Von echten Websites zitiert" },
-      { label: "Keyword-Tracking", detail: "Sehen, was funktioniert" },
-    ],
     joinGoogle: "Mit Google beitreten",
     seeHow: "So funktioniert es",
     videoTitle: "RepGet in zwei Minuten",

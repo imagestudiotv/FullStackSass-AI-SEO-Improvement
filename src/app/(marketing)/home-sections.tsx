@@ -13,23 +13,19 @@ import {
   Globe,
   LayoutDashboard,
   Link2,
-  Play,
   Plus,
   Search,
   Settings,
   Sparkles,
   TrendingUp,
   UserRound,
-  Users,
   X,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
-import type { CSSProperties } from "react";
 
 import { BrandMark } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
-import { GoogleMark } from "@/components/google-mark";
 import { ArticleExamples } from "./article-examples";
 import { WalkthroughPlayer } from "./walkthrough-player";
 import {
@@ -41,7 +37,6 @@ import {
   WixMark,
   WordPressMark,
 } from "@/components/integration-marks";
-import { WideScreenOnly } from "@/components/wide-screen-only";
 import { format } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
 import { REAL_ARTICLES } from "@/lib/marketing/real-articles";
@@ -170,239 +165,6 @@ function ExampleChip({ label, className = "" }: { label: string; className?: str
 /** The card surface shared by the sections: white, hairline border, soft lift. */
 const CARD =
   "rounded-2xl border bg-card shadow-[0_1px_2px_rgba(0,0,0,0.04),0_12px_32px_-20px_rgba(0,0,0,0.18)]";
-
-/* -------------------------------------------------------------------------- */
-/* Hero                                                                       */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Where each floating card sits, in the order the dictionary lists them.
- *
- * Six rather than four: three down each side, so the headline keeps a clear
- * column through the middle. The vertical spread is deliberate — evenly
- * spaced cards read as a list, while staggered ones read as a scatter, which
- * is what the design is doing.
- *
- * The cards name what the product tracks rather than claiming results: the
- * design's versions carry specific numbers ("65 positions") which would read
- * as a customer's actual figures.
- *
- * Icons live here and words live in the dictionary, because an icon is not
- * translatable and a component name in a messages file is something a
- * translator could break the build with.
- */
-const HERO_CARD_STYLE: { icon: LucideIcon; className: string }[] = [
-  { icon: Search, className: "left-[3%] top-4 -rotate-6" },
-  { icon: Bot, className: "left-[0%] top-32 rotate-3" },
-  { icon: Users, className: "left-[4%] top-[14rem] -rotate-3" },
-  { icon: Sparkles, className: "right-[3%] top-2 rotate-6" },
-  { icon: Link2, className: "right-[0%] top-32 -rotate-3" },
-  { icon: TrendingUp, className: "right-[4%] top-[14rem] rotate-3" },
-];
-
-/**
- * The AI assistants the headline names in turn (client, 2026-10-13: "the
- * moving text header" of draftseo.ai). Brand names, so the same in every
- * language.
- */
-export const ANSWER_ENGINES = ["ChatGPT", "Perplexity", "Gemini", "Claude", "Copilot"] as const;
-
-/**
- * "Get recommended by ChatGPT." with the last word taking turns.
- *
- * CSS only (.hero-engines in globals.css): no script before the headline, so
- * the page is as fast as before. Every name sits in the same grid cell, so
- * the line keeps the width of the longest and nothing below it moves, and
- * the first one is already in place at the first paint. With reduced motion
- * it stays on the first. The template ends with {engine} (and at most
- * punctuation, which moves with the name), so a short name never leaves a gap
- * in the middle of the line.
- */
-export function HeroEngines({ template }: { template: string }) {
-  const at = template.indexOf("{engine}");
-  const before = at < 0 ? template : template.slice(0, at);
-  const after = at < 0 ? "" : template.slice(at + "{engine}".length);
-  return (
-    <span aria-hidden="true" className="text-primary">
-      {before}
-      <span className="hero-engines">
-        {ANSWER_ENGINES.map((engine, index) => (
-          <span key={engine} style={{ "--i": index } as CSSProperties}>
-            {engine}
-            {after}
-          </span>
-        ))}
-      </span>
-    </span>
-  );
-}
-
-export function Hero({ t, href }: SectionProps) {
-  return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-primary/[0.055] via-background to-background px-4 pt-14 pb-12 sm:pt-20">
-      {/*
-        The soft warm wash the design puts behind the cards. A radial tint
-        rather than an image: it costs no request and scales to any width.
-        Behind everything, so the cards and headline stay crisp on top.
-      */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 -z-10"
-        style={{
-          backgroundImage:
-            "radial-gradient(ellipse 70% 55% at 50% 0%, rgba(234,88,12,0.10), transparent 70%)",
-        }}
-      />
-      <div className="mx-auto max-w-4xl text-center">
-        {/*
-          Two lines, the second in the brand colour, as drawn. The break is a
-          <br /> rather than a wrap, so it falls in the same place at every
-          width instead of only on a wide screen.
-        */}
-        <h1 className="text-4xl font-semibold tracking-tight text-balance sm:text-6xl">
-          {t.titleLead}
-          <br />
-          {/* Read once, as a sentence; the moving line below is for the eye only. */}
-          <span className="sr-only">{t.titleAccent}</span>
-          <HeroEngines template={t.titleAccentTemplate} />
-        </h1>
-
-        <p className="mx-auto mt-4 max-w-xl text-pretty text-muted-foreground sm:text-lg">
-          {t.subtitle}
-        </p>
-
-        <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
-          <Button size="lg" asChild className={CTA}>
-            <Link href={href("/audit")}>
-              {t.checkFree}
-              <ArrowRight className="size-4" />
-            </Link>
-          </Button>
-          {/*
-            Google beside the free check, as the design asks. It goes to the
-            same sign-up page as everything else rather than starting an OAuth
-            flow from here: that page offers Google AND email, so someone who
-            clicks this and then changes their mind is not stranded on a screen
-            with one option. Sign-up is not localised, so it keeps its own path.
-          */}
-          <Button size="lg" variant="outline" asChild className={CTA}>
-            <Link href="/sign-up">
-              <GoogleMark />
-              {t.joinGoogle}
-            </Link>
-          </Button>
-        </div>
-
-        {/*
-          "Free website check • No credit card required • Results in minutes".
-          Dots between the three from md, where the line fits; below that each
-          wraps as its own item with a tick, so a phone never shows a dot
-          stranded at the start of a line. (The design's "Google 4.9/5" badge
-          stays out until there are real reviews to average.)
-        */}
-        <ul className="mx-auto mt-4 flex max-w-md flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-sm text-muted-foreground md:max-w-none md:gap-x-2.5">
-          {t.heroAssurances.map((item, index) => (
-            <li key={item} className="flex items-center gap-1.5 md:gap-2.5">
-              {index > 0 ? (
-                <span aria-hidden="true" className="hidden text-primary/70 md:inline">
-                  •
-                </span>
-              ) : null}
-              <Check className="size-3.5 text-primary md:hidden" aria-hidden="true" />
-              {item}
-            </li>
-          ))}
-        </ul>
-
-        {/*
-          Scrolls to the walkthrough rather than opening a modal, and does not
-          start it: the video plays only from its own play button.
-        */}
-        <a
-          href="#how-it-works-video"
-          className="mt-5 inline-flex items-center gap-2.5 text-sm font-medium text-foreground transition-colors hover:text-primary"
-        >
-          <span className="flex size-9 items-center justify-center rounded-full bg-primary text-primary-foreground">
-            <Play className="size-4 fill-current" aria-hidden="true" />
-          </span>
-          {t.seeHow}
-          <ChevronDown className="size-4 text-muted-foreground" aria-hidden="true" />
-        </a>
-      </div>
-
-      {/*
-        Floating cards, wide screens only, in the DOM too (see WideScreenOnly):
-        a phone never builds or hydrates these cards. They appear just after
-        hydration on a wide screen, so they fade in rather than pop. The
-        2xl:block below still decides what shows if a window is resized across
-        the breakpoint.
-      */}
-      <WideScreenOnly>
-      <div
-        /*
-          Inset from the top rather than pinned to it, so no card can slide
-          under the sticky header however these offsets are tuned later.
-        */
-        className="pointer-events-none absolute inset-x-0 top-6 mx-auto hidden h-full max-w-[96rem] motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-500 2xl:block"
-        aria-hidden="true"
-      >
-        {/*
-          The curved threads linking the cards back towards the middle. One
-          SVG on a viewBox rather than six positioned elements, stretched with
-          the container so the ends stay attached.
-        */}
-        <svg
-          className="absolute inset-0 h-full w-full"
-          viewBox="0 0 1000 420"
-          preserveAspectRatio="none"
-          fill="none"
-        >
-          <g
-            stroke="currentColor"
-            className="text-primary/25"
-            strokeWidth="1.5"
-            strokeDasharray="4 6"
-            strokeLinecap="round"
-          >
-            <path d="M258 74 C 310 92, 336 132, 360 170" />
-            <path d="M244 196 C 300 200, 330 198, 356 198" />
-            <path d="M262 300 C 312 292, 342 262, 366 232" />
-            <path d="M742 70 C 690 88, 664 130, 640 168" />
-            <path d="M756 196 C 700 200, 670 198, 644 198" />
-            <path d="M738 300 C 688 292, 658 262, 634 232" />
-          </g>
-          <g className="fill-primary/60">
-            <circle cx="258" cy="74" r="3.5" />
-            <circle cx="244" cy="196" r="3.5" />
-            <circle cx="262" cy="300" r="3.5" />
-            <circle cx="742" cy="70" r="3.5" />
-            <circle cx="756" cy="196" r="3.5" />
-            <circle cx="738" cy="300" r="3.5" />
-          </g>
-        </svg>
-
-        {t.heroCards.map((card, index) => {
-          const style = HERO_CARD_STYLE[index];
-          if (!style) return null;
-          const Icon = style.icon;
-          return (
-            <div
-              key={card.label}
-              className={`absolute w-52 rounded-2xl border border-black/[0.04] bg-card p-4 shadow-[0_18px_40px_-12px_rgba(0,0,0,0.18)] ${style.className}`}
-            >
-              <div className="flex items-center gap-2">
-                <Icon className="size-4 text-primary" />
-                <span className="text-xs font-medium">{card.label}</span>
-              </div>
-              <p className="mt-1 text-xs text-muted-foreground">{card.detail}</p>
-            </div>
-          );
-        })}
-      </div>
-      </WideScreenOnly>
-    </section>
-  );
-}
 
 /* -------------------------------------------------------------------------- */
 /* Walkthrough video                                                          */
