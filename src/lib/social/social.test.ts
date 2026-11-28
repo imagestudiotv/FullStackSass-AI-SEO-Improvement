@@ -1163,7 +1163,7 @@ describe("LinkedIn in Social", () => {
     return seeded;
   }
   /** The model writes one own post, for the LinkedIn slot. */
-  const linkedinWriter: SuggestDeps["write"] = vi.fn(async (_profile, _threads, slots) => ({
+  const linkedinWriter = vi.fn<SuggestDeps["write"]>(async (_profile, _threads, slots) => ({
     drafts: { replies: [], posts: [{ slot: slots.findIndex((slot) => slot.platform === "linkedin") + 1, title: null, body: "One lesson from 200 weddings: shade beats golden hour." }] },
     usage: { inputTokens: 100, outputTokens: 50, model: "claude-sonnet-5" },
   }));
@@ -1171,7 +1171,7 @@ describe("LinkedIn in Social", () => {
   it("does not suggest an own post that reads like an advert", async () => {
     vi.stubEnv("SOCIAL_LINKEDIN_AUTOPOST", "1");
     const { websiteId } = await linkedinSite();
-    const advert: SuggestDeps["write"] = vi.fn(async (_profile, _threads, slots) => ({
+    const advert = vi.fn<SuggestDeps["write"]>(async (_profile, _threads, slots) => ({
       drafts: { replies: [], posts: [{ slot: slots.findIndex((slot) => slot.platform === "linkedin") + 1, title: null, body: "Shade beats golden hour. Book a consultation with us today." }] },
       usage: { inputTokens: 100, outputTokens: 50, model: "claude-sonnet-5" },
     }));
