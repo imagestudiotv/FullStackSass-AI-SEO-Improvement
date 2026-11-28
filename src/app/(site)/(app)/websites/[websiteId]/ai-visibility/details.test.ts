@@ -84,12 +84,14 @@ describe("loadVisibilityDetails", () => {
     expect(details.questions[weekly].latest).toMatchObject({ mentioned: true, position: 2, assistant: "Claude" });
     // Latest plus four earlier, not all eight.
     expect(details.questions[weekly].earlier).toHaveLength(HISTORY_PER_QUESTION - 1);
-    expect(details.questions[weekly].earlier[0]).toEqual({ checkedAt: daysAgo(7), mentioned: false, position: null });
+    expect(details.questions[weekly].earlier[0]).toEqual({ checkedAt: daysAgo(7), mentioned: false, position: null, samples: 1, mentionCount: 0 });
 
     expect(details.questions[named].latest).toEqual({
       checkedAt: minutesAgo(3),
       mentioned: true,
       position: 1,
+      samples: 1,
+      mentionCount: 1,
       assistant: "Claude",
       cited: true,
       competitors: ["Bright Smile", "Tandarts Centrum"],

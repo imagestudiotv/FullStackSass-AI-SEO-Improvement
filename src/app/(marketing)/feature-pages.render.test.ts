@@ -90,6 +90,11 @@ describe("the footer product pages", () => {
       // (20 and 50 tracked questions on Grow and Scale, Free's snapshot of 5).
       expect(words).not.toMatch(/[$€£]\s?\d|\d+\s?%|\d[\d,]*\+/);
       expect(words.match(/\d+/g)).toEqual(["3", "3", "20", "50", "5"]);
+      // The assistants are the deployment's, filled in (lib/geo/engine-words.ts): Claude alone with GEO_ENGINES unset.
+      expect(words).not.toMatch(/\{assistants\}|\{notChecked\}/);
+      const chatgpt = JSON.stringify(featurePageContent("/rank-on-chatgpt", locale).page.faq);
+      expect(chatgpt).toMatch(/Claude/);
+      expect(chatgpt).toMatch(/ChatGPT, Gemini, Perplexity/);
     }
   });
 

@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import Anthropic from "@anthropic-ai/sdk";
 import {
   and,
+  asc,
   count,
   eq,
   gt,
@@ -152,6 +153,30 @@ async function liveCount(tx: Executor, rule: QuotaRule, now: Date) {
  */
 export async function usedInWindow(rule: QuotaRule, now: Date = new Date()): Promise<number> {
   return liveCount(db, rule, now);
+}
+
+/**
+ * When a rolling window next has a free slot: `now` if it has one already,
+ * else the moment enough of its oldest live slots have aged out. For saying
+ * "the next check is available on ..." rather than guessing a weekday.
+ * Null for a calendar window ({ since }), which this cannot predict.
+ */
+export async function nextFreeSlotAt(rule: QuotaRule, now: Date = new Date()): Promise<Date | null> {
+  if ("since" in rule.window) return null;
+  const rows = await db
+    .select({ countedAt: spendReservations.countedAt })
+    .from(spendReservations)
+    .where(
+      and(
+        eq(spendReservations.key, rule.key),
+        inArray(spendReservations.state, LIVE_STATES),
+        gt(spendReservations.countedAt, windowStart(rule.window, now)),
+      ),
+    )
+    .orderBy(asc(spendReservations.countedAt));
+  if (rows.length < rule.limit) return now;
+  // With `limit` slots, the next frees when the (n - limit + 1)th oldest leaves the window.
+  return new Date(rows[rows.length - rule.limit].countedAt.getTime() + rule.window.seconds * 1000);
 }
 
 async function inTransaction<T>(

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { BrandLogo } from "@/components/brand-logo";
 import { AuthAside } from "@/components/auth-aside";
 import { AuthShowcase } from "@/components/auth-showcase";
+import { assistantWords, notCheckedWords } from "@/lib/geo/engine-words";
 import { ConsentBanner } from "@/components/consent-banner";
 import { SignUpShowcase } from "@/components/signup-showcase";
 import { getAuthMessages } from "@/lib/i18n/app-locale";
@@ -94,7 +95,7 @@ export default async function AuthLayout({ children }: LayoutProps<"/">) {
         </div>
       </div>
 
-      <AuthAside signIn={<AuthShowcase />} signUp={<SignUpShowcase locale={locale} />} />
+      <AuthAside signIn={<AuthShowcase assistants={assistantWords("en")} notChecked={notCheckedWords("en")} />} signUp={<SignUpShowcase locale={locale} />} />
     </div>
   );
 }

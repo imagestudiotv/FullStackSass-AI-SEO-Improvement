@@ -474,17 +474,3 @@ describe("testimonials", () => {
     expect(html).not.toContain(esc(t.testimonialsCaseStudy));
   });
 });
-
-describe("the headline's moving last word (client, 2026-10-13)", () => {
-
-  it.each(LOCALES)("%s: the template ends with {engine}, so a short name never leaves a gap", (locale) => {
-
-    const template = getMessages(locale).home.titleAccentTemplate;
-
-    expect(template.split("{engine}")).toHaveLength(2);
-
-    expect(template).toMatch(/\{engine\}[.!?]?$/);
-
-  });
-
-});

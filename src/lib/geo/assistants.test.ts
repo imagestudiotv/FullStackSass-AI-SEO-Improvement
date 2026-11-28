@@ -1,0 +1,172 @@
+import Anthropic from "@anthropic-ai/sdk";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const ai = vi.hoisted(() => ({ create: vi.fn() }));
+vi.mock("@/lib/ai/client", () => ({
+  anthropic: { messages: { create: ai.create } },
+  isAiConfigured: () => true,
+  MODELS: { GENERATION: "claude-sonnet-5", EXTRACTION: "claude-haiku-4-5" },
+}));
+
+import { answerCostUsd, answerPrice, askEngine, geminiLocation, refusesSearch } from "@/lib/geo/assistants";
+
+const UA = { language: "Ukrainian", region: "Ukraine", countryCode: "UA" };
+const env = { OPENAI_API_KEY: "sk-test", GOOGLE_AI_API_KEY: "g-test" };
+const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+
+/**
+ * Each assistant is asked with web search on, from the asker's country, as a
+ * customer's own assistant answers (review of 2026-11-27: Claude only, no
+ * web search). No real call: the Anthropic client and fetch are mocked.
+ */
+describe("asking the assistants", () => {
+  beforeEach(() => ai.create.mockReset());
+
+  it("asks Claude with its web search tool and the asker's country", async () => {
+    ai.create.mockResolvedValue({
+      model: "claude-sonnet-5",
+      stop_reason: "end_turn",
+      content: [
+        { type: "server_tool_use", id: "s", name: "web_search", input: {} },
+        { type: "text", text: "Try Podarunky.", citations: [{ type: "web_search_result_location", url: "https://podarunky.ua/", title: "", cited_text: "", encrypted_index: "" }] },
+      ],
+      usage: { input_tokens: 5000, output_tokens: 300, server_tool_use: { web_search_requests: 2, web_fetch_requests: 0 } },
+    });
+    const answer = await askEngine("claude", "Де купити подарунок?", UA, { env });
+    const params = ai.create.mock.calls[0][0];
+    // The cheapest Claude that takes web search, unless GEO_CLAUDE_MODEL says otherwise.
+    expect(params.model).toBe("claude-haiku-5-5");
+    expect(params.tools).toEqual([{ type: "web_search_20250305", name: "web_search", max_uses: 3, user_location: { type: "approximate", country: "UA" } }]);
+    expect(params.system).toBeUndefined();
+    expect(answer).toMatchObject({ engine: "claude", webSearch: true, text: "Try Podarunky.", searches: 2, sources: ["https://podarunky.ua/"] });
+    // $2/M in, $10/M out, $10 per 1,000 searches.
+    expect(answerCostUsd(answer)).toBeCloseTo(0.01 + 0.003 + 0.02, 5);
+  });
+
+  it("asks Claude again without the tool when web search is refused, and says so", async () => {
+    ai.create
+      .mockRejectedValueOnce(new Anthropic.BadRequestError(400, { type: "error", error: { type: "invalid_request_error", message: "web_search is not enabled for this organization" } }, undefined, new Headers()))
+      .mockResolvedValueOnce({ model: "claude-sonnet-5", stop_reason: "end_turn", content: [{ type: "text", text: "An answer." }], usage: { input_tokens: 10, output_tokens: 5, server_tool_use: null } });
+    const answer = await askEngine("claude", "q", UA, { env });
+    expect(ai.create.mock.calls[1][0].tools).toBeUndefined();
+    expect(answer.webSearch).toBe(false);
+  });
+
+  it("throws any other 400 rather than quietly asking without search", async () => {
+    ai.create.mockRejectedValueOnce(new Anthropic.BadRequestError(400, { type: "error", error: { type: "invalid_request_error", message: "tools.0: Input tag 'web_search_x' found using 'type' does not match any of the expected tags" } }, undefined, new Headers()));
+    await expect(askEngine("claude", "q", UA, { env })).rejects.toThrow(/400/);
+    expect(ai.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not hide an outage as a refusal of web search", async () => {
+    ai.create.mockRejectedValueOnce(new Anthropic.APIError(529, { type: "error", error: { type: "overloaded_error", message: "Overloaded" } }, undefined, new Headers()));
+    const error = await askEngine("claude", "q", UA, { env }).then(() => null, (e: unknown) => e);
+    expect(String(error)).toMatch(/529/);
+    expect(ai.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks ChatGPT through the Responses API with web search and the country", async () => {
+    const http = vi.fn().mockResolvedValue(json({
+      model: "gpt-5-mini-2026-08-07",
+      output: [
+        { type: "web_search_call" },
+        { type: "message", content: [{ type: "output_text", text: "Podarunky is good.", annotations: [{ type: "url_citation", url: "https://podarunky.ua/" }] }] },
+      ],
+      usage: { input_tokens: 4000, output_tokens: 800 },
+    }));
+    const answer = await askEngine("chatgpt", "Де купити подарунок?", UA, { env, fetch: http as unknown as typeof fetch });
+    const [url, init] = http.mock.calls[0];
+    expect(url).toBe("https://api.openai.com/v1/responses");
+    expect(init.headers.Authorization).toBe("Bearer sk-test");
+    const body = JSON.parse(init.body);
+    expect(body).toMatchObject({ model: "gpt-5-mini", input: "Де купити подарунок?", store: false, tools: [{ type: "web_search", user_location: { type: "approximate", country: "UA" } }] });
+    expect(answer).toMatchObject({ engine: "chatgpt", model: "gpt-5-mini-2026-08-07", webSearch: true, searches: 1, text: "Podarunky is good.", sources: ["https://podarunky.ua/"] });
+  });
+
+  it("treats an empty ChatGPT answer as no answer", async () => {
+    const http = vi.fn().mockResolvedValue(json({ output: [], usage: {} }));
+    await expect(askEngine("chatgpt", "q", UA, { env, fetch: http as unknown as typeof fetch })).rejects.toThrow(/no answer/);
+  });
+
+  it("asks Gemini with Google Search grounding", async () => {
+    const http = vi.fn().mockResolvedValue(json({
+      modelVersion: "gemini-3.7-flash",
+      candidates: [{
+        content: { parts: [{ text: "thinking", thought: true }, { text: "Podarunky." }] },
+        groundingMetadata: { webSearchQueries: ["подарунки київ", "де купити"], groundingChunks: [{ web: { uri: "https://vertexaisearch.example/redirect" } }] },
+      }],
+      usageMetadata: { promptTokenCount: 20, candidatesTokenCount: 100, thoughtsTokenCount: 50 },
+    }));
+    const answer = await askEngine("gemini", "q", UA, { env: { ...env, GEO_GEMINI_MODEL: "gemini-x" }, fetch: http as unknown as typeof fetch });
+    const [url, init] = http.mock.calls[0];
+    expect(url).toBe("https://generativelanguage.googleapis.com/v1beta/models/gemini-x:generateContent");
+    expect(init.headers["x-goog-api-key"]).toBe("g-test");
+    const body = JSON.parse(init.body);
+    expect(body.tools).toEqual([{ google_search: {} }]);
+    // The asker's country, as a location only: Gemini's grounding takes no location setting.
+    expect(body.systemInstruction).toEqual({ parts: [{ text: "The user's approximate location: Ukraine (UA)." }] });
+    expect(JSON.stringify(body.systemInstruction)).not.toMatch(/Podarunky|brand/i);
+    expect(answer).toMatchObject({ engine: "gemini", model: "gemini-3.7-flash", webSearch: true, text: "Podarunky.", searches: 2, usage: { inputTokens: 20, outputTokens: 150 } });
+    // Gemini 3 and newer bill every search query: two here, at Flash rates.
+    expect(answerCostUsd(answer)).toBeCloseTo(2 * 0.014 + (20 * 0.75 + 150 * 3.75) / 1_000_000, 6);
+  });
+
+  it("sends Gemini no location when the market is not known", async () => {
+    expect(geminiLocation({ language: "English", region: null, countryCode: null })).toBeNull();
+    expect(geminiLocation({ language: "German", region: "Germany", countryCode: null })).toBe("The user's approximate location: Germany.");
+    const http = vi.fn().mockResolvedValue(json({ candidates: [{ content: { parts: [{ text: "An answer." }] } }] }));
+    await askEngine("gemini", "q", { language: "English", region: null, countryCode: null }, { env, fetch: http as unknown as typeof fetch });
+    expect(JSON.parse(http.mock.calls[0][1].body).systemInstruction).toBeUndefined();
+  });
+
+  it("asks Gemini again without grounding when it is refused", async () => {
+    const http = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("google_search tool is not supported for this model", { status: 400 }))
+      .mockResolvedValueOnce(json({ candidates: [{ content: { parts: [{ text: "Plain answer." }] } }] }));
+    const answer = await askEngine("gemini", "q", UA, { env, fetch: http as unknown as typeof fetch });
+    expect(JSON.parse(http.mock.calls[1][1].body).tools).toBeUndefined();
+    expect(answer.webSearch).toBe(false);
+  });
+});
+
+/** Prices follow the model that answered (option B defaults, 2026-11-28). */
+describe("what an answer costs", () => {
+  const usage = { inputTokens: 20_000, outputTokens: 1_000 };
+
+  it("prices Claude by model: Haiku 5.5 far below Sonnet 5, searches the same", () => {
+    expect(answerCostUsd({ engine: "claude", model: "claude-haiku-5-5", searches: 2, usage })).toBeCloseTo(0.002 + 0.0005 + 0.02, 6);
+    expect(answerCostUsd({ engine: "claude", model: "claude-sonnet-5", searches: 2, usage })).toBeCloseTo(0.04 + 0.01 + 0.02, 6);
+    // A Haiku 5.5 prompt over 100K tokens is on the higher rate card.
+    expect(answerPrice("claude", "claude-haiku-5-5", 150_000)).toMatchObject({ inputPerM: 0.5, outputPerM: 2.5 });
+  });
+
+  it("prices Flash-Lite and nano below their fuller models, and an unknown model high", () => {
+    expect(answerPrice("gemini", "gemini-3.5-flash-lite").inputPerM).toBe(0.3);
+    expect(answerPrice("gemini", "gemini-3.8-flash").inputPerM).toBe(0.75);
+    expect(answerPrice("chatgpt", "gpt-5-nano").inputPerM).toBe(0.05);
+    expect(answerPrice("chatgpt", "gpt-5-mini-2026-08-07").inputPerM).toBe(0.25);
+    expect(answerPrice("claude", "claude-something-new").inputPerM).toBe(2);
+  });
+});
+
+/** Only an error clearly saying search is off or not offered counts as a refusal (review of 2026-11-28). */
+describe("a refusal of web search", () => {
+  it("is the tool switched off or not offered for the model", () => {
+    expect(refusesSearch(400, "web search is not enabled for this organization")).toBe(true);
+    expect(refusesSearch(400, '400 {"type":"error","error":{"type":"invalid_request_error","message":"web_search is not enabled for this organization"}}')).toBe(true);
+    expect(refusesSearch(400, "Tool 'web_search' is not supported with gpt-5-nano.")).toBe(true);
+    expect(refusesSearch(400, "Search Grounding is not supported.")).toBe(true);
+    expect(refusesSearch(400, "google_search tool is not supported for this model")).toBe(true);
+    expect(refusesSearch(403, "Web search is disabled for this workspace")).toBe(true);
+  });
+
+  it("is not any other 400 that mentions a tool, nor a bad location, nor an outage", () => {
+    expect(refusesSearch(400, "tools.0.max_uses: Input should be greater than 0")).toBe(false);
+    expect(refusesSearch(400, "Invalid tool definition")).toBe(false);
+    expect(refusesSearch(400, "web_search.user_location.country: 'XX' is not supported")).toBe(false);
+    expect(refusesSearch(400, "max_tokens: 1500 > 1024, which is the maximum allowed")).toBe(false);
+    expect(refusesSearch(429, "web search is not available right now")).toBe(false);
+    expect(refusesSearch(500, "web_search unavailable")).toBe(false);
+  });
+});

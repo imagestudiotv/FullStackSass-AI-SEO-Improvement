@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Fragment } from "react";
 
+import { withAssistants } from "@/lib/geo/engine-words";
 import { FEATURE_HIGHLIGHTS, FEATURE_KEYS, featuresCopy } from "@/lib/i18n/home/features";
 
 import { FeaturesShell } from "../features-shell";
@@ -35,7 +36,8 @@ const pad = (n: number) => String(n).padStart(2, "0");
  * /#features.
  */
 export function Features({ locale, href }: SectionProps) {
-  const t = featuresCopy(locale);
+  // {assistants}: the ones this deployment asks, filled in here on the server (lib/geo/engine-words.ts).
+  const t = withAssistants(featuresCopy(locale), locale);
   const total = pad(FEATURE_KEYS.length);
 
   return (

@@ -97,7 +97,7 @@ export async function askFirstQuestionsIfDue(websiteId: string): Promise<FirstQu
 
   await db
     .insert(geoPrompts)
-    .values(suggested.questions.slice(0, allowance).map((prompt) => ({ websiteId: site.id, prompt, isSuggested: true })))
+    .values(suggested.questions.slice(0, allowance).map((prompt) => ({ websiteId: site.id, prompt, isSuggested: true, language: suggested.market.language, region: suggested.market.region })))
     .onConflictDoNothing();
   return "added";
 }
