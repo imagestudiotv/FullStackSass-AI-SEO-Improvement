@@ -97,6 +97,15 @@ describe("the REPGET field", () => {
   it("does not show while the offer is off", () => {
     expect(render(none, { entitled: false, websiteSubscriptions: [] })).not.toContain(OFFER_CODE.en.label);
   });
+
+  // eval 2026-11-28: Billing EUR 149 beside /pricing's EUR 89 must not read as a mistake.
+  it.each(LOCALES)("says (%s) why a website started without the launch price sees the regular prices", (locale) => {
+    const onCard = { ...onPayPal("trialing"), provider: "stripe" as const, hasCustomer: true };
+    const words = BILLING_PLANS_COPY[locale].regularPrice;
+    const escaped = renderToStaticMarkup(createElement("i", null, words)).slice(3, -4);
+    expect(render(onCard, { locale, regularPrice: true })).toContain(escaped);
+    expect(render(onCard, { locale })).not.toContain(escaped);
+  });
 });
 
 describe("billing, on the free articles through PayPal", () => {
@@ -127,15 +136,15 @@ describe("the Grow + Visibility bundle in Billing", () => {
   const BUNDLE = plan("plan_bundle", "Grow + Visibility", "grow_visibility", 12900, 10);
   const none = null as unknown as CurrentSubscription;
 
-  it("is offered in the plan list with its own terms: a direct purchase, EUR 99 against EUR 299, no free trial (2026-11-13)", () => {
+  it("is offered in the plan list with its own terms: a direct purchase at EUR 129, nothing struck and no saving (owner, 2026-11-27), no free trial", () => {
     const plans = [GROW, SCALE, BUNDLE];
     const planCards = planCardsFor(plans, { offerOn: true, trialEligible: true, locale: "en", t });
     const html = render(none, { plans, entitled: false, websiteSubscriptions: [], planCards });
     expect(html).toContain("Scale");
     expect(html).toContain("Grow + Visibility");
     expect(html).toContain("Direct purchase");
-    expect(html).toContain("<del");
-    expect(html).toContain("€299");
+    expect(html).not.toContain("€299");
+    expect(html).not.toContain("57%");
     expect(html).toContain("€129 billed at checkout, then monthly. The 3-day free trial does not apply to this offer.");
     // The free trial is said for the other plans only, with the trial's days (TRIAL_DAYS).
     const trialLine = renderToStaticMarkup(createElement("i", null, format(PLAN_CARDS_COPY.en.trial, { n: TRIAL_DAYS, days: TRIAL_DAYS }))).slice(3, -4);
@@ -188,6 +197,28 @@ describe("the Grow + Visibility bundle in Billing", () => {
       expect(html).toContain(words);
       expect(html).not.toContain("Your 40% launch discount does not apply to this plan");
     }
+  });
+
+  // eval 2026-11-28: "three visible plans plus a hidden fourth plan" - one even grid, the bundle marked but in its place.
+  it("is one card of one even grid, whatever the number of plans", () => {
+    const none = null as unknown as CurrentSubscription;
+    const LAUNCH = plan("plan_launch", "Launch", "launch", 9900, 0);
+    const grid = (plans: PlanRow[]) => {
+      const html = render(none, { plans, entitled: false, websiteSubscriptions: [] });
+      const tag = html.match(/<div data-plan-count="([0-9]+)" class="([^"]*)"/);
+      return { html, count: Number(tag?.[1]), classes: tag?.[2] ?? "" };
+    };
+    const three = grid([GROW, SCALE, BUNDLE]);
+    expect(three.count).toBe(3);
+    expect(three.classes).toContain("lg:grid-cols-3");
+    const four = grid([LAUNCH, GROW, SCALE, BUNDLE]);
+    expect(four.count).toBe(4);
+    expect(four.classes).toContain("md:grid-cols-2");
+    expect(four.classes).toContain("2xl:grid-cols-4");
+    expect(four.classes).not.toContain("grid-cols-3");
+    // All four are cards of that grid, and the bundle is neither lifted out of its row nor moved first.
+    expect(four.html.split("<article").length - 1).toBe(4);
+    expect(four.html).not.toMatch(/order-first|-my-2/);
   });
 
   it("is not a rung of the upgrade ladder", () => {

@@ -41,6 +41,8 @@ import {
   listAccessibleWebsites,
 } from "@/lib/websites/accessible";
 import { readSelectedWebsite, resolveWebsiteId } from "@/lib/websites/selected";
+import { addonsForMarket } from "@/lib/addons/market";
+import { websiteMarket } from "@/lib/addons/market-server";
 
 /**
  * Every authenticated route is per-request by definition: it reads the
@@ -151,8 +153,9 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
    * and on a shared site, where the steps are for the owner to take.
    */
   const onboardingComplete = ownedLaunch ? ownedLaunch.live : true;
+  // The one count (lib/onboarding/progress.ts): Setup, the tracker and Tasks show the same.
   const setupProgress = ownedLaunch
-    ? { done: ownedLaunch.doneCount, total: ownedLaunch.steps.length }
+    ? { done: ownedLaunch.progress.done, total: ownedLaunch.progress.total }
     : null;
 
   /**
@@ -230,11 +233,15 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
    * through listAddons() because this is a render, not an action, and the
    * sidebar needs only the name.
    */
-  const addonRows = await db
-    .select({ id: addons.id, slug: addons.slug, name: addons.name, kind: addons.kind })
-    .from(addons)
-    .where(eq(addons.isActive, true))
-    .orderBy(asc(addons.sortOrder));
+  const addonRows = addonsForMarket(
+    await db
+      .select({ id: addons.id, slug: addons.slug, name: addons.name, kind: addons.kind })
+      .from(addons)
+      .where(eq(addons.isActive, true))
+      .orderBy(asc(addons.sortOrder)),
+    // An add-on for one country only (USA Local Citations): for a website in that market, or with none set (lib/addons/market.ts).
+    selectedOwned ? await websiteMarket(fallbackWebsiteId) : null,
+  );
 
   /**
    * The credit packs collapse into one entry.

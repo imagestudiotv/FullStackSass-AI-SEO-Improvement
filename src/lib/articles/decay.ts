@@ -75,7 +75,11 @@ export type TrafficReport = {
   watch: PageChange[];
   /** Last day of the recent window, or null before any import. */
   windowEnd: string | null;
-  dataStatus?: "ready" | "incomplete" | "stale";
+  /**
+   * "none": no Search Console data has ever been imported, so nothing can be
+   * judged - the screen must say so, never "nothing is losing traffic".
+   */
+  dataStatus?: "ready" | "incomplete" | "stale" | "none";
 };
 
 /** An ISO date shifted by whole days. */
@@ -155,7 +159,7 @@ export async function findTrafficChanges(
 ): Promise<TrafficReport> {
   const span = await windows(websiteId);
   if (!span) {
-    return { losingClicks: [], losingVisibility: [], watch: [], windowEnd: null };
+    return { losingClicks: [], losingVisibility: [], watch: [], windowEnd: null, dataStatus: "none" };
   }
   const [coverage] = await db.select().from(searchImportCoverage)
     .where(eq(searchImportCoverage.websiteId, websiteId)).limit(1);

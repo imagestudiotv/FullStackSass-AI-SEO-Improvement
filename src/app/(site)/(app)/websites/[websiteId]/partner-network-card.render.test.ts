@@ -18,12 +18,14 @@ vi.mock("@/lib/backlinks/network-settings", () => ({
   removeTarget: vi.fn(),
   setMinSourceRank: vi.fn(),
   setParticipation: vi.fn(),
+  setBacklinkExchange: vi.fn(),
   setTargetPriority: vi.fn(),
 }));
 
 import { LOCALES } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
 import { PARTNER_NETWORK_CONNECT } from "@/lib/i18n/partner-network-connect";
+import { BACKLINK_EXCHANGE_COPY } from "@/lib/i18n/backlink-exchange";
 
 import { PartnerNetworkCard } from "./partner-network-card";
 
@@ -31,6 +33,7 @@ const SITE = "11111111-1111-4111-8111-111111111111";
 const NETWORK = {
   connected: true,
   participating: true,
+  exchange: false,
   monthlyCap: 3,
   targets: [{ id: "t1", url: "https://acme.test/a/", note: null, priority: "high", position: 0 }],
   inReview: 0,
@@ -50,6 +53,7 @@ function render(network: object, options: { canEdit?: boolean; locale?: (typeof 
       canEdit: options.canEdit ?? true,
       t: getMessages(locale).app.partnerNetwork,
       connectText: PARTNER_NETWORK_CONNECT[locale],
+      exchangeText: BACKLINK_EXCHANGE_COPY[locale],
     }),
   );
 }
@@ -85,6 +89,24 @@ describe("PartnerNetworkCard", () => {
     expect(html).toContain('aria-checked="true"');
     expect(html).toContain("Enabled");
     expect(html).not.toContain("/integrations");
+  });
+
+  it("the Backlink Exchange: a switch, OFF by default, with the risk said - in every language", () => {
+    for (const locale of LOCALES) {
+      const copy = BACKLINK_EXCHANGE_COPY[locale];
+      const html = render({}, { locale });
+      const box = html.slice(html.indexOf('data-testid="backlink-exchange"'));
+      expect(box).toMatch(/role="switch" aria-checked="false" aria-labelledby="pn-exchange"/);
+      expect(html).toContain(copy.whenOff.replace(/'/g, "&#x27;"));
+      expect(html).toContain(copy.risk.replace(/'/g, "&#x27;"));
+      // The old promise is gone: never "you never have to approve each link".
+      expect(html).not.toContain("approve each link");
+    }
+    const on = render({ exchange: true });
+    expect(on).toContain(BACKLINK_EXCHANGE_COPY.en.whenOn);
+    // Not in the network: the switch waits for it.
+    const out = render({ participating: false });
+    expect(out).toContain(BACKLINK_EXCHANGE_COPY.en.needsParticipation);
   });
 
   it("says it in every language", () => {

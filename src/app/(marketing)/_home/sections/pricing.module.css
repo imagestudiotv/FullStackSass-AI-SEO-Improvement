@@ -116,3 +116,11 @@
 :global(.dark) .rgp-card li.rgp-locked{color:#8f948a}
 :global(.dark) .rgp-free-counter{color:#c9ccc2}
 :global(.dark) .rgp-free-counter div{background:#3a3f37}
+
+/* site: the REPGET launch price, as /pricing shows it (2026-11-27): the badge, the regular price struck, "regular price". */
+.rgp-offer-row{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:0 0 4px;font-size:12px;font-weight:710;color:#75736d}
+.rgp-offer-row del{font-size:16px;font-weight:760}
+.rgp-offer-badge{padding:3px 8px;border-radius:999px;background:#fde6da;color:#a5401c;font-size:10.5px;font-weight:820;letter-spacing:.04em}
+.rgp-offer-caption{margin:-6px 0 0;font-size:12px;font-weight:710;color:#75736d}
+.rgp-featured .rgp-offer-row,.rgp-featured .rgp-offer-caption{color:#c1c4bb}
+:global(.dark) .rgp-offer-row,:global(.dark) .rgp-offer-caption{color:#a8a69f}

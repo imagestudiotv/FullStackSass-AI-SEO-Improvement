@@ -21,6 +21,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import type { LaunchStep, LaunchStepIcon } from "@/lib/onboarding/launch";
+import { LAUNCHED_STEP_ID } from "@/lib/onboarding/progress";
 
 /**
  * The launch checklist rows, following the client's screenshot.
@@ -54,11 +55,19 @@ const ICONS: Record<LaunchStepIcon, typeof Globe> = {
 export function SetupSteps({
   steps,
   t = getMessages("en").app.common,
+  labels,
 }: {
   steps: LaunchStep[];
   /** Shared words, defaulting to English. */
   t?: Messages["app"]["common"];
+  /**
+   * The status words, the Tasks page's (lib/i18n/tasks.ts): an optional step
+   * not taken reads "Optional" on both pages, never "Skipped" on one and
+   * "Optional" on the other.
+   */
+  labels?: { optional: string; toDo: string };
 }) {
+  const words = labels ?? { optional: "Optional", toDo: "To do" };
   /**
    * Which row is open.
    *
@@ -78,11 +87,18 @@ export function SetupSteps({
         const last = index === steps.length - 1;
         const open = openId === step.id;
         /**
-         * An optional step nobody has done reads as "Skipped" rather than
-         * "To do", as the design has it: it is not outstanding work, it is a
-         * choice already made by not making it.
+         * An optional step nobody has done reads as "Optional" rather than
+         * "To do": it is not outstanding work, and it is not counted
+         * (lib/onboarding/progress.ts). The Tasks page says the same.
          */
         const skipped = step.optional && !step.done;
+        /**
+         * The closing "Launched live" row is the end state, not a step: it is
+         * not counted (lib/onboarding/progress.ts), so until everything above
+         * is done it carries no "To do" chip and no number - "n steps left"
+         * then matches the "To do" chips exactly (eval 2026-11-28).
+         */
+        const goal = step.id === LAUNCHED_STEP_ID && !step.done;
 
         return (
           <li key={step.id} className="flex gap-3">
@@ -94,11 +110,15 @@ export function SetupSteps({
                     ? "bg-emerald-500 text-white"
                     : skipped
                       ? "border border-muted-foreground/30 bg-card text-muted-foreground"
-                      : "border-2 border-muted bg-card text-muted-foreground"
+                      : goal
+                        ? "border border-dashed border-muted-foreground/30 bg-card text-muted-foreground"
+                        : "border-2 border-muted bg-card text-muted-foreground"
                 }`}
               >
                 {step.done ? (
                   <Check className="size-4" aria-hidden="true" />
+                ) : goal ? (
+                  <Rocket className="size-3.5" aria-hidden="true" />
                 ) : skipped ? (
                   <SkipForward className="size-3.5" aria-hidden="true" />
                 ) : (
@@ -146,7 +166,9 @@ export function SetupSteps({
                   {step.title}
                 </Link>
 
+                {goal ? null : (
                 <span
+                  data-status={step.done ? "done" : skipped ? "optional" : "todo"}
                   className={`flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${
                     step.done
                       ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
@@ -163,12 +185,13 @@ export function SetupSteps({
                   ) : skipped ? (
                     <>
                       <SkipForward className="size-3" aria-hidden="true" />
-                      {t.skipped}
+                      {words.optional}
                     </>
                   ) : (
-                    "To do"
+                    words.toDo
                   )}
                 </span>
+                )}
 
                 <button
                   type="button"

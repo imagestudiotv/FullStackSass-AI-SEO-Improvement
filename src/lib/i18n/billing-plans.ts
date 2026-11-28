@@ -19,6 +19,11 @@ export type BillingPlansCopy = {
   /** A website already on the REPGET launch price: it keeps it through a plan change. */
   keptTitle: string;
   keptBody: string;
+  /**
+   * A website whose subscription was started without the launch price, while
+   * new checkouts get it: why its cards show the regular prices (billing/page.tsx).
+   */
+  regularPrice: string;
   bestValue: string;
   yourChoice: string;
   highlights: string;
@@ -80,6 +85,7 @@ export const BILLING_PLANS_COPY: Record<Locale, BillingPlansCopy> = {
     promoActive: "Promo active",
     keptTitle: "Your launch price stays with you.",
     keptBody: "40% off the regular price on every payment, on Grow and Scale, also when you change plan.",
+    regularPrice: "This website's subscription was started without the 40% launch price, so its payments and any plan change are at the regular prices shown here. The launch price on our pricing page is for new subscriptions.",
     bestValue: "Best value",
     yourChoice: "Your choice",
     highlights: "Plan highlights",
@@ -135,6 +141,7 @@ export const BILLING_PLANS_COPY: Record<Locale, BillingPlansCopy> = {
     promoActive: "Promoción activa",
     keptTitle: "Usted conserva su precio de lanzamiento.",
     keptBody: "Un 40 % de descuento sobre el precio normal en cada pago, en Grow y Scale, también al cambiar de plan.",
+    regularPrice: "La suscripción de este sitio web se inició sin el precio de lanzamiento del 40 %, así que sus pagos y cualquier cambio de plan se cobran a los precios normales que se muestran aquí. El precio de lanzamiento de nuestra página de precios es para suscripciones nuevas.",
     bestValue: "La mejor opción",
     yourChoice: "Su elección",
     highlights: "Lo más destacado",
@@ -190,6 +197,7 @@ export const BILLING_PLANS_COPY: Record<Locale, BillingPlansCopy> = {
     promoActive: "Promo active",
     keptTitle: "Vous conservez votre prix de lancement.",
     keptBody: "40 % de réduction sur le prix normal à chaque paiement, sur Grow et Scale, même en changeant de forfait.",
+    regularPrice: "L'abonnement de ce site a été souscrit sans le prix de lancement à -40 %, donc ses paiements et tout changement de forfait se font aux prix normaux affichés ici. Le prix de lancement de notre page Tarifs concerne les nouveaux abonnements.",
     bestValue: "Le plus avantageux",
     yourChoice: "Votre choix",
     highlights: "Les points forts",
@@ -245,6 +253,7 @@ export const BILLING_PLANS_COPY: Record<Locale, BillingPlansCopy> = {
     promoActive: "Promo attiva",
     keptTitle: "Il Suo prezzo di lancio resta.",
     keptBody: "40% di sconto sul prezzo normale a ogni pagamento, su Grow e Scale, anche cambiando piano.",
+    regularPrice: "L'abbonamento di questo sito è stato attivato senza il prezzo di lancio del 40%, quindi i suoi pagamenti e ogni cambio di piano sono ai prezzi normali indicati qui. Il prezzo di lancio della nostra pagina Prezzi vale per i nuovi abbonamenti.",
     bestValue: "Il più conveniente",
     yourChoice: "La Sua scelta",
     highlights: "In evidenza",
@@ -300,6 +309,7 @@ export const BILLING_PLANS_COPY: Record<Locale, BillingPlansCopy> = {
     promoActive: "Aktion aktiv",
     keptTitle: "Ihr Einführungspreis bleibt Ihnen erhalten.",
     keptBody: "40 % Rabatt auf den regulären Preis bei jeder Zahlung, für Grow und Scale, auch beim Tarifwechsel.",
+    regularPrice: "Das Abonnement dieser Website wurde ohne den Einführungspreis von 40 % Rabatt abgeschlossen. Seine Zahlungen und jeder Tarifwechsel erfolgen daher zu den hier gezeigten regulären Preisen. Der Einführungspreis auf unserer Preisseite gilt für neue Abonnements.",
     bestValue: "Bestes Angebot",
     yourChoice: "Ihre Auswahl",
     highlights: "Das Wichtigste",

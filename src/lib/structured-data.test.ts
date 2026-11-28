@@ -113,6 +113,15 @@ describe("softwareApplication", () => {
     expect(offers[1].price).toBe(299);
   });
 
+  it("quotes the price charged, as the cards show it: the REPGET launch price while it is on", () => {
+    const grow = plan({ name: "Grow", tier: "grow", priceCents: 14900 });
+    const bundle = plan({ name: "Grow + Visibility", tier: "grow_visibility", priceCents: 12900 });
+    const on = softwareApplication(SITE, [grow, bundle], true).offers as { price: number }[];
+    expect(on.map((offer) => offer.price)).toEqual([89, 129]);
+    const off = softwareApplication(SITE, [grow, bundle], false).offers as { price: number }[];
+    expect(off.map((offer) => offer.price)).toEqual([149, 129]);
+  });
+
   it("keeps cents exact", () => {
     const [offer] = softwareApplication(SITE, [plan({ priceCents: 4950 })]).offers as {
       price: number;

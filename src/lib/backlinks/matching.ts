@@ -2,6 +2,7 @@ import { and, eq, ne, sql as raw } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { networkSites, placements, websites } from "@/lib/db/schema";
+import { backlinkExchangeOnSql } from "@/lib/backlinks/exchange-switch";
 
 /**
  * Chooses which site provides a link.
@@ -146,6 +147,8 @@ export async function findHost(
     .where(
       and(
         eq(networkSites.acceptingLinks, true),
+        // Automatic partner links are OPT-IN (lib/backlinks/exchange-switch.ts): only a host that switched the exchange on.
+        backlinkExchangeOnSql(networkSites.websiteId),
         // Never itself.
         ne(networkSites.websiteId, input.requesterWebsiteId),
         // Never another site in the same organization: linking your own sites

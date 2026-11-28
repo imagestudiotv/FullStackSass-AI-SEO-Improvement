@@ -21,8 +21,8 @@ import { formatMoney, planFeatures } from "./billing-view";
  * THE PRICE IS planDisplayPrice's (lib/billing/display-prices.ts), the same
  * function /pricing and the onboarding plan step read, which only shows a
  * discount checkout really gives: REPGET's launch price while
- * REPGET_OFFER_ENABLED=1 (LP40_* coupons) and the Grow + Visibility bundle's
- * EUR 299 -> 129 (REPGET_GV129_M). A yearly plan is quoted per month with the
+ * REPGET_OFFER_ENABLED=1 (LP40_* coupons). The Grow + Visibility bundle shows
+ * its EUR 129 alone, nothing struck (owner, 2026-11-27). A yearly plan is quoted per month with the
  * year's total beside it, as /pricing quotes it.
  *
  * THE TERMS ARE CHECKOUT'S: the TRIAL_DAYS free trial only for a workspace that has
@@ -86,8 +86,14 @@ export function planCardsFor(
      * offer is on - and a plan it does not cover cannot be moved to.
      */
     launchPrice?: boolean;
-    /** The plan the website on screen has now, when switching. */
-    current?: { interval: string | null; status: string } | null;
+    /**
+     * The plan the website on screen has now. `launchPrice`: whether ITS
+     * subscription was started on the launch price. During a PayPal free trial
+     * (not `switching`: another plan is a new checkout) the current plan's card
+     * shows what that subscription converts at, which the offer switch does
+     * not decide.
+     */
+    current?: { planId?: string | null; interval: string | null; status: string; launchPrice?: boolean } | null;
     locale: Locale;
     t: Messages["app"]["billing"];
   },
@@ -99,7 +105,18 @@ export function planCardsFor(
 
   for (const plan of plans) {
     const money = (cents: number) => formatMoney(cents, plan.currency, locale);
-    const shown = planDisplayPrice(plan, context.switching ? Boolean(context.launchPrice) : context.offerOn);
+    /*
+      What each payment will really be (Billing must match the charge, eval
+      2026-11-28):
+       - switching: a plan change keeps the subscription's own launch price or
+         has none (offerForPlanChange), whatever the offer switch says;
+       - the current plan during a PayPal free trial: what that subscription
+         converts at, its own launch price or none;
+       - otherwise a new checkout: the launch price while the offer is on.
+    */
+    const own = context.current?.planId === plan.id && context.current.launchPrice !== undefined;
+    const discounted = context.switching ? Boolean(context.launchPrice) : own ? Boolean(context.current?.launchPrice) : context.offerOn;
+    const shown = planDisplayPrice(plan, discounted);
     const yearly = plan.interval === "year";
     const direct = isDirectPurchaseTier(plan.tier);
     const charged = money(shown.chargedCents);
@@ -139,12 +156,8 @@ export function planCardsFor(
       paypalTerms: trial ? chargedTerms : terms,
       price: money(yearly ? perMonthOfYear(shown.chargedCents) : shown.chargedCents),
       strike: shown.strikeCents === null ? null : money(yearly ? perMonthOfYear(shown.strikeCents) : shown.strikeCents),
-      badge:
-        shown.discount === "repget"
-          ? page.card.offerBadge
-          : shown.discount === "bundle" && shown.strikeCents
-            ? format(t.saveBadge, { n: Math.round(((shown.strikeCents - shown.chargedCents) / shown.strikeCents) * 100) })
-            : null,
+      // The bundle shows no saving badge: no struck EUR 299 anywhere (owner, 2026-11-27).
+      badge: shown.discount === "repget" ? page.card.offerBadge : null,
       per: page.card.perMonth,
       caption,
       terms,

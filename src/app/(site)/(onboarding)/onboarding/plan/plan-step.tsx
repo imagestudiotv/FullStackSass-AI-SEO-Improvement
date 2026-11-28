@@ -253,7 +253,7 @@ export function PlanStep({
     The price checkout charges, and the regular one struck beside it only
     when checkout really takes something off (lib/billing/display-prices.ts,
     the same function /pricing and Billing read): REPGET's launch price while
-    its notice is on screen, and the Grow + Visibility bundle against EUR 299.
+    its notice is on screen. The Grow + Visibility bundle strikes nothing.
   */
   const repgetOn = Boolean(offerCopy) && offerCopy?.offer !== "winback";
   const shown = plan ? planDisplayPrice(plan, repgetOn) : null;
@@ -265,8 +265,7 @@ export function PlanStep({
     The large figure, per month, is what checkout charges, with the regular
     price struck beside it whenever checkout takes something off, as /pricing
     shows it: REPGET's launch price ("€99" struck, "€59 /month"; Daniel,
-    2026-11-18, replacing his card's regular price drawn large) and the
-    Grow + Visibility bundle against its list price.
+    2026-11-18, replacing his card's regular price drawn large).
   */
   const perMonthCents = yearly ? perMonthOfYear(chargedCents) : chargedCents;
   const strikeCents = shown?.strikeCents ? (yearly ? perMonthOfYear(shown.strikeCents) : shown.strikeCents) : null;

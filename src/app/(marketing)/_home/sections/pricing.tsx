@@ -1,6 +1,8 @@
 import Link from "next/link";
 
 import { formatPrice, type PlanRow } from "@/lib/billing-shared";
+import { planDisplayPrice } from "@/lib/billing/display-prices";
+import { pricingPageCopy } from "@/lib/i18n/pricing-page";
 import { pricingCopy, type HomePackageId } from "@/lib/i18n/home/pricing";
 import { signUpForPlan } from "@/lib/plans/features";
 import { freePlanDisplay, isRetiredFromSale, type FreePlanCounter } from "@/lib/plans/free-plan";
@@ -34,9 +36,21 @@ const c = (names: string) =>
  * draw too, with the launch counter when the page could read it. This page
  * is built ahead and refreshed in the background, so the counter can trail
  * by up to the page's refresh time.
+ *
+ * THE PRICE IS planDisplayPrice's (lib/billing/display-prices.ts), the one
+ * /pricing, Billing and checkout read: with the REPGET launch price on, the
+ * regular price struck beside the one charged, in /pricing's own words. It
+ * showed the regular EUR 149 while /pricing and checkout said EUR 89.
  */
-export function Pricing({ locale, href, plans, freeCounter = null }: SectionProps & { plans: PlanRow[]; freeCounter?: FreePlanCounter | null }) {
+export function Pricing({
+  locale,
+  href,
+  plans,
+  freeCounter = null,
+  offer = false,
+}: SectionProps & { plans: PlanRow[]; freeCounter?: FreePlanCounter | null; offer?: boolean }) {
   const t = pricingCopy(locale);
+  const card = pricingPageCopy(locale).card;
   const packages = plans.filter((plan) => plan.interval === "month" && plan.tier in t.packages && !isRetiredFromSale(plan.tier));
   const free = freePlanDisplay(locale, freeCounter);
   const plain = (text: string) => text.replaceAll("**", "");
@@ -105,8 +119,9 @@ export function Pricing({ locale, href, plans, freeCounter = null }: SectionProp
             {packages.map((plan, index) => {
               const words = t.packages[plan.tier as HomePackageId];
               const featured = plan.tier === "grow";
+              const shown = planDisplayPrice(plan, offer);
               // "€99" as the design sets it: the symbol small, the amount large.
-              const price = formatPrice(plan.priceCents, plan.currency);
+              const price = formatPrice(shown.chargedCents, plan.currency);
               const amount = price.replace(/^\D+/, "");
               return (
                 <article key={plan.id} className={c(featured ? "rgp-card rgp-featured" : "rgp-card")} aria-label={words.label}>
@@ -118,11 +133,19 @@ export function Pricing({ locale, href, plans, freeCounter = null }: SectionProp
                   </div>
                   <h3>{plan.name}</h3>
                   <p className={c("rgp-intro")}>{words.intro}</p>
+                  {shown.strikeCents !== null ? (
+                    <div className={c("rgp-offer-row")}>
+                      <span className={c("rgp-offer-badge")}>{card.offerBadge}</span>
+                      <del>{formatPrice(shown.strikeCents, plan.currency)}</del>
+                      <span>{card.wasLabel}</span>
+                    </div>
+                  ) : null}
                   <div className={c("rgp-price")}>
                     <span className={c("rgp-euro")}>{price.slice(0, price.length - amount.length)}</span>
                     <strong>{amount}</strong>
                     <span className={c("rgp-time")}>{t.perMonth}</span>
                   </div>
+                  {shown.discount === "repget" ? <p className={c("rgp-offer-caption")}>{card.monthlyCaption}</p> : null}
                   <div className={c("rgp-capacity")}>
                     <div>
                       <strong>{plan.articleLimit}</strong>

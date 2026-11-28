@@ -6,6 +6,7 @@ import {
 } from "@/lib/articles/refresh-actions";
 import { RefreshPanel } from "../refresh-panel";
 import { requireWebsitePlan } from "@/lib/billing/require-plan";
+import { getAnalyticsConnection } from "@/lib/analytics/actions";
 
 export const metadata = { title: "Losing traffic" };
 
@@ -24,9 +25,10 @@ export default async function WebsiteTrafficPage({
   // judged on this website alone and, if its owner's plan has lapsed, is
   // sent to the dashboard to be told so - never into the owner's checkout.
   await requireWebsitePlan(ctx);
-  const [report, series] = await Promise.all([
+  const [report, series, connection] = await Promise.all([
     getTrafficChanges(site.id),
     getTrafficChart(site.id),
+    getAnalyticsConnection(site.id),
   ]);
 
   return (
@@ -36,6 +38,7 @@ export default async function WebsiteTrafficPage({
       series={series}
       locale={locale}
       t={t.app.common}
+      searchConsoleConnected={connection.connected && Boolean(connection.searchConsoleSite)}
     />
   );
 }

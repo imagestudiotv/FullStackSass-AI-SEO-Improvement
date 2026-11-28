@@ -104,6 +104,8 @@ type BillingClientProps = {
   planCards?: Record<string, PlanCardView>;
   /** A plan change here keeps the REPGET launch price, and the offer is the one it already has. */
   launchPriceKept?: boolean;
+  /** The website pays the regular price (started without the launch price) while new checkouts get it: said beside the cards. */
+  regularPrice?: boolean;
   /** The plan a link names (?plan=, ?period=), checked by the page against what is on sale. */
   selectedPlan?: { tier: string; interval: "month" | "year" | null } | null;
   /** The add-ons on sale besides the credit packs, as links (the strip under the plans). */
@@ -135,6 +137,7 @@ export function BillingClient({
   tCommon,
   planCards = {},
   launchPriceKept = false,
+  regularPrice = false,
   selectedPlan = null,
   addonLinks = [],
   top = null,
@@ -642,6 +645,7 @@ export function BillingClient({
           websiteId={websiteId}
           websiteSubscriptions={websiteSubscriptions}
           processorNote={processorNote}
+          priceNote={payable && regularPrice ? copy.regularPrice : null}
           offer={offer}
           annualNote={annualNote}
           selectedTier={selectedPlan?.tier ?? null}

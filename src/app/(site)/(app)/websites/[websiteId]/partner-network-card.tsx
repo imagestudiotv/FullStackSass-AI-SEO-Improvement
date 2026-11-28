@@ -15,6 +15,7 @@ import {
   addTarget,
   moveTarget,
   removeTarget,
+  setBacklinkExchange,
   setParticipation,
   setMinSourceRank,
   setTargetPriority,
@@ -22,6 +23,7 @@ import {
 } from "@/lib/backlinks/network-settings";
 import { format } from "@/lib/i18n/format";
 import type { PartnerNetworkConnectCopy } from "@/lib/i18n/partner-network-connect";
+import { BACKLINK_EXCHANGE_COPY, type BacklinkExchangeCopy } from "@/lib/i18n/backlink-exchange";
 import type { Messages } from "@/lib/i18n/messages";
 import { cn } from "@/lib/utils";
 
@@ -51,6 +53,7 @@ export function PartnerNetworkCard({
   canEdit: mayEdit,
   t,
   connectText,
+  exchangeText = BACKLINK_EXCHANGE_COPY.en,
 }: {
   websiteId: string;
   network: PartnerNetwork;
@@ -60,6 +63,8 @@ export function PartnerNetworkCard({
   t: Messages["app"]["partnerNetwork"];
   /** Said while the website is not connected. */
   connectText: PartnerNetworkConnectCopy;
+  /** The Backlink Exchange switch's words (lib/i18n/backlink-exchange.ts). */
+  exchangeText?: BacklinkExchangeCopy;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -86,6 +91,7 @@ export function PartnerNetworkCard({
 
   const connected = network.connected;
   const on = network.participating;
+  const exchange = network.exchange;
   /** Off until the website is connected, whoever is asking. */
   const canEdit = mayEdit && connected;
   const integrations = `/websites/${websiteId}/integrations`;
@@ -171,6 +177,47 @@ export function PartnerNetworkCard({
             ) : !on ? (
               <p className="text-sm text-muted-foreground">{t.offNote}</p>
             ) : null}
+            {/*
+              The Backlink Exchange: automatic partner links, OPT-IN (owner, 2026-11-27;
+              lib/backlinks/exchange-switch.ts). Off by default, with the risk said plainly.
+            */}
+            <div className="space-y-2 rounded-lg border p-3" data-testid="backlink-exchange">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium" id="pn-exchange">
+                    {exchangeText.title}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{exchangeText.help}</p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={exchange}
+                  aria-labelledby="pn-exchange"
+                  disabled={!canEdit || !on || pending}
+                  onClick={() =>
+                    run(() => setBacklinkExchange(websiteId, !exchange), exchange ? exchangeText.turnedOff : exchangeText.turnedOn)
+                  }
+                  className={cn(
+                    "relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-60",
+                    exchange ? "bg-primary" : "bg-muted-foreground/30",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "inline-block size-5 rounded-full bg-background shadow transition-transform",
+                      exchange ? "translate-x-6" : "translate-x-1",
+                    )}
+                  />
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">{exchange ? exchangeText.whenOn : exchangeText.whenOff}</p>
+              <p className="flex gap-1.5 text-xs text-amber-700 dark:text-amber-400">
+                <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+                <span>{exchangeText.risk}</span>
+              </p>
+              {connected && !on ? <p className="text-xs text-muted-foreground">{exchangeText.needsParticipation}</p> : null}
+            </div>
             {network.inReview > 0 ? <p className="text-sm">{format(t.inReview, { n: network.inReview })}</p> : null}
             {credits ? (
               <p className="text-sm font-medium tabular-nums">

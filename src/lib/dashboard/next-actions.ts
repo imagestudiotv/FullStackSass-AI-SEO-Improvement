@@ -17,11 +17,27 @@ type ArticleTask = { id: string; title: string; version?: string } | null;
 const taskKey = (kind: NextActionKind, identity: string) =>
   `${kind}:${createHash("sha256").update(identity).digest("hex").slice(0, 24)}`;
 
+type NextActionOptions = { now?: Date; includeSnoozed?: boolean; exclude?: readonly NextActionKind[] };
+
 /** Rules only. Completion follows the underlying state, never a paid AI call. */
 export async function getNextActions(
   websiteId: string, ownerOrgId: string, canManage: boolean,
-  options: { now?: Date; includeSnoozed?: boolean; exclude?: readonly NextActionKind[] } = {},
+  options: NextActionOptions = {},
 ): Promise<NextAction[]> {
+  return (await listNextActions(websiteId, ownerOrgId, canManage, options)).actions;
+}
+
+/**
+ * The list, and how many of the dashboard's items the caller left out because
+ * it lists them itself (`exclude`). The Tasks page needs the second number: it
+ * said "No outstanding actions" while the dashboard, reading the same rules,
+ * listed a failed article or "Connect Google" - items Tasks has its own rows
+ * for. With some left out it must say they are below, never that there are none.
+ */
+export async function listNextActions(
+  websiteId: string, ownerOrgId: string, canManage: boolean,
+  options: NextActionOptions = {},
+): Promise<{ actions: NextAction[]; listedElsewhere: number }> {
   const now = options.now ?? new Date();
   const [row] = await db.select({
     connected: sql<boolean>`exists (
@@ -57,7 +73,7 @@ export async function getNextActions(
       and exists (select 1 from issues i where i.audit_id = a.id and i.website_id = ${websiteId}
         and i.severity in ('error', 'critical')) limit 1)`,
   }).from(websites).where(and(eq(websites.id, websiteId), eq(websites.organizationId, ownerOrgId))).limit(1);
-  if (!row) return [];
+  if (!row) return { actions: [], listedElsewhere: 0 };
   const base = `/websites/${websiteId}`;
   const actions: NextAction[] = [];
   const add = (kind: NextActionKind, identity: string, priority: NextAction["priority"], href: string, detail?: string, evidence?: NextAction["evidence"]) =>
@@ -96,15 +112,21 @@ export async function getNextActions(
     } else if (row.google && canManage) add("searchData", websiteId, "medium", `${base}/google`);
   } else if (row.google && canManage) add("searchData", websiteId, "medium", `${base}/google`);
   if (row.draft) add(row.twoStep ? "readyToPublish" : "draft", row.draft.id, "medium", `${base}/articles/${row.draft.id}`, row.draft.title);
-  if (canManage && !row.google) add("google", websiteId, "medium", `${base}/google`);
+  // An opportunity, not "Next": Search Console is the optional set-up step (lib/onboarding/launch.ts), and says so.
+  if (canManage && !row.google) add("google", websiteId, "opportunity", `${base}/google`);
   const order = { high: 0, medium: 1, opportunity: 2 };
   actions.sort((a, b) => order[a.priority] - order[b.priority]);
   // Before the cut to five, so a page that lists some kinds itself (Tasks) still gets up to five others.
   const exclude = options.exclude ?? [];
-  if (options.includeSnoozed) return actions.filter(a => !exclude.includes(a.kind));
+  const elsewhere = actions.filter(a => exclude.includes(a.kind));
   const listed = actions.filter(a => !exclude.includes(a.kind));
+  if (options.includeSnoozed) return { actions: listed, listedElsewhere: elsewhere.length };
   const preferences = await db.select({ key: nextActionPreferences.taskKey }).from(nextActionPreferences)
     .where(and(eq(nextActionPreferences.websiteId, websiteId), gt(nextActionPreferences.snoozedUntil, now)));
   const hidden = new Set(preferences.map(p => p.key));
-  return listed.filter(a => !hidden.has(a.id)).slice(0, 5);
+  return {
+    actions: listed.filter(a => !hidden.has(a.id)).slice(0, 5),
+    // Counted as the dashboard would show them: a postponed one is on neither page.
+    listedElsewhere: elsewhere.filter(a => !hidden.has(a.id)).length,
+  };
 }

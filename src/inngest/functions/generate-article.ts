@@ -32,6 +32,7 @@ import { autoRetryKey, lockPace, startsLeft } from "@/lib/articles/pace";
 import { articleAllowanceRule, checkLimit, PRICING, track } from "@/lib/usage";
 import { backlinkRequests, placements } from "@/lib/db/schema";
 import { markPlacementDrafted } from "@/lib/backlinks/placements";
+import { backlinkExchangeOnSql } from "@/lib/backlinks/exchange-switch";
 import {
   linkGeneratedArticle,
   stripUnverifiedLinks,
@@ -245,6 +246,11 @@ export const generateArticle = inngest.createFunction(
       /**
        * A backlink waiting on this site. Taken at brief time so the same
        * placement cannot be handed to two articles running concurrently.
+       *
+       * Only with the website's Backlink Exchange switched ON: an automatic
+       * partner link is opt-in (lib/backlinks/exchange-switch.ts). The RepGet
+       * team's own placements are not "pending" - they are written into the
+       * draft by an administrator (lib/backlinks/managed.ts).
        */
       const [pending] = await db
         .select({
@@ -258,6 +264,8 @@ export const generateArticle = inngest.createFunction(
           and(
             eq(placements.hostWebsiteId, article.websiteId),
             eq(placements.status, "pending"),
+            eq(placements.managed, false),
+            backlinkExchangeOnSql(placements.hostWebsiteId),
           ),
         )
         .limit(1);

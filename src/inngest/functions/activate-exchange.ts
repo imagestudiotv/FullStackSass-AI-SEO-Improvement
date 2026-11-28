@@ -4,6 +4,7 @@ import { inngest } from "@/inngest/client";
 import { db } from "@/lib/db";
 import { networkSites, subscriptions, websites } from "@/lib/db/schema";
 import { onFreeArticles } from "@/lib/billing/free-articles";
+import { matchWaitingRequests, releaseStalledRequests, returnLinksFromHostsSwitchedOff } from "@/lib/backlinks/stalled";
 import { websiteConnectedSql } from "@/lib/publishing/website-connection";
 
 /**
@@ -110,6 +111,18 @@ export const activateExchange = inngest.createFunction(
       return due.length;
     });
 
-    return { activated };
+    /*
+      Automatic partner links are opt-in and OFF for every existing website
+      (lib/backlinks/exchange-switch.ts): nothing may stall with its credits
+      held for good (lib/backlinks/stalled.ts). The RepGet team's own
+      placements are not touched. Each its own step, so a retry repeats none
+      of the others; each is safe to repeat anyway.
+    */
+    const returned = await step.run("return-links-from-hosts-switched-off", () => returnLinksFromHostsSwitchedOff());
+    const matched = await step.run("match-waiting-requests", () => matchWaitingRequests());
+    const released = await step.run("release-stalled-requests", () => releaseStalledRequests());
+    logger.info({ step: "stalled-requests", returned, matched, released }, "Waiting backlink requests looked after");
+
+    return { activated, returned, matched, released };
   },
 );

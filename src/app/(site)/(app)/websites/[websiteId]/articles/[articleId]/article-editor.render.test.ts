@@ -193,10 +193,13 @@ describe("the article workspace", () => {
     expect(html).toContain('href="https://example.com/wedding-films-italy"');
   });
 
-  it("links to Integrations when nothing is connected", () => {
+  it("links to Integrations when nothing is connected, beside the article, never in a dialog over it", () => {
     const html = render({ facts: { ...FACTS, destination: { kind: "none" } } });
     expect(html).toContain(en.app.editor.connectToPublish);
     expect(html).toContain('href="/websites/33333333-3333-4333-8333-333333333333/integrations"');
+    // Reading is never blocked (2026-11-27): the blocking "Connect your website" popup is gone.
+    expect(html).not.toContain('role="dialog"');
+    expect(html).not.toContain("connect-popup");
   });
 
   it("shows a writing failure in plain words and offers to try again", () => {

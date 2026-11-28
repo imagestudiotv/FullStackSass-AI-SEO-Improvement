@@ -24,8 +24,6 @@ import { ArticlePreparing } from "./article-preparing";
 import { ArticleIndexingStatus } from "@/components/articles/indexing-status";
 import { ResearchPanel } from "@/components/articles/research-panel";
 import { formatWhen, HISTORY_LIMIT, loadPublishing, partnerLinksInText, pickDestination } from "./article-data";
-import { ConnectPopup } from "./connect-popup";
-import { offersConnect } from "./connect-popup-state";
 import { generationFailureKind } from "./failure-copy";
 import { previewSiteOrigin } from "./site-origin";
 
@@ -160,17 +158,14 @@ export default async function ArticlePage({
     locale,
   });
 
-  // For automatic posting the website must be connected: offered as the article opens (client, 2026-11-24).
-  const offerConnect = offersConnect({
-    canEdit: gate.access !== "viewer",
-    destination,
-    status: article.status,
-    hasBody: Boolean(article.bodyHtml?.trim()),
-  });
-
+  /*
+    No popup over the article (2026-11-27): reading an article is never
+    blocked. A website with nowhere to publish is asked to connect by the
+    publishing panel's own banner beside the article (article-publishing.tsx,
+    "Connect your website to publish"), which does not stand in the way.
+  */
   return (
     <>
-    {offerConnect ? <ConnectPopup websiteId={websiteId} domain={gate.site.domain} locale={locale} /> : null}
     <ResearchPanel websiteId={websiteId} articleId={articleId} locale={locale} />
     <ArticleIndexingStatus websiteId={gate.site.id} articleId={article.id} locale={locale} />
     <ArticleEditor
