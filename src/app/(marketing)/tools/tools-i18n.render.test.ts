@@ -30,6 +30,7 @@ import { SitemapTool } from "./sitemap-checker/tool";
 import { SnippetTool } from "./snippet-preview/tool";
 import { GrowthCopilotTool } from "./growth-copilot/tool";
 import { SocialPostGeneratorTool } from "./social-media-post-generator/tool";
+import { BlogWriterTool } from "./blog-writer/tool";
 
 type Render = (locale: Locale) => Promise<ReactElement> | ReactElement;
 
@@ -45,6 +46,7 @@ const TOOLS: [string, Render][] = [
   ["/tools/snippet-preview", (locale) => SnippetTool({ locale })],
   ["/tools/growth-copilot", (locale) => GrowthCopilotTool({ locale })],
   ["/tools/social-media-post-generator", (locale) => SocialPostGeneratorTool({ locale })],
+  ["/tools/blog-writer", (locale) => BlogWriterTool({ locale })],
 ];
 
 const html = async (render: Render, locale: Locale) => renderToStaticMarkup(await render(locale));

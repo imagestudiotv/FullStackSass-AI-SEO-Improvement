@@ -27,6 +27,7 @@ import {
   type FreeSocialSource,
   type FreeSocialTone,
 } from "@/lib/tools/social-posts-shared";
+import { rememberToolUse } from "@/lib/tools/free-tools";
 import { cn } from "@/lib/utils";
 
 /**
@@ -168,6 +169,8 @@ export function SocialPostGenerator({
         setBatch(next);
         store(next);
         setAvailable(false);
+        // A sign-up from this browser is now counted for this tool (Admin -> Free tools).
+        rememberToolUse("social-media-post-generator");
       } else if (outcome.reason === "invalid_url") {
         setUrlError(copy.errors.invalidUrl);
       } else {

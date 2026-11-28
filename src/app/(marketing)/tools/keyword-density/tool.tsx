@@ -52,7 +52,7 @@ export async function KeywordDensityTool({ locale, searchParams }: { locale: Loc
   const t = KEYWORD_DENSITY_COPY[locale];
   const common = TOOLS_COMMON[locale];
   const domain = domainParam(searchParams);
-  const outcome = domain ? await checkReadability(domain, visitorKey(await headers())) : null;
+  const outcome = domain ? await checkReadability(domain, visitorKey(await headers()), "keyword-density") : null;
 
   return (
     <div>

@@ -101,6 +101,14 @@ export const TOOLS: Tool[] = [
     category: "Content & meta",
   },
   {
+    // The free AI Blog Writer (owner, 2026-11-27): an editable opening, then sign-up for the full article.
+    href: "/tools/blog-writer",
+    title: "Free AI Blog Writer",
+    blurb: "An editable article opening from your own advice.",
+    emoji: "📝",
+    category: "Content & meta",
+  },
+  {
     href: "/tools/snippet-preview",
     title: "SEO Title Checker",
     blurb: "Score your title for SERP CTR, live.",

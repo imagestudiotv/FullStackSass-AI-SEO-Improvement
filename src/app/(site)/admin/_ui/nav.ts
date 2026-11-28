@@ -31,6 +31,7 @@ import {
   ShieldAlert,
   TicketPercent,
   UserCheck,
+  Wrench,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -225,6 +226,14 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         icon: Clapperboard,
         keywords: ["veo", "gemini", "ai video", "hook clips", "viral", "spend", "cost"],
         description: "RepGet's AI-made hook clips for viral videos and what they cost",
+      },
+      {
+        // Owner, 2026-11-27: "how much we spend ... to keep only the true value tools".
+        href: "/admin/free-tools",
+        label: "Free tools",
+        icon: Wrench,
+        keywords: ["tools", "blog writer", "social post generator", "usage", "ai cost", "spend", "cap", "signups", "switch", "off"],
+        description: "Each free tool's uses, AI cost and sign-ups, with an on/off switch and a daily AI cap",
       },
     ],
   },

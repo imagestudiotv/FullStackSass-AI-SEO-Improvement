@@ -12,6 +12,9 @@ import {
 } from "@/lib/billing/spend-quota";
 import { normalizeWebsiteUrl } from "@/lib/websites/url";
 
+import type { FreeToolSlug } from "./free-tools";
+import { readToolSetting, recordToolUse } from "./tool-tracking";
+
 /**
  * Abuse protection for the free, anonymous tools that make RepGet's servers
  * fetch somebody's website: the public audit, the llms.txt generator, and the
@@ -65,6 +68,21 @@ type ToolLimits = {
   pool: "crawl" | "fetch";
   /** How long one request may hold its leases: longer than its own deadline. */
   leaseSeconds: number;
+};
+
+/**
+ * The free tool page each check belongs to (lib/tools/free-tools.ts), for
+ * Admin -> Free tools: its switch, and its uses. "readability" serves two
+ * pages, which say which one they are (checkReadability). The audit and the
+ * homepage's preview are not free tools there.
+ */
+const TOOL_PAGE: Partial<Record<PublicToolId, FreeToolSlug>> = {
+  robots: "robots-checker",
+  sitemap: "sitemap-checker",
+  "meta-tags": "meta-tag-checker",
+  "ai-crawlers": "ai-crawler-checker",
+  "llms-txt": "llms-txt-generator",
+  readability: "llm-html-checker",
 };
 
 /** Crawls (several pages) are scarce; single fetches are cheap but not free. */
@@ -148,6 +166,8 @@ export async function guardedSiteTool<T>(
   input: string,
   visitor: string,
   run: () => Promise<T>,
+  /** The tool page asking, when one check serves two (readability). */
+  page?: FreeToolSlug,
 ): Promise<T | { ok: false; error: string }> {
   let site: string;
   try {
@@ -155,7 +175,7 @@ export async function guardedSiteTool<T>(
   } catch {
     return run();
   }
-  const guarded = await guardPublicTool({ tool, site, visitor, run });
+  const guarded = await guardPublicTool({ tool, site, visitor, run, page });
   return guarded.ok ? guarded.value : { ok: false, error: guarded.refusal.message };
 }
 
@@ -185,8 +205,13 @@ export async function guardPublicTool<T>(options: {
   visitor: string;
   run: () => Promise<T>;
   beforeRun?: () => Promise<T | null>;
+  /** The free tool page asking; by default the check's own (TOOL_PAGE). */
+  page?: FreeToolSlug;
 }): Promise<GuardOutcome<T>> {
   const limits = PUBLIC_TOOL_LIMITS[options.tool];
+  const page = options.page ?? TOOL_PAGE[options.tool];
+  // Switched off in Admin -> Free tools: no fetch. Settings that cannot be read leave the tool on (the quota store, below, fails closed anyway).
+  if (page && !(await readToolSetting(page).catch(() => ({ enabled: true }))).enabled) return { ok: false, refusal: UNAVAILABLE };
   const leases: Lease[] = [];
   try {
     let siteLease: Lease | null;
@@ -223,6 +248,8 @@ export async function guardPublicTool<T>(options: {
     } catch {
       return { ok: false, refusal: UNAVAILABLE };
     }
+    // One use of the tool, for Admin -> Free tools (never throws).
+    if (page) await recordToolUse({ tool: page, path: "server", visitor: options.visitor });
 
     return { ok: true, value: await options.run() };
   } finally {

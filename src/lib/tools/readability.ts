@@ -132,8 +132,10 @@ export async function checkReadability(
   input: string,
   /** From visitorKey(): the page reads the request headers; this does not. */
   visitor: string,
+  /** Which of the two pages asks (Admin -> Free tools counts them apart). */
+  page: "llm-html-checker" | "keyword-density" = "llm-html-checker",
 ): Promise<ReadabilityOutcome> {
-  return guardedSiteTool("readability", input, visitor, () => checkReadabilityUnguarded(input));
+  return guardedSiteTool("readability", input, visitor, () => checkReadabilityUnguarded(input), page);
 }
 
 /** Only ever called through checkReadability above. */
