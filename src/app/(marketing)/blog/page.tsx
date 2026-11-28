@@ -55,8 +55,8 @@ export default async function BlogIndexPage({ searchParams }: Props) {
           </h1>
           <p className="mt-4 max-w-2xl text-pretty text-muted-foreground sm:text-lg">
             Guides, comparisons and playbooks for the new era of search. How to
-            get found on Google, and how to get your business named by ChatGPT,
-            Claude, Gemini and Perplexity.
+            get found on Google, and how to get your business named in AI
+            answers.
           </p>
 
           {/* Real counts, empty categories hidden (category-chips.tsx says why). */}

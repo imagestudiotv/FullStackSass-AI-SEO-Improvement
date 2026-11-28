@@ -4,32 +4,47 @@ import { inngest } from "@/inngest/client";
 import { db } from "@/lib/db";
 import { geoPrompts, geoResults, websites } from "@/lib/db/schema";
 import { maxPromptsFor } from "@/lib/geo/allowance";
-import { ENGINE, runCheck } from "@/lib/geo/check";
+import { runCheck, type AnswerOutcome } from "@/lib/geo/check";
+import { weeklyCheckRule } from "@/lib/geo/check-limits";
 import { syncAiVisibilityCompetitors } from "@/lib/geo/competitors";
+import { availableEngineIds, runsPerQuestion } from "@/lib/geo/engines";
+import { marketOf } from "@/lib/geo/market";
+import { combineAnswers } from "@/lib/geo/score";
 import { isEntitledToSpend } from "@/lib/billing/entitled";
 import { llmCostUsd, track } from "@/lib/usage";
 import { MODELS } from "@/lib/ai/client";
 import {
   paidCall,
+  QuotaExhaustedError,
   releaseUnspent,
+  reserveAll,
   type Reservation,
 } from "@/lib/billing/spend-quota";
 
 /**
- * Checks whether an AI assistant recommends a customer's business.
+ * Checks whether AI assistants recommend a customer's business.
  *
- * Each prompt costs two model calls — one to ask the question, one to read the
- * brands out of the answer — so a website with twenty prompts is forty calls.
- * Far past a server action's budget, hence a job.
+ * Since 2026-11-27 every question is put to every assistant this deployment
+ * has a key for and names in GEO_ENGINES (Claude alone when unset;
+ * lib/geo/engines.ts), each with web search on, several times
+ * (GEO_RUNS_PER_QUESTION, default 2; costs in docs/ai-visibility.md), and the
+ * share of answers naming the business is stored: one answer is a sample of
+ * one. Each answer is two model calls - the assistant's, and Haiku reading
+ * the brands out of it - so twenty questions, three assistants and three
+ * runs are 360 calls. Far past a server action's budget, hence a job.
+ *
+ * The weekly cron does not check every website in one run any more: it
+ * sends one event per website (an Inngest run has a step limit, and one
+ * website is now up to a few hundred steps), and each is checked on its own.
  *
  * The concurrency key is per website rather than global. One customer with
  * twenty prompts must not delay everyone else's checks, and without a key a
- * burst of scheduled runs would hit the Anthropic rate limit together and fail
- * as a group.
+ * burst of scheduled runs would hit the providers' rate limits together and
+ * fail as a group.
  */
 
-/** Prompts checked per run. A safety valve; the UI caps prompts at 20. */
-const MAX_PER_RUN = 20;
+/** Prompts checked per run. A safety valve; plans allow 20 (50 on Scale). */
+const MAX_PER_RUN = 50;
 
 export const checkGeo = inngest.createFunction(
   {
@@ -37,7 +52,7 @@ export const checkGeo = inngest.createFunction(
     // A failed check is retried, but not endlessly: the usual cause is a
     // rate limit or a malformed answer, and both resolve on the next run.
     retries: 2,
-    concurrency: [{ key: "event.data.websiteId", limit: 2 }],
+    concurrency: [{ key: "event.data.websiteId", limit: 1 }],
     onFailure: async ({ event }) => {
       // Only a check that never reached the model gives its slot back.
       await releaseUnspent(
@@ -56,10 +71,6 @@ export const checkGeo = inngest.createFunction(
     ],
   },
   async ({ event, step, logger }) => {
-    /**
-     * A cron run has no websiteId and checks every site with active prompts.
-     * An event run checks one. Both paths share everything below.
-     */
     const data: unknown = event.data;
     const websiteId =
       data && typeof data === "object" && "websiteId" in data &&
@@ -71,6 +82,8 @@ export const checkGeo = inngest.createFunction(
       data && typeof data === "object" && "reservations" in data
         ? (data.reservations as Reservation[] | undefined)
         : undefined;
+    /** One website's share of the weekly sweep: never the Free plan's snapshot. */
+    const scheduled = Boolean(data && typeof data === "object" && "scheduled" in data && data.scheduled === true);
 
     /**
      * Logged as an object so Inngest indexes the fields.
@@ -80,7 +93,7 @@ export const checkGeo = inngest.createFunction(
      * different expectations about how many websites should appear below.
      */
     logger.info(
-      { step: "start", websiteId: websiteId ?? null, trigger: websiteId ? "event" : "cron" },
+      { step: "start", websiteId: websiteId ?? null, trigger: websiteId ? (scheduled ? "weekly" : "event") : "cron" },
       "GEO check started",
     );
 
@@ -91,6 +104,8 @@ export const checkGeo = inngest.createFunction(
           brandName: websites.brandName,
           domain: websites.domain,
           organizationId: websites.organizationId,
+          language: websites.language,
+          country: websites.country,
         })
         .from(geoPrompts)
         .innerJoin(websites, eq(geoPrompts.websiteId, websites.id))
@@ -124,6 +139,34 @@ export const checkGeo = inngest.createFunction(
       return rows;
     });
 
+    if (!websiteId) {
+      // The sweep: one run per website, once per week whatever the retries (the event id).
+      const week = new Date().toISOString().slice(0, 10);
+      if (targets.length > 0) {
+        await step.sendEvent(
+          "weekly-websites",
+          targets.map((target) => ({
+            id: `geo-weekly:${target.websiteId}:${week}`,
+            name: "geo/check.requested",
+            data: { websiteId: target.websiteId, scheduled: true },
+          })),
+        );
+      }
+      logger.info({ step: "done", websites: targets.length }, "GEO weekly sweep queued");
+      return { websites: targets.length, checked: 0, mentions: 0, failed: 0 };
+    }
+
+    /*
+      What this run asks: the assistants with a key, and how many times each.
+      Read once in a step so a retry asks the same assistants as the first try.
+    */
+    const plan = await step.run("select-engines", () => ({ engines: availableEngineIds(), runs: runsPerQuestion() }));
+    if (plan.engines.length === 0) {
+      logger.warn({ step: "select-engines", websiteId }, "No AI assistant is configured - nothing to check");
+      await releaseUnspent(reservations, "no_engine");
+      return { websites: targets.length, checked: 0, mentions: 0, failed: 0 };
+    }
+
     let checked = 0;
     let mentions = 0;
     let failed = 0;
@@ -136,6 +179,8 @@ export const checkGeo = inngest.createFunction(
        * silently.
        */
       const brand = target.brandName?.trim() || target.domain;
+      /** The language and market every answer is asked and recorded in (lib/geo/market.ts). */
+      const market = marketOf(target);
 
       const prompts = await step.run(
         `select-prompts-${target.websiteId}`,
@@ -172,6 +217,10 @@ export const checkGeo = inngest.createFunction(
               step: `select-prompts-${target.websiteId}`,
               websiteId: target.websiteId,
               promptCount: rows.length,
+              engines: plan.engines,
+              runsPerQuestion: plan.runs,
+              language: market.language,
+              region: market.region,
               usedFallbackBrand: !target.brandName?.trim(),
               cappedAtMaxPerRun: rows.length === MAX_PER_RUN,
               cappedAtPlan: rows.length === limit && limit < MAX_PER_RUN,
@@ -182,112 +231,151 @@ export const checkGeo = inngest.createFunction(
         },
       );
 
+      /*
+        The weekly cap (lib/geo/check-limits.ts): a website is checked at most
+        WEEKLY_CHECKS times in seven days, the Monday run and the customer's
+        presses together. A pressed check already holds its slot (runGeoCheck
+        reserves it with the others); the sweep takes one here, or skips.
+      */
+      const ownReservations = target.websiteId === websiteId ? reservations : undefined;
+      const weekly = ownReservations
+        ? { ok: true as const, reservations: [] as Reservation[] }
+        : await step.run(`reserve-week-${target.websiteId}`, async () => {
+            const held = await reserveAll([weeklyCheckRule(target.websiteId)], {
+              operation: "geo.check",
+              organizationId: target.organizationId,
+              websiteId: target.websiteId,
+            });
+            return held.ok ? { ok: true as const, reservations: held.reservations } : { ok: false as const, reservations: [] as Reservation[] };
+          });
+      if (!weekly.ok) {
+        logger.warn({ step: `reserve-week-${target.websiteId}`, websiteId: target.websiteId }, "Weekly AI visibility check cap reached - website skipped");
+        continue;
+      }
+      const spendOn = ownReservations ?? weekly.reservations;
+
+      let stopped = false;
       for (const prompt of prompts) {
-        /**
-         * One step per prompt, so a failure late in the list does not re-ask
-         * the questions already answered — step.run memoises, and re-asking
-         * would both cost money twice and record duplicate results.
-         */
-        const outcome = await step.run(`check-${prompt.id}`, async () => {
-          const startedAt = Date.now();
+        const answers: AnswerOutcome[] = [];
 
-          /*
-            Entitlement at the moment of spending, in the step itself, so an
-            Inngest retry cannot replay an earlier answer. This also stops the
-            weekly sweep paying for websites whose plan has ended - it used to
-            check every site with active prompts, subscribed or not.
-          */
-          /*
-            The Free plan's snapshot only when its owner asked for it (an
-            event run, counted against its month in runGeoCheck): the weekly
-            sweep never spends on a Free website.
-          */
-          const entitled = await isEntitledToSpend(target.websiteId, websiteId ? { free: true } : {});
-          if (!entitled.ok) {
-            return { ok: false as const, message: "not_entitled", stop: true };
-          }
+        for (const engine of plan.engines) {
+          /**
+           * One step per question and assistant, so a failure late in the
+           * list does not re-ask the ones already answered — step.run
+           * memoises, and re-asking would both cost money twice and record
+           * duplicate results. The step asks `runs` times and returns every
+           * answer it got; an answer that failed is left out, never counted
+           * as "not named".
+           */
+          const outcome = await step.run(`check-${prompt.id}-${engine}`, async () => {
+            const startedAt = Date.now();
 
-          try {
-            const tokens: { model: string; input: number; output: number }[] = [];
-            const result = await paidCall(
-              target.websiteId === websiteId ? reservations : undefined,
-              () => runCheck(prompt.prompt, brand, target.domain, (model, usage) => tokens.push({ model, input: usage.input_tokens, output: usage.output_tokens })),
-            );
             /*
-              What the check cost, per model call, on the owner's account: the
-              AI visibility checks were the one AI path not metered, and the
-              Free plan's cost cap (lib/plans/free-plan-server.ts) reads these.
+              Entitlement at the moment of spending, in the step itself, so an
+              Inngest retry cannot replay an earlier answer. The Free plan's
+              snapshot only when its owner asked for it (an event run, counted
+              against its month in runGeoCheck): the weekly sweep never spends
+              on a Free website.
             */
-            for (const call of tokens) {
-              await track(target.organizationId, {
-                kind: "llm",
-                provider: "anthropic",
-                model: call.model,
-                quantity: call.input + call.output,
-                costUsd: llmCostUsd(call.model, call.input, call.output) ?? undefined,
-                websiteId: target.websiteId,
-                metadata: { purpose: "geo_check", inputTokens: call.input, outputTokens: call.output },
-              }).catch((error) => logger.error({ step: `check-${prompt.id}`, error: String(error) }, "Could not record the check's cost"));
+            const entitled = await isEntitledToSpend(target.websiteId, scheduled ? {} : { free: true });
+            if (!entitled.ok) {
+              return { ok: false as const, answers: [] as AnswerOutcome[], failed: 0, stop: true };
+            }
+
+            const got: AnswerOutcome[] = [];
+            let failedRuns = 0;
+            for (let run = 0; run < plan.runs; run += 1) {
+              try {
+                const calls: { model: string; input: number; output: number; engine?: string; provider?: string; costUsd?: number; searches?: number; webSearch?: boolean }[] = [];
+                const result = await paidCall(spendOn, () =>
+                  runCheck(prompt.prompt, brand, target.domain, {
+                    engine,
+                    market,
+                    onUsage: (model, usage, call) =>
+                      calls.push({ model, input: usage.input_tokens, output: usage.output_tokens, ...call }),
+                  }),
+                );
+                /*
+                  What the check cost, per model call, on the owner's account:
+                  the Free plan's cost cap (lib/plans/free-plan-server.ts) reads
+                  these. An assistant's answer carries its own price (tokens and
+                  searches, lib/geo/assistants.ts); the brand extraction is Haiku.
+                */
+                for (const call of calls) {
+                  await track(target.organizationId, {
+                    kind: "llm",
+                    provider: call.provider ?? "anthropic",
+                    model: call.model,
+                    quantity: call.input + call.output,
+                    costUsd: call.costUsd ?? llmCostUsd(call.model, call.input, call.output) ?? undefined,
+                    websiteId: target.websiteId,
+                    metadata: {
+                      purpose: call.engine ? "geo_check_answer" : "geo_check",
+                      engine: call.engine ?? null,
+                      searches: call.searches ?? 0,
+                      webSearch: call.webSearch ?? null,
+                      inputTokens: call.input,
+                      outputTokens: call.output,
+                    },
+                  }).catch((error) => logger.error({ step: `check-${prompt.id}-${engine}`, error: String(error) }, "Could not record the check's cost"));
+                }
+                got.push(result);
+              } catch (error) {
+                /**
+                 * Swallowed deliberately. A thrown error here would fail the
+                 * whole run and lose the answers that did come back.
+                 * Critically, nothing is recorded for this answer: recording a
+                 * failure as "not mentioned" would invent a drop the customer
+                 * never had.
+                 */
+                failedRuns += 1;
+                logger.error(
+                  {
+                    step: `check-${prompt.id}-${engine}`,
+                    websiteId: target.websiteId,
+                    geoPromptId: prompt.id,
+                    engine,
+                    run,
+                    reason: error instanceof Error ? error.message.slice(0, 300) : "unknown",
+                  },
+                  "AI visibility answer failed - not recorded",
+                );
+                // Out of allowance: the other runs would be refused the same way.
+                if (error instanceof QuotaExhaustedError) break;
+              }
             }
 
             logger.info(
               {
-                step: `check-${prompt.id}`,
+                step: `check-${prompt.id}-${engine}`,
                 websiteId: target.websiteId,
                 geoPromptId: prompt.id,
-                engine: ENGINE,
-                mentioned: result.mentioned,
-                position: result.position,
-                cited: result.cited,
-                competitors: result.competitors.length,
+                engine,
+                answers: got.length,
+                named: got.filter((a) => a.mentioned).length,
+                failedRuns,
                 durationMs: Date.now() - startedAt,
               },
-              "Prompt checked",
+              "Question asked",
             );
-            return { ok: true as const, result };
-          } catch (error) {
-            /**
-             * Swallowed deliberately. A thrown error here would fail the whole
-             * run and lose the checks that did succeed. Critically, nothing is
-             * written for this prompt: recording a failure as "not mentioned"
-             * would invent a drop the customer never had.
-             */
-            const message = error instanceof Error ? error.message : "unknown";
+            return { ok: true as const, answers: got, failed: failedRuns, stop: false };
+          });
 
-            /*
-              The swallow is the point of this log. Nothing is written for this
-              prompt and nothing downstream re-raises, so without a line here
-              the history of a partly-failed run is indistinguishable from a
-              complete one that simply had fewer prompts.
-            */
-            logger.error(
-              {
-                step: `check-${prompt.id}`,
-                websiteId: target.websiteId,
-                geoPromptId: prompt.id,
-                engine: ENGINE,
-                reason: message,
-                durationMs: Date.now() - startedAt,
-              },
-              "Prompt check failed - no result recorded for this prompt",
-            );
-
-            return {
-              ok: false as const,
-              message,
-              stop: false,
-            };
-          }
-        });
-
-        if (!outcome.ok) {
           if (outcome.stop) {
-            logger.warn(
-              { step: `check-${prompt.id}`, websiteId: target.websiteId },
-              "Website is not entitled to spend - remaining prompts skipped",
-            );
+            stopped = true;
             break;
           }
+          answers.push(...outcome.answers);
+        }
+
+        if (stopped) {
+          logger.warn({ step: `check-${prompt.id}`, websiteId: target.websiteId }, "Website is not entitled to spend - remaining prompts skipped");
+          break;
+        }
+
+        const combined = combineAnswers(answers);
+        if (!combined) {
+          // No assistant answered: nothing is written for this question.
           failed += 1;
           continue;
         }
@@ -296,12 +384,18 @@ export const checkGeo = inngest.createFunction(
           await db.insert(geoResults).values({
             geoPromptId: prompt.id,
             websiteId: target.websiteId,
-            engine: ENGINE,
-            mentioned: outcome.result.mentioned,
-            position: outcome.result.position,
-            cited: outcome.result.cited,
-            competitors: outcome.result.competitors,
-            excerpt: outcome.result.excerpt,
+            // Every assistant behind the row, in the order asked ("claude,chatgpt").
+            engine: combined.engines.join(","),
+            mentioned: combined.mentioned,
+            position: combined.position,
+            cited: combined.cited,
+            competitors: combined.competitors,
+            excerpt: combined.excerpt,
+            samples: combined.samples,
+            mentionCount: combined.mentionCount,
+            weight: combined.weight,
+            averagePosition: combined.averagePosition,
+            answers: combined.answers,
           });
 
           logger.info(
@@ -309,9 +403,10 @@ export const checkGeo = inngest.createFunction(
               step: `save-${prompt.id}`,
               websiteId: target.websiteId,
               geoPromptId: prompt.id,
-              engine: ENGINE,
-              mentioned: outcome.result.mentioned,
-              position: outcome.result.position,
+              engines: combined.engines,
+              samples: combined.samples,
+              named: combined.mentionCount,
+              averagePosition: combined.averagePosition,
               rowsWritten: 1,
             },
             "GEO result saved",
@@ -319,8 +414,14 @@ export const checkGeo = inngest.createFunction(
         });
 
         checked += 1;
-        if (outcome.result.mentioned) mentions += 1;
+        if (combined.mentioned) mentions += 1;
       }
+
+      if (!ownReservations && weekly.reservations.length > 0) {
+        // A sweep that asked nothing (no plan, every call refused) gives its week's slot back.
+        await step.run(`release-week-${target.websiteId}`, () => releaseUnspent(weekly.reservations, "nothing_asked"));
+      }
+
 
       /*
         The rivals the assistant recommended, copied into the Business profile
@@ -330,7 +431,7 @@ export const checkGeo = inngest.createFunction(
         only for a website entitled to spend. A failure loses nothing measured.
       */
       await step.run(`sync-competitors-${target.websiteId}`, async () => {
-        const entitled = await isEntitledToSpend(target.websiteId, websiteId ? { free: true } : {});
+        const entitled = await isEntitledToSpend(target.websiteId, scheduled ? {} : { free: true });
         if (!entitled.ok) return { added: 0 };
         try {
           const result = await syncAiVisibilityCompetitors(target.websiteId);

@@ -26,7 +26,7 @@ import { billingMaintenance, deliverOutbox, paidAcquisitionMaintenance } from ".
 import { publishArticleJob } from "./publish-article";
 import { emailBroadcastsDue, sendEmailBroadcast } from "./email-broadcasts";
 import { firstContentPlan } from "./first-content-plan";
-import { firstVisibilityQuestions } from "./first-visibility-questions";
+import { firstVisibilityQuestions, regenerateVisibilityQuestions } from "./first-visibility-questions";
 import { renewalReplan } from "./renewal-replan";
 import { researchKeywords } from "./research-keywords";
 import { scheduledArticles } from "./scheduled-articles";
@@ -47,6 +47,7 @@ export const functions = [
   renewalReplan,
   firstContentPlan,
   firstVisibilityQuestions,
+  regenerateVisibilityQuestions,
   generateArticle,
   verifyBacklinks,
   checkGeo,

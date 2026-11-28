@@ -4,7 +4,8 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { CHECK_WAIT_LIMIT_MS, checkBaseline } from "@/lib/geo/progress";
-import type { GeoPromptView } from "@/lib/geo/shared";
+import { weeklyCapError, weeklyCapNext, type GeoPromptView } from "@/lib/geo/shared";
+import { formatDate } from "@/lib/i18n/format";
 import { getMessages } from "@/lib/i18n/messages";
 import { FREE_ARTICLES_ONLY, FREE_ARTICLES_ONLY_PAYPAL } from "@/lib/plans/features";
 
@@ -359,6 +360,18 @@ describe("localiseGeoError", () => {
     expect(localiseGeoError("Your plan tracks up to 50 questions. Remove one to add another.", de.geo, de.workspace)).toBe(
       "Ihr Tarif verfolgt bis zu 50 Fragen. Entfernen Sie eine, um eine andere hinzuzufügen.",
     );
+  });
+
+  it.each(["en", "es", "fr", "it", "de"] as const)("says when the next check is available, not \"Monday\", in %s", (locale) => {
+    const t = getMessages(locale).app;
+    const next = new Date("2026-12-03T14:30:00Z");
+    const text = localiseGeoError(weeklyCapError(next), t.geo, t.workspace, locale);
+    expect(text).toContain(formatDate(next, locale, { dateStyle: "long", timeStyle: "short" }));
+    expect(text).not.toMatch(/\{\w+\}|Monday|lunes|lundi|lunedì|Montag/);
+    // Without a known time, a plain refusal.
+    expect(localiseGeoError(weeklyCapError(null), t.geo, t.workspace, locale)).toBe(t.geo.errWeeklyCapNoDate);
+    expect(weeklyCapNext(weeklyCapError(next))?.toISOString()).toBe(next.toISOString());
+    expect(weeklyCapNext("Something else")).toBeUndefined();
   });
 
   it("shows an unknown message as written", () => {

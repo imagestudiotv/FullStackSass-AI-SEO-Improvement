@@ -1326,6 +1326,17 @@ export const siteDailyMetrics = pgTable(
   ],
 );
 
+/** One assistant's answer behind a geo_results row (geo_results.answers). */
+export type GeoAnswerRecord = {
+  engine: string;
+  model: string;
+  webSearch: boolean;
+  language: string;
+  region: string | null;
+  mentioned: boolean;
+  position: number | null;
+};
+
 export const geoPrompts = pgTable(
   "geo_prompts",
   {
@@ -1336,6 +1347,16 @@ export const geoPrompts = pgTable(
     /** Set when we suggested it rather than the customer typing it. */
     isSuggested: boolean("is_suggested").default(false).notNull(),
     active: boolean("active").default(true).notNull(),
+    /**
+     * The language a suggested question was written in ("Ukrainian"): the
+     * website's article language when it was written. Null for one the
+     * customer typed, or a suggestion written before 2026-11-27 (always
+     * English then). A suggestion in another language than the website's is
+     * offered for regeneration (lib/geo/regenerate.ts).
+     */
+    language: text("language"),
+    /** The market it was written for (websites.country at the time); null as above. */
+    region: text("region"),
     ...timestamps,
   },
   (table) => [
@@ -1379,6 +1400,20 @@ export const geoResults = pgTable(
     competitors: jsonb("competitors").$type<string[]>().default([]).notNull(),
     /** The sentence naming the brand, so the customer sees the evidence. */
     excerpt: text("excerpt"),
+    /**
+     * Since 2026-11-27 one row is one QUESTION in one check: every assistant
+     * is asked it several times (lib/geo/engines.ts runsPerQuestion) and the
+     * row keeps the share - "named in 2 of 3 answers". Null on older rows,
+     * which were one answer each.
+     */
+    samples: integer("samples"),
+    mentionCount: integer("mention_count"),
+    /** Mean position credit over every answer, 0-1 (lib/geo/score.ts positionWeight): what the score is built from. */
+    weight: real("weight"),
+    /** Mean position over the answers that named the business; null when none did. */
+    averagePosition: real("average_position"),
+    /** Every answer behind the row: assistant, model, web search, language, region, named, position. */
+    answers: jsonb("answers").$type<GeoAnswerRecord[]>(),
     checkedAt: timestamp("checked_at").defaultNow().notNull(),
   },
   (table) => [

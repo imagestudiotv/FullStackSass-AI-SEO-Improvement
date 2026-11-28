@@ -3,8 +3,6 @@
 import { ChevronDown, Quote, Star } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { CHECKED_ENGINE_IDS, checkedEngineNames, uncheckedEngineNames } from "@/lib/geo/engines";
-
 /**
  * The right-hand panel on the sign-in and sign-up screens.
  *
@@ -71,10 +69,12 @@ const GROUPS: { lead: Panel; supporting: [Panel, Panel] }[] = [
   {
     lead: {
       headline: "See whether an AI assistant names you",
-      // The assistants from the list the check really asks (lib/geo/engines.ts), so this stays true when one is added.
-      body: `Each week we ask ${checkedEngineNames()} the questions your customers would ask an AI assistant, and record whether your business comes up in the answer. ${
-        CHECKED_ENGINE_IDS.length === 1 ? "One assistant's view, asked through its API" : "Their views, asked through their APIs"
-      }${uncheckedEngineNames() ? ` - ${uncheckedEngineNames()} are not checked` : ""}.`,
+      /*
+        {assistants}: the ones the check really asks; {notChecked}: the
+        well-known ones it does not (ChatGPT or Gemini when off, Perplexity,
+        Google's AI results). Both from the server (lib/geo/engine-words.ts).
+      */
+      body: "Each week we ask {assistants}, through the API with web search on, the questions your customers would ask an AI assistant, in your language, and record in how many answers your business comes up. {notChecked} are not checked.",
     },
     supporting: [
       {
@@ -102,7 +102,14 @@ function Stars() {
   );
 }
 
-export function AuthShowcase() {
+/**
+ * `assistants`: the AI assistants the visibility check asks on this
+ * deployment, in words ("Claude, ChatGPT and Gemini"); `notChecked`: the
+ * well-known ones it does not ("ChatGPT, Gemini, Perplexity and Google's AI
+ * results"). Given by the server layout - this is a client component, where
+ * no API key is visible, so it cannot read lib/geo/engines.ts itself.
+ */
+export function AuthShowcase({ assistants = "", notChecked = "" }: { assistants?: string; notChecked?: string }) {
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
@@ -113,7 +120,14 @@ export function AuthShowcase() {
     return () => clearInterval(timer);
   }, []);
 
-  const group = GROUPS[index];
+  const fill = (panel: Panel): Panel => ({
+    ...panel,
+    body: panel.body
+      .replace("{assistants}", assistants || "AI assistants")
+      .replace("{notChecked}", notChecked || "Perplexity and Google's AI results"),
+  });
+  const raw = GROUPS[index];
+  const group = { lead: fill(raw.lead), supporting: [fill(raw.supporting[0]), fill(raw.supporting[1])] as [Panel, Panel] };
 
   return (
     <div

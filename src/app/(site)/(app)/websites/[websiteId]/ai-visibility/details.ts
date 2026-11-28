@@ -4,7 +4,7 @@ import { desc, eq, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { geoPrompts, geoResults, spendReservations } from "@/lib/db/schema";
-import { ENGINES } from "@/lib/geo/engines";
+import { engineName } from "@/lib/geo/engines";
 import { requireWebsite } from "@/lib/tenant";
 
 import {
@@ -42,7 +42,8 @@ const MAX_QUESTIONS = 200;
  */
 const checkKey = (websiteId: string) => `geo-check:site:${websiteId}`;
 
-const assistantName = (engine: string) => ENGINES.find((e) => e.id === engine)?.name ?? engine;
+/** "claude,chatgpt" (a row since 2026-11-27 holds every assistant asked) -> ["Claude", "ChatGPT"]. */
+const assistantNames = (engine: string) => engine.split(",").map((id) => id.trim()).filter(Boolean).map(engineName);
 
 export async function loadVisibilityDetails(
   websiteId: string,
@@ -59,6 +60,8 @@ export async function loadVisibilityDetails(
       cited: geoResults.cited,
       competitors: geoResults.competitors,
       excerpt: geoResults.excerpt,
+      samples: geoResults.samples,
+      mentionCount: geoResults.mentionCount,
     })
     .from(geoResults)
     .where(eq(geoResults.geoPromptId, geoPrompts.id))
@@ -78,6 +81,8 @@ export async function loadVisibilityDetails(
         cited: recent.cited,
         competitors: recent.competitors,
         excerpt: recent.excerpt,
+        samples: recent.samples,
+        mentionCount: recent.mentionCount,
       })
       .from(geoPrompts)
       .leftJoinLateral(recent, sql`true`)
@@ -105,20 +110,22 @@ export async function loadVisibilityDetails(
     const question = (questions[row.id] ??= { createdAt: row.createdAt, latest: null, earlier: [] });
     if (row.checkedAt === null || row.mentioned === null) continue;
     times.push(row.checkedAt.getTime());
+    const share = { samples: row.samples ?? 1, mentionCount: row.mentionCount ?? (row.mentioned ? 1 : 0) };
     if (question.latest === null) {
-      const assistant = assistantName(row.engine ?? "");
-      assistants.add(assistant);
+      const names = assistantNames(row.engine ?? "");
+      for (const name of names) assistants.add(name);
       question.latest = {
         checkedAt: row.checkedAt,
         mentioned: row.mentioned,
         position: row.position,
-        assistant,
+        ...share,
+        assistant: names.join(", "),
         cited: row.cited ?? false,
         competitors: (row.competitors ?? []).filter((c): c is string => typeof c === "string" && c.trim() !== ""),
         excerpt: row.excerpt,
       };
     } else {
-      question.earlier.push({ checkedAt: row.checkedAt, mentioned: row.mentioned, position: row.position });
+      question.earlier.push({ checkedAt: row.checkedAt, mentioned: row.mentioned, position: row.position, ...share });
     }
   }
 
