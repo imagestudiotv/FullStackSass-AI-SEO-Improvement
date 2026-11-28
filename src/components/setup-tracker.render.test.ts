@@ -29,3 +29,13 @@ describe("the setup panel never opens by itself", () => {
     },
   );
 });
+
+describe("the badge counts what Setup counts", () => {
+  it("leaves out Launched live, as the sidebar and Setup do (lib/onboarding/progress.ts)", () => {
+    state.pathname = "/dashboard";
+    const withLaunch = [...steps, { id: "launched", title: "Launched live", description: "Why it matters.", href: "/setup", icon: "site", done: false, optional: false }] as typeof steps;
+    const html = renderToStaticMarkup(createElement(SetupTracker, { steps: withLaunch }));
+    expect(html).toContain("Show setup steps - 1 left");
+    expect(html).not.toContain("Show setup steps - 2 left");
+  });
+});

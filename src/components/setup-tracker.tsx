@@ -242,11 +242,12 @@ export function SetupTracker({
         <button
           type="button"
           onClick={restore}
-          aria-label={`Show setup steps - ${remaining.length} left`}
+          aria-label={`Show setup steps - ${progress.remaining} left`}
           className="flex items-center gap-2 rounded-full border bg-card py-2 pr-4 pl-2.5 shadow-lg transition-colors hover:bg-accent"
         >
           <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-semibold text-primary-foreground">
-            {remaining.length}
+            {/* The one count, as the sidebar and Setup show it: never "Launched live". */}
+            {progress.remaining}
           </span>
           <span className="text-sm font-medium">{t.setUp}</span>
           <ChevronUp className="size-4 text-muted-foreground" aria-hidden="true" />
