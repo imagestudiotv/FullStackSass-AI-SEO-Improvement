@@ -71,7 +71,13 @@ export function breadcrumbList(site: string, trail: Crumb[]): Record<string, unk
  * back one, and invented ratings are against Google's rules. Without them
  * Google does not show the software rich result, but still reads the data.
  */
-export function softwareApplication(site: string, plans: PlanRow[], offer = false): Record<string, unknown> {
+export function softwareApplication(
+  site: string,
+  plans: PlanRow[],
+  offer = false,
+  /** Where the offers point: the pricing page in the homepage's language ("/es/pricing"). */
+  pricingPath = "/pricing",
+): Record<string, unknown> {
   const base = site.replace(/\/+$/, "");
   const ids = entityIds(base);
   const monthly = plans.filter((plan) => plan.interval === "month");
@@ -96,7 +102,7 @@ export function softwareApplication(site: string, plans: PlanRow[], offer = fals
         name: plan.name,
         price,
         priceCurrency,
-        url: `${base}/pricing`,
+        url: `${base}${pricingPath}`,
         // "per month", as the page says it.
         priceSpecification: {
           "@type": "UnitPriceSpecification",

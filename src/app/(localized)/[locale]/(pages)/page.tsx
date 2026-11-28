@@ -9,6 +9,8 @@ import { isLocale, localePath } from "@/lib/i18n/config";
 import { HOME_META } from "@/lib/seo/home-metadata";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
 import { HomePageSections } from "@/app/(marketing)/home-page";
+import { OrganizationSchema } from "@/app/(marketing)/organization-schema";
+import { siteUrl } from "@/lib/site-url";
 import { repgetOfferEnabled } from "@/lib/billing/repget-offer";
 
 /**
@@ -61,17 +63,22 @@ export default async function LocalisedHomePage({
   const freeCounter = await getFreePlanCounter().catch(() => null);
   // Keeps every in-page link inside the reader's language.
   const href = (path: string) => localePath(locale, path);
+  const offer = repgetOfferEnabled();
 
   return (
-    <HomePageSections
-      locale={locale}
-      href={href}
-      testimonials={testimonials}
-      contentCount={contentCount}
-      plans={plans}
-      customerStories={customerStories}
-      freeCounter={freeCounter}
-      offer={repgetOfferEnabled()}
-    />
+    <>
+      {/* The English homepage's structured data, in this language (organization-schema.tsx). */}
+      <OrganizationSchema siteUrl={siteUrl()} plans={plans} offer={offer} locale={locale} />
+      <HomePageSections
+        locale={locale}
+        href={href}
+        testimonials={testimonials}
+        contentCount={contentCount}
+        plans={plans}
+        customerStories={customerStories}
+        freeCounter={freeCounter}
+        offer={offer}
+      />
+    </>
   );
 }
