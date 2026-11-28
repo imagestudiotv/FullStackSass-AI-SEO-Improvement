@@ -346,7 +346,16 @@ describe("the check-geo job, several answers per question", () => {
       expect((await job.handler({ event: { data: { websiteId, scheduled: true } }, step, logger })).checked).toBe(1);
     }
     expect((await job.handler({ event: { data: { websiteId, scheduled: true } }, step, logger })).checked).toBe(0);
-    expect((await runGeoCheck(websiteId)).ok).toBe(false);
+    const before = Date.now();
+    const refused = await runGeoCheck(websiteId);
+    expect(refused.ok).toBe(false);
+    // The window rolls: the next check is when the oldest of the last seven days ages out, about a week from now.
+    const { weeklyCapNext } = await import("@/lib/geo/shared");
+    const next = weeklyCapNext(refused.ok ? "" : refused.error);
+    expect(next).toBeInstanceOf(Date);
+    const week = 7 * 24 * 60 * 60 * 1000;
+    expect(next!.getTime()).toBeGreaterThan(before + week - 60_000);
+    expect(next!.getTime()).toBeLessThan(Date.now() + week + 60_000);
   });
 
   it("sends one run per website from the weekly cron", async () => {

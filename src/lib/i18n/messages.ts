@@ -1727,7 +1727,9 @@ export type Messages = {
       /** {count} is the plan's allowance. */
       errAllowance: string;
       errDuplicate: string;
+      /** {date}: when the next check is available (the seven days roll; not a fixed weekday). */
       errWeeklyCap: string;
+      errWeeklyCapNoDate: string;
       errRegenerateLimit: string;
       errRegenerateFailed: string;
       errAddFirst: string;
@@ -5086,7 +5088,8 @@ const en: Messages = {
       errTooShort: "Write a question of at least a few words.",
       errAllowance: "Your plan tracks up to {count} questions. Remove one to add another.",
       errDuplicate: "You are already tracking that question.",
-      errWeeklyCap: "This website's AI visibility checks for this week are used. The next one runs on Monday.",
+      errWeeklyCap: "This website's AI visibility checks for the last seven days are used. The next check is available from {date}.",
+      errWeeklyCapNoDate: "This website's AI visibility checks for the last seven days are used. Try again in a few days.",
       errRegenerateLimit: "Questions can be written again a few times a day. Please try again tomorrow.",
       errRegenerateFailed: "Could not write new questions. Your questions are unchanged. Try again.",
       errAddFirst: "Add a question first.",
@@ -8299,7 +8302,8 @@ const es: Messages = {
       errTooShort: "Escriba una pregunta de al menos unas pocas palabras.",
       errAllowance: "Su plan sigue hasta {count} preguntas. Elimine una para añadir otra.",
       errDuplicate: "Ya está siguiendo esa pregunta.",
-      errWeeklyCap: "Ya se han usado las comprobaciones de visibilidad en IA de este sitio para esta semana. La próxima se hace el lunes.",
+      errWeeklyCap: "Ya se han usado las comprobaciones de visibilidad en IA de este sitio de los últimos siete días. La próxima comprobación estará disponible a partir del {date}.",
+      errWeeklyCapNoDate: "Ya se han usado las comprobaciones de visibilidad en IA de este sitio de los últimos siete días. Vuelva a intentarlo en unos días.",
       errRegenerateLimit: "Las preguntas se pueden escribir de nuevo unas pocas veces al día. Inténtelo de nuevo mañana.",
       errRegenerateFailed: "No se pudieron escribir preguntas nuevas. Sus preguntas no han cambiado. Inténtelo de nuevo.",
       errAddFirst: "Añada primero una pregunta.",
@@ -11514,7 +11518,8 @@ const fr: Messages = {
       errTooShort: "Écrivez une question d’au moins quelques mots.",
       errAllowance: "Votre offre suit jusqu’à {count} questions. Retirez-en une pour en ajouter une autre.",
       errDuplicate: "Vous suivez déjà cette question.",
-      errWeeklyCap: "Les vérifications de visibilité IA de ce site pour cette semaine sont utilisées. La prochaine a lieu lundi.",
+      errWeeklyCap: "Les vérifications de visibilité IA de ce site des sept derniers jours sont utilisées. La prochaine vérification sera possible à partir du {date}.",
+      errWeeklyCapNoDate: "Les vérifications de visibilité IA de ce site des sept derniers jours sont utilisées. Réessayez dans quelques jours.",
       errRegenerateLimit: "Les questions peuvent être réécrites quelques fois par jour. Réessayez demain.",
       errRegenerateFailed: "Impossible de rédiger de nouvelles questions. Vos questions sont inchangées. Réessayez.",
       errAddFirst: "Ajoutez d’abord une question.",
@@ -14727,7 +14732,8 @@ const it: Messages = {
       errTooShort: "Scriva una domanda di almeno qualche parola.",
       errAllowance: "Il suo piano segue fino a {count} domande. Ne rimuova una per aggiungerne un’altra.",
       errDuplicate: "Sta già seguendo questa domanda.",
-      errWeeklyCap: "I controlli di visibilità AI di questo sito per questa settimana sono esauriti. Il prossimo si esegue lunedì.",
+      errWeeklyCap: "I controlli di visibilità AI di questo sito degli ultimi sette giorni sono esauriti. Il prossimo controllo sarà disponibile dal {date}.",
+      errWeeklyCapNoDate: "I controlli di visibilità AI di questo sito degli ultimi sette giorni sono esauriti. Riprovi tra qualche giorno.",
       errRegenerateLimit: "Le domande si possono riscrivere poche volte al giorno. Riprovi domani.",
       errRegenerateFailed: "Non è stato possibile scrivere nuove domande. Le sue domande non sono cambiate. Riprovi.",
       errAddFirst: "Aggiunga prima una domanda.",
@@ -17938,7 +17944,8 @@ const de: Messages = {
       errTooShort: "Schreiben Sie eine Frage aus mindestens ein paar Wörtern.",
       errAllowance: "Ihr Tarif verfolgt bis zu {count} Fragen. Entfernen Sie eine, um eine andere hinzuzufügen.",
       errDuplicate: "Sie verfolgen diese Frage bereits.",
-      errWeeklyCap: "Die KI-Sichtbarkeitsprüfungen dieser Website für diese Woche sind aufgebraucht. Die nächste läuft am Montag.",
+      errWeeklyCap: "Die KI-Sichtbarkeitsprüfungen dieser Website der letzten sieben Tage sind aufgebraucht. Die nächste Prüfung ist ab {date} möglich.",
+      errWeeklyCapNoDate: "Die KI-Sichtbarkeitsprüfungen dieser Website der letzten sieben Tage sind aufgebraucht. Versuchen Sie es in ein paar Tagen erneut.",
       errRegenerateLimit: "Fragen können nur wenige Male am Tag neu geschrieben werden. Bitte versuchen Sie es morgen wieder.",
       errRegenerateFailed: "Es konnten keine neuen Fragen geschrieben werden. Ihre Fragen sind unverändert. Bitte versuchen Sie es erneut.",
       errAddFirst: "Fügen Sie zuerst eine Frage hinzu.",

@@ -6,8 +6,8 @@ import {
   questionsStillChecking,
   type CheckBaseline,
 } from "@/lib/geo/progress";
-import { REGENERATE_FAILED_ERROR, REGENERATE_LIMIT_ERROR, WEEKLY_CAP_ERROR, type GeoPromptView } from "@/lib/geo/shared";
-import { format } from "@/lib/i18n/format";
+import { REGENERATE_FAILED_ERROR, REGENERATE_LIMIT_ERROR, weeklyCapNext, type GeoPromptView } from "@/lib/geo/shared";
+import { format, formatDate } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
 import { FREE_ARTICLES_ONLY, FREE_ARTICLES_ONLY_PAYPAL } from "@/lib/plans/features";
 
@@ -447,6 +447,11 @@ export const isAllowanceError = (error: string) => /^Your plan tracks up to \d+ 
  * unknown message is shown as written rather than replaced by a vaguer one.
  */
 export function localiseGeoError(error: string, t: GeoText, tw: WorkspaceText, locale?: Locale): string {
+  // The weekly cap carries when the next check is available, shown in the reader's time zone.
+  const next = weeklyCapNext(error);
+  if (next !== undefined) {
+    return next ? format(t.errWeeklyCap, { date: formatDate(next, locale ?? "en", { dateStyle: "long", timeStyle: "short" }) }) : t.errWeeklyCapNoDate;
+  }
   switch (error) {
     case "You have view-only access to this website.":
       return tw.viewOnly;
@@ -472,8 +477,6 @@ export function localiseGeoError(error: string, t: GeoText, tw: WorkspaceText, l
       return t.errTooShort;
     case "You are already tracking that question":
       return t.errDuplicate;
-    case WEEKLY_CAP_ERROR:
-      return t.errWeeklyCap;
     case REGENERATE_LIMIT_ERROR:
       return t.errRegenerateLimit;
     case REGENERATE_FAILED_ERROR:

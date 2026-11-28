@@ -103,8 +103,29 @@ export const MAX_PROMPTS = Math.max(...Object.values(PROMPTS_BY_TIER));
 /** Longest question we will store. */
 export const MAX_PROMPT_LENGTH = 300;
 
-/** runGeoCheck's refusal when the website's checks for the week are used (lib/geo/check-limits.ts). */
-export const WEEKLY_CAP_ERROR = "This website's AI visibility checks for this week are used. The next one runs on Monday.";
+/**
+ * runGeoCheck's refusal when the website's checks for the last seven days
+ * are used (lib/geo/check-limits.ts). The window rolls - it is not a
+ * calendar week, and the Monday run takes a slot like a press - so the
+ * refusal carries the moment the next check is available (weeklyCapError)
+ * rather than promising "Monday" (review of 2026-11-28).
+ */
+export const WEEKLY_CAP_ERROR = "This website's AI visibility checks for the last seven days are used.";
+const NEXT_CHECK = " The next check is available from ";
+
+/** The refusal, with when the next check is available when that is known. */
+export function weeklyCapError(next: Date | null): string {
+  return next ? `${WEEKLY_CAP_ERROR}${NEXT_CHECK}${next.toISOString()}.` : WEEKLY_CAP_ERROR;
+}
+
+/** Reads weeklyCapError back: undefined when `error` is not it, null when it carries no time. */
+export function weeklyCapNext(error: string): Date | null | undefined {
+  if (!error.startsWith(WEEKLY_CAP_ERROR)) return undefined;
+  const at = error.slice(WEEKLY_CAP_ERROR.length).startsWith(NEXT_CHECK)
+    ? new Date(error.slice(WEEKLY_CAP_ERROR.length + NEXT_CHECK.length).replace(/\.$/, ""))
+    : null;
+  return at && !Number.isNaN(at.getTime()) ? at : null;
+}
 /** regenerateGeoPrompts' refusals. */
 export const REGENERATE_LIMIT_ERROR = "Questions can be written again a few times a day. Please try again tomorrow.";
 export const REGENERATE_FAILED_ERROR = "Could not write new questions. Your questions are unchanged. Try again.";

@@ -16,7 +16,7 @@ import {
   MAX_PROMPT_LENGTH,
   REGENERATE_FAILED_ERROR,
   REGENERATE_LIMIT_ERROR,
-  WEEKLY_CAP_ERROR,
+  weeklyCapError,
   type GeoOverview,
   type GeoPromptView,
 } from "@/lib/geo/shared";
@@ -25,6 +25,7 @@ import { requireEditor } from "@/lib/websites/require-editor";
 import type { ActionResult } from "@/lib/websites/actions";
 import { isEntitledToSpend } from "@/lib/billing/entitled";
 import { reserveAndQueue } from "@/lib/jobs/outbox";
+import { nextFreeSlotAt } from "@/lib/billing/spend-quota";
 import { calendarMonth } from "@/lib/billing/entitlement-period";
 import { FREE_PLAN, freePlanMessage } from "@/lib/plans/free-plan";
 import { freePlanSnapshotsThisMonth, isFreePlanWebsite } from "@/lib/plans/free-plan-server";
@@ -354,7 +355,9 @@ export async function runGeoCheck(
   );
   if (!slot.ok) {
     if (slot.rule?.key.startsWith("geo-check:week:")) {
-      return { ok: false, error: WEEKLY_CAP_ERROR };
+      // When the oldest check of the last seven days ages out: the window rolls, it is not "Monday".
+      const next = await nextFreeSlotAt(weeklyCheckRule(site.id)).catch(() => null);
+      return { ok: false, error: weeklyCapError(next) };
     }
     return {
       ok: false,

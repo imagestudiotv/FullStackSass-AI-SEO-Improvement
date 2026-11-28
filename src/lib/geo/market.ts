@@ -43,7 +43,22 @@ export function questionLanguage(language: string | null | undefined): string {
   if (!value) return "English";
   const known = normalizeLanguage(value);
   if (known) return known;
+  // A language code RepGet does not list ("uk", "pt-BR"): its English name, never "Uk".
+  const coded = languageFromCode(value);
+  if (coded) return coded;
   return looksLikeLanguage(value) ? value.charAt(0).toUpperCase() + value.slice(1) : "English";
+}
+
+/** "uk" -> "Ukrainian", "pt-BR" -> "Portuguese"; null when it is not a code Intl can name. */
+function languageFromCode(value: string): string | null {
+  if (!/^[a-z]{2,3}(?:[-_][a-z]{2,4})?$/i.test(value)) return null;
+  try {
+    const base = value.split(/[-_]/)[0].toLowerCase();
+    const name = new Intl.DisplayNames(["en"], { type: "language", fallback: "none" }).of(base);
+    return name && name.toLowerCase() !== base ? name.charAt(0).toUpperCase() + name.slice(1) : null;
+  } catch {
+    return null;
+  }
 }
 
 let byName: Map<string, string> | null = null;

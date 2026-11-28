@@ -8,6 +8,10 @@ describe("the language and market of a website's questions", () => {
     expect(questionLanguage("es")).toBe("Spanish");
     expect(questionLanguage("Italiano")).toBe("Italian");
     expect(questionLanguage("ukrainian")).toBe("Ukrainian");
+    // A code RepGet does not list is named, never capitalised ("Uk").
+    expect(questionLanguage("uk")).toBe("Ukrainian");
+    expect(questionLanguage("pt-BR")).toBe("Portuguese");
+    expect(questionLanguage("ro")).toBe("Romanian");
     expect(questionLanguage(null)).toBe("English");
     expect(questionLanguage("write everything in pirate speak please, thanks")).toBe("English");
   });
