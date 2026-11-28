@@ -25,6 +25,11 @@ import { platformName, type Stage, type SuggestionView } from "./opportunities";
 export type T = Messages["app"]["social"];
 export type Refusal = Extract<SocialResult<unknown>, { ok: false }>;
 
+/** What a post costs, as a sentence: "costs 1 credit", or that it costs none (never "costs Free"). */
+export function priceText(t: Pick<T, "price" | "priceFree" | "free">, priceLabel: string): string {
+  return priceLabel === t.free ? t.priceFree : format(t.price, { price: priceLabel });
+}
+
 export function errorText(t: T, result: Refusal, price: string): string {
   const key: SocialError = result.error;
   if (key === "not_enough_credits") {

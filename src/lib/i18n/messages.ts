@@ -2871,6 +2871,8 @@ export type Messages = {
       failed: string;
       failedCredits: string;
       price: string;
+      /** In place of `price` when posting costs no credit (price 0, or the Free plan's monthly posts): never "costs Free". */
+      priceFree: string;
       free: string;
       connectedNotice: string;
       notConnectedNotice: string;
@@ -6082,6 +6084,7 @@ const en: Messages = {
       failed: "Not published: {reason}",
       failedCredits: "Not published: not enough credits. Buy credits, then post it with one click.",
       price: "Each post or reply costs {price}.",
+      priceFree: "Posts and replies cost no credits.",
       free: "Free",
       connectedNotice: "{platform} is connected. Your first suggestions are on their way.",
       notConnectedNotice: "{platform} was not connected. Please try again.",
@@ -9271,6 +9274,7 @@ const es: Messages = {
       failed: "No publicado: {reason}",
       failedCredits: "No publicado: créditos insuficientes. Compre créditos y publíquelo con un clic.",
       price: "Cada publicación o respuesta cuesta {price}.",
+      priceFree: "Las publicaciones y respuestas no cuestan créditos.",
       free: "Gratis",
       connectedNotice: "{platform} está conectado. Sus primeras sugerencias están en camino.",
       notConnectedNotice: "No se conectó {platform}. Inténtelo de nuevo.",
@@ -12460,6 +12464,7 @@ const fr: Messages = {
       failed: "Non publié : {reason}",
       failedCredits: "Non publié : crédits insuffisants. Achetez des crédits, puis publiez-le en un clic.",
       price: "Chaque publication ou réponse coûte {price}.",
+      priceFree: "Les publications et les réponses ne coûtent aucun crédit.",
       free: "Gratuit",
       connectedNotice: "{platform} est connecté. Vos premières suggestions arrivent.",
       notConnectedNotice: "{platform} n’a pas été connecté. Veuillez réessayer.",
@@ -15649,6 +15654,7 @@ const it: Messages = {
       failed: "Non pubblicato: {reason}",
       failedCredits: "Non pubblicato: crediti insufficienti. Acquisti crediti, poi lo pubblichi con un clic.",
       price: "Ogni post o risposta costa {price}.",
+      priceFree: "Post e risposte non costano crediti.",
       free: "Gratis",
       connectedNotice: "{platform} è collegato. I primi suggerimenti stanno arrivando.",
       notConnectedNotice: "{platform} non è stato collegato. Riprovi.",
@@ -18834,6 +18840,7 @@ const de: Messages = {
       failed: "Nicht veröffentlicht: {reason}",
       failedCredits: "Nicht veröffentlicht: nicht genug Credits. Kaufen Sie Credits und posten Sie ihn dann mit einem Klick.",
       price: "Jeder Beitrag und jede Antwort kostet {price}.",
+      priceFree: "Beiträge und Antworten kosten keine Credits.",
       free: "Kostenlos",
       connectedNotice: "{platform} ist verbunden. Ihre ersten Vorschläge sind unterwegs.",
       notConnectedNotice: "{platform} wurde nicht verbunden. Bitte versuchen Sie es erneut.",

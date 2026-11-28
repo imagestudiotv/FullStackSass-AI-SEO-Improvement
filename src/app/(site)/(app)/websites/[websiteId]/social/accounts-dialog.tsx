@@ -16,7 +16,7 @@ import { setPinterestBoard, setSocialAutoPost, type SocialResult } from "@/lib/s
 import { PLATFORMS, profileUrl, SOCIAL_PLATFORMS, type SocialPlatform } from "@/lib/social/platforms";
 
 import type { AccountView } from "./opportunities";
-import { PlatformTile, type T } from "./social-shared";
+import { PlatformTile, priceText, type T } from "./social-shared";
 
 type Run = (action: () => Promise<SocialResult<unknown>>, options?: { success?: string }) => void;
 
@@ -66,7 +66,7 @@ export function AccountsDialog({
           ))}
         </ul>
         <DialogFooter className="sm:items-center sm:justify-between">
-          <p className="text-xs text-muted-foreground">{format(t.price, { price: props.priceLabel })}</p>
+          <p className="text-xs text-muted-foreground">{priceText(t, props.priceLabel)}</p>
           <DialogClose asChild>
             <Button>{t.done}</Button>
           </DialogClose>

@@ -253,6 +253,13 @@ describe("the Opportunities page", () => {
     expect(html).not.toContain("· Free</span>");
   });
 
+  it.each(LOCALES)("%s: says posts cost no credits where they are free (a trial, the Free plan), never \"costs Free\"", (locale) => {
+    const t = getMessages(locale).app.social;
+    const html = render({ priceLabel: t.free }, locale);
+    expect(html).toContain(t.priceFree.replace(/'/g, "&#x27;"));
+    expect(html).not.toContain(t.price.replace("{price}", t.free));
+  });
+
   it("needs no account: a new website is told so, with Find suggestions first and Connect as an option", () => {
     const html = render({ accounts: [], open: [], posted: [] });
     expect(html).toContain("RepGet writes your first suggestions from your website&#x27;s information.");
@@ -299,7 +306,7 @@ describe("the Free plan's allowance under the list (8 social posts a month, a ha
   it("drops the day's count once the month's drafts are used up, and the finder with it", () => {
     const t = getMessages("en").app.social;
     const html = render({ freeMonth: { posts: 8, postsMax: 8, draftsLeft: 0 }, priceLabel: t.free });
-    expect(html).toContain("8 of 8 posts this month · Each post or reply costs");
+    expect(html).toContain("8 of 8 posts this month · Posts and replies cost no credits.");
     expect(html).not.toContain("4 of 10 today");
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*>(?:(?!<\/button>).)*Find suggestions/);
   });

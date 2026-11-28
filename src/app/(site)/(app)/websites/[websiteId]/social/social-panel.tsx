@@ -34,7 +34,7 @@ import {
 } from "./opportunities";
 import { PlatformGroups } from "./platform-groups";
 import { headline, ReviewSheet } from "./review-sheet";
-import { atTime, CopyTextButton, useSocialAction, type T } from "./social-shared";
+import { atTime, CopyTextButton, priceText, useSocialAction, type T } from "./social-shared";
 
 /**
  * The Opportunities page (client, 2026-10-27; redesigned from the client's
@@ -328,10 +328,10 @@ export function SocialPanel(props: {
  */
 function usageLine(
   props: { todayCount: number; perDay: number; freeMonth?: { posts: number; postsMax: number; draftsLeft: number } | null; priceLabel: string },
-  t: Pick<T, "todayCount" | "freeMonthPosts" | "price">,
+  t: Pick<T, "todayCount" | "freeMonthPosts" | "price" | "priceFree" | "free">,
 ): string {
   const today = format(t.todayCount, { count: String(props.todayCount), max: String(props.perDay) });
-  const price = format(t.price, { price: props.priceLabel });
+  const price = priceText(t, props.priceLabel);
   if (!props.freeMonth) return `${today} · ${price}`;
   const month = format(t.freeMonthPosts, { count: String(Math.min(props.freeMonth.posts, props.freeMonth.postsMax)), max: String(props.freeMonth.postsMax) });
   return props.freeMonth.draftsLeft > 0 ? `${month} · ${today} · ${price}` : `${month} · ${price}`;
